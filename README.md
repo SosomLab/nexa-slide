@@ -49,6 +49,7 @@ nexa-slide/
 │   ├─ watch_requests.py   요청 감시 → Claude 세션 전달        ├─ render_pptx.ps1          PowerPoint 렌더(Windows)
 │   ├─ compare.py · check_parity.py   일치 검증                └─ install_fonts.ps1        OFL 글꼴 설치(Windows)
 │   ├─ service.py · status.py   서비스 시작·중지·상태(작업 공간별 포트)
+│   ├─ check_layout.py      레이아웃 검사 — 겹침·넘침·최소 글자(pt)·슬라이드 밖·고정폭 정렬
 │   └─ set_fonts.py · gen_tokens_css.py · render_mermaid.py
 ├─ example/                예제 작업 공간(nexa-slide.json · content · decks · 자리 표시 로고)
 └─ docs/                   설치 · 설정 · 서버 · 운영 · 세션 연결 · 덱 형식 · 편집기

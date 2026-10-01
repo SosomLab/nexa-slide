@@ -51,6 +51,7 @@ python3 studio/server.py  --workspace <작업 공간> [--port N | --port auto] [
 | `GET /api/config` | 작업 공간 이름·경로(`path`)·포트·제목·브랜드(로고·워드마크·파비콘·로고 비율) |
 | `GET /api/session` | Claude 세션 연결 상태 `{connected, label, mode, last_seen, age, open, working}` |
 | `POST /api/flush/<id>` | "지금 보내기" — 감시 스크립트가 대기 없이 열린 요청을 바로 전달 |
+| `GET /api/check/<id>` | 레이아웃 검사 결과 `{issues[{rule, severity, slide, n, elements, box, message, detail}], errors, warnings, minFontPt}` |
 
 ## 요청 메모 파일
 

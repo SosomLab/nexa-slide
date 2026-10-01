@@ -32,6 +32,7 @@
 | `brand.favicon` | — | 편집기 파비콘 |
 | `partLabels` | `Part 1`·`Part 2`·`Part 3`·`Appendix` | 부(`day1`/`day2`/`day3`/`apx`) 칩 이름 |
 | `coverBadge` | `Presentation` | 표지 배지 기본 문구(content 의 `badge` 가 우선) |
+| `check` | `{}` | 레이아웃 검사 기준 — `minFontPt`(역할별 최소 pt, 기본 default 9·footnotes 7), `ignore`(규칙 id 목록), `ignoreSlides`(덱별 슬라이드 id) — [operation.md](operation.md#레이아웃-검사) |
 | `endNextNote` | `""` | 문서 끝(EoD) "다음 순서" 칩 뒤에 붙일 설명(예: `"  (장 번호가 아니라 교육 순서)"`) |
 
 예 — 교재 저장소의 `ppt/` 를 작업 공간으로, 그림 경로는 저장소 루트 기준:

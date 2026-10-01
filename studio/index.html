@@ -54,6 +54,15 @@
   /* 마우스를 올린 버튼만 색으로 강조 — 복제 = 안전(녹색), 삭제 = 위험(CI 적색) */
   .thumb .tools button[data-act="dup"]:hover { background: var(--okc); color: var(--ok); font-weight: 700; }
   .thumb .tools button[data-act="del"]:hover { background: var(--p); color: #fff; font-weight: 700; }
+  .thumb .cbadge { position: absolute; right: 6px; bottom: 6px; background: #FFDEA6; color: #7D5700; border-radius: 999px; font-size: 11px; padding: 0 7px; font-weight: 700; }
+  .thumb .cbadge.err { background: #BA1A1A; color: #fff; }
+  .chk { background: var(--tone); border-radius: 12px; padding: 8px 10px; margin-bottom: 6px; cursor: pointer; }
+  .chk:hover { background: var(--tone2); }
+  .chk .sev { border-radius: 999px; padding: 0 8px; font-weight: 700; font-size: 11px; }
+  .chk .sev.ERROR { background: #BA1A1A; color: #fff; } .chk .sev.WARNING { background: #FFDEA6; color: #7D5700; }
+  .chk .rule { font-family: Consolas, monospace; font-size: 11px; color: var(--ink2); }
+  .chk .msg { margin-top: 3px; white-space: pre-wrap; word-break: break-all; }
+  #ov .chkbox { position: absolute; border: 2px dashed #BA1A1A; background: rgba(186, 26, 26, .08); pointer-events: none; }
   .thumb .badge { position: absolute; left: 6px; bottom: 6px; background: var(--p); color: #fff; border-radius: 999px; font-size: 11px; padding: 0 7px; }
   .thumb.drop-before::before { content: ""; position: absolute; left: 0; right: 0; top: -7px; height: 3px; background: var(--p); border-radius: 2px; }
   .thumb.drop-after::after { content: ""; position: absolute; left: 0; right: 0; bottom: -7px; height: 3px; background: var(--p); border-radius: 2px; }
@@ -187,9 +196,11 @@
     <div class="tabs">
       <button class="chip on" data-tab="props">속성</button>
       <button class="chip" data-tab="reqs">요청 <span class="cnt" id="reqCnt" style="display:none"></span></button>
+      <button class="chip" data-tab="check" title="겹침·넘침·최소 글자·슬라이드 밖·고정폭 정렬 — 저장할 때마다 다시 검사">검사 <span class="cnt" id="chkCnt" style="display:none"></span></button>
     </div>
     <div class="panel on" id="tab-props"></div>
     <div class="panel" id="tab-reqs"></div>
+    <div class="panel" id="tab-check"></div>
   </aside>
 </main>
 <div id="toast"></div>
