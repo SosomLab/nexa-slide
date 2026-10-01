@@ -5,6 +5,9 @@
     python3 studio/watch_requests.py --workspace <작업 공간>            # 1회: 요청이 생기면 출력하고 끝(이전 방식)
     옵션: --quiet 8 (마지막 변경 뒤 조용히 기다릴 초) · --interval 1 (확인 주기 초) · --label <세션 이름>
           --force (이 작업 공간을 이미 다른 감시가 맡고 있어도 시작 — 기본은 거부)
+          --takeover (살아 있는 이전 감시를 끝내고 넘겨받기 — Monitor 를 다시 걸 때)
+          --ttl 1780 (이 초가 지나면 {"event":"ttl"} 한 줄을 내고 스스로 끝남. --stream 기본 1780 = Monitor 최대 30분보다 조금 짧게.
+                      Monitor 가 만료되면 셸만 끝나고 python 이 남아 하트비트만 쓰는 "가짜 연결"을 막는다. 0 = 끝없이)
 
 작업 공간 하나 = 감시 하나 = 세션 하나. 작업 공간(폴더·저장소)마다 그곳에서 연 Claude 세션이 자기 감시를 띄운다.
 같은 작업 공간에 살아 있는 감시가 있으면 시작을 거부한다(같은 요청이 두 세션에 가지 않게).
@@ -93,6 +96,19 @@ def session_status():
     return st
 
 
+def _kill(pid):
+    """이전 감시 프로세스를 끝낸다(Windows 는 taskkill /F, 그 밖은 SIGTERM)."""
+    try:
+        if os.name == "nt":
+            import subprocess
+            subprocess.run(["taskkill", "/PID", str(pid), "/F"], capture_output=True)
+        else:
+            import signal
+            os.kill(int(pid), signal.SIGTERM)
+    except Exception:  # noqa: BLE001 — 이미 끝났으면 그만
+        pass
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--stream", action="store_true", help="끝나지 않고 요청 묶음마다 JSON 한 줄을 출력")
@@ -100,9 +116,16 @@ def main():
     ap.add_argument("--interval", type=float, default=1.0)
     ap.add_argument("--label", default=os.environ.get("NEXA_SLIDE_SESSION", "Claude Code"))
     ap.add_argument("--force", action="store_true", help="다른 감시가 살아 있어도 시작")
+    ap.add_argument("--takeover", action="store_true", help="살아 있는 이전 감시를 끝내고 넘겨받는다")
+    ap.add_argument("--ttl", type=float, default=None, help="이 초 뒤 스스로 끝남(--stream 기본 1780, 0=끝없이)")
     a = ap.parse_args()
     sys.stdout.reconfigure(encoding="utf-8")
     cur = session_status()
+    if cur["connected"] and cur["pid"] not in (None, os.getpid()) and a.takeover:
+        _kill(cur["pid"])
+        time.sleep(0.5)
+        cur = session_status()
+        cur["connected"] = False  # 넘겨받음
     if cur["connected"] and cur["pid"] != os.getpid() and not a.force:
         # 표준 출력 = Monitor 알림이므로 거부 사유를 한 줄 이벤트로 남기고 끝낸다
         print(json.dumps({"event": "refused", "reason": "already-watched", "pid": cur["pid"], "label": cur["label"],
@@ -111,6 +134,8 @@ def main():
 
     hb = {"pid": os.getpid(), "label": a.label, "mode": "stream" if a.stream else "once",
           "interval": a.interval, "started": _now()}
+    ttl = a.ttl if a.ttl is not None else (1780 if a.stream else 0)
+    t_end = time.time() + ttl if ttl else None
     emitted = {}  # 요청 id → 내보낸 내용 키
     last_key, since = None, None
     flush_seen = FLUSH.stat().st_mtime_ns if FLUSH.exists() else 0
@@ -150,6 +175,10 @@ def main():
                 else:
                     print(json.dumps(batch, ensure_ascii=False, indent=1), flush=True)
                     return
+            if t_end and time.time() >= t_end:
+                print(json.dumps({"event": "ttl", "seconds": ttl, "message": "감시 시간이 끝나 스스로 종료 — 같은 명령으로 다시 건다"},
+                                 ensure_ascii=False), flush=True)
+                return
             time.sleep(a.interval)
     except KeyboardInterrupt:
         pass

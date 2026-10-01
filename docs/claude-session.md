@@ -20,13 +20,16 @@ Claude Code 의 **Monitor** 도구로 상시 스트림을 건다. 표준 출력 
 
 ```
 Monitor
-  command:     python3 <엔진>/studio/watch_requests.py --workspace <작업 공간> --stream --label "<세션 이름>"
+  command:     python3 <엔진>/studio/watch_requests.py --workspace <작업 공간> --stream --takeover --label "<세션 이름>"
   description: nexa-slide 요청 (<작업 공간>)
-  timeout_ms:  1800000          # 최대 30분 — 만료 알림이 오면 같은 명령으로 다시 건다
+  timeout_ms:  1800000          # 최대 30분 — {"event":"ttl"} 또는 만료 알림이 오면 같은 명령으로 다시 건다
 ```
 
 실행기를 쓰는 저장소라면 `python3 <작업 공간>/nexa.py watch_requests --stream`.
 
+- `--stream` 은 기본 **1780초(`--ttl`) 뒤 스스로 끝나며** `{"event": "ttl"}` 한 줄을 낸다. Monitor 가 만료되면 셸만 끝나고
+  python 이 남아 하트비트만 쓰는 "가짜 연결"(편집기는 연결됨인데 요청이 어디에도 가지 않음)이 생기기 때문이다(Windows 실측).
+- `--takeover`: 같은 작업 공간에 살아 있는 이전 감시(위와 같이 남은 것 포함)를 끝내고 넘겨받는다. 다시 걸 때 붙여 둔다.
 - Monitor 를 쓸 수 없는 환경: 1회 모드(`--stream` 없이)를 Bash 백그라운드로 실행한다. 요청이 생기면 목록을 출력하고 끝나므로, 처리 후 다시 건다.
 - 세션을 닫거나 Monitor 가 만료되면 하트비트가 끊겨 편집기에 몇 초 안에 "세션 연결 없음"이 뜬다. 그동안 남긴 요청은 파일에 남아 있다가 다음 감시 때 전달된다.
 
