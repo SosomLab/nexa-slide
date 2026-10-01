@@ -1,6 +1,7 @@
 {
   "port": 5601,
   "title": "nexa-slide 예제",
+  "template": "lecture",
   "assetRoot": ".",
   "content": "content",
   "decks": "decks",
@@ -11,6 +12,11 @@
     "wordmark": "assets/brand/wordmark.png",
     "favicon": "assets/brand/favicon.png"
   },
-  "partLabels": {"day1": "1부 · 기초", "day2": "2부 · 응용", "day3": "3부 · 실전", "apx": "부록"},
+  "partLabels": {
+    "day1": "1부 · 기초",
+    "day2": "2부 · 응용",
+    "day3": "3부 · 실전",
+    "apx": "부록"
+  },
   "coverBadge": "nexa-slide 예제"
 }

@@ -103,10 +103,72 @@ def server_port(default=None):
     """이 작업 공간에서 실행 중인 서버 포트, 없으면 설정 포트."""
     run = running_server()
     return int(run["port"]) if run else (default or DEFAULT_PORT)
-# 디자인 토큰: 작업 공간에 tokens.json 이 있으면 그것, 없으면 엔진 기본값
-TOKENS = _ws_path("tokens", "tokens.json")
-if not TOKENS.is_file():
-    TOKENS = STUDIO / "tokens.json"
+# ---------- 템플릿 — 디자인(색·글꼴·크기·검사 기준·디자인 기준 문서)은 엔진의 templates/<이름>/ 에 있고,
+#            작업 공간은 nexa-slide.json 의 "template"(·"fontPreset")으로 고르기만 한다 ----------
+TEMPLATES = STUDIO / "templates"
+DEFAULT_TEMPLATE = "lecture"
+
+
+def _merge(base, over):
+    out = dict(base)
+    for k, v in over.items():
+        out[k] = _merge(out[k], v) if isinstance(v, dict) and isinstance(out.get(k), dict) else v
+    return out
+
+
+def load_template(name, _seen=()):
+    """templates/<이름>/template.json — "extends" 를 따라 합친다. 경로 항목(tokens·design)은 정의한 템플릿 폴더 기준."""
+    d = TEMPLATES / name
+    f = d / "template.json"
+    if not f.is_file():
+        have = ", ".join(sorted(p.name for p in TEMPLATES.iterdir() if (p / "template.json").is_file()))
+        raise SystemExit(f"없는 템플릿: {name} — 있는 것: {have}")
+    raw = json.loads(f.read_text(encoding="utf-8"))
+    for k in ("tokens",):
+        if k in raw:
+            raw[k] = str((d / raw[k]).resolve())
+    if isinstance(raw.get("design"), dict):
+        raw["design"] = {k: str((d / v).resolve()) for k, v in raw["design"].items()}
+    base = load_template(raw["extends"], _seen + (name,)) if raw.get("extends") and raw["extends"] not in _seen else {}
+    out = _merge(base, {k: v for k, v in raw.items() if k != "extends"})
+    out["name"] = name
+    return out
+
+
+def list_templates():
+    return [{"name": p.name, "label": json.loads((p / "template.json").read_text(encoding="utf-8")).get("label", p.name)}
+            for p in sorted(TEMPLATES.iterdir()) if (p / "template.json").is_file()]
+
+
+# NEXA_SLIDE_TEMPLATE 은 미리보기·비교용 임시 덮어쓰기(설정 파일은 그대로)
+TEMPLATE = load_template(os.environ.get("NEXA_SLIDE_TEMPLATE") or CONFIG.get("template", DEFAULT_TEMPLATE))
+TOKENS = Path(TEMPLATE["tokens"])
+SIZES = TEMPLATE.get("sizes", {})
+MIN_PX = {k: v for k, v in SIZES.get("minPx", {}).items() if not k.startswith("_")}
+
+
+def fit_size(px, role=None):
+    """템플릿 최소 크기 적용 — 역할(role) 값이 있으면 그것, 없으면 default. 이미 크면 그대로(여러 번 적용해도 같음)."""
+    if px is None:
+        return px
+    lim = MIN_PX.get(role or "default", MIN_PX.get("default", 0)) or 0
+    return max(px, lim) if lim else px
+
+
+def resolve_tokens(config=None):
+    """템플릿 토큰 + 작업 공간이 고른 글꼴 프리셋(fontPreset). config 를 주면 그 설정으로(서버가 매번 새로 읽을 때)."""
+    t = json.loads(TOKENS.read_text(encoding="utf-8"))
+    preset = (config if config is not None else CONFIG).get("fontPreset")
+    if preset and preset in t.get("fontPresets", {}):
+        t["fonts"] = json.loads(json.dumps(t["fontPresets"][preset]))
+        t["fontPreset"] = preset
+    return t
+
+
+def read_config():
+    """nexa-slide.json 을 지금 다시 읽는다(서버처럼 오래 도는 프로세스용)."""
+    f = WORKSPACE / CONFIG_NAME
+    return json.loads(f.read_text(encoding="utf-8")) if f.is_file() else {}
 BRAND = {"name": "", "logo": "", "wordmark": "", "favicon": "", **CONFIG.get("brand", {})}
 
 _tokens = None
@@ -115,7 +177,7 @@ _tokens = None
 def tokens():
     global _tokens
     if _tokens is None:
-        _tokens = json.loads(TOKENS.read_text(encoding="utf-8"))
+        _tokens = resolve_tokens()
     return _tokens
 
 

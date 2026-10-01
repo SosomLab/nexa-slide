@@ -28,6 +28,7 @@ API
   GET  /api/config                   작업 공간 이름·브랜드(로고·워드마크·파비콘·로고 비율)
   GET  /api/session                  Claude 세션 연결 상태(watch_requests.py 하트비트) + 처리 중 요청 수
   POST /api/flush/<id>               "지금 보내기" — 대기 시간 없이 열린 요청을 세션에 바로 전달하라는 신호
+  GET  /api/templates                템플릿 목록과 이 작업 공간이 고른 템플릿
   GET  /api/check/<id>               레이아웃 검사(check_layout.py) — 겹침·넘침·최소 글자·슬라이드 밖·고정폭 정렬
 """
 import argparse
@@ -48,7 +49,7 @@ from urllib.parse import parse_qs, unquote, urlparse
 
 STUDIO = Path(__file__).resolve().parent
 sys.path.insert(0, str(STUDIO))
-from common import ASSET_ROOT, BRAND, CONFIG, DECKS, DEFAULT_PORT, OUT, SERVER_INFO, STATE, TOKENS, WORKSPACE, running_server, safe_id  # noqa: E402
+from common import ASSET_ROOT, BRAND, CONFIG, DECKS, DEFAULT_PORT, OUT, SERVER_INFO, STATE, TEMPLATE, WORKSPACE, list_templates, read_config, resolve_tokens, running_server, safe_id  # noqa: E402
 from watch_requests import session_status  # noqa: E402
 
 HISTORY_KEEP = 50
@@ -202,8 +203,8 @@ class H(BaseHTTPRequestHandler):
             return self.err(403, "숨김 경로")
         if parts and parts[0] == "studio":  # 엔진 파일
             root, rel = STUDIO, "/".join(parts[1:])
-            if rel == "tokens.json":
-                root, rel = TOKENS.parent, TOKENS.name
+            if rel == "tokens.json":  # 템플릿 토큰 + 작업 공간이 고른 글꼴 프리셋(매번 새로 계산)
+                return self.send_json(resolve_tokens(read_config()))
         elif parts and parts[0] == "out":  # 작업 공간 산출물
             root, rel = OUT, "/".join(parts[1:])
         else:  # 덱 그림 경로 기준 폴더
@@ -292,8 +293,12 @@ class H(BaseHTTPRequestHandler):
     def api_get_config(self, _, q):
         from layouts import LOGO, LOGO_RATIO, WORDMARK
         self.send_json({"workspace": WORKSPACE.name, "path": str(WORKSPACE), "port": self.server.server_port,
+                        "template": {"name": TEMPLATE["name"], "label": TEMPLATE.get("label", TEMPLATE["name"])},
                         "title": CONFIG.get("title", WORKSPACE.name),
                         "brand": {**BRAND, "logo": LOGO, "wordmark": WORDMARK, "logoRatio": LOGO_RATIO}})
+
+    def api_get_templates(self, _, q):
+        self.send_json({"current": TEMPLATE["name"], "templates": list_templates()})
 
     def api_get_session(self, _, q):
         self.send_json(session_status())
@@ -349,7 +354,7 @@ class H(BaseHTTPRequestHandler):
 
     # ---------- 글꼴 프리셋 ----------
     def fonts_info(self):
-        t = json.loads(TOKENS.read_text(encoding="utf-8"))
+        t = resolve_tokens(read_config())
         ps = [{"name": k, "label": f"{v['body']['latin']} · {v['mono']['latin']}" + (f" + {v['mono']['ea']}" if v['mono'].get('ea') not in (None, v['body']['ea']) else "")}
               for k, v in t.get("fontPresets", {}).items()]
         return {"ok": True, "current": t.get("fontPreset", ""), "presets": ps}

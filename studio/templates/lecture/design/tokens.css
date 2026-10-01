@@ -1,0 +1,57 @@
+/* 디자인 토큰 v2 — Material Design 3 방식의 색 역할(role).
+   PPT(python-pptx, ppt/deck_theme.py)와 같은 값을 쓴다. 값을 바꾸면 두 곳을 함께 고친다.
+   원칙: 색은 "의미"에 묶는다. 같은 의미에는 덱 전체에서 항상 같은 색을 쓴다.
+     - 브랜드·강조(필수) = CI 적색
+     - 부(Day) = 부마다 한 색 — 그 부의 모든 장·절·목차·칩에 반복
+     - 절 성격 = 이론(황색) · 실습(녹색) · 주의/안티패턴(적색 계열) · 개선(녹색) · 대응 박스(중립)
+     - 순서(단계 ①~⑦) = 단계마다 한 색 — 도식·표·범례에 같은 순서로 반복 */
+:root {
+  /* 브랜드 주색 */
+  --primary: #A91F24;            /* CI 적색 */
+  --on-primary: #FFFFFF;
+  --primary-container: #FFDAD6;
+  --on-primary-container: #410004;
+
+  /* 중립 표면 */
+  --surface: #FFFFFF;
+  --surface-dim: #F7F5F5;         /* 시안 T의 배경 */
+  --surface-container: #F2EFEF;   /* 카드 */
+  --surface-container-high: #ECE8E8;
+  --on-surface: #1F1B1B;          /* 본문 */
+  --on-surface-variant: #534343;  /* 보조 글 */
+  --outline-variant: #D8C2C0;     /* 필요한 곳에만 쓰는 옅은 선 */
+  --ci-gray: #999999;
+  --ci-dark: #333333;
+
+  /* 부(Day) — 같은 부의 모든 요소에 반복 */
+  --day1: #00696E;  --day1-container: #CCE8E9;  --on-day1-container: #002021;   /* 설계 */
+  --day2: #3B5BA9;  --day2-container: #DCE1FF;  --on-day2-container: #001550;   /* 쿼리와 옵티마이저 */
+  --day3: #6750A4;  --day3-container: #EADDFF;  --on-day3-container: #21005D;   /* 실무 종합 */
+  --apx:  #5F5E62;  --apx-container:  #E4E1E6;  --on-apx-container:  #1B1B1F;   /* 부록 */
+
+  /* 절 성격 */
+  --theory: #7D5700;   --theory-container: #FFDEA6;   /* 이론 */
+  --lab: #146C2E;      --lab-container: #C4EED0;      /* 실습 · 개선(After) */
+  --warn: var(--primary); --warn-container: var(--primary-container); /* 주의 · 안티패턴(Before) */
+
+  /* 순서(단계) — 요청 한 번의 여정 ①~⑦ 등 순서가 있는 항목 */
+  --s1: #3B5BA9; --s2: #6750A4; --s3: #A91F24; --s4: #B25E00; --s5: #7D5700; --s6: #146C2E; --s7: #00696E;
+
+  /* 코드 — DBeaver 기본 라이트 테마 근사(스크린샷 기준). 실제 값과 다르면 여기만 고친다 */
+  --code-bg: #FBFBFC; --code-gutter-bg: #F1F1F3; --code-gutter: #9A9AA3; --code-focus: #FFF4D6;
+  --code-ink: #000000;        /* 컬럼·일반 식별자 */
+  --code-kw: #000080;         /* 예약어·데이터 타입·함수(굵게) */
+  --code-tbl: #7B1FA2;        /* 테이블·CTE */
+  --code-alias: #7B1FA2;      /* 테이블 별칭(기울임) */
+  --code-colalias: #00796B;   /* AS 뒤 결과 컬럼 별칭(기울임) */
+  --code-str: #008000;        /* 문자열 리터럴 */
+  --code-num: #0000FF;        /* 숫자 */
+  --code-cm: #808080;         /* 주석 */
+  --code-bind: #A15C00;       /* 바인드 변수 (DBeaver 기본값 미확인) */
+
+  /* 모양·글꼴 (PPT: 둥근 사각형 도형, 맑은 고딕·Consolas) */
+  --r-s: 8px; --r-m: 16px; --r-l: 28px; --r-full: 999px;
+  --font: "Malgun Gothic", "맑은 고딕", "Apple SD Gothic Neo", sans-serif;
+  --mono: Consolas, "D2Coding", monospace;
+  --sw: 1280px; --sh: 720px; --pad: 64px;   /* 16:9 = 13.333in × 7.5in */
+}

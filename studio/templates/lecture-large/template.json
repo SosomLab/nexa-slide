@@ -1,0 +1,8 @@
+{
+  "extends": "lecture",
+  "label": "강의 교재 — 큰 글자(일괄 확대)",
+  "description": "lecture 와 같은 색·글꼴·배치에서 빌드할 때 글자를 역할별 최소 크기로 일괄 확대한다(본문 15px · 각주 11px · 경로·쪽번호 12px). 상자 크기는 그대로라 촘촘한 도식(시퀀스 등)은 넘칠 수 있다 — 검사 탭으로 확인할 것.",
+  "sizes": {
+    "minPx": {"default": 15, "footnotes": 11, "crumb": 12, "page": 12}
+  }
+}

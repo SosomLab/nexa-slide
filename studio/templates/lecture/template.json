@@ -1,0 +1,13 @@
+{
+  "label": "강의 교재 — Material v2",
+  "description": "강의·교재용 16:9 레이아웃 21종(기존 디자인 그대로). 글자 크기는 레이아웃에 정한 값을 쓰고, 레이아웃 검사는 본문 11pt · 각주 8pt · 경로·쪽번호 9pt 기준으로 알린다 — 크기 조정은 장 단위 검토에서 슬라이드별로 한다.",
+  "tokens": "tokens.json",
+  "design": {"concept": "design/concept.html", "css": "design/tokens.css"},
+  "sizes": {
+    "_comment": "minPx = 빌드할 때 글자 크기를 이 값 아래로 두지 않는다(역할별, px · 0 = 쓰지 않음). 1280×720 기준 pt = px × 0.75",
+    "minPx": {"default": 0, "footnotes": 0, "crumb": 0, "page": 0}
+  },
+  "check": {
+    "minFontPt": {"default": 11, "footnotes": 8, "crumb": 9, "page": 9}
+  }
+}

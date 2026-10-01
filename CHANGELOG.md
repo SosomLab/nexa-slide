@@ -1,5 +1,17 @@
 # 변경 이력
 
+## 0.4.0 — 2026-10-01 · 디자인 템플릿
+
+- `studio/templates/<이름>/`(template.json · tokens.json · design/) — 색·글꼴·글자 크기·검사 기준·디자인 기준 문서를 템플릿으로 묶음.
+  - `lecture`(기본): 기존 디자인·크기 그대로(0.3 까지와 결과 동일 확인), 검사 기준 11·8·9pt — 크기 조정은 장 단위 검토에서
+  - `lecture-large`: 글자만 일괄 확대(본문 15px · 각주 11px · 경로·쪽번호 12px) — 선택 사항
+  - 원칙: 기능(검사·세션 연결·템플릿)은 Genspark 등에서 차용하되 구성·디자인은 기존 형태 유지
+- 작업 공간은 선택만: `template`·`fontPreset`. 작업 공간 `tokens.json`·`designCss`·`check.minFontPt` 는 더 쓰지 않는다(`check` 는 ignore·ignoreSlides 만).
+  - 글꼴 선택(`set_fonts.py`·편집기)은 `nexa-slide.json` 의 `fontPreset` 을 바꾼다
+  - `/studio/tokens.json` 은 템플릿 + 선택을 매번 계산해 준다. `GET /api/templates`
+  - `NEXA_SLIDE_TEMPLATE` 로 설정을 바꾸지 않고 미리보기
+- 디자인 기준 문서(concept.html·tokens.css)를 템플릿으로 옮기고 회사 로고·문구를 자리 표시로 바꿈.
+
 ## 0.3.0 — 2026-10-01 · 레이아웃 검사
 
 - `check_layout.py` + `GET /api/check/<id>` + 편집기 "검사" 탭(저장마다 자동 · 항목 클릭 = 요소로 이동·영역 표시 · 썸네일 ⚠ 배지).

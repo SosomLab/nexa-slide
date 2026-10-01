@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """tokens.json(단일 원본) ↔ 디자인 기준 tokens.css 값 일치 확인·생성.
 
-대상 CSS 는 작업 공간 nexa-slide.json 의 "designCss"(작업 공간 기준 경로). 없으면 할 일이 없으므로 알리고 끝낸다.
+대상 CSS 는 고른 템플릿의 design.css(templates/<이름>/design/tokens.css). 없으면 할 일이 없으므로 알리고 끝낸다.
 
     python3 studio/gen_tokens_css.py            # 확인만: 색·반경 값이 다르면 목록을 보이고 종료 코드 1
     python3 studio/gen_tokens_css.py --write    # tokens.css 의 --이름: 값 을 tokens.json 값으로 바꿔 쓴다(주석·배치 유지),
@@ -17,15 +17,15 @@ from pathlib import Path
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 STUDIO = Path(__file__).resolve().parent
 sys.path.insert(0, str(STUDIO))
-from common import CONFIG, TOKENS, WORKSPACE  # noqa: E402
+from common import TEMPLATE, resolve_tokens  # noqa: E402
 
-CSS = (WORKSPACE / CONFIG["designCss"]).resolve() if CONFIG.get("designCss") else None
+CSS = Path(TEMPLATE["design"]["css"]) if TEMPLATE.get("design", {}).get("css") else None
 STUDIO_ONLY = {"on-lab-container", "white"}
 DECL = re.compile(r"--([\w-]+)\s*:\s*([^;]+);")
 
 
 def expected():
-    t = json.loads(TOKENS.read_text(encoding="utf-8"))
+    t = resolve_tokens()
     out = {}
     for k, v in t["colors"].items():
         if k in STUDIO_ONLY:
@@ -38,7 +38,7 @@ def expected():
 
 def main():
     if CSS is None or not CSS.is_file():
-        print("designCss 가 설정되지 않았거나 파일이 없다 — nexa-slide.json 의 \"designCss\" 를 확인")
+        print(f"템플릿 {TEMPLATE['name']} 에 디자인 기준 CSS(design.css)가 없다 — 검사할 것이 없음")
         return 0
     exp = expected()
     css = CSS.read_text(encoding="utf-8")

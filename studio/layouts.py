@@ -8,7 +8,7 @@
 import copy
 import struct
 
-from common import ASSET_ROOT, BRAND, CONFIG, text_width
+from common import ASSET_ROOT, BRAND, CONFIG, fit_size, text_width
 
 W, H, PAD = 1280, 720, 64
 
@@ -46,6 +46,10 @@ class B:
 
     def add(self, el):
         el = {"id": f"e{len(self.els) + 1:02d}", **el}
+        # 템플릿 최소 글자 크기(sizes.minPx) — 역할별, 이미 크면 그대로
+        for k in ("size", "subSize"):
+            if isinstance(el.get(k), (int, float)):
+                el[k] = fit_size(el[k], el.get("role"))
         for k in ("x", "y", "w", "h"):
             if k in el:
                 el[k] = round(el[k])
@@ -63,6 +67,7 @@ class B:
         return self.add({"type": "text", "x": x, "y": y, "w": w, "h": h, "text": text, "size": size, "color": color, **kw})
 
     def pill(self, x, y, text, fill, color, size=14, h=30, padx=14, bold=True, w=None, **kw):
+        size = fit_size(size, kw.get("role"))  # 폭을 재기 전에 — 칩 폭이 커진 글자에 맞게
         if w is None:
             w = text_width(text, size, bold, kw.get("font") == "mono") + padx * 2 + 2
         return self.add({"type": "pill", "x": x, "y": y, "w": w, "h": h, "text": text, "fill": fill,
@@ -352,6 +357,7 @@ def diagram(b, f):
 def code_el(b, x, y, w, f, size=14, lh=1.6):
     """code 요소 — 높이는 표시 줄 수로 계산. 18줄을 넘으면 경고(show 로 발췌할 것)."""
     from common import code_lines, CODE_GUTTER_W
+    size = fit_size(size)
     el = {"type": "code", "x": x, "y": y, "w": w, "h": 0, "text": f["code"], "lang": f.get("lang", "sql"),
           "size": size, "lineHeight": lh, "radius": "r-m"}
     for k in ("start", "focus", "show"):

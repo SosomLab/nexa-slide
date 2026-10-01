@@ -1,0 +1,365 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PPT 디자인 컨셉 v2</title>
+<link rel="icon" href="../../../../example/assets/brand/favicon.png">
+<link rel="stylesheet" href="tokens.css">
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #ECEAEA; color: var(--on-surface); font-family: var(--font); }
+  /* ---------- 페이지 도구 ---------- */
+  .bar { position: sticky; top: 0; z-index: 10; display: flex; flex-wrap: wrap; gap: 12px; align-items: center; padding: 12px 24px; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.08); }
+  .bar h1 { font-size: 17px; margin: 0 16px 0 0; }
+  .grp { display: flex; gap: 6px; align-items: center; }
+  .grp span { font-size: 13px; color: var(--on-surface-variant); margin-right: 2px; }
+  .bar button { font: inherit; font-size: 13px; padding: 7px 14px; border: 0; background: var(--surface-container); border-radius: var(--r-full); cursor: pointer; }
+  .bar button.on { background: var(--primary); color: #fff; }
+  .wrap { max-width: 1400px; margin: 0 auto; padding: 16px 24px 64px; }
+  .note { font-size: 13px; color: var(--on-surface-variant); line-height: 1.6; margin: 4px 0 16px; }
+  /* 색 역할 범례 */
+  .legend { background: #fff; border-radius: var(--r-m); padding: 18px 20px; margin-bottom: 24px; display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px 28px; }
+  .legend h3 { margin: 0 0 8px; font-size: 14px; }
+  .legend .row { display: flex; align-items: center; gap: 8px; font-size: 13px; margin: 5px 0; }
+  .sw { width: 34px; height: 20px; border-radius: 6px; flex: none; }
+  .legend small { color: var(--on-surface-variant); }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(420px, 1fr)); gap: 28px 24px; }
+  .grid.one { grid-template-columns: 1fr; }
+  .cap { font-size: 13px; margin: 8px 2px 0; }
+  .cap b { color: var(--primary); margin-right: 6px; }
+  .cap i { display: block; font-style: normal; color: var(--on-surface-variant); font-size: 12px; margin-top: 2px; }
+  .frame { position: relative; width: 100%; aspect-ratio: 16/9; overflow: hidden; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,.14); cursor: zoom-in; background: #fff; }
+  .grid.one .frame { cursor: default; }
+  .frame > .slide { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
+
+  /* ---------- 슬라이드 (1280×720) — 가장자리 선·띠 없음 ---------- */
+  .slide { width: var(--sw); height: var(--sh); position: relative; overflow: hidden; background: var(--surface); }
+  .vT { background: var(--surface-dim); }
+  .a { position: absolute; }
+  .card { background: var(--surface-container); border-radius: var(--r-m); }
+  .vT .card { background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.06), 0 1px 3px 1px rgba(0,0,0,.04); }
+  .pill { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 14px; border-radius: var(--r-full); font-size: 14px; font-weight: 600; white-space: nowrap; }
+  .pill.sm { height: 26px; font-size: 13px; padding: 0 12px; }
+  .pill.out { background: transparent; box-shadow: inset 0 0 0 1.5px var(--outline-variant); color: var(--on-surface-variant); font-weight: 500; }
+  .logo { position: absolute; top: 36px; right: 48px; height: 34px; }
+  .wm { position: absolute; bottom: 30px; right: 112px; height: 12px; }
+  .pno { position: absolute; bottom: 22px; right: 48px; height: 28px; min-width: 44px; padding: 0 10px; border-radius: var(--r-full); background: var(--surface-container); font-size: 13px; display: flex; align-items: center; justify-content: center; color: var(--on-surface-variant); }
+  .vT .pno { background: #fff; }
+  .crumb { position: absolute; bottom: 27px; left: var(--pad); font-size: 13px; color: var(--on-surface-variant); }
+  .kick { position: absolute; left: var(--pad); top: 36px; }
+  .title { position: absolute; left: var(--pad); top: 80px; right: 240px; font-size: 34px; font-weight: 700; line-height: 1.25; letter-spacing: -.3px; }
+  .sub { position: absolute; left: var(--pad); top: 128px; right: 240px; font-size: 18px; color: var(--on-surface-variant); }
+  .body { position: absolute; left: var(--pad); right: var(--pad); top: 184px; bottom: 80px; font-size: 20px; line-height: 1.55; }
+  .blist { margin: 0; padding: 0; list-style: none; }
+  .blist > li { position: relative; padding-left: 28px; margin-bottom: 14px; }
+  .blist > li::before { content: ""; position: absolute; left: 4px; top: 11px; width: 10px; height: 10px; border-radius: 50%; background: var(--dc); }
+  .blist li li { list-style: none; position: relative; padding-left: 20px; font-size: 17px; color: var(--on-surface-variant); margin-top: 6px; }
+  .blist li li::before { content: ""; position: absolute; left: 2px; top: 11px; width: 8px; height: 2px; background: var(--on-surface-variant); }
+  .em { color: var(--primary); font-weight: 700; }
+  table.t { border-collapse: separate; border-spacing: 0; width: 100%; font-size: 16px; }
+  table.t th { background: var(--dcc); color: var(--dco); font-weight: 700; text-align: left; padding: 11px 14px; }
+  table.t th:first-child { border-radius: 12px 0 0 12px; } table.t th:last-child { border-radius: 0 12px 12px 0; }
+  table.t td { padding: 11px 14px; border-bottom: 1px solid var(--surface-container-high); vertical-align: middle; }
+  /* 코드 블록 — DBeaver 라이트 테마 근사, 줄 번호 여백 */
+  .cb { background: var(--code-bg); border-radius: var(--r-m); overflow: hidden; font-family: var(--mono); font-size: 15px; line-height: 1.6;
+        box-shadow: inset 0 0 0 1px var(--surface-container-high); }
+  .cb .ln { display: flex; white-space: pre; }
+  .cb .g { flex: none; width: 48px; padding-right: 12px; text-align: right; background: var(--code-gutter-bg); color: var(--code-gutter); user-select: none; }
+  .cb .c { flex: 1; padding-left: 14px; color: var(--code-ink); }
+  .cb .ln.f .c { background: var(--code-focus); }
+  .cb .ln.f .g { color: var(--on-surface); font-weight: 700; }
+  .cb .ln.el .c, .cb .ln.el .g { color: var(--code-gutter); }
+  .cb .ln:first-child .g, .cb .ln:first-child .c { padding-top: 12px; }
+  .cb .ln:last-child .g, .cb .ln:last-child .c { padding-bottom: 12px; }
+  .k { color: var(--code-kw); font-weight: 700; } .tb { color: var(--code-tbl); } .al { color: var(--code-alias); font-style: italic; }
+  .ca { color: var(--code-colalias); font-style: italic; } .st { color: var(--code-str); } .nu { color: var(--code-num); }
+  .co { color: var(--code-cm); } .bi { color: var(--code-bind); }
+  .plan { font-family: var(--mono); font-size: 14px; line-height: 1.5; white-space: pre; padding: 16px 18px; }
+  .hl { background: var(--primary-container); color: var(--primary); font-weight: 700; }  /* 고정폭 강조: 여백·굵기 폭 변화 없이 색만 — 세로줄 정렬 유지 */
+  .num { display: inline-flex; width: 28px; height: 28px; border-radius: 50%; color: #fff; font-size: 14px; font-weight: 700; align-items: center; justify-content: center; flex: none; }
+</style>
+</head>
+<body>
+<div class="bar">
+  <h1>lecture 템플릿 · 디자인 컨셉 v2 (Material)</h1>
+  <div class="grp"><span>시안</span><button data-v="vL" class="on">L 라이트 — 흰 바탕 + 톤 카드</button><button data-v="vT">T 톤 표면 — 옅은 바탕 + 흰 카드</button></div>
+  <div class="grp"><span>부 색 미리보기</span><button data-d="1" class="on">Day1</button><button data-d="2">Day2</button><button data-d="3">Day3</button></div>
+  <div class="grp"><span>보기</span><button data-g="grid" class="on">전체</button><button data-g="one">크게(←/→)</button></div>
+</div>
+<div class="wrap">
+<p class="note">Material Design 3 방식: 가장자리 선·띠 없이 둥근 카드·알약 모양 칩·색 면(톤)으로 구역을 나눈다. 색은 의미에 묶어 덱 전체에서 반복한다(아래 범례).
+ "부 색 미리보기"를 바꾸면 같은 레이아웃이 Day2·Day3 장에서 어떻게 보이는지 확인할 수 있다. 이전 시안은 <a href="concept-v1.html">v1</a>.</p>
+<div class="legend" id="legend"></div>
+<div id="grid" class="grid"></div>
+</div>
+
+<script>
+const LOGO = "../../../../example/assets/brand/logo.png", WM = "../../../../example/assets/brand/wordmark.png";
+const DAY = { 1: ["Day1 · 설계", "ch00"], 2: ["Day2 · 쿼리와 옵티마이저", "ch04"], 3: ["Day3 · 실무 종합", "ch10"] };
+let variant = "vL", day = 1, mode = "grid", cur = 0;
+const dv = () => `--dc:var(--day${day});--dcc:var(--day${day}-container);--dco:var(--on-day${day}-container)`;
+const P = (bg, fg, t, cls = "") => `<span class="pill ${cls}" style="background:${bg};color:${fg}">${t}</span>`;
+const dayPill = (t) => P("var(--dcc)", "var(--dco)", t || `${DAY[day][0]} · ${DAY[day][1]}`);
+const REQ = P("var(--primary)", "#fff", "필수", "sm"), ADV = `<span class="pill sm out">심화</span>`;
+const THEORY = P("var(--theory-container)", "var(--theory)", "이론", "sm"), LAB = P("var(--lab-container)", "var(--lab)", "실습", "sm");
+const head = (t, s, k) => `<div class="kick">${k || dayPill()}</div><div class="title">${t}</div>${s ? `<div class="sub">${s}</div>` : ""}<img class="logo" src="${LOGO}" alt="logo">`;
+const foot = (n, c) => `<div class="crumb">${c}</div><img class="wm" src="${WM}" alt=""><div class="pno">${n}</div>`;
+const STEP = ["①", "②", "③", "④", "⑤", "⑥", "⑦"];
+const sc = (i) => `var(--s${i + 1})`;
+
+
+/* ---------- SQL 색 입히기(DBeaver 라이트 근사) + 줄 번호 ---------- */
+const KW = new Set(("select from where and or not in exists join left right full outer inner cross on as group by order having union all with recursive "+
+  "case when then else end between like is null distinct insert into values update set delete merge using matched connect prior start table desc asc over "+
+  "partition fetch first rows only create index primary key foreign references constraint default level nocycle siblings search depth breadth cycle to").split(" "));
+const TYPE = new Set("varchar varchar2 number date text char integer int timestamp clob blob boolean".split(" "));
+const esc = (t) => t.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+function hlSQL(src) {
+  const re = /(--[^\n]*|\/\*[\s\S]*?\*\/)|('(?:[^']|'')*')|(:[A-Za-z_]\w*)|(\b\d+(?:\.\d+)?\b)|("[^"]+"|[A-Za-z_][\w$#]*)|(\s+|[^\s])/g;
+  const toks = []; let m;
+  while ((m = re.exec(src))) toks.push(m[1] ? ["co", m[0]] : m[2] ? ["st", m[0]] : m[3] ? ["bi", m[0]] : m[4] ? ["nu", m[0]] : m[5] ? ["id", m[0]] : ["p", m[0]]);
+  const tables = new Set(), aliases = new Set(); let prevKw = "", expectAlias = false;
+  const next = (i) => { for (let j = i + 1; j < toks.length; j++) if (!/^\s+$/.test(toks[j][1])) return toks[j]; return null; };
+  const wrap = (c, v) => `<span class="${c}">${esc(v)}</span>`;
+  const pass = () => { prevKw = ""; expectAlias = false; return toks.map(([t, v], i) => {
+    if (t !== "id") {
+      if (!(t === "p" && (/^\s+$/.test(v) || v === "."))) expectAlias = false;
+      if (t === "p" && v === ",") prevKw = prevKw === "_t" ? "from" : prevKw;
+      return t === "p" ? esc(v) : wrap(t, v);
+    }
+    const low = v.toLowerCase(), nx = next(i);
+    if (TYPE.has(low)) { prevKw = low; return wrap("k", v); }
+    if (KW.has(low)) { if (low !== "recursive") prevKw = low; expectAlias = false; return wrap("k", v); }
+    if (nx && nx[1] === "(" && !["with", "_t"].includes(prevKw)) { prevKw = ""; return wrap("k", v); }
+    if (nx && nx[1] === ".") return wrap(aliases.has(low) ? "al" : "tb", v);
+    if (["from", "join", "into", "update", "with", "table", "using", "merge"].includes(prevKw)) { tables.add(low); prevKw = "_t"; expectAlias = true; return wrap("tb", v); }
+    if (expectAlias && prevKw === "_t") { aliases.add(low); expectAlias = false; prevKw = ""; return wrap("al", v); }
+    if (prevKw === "as") { prevKw = ""; return wrap(tables.has(low) ? "tb" : "ca", v); }
+    if (tables.has(low)) return wrap("tb", v);
+    if (aliases.has(low)) return wrap("al", v);
+    prevKw = ""; return esc(v);
+  }).join(""); };
+  pass();                     // 1차: 테이블·별칭 수집(선언 전에 쓰인 별칭도 맞게 칠하기 위해)
+  return pass().split("\n");  // 2차: 색 입히기
+}
+/* codeBlock(src, {start, focus:[줄 번호], show:[[from,to]]}) — show를 주면 그 구간만 보이고 사이는 ⋮로 생략 */
+function codeBlock(src, o = {}) {
+  const start = o.start || 1, lines = hlSQL(src), focus = new Set(o.focus || []);
+  const vis = (n) => !o.show || o.show.some(([a, b]) => n >= a && n <= b);
+  let html = "", gap = false;
+  lines.forEach((l, i) => { const n = start + i;
+    if (!vis(n)) { if (!gap) { html += `<div class="ln el"><span class="g">⋮</span><span class="c"> </span></div>`; gap = true; } return; }
+    gap = false; html += `<div class="ln${focus.has(n) ? " f" : ""}"><span class="g">${n}</span><span class="c">${l || " "}</span></div>`; });
+  return `<div class="cb" style="${o.style || ""}">${html}</div>`;
+}
+const SQL_09 = `SELECT /*+ GATHER_PLAN_STATISTICS */
+       d.item_cd, SUM(d.qty) AS dmd_sum
+FROM   trx_demand d
+WHERE  d.tenant_id = :t
+AND    d.period_id BETWEEN :p1 AND :p2
+GROUP BY d.item_cd;
+
+SELECT * FROM TABLE(DBMS_XPLAN.DISPLAY_CURSOR(
+         NULL, NULL, 'ALLSTATS LAST'));`;
+const SQL_BOM = `-- 실습 09-03 BOM 전개: 완제품 1개당 원자재 소요량
+WITH recursive_bom (lvl, root_cd, item_cd, qty_path) AS (
+    SELECT 1                   AS lvl
+         , b.parent_item_cd    AS root_cd
+         , b.child_item_cd     AS item_cd
+         , b.qty_per           AS qty_path
+    FROM   mst_bom b
+    WHERE  b.tenant_id = :t
+    AND    b.parent_item_cd IN (SELECT i.item_cd
+                                FROM   mst_item i
+                                WHERE  i.tenant_id = :t
+                                AND    i.item_type = 'FG')
+    UNION ALL
+    SELECT r.lvl + 1
+         , r.root_cd
+         , b.child_item_cd
+         , r.qty_path * b.qty_per
+    FROM   recursive_bom r
+    JOIN   mst_bom b
+      ON   b.tenant_id      = :t
+     AND   b.parent_item_cd = r.item_cd
+    WHERE  r.lvl < 10
+)
+CYCLE item_cd SET is_cycle TO 'Y' DEFAULT 'N'
+SELECT r.root_cd
+     , r.item_cd
+     , i.item_nm
+     , SUM(r.qty_path)       AS qty_per_fg
+FROM   recursive_bom r
+JOIN   mst_item i
+  ON   i.tenant_id = :t
+ AND   i.item_cd   = r.item_cd
+WHERE  i.item_type = 'RAW'
+GROUP BY r.root_cd, r.item_cd, i.item_nm
+ORDER BY r.root_cd, r.item_cd;`;
+
+const S = [
+ { name: "① 표지", how: "둥근 사각형(색 면) + 텍스트 + 로고. 가장자리 띠 없음",
+   html: () => `<div class="a card" style="left:40px;top:40px;width:760px;height:640px;border-radius:var(--r-l);background:var(--primary-container);box-shadow:none"></div>
+   <div class="a" style="left:88px;top:92px">${P("#fff", "var(--primary)", "강의 교재")}</div>
+   <div class="a" style="left:88px;top:170px;width:680px;font-size:60px;font-weight:800;line-height:1.15;letter-spacing:-1px;color:var(--on-primary-container)">튜닝이 필요 없는<br>설계와 SQL</div>
+   <div class="a" style="left:88px;top:352px;width:660px;font-size:22px;line-height:1.5;color:var(--on-primary-container)">Oracle AI Database 26ai 기준<br>SQL Server · PostgreSQL 대응</div>
+   <div class="a" style="left:88px;top:560px;display:flex;gap:8px">${P("var(--day1-container)", "var(--on-day1-container)", "Day1 설계")}${P("var(--day2-container)", "var(--on-day2-container)", "Day2 쿼리")}${P("var(--day3-container)", "var(--on-day3-container)", "Day3 실무")}</div>
+   <img class="a" src="${LOGO}" style="left:864px;top:96px;height:88px" alt="logo">
+   <div class="a" style="left:864px;top:470px;font-size:16px;line-height:1.9;color:var(--on-surface-variant)">작성 부서<br>장 제목<br>v0.1</div>` },
+
+ { name: "② 목차", how: "부별 카드 3개(부 색 머리 칩) + 장 번호 칩. 부 색이 장 표지·절 칩과 같다",
+   html: () => `${head("목차", "3일 과정 · 24장 + 부록", P("var(--surface-container)", "var(--on-surface-variant)", "전체"))}
+   ${[[1, "Day1 설계", ["ch00 방법론·과정의 지도", "ch18 데이터 모델링", "ch01 관계형 모델·정규화", "ch02 물리 설계", "ch19 저장 구조 이론", "ch03 저장 구조·인덱스", "ch21 데이터 거버넌스"]],
+       [2, "Day2 쿼리와 옵티마이저", ["ch04 실행 원리·실행계획", "ch14 측정과 진단", "ch05 조인·서브쿼리", "ch06 조건 작성·NULL", "ch07 쿼리 변환", "ch23 함수·뷰 성능", "ch12 통계", "ch13 실행계획 제어"]],
+       [3, "Day3 실무 종합", ["ch08 분석함수", "ch09 계층·재귀·PIVOT", "ch10 대량 DML·배치", "ch22 제약·트리거", "ch15 동시성", "ch17 Python", "ch11 집계·보고서", "ch20 대용량 관리"]]]
+     .map(([d, t, cs], i) => `<div class="a card" style="left:${64 + i * 392}px;top:176px;width:368px;height:470px;padding:18px 20px">
+       ${P(`var(--day${d}-container)`, `var(--on-day${d}-container)`, t)}
+       <div style="margin-top:12px">${cs.map(x => `<div style="display:flex;align-items:center;gap:10px;padding:6px 0;font-size:16px"><span class="pill sm" style="background:var(--day${d});color:#fff;font-family:var(--mono);min-width:54px;justify-content:center">${x.slice(0, 4)}</span>${x.slice(5)}</div>`).join("")}</div></div>`).join("")}
+   ${foot(2, "목차")}` },
+
+ { name: "③ 개정 내역", how: "표(머리 행은 둥근 톤 면, 세로선 없음) + 안내 카드",
+   html: () => `${head("개정 내역", "", P("var(--surface-container)", "var(--on-surface-variant)", "전체"))}
+   <div class="body" style="--dcc:var(--surface-container-high);--dco:var(--on-surface)"><table class="t">
+     <tr><th style="width:110px">버전</th><th style="width:150px">일자</th><th>내용</th><th style="width:160px">작성·검토</th></tr>
+     <tr><td>${P("var(--primary)", "#fff", "v0.1", "sm")}</td><td>2026-09-29</td><td>초안 — ch00 방법론·요청 한 번의 여정·과정의 지도</td><td>교육 TF</td></tr>
+     <tr><td><span class="pill sm out">v0.2</span></td><td>—</td><td>검토 의견 반영, 실습 수치 실측(26ai 교육 컨테이너)</td><td>—</td></tr>
+     <tr><td><span class="pill sm out">v1.0</span></td><td>—</td><td>1차 완성본</td><td>—</td></tr></table>
+   <div class="card" style="margin-top:28px;padding:16px 20px;font-size:16px;color:var(--on-surface-variant)">버전 규칙: 내용 변경 = 소수 첫째 자리 · 교육 회차 확정본 = 정수 · 변경 이력은 저장소 커밋과 연결</div></div>${foot(3, "개정 내역")}` },
+
+ { name: "④ 챕터(대분류) 표지", how: "안쪽으로 들어온 큰 둥근 색 면(부 색) + 큰 장 번호. 슬라이드 가장자리에 닿지 않음",
+   html: () => `<div class="a" style="left:40px;top:40px;width:1200px;height:640px;border-radius:var(--r-l);background:var(--dcc)"></div>
+   <div class="a" style="left:96px;top:96px">${P("var(--dc)", "#fff", DAY[day][0])}</div>
+   <div class="a" style="left:88px;top:170px;font-family:var(--mono);font-size:180px;font-weight:700;line-height:1;color:var(--dc)">${DAY[day][1].slice(2)}</div>
+   <div class="a" style="left:96px;top:390px;width:900px;font-size:46px;font-weight:800;line-height:1.2;color:var(--dco)">튜닝이 필요 없는 설계·작성<br>방법론과 과정의 지도</div>
+   <div class="a" style="left:96px;top:540px;width:820px;font-size:19px;line-height:1.6;color:var(--dco);opacity:.8">화면이 느릴 때 인덱스·파라미터부터 떠올리는 습관을 바꾼다. 요청 한 번이 거치는 7단계와 3일 과정의 지도를 먼저 본다.</div>
+   <div class="a" style="right:88px;top:88px;background:#fff;border-radius:var(--r-m);padding:14px 18px"><img src="${LOGO}" style="height:36px;display:block"></div>` },
+
+ { name: "⑤ 중분류(절) 구분", how: "절 번호 원형(부 색) + 제목 + 성격 칩(필수·이론·실습)",
+   html: () => `<div class="a" style="left:96px;top:228px;width:200px;height:200px;border-radius:50%;background:var(--dcc);display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:72px;font-weight:700;color:var(--dc)">0.2</div>
+   <div class="a" style="left:340px;top:240px;width:820px">${dayPill()}<div style="margin-top:18px;font-size:42px;font-weight:800;line-height:1.2">요청 한 번의 여정</div>
+   <div style="margin-top:10px;font-size:22px;color:var(--on-surface-variant)">화면에서 DB까지, 다시 화면까지</div>
+   <div style="margin-top:22px;display:flex;gap:8px">${REQ}${THEORY}${LAB}</div></div>
+   <img class="logo" src="${LOGO}">${foot(5, "ch00 › 0.2")}` },
+
+ { name: "⑥ 소분류 + 본문", how: "글머리 점 = 부 색, 핵심어 = CI 적색, 보조 문장 = 회색",
+   html: () => `${head("0.1 왜 \"튜닝이 필요 없는 설계·작성\"인가", "효과의 크기는 바꾸는 위치가 정한다")}
+   <div class="body"><ul class="blist">
+     <li>인스턴스(파라미터·메모리) 튜닝의 효과는 대개 <span class="em">10% 미만</span><ul><li>공식 방법론: 애플리케이션·SQL 개선은 100% 이상 개선되는 경우가 흔하다</li></ul></li>
+     <li>느린 원인의 대부분은 <span class="em">설계와 SQL 작성</span>에 있다<ul><li>잘못된 구조는 인덱스로 가릴 수 있어도 없앨 수는 없다</li></ul></li>
+     <li>이 과정의 순서 = 효과가 큰 순서: 설계(Day1) → SQL(Day2) → 처리 방식(Day3)</li></ul>
+   <div class="a card" style="right:0;bottom:0;width:400px;padding:16px 20px;font-size:15px;line-height:1.6">${THEORY}<div style="margin-top:8px;color:var(--on-surface-variant)">근거: TGDBA 1장 성능 개선 방법론 — 개선 폭의 비교</div></div></div>${foot(6, "ch00 › 0.1")}` },
+
+ { name: "⑦ 본문 + 다이어그램", how: "참여자 = 둥근 칩, 메시지 = 화살표, 단계 번호 원 = 순서 색(①~⑦ 고정). 모두 편집 가능한 도형",
+   html: () => {
+     const X = [64, 330, 596, 862], L = ["브라우저", "Web·BI 서버", "DB 드라이버", "DBMS"];
+     const actors = X.map((x, i) => `<div class="a" style="left:${x}px;top:0;width:180px;height:44px;border-radius:var(--r-full);background:var(--surface-container-high);display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700">${L[i]}</div><div class="a" style="left:${x + 89}px;top:48px;width:2px;height:380px;background:var(--surface-container-high)"></div>`).join("");
+     const M = [[0, 1, 84, 0, "화면 요청·쿼리 구성"], [1, 2, 134, 0, "SQL 1건 + 바인드"], [2, 3, 184, 1, "파싱·최적화"], [3, 3, 234, 2, "데이터 추출"], [3, 2, 284, 3, "fetch (arraysize 행씩)"], [2, 1, 334, 4, "메모리 적재 · 후처리"], [1, 0, 384, 6, "렌더링"]];
+     const msgs = M.map(([a, b, y, s, t]) => {
+       const col = sc(s);
+       if (a === b) return `<div class="a" style="left:${X[a] + 104}px;top:${y - 15}px;display:flex;align-items:center;gap:8px"><span class="num" style="background:${col}">${STEP[s]}</span><span style="font-size:14px">${t}</span></div>`;
+       const x1 = Math.min(X[a], X[b]) + 90, w = Math.abs(X[b] - X[a]), r = b > a;
+       return `<div class="a" style="left:${x1}px;top:${y}px;width:${w}px;height:2px;background:${col}"></div>
+       <div class="a" style="left:${r ? x1 + w - 10 : x1}px;top:${y - 6}px;width:0;height:0;border-top:7px solid transparent;border-bottom:7px solid transparent;${r ? `border-left:12px solid ${col}` : `border-right:12px solid ${col}`}"></div>
+       <div class="a" style="left:${x1 + 16}px;top:${y - 30}px;display:flex;align-items:center;gap:6px"><span class="num" style="background:${col};width:24px;height:24px;font-size:12px">${STEP[s]}</span><span style="font-size:14px">${t}</span></div>`;
+     }).join("");
+     return `${head("0.2 요청 한 번의 여정 — 7단계", "느린 화면의 원인은 DB 안(②③)만이 아니다")}
+     <div class="a" style="left:64px;top:184px;width:1060px;height:440px">${actors}${msgs}</div>
+     <div class="a card" style="right:64px;top:200px;width:170px;padding:16px;font-size:15px;line-height:1.7;background:var(--primary-container);box-shadow:none;color:var(--on-primary-container)"><b>응답시간</b><br>= ①+②+③<br>+④+⑤+⑥+⑦</div>${foot(7, "ch00 › 0.2")}`; } },
+
+ { name: "⑧ 표", how: "머리 행 = 부 색 톤 면(둥근 모서리), 단계 칩 = ⑦과 같은 순서 색",
+   html: () => `${head("0.2 단계별로 무엇이 시간을 쓰나", "줄이는 수단과 해당 장")}
+   <div class="body" style="top:180px"><table class="t">
+     <tr><th style="width:180px">단계</th><th>시간을 쓰는 것</th><th>줄이는 수단</th><th style="width:190px">해당 장</th></tr>
+     ${[[0, "쿼리 전달", "호출 횟수(n번), 왕복 지연", "한 번에 보내기, 바인드", "ch17 · ch13"], [1, "파싱·최적화", "하드 파싱, 나쁜 계획", "커서 공유, 통계", "ch04 · ch12 · ch13"], [2, "데이터 추출", "읽는 블록 수, 대기", "구조·조건·쿼리 변환", "ch01~03 · ch05~09"], [3, "네트워크", "행 수 × 행 크기", "필요한 행·컬럼만", "ch06 · ch17"], [4, "메모리·후처리", "변환·앱 집계", "DB에서 먼저 줄이기", "ch11 · ch17"], [6, "렌더링", "그리드 행 수", "요약 먼저·페이징", "ch06 · ch11"]]
+       .map(([s, a, b, c, d]) => `<tr><td><div style="display:flex;align-items:center;gap:8px"><span class="num" style="background:${sc(s)};width:26px;height:26px;font-size:13px">${STEP[s]}</span>${a}</div></td><td>${b}</td><td>${c}</td><td style="font-family:var(--mono);font-size:14px">${d}</td></tr>`).join("")}
+   </table></div>${foot(8, "ch00 › 0.2")}` },
+
+ { name: "⑨ 코드 + 실행계획", how: "코드 = 어두운 둥근 면, 실행계획 = 카드, 틀린 추정 = 적색 톤 강조",
+   html: () => `${head("0.10 실행계획은 이렇게 본다", "예상(EXPLAIN PLAN)이 아니라 실제 실행 통계로")}
+   <div class="a" style="left:64px;top:184px;width:528px">${codeBlock(SQL_09, {focus:[1,9], style:"font-size:14px"})}</div>
+   <div class="a card plan" style="left:616px;top:184px;width:600px;font-size:12.5px;line-height:1.55;padding:16px 18px">-------------------------------------------------------------------------------
+| Id  | Operation           | Name       | Starts | E-Rows | A-Rows | Buffers |
+-------------------------------------------------------------------------------
+|   0 | SELECT STATEMENT    |            |      1 |        |     24 |     412 |
+|   1 |  HASH GROUP BY      |            |      1 |     24 |     24 |     412 |
+|*  2 |   TABLE ACCESS FULL | TRX_DEMAND |      1 |    <span class="hl">120</span> |   <span class="hl">9600</span> |     412 |
+-------------------------------------------------------------------------------
+
+Predicate Information (identified by operation id):
+---------------------------------------------------
+   2 - filter(("D"."TENANT_ID"=:T AND "D"."PERIOD_ID">=:P1
+              AND "D"."PERIOD_ID"<=:P2))</div>
+   <div class="a card" style="left:616px;top:500px;width:600px;padding:14px 18px;font-size:16px;background:var(--primary-container);box-shadow:none;color:var(--on-primary-container)"><b>E-Rows 120 vs A-Rows 9600</b> — 추정이 80배 틀렸다 → 통계·조건 작성 확인(ch12·ch06)</div>${foot(9, "ch00 › 0.10")}` },
+
+ { name: "⑩ 전후 비교(안티패턴 ↔ 개선)", how: "Before = 적색 톤 카드, After = 녹색 톤 카드 — 덱 전체에서 같은 짝",
+   html: () => `${head("0.8 \"개발기에서는 빨랐는데\"", "같은 SQL, 호출 방식만 다르다")}
+   ${[["Before", "건건이 n번 호출", "var(--primary-container)", "var(--primary)", "var(--on-primary-container)", "품목 1,000개 × 조회 1번<br>왕복 1,000회 · 파싱 호출 1,000회", "약 3.2초"],
+      ["After", "한 번에 집합 조회", "var(--lab-container)", "var(--lab)", "#002110", "품목 목록을 바인드 배열로 1번<br>왕복 3회 · 파싱 1회", "약 0.08초 (40배)"]]
+     .map(([k, t, bg, c, on, d, r], i) => `<div class="a" style="left:${64 + i * 588}px;top:184px;width:564px;height:330px;border-radius:var(--r-l);background:${bg};padding:26px 28px;color:${on}">
+       ${P(c, "#fff", k)}<div style="margin-top:14px;font-size:24px;font-weight:800">${t}</div>
+       <div style="margin-top:14px;font-size:18px;line-height:1.7">${d}</div>
+       <div style="position:absolute;left:28px;bottom:26px;font-size:30px;font-weight:800;color:${c}">${r}</div></div>`).join("")}
+   <div class="a" style="left:64px;top:540px;font-size:14px;color:var(--on-surface-variant)">수치는 레이아웃 예시다. 실제 값은 실습 00-06에서 측정해 채운다.</div>${foot(10, "ch00 › 0.8")}` },
+
+ { name: "⑪ 예제 연결(별도 파일)", how: "파일 카드 — 형식 칩은 중립색(색 의미와 섞지 않음), 경로는 고정폭",
+   html: () => `${head("예제 파일", "슬라이드에는 요지만, 전체는 파일로")}
+   ${[["SQL", "sql/ch00/00-01_measure_template.sql", "측정 루틴 템플릿 — 실행 → DISPLAY_CURSOR → V$SQL", "실습 00-01"],
+      ["XLSX", "excel/ch00/00-04_tuning_record.xlsx", "튜닝 기록 양식 — 목표·전후 Plan·Buffers·시간", "실습 00-04"],
+      ["PY", "python/ch00/00-06_request_journey.py", "요청 여정 분해 측정 — n번 vs 1번 vs DB 집계", "실습 00-06"]]
+     .map(([k, p, d, l], i) => `<div class="a card" style="left:64px;top:${184 + i * 124}px;width:1152px;height:104px">
+       <div class="a" style="left:20px;top:20px;width:64px;height:64px;border-radius:var(--r-m);background:var(--ci-dark);color:#fff;font-weight:800;font-size:17px;display:flex;align-items:center;justify-content:center">${k}</div>
+       <div class="a" style="left:108px;top:22px;font-family:var(--mono);font-size:19px">${p}</div>
+       <div class="a" style="left:108px;top:58px;font-size:16px;color:var(--on-surface-variant)">${d}</div>
+       <div class="a" style="right:24px;top:36px">${P("var(--lab-container)", "var(--lab)", l, "sm")}</div></div>`).join("")}${foot(11, "ch00 › 예제")}` },
+
+ { name: "⑫ 실습", how: "실습 = 녹색 역할(칩·단계 번호) — 모든 장의 실습 슬라이드에 반복",
+   html: () => `${head("실습 00-06 요청 한 번의 여정 분해 측정", "같은 화면 데이터를 세 가지 방식으로 가져와 단계별 시간을 나눈다", `<div style="display:flex;gap:8px">${LAB}${REQ}${P("var(--surface-container)", "var(--on-surface-variant)", "교육 컨테이너", "sm")}</div>`)}
+   <div class="a" style="left:64px;top:184px;width:640px">${["(a) 품목마다 n번 조회", "(b) 품목 목록을 한 번에 조회", "(c) DB에서 집계한 뒤 조회", "①④⑤⑥ 단계 시간을 각각 기록"]
+     .map((x, i) => `<div style="display:flex;align-items:center;gap:14px;padding:14px 0;font-size:19px"><span class="num" style="background:var(--lab);width:34px;height:34px;font-size:16px">${i + 1}</span>${x}</div>`).join("")}</div>
+   <div class="a card" style="right:64px;top:184px;width:470px;padding:20px 24px;font-size:17px;line-height:1.8"><b>확인 지표</b><br>왕복 수(SQL*Net roundtrips) · 실행 횟수<br>parse count · bytes sent<br>클라이언트 처리 시간</div>${foot(12, "ch00 › 실습")}` },
+
+ { name: "⑭ 긴 코드 발췌", how: "원본 줄 번호 유지 + 생략(⋮) + 설명 줄 강조 면 + 전체 파일 칩 — 한 장 15~18줄 이내",
+   html: () => `${head("예시: BOM 전개 — 긴 SQL은 발췌해서 본다", "재귀가 이어지는 부분(14~22행)과 순환 방지(24행)만 슬라이드에, 전체 36줄은 파일로")}
+   <div class="a" style="left:64px;top:184px;width:760px">${codeBlock(SQL_BOM, {show:[[2,2],[13,24]], focus:[17,20,21,22,24], style:"font-size:14px;line-height:1.55"})}</div>
+   <div class="a card" style="left:848px;top:184px;width:368px;padding:18px 20px;font-size:16px;line-height:1.7">
+     <div style="display:flex;gap:8px;margin-bottom:10px">${THEORY}${LAB}</div>
+     <b>17행</b> 경로를 따라 소요량을 곱한다<br><b>20~21행</b> 같은 테넌트 안에서만 자식으로 내려간다<br><b>22행</b> 깊이 제한<br><b>24행</b> 순환 BOM이면 멈춘다</div>
+   <div class="a card" style="left:848px;top:444px;width:368px;padding:14px 18px;display:flex;align-items:center;gap:12px">
+     <div style="width:52px;height:52px;border-radius:var(--r-m);background:var(--ci-dark);color:#fff;font-weight:800;font-size:14px;display:flex;align-items:center;justify-content:center;flex:none">SQL</div>
+     <div><div style="font-family:var(--mono);font-size:14px">sql/ch09/09-03_bom_explode.sql</div><div style="font-size:13px;color:var(--on-surface-variant);margin-top:4px">전체 36줄 · 실습 09-03</div></div></div>${foot(14, "ch09 › 예시")}` },
+
+ { name: "⑬ 장 정리(체크리스트)", how: "체크 원 = 부 색, 카드 목록 — 장 표지와 같은 색으로 마무리",
+   html: () => `${head("ch00 정리", "이것만은 기억한다")}
+   <div class="a" style="left:64px;top:184px;width:1152px">${["효과가 큰 순서: 설계 → SQL → 처리 방식 → 설정", "느린 화면은 7단계로 나눠 가장 큰 구간부터", "목표는 숫자로(응답시간 또는 처리량)", "개발기 데이터량으로 판단하지 않는다 — 운영 규모로 측정", "실행계획은 실제 실행 통계(ALLSTATS LAST)로 본다"]
+     .map(x => `<div class="card" style="display:flex;align-items:center;gap:16px;padding:14px 20px;margin-bottom:10px;font-size:19px"><span style="width:30px;height:30px;border-radius:50%;background:var(--dc);flex:none;position:relative"><span style="position:absolute;left:10px;top:5px;width:7px;height:14px;border:solid #fff;border-width:0 3px 3px 0;transform:rotate(45deg)"></span></span>${x}</div>`).join("")}</div>${foot(13, "ch00 › 정리")}` },
+];
+
+function legend() {
+  const row = (c, t, n) => `<div class="row"><span class="sw" style="background:${c}"></span>${t}${n ? ` <small>${n}</small>` : ""}</div>`;
+  document.getElementById("legend").innerHTML = `
+   <div><h3>브랜드·강조</h3>${row("var(--primary)", "CI 적색", "필수 · 핵심어 · 표지")}${row("var(--primary-container)", "적색 톤", "주의 · 안티패턴(Before) · 틀린 추정")}</div>
+   <div><h3>부(Day) — 부 안의 모든 장·절·목차에 반복</h3>${row("var(--day1)", "Day1 설계", "청록")}${row("var(--day2)", "Day2 쿼리와 옵티마이저", "청색")}${row("var(--day3)", "Day3 실무 종합", "보라")}${row("var(--apx)", "부록", "회색")}</div>
+   <div><h3>절 성격</h3>${row("var(--theory-container)", "이론", "황색 칩")}${row("var(--lab-container)", "실습 · 개선(After)", "녹색")}${row("var(--surface-container)", "대응 박스 · 보조", "중립 회색")}</div>
+   <div><h3>순서(단계) — 도식·표·범례에 같은 순서로</h3><div class="row">${STEP.map((s, i) => `<span class="num" style="background:${sc(i)}">${s}</span>`).join("")}</div><small>요청 한 번의 여정 ①~⑦ 등 순서가 있는 항목</small></div>`;
+}
+const grid = document.getElementById("grid");
+function render() {
+  grid.className = "grid" + (mode === "one" ? " one" : "");
+  const list = mode === "one" ? [[S[cur], cur]] : S.map((s, i) => [s, i]);
+  grid.innerHTML = list.map(([s, i]) => `<div><div class="frame" data-i="${i}"><div class="slide ${variant}" style="${dv()}">${s.html()}</div></div>
+    <div class="cap"><b>${s.name}</b>${mode === "one" ? `(${cur + 1}/${S.length})` : ""}<i>PPT 재현: ${s.how}</i></div></div>`).join("");
+  fit();
+}
+function fit() { document.querySelectorAll(".frame").forEach(f => f.firstElementChild.style.transform = `scale(${f.clientWidth / 1280})`); }
+const sel = (attr, val) => document.querySelectorAll(`[${attr}]`).forEach(x => x.classList.toggle("on", x.getAttribute(attr) === String(val)));
+document.querySelectorAll("[data-v]").forEach(b => b.onclick = () => { variant = b.dataset.v; sel("data-v", variant); render(); });
+document.querySelectorAll("[data-d]").forEach(b => b.onclick = () => { day = +b.dataset.d; sel("data-d", day); render(); });
+document.querySelectorAll("[data-g]").forEach(b => b.onclick = () => { mode = b.dataset.g; sel("data-g", mode); render(); });
+grid.addEventListener("click", e => { const f = e.target.closest(".frame"); if (f && mode === "grid") { cur = +f.dataset.i; mode = "one"; sel("data-g", "one"); render(); } });
+addEventListener("keydown", e => { if (mode !== "one") return; if (e.key === "ArrowRight") cur = (cur + 1) % S.length; else if (e.key === "ArrowLeft") cur = (cur - 1 + S.length) % S.length; else if (e.key === "Escape") { mode = "grid"; sel("data-g", "grid"); } else return; render(); });
+addEventListener("resize", fit);
+legend(); render();
+</script>
+</body>
+</html>
