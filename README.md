@@ -71,3 +71,4 @@ nexa-slide/
 | [docs/claude-session.md](docs/claude-session.md) | Claude Code 세션 연결 — 상시 감시(Monitor), 세션 상태 표시, 지금 보내기, 처리 규약 |
 | [docs/deck-format.md](docs/deck-format.md) | 덱 JSON·요소 모델, content 형식, 레이아웃, 인라인 강조, 각주 규칙 |
 | [docs/editor.md](docs/editor.md) | 편집기 조작, 화면↔PPT 일치 규칙, 알려진 한계 |
+| [docs/research/](docs/research/genspark-ai-slides.md) | 참고 조사 — Genspark AI Slides 실측(진행 과정·저장 구조·편집 화면·레이아웃 검사 원문) |
