@@ -37,6 +37,8 @@ PowerPoint·브라우저는 글꼴 설치 후 다시 열어야 보인다. 편집
 
 ## 새 작업 공간 만들기
 
+> 처음부터 끝까지의 상세 절차(macOS·Windows, VS Code·Claude Desktop)는 **[new-project.md](new-project.md)**. 아래는 손으로 만드는 방법이다 — 보통은 `studio/init_workspace.py` 한 줄이면 된다.
+
 예제를 복사해서 시작한다.
 
 ```bash

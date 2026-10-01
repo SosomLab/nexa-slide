@@ -16,6 +16,9 @@ git clone git@github.com:SosomLab/nexa-slide.git
 cd nexa-slide
 python3 -m pip install -r requirements.txt
 
+# 내 저장소에 작업 공간 만들기 → docs/new-project.md
+python3 studio/init_workspace.py ../my-talk/slides --title "신제품 소개"
+
 python3 studio/service.py --workspace example start   # 백그라운드 서버 → http://127.0.0.1:5601/ (예제 설정 포트)
 python3 studio/export_pptx.py --workspace example demo # → example/out/demo.pptx
 python3 studio/service.py --workspace example stop
@@ -49,6 +52,8 @@ nexa-slide/
 │   ├─ watch_requests.py   요청 감시 → Claude 세션 전달        ├─ render_pptx.ps1          PowerPoint 렌더(Windows)
 │   ├─ compare.py · check_parity.py   일치 검증                └─ install_fonts.ps1        OFL 글꼴 설치(Windows)
 │   ├─ service.py · status.py   서비스 시작·중지·상태(작업 공간별 포트)
+│   ├─ init_workspace.py    새 작업 공간 만들기(설정·실행기·CLAUDE.md·시작 내용·빈 포트)
+│   ├─ layout_samples.py    레이아웃 21종과 필드 예시(초안 작성용)
 │   ├─ check_layout.py      레이아웃 검사 — 겹침·넘침·최소 글자(pt)·슬라이드 밖·고정폭 정렬
 │   ├─ templates/          디자인 템플릿 — lecture(기존 디자인) · lecture-large(글자 확대). tokens.json · template.json · design/
 │   └─ set_fonts.py · gen_tokens_css.py · render_mermaid.py
@@ -63,6 +68,7 @@ nexa-slide/
 
 | 문서 | 내용 |
 |---|---|
+| **[docs/new-project.md](docs/new-project.md)** | **새 폴더·저장소에서 시작하기 — VS Code·Claude Desktop 연결, 슬라이드 초안 작성·검토·내보내기 상세 절차(macOS·Windows 명령)** |
 | [docs/install.md](docs/install.md) | 요구 사항, 설치, 글꼴, 새 작업 공간 만들기, 기존 저장소에 붙이기(실행기) |
 | [docs/templates.md](docs/templates.md) | 디자인 템플릿 — 제공 템플릿, 폴더 구성, 작업 공간이 고르는 것, 바꾸기·새로 만들기 |
 | [docs/configuration.md](docs/configuration.md) | `nexa-slide.json` 전 항목·기본값, 작업 공간 찾기 순서, `tokens.json`·글꼴 프리셋 |

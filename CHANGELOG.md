@@ -1,5 +1,11 @@
 # 변경 이력
 
+## 0.5.1 — 2026-10-01 · 새 프로젝트 시작 도구·설명서
+
+- `studio/init_workspace.py <폴더>` — 작업 공간 뼈대(선택만 담은 nexa-slide.json · 실행기 nexa.py · CLAUDE.md 세션 안내 · 시작용 content · .gitignore · 자리 표시 로고), 빈 포트 자동 선택.
+- `studio/layout_samples.py` — 레이아웃 21종과 필드 예시(초안 작성용, 실행기 `nexa.py layout_samples`).
+- `docs/new-project.md` — 다른 폴더·저장소에서 VS Code(Claude Code)·Claude Desktop 으로 연결해 초안 작성·검토·내보내기까지, macOS·Windows 명령 병기.
+
 ## 0.5.0 — 2026-10-01 · 편집기 UI 개편 (Genspark 작업 화면 방식 차용, 슬라이드 디자인 불변)
 
 - 모드 3분할 **편집(E) · 선택(M) · 그리기(D)** — 선택은 요소를, 그리기는 박스·펜·핀 영역을 눌러 그 자리 **메모 팝오버**(개체 종류별 빠른 칩, Enter = 추가) → 번호 배지·레일 ✎ 배지 → 아래 바 **"요청 N개 보내기"**(초안 → 대기, 즉시 전달). 취소 범위 = 이 슬라이드(없으면 전체).
