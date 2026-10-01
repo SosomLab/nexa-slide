@@ -1,0 +1,264 @@
+{
+ "id": "ch01",
+ "title": "ch01 핵심 개념과 모델 - 이론 장 예시",
+ "chapterLabel": "ch01 핵심 개념과 모델",
+ "part": "day1",
+ "version": "0.1",
+ "common": true,
+ "source": "상세 목차(docs/) ch01 절 · 장별 자료 묶음(pack)",
+ "revisions": {
+  "title": "개정 이력",
+  "sub": "ch01 핵심 개념과 모델",
+  "rows": [
+   [
+    "==v0.1==",
+    "2026-00-00",
+    "초안 - 필수 3절 · 심화 1절, 다이어그램 1장, 실습 2개 연결",
+    "작성자"
+   ]
+  ],
+  "note": "버전 규칙: 내용 변경 = 소수 첫째 자리 · 교육 회차 확정본 = 정수",
+  "crumb": "ch01 › 개정 이력"
+ },
+ "slides": [
+  {
+   "layout": "chapter",
+   "number": "01",
+   "title": "핵심 개념과 모델\n이론 장 예시",
+   "desc": "이론 장은 정의 → 우리 예제로 읽기 → 실습 순서로 쓴다.\n다이어그램은 코드(Mermaid)로 남겨 리뷰한다."
+  },
+  {
+   "layout": "chapter_toc",
+   "title": "ch01 이 장의 구성",
+   "sub": "1일차 2교시",
+   "sections": [
+    [
+     "1.1",
+     "기본 용어",
+     "req"
+    ],
+    [
+     "1.2",
+     "모델 읽기",
+     "req"
+    ],
+    [
+     "1.3",
+     "모델 검증",
+     "req"
+    ],
+    [
+     "1.4",
+     "표기법 비교",
+     "adv"
+    ]
+   ],
+   "perCol": 4,
+   "crumb": "ch01 › 구성",
+   "stats": [
+    [
+     "절",
+     "필수 3 · 심화 1"
+    ],
+    [
+     "실습",
+     "2개 (필수 1)"
+    ],
+    [
+     "예상 시간",
+     "필수 45분 · 전체 60분"
+    ]
+   ]
+  },
+  {
+   "layout": "section",
+   "number": "1.1",
+   "title": "기본 용어",
+   "sub": "정의는 원문을 요약하고, 용어는 바꾸지 않는다",
+   "tags": [
+    "req",
+    "theory"
+   ],
+   "crumb": "ch01 › 1.1"
+  },
+  {
+   "layout": "table",
+   "level": "req",
+   "title": "1.1 네 가지 부품 - 우리 예제로 읽기",
+   "sub": "정의(원문 요약)와 예제를 같은 행에 둔다",
+   "crumb": "ch01 › 1.1",
+   "rowH": 60,
+   "header": [
+    "부품",
+    "정의",
+    "예제"
+   ],
+   "colW": [
+    200,
+    520,
+    432
+   ],
+   "rows": [
+    [
+     "**엔터티**",
+     "뚜렷이 식별되는 것[[theory|¹]]",
+     "CUSTOMERS · PRODUCTS"
+    ],
+    [
+     "**관계**",
+     "엔터티 사이의 연관[[theory|¹]]",
+     "고객 - 주문"
+    ],
+    [
+     "**속성**",
+     "엔터티·관계가 갖는 값",
+     "ORDER_DATE · STATUS"
+    ],
+    [
+     "**식별자**",
+     "하나를 가려내는 속성 묶음",
+     "ORDER_ID"
+    ]
+   ],
+   "source": [
+    "참고 자료 D (1976) - §2.2, p.10"
+   ],
+   "notes": "정의 열은 원문 요약, 예제 열은 우리 예시(원본 아님)로 분리해 적는다.\n\n── 원문 (각주 순서, 원어 그대로) ──\n\n¹ 참고 자료 D (1976) - §2.2, p.10\n\"(원문 인용을 여기에 옮긴다)\""
+  },
+  {
+   "layout": "section",
+   "number": "1.2",
+   "title": "모델 읽기",
+   "sub": "그림은 코드로 그리고 코드로 리뷰한다",
+   "tags": [
+    "req",
+    "theory"
+   ],
+   "crumb": "ch01 › 1.2"
+  },
+  {
+   "layout": "diagram",
+   "level": "req",
+   "title": "1.2 예제 모델 - 주문 관리",
+   "sub": "Mermaid erDiagram - render_mermaid.py 가 PNG 로 그린다",
+   "crumb": "ch01 › 1.2",
+   "img": "assets/ch01/d01-order-erd.png",
+   "sideW": 380,
+   "side": "**읽는 법**\n실선 = 식별 관계\n점선 = 비식별 관계\n\n**기호**\n|| 정확히 1 · o{ 0 이상\n\n**확인**\n주문 한 건의 품목은 몇 개까지?",
+   "mermaid": "erDiagram\n    CUSTOMERS ||..o{ ORDERS : \"주문\"\n    ORDERS ||--o{ ORDER_ITEMS : \"포함\"\n    PRODUCTS ||..o{ ORDER_ITEMS : \"품목\"\n    CUSTOMERS {\n        number customer_id PK\n        varchar name\n    }\n    ORDERS {\n        number order_id PK\n        number customer_id FK\n        date order_date\n        varchar status\n    }\n    ORDER_ITEMS {\n        number order_id PK, FK\n        number line_no PK\n        number product_id FK\n        number quantity\n    }\n    PRODUCTS {\n        number product_id PK\n        varchar name\n        number unit_price\n    }",
+   "notes": "다이어그램 - content 의 mermaid 필드가 원본이다. python3 <엔진>/studio/render_mermaid.py ch01 로 img 를 만든 뒤 build 한다. 원본 코드는 img 옆 .mmd 로도 남는다."
+  },
+  {
+   "layout": "flow",
+   "level": "req",
+   "title": "1.2 설계 4단계",
+   "sub": "의미에서 출발해 구조로",
+   "crumb": "ch01 › 1.2",
+   "steps": [
+    {
+     "title": "① 대상 찾기",
+     "desc": "고객 · 주문\n상품"
+    },
+    {
+     "title": "② 관계의 의미",
+     "desc": "고객 1 : 주문 N\n주문 1 : 품목 N"
+    },
+    {
+     "title": "③ 값의 범위",
+     "desc": "수량 ≥ 1\n상태 ∈ {접수, 완료}"
+    },
+    {
+     "title": "④ 구조·키",
+     "desc": "테이블과 키를\n정한다"
+    }
+   ],
+   "cardH": 200
+  },
+  {
+   "layout": "section",
+   "number": "1.3",
+   "title": "모델 검증",
+   "sub": "그린 모델을 데이터로 확인한다",
+   "tags": [
+    "req",
+    "lab"
+   ],
+   "crumb": "ch01 › 1.3"
+  },
+  {
+   "layout": "lab",
+   "title": "실습 01-01 모델 검증 쿼리",
+   "sub": "모델의 약속이 데이터에서 지켜지는지 확인한다",
+   "crumb": "ch01 › 1.3 › 실습",
+   "tags": [
+    "lab",
+    "req",
+    "neutral:실습 환경"
+   ],
+   "steps": [
+    "키가 중복되지 않는지 센다",
+    "부모 없는 자식 행을 찾는다",
+    "값 범위를 벗어난 행을 찾는다",
+    "결과를 기록 양식에 남긴다"
+   ],
+   "side": "**확인 지표**\n위반 행 수(0이 목표)\n검증 쿼리 실행 시간"
+  },
+  {
+   "layout": "section",
+   "number": "1.4",
+   "title": "표기법 비교",
+   "sub": "심화 - 같은 모델, 다른 그림",
+   "tags": [
+    "adv",
+    "theory"
+   ],
+   "crumb": "ch01 › 1.4"
+  },
+  {
+   "layout": "table",
+   "level": "adv",
+   "title": "1.4 표기법 세 가지",
+   "sub": "교재 표준은 하나로 정하고 나머지는 읽기만",
+   "crumb": "ch01 › 1.4",
+   "rowH": 56,
+   "header": [
+    "표기법",
+    "특징",
+    "이 교재에서"
+   ],
+   "colW": [
+    260,
+    520,
+    372
+   ],
+   "rows": [
+    [
+     "**표기법 A**",
+     "관계를 마름모로 그린다",
+     "개념 설명에만"
+    ],
+    [
+     "**표기법 B**",
+     "선 끝 기호로 개수를 표시한다",
+     "==표준=="
+    ],
+    [
+     "**표기법 C**",
+     "클래스 다이어그램 형식",
+     "하위 유형 설명에"
+    ]
+   ]
+  },
+  {
+   "layout": "summary",
+   "title": "ch01 정리",
+   "sub": "이것만은 기억한다",
+   "crumb": "ch01 › 정리",
+   "items": [
+    "정의는 원문을 요약하고, 예제는 우리 데이터로 따로 적는다",
+    "그림은 코드로 남겨 리뷰한다",
+    "모델의 약속은 검증 쿼리로 데이터에서 확인한다"
+   ]
+  }
+ ]
+}

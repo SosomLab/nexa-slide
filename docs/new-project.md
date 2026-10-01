@@ -96,6 +96,7 @@ python3 -c "import pptx, PIL; print('ok')"
 ```bash
 cd ~/Projects/my-talk                     # 없으면: mkdir -p ~/Projects/my-talk && cd $_ && git init
 python3 ~/Projects/nexa-slide/studio/init_workspace.py slides --title "신제품 소개" --deck intro
+# 강의 교안: --starter lecture-course (장 2개·공통 표지·목차·EoD 뼈대, docs/lecture-starter.md)
 python3 slides/nexa.py build_deck intro
 python3 slides/nexa.py start              # → http://127.0.0.1:<포트>/
 open "$(python3 slides/nexa.py url)"      # 브라우저로 열기
@@ -106,6 +107,7 @@ open "$(python3 slides/nexa.py url)"      # 브라우저로 열기
 ```powershell
 Set-Location D:\Projects\my-talk          # 없으면: New-Item -ItemType Directory D:\Projects\my-talk; Set-Location D:\Projects\my-talk; git init
 python3 D:\Projects\nexa-slide\studio\init_workspace.py slides --title "신제품 소개" --deck intro
+REM 강의 교안: --starter lecture-course (docs/lecture-starter.md)
 python3 slides\nexa.py build_deck intro
 python3 slides\nexa.py start
 Start-Process (python3 slides\nexa.py url)

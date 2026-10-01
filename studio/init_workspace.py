@@ -2,12 +2,14 @@
 """새 작업 공간 만들기 — 다른 폴더·저장소에 nexa-slide 를 연결하는 뼈대를 만든다.
 
     python3 <엔진>/studio/init_workspace.py <작업 공간 폴더> [--title "제목"] [--port 5610] [--template lecture]
-                                            [--deck intro] [--asset-root .] [--force]
+                                            [--deck intro] [--asset-root .] [--starter lecture-course] [--force]
 
 만드는 것(이미 있는 파일은 건드리지 않음 — --force 면 nexa-slide.json·nexa.py 만 다시 씀)
     nexa-slide.json    선택만 담은 설정: port · title · engine(이 폴더에서 엔진까지 상대 경로) · template · fontPreset · brand 파일 경로
     nexa.py            실행기 — python3 <폴더>/nexa.py start|stop|status|url|build_deck …
     content/<deck>.json  시작용 내용 원본(표지 · 글머리 · 표 · 정리 · 끝)
+                       --starter 를 주면 대신 엔진 starters/<이름>/ 의 내용·그림을 복사한다
+                       (lecture-course = 강의 교안 3일 과정 뼈대 — docs/lecture-starter.md)
     decks/  out/  assets/brand/   (로고는 엔진 예제의 자리 표시 이미지 — 자기 로고로 바꿔 쓴다)
     .gitignore         out/ · decks/.history/
     CLAUDE.md          이 작업 공간에서 일하는 Claude 세션 안내(요청 감시·처리 규약·명령)
@@ -23,6 +25,7 @@ from pathlib import Path
 
 ENGINE = Path(__file__).resolve().parents[1]
 EXAMPLE = ENGINE / "example"
+STARTERS = ENGINE / "starters"
 
 
 def free_port(start=5600, span=100):
@@ -39,8 +42,8 @@ def free_port(start=5600, span=100):
 def rel(target, base):
     try:
         return os.path.relpath(target, base).replace("\\", "/")
-    except ValueError:  # 드라이브가 다르면 절대 경로
-        return str(target)
+    except ValueError:  # 드라이브가 다르면 절대 경로(역슬래시는 / 로 — 실행기 docstring 의 \U 이스케이프 오류 방지)
+        return str(target).replace("\\", "/")
 
 
 LAUNCHER = '''# -*- coding: utf-8 -*-
@@ -127,8 +130,15 @@ def main():
     ap.add_argument("--template", default="lecture")
     ap.add_argument("--deck", default="intro")
     ap.add_argument("--asset-root", default=".", help="덱 그림 경로의 기준 폴더(작업 공간 기준). 저장소 루트 자산을 쓰려면 ..")
+    ap.add_argument("--starter", help="시작용 교안(엔진 starters/ 폴더 이름) — 예: lecture-course")
     ap.add_argument("--force", action="store_true")
     a = ap.parse_args()
+    st = None
+    if a.starter:
+        if not (STARTERS / a.starter / "starter.json").is_file():
+            names = ", ".join(p.name for p in STARTERS.iterdir() if (p / "starter.json").is_file())
+            sys.exit(f"없는 시작용 교안: {a.starter} (있는 것: {names})")
+        st = json.loads((STARTERS / a.starter / "starter.json").read_text(encoding="utf-8"))
     ws = Path(a.folder).resolve()
     ws.mkdir(parents=True, exist_ok=True)
     if not (ENGINE / "studio" / "templates" / a.template / "template.json").is_file():
@@ -151,10 +161,23 @@ def main():
                "brand": {"name": a.title or ws.name, "logo": "assets/brand/logo.png", "wordmark": "assets/brand/wordmark.png",
                          "favicon": "assets/brand/favicon.png"},
                "partLabels": {"day1": "1부", "day2": "2부", "day3": "3부", "apx": "부록"}, "coverBadge": a.title or ws.name}
+        if st:
+            cfg.update(st.get("config", {}))
         write(cfg_path, json.dumps(cfg, ensure_ascii=False, indent=2) + "\n", overwrite=True)
     show = rel(ws, Path.cwd())
     write(ws / "nexa.py", LAUNCHER.format(ws=show), overwrite=a.force)
-    write(ws / "content" / f"{a.deck}.json", json.dumps(starter(a.deck, cfg.get("title", ws.name)), ensure_ascii=False, indent=1) + "\n")
+    if st:  # 시작용 교안: content/ 는 작업 공간에, assets/ 는 assetRoot 아래에 복사(있는 파일은 그대로)
+        sdir = STARTERS / a.starter
+        for sub in st.get("copy", ["content"]):
+            base = ws if sub == "content" else ws / cfg.get("assetRoot", ".")
+            for src in sorted((sdir / sub).rglob("*")):
+                dst = base / src.relative_to(sdir)
+                if src.is_file() and not dst.exists():
+                    dst.parent.mkdir(parents=True, exist_ok=True)
+                    shutil.copy2(src, dst)
+                    made.append(rel(dst, ws))
+    else:
+        write(ws / "content" / f"{a.deck}.json", json.dumps(starter(a.deck, cfg.get("title", ws.name)), ensure_ascii=False, indent=1) + "\n")
     write(ws / ".gitignore", "# nexa-slide 산출물·자동 백업 — 다시 만들 수 있음\nout/\ndecks/.history/\n")
     write(ws / "CLAUDE.md", CLAUDE_MD.format(engine=rel(ENGINE, ws), template=cfg.get("template"), ws=show, port=cfg.get("port")))
     (ws / "decks").mkdir(exist_ok=True)
@@ -168,7 +191,8 @@ def main():
     print(f"  포트 {cfg.get('port')} · 템플릿 {cfg.get('template')} · 엔진 {cfg.get('engine')}")
     print("  만든 파일: " + (", ".join(made) or "(없음 — 이미 있음)"))
     print("다음:")
-    print(f"  python3 {show}/nexa.py build_deck {a.deck}")
+    for d in (st["decks"] if st else [a.deck]):
+        print(f"  python3 {show}/nexa.py build_deck {d}")
     print(f"  python3 {show}/nexa.py start      → http://127.0.0.1:{cfg.get('port')}/")
 
 

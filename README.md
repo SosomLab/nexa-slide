@@ -18,6 +18,8 @@ python3 -m pip install -r requirements.txt
 
 # 내 저장소에 작업 공간 만들기 → docs/new-project.md
 python3 studio/init_workspace.py ../my-talk/slides --title "신제품 소개"
+# 강의 교안이면 시작용 교안으로 → docs/lecture-starter.md
+python3 studio/init_workspace.py ../my-course/slides --title "과정 이름" --starter lecture-course
 
 python3 studio/service.py --workspace example start   # 백그라운드 서버 → http://127.0.0.1:5601/ (예제 설정 포트)
 python3 studio/export_pptx.py --workspace example demo # → example/out/demo.pptx
@@ -58,6 +60,7 @@ nexa-slide/
 │   ├─ templates/          디자인 템플릿 — lecture(기존 디자인) · lecture-large(글자 확대). tokens.json · template.json · design/
 │   └─ set_fonts.py · gen_tokens_css.py · render_mermaid.py
 ├─ example/                예제 작업 공간(nexa-slide.json · content · decks · 자리 표시 로고)
+├─ starters/               시작용 내용 — lecture-course(강의 교안 3일 과정 뼈대, init_workspace.py --starter)
 └─ docs/                   설치 · 설정 · 서버 · 운영 · 세션 연결 · 덱 형식 · 편집기
 ```
 
@@ -70,6 +73,7 @@ nexa-slide/
 |---|---|
 | **[docs/new-project.md](docs/new-project.md)** | **새 폴더·저장소에서 시작하기 — VS Code·Claude Desktop 연결, 슬라이드 초안 작성·검토·내보내기 상세 절차(macOS·Windows 명령)** |
 | [docs/install.md](docs/install.md) | 요구 사항, 설치, 글꼴, 새 작업 공간 만들기, 기존 저장소에 붙이기(실행기) |
+| [docs/lecture-starter.md](docs/lecture-starter.md) | 강의 교안 시작용(`--starter lecture-course`) — 구성 순서, 장·절·실습 번호 체계, 각주·노트 규약, 작성 규칙 |
 | [docs/templates.md](docs/templates.md) | 디자인 템플릿 — 제공 템플릿, 폴더 구성, 작업 공간이 고르는 것, 바꾸기·새로 만들기 |
 | [docs/configuration.md](docs/configuration.md) | `nexa-slide.json` 전 항목·기본값, 작업 공간 찾기 순서, `tokens.json`·글꼴 프리셋 |
 | [docs/server.md](docs/server.md) | 서버 실행 옵션, URL 구성, API 전체, 보안 범위, 동시 편집 처리 |
