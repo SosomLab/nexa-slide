@@ -1,0 +1,53 @@
+# =====================================================================
+# nexa-slide — 엔진 저장소 ignore
+#   엔진 코드(studio/)·문서(docs/)·예제 작업 공간(example/ 의 설정·content·자리 표시 로고)만 추적한다.
+# =====================================================================
+
+# ---- Python ----
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# ---- Node (check_parity · mermaid-cli 를 로컬 설치했을 때) ----
+node_modules/
+npm-debug.log*
+package-lock.json
+
+# ---- 작업 공간 산출물 (어느 작업 공간이든) ----
+#   out/          PPTX · PowerPoint 렌더 PNG · 비교 이미지 · .studio(세션 하트비트·즉시 전송 신호) · .chrome-profile
+#   decks/.history/   저장 전 자동 백업 50개 · last-build.json
+#   *.tmp         원자적 쓰기 임시 파일
+out/
+**/decks/.history/
+*.tmp
+# 예제 작업 공간의 요청 메모는 사용 중 생기는 파일 — 추적하지 않는다
+example/decks/*.requests.json
+# mermaid 렌더 중간 설정
+_mermaid-config.json
+
+# ---- 글꼴 내려받기 캐시 (install_fonts.ps1) ----
+.cache/
+
+# ---- 비밀·로컬 설정 ----
+.env
+.env.*
+*.local.json
+
+# ---- PowerPoint·Office 임시 파일 ----
+~$*.pptx
+~$*.xlsx
+~$*.docx
+
+# ---- OS · 에디터 ----
+.DS_Store
+Thumbs.db
+desktop.ini
+.idea/
+.vscode/
+*.swp
+.claude/

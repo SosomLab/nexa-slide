@@ -1,0 +1,15 @@
+/* 편집기·미리보기용 글꼴 — 서버(/api/fontfile/…)가 설치된 글꼴 파일을 그대로 보낸다.
+   브라우저가 글꼴 설치 전에 열려 있어도(시스템 글꼴 목록을 다시 읽지 않아도) 바로 보이게 한다.
+   파일은 ppt/studio/install_fonts.ps1 로 설치(사용자 글꼴 폴더) — 없으면 404 가 나고 다음 대체 글꼴로 보인다.
+   PowerPoint(PPTX)는 이 CSS와 무관하게 설치된 글꼴을 쓴다. */
+@font-face { font-family: "Pretendard"; font-weight: 400; font-style: normal; font-display: swap; src: local("Pretendard Regular"), url("/api/fontfile/Pretendard-Regular") format("opentype"); }
+@font-face { font-family: "Pretendard"; font-weight: 500; font-style: normal; font-display: swap; src: local("Pretendard Medium"), url("/api/fontfile/Pretendard-Medium") format("opentype"); }
+@font-face { font-family: "Pretendard"; font-weight: 600; font-style: normal; font-display: swap; src: local("Pretendard SemiBold"), url("/api/fontfile/Pretendard-SemiBold") format("opentype"); }
+@font-face { font-family: "Pretendard"; font-weight: 700; font-style: normal; font-display: swap; src: local("Pretendard Bold"), url("/api/fontfile/Pretendard-Bold") format("opentype"); }
+@font-face { font-family: "Pretendard"; font-weight: 800; font-style: normal; font-display: swap; src: local("Pretendard ExtraBold"), url("/api/fontfile/Pretendard-ExtraBold") format("opentype"); }
+@font-face { font-family: "JetBrains Mono"; font-weight: 400; font-style: normal; font-display: swap; src: url("/api/fontfile/JetBrainsMono-Regular") format("truetype"); }
+@font-face { font-family: "JetBrains Mono"; font-weight: 400; font-style: italic; font-display: swap; src: url("/api/fontfile/JetBrainsMono-Italic") format("truetype"); }
+@font-face { font-family: "JetBrains Mono"; font-weight: 700; font-style: normal; font-display: swap; src: url("/api/fontfile/JetBrainsMono-Bold") format("truetype"); }
+@font-face { font-family: "JetBrains Mono"; font-weight: 700; font-style: italic; font-display: swap; src: url("/api/fontfile/JetBrainsMono-BoldItalic") format("truetype"); }
+@font-face { font-family: "D2Coding"; font-weight: 400; font-style: normal; font-display: swap; src: url("/api/fontfile/D2Coding") format("truetype"); }
+@font-face { font-family: "D2Coding"; font-weight: 700; font-style: normal; font-display: swap; src: url("/api/fontfile/D2Coding-Bold") format("truetype"); }

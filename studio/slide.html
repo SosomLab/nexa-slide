@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>슬라이드 1:1 보기</title>
+<!-- 검증용: /studio/slide.html?deck=ch00&n=1 → 1280×720 한 장을 여백 없이 그린다(헤드리스 브라우저 캡처·PPT 렌더와 비교용).
+     n 을 빼면 모든 슬라이드를 세로로 이어 그린다. -->
+<style>html,body{margin:0;background:#fff}.gap{height:24px;background:#ddd}</style>
+<link rel="stylesheet" href="fonts.css">
+<style id="rs-css"></style>
+</head>
+<body>
+<div id="root"></div>
+<script src="render.js"></script>
+<script>
+(async () => {
+  window.RENDER_BASE = "/";
+  const q = new URLSearchParams(location.search);
+  const id = q.get("deck") || "ch00", n = parseInt(q.get("n") || "0", 10);
+  const [tok, deck] = await Promise.all([fetch("tokens.json").then(r => r.json()), fetch("/api/deck/" + id).then(r => r.json())]);
+  Render.setTokens(tok);
+  document.getElementById("rs-css").textContent = Render.css();
+  const list = n ? [[deck.slides[n - 1], n]] : deck.slides.map((s, i) => [s, i + 1]);
+  document.getElementById("root").innerHTML = list.map(([s, p]) => Render.renderSlide(s, p)).join('<div class="gap"></div>');
+  await document.fonts.ready;
+  document.body.dataset.ready = "1";
+})();
+</script>
+</body>
+</html>

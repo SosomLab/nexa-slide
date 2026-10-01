@@ -1,0 +1,5 @@
+# nexa-slide 엔진 — Python 3.10+
+#   서버(server.py)는 표준 라이브러리만 쓴다. PPTX 내보내기에 python-pptx 가 필요하다.
+python-pptx>=1.0
+# 선택: 글자 폭 정밀 측정(칩·코드 폭) · compare.py 이미지 비교
+Pillow>=10.0

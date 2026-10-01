@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>nexa-slide</title>
+<link rel="icon" id="favicon" href="data:,">
+<link rel="stylesheet" href="fonts.css">
+<style id="rs-css"></style>
+<style>
+  :root {
+    --p: #A91F24; --pc: #FFDAD6; --onpc: #410004;
+    --bg: #F4F1F1; --card: #FFFFFF; --tone: #F2EFEF; --tone2: #ECE8E8; --ink: #1F1B1B; --ink2: #534343; --line: #D8C2C0;
+    --ok: #146C2E; --okc: #C4EED0; --warnc: #FFDEA6; --warn: #7D5700;
+    --r: 16px; --font: "Malgun Gothic", "맑은 고딕", sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body { background: var(--bg); color: var(--ink); font: 13px/1.45 var(--font); display: flex; flex-direction: column; overflow: hidden; }
+  button, select, input, textarea { font: inherit; color: inherit; }
+  button { cursor: pointer; }
+  .chip { border: 0; background: var(--tone); border-radius: 999px; padding: 6px 14px; display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+  .chip:hover { background: var(--tone2); }
+  .chip.on { background: var(--ink); color: #fff; }
+  .chip.primary { background: var(--p); color: #fff; font-weight: 700; }
+  .chip.primary:hover { filter: brightness(1.08); }
+  .chip.sm { padding: 3px 10px; font-size: 12px; }
+  .chip:disabled { opacity: .45; cursor: default; }
+  .icon { width: 30px; height: 30px; padding: 0; justify-content: center; font-size: 15px; }
+  /* 상단 바 */
+  header { display: flex; align-items: center; gap: 10px; padding: 8px 16px; background: var(--card); box-shadow: 0 1px 2px rgba(0,0,0,.06); z-index: 5; }
+  header img.logo { height: 26px; }
+  header h1 { font-size: 15px; margin: 0 8px 0 2px; font-weight: 700; }
+  header .sp { flex: 1; }
+  #deckSel { border: 0; background: var(--tone); border-radius: 999px; padding: 6px 12px; max-width: 360px; }
+  #fontSel { border: 0; background: var(--tone); border-radius: 999px; padding: 6px 12px; max-width: 400px; }
+  #status { min-width: 92px; justify-content: center; }
+  #status.saved { background: var(--okc); color: var(--ok); }
+  #status.dirty { background: var(--warnc); color: var(--warn); }
+  #status.conflict, #status.error { background: var(--pc); color: var(--p); font-weight: 700; }
+  #dl { text-decoration: none; }
+  /* 본문 3단 */
+  main { flex: 1; display: grid; grid-template-columns: 232px 1fr 340px; min-height: 0; }
+  /* 왼쪽 썸네일 */
+  #left { overflow-y: auto; padding: 12px 10px 80px 12px; }
+  .thumb { position: relative; margin: 0 0 12px 22px; border-radius: 10px; background: #fff; cursor: pointer; box-shadow: 0 1px 2px rgba(0,0,0,.08); outline: 2px solid transparent; }
+  .thumb.cur { outline: 3px solid var(--p); }
+  .thumb .num { position: absolute; left: -22px; top: 2px; width: 18px; text-align: right; color: var(--ink2); font-size: 12px; }
+  .thumb .vp { position: relative; width: 100%; aspect-ratio: 16/9; overflow: hidden; border-radius: 10px; pointer-events: none; }
+  .thumb .vp > .rs-slide { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
+  .thumb .tools { position: absolute; right: 4px; top: 4px; display: none; gap: 4px; }
+  .thumb:hover .tools { display: flex; }
+  .thumb .tools button { border: 0; border-radius: 999px; background: rgba(255,255,255,.95); box-shadow: 0 1px 2px rgba(0,0,0,.2); font-size: 11px; padding: 2px 8px; cursor: pointer; transition: background .12s, color .12s; }
+  /* 마우스를 올린 버튼만 색으로 강조 — 복제 = 안전(녹색), 삭제 = 위험(CI 적색) */
+  .thumb .tools button[data-act="dup"]:hover { background: var(--okc); color: var(--ok); font-weight: 700; }
+  .thumb .tools button[data-act="del"]:hover { background: var(--p); color: #fff; font-weight: 700; }
+  .thumb .badge { position: absolute; left: 6px; bottom: 6px; background: var(--p); color: #fff; border-radius: 999px; font-size: 11px; padding: 0 7px; }
+  .thumb.drop-before::before { content: ""; position: absolute; left: 0; right: 0; top: -7px; height: 3px; background: var(--p); border-radius: 2px; }
+  .thumb.drop-after::after { content: ""; position: absolute; left: 0; right: 0; bottom: -7px; height: 3px; background: var(--p); border-radius: 2px; }
+  #addSlide { margin-left: 22px; width: calc(100% - 22px); justify-content: center; }
+  .menu { position: fixed; z-index: 50; background: #fff; border-radius: 14px; box-shadow: 0 4px 18px rgba(0,0,0,.18); padding: 6px; min-width: 200px; }
+  .menu button { display: block; width: 100%; text-align: left; border: 0; background: none; padding: 7px 12px; border-radius: 10px; }
+  .menu button:hover { background: var(--tone); }
+  /* 가운데 캔버스 */
+  #center { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+  #tools { display: flex; gap: 6px; align-items: center; padding: 8px 12px 0; flex-wrap: wrap; }
+  #tools .lbl { color: var(--ink2); margin: 0 2px 0 8px; }
+  #tools .chip { background: #fff; }
+  #banner { margin: 8px 12px 0; padding: 10px 14px; border-radius: 12px; background: var(--pc); color: var(--onpc); display: none; align-items: center; gap: 10px; }
+  #banner.show { display: flex; }
+  #banner .sp { flex: 1; }
+  #work { flex: 1; display: flex; gap: 16px; padding: 12px; min-height: 0; }
+  .pane { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+  .pane .cap { color: var(--ink2); font-size: 12px; display: flex; gap: 8px; align-items: center; }
+  .viewport { flex: 1; position: relative; min-height: 0; }
+  #stage { position: absolute; left: 0; top: 0; width: 1280px; height: 720px; transform-origin: 0 0; box-shadow: 0 2px 10px rgba(0,0,0,.12); background: #fff; }
+  #host, #ov { position: absolute; inset: 0; }
+  #ov { pointer-events: none; }
+  #host .rs-el[data-type="arrow"]::before, #host .rs-el[data-type="line"]::before { content: ""; position: absolute; inset: -7px; }
+  #host .rs-el:hover { outline: 1px dashed rgba(169,31,36,.45); }
+  .selbox { position: absolute; border: 2px solid var(--p); pointer-events: none; }
+  .selbox.locked { border-style: dashed; }
+  .hd { position: absolute; background: #fff; border: 2px solid var(--p); border-radius: 50%; pointer-events: auto; }
+  .editor { position: absolute; background: rgba(255,255,255,.97); outline: 3px solid var(--p); white-space: pre-wrap; overflow: visible; z-index: 3; pointer-events: auto; padding: 2px; min-height: 20px; color: #1F1B1B; }
+  #pngWrap { position: absolute; left: 0; top: 0; transform-origin: 0 0; width: 1280px; height: 720px; background: #fff; box-shadow: 0 2px 10px rgba(0,0,0,.12); }
+  #pngWrap img { width: 100%; height: 100%; display: block; }
+  #pngWrap .empty { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 28px; color: var(--ink2); background: var(--tone); }
+  #pngPane { display: none; }
+  body.preview #pngPane { display: flex; }
+  /* 오른쪽 패널 */
+  #right { background: var(--card); display: flex; flex-direction: column; min-height: 0; border-radius: 20px 0 0 0; }
+  .tabs { display: flex; gap: 6px; padding: 12px 12px 8px; }
+  .tabs .chip { flex: 1; justify-content: center; }
+  .tabs .cnt { background: var(--p); color: #fff; border-radius: 999px; font-size: 11px; padding: 0 6px; }
+  .panel { flex: 1; overflow-y: auto; padding: 4px 14px 40px; display: none; }
+  .panel.on { display: block; }
+  .sec { background: var(--tone); border-radius: 14px; padding: 10px 12px; margin-bottom: 10px; }
+  .sec h3 { margin: 0 0 8px; font-size: 12px; color: var(--ink2); font-weight: 700; }
+  .row { display: flex; gap: 6px; align-items: center; margin: 6px 0; flex-wrap: wrap; }
+  .row > label { width: 56px; color: var(--ink2); flex: none; }
+  .row input[type=number] { width: 66px; }
+  .row input, .row select, .sec textarea { border: 0; border-radius: 10px; background: #fff; padding: 5px 8px; }
+  .row input[type=text] { flex: 1; min-width: 0; }
+  .sec textarea { width: 100%; min-height: 90px; resize: vertical; font-family: Consolas, "Malgun Gothic", monospace; font-size: 12px; }
+  .seg { display: inline-flex; background: #fff; border-radius: 999px; padding: 2px; }
+  .seg button { border: 0; background: none; border-radius: 999px; padding: 3px 10px; }
+  .seg button.on { background: var(--ink); color: #fff; }
+  .sw { width: 16px; height: 16px; border-radius: 5px; display: inline-block; box-shadow: inset 0 0 0 1px rgba(0,0,0,.15); flex: none; }
+  .colorSel { flex: 1; min-width: 0; }
+  .ellist { max-height: 220px; overflow-y: auto; }
+  .ellist div { padding: 3px 8px; border-radius: 8px; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ellist div:hover { background: #fff; }
+  .ellist div.on { background: var(--pc); }
+  .hint { color: var(--ink2); font-size: 12px; margin: 4px 0; }
+  .req { background: var(--tone); border-radius: 14px; padding: 10px 12px; margin-bottom: 8px; }
+  .req.done { opacity: .75; }
+  .req .meta { display: flex; gap: 6px; align-items: center; font-size: 11px; color: var(--ink2); margin-bottom: 4px; flex-wrap: wrap; }
+  .req .st { border-radius: 999px; padding: 0 8px; font-weight: 700; }
+  .req .st.open { background: var(--warnc); color: var(--warn); }
+  .req .st.done { background: var(--okc); color: var(--ok); }
+  .req .st.working { background: #D6E3FF; color: #0B4A9E; }
+  #sessChip { cursor: default; }
+  #sessChip.on { background: var(--okc); color: var(--ok); border-color: transparent; }
+  #sessChip.busy { background: #D6E3FF; color: #0B4A9E; border-color: transparent; }
+  #sessChip.off { background: var(--tone2); color: var(--ink2); }
+  #sessChip .dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: currentColor; margin-right: 5px; vertical-align: 1px; }
+  .req .txt { white-space: pre-wrap; }
+  .req .reply { margin-top: 6px; background: #fff; border-radius: 10px; padding: 6px 10px; white-space: pre-wrap; }
+  .req .reply b { color: var(--p); }
+  .req .acts { display: flex; gap: 6px; margin-top: 6px; }
+  /* 캔버스 아래 발표자 노트 (PowerPoint 노트 창처럼 항상 보임) */
+  #notesBar { margin: 0 12px 12px; background: var(--card); border-radius: 16px; padding: 8px 12px 10px; display: flex; flex-direction: column; gap: 6px; }
+  #notesBar .cap { color: var(--ink2); font-size: 12px; display: flex; gap: 8px; align-items: center; }
+  #notesBar .cap .sp { flex: 1; }
+  #notesTa { width: 100%; height: 108px; border: 0; background: #fff; border-radius: 12px; padding: 8px 12px; resize: vertical; font-family: var(--font); font-size: 14px; line-height: 1.6; }
+  #notesBar.fold #notesTa { display: none; }
+  #notesBar .empty { color: var(--ink2); }
+  #toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); background: var(--ink); color: #fff; padding: 9px 18px; border-radius: 999px; opacity: 0; transition: opacity .2s; pointer-events: none; z-index: 60; }
+  #toast.show { opacity: .95; }
+  .spin { display: inline-block; width: 12px; height: 12px; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: sp 0.8s linear infinite; }
+  @keyframes sp { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+<header>
+  <img class="logo" id="brandLogo" alt="" style="display:none">
+  <h1 id="appTitle">nexa-slide</h1>
+  <select id="deckSel" title="장 선택"></select>
+  <select id="fontSel" title="글꼴 세트 — 바꾸면 편집 화면에 바로 반영, PPTX 는 다음 내보내기부터"></select>
+  <span id="status" class="chip sm">불러오는 중</span>
+  <button id="undoBtn" class="chip icon" title="실행 취소 (Ctrl+Z)">↶</button>
+  <button id="redoBtn" class="chip icon" title="다시 실행 (Ctrl+Y)">↷</button>
+  <span class="sp"></span>
+  <span id="sessChip" class="chip sm off" title="Claude Code 세션의 요청 감시(watch_requests.py --stream) 연결 상태"><span class="dot"></span>세션 확인 중</span>
+  <button id="flushBtn" class="chip sm" style="display:none" title="열린 요청을 대기 없이 세션에 바로 보낸다">요청 보내기</button>
+  <button id="previewBtn" class="chip" title="PowerPoint 로 실제 렌더한 PNG 를 나란히 본다">PPT 렌더 미리보기</button>
+  <a id="dl" class="chip" style="display:none" download>⬇ 받기</a>
+  <button id="exportBtn" class="chip primary">PPTX 내보내기</button>
+</header>
+<main>
+  <nav id="left"></nav>
+  <section id="center">
+    <div id="tools">
+      <span class="lbl">요소 추가</span>
+      <button class="chip sm" data-add="text">글자</button>
+      <button class="chip sm" data-add="pill">칩</button>
+      <button class="chip sm" data-add="rect">상자</button>
+      <button class="chip sm" data-add="ellipse">원</button>
+      <button class="chip sm" data-add="arrow">화살표</button>
+      <button class="chip sm" data-add="code">코드</button>
+      <button class="chip sm" data-add="image">로고</button>
+      <span class="lbl">격자 8px · Shift = 자유 · 더블클릭 = 글자 편집</span>
+    </div>
+    <div id="banner"><span id="bannerMsg"></span><span class="sp"></span>
+      <button class="chip sm" id="bnTheirs">외부 버전 불러오기</button>
+      <button class="chip sm primary" id="bnMine">내 편집으로 덮어쓰기</button></div>
+    <div id="work">
+      <div class="pane"><div class="cap">편집 화면 (render.js)</div><div class="viewport" id="vpEdit"><div id="stage"><div id="host"></div><div id="ov"></div></div></div></div>
+      <div class="pane" id="pngPane"><div class="cap">PowerPoint 렌더 <span id="pngInfo"></span><button class="chip sm" id="renderBtn">다시 렌더</button></div>
+        <div class="viewport" id="vpPng"><div id="pngWrap"></div></div></div>
+    </div>
+      <div id="notesBar"><div class="cap"><b>발표자 노트</b><span id="notesInfo"></span><span class="sp"></span>
+      <button class="chip sm" id="notesFold" title="노트 창 접기/펴기">접기</button></div>
+      <textarea id="notesTa" placeholder="이 슬라이드의 발표자 노트 — PPTX 슬라이드 노트로 들어간다"></textarea></div>
+  </section>
+  <aside id="right">
+    <div class="tabs">
+      <button class="chip on" data-tab="props">속성</button>
+      <button class="chip" data-tab="reqs">요청 <span class="cnt" id="reqCnt" style="display:none"></span></button>
+    </div>
+    <div class="panel on" id="tab-props"></div>
+    <div class="panel" id="tab-reqs"></div>
+  </aside>
+</main>
+<div id="toast"></div>
+<script src="render.js"></script>
+<script src="studio.js"></script>
+</body>
+</html>

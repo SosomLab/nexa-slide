@@ -1,0 +1,110 @@
+{
+ "id": "demo",
+ "title": "nexa-slide 둘러보기",
+ "part": "day1",
+ "version": "0.1",
+ "slides": [
+  {
+   "layout": "cover",
+   "badge": "nexa-slide 예제",
+   "title": "웹에서 고치고\n편집 가능한 PPTX로",
+   "subtitle": "덱 JSON 하나 → 브라우저 편집기 · PowerPoint 기본 도형",
+   "days": [
+    [
+     "day1",
+     "1부 기초"
+    ],
+    [
+     "day2",
+     "2부 응용"
+    ]
+   ],
+   "meta": "nexa-slide\nexample workspace\nv0.1",
+   "notes": "표지 — 배지·제목·부제·부 칩·메타는 content 의 필드로 정한다."
+  },
+  {
+   "layout": "bullets",
+   "title": "무엇이 다른가",
+   "sub": "HTML 이 아니라 덱 JSON 이 원본",
+   "crumb": "demo › 개요",
+   "items": [
+    "편집기 화면(render.js)과 PPTX(export_pptx.py)가 ==같은 규칙==으로 각각 그린다",
+    {
+     "text": "PPTX 는 이미지로 굽지 않는다",
+     "sub": [
+      "글상자·도형·표·연결선 그대로 — PowerPoint 에서 계속 고칠 수 있다"
+     ]
+    },
+    "요청 메모를 남기면 Claude Code 세션이 받아 덱을 고친다"
+   ],
+   "notes": "글머리 — 두 칸 들여쓰기 = 하위 항목."
+  },
+  {
+   "layout": "table",
+   "title": "구성 요소",
+   "crumb": "demo › 구성",
+   "header": [
+    "파일",
+    "역할"
+   ],
+   "rows": [
+    [
+     "content/<id>.json",
+     "내용 원본(레이아웃 이름 + 필드)"
+    ],
+    [
+     "decks/<id>.json",
+     "덱(편집기에서 고치는 대상)"
+    ],
+    [
+     "decks/<id>.requests.json",
+     "요청 메모"
+    ],
+    [
+     "out/<id>.pptx",
+     "내보낸 PPTX"
+    ]
+   ]
+  },
+  {
+   "layout": "cards",
+   "title": "두 가지 고치는 방법",
+   "crumb": "demo › 편집",
+   "cards": [
+    {
+     "label": "직접",
+     "title": "편집기",
+     "body": "끌기·크기·글자 편집\n자동 저장"
+    },
+    {
+     "label": "요청",
+     "title": "Claude 세션",
+     "body": "요청 메모 → 세션이 처리\n상태·답변 표시"
+    }
+   ]
+  },
+  {
+   "layout": "code_plan",
+   "title": "코드와 실행계획",
+   "crumb": "demo › 코드",
+   "code": "SELECT o.order_id, c.name\nFROM   orders o\nJOIN   customers c ON c.id = o.customer_id\nWHERE  o.created_at >= :since;",
+   "plan": "| Id | Operation            | Name      |\n|  0 | SELECT STATEMENT     |           |\n|  1 |  [[HASH JOIN]]           |           |\n|  2 |   TABLE ACCESS FULL  | CUSTOMERS |\n|  3 |   [[ok:INDEX RANGE SCAN]]   | ORD_IX1   |"
+  },
+  {
+   "layout": "summary",
+   "title": "정리",
+   "crumb": "demo › 정리",
+   "items": [
+    "원본은 덱 JSON 하나",
+    "편집기 · PPTX 가 같은 규칙",
+    "요청은 세션이 바로 받아 처리"
+   ]
+  },
+  {
+   "layout": "end",
+   "title": "End of Document",
+   "sub": "nexa-slide 둘러보기",
+   "meta": "github.com/SosomLab/nexa-slide"
+  }
+ ]
+}

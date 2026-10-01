@@ -1,0 +1,901 @@
+{
+ "id": "demo",
+ "title": "nexa-slide 둘러보기",
+ "part": "day1",
+ "version": "0.1",
+ "updated": "2026-10-01T17:21:18",
+ "source": "",
+ "slides": [
+  {
+   "id": "s01",
+   "layout": "cover",
+   "notes": "표지 — 배지·제목·부제·부 칩·메타는 content 의 필드로 정한다.",
+   "elements": [
+    {
+     "id": "e01",
+     "type": "rect",
+     "x": 40,
+     "y": 40,
+     "w": 760,
+     "h": 640,
+     "fill": "primary-container",
+     "radius": "r-l"
+    },
+    {
+     "id": "e02",
+     "type": "pill",
+     "x": 88,
+     "y": 92,
+     "w": 126,
+     "h": 30,
+     "text": "nexa-slide 예제",
+     "fill": "white",
+     "color": "primary",
+     "size": 14,
+     "bold": true
+    },
+    {
+     "id": "e03",
+     "type": "text",
+     "x": 88,
+     "y": 170,
+     "w": 680,
+     "h": 150,
+     "text": "웹에서 고치고\n편집 가능한 PPTX로",
+     "size": 60,
+     "color": "on-primary-container",
+     "bold": true,
+     "lineHeight": 1.15,
+     "role": "title"
+    },
+    {
+     "id": "e04",
+     "type": "text",
+     "x": 88,
+     "y": 352,
+     "w": 660,
+     "h": 35,
+     "text": "덱 JSON 하나 → 브라우저 편집기 · PowerPoint 기본 도형",
+     "size": 22,
+     "color": "on-primary-container",
+     "lineHeight": 1.6
+    },
+    {
+     "id": "e05",
+     "type": "pill",
+     "x": 88,
+     "y": 560,
+     "w": 76,
+     "h": 30,
+     "text": "1부 기초",
+     "fill": "day1-container",
+     "color": "on-day1-container",
+     "size": 14,
+     "bold": true
+    },
+    {
+     "id": "e06",
+     "type": "pill",
+     "x": 172,
+     "y": 560,
+     "w": 78,
+     "h": 30,
+     "text": "2부 응용",
+     "fill": "day2-container",
+     "color": "on-day2-container",
+     "size": 14,
+     "bold": true
+    },
+    {
+     "id": "e07",
+     "type": "image",
+     "x": 864,
+     "y": 96,
+     "w": 284,
+     "h": 88,
+     "src": "assets/brand/logo.png",
+     "locked": true
+    },
+    {
+     "id": "e08",
+     "type": "text",
+     "x": 864,
+     "y": 470,
+     "w": 380,
+     "h": 95,
+     "text": "nexa-slide\nexample workspace\nv0.1",
+     "size": 16,
+     "color": "on-surface-variant",
+     "lineHeight": 1.9
+    }
+   ]
+  },
+  {
+   "id": "s02",
+   "layout": "bullets",
+   "notes": "글머리 — 두 칸 들여쓰기 = 하위 항목.",
+   "elements": [
+    {
+     "id": "e01",
+     "type": "pill",
+     "x": 64,
+     "y": 36,
+     "w": 83,
+     "h": 30,
+     "text": "1부 · 기초",
+     "fill": "day1-container",
+     "color": "on-day1-container",
+     "size": 14,
+     "bold": true
+    },
+    {
+     "id": "e02",
+     "type": "text",
+     "x": 64,
+     "y": 80,
+     "w": 976,
+     "h": 44,
+     "text": "무엇이 다른가",
+     "size": 34,
+     "color": "on-surface",
+     "bold": true,
+     "lineHeight": 1.25,
+     "role": "title"
+    },
+    {
+     "id": "e03",
+     "type": "text",
+     "x": 64,
+     "y": 128,
+     "w": 976,
+     "h": 28,
+     "text": "HTML 이 아니라 덱 JSON 이 원본",
+     "size": 18,
+     "color": "on-surface-variant",
+     "lineHeight": 1.4,
+     "role": "subtitle"
+    },
+    {
+     "id": "e04",
+     "type": "image",
+     "x": 1122,
+     "y": 36,
+     "w": 110,
+     "h": 34,
+     "src": "assets/brand/logo.png",
+     "locked": true
+    },
+    {
+     "id": "e05",
+     "type": "bullets",
+     "x": 64,
+     "y": 184,
+     "w": 1152,
+     "h": 330,
+     "items": [
+      "편집기 화면(render.js)과 PPTX(export_pptx.py)가 ==같은 규칙==으로 각각 그린다",
+      {
+       "text": "PPTX 는 이미지로 굽지 않는다",
+       "sub": [
+        "글상자·도형·표·연결선 그대로 — PowerPoint 에서 계속 고칠 수 있다"
+       ]
+      },
+      "요청 메모를 남기면 Claude Code 세션이 받아 덱을 고친다"
+     ],
+     "size": 20,
+     "subSize": 17,
+     "lineHeight": 1.55,
+     "dot": "day1",
+     "color": "on-surface",
+     "subColor": "on-surface-variant",
+     "gap": 14,
+     "subGap": 6
+    },
+    {
+     "id": "e06",
+     "type": "text",
+     "x": 64,
+     "y": 675,
+     "w": 800,
+     "h": 20,
+     "text": "demo › 개요",
+     "size": 13,
+     "color": "on-surface-variant",
+     "lineHeight": 1.4,
+     "role": "crumb"
+    },
+    {
+     "id": "e07",
+     "type": "image",
+     "x": 1060,
+     "y": 678,
+     "w": 108,
+     "h": 12,
+     "src": "assets/brand/wordmark.png",
+     "locked": true
+    },
+    {
+     "id": "e08",
+     "type": "pill",
+     "x": 1188,
+     "y": 670,
+     "w": 44,
+     "h": 28,
+     "text": "{page}",
+     "fill": "surface-container",
+     "color": "on-surface-variant",
+     "size": 13,
+     "bold": false,
+     "role": "page"
+    }
+   ]
+  },
+  {
+   "id": "s03",
+   "layout": "table",
+   "notes": "",
+   "elements": [
+    {
+     "id": "e01",
+     "type": "pill",
+     "x": 64,
+     "y": 36,
+     "w": 83,
+     "h": 30,
+     "text": "1부 · 기초",
+     "fill": "day1-container",
+     "color": "on-day1-container",
+     "size": 14,
+     "bold": true
+    },
+    {
+     "id": "e02",
+     "type": "text",
+     "x": 64,
+     "y": 80,
+     "w": 976,
+     "h": 44,
+     "text": "구성 요소",
+     "size": 34,
+     "color": "on-surface",
+     "bold": true,
+     "lineHeight": 1.25,
+     "role": "title"
+    },
+    {
+     "id": "e03",
+     "type": "image",
+     "x": 1122,
+     "y": 36,
+     "w": 110,
+     "h": 34,
+     "src": "assets/brand/logo.png",
+     "locked": true
+    },
+    {
+     "id": "e04",
+     "type": "table",
+     "x": 64,
+     "y": 180,
+     "w": 1152,
+     "h": 230,
+     "rows": [
+      [
+       "파일",
+       "역할"
+      ],
+      [
+       "content/<id>.json",
+       "내용 원본(레이아웃 이름 + 필드)"
+      ],
+      [
+       "decks/<id>.json",
+       "덱(편집기에서 고치는 대상)"
+      ],
+      [
+       "decks/<id>.requests.json",
+       "요청 메모"
+      ],
+      [
+       "out/<id>.pptx",
+       "내보낸 PPTX"
+      ]
+     ],
+     "colW": [
+      1,
+      1
+     ],
+     "header": true,
+     "headFill": "day1-container",
+     "headColor": "on-day1-container",
+     "size": 16,
+     "rule": "surface-container-high",
+     "colFont": null
+    },
+    {
+     "id": "e05",
+     "type": "text",
+     "x": 64,
+     "y": 675,
+     "w": 800,
+     "h": 20,
+     "text": "demo › 구성",
+     "size": 13,
+     "color": "on-surface-variant",
+     "lineHeight": 1.4,
+     "role": "crumb"
+    },
+    {
+     "id": "e06",
+     "type": "image",
+     "x": 1060,
+     "y": 678,
+     "w": 108,
+     "h": 12,
+     "src": "assets/brand/wordmark.png",
+     "locked": true
+    },
+    {
+     "id": "e07",
+     "type": "pill",
+     "x": 1188,
+     "y": 670,
+     "w": 44,
+     "h": 28,
+     "text": "{page}",
+     "fill": "surface-container",
+     "color": "on-surface-variant",
+     "size": 13,
+     "bold": false,
+     "role": "page"
+    }
+   ]
+  },
+  {
+   "id": "s04",
+   "layout": "cards",
+   "notes": "",
+   "elements": [
+    {
+     "id": "e01",
+     "type": "pill",
+     "x": 64,
+     "y": 36,
+     "w": 83,
+     "h": 30,
+     "text": "1부 · 기초",
+     "fill": "day1-container",
+     "color": "on-day1-container",
+     "size": 14,
+     "bold": true
+    },
+    {
+     "id": "e02",
+     "type": "text",
+     "x": 64,
+     "y": 80,
+     "w": 976,
+     "h": 44,
+     "text": "두 가지 고치는 방법",
+     "size": 34,
+     "color": "on-surface",
+     "bold": true,
+     "lineHeight": 1.25,
+     "role": "title"
+    },
+    {
+     "id": "e03",
+     "type": "image",
+     "x": 1122,
+     "y": 36,
+     "w": 110,
+     "h": 34,
+     "src": "assets/brand/logo.png",
+     "locked": true
+    },
+    {
+     "id": "e04",
+     "type": "rect",
+     "x": 64,
+     "y": 184,
+     "w": 564,
+     "h": 340,
+     "fill": "surface-container",
+     "radius": "r-l"
+    },
+    {
+     "id": "e05",
+     "type": "pill",
+     "x": 88,
+     "y": 206,
+     "w": 54,
+     "h": 30,
+     "text": "직접",
+     "fill": "ci-dark",
+     "color": "white",
+     "size": 14,
+     "bold": true
+    },
+    {
+     "id": "e06",
+     "type": "text",
+     "x": 88,
+     "y": 250,
+     "w": 516,
+     "h": 30,
+     "text": "편집기",
+     "size": 23,
+     "color": "on-surface",
+     "bold": true,
+     "lineHeight": 1.3
+    },
+    {
+     "id": "e07",
+     "type": "text",
+     "x": 88,
+     "y": 294,
+     "w": 516,
+     "h": 210,
+     "text": "끌기·크기·글자 편집\n자동 저장",
+     "size": 17,
+     "color": "on-surface",
+     "lineHeight": 1.65
+    },
+    {
+     "id": "e08",
+     "type": "rect",
+     "x": 652,
+     "y": 184,
+     "w": 564,
+     "h": 340,
+     "fill": "surface-container",
+     "radius": "r-l"
+    },
+    {
+     "id": "e09",
+     "type": "pill",
+     "x": 676,
+     "y": 206,
+     "w": 54,
+     "h": 30,
+     "text": "요청",
+     "fill": "ci-dark",
+     "color": "white",
+     "size": 14,
+     "bold": true
+    },
+    {
+     "id": "e10",
+     "type": "text",
+     "x": 676,
+     "y": 250,
+     "w": 516,
+     "h": 30,
+     "text": "Claude 세션",
+     "size": 23,
+     "color": "on-surface",
+     "bold": true,
+     "lineHeight": 1.3
+    },
+    {
+     "id": "e11",
+     "type": "text",
+     "x": 676,
+     "y": 294,
+     "w": 516,
+     "h": 210,
+     "text": "요청 메모 → 세션이 처리\n상태·답변 표시",
+     "size": 17,
+     "color": "on-surface",
+     "lineHeight": 1.65
+    },
+    {
+     "id": "e12",
+     "type": "text",
+     "x": 64,
+     "y": 675,
+     "w": 800,
+     "h": 20,
+     "text": "demo › 편집",
+     "size": 13,
+     "color": "on-surface-variant",
+     "lineHeight": 1.4,
+     "role": "crumb"
+    },
+    {
+     "id": "e13",
+     "type": "image",
+     "x": 1060,
+     "y": 678,
+     "w": 108,
+     "h": 12,
+     "src": "assets/brand/wordmark.png",
+     "locked": true
+    },
+    {
+     "id": "e14",
+     "type": "pill",
+     "x": 1188,
+     "y": 670,
+     "w": 44,
+     "h": 28,
+     "text": "{page}",
+     "fill": "surface-container",
+     "color": "on-surface-variant",
+     "size": 13,
+     "bold": false,
+     "role": "page"
+    }
+   ]
+  },
+  {
+   "id": "s05",
+   "layout": "code_plan",
+   "notes": "",
+   "elements": [
+    {
+     "id": "e01",
+     "type": "pill",
+     "x": 64,
+     "y": 36,
+     "w": 83,
+     "h": 30,
+     "text": "1부 · 기초",
+     "fill": "day1-container",
+     "color": "on-day1-container",
+     "size": 14,
+     "bold": true
+    },
+    {
+     "id": "e02",
+     "type": "text",
+     "x": 64,
+     "y": 80,
+     "w": 976,
+     "h": 44,
+     "text": "코드와 실행계획",
+     "size": 34,
+     "color": "on-surface",
+     "bold": true,
+     "lineHeight": 1.25,
+     "role": "title"
+    },
+    {
+     "id": "e03",
+     "type": "image",
+     "x": 1122,
+     "y": 36,
+     "w": 110,
+     "h": 34,
+     "src": "assets/brand/logo.png",
+     "locked": true
+    },
+    {
+     "id": "e04",
+     "type": "code",
+     "x": 64,
+     "y": 184,
+     "w": 528,
+     "h": 114,
+     "text": "SELECT o.order_id, c.name\nFROM   orders o\nJOIN   customers c ON c.id = o.customer_id\nWHERE  o.created_at >= :since;",
+     "lang": "sql",
+     "size": 14,
+     "lineHeight": 1.6,
+     "radius": "r-m"
+    },
+    {
+     "id": "e05",
+     "type": "plan",
+     "x": 616,
+     "y": 184,
+     "w": 600,
+     "h": 129,
+     "text": "| Id | Operation            | Name      |\n|  0 | SELECT STATEMENT     |           |\n|  1 |  [[HASH JOIN]]           |           |\n|  2 |   TABLE ACCESS FULL  | CUSTOMERS |\n|  3 |   [[ok:INDEX RANGE SCAN]]   | ORD_IX1   |",
+     "size": 12.5,
+     "lineHeight": 1.55,
+     "fill": "surface-container",
+     "color": "on-surface",
+     "radius": "r-m",
+     "pad": [
+      16,
+      18,
+      16,
+      18
+     ]
+    },
+    {
+     "id": "e06",
+     "type": "text",
+     "x": 64,
+     "y": 675,
+     "w": 800,
+     "h": 20,
+     "text": "demo › 코드",
+     "size": 13,
+     "color": "on-surface-variant",
+     "lineHeight": 1.4,
+     "role": "crumb"
+    },
+    {
+     "id": "e07",
+     "type": "image",
+     "x": 1060,
+     "y": 678,
+     "w": 108,
+     "h": 12,
+     "src": "assets/brand/wordmark.png",
+     "locked": true
+    },
+    {
+     "id": "e08",
+     "type": "pill",
+     "x": 1188,
+     "y": 670,
+     "w": 44,
+     "h": 28,
+     "text": "{page}",
+     "fill": "surface-container",
+     "color": "on-surface-variant",
+     "size": 13,
+     "bold": false,
+     "role": "page"
+    }
+   ]
+  },
+  {
+   "id": "s06",
+   "layout": "summary",
+   "notes": "",
+   "elements": [
+    {
+     "id": "e01",
+     "type": "pill",
+     "x": 64,
+     "y": 36,
+     "w": 83,
+     "h": 30,
+     "text": "1부 · 기초",
+     "fill": "day1-container",
+     "color": "on-day1-container",
+     "size": 14,
+     "bold": true
+    },
+    {
+     "id": "e02",
+     "type": "text",
+     "x": 64,
+     "y": 80,
+     "w": 976,
+     "h": 44,
+     "text": "정리",
+     "size": 34,
+     "color": "on-surface",
+     "bold": true,
+     "lineHeight": 1.25,
+     "role": "title"
+    },
+    {
+     "id": "e03",
+     "type": "image",
+     "x": 1122,
+     "y": 36,
+     "w": 110,
+     "h": 34,
+     "src": "assets/brand/logo.png",
+     "locked": true
+    },
+    {
+     "id": "e04",
+     "type": "rect",
+     "x": 64,
+     "y": 184,
+     "w": 1152,
+     "h": 58,
+     "fill": "surface-container",
+     "radius": "r-m"
+    },
+    {
+     "id": "e05",
+     "type": "ellipse",
+     "x": 84,
+     "y": 198,
+     "w": 30,
+     "h": 30,
+     "fill": "day1",
+     "text": "✓",
+     "size": 16,
+     "bold": true,
+     "color": "white"
+    },
+    {
+     "id": "e06",
+     "type": "text",
+     "x": 130,
+     "y": 198,
+     "w": 1060,
+     "h": 30,
+     "text": "원본은 덱 JSON 하나",
+     "size": 19,
+     "color": "on-surface",
+     "lineHeight": 1.55,
+     "valign": "middle"
+    },
+    {
+     "id": "e07",
+     "type": "rect",
+     "x": 64,
+     "y": 252,
+     "w": 1152,
+     "h": 58,
+     "fill": "surface-container",
+     "radius": "r-m"
+    },
+    {
+     "id": "e08",
+     "type": "ellipse",
+     "x": 84,
+     "y": 266,
+     "w": 30,
+     "h": 30,
+     "fill": "day1",
+     "text": "✓",
+     "size": 16,
+     "bold": true,
+     "color": "white"
+    },
+    {
+     "id": "e09",
+     "type": "text",
+     "x": 130,
+     "y": 266,
+     "w": 1060,
+     "h": 30,
+     "text": "편집기 · PPTX 가 같은 규칙",
+     "size": 19,
+     "color": "on-surface",
+     "lineHeight": 1.55,
+     "valign": "middle"
+    },
+    {
+     "id": "e10",
+     "type": "rect",
+     "x": 64,
+     "y": 320,
+     "w": 1152,
+     "h": 58,
+     "fill": "surface-container",
+     "radius": "r-m"
+    },
+    {
+     "id": "e11",
+     "type": "ellipse",
+     "x": 84,
+     "y": 334,
+     "w": 30,
+     "h": 30,
+     "fill": "day1",
+     "text": "✓",
+     "size": 16,
+     "bold": true,
+     "color": "white"
+    },
+    {
+     "id": "e12",
+     "type": "text",
+     "x": 130,
+     "y": 334,
+     "w": 1060,
+     "h": 30,
+     "text": "요청은 세션이 바로 받아 처리",
+     "size": 19,
+     "color": "on-surface",
+     "lineHeight": 1.55,
+     "valign": "middle"
+    },
+    {
+     "id": "e13",
+     "type": "text",
+     "x": 64,
+     "y": 675,
+     "w": 800,
+     "h": 20,
+     "text": "demo › 정리",
+     "size": 13,
+     "color": "on-surface-variant",
+     "lineHeight": 1.4,
+     "role": "crumb"
+    },
+    {
+     "id": "e14",
+     "type": "image",
+     "x": 1060,
+     "y": 678,
+     "w": 108,
+     "h": 12,
+     "src": "assets/brand/wordmark.png",
+     "locked": true
+    },
+    {
+     "id": "e15",
+     "type": "pill",
+     "x": 1188,
+     "y": 670,
+     "w": 44,
+     "h": 28,
+     "text": "{page}",
+     "fill": "surface-container",
+     "color": "on-surface-variant",
+     "size": 13,
+     "bold": false,
+     "role": "page"
+    }
+   ]
+  },
+  {
+   "id": "s07",
+   "layout": "end",
+   "notes": "",
+   "elements": [
+    {
+     "id": "e01",
+     "type": "rect",
+     "x": 40,
+     "y": 40,
+     "w": 1200,
+     "h": 640,
+     "fill": "surface-container",
+     "radius": "r-l"
+    },
+    {
+     "id": "e02",
+     "type": "image",
+     "x": 96,
+     "y": 96,
+     "w": 142,
+     "h": 44,
+     "src": "assets/brand/logo.png",
+     "locked": true
+    },
+    {
+     "id": "e03",
+     "type": "text",
+     "x": 96,
+     "y": 250,
+     "w": 900,
+     "h": 80,
+     "text": "End of Document",
+     "size": 60,
+     "color": "on-surface",
+     "bold": true,
+     "lineHeight": 1.2,
+     "role": "title"
+    },
+    {
+     "id": "e04",
+     "type": "text",
+     "x": 96,
+     "y": 340,
+     "w": 900,
+     "h": 36,
+     "text": "nexa-slide 둘러보기",
+     "size": 22,
+     "color": "on-surface-variant",
+     "lineHeight": 1.5
+    },
+    {
+     "id": "e05",
+     "type": "text",
+     "x": 760,
+     "y": 560,
+     "w": 420,
+     "h": 80,
+     "text": "github.com/SosomLab/nexa-slide",
+     "size": 15,
+     "color": "on-surface-variant",
+     "lineHeight": 1.8,
+     "align": "right"
+    }
+   ]
+  }
+ ]
+}
