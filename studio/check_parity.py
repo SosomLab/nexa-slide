@@ -11,7 +11,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from common import DECKS, STUDIO, TOKENS, code_lines, plan_runs, runs, table_grid  # noqa: E402
+from common import DECKS, STUDIO, code_lines, resolve_tokens, plan_runs, runs, table_grid  # noqa: E402
 
 SAMPLES = [
     {"type": "code", "lang": "python", "text": "def f(x):\n    # 주석\n    return x * 2 + 'a'  # 끝\n"},
@@ -59,7 +59,7 @@ def main():
                     texts += str(e["text"]).split("\n")
                 if e["type"] == "table":
                     texts += [c for r in e["rows"] for c in r]
-    tokens = json.loads(TOKENS.read_text(encoding="utf-8"))
+    tokens = resolve_tokens()
     inp = json.dumps({"tokens": tokens, "code": code, "texts": texts, "plans": plans, "tables": tables}, ensure_ascii=False)
     r = subprocess.run(["node", "-e", JS, str(STUDIO / "render.js")], input=inp.encode("utf-8"), capture_output=True)
     if r.returncode:

@@ -23,7 +23,7 @@ python3 studio/service.py --workspace example stop
 
 ## 여러 작업 공간을 함께 운영
 
-엔진은 **실행 코드만** 제공하고, **서비스 구성은 각 폴더·저장소**의 `nexa-slide.json`(포트·제목·브랜드·경로)과 실행기 `nexa.py` 에 있다.
+엔진은 **실행 코드와 디자인 템플릿**을 제공하고, 각 폴더·저장소는 `nexa-slide.json` 에서 **고르기만** 한다(포트·템플릿·글꼴 프리셋·브랜드 파일·경로) — 디자인 값은 저장소에 두지 않는다([docs/templates.md](docs/templates.md)).
 
 ```
 D:\Projects\
@@ -44,12 +44,13 @@ nexa-slide/
 │   ├─ server.py           로컬 서버(정적 파일 + API)          ├─ index.html · studio.js   편집기
 │   ├─ common.py           작업 공간·설정 해석, 공용 규칙      ├─ render.js                요소 → HTML 렌더러
 │   ├─ layouts.py          레이아웃 빌더 21종                  ├─ slide.html               검증용 1:1 슬라이드
-│   ├─ build_deck.py       content → 덱 JSON                  ├─ tokens.json              기본 디자인 토큰
+│   ├─ build_deck.py       content → 덱 JSON                  ├─ (토큰은 templates/<이름>/)
 │   ├─ export_pptx.py      덱 JSON → PPTX                     ├─ fonts.css                편집기 글꼴(@font-face)
 │   ├─ watch_requests.py   요청 감시 → Claude 세션 전달        ├─ render_pptx.ps1          PowerPoint 렌더(Windows)
 │   ├─ compare.py · check_parity.py   일치 검증                └─ install_fonts.ps1        OFL 글꼴 설치(Windows)
 │   ├─ service.py · status.py   서비스 시작·중지·상태(작업 공간별 포트)
 │   ├─ check_layout.py      레이아웃 검사 — 겹침·넘침·최소 글자(pt)·슬라이드 밖·고정폭 정렬
+│   ├─ templates/          디자인 템플릿 — lecture(기존 디자인) · lecture-large(글자 확대). tokens.json · template.json · design/
 │   └─ set_fonts.py · gen_tokens_css.py · render_mermaid.py
 ├─ example/                예제 작업 공간(nexa-slide.json · content · decks · 자리 표시 로고)
 └─ docs/                   설치 · 설정 · 서버 · 운영 · 세션 연결 · 덱 형식 · 편집기
@@ -63,6 +64,7 @@ nexa-slide/
 | 문서 | 내용 |
 |---|---|
 | [docs/install.md](docs/install.md) | 요구 사항, 설치, 글꼴, 새 작업 공간 만들기, 기존 저장소에 붙이기(실행기) |
+| [docs/templates.md](docs/templates.md) | 디자인 템플릿 — 제공 템플릿, 폴더 구성, 작업 공간이 고르는 것, 바꾸기·새로 만들기 |
 | [docs/configuration.md](docs/configuration.md) | `nexa-slide.json` 전 항목·기본값, 작업 공간 찾기 순서, `tokens.json`·글꼴 프리셋 |
 | [docs/server.md](docs/server.md) | 서버 실행 옵션, URL 구성, API 전체, 보안 범위, 동시 편집 처리 |
 | [docs/operation.md](docs/operation.md) | 일상 운영 — 빌드·내보내기·렌더·비교, 백업·복원, 포트·프로세스 점검, 문제 해결 |

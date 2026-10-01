@@ -14,8 +14,8 @@
     t4.font.min              글자 크기가 역할별 최소 pt 보다 작음(pt = px × 0.75)  ERROR
     t5.mono.align            실행계획(plan)의 | 열 위치가 줄마다 다름(강조 표시를 뺀 원문 기준)   WARNING
 
-기준값은 작업 공간 nexa-slide.json 의 "check" 로 바꾼다:
-    "check": {"minFontPt": {"default": 9, "footnotes": 7}, "ignore": ["t5.mono.align"], "ignoreSlides": {"ch00": ["s12"]}}
+기준값(최소 pt)은 템플릿(templates/<이름>/template.json "check")에 있다. 작업 공간은 제외 대상만 고른다:
+    nexa-slide.json  "check": {"ignore": ["t5.mono.align"], "ignoreSlides": {"ch00": ["s12"]}}
 
 추정의 한계: 줄바꿈은 어절 단위(keep-all)로 글꼴 폭을 재서 흉내 낸다(Pillow 가 있으면 실제 글꼴). 표·글머리 높이는 근사.
 화면·PPT 의 최종 확인은 compare.py(PowerPoint 렌더 대조)로 한다.
@@ -27,11 +27,11 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from common import CONFIG, DECKS, code_lines, load_deck, plain, safe_id, text_width  # noqa: E402
+from common import CONFIG, DECKS, TEMPLATE, code_lines, load_deck, plain, safe_id, text_width  # noqa: E402
 
 W, H = 1280, 720
-CHK = CONFIG.get("check", {})
-MIN_PT = {"default": 9, "footnotes": 7, **CHK.get("minFontPt", {})}
+CHK = CONFIG.get("check", {})  # 작업 공간은 제외 대상(ignore·ignoreSlides)만 고른다 — 기준값은 템플릿
+MIN_PT = {"default": 9, "footnotes": 7, **TEMPLATE.get("check", {}).get("minFontPt", {})}
 IGNORE = set(CHK.get("ignore", []))
 IGNORE_SLIDES = CHK.get("ignoreSlides", {})
 TEXT_TYPES = ("text", "pill", "rect", "ellipse")
@@ -232,7 +232,7 @@ def check_deck(deck_id):
     issues.sort(key=lambda i: (i["n"], order[i["severity"]], i["rule"]))
     return {"deck": deck_id, "slides": len(deck.get("slides", [])), "issues": issues,
             "errors": sum(i["severity"] == "ERROR" for i in issues), "warnings": sum(i["severity"] == "WARNING" for i in issues),
-            "minFontPt": MIN_PT}
+            "minFontPt": MIN_PT, "template": TEMPLATE["name"]}
 
 
 def main():
@@ -247,7 +247,7 @@ def main():
         print(json.dumps(results if len(results) > 1 else results[0], ensure_ascii=False, indent=1))
     else:
         for r in results:
-            print(f"[{r['deck']}] 슬라이드 {r['slides']}장 · ERROR {r['errors']} · WARNING {r['warnings']}  (최소 pt {r['minFontPt']})")
+            print(f"[{r['deck']}] 슬라이드 {r['slides']}장 · ERROR {r['errors']} · WARNING {r['warnings']}  (템플릿 {r['template']} · 최소 pt {r['minFontPt']})")
             for i in r["issues"]:
                 print(f"  {i['n']:>3}({i['slide']}) {i['severity']:<7} {i['rule']:<22} {i['message']}")
     return 1 if any(r["errors"] for r in results) else 0

@@ -13,7 +13,7 @@ python3 studio/render_mermaid.py -W <ws> ch18 [--all]  # content 의 mermaid →
 pwsh -File studio/render_pptx.ps1 -Pptx <ws>/out/ch00.pptx -OutDir <ws>/out/ch00   # PowerPoint 렌더 PNG
 python3 studio/compare.py      -W <ws> ch00 [--slides 1,5] [--port 5600]   # 브라우저 vs PowerPoint 픽셀 비교
 python3 studio/check_parity.py -W <ws> [ch00 …]        # render.js ↔ common.py 결과 동일 확인(node 필요)
-python3 studio/gen_tokens_css.py -W <ws> [--write]     # tokens.json ↔ designCss 값 일치 확인/갱신
+python3 studio/gen_tokens_css.py -W <ws> [--write]     # 템플릿 tokens.json ↔ 템플릿 design/tokens.css 값 일치 확인/갱신
 python3 studio/set_fonts.py    -W <ws> [default|modern]   # 글꼴 프리셋
 python3 studio/check_layout.py -W <ws> [ch00 …] [--json]  # 레이아웃 검사(ERROR 가 있으면 종료 코드 1)
 ```
@@ -33,10 +33,10 @@ python3 studio/check_layout.py -W <ws> [ch00 …] [--json]  # 레이아웃 검�
 | `t5.mono.align` | WARNING | 실행계획의 `\|` 열 위치가 줄마다 다름(강조 표시를 뺀 원문 기준) |
 
 규칙 id 는 Genspark `check_slide_layout` 형식(t1 겹침·t2 잘림 계층)을 본떴고, 최소 글자·고정폭 정렬·요소로 이동은 nexa-slide 에만 있다.
-기준은 작업 공간 `nexa-slide.json` 의 `check` 로 바꾼다:
+기준값(역할별 최소 pt)은 **템플릿** `check.minFontPt` 에 있다([templates.md](templates.md)). 작업 공간은 뺄 것만 고른다:
 
 ```json
-"check": {"minFontPt": {"default": 9, "footnotes": 7, "crumb": 9}, "ignore": ["t1.overlap.text-crosses-border"], "ignoreSlides": {"ch00": ["s12"]}}
+"check": {"ignore": ["t1.overlap.text-crosses-border"], "ignoreSlides": {"ch00": ["s12"]}}
 ```
 
 줄바꿈은 어절 단위로 글꼴 폭을 재서 흉내 내는 추정이다(Pillow 가 있으면 실제 글꼴). 최종 확인은 `compare.py`(PowerPoint 렌더 대조).
