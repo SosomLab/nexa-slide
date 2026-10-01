@@ -1,0 +1,12 @@
+{
+ "label": "강의 교안 (3일 과정)",
+ "description": "장·절·소분류·실습 번호 체계, 공통 표지·전체 목차·개정 이력·EoD, 필수/심화, 각주(근거)·노트(원문) 규약을 갖춘 강의 교안 뼈대. 내용은 자리 표시와 일반 예제(주문 관리)다.",
+ "template": "lecture",
+ "assetRoot": ".",
+ "decks": ["ch00", "ch01"],
+ "config": {
+  "partLabels": {"day1": "1일차 · 기초", "day2": "2일차 · 응용", "day3": "3일차 · 실무 종합", "apx": "부록"},
+  "coverBadge": "강의 교안"
+ },
+ "copy": ["content", "assets"]
+}

@@ -1,0 +1,25 @@
+erDiagram
+    CUSTOMERS ||..o{ ORDERS : "주문"
+    ORDERS ||--o{ ORDER_ITEMS : "포함"
+    PRODUCTS ||..o{ ORDER_ITEMS : "품목"
+    CUSTOMERS {
+        number customer_id PK
+        varchar name
+    }
+    ORDERS {
+        number order_id PK
+        number customer_id FK
+        date order_date
+        varchar status
+    }
+    ORDER_ITEMS {
+        number order_id PK, FK
+        number line_no PK
+        number product_id FK
+        number quantity
+    }
+    PRODUCTS {
+        number product_id PK
+        varchar name
+        number unit_price
+    }
