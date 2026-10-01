@@ -40,7 +40,7 @@ python3 studio/server.py  --workspace <작업 공간> [--port N | --port auto] [
 | `PUT /api/deck/<id>?base=<ver>` | 덱 저장 — 원자적 쓰기, 저장 전 `.history` 백업(50개 유지). `base` 가 현재 버전과 다르면 **409**(`force=1` 이면 무시) |
 | `GET /api/version/<id>` | `{deck, requests, session}` — 편집기가 2초마다 확인(외부 변경 감지·세션 상태) |
 | `GET /api/requests/<id>` | 요청 메모 목록 |
-| `POST /api/requests/<id>` | `{"action": "add"\|"update"\|"delete", …}` — update 는 `status`·`reply`·`text` |
+| `POST /api/requests/<id>` | `{"action": "add"\|"update"\|"delete"\|"send"\|"discard", …}` — add 는 `status`(draft/open)·`region`, send = 초안→대기(slide 생략 시 전체), discard = 초안 지우기, update 는 `status`·`reply`·`text` |
 | `POST /api/export/<id>` | PPTX 생성 → `{url: "/out/<id>.pptx?v=…"}` |
 | `GET /api/render/<id>` | 마지막 PowerPoint 렌더 PNG 목록 |
 | `POST /api/render/<id>` | PPTX 생성 + PowerPoint COM 렌더(Windows, 한 번에 하나 — 겹치면 429) |
@@ -51,6 +51,8 @@ python3 studio/server.py  --workspace <작업 공간> [--port N | --port auto] [
 | `GET /api/config` | 작업 공간 이름·경로(`path`)·포트·제목·브랜드(로고·워드마크·파비콘·로고 비율) |
 | `GET /api/session` | Claude 세션 연결 상태 `{connected, label, mode, last_seen, age, open, working}` |
 | `POST /api/flush/<id>` | "지금 보내기" — 감시 스크립트가 대기 없이 열린 요청을 바로 전달 |
+| `GET /api/history/<id>` | 자동 백업 목록 `[{file, kind(save/build), at, size}]` · `?f=<파일>` 이면 그 시점 덱 JSON |
+| `GET /api/templates` | 템플릿 목록과 선택된 템플릿 |
 | `GET /api/check/<id>` | 레이아웃 검사 결과 `{issues[{rule, severity, slide, n, elements, box, message, detail}], errors, warnings, minFontPt}` |
 
 ## 요청 메모 파일
@@ -62,7 +64,7 @@ python3 studio/server.py  --workspace <작업 공간> [--port N | --port auto] [
   "status": "open", "reply": "", "created": "2026-10-01T17:20:30"}]
 ```
 
-`status`: `open`(대기) → `working`(세션 처리 중) → `done`(완료). 편집기는 세 상태를 색으로 구분한다.
+`status`: `draft`(초안 — 편집기에서 보내기 전) → `open`(대기) → `working`(세션 처리 중) → `done`(완료). 그리기 모드 요청은 `region`(슬라이드 좌표)을 가진다.
 
 ## 동시 편집
 

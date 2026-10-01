@@ -67,7 +67,10 @@ def _key(r):
 
 
 def _brief(r):
-    return {k: r.get(k) for k in ("deck", "id", "slide", "element", "text")}
+    out = {k: r.get(k) for k in ("deck", "id", "slide", "element", "text")}
+    if r.get("region"):
+        out["region"] = r["region"]
+    return out
 
 
 def _write_json(path, obj):

@@ -16,7 +16,8 @@ API
   PUT  /api/deck/<id>?base=<ver>     덱 저장(원자적 쓰기, .history 백업 50개). base 가 현재와 다르면 409 (force=1 이면 무시)
   GET  /api/version/<id>             {"deck": ver, "requests": ver}
   GET  /api/requests/<id>            요청 메모 목록
-  POST /api/requests/<id>            {"action": "add"|"update"|"delete", ...}
+  POST /api/requests/<id>            {"action": "add"|"update"|"delete"|"send"|"discard", ...} — add 는 status draft(초안)·region(영역) 가능
+  GET  /api/history/<id>             저장 전 자동 백업 목록 · ?f=<파일> 이면 그 시점 덱 JSON
   POST /api/export/<id>              PPTX 생성 → {"url": "/out/<id>.pptx"}
   GET  /api/render/<id>              마지막 PowerPoint 렌더 PNG 목록
   POST /api/render/<id>              PPTX 생성 + PowerPoint COM 으로 PNG 렌더
@@ -326,9 +327,19 @@ class H(BaseHTTPRequestHandler):
                 text = str(b.get("text", "")).strip()
                 if not text:
                     return self.err(400, "내용 없음")
-                items.append({"id": "r" + dt.datetime.now().strftime("%Y%m%d%H%M%S%f")[:17], "slide": b.get("slide"),
-                              "element": b.get("element"), "text": text, "status": "open", "reply": "",
-                              "created": dt.datetime.now().isoformat(timespec="seconds")})
+                st = b.get("status") if b.get("status") in ("draft", "open") else "open"
+                item = {"id": "r" + dt.datetime.now().strftime("%Y%m%d%H%M%S%f")[:17], "slide": b.get("slide"),
+                        "element": b.get("element"), "text": text[:2000], "status": st, "reply": "",
+                        "created": dt.datetime.now().isoformat(timespec="seconds")}
+                if isinstance(b.get("region"), dict):  # 그리기 모드 영역 {kind: rect|pen|pin, box:[x,y,w,h], points:[[x,y]…]}
+                    item["region"] = b["region"]
+                items.append(item)
+            elif act == "send":  # 초안(draft) → 대기(open) — "요청 N개 보내기"
+                for r in items:
+                    if r.get("status") == "draft" and (not b.get("slide") or r.get("slide") == b.get("slide")):
+                        r["status"] = "open"
+            elif act == "discard":  # 초안 지우기(현재 슬라이드 또는 전체)
+                items = [r for r in items if not (r.get("status") == "draft" and (not b.get("slide") or r.get("slide") == b.get("slide")))]
             elif act == "delete":
                 items = [r for r in items if r.get("id") != b.get("id")]
             elif act == "update":
@@ -338,9 +349,27 @@ class H(BaseHTTPRequestHandler):
                             if k in b:
                                 r[k] = b[k]
             else:
-                return self.err(400, "action = add|update|delete")
+                return self.err(400, "action = add|update|delete|send|discard")
             atomic_write(req_path(i), dumps(items))
         self.send_json(items)
+
+    # ---------- 기록(자동 백업) ----------
+    def api_get_history(self, i, q):
+        h = DECKS / ".history" / i
+        f = (q.get("f") or [""])[0]
+        if f:
+            p = (h / f).resolve()
+            if p.parent != h.resolve() or not p.is_file() or p.suffix != ".json":
+                return self.err(404, "없는 기록")
+            return self.send_json(json.loads(p.read_text(encoding="utf-8")))
+        out = []
+        for p in sorted(h.glob("*.json"), reverse=True) if h.exists() else []:
+            kind = "build" if p.stem.endswith("-build") else "last-build" if p.name == "last-build.json" else "save"
+            if kind == "last-build":
+                continue
+            out.append({"file": p.name, "kind": kind, "size": p.stat().st_size,
+                        "at": dt.datetime.fromtimestamp(p.stat().st_mtime).isoformat(timespec="seconds")})
+        self.send_json(out)
 
     # ---------- 내보내기·렌더 ----------
     def api_post_export(self, i, q):
