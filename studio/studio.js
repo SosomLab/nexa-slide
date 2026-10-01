@@ -18,6 +18,9 @@
   const GRID = 8, SW = 1280, SH = 720;
   const LS = { get(k, d) { try { const v = localStorage.getItem("nexa-" + k); return v == null ? d : v; } catch (e) { return d; } },
                set(k, v) { try { localStorage.setItem("nexa-" + k, v); } catch (e) { /* 저장소 없음 */ } } };
+  // 아직 남기지 않은 요청 입력 — 덱·슬라이드(·요소)별로 보관해 슬라이드를 옮겨 다녀도·새로 고쳐도 남는다
+  const typed = (key) => LS.get("typed-" + key, "");
+  const keep = (key, v) => { try { if (v.trim()) localStorage.setItem("nexa-typed-" + key, v); else localStorage.removeItem("nexa-typed-" + key); } catch (e) { /* 저장소 없음 */ } };
 
   const S = {
     tokens: null, decks: [], id: null, deck: null, version: null, reqVersion: "0", savedJson: null,
@@ -303,10 +306,11 @@
   };
   function openMemo(target) {
     S.memo = target;
+    target.key = target.region ? null : S.id + "/" + slide().id + (target.element ? "/" + target.element : "");
     const el = target.element ? elById(target.element) : null;
     $("#memoTitle").textContent = target.region ? "영역 요청" : "요청";
     $("#memoTarget").textContent = `슬라이드 ${S.cur + 1}` + (el ? ` · ${TYPE_KO[el.type] || el.type} ${el.id}` : target.region ? ` · ${{ rect: "박스", pen: "펜", pin: "핀" }[target.region.kind]}` : "");
-    const ta = $("#memoTa"); ta.value = ""; ta.placeholder = target.region ? (target.region.kind === "pin" ? "이 지점에서 무엇을 바꿀까요?" : "이 영역에서 무엇을 바꿀까요?") : `이 ${el ? TYPE_KO[el.type] || "요소" : "슬라이드"}에서 무엇을 바꿀까요?`;
+    const ta = $("#memoTa"); ta.value = target.key ? typed(target.key) : ""; ta.placeholder = target.region ? (target.region.kind === "pin" ? "이 지점에서 무엇을 바꿀까요?" : "이 영역에서 무엇을 바꿀까요?") : `이 ${el ? TYPE_KO[el.type] || "요소" : "슬라이드"}에서 무엇을 바꿀까요?`;
     let q = (target.region ? QUICK.region : (el && QUICK[el.type]) || []).slice();
     const issues = S.check ? S.check.issues.filter((x) => x.slide === slide().id && (!el || (x.elements || []).includes(el.id))) : [];
     if (issues.length) q.unshift("검사 결과 고치기");
@@ -314,7 +318,7 @@
     memoInput(); $("#memo").classList.add("show"); placeMemo(); ta.focus();
   }
   function closeMemo() { S.memo = null; $("#memo").classList.remove("show"); if (S.drawing) { S.drawing = null; renderMarks(); } }
-  function memoInput() { const n = $("#memoTa").value.length; $("#memoCnt").textContent = `${n} / 2000`; $("#memoOk").disabled = !$("#memoTa").value.trim(); }
+  function memoInput() { if (S.memo && S.memo.key) keep(S.memo.key, $("#memoTa").value); const n = $("#memoTa").value.length; $("#memoCnt").textContent = `${n} / 2000`; $("#memoOk").disabled = !$("#memoTa").value.trim(); }
   function placeMemo() {
     if (!S.memo) return;
     const m = $("#memo"), pane = $("#editPane").getBoundingClientRect(), st = $("#stage").getBoundingClientRect();
@@ -335,6 +339,7 @@
     if (S.memo.region) body.region = S.memo.region;
     const r = await api("POST", `/api/requests/${S.id}`, body);
     if (!r.ok) { toast("메모를 저장하지 못했습니다"); return; }
+    if (S.memo.key) keep(S.memo.key, "");
     S.reqs = r.data; S.drawing = null; closeMemo(); afterReqs();
     toast("메모를 남겼습니다 — 아래 바에서 한꺼번에 보내기");
   }
@@ -717,7 +722,7 @@
     const drafts = S.reqs.filter((r) => r.status === "draft").length;
     R.innerHTML = `<div class="sec"><h3>Claude 에게 요청</h3>
       <div class="hint">◎ <b>선택</b> 모드에서 요소를 누르거나 ✐ <b>그리기</b> 모드에서 영역을 그려 메모를 단 뒤, 아래 바의 <b>보내기</b>로 한꺼번에 보낸다. 슬라이드 전체 요청은 여기에.</div>
-      <textarea id="reqText" style="min-height:60px;font-family:var(--font);font-size:13px" placeholder="슬라이드 ${S.cur + 1} 전체에 대한 요청 — 예: 이 표를 두 장으로 나눠 줘"></textarea>
+      <textarea id="reqText" data-key="${esc(S.id + "/" + s.id)}" style="min-height:60px;font-family:var(--font);font-size:13px" placeholder="슬라이드 ${S.cur + 1} 전체에 대한 요청 — 예: 이 표를 두 장으로 나눠 줘">${esc(typed(S.id + "/" + s.id))}</textarea>
       <div class="row"><button class="chip sm primary" id="reqAdd">메모 남기기</button>${drafts ? `<button class="chip sm" id="reqSend">초안 ${drafts}개 보내기</button>` : ""}</div>
       <div class="hint">${S.session && S.session.connected ? "세션 연결됨 — 보낸 요청은 바로 전달된다" : "세션 연결 없음 — 보낸 요청은 저장되고, 세션이 감시를 시작하면 전달된다"}</div></div>
       <div class="row"><span class="seg" id="reqFilter"><button data-v="1" class="${S.reqOnlySlide ? "on" : ""}">이 슬라이드</button><button data-v="0" class="${S.reqOnlySlide ? "" : "on"}">전체 (${S.reqs.length})</button></span></div>
@@ -732,7 +737,7 @@
     if (b.id === "reqAdd") {
       const t = $("#reqText").value.trim(); if (!t) return;
       const r = await api("POST", `/api/requests/${S.id}`, { action: "add", status: "draft", slide: slide().id, element: null, text: t });
-      if (r.ok) { S.reqs = r.data; afterReqs(); toast("메모를 남겼습니다 — 아래 바에서 보내기"); }
+      if (r.ok) { keep(S.id + "/" + slide().id, ""); S.reqs = r.data; afterReqs(); toast("메모를 남겼습니다 — 아래 바에서 보내기"); }
       return;
     }
     if (b.id === "reqSend") { await sendDrafts(); return; }
@@ -1242,6 +1247,7 @@
     $$(".tabs .chip").forEach((b) => (b.onclick = () => switchTab(b.dataset.tab)));
     const P = $("#tab-props"); P.addEventListener("change", onPropChange); P.addEventListener("click", onPropClick);
     $("#tab-reqs").addEventListener("click", onReqClick);
+    $("#tab-reqs").addEventListener("input", (e) => { if (e.target.id === "reqText") keep(e.target.dataset.key, e.target.value); });
     $("#tab-hist").addEventListener("click", onHistClick);
     $("#notesTa").addEventListener("input", onNotes);
     // 발표 · 도움말

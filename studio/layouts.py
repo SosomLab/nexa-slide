@@ -29,6 +29,23 @@ LOGO_RATIO = _png_ratio(LOGO, 765 / 237)
 WM_RATIO = _png_ratio(WORDMARK, 117 / 13)
 
 SUP = "¹²³⁴⁵⁶⁷⁸⁹"  # 근거 각주 번호 — 본문에는 [[theory|¹]] 로 표식을 단다
+FOOT_PX, FOOT_LH, FOOT_GAP = 12, 1.3, "    "  # 바닥 각주: 9pt, 줄 간격, 가로로 이을 때 각주 사이
+
+
+def foot_lines(source, width=None):
+    """각주 목록 → (가로로 이은 글, 높이). 한 줄 폭을 넘으면 각주 단위로 줄을 바꾼다(각주 하나가 넘치면 글상자가 줄바꿈)."""
+    width = width or W - 2 * PAD
+    # 번호는 위첨자가 아닌 보통 숫자를 굵은 강조색(==n==)으로 — 작은 글씨에서도 번호가 잘 보이게(2026-10-02 요청 r20261002011943887)
+    items = [f"=={i + 1}== {s}" for i, s in enumerate(source)]
+    lines = []
+    for it in items:
+        cand = f"{lines[-1]}{FOOT_GAP}{it}" if lines else it
+        if lines and text_width(cand, FOOT_PX) <= width:
+            lines[-1] = cand
+        else:
+            lines.append(it)
+    n = sum(max(1, -(-round(text_width(ln, FOOT_PX)) // width)) for ln in lines)
+    return "\n".join(lines), round(n * FOOT_PX * FOOT_LH) + 2
 
 PART_LABEL = {"day1": "Part 1", "day2": "Part 2", "day3": "Part 3", "apx": "Appendix", **CONFIG.get("partLabels", {})}
 COVER_BADGE = CONFIG.get("coverBadge", "Presentation")
@@ -123,21 +140,16 @@ class B:
         self.logo()
 
     def foot(self, crumb):
-        # 근거(source): 본문에는 각주 표식 [[theory|¹]], 슬라이드 맨 아래 띠에 작은 글씨로 번호별 한 줄씩 쌓는다
+        # 근거(source): 본문에는 각주 표식 [[theory|¹]], 슬라이드 맨 아래 띠에 작은 글씨로 각주 목록
         # (2026-09-30 요청 r20260930235223630 — 요청 #15의 "표식만"에서 바꿈). 원문 인용은 발표자 노트의 "원문 (각주 순서)".
-        # 각주가 있으면 위치(crumb)는 오른쪽(워드마크 앞)으로 옮기고, 왼쪽 아래 띠(본문 영역 656 아래)를 각주가 쓴다.
+        # 위치(crumb)는 각주가 있어도 없는 슬라이드와 같은 자리(왼쪽 아래)에 두고, 각주는 그 바로 위에 9pt(12px)로
+        # 1, 2, 3 순서대로 가로로 잇는다(아래 끝 668 = 쪽번호 칩 위) — 한 줄에 다 안 들어가면 각주 단위로 다음 줄(2026-10-02 요청 r20261002011628863).
         wh = 12
-        wm_x = W - 112 - wh * WM_RATIO
         if self.source:
-            fs, lh = 10, 1.3
-            lines = [f"{SUP[i] if i < len(SUP) else i + 1} {s}" for i, s in enumerate(self.source)]
-            h = round(len(lines) * fs * lh) + 2
-            self.text(PAD, 713 - h, wm_x - 340 - PAD, h, "\n".join(lines), size=fs, color="on-surface-variant",
-                      lineHeight=lh, valign="bottom", role="footnotes")
-            self.text(wm_x - 330, 675, 314, 20, crumb, size=13, color="on-surface-variant", lineHeight=1.4,
-                      align="right", role="crumb")
-        else:
-            self.text(PAD, 675, 800, 20, crumb, size=13, color="on-surface-variant", lineHeight=1.4, role="crumb")
+            text, h = foot_lines(self.source)
+            self.text(PAD, 668 - h, W - 2 * PAD, h, text, size=FOOT_PX, color="on-surface-variant",
+                      lineHeight=FOOT_LH, valign="bottom", role="footnotes")
+        self.text(PAD, 675, 800, 20, crumb, size=13, color="on-surface-variant", lineHeight=1.4, role="crumb")
         self.image(W - 112 - wh * WM_RATIO, H - 30 - wh, wh * WM_RATIO, wh, WORDMARK, locked=True)
         self.pill(W - 48 - 44, H - 22 - 28, "{page}", "surface-container", "on-surface-variant", size=13, h=28, bold=False, w=44, role="page")
 
