@@ -15,7 +15,31 @@ python3 studio/compare.py      -W <ws> ch00 [--slides 1,5] [--port 5600]   # 브
 python3 studio/check_parity.py -W <ws> [ch00 …]        # render.js ↔ common.py 결과 동일 확인(node 필요)
 python3 studio/gen_tokens_css.py -W <ws> [--write]     # tokens.json ↔ designCss 값 일치 확인/갱신
 python3 studio/set_fonts.py    -W <ws> [default|modern]   # 글꼴 프리셋
+python3 studio/check_layout.py -W <ws> [ch00 …] [--json]  # 레이아웃 검사(ERROR 가 있으면 종료 코드 1)
 ```
+
+## 레이아웃 검사
+
+편집기 "검사" 탭이 저장할 때마다 자동으로 다시 검사한다(썸네일 ⚠ 배지 = 그 슬라이드 건수, 빨강 = ERROR 포함). 항목을 누르면 그 슬라이드·요소로 가고 해당 영역을 점선으로 표시한다.
+
+| 규칙 | 등급 | 내용 |
+|---|---|---|
+| `t1.overlap.text-text` | ERROR(작은 쪽 10% 이상)/WARNING | 글자가 있는 두 요소의 실제 글자 영역이 겹침 |
+| `t1.overlap.text-crosses-border` | WARNING | 글자 영역이 다른 도형의 경계에 걸침(시퀀스 다이어그램 이름표처럼 의도일 수 있음 — 눈으로 확인) |
+| `t2.cutoff.spill` | ERROR(15% 이상)/WARNING | 글자가 자기 상자보다 높음(줄 수 추정) · 줄바꿈 없는 줄이 폭을 넘음 · 코드/실행계획 줄 수가 상자보다 김 |
+| `t2.cutoff.container` | WARNING | 글자 영역이 그것을 담은 도형 밖으로 나감 |
+| `t3.offslide` | ERROR | 요소가 1280×720 밖으로 나감 |
+| `t4.font.min` | ERROR | 글자 크기 < 역할별 최소 pt(pt = px × 0.75). 기본 `default` 9pt · `footnotes` 7pt |
+| `t5.mono.align` | WARNING | 실행계획의 `\|` 열 위치가 줄마다 다름(강조 표시를 뺀 원문 기준) |
+
+규칙 id 는 Genspark `check_slide_layout` 형식(t1 겹침·t2 잘림 계층)을 본떴고, 최소 글자·고정폭 정렬·요소로 이동은 nexa-slide 에만 있다.
+기준은 작업 공간 `nexa-slide.json` 의 `check` 로 바꾼다:
+
+```json
+"check": {"minFontPt": {"default": 9, "footnotes": 7, "crumb": 9}, "ignore": ["t1.overlap.text-crosses-border"], "ignoreSlides": {"ch00": ["s12"]}}
+```
+
+줄바꿈은 어절 단위로 글꼴 폭을 재서 흉내 내는 추정이다(Pillow 가 있으면 실제 글꼴). 최종 확인은 `compare.py`(PowerPoint 렌더 대조).
 
 - **build 보호**: `--force` 여도 마지막 빌드 뒤 편집기에서 고친 슬라이드가 있으면 멈추고 번호·종류를 알려 준다.
   고친 내용을 content 에 옮긴 뒤 다시 빌드하거나, 버려도 되면 `--discard-edits`. 비교 기준 = `decks/.history/<id>/last-build.json`.

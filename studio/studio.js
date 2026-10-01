@@ -12,7 +12,7 @@
     tokens: null, decks: [], id: null, deck: null, version: null, reqVersion: "0",
     cur: 0, sel: null, undo: [], redo: [], dirty: false, saving: false, conflict: false,
     reqs: [], reqOnlySlide: true, layouts: [], preview: false, pngs: [], renderAt: 0, editing: null, clip: null,
-    tab: "props", brand: {}, session: null,
+    tab: "props", brand: {}, session: null, check: null, chkOnlySlide: false, chkBox: null,
   };
 
   // ---------------------------------------------------------------- 공통
@@ -76,7 +76,7 @@
     const r = await api("PUT", `/api/deck/${S.id}?base=${encodeURIComponent(S.version || "")}${force ? "&force=1" : ""}`, body);
     S.saving = false;
     if (r.ok) {
-      S.version = r.data.version; S.deck.updated = r.data.updated;
+      S.version = r.data.version; S.deck.updated = r.data.updated; scheduleCheck();
       if (JSON.stringify(body) === JSON.stringify(S.deck)) S.dirty = false;
       S.conflict = false; banner(false);
       setStatus(S.dirty ? "dirty" : "saved", S.dirty ? "저장 대기" : "저장됨");
@@ -105,6 +105,7 @@
     setStatus("saved", "저장됨"); updUndo();
     await loadReqs();
     await loadPngs();
+    S.chkBox = null; scheduleCheck(50);
     renderAll();
     revealThumb(S.cur, true);
     return true;
@@ -136,7 +137,13 @@
     return `<div class="thumb${i === S.cur ? " cur" : ""}" data-i="${i}" draggable="true"><span class="num">${i + 1}</span>
       <div class="vp">${Render.renderSlide(s, i + 1)}</div>
       <div class="tools"><button data-act="dup" title="복제">복제</button><button data-act="del" title="삭제">삭제</button></div>
-      ${n ? `<span class="badge">요청 ${n}</span>` : ""}</div>`;
+      ${n ? `<span class="badge">요청 ${n}</span>` : ""}${chkBadge(s.id)}</div>`;
+  }
+  function chkBadge(sid) {
+    if (!S.check) return "";
+    const its = S.check.issues.filter((x) => x.slide === sid); if (!its.length) return "";
+    const e = its.filter((x) => x.severity === "ERROR").length;
+    return `<span class="cbadge${e ? " err" : ""}" title="레이아웃 검사 — ERROR ${e} · WARNING ${its.length - e}">⚠ ${its.length}</span>`;
   }
   function fitThumbs() { $$("#left .thumb .vp").forEach((v) => { v.firstElementChild.style.transform = `scale(${v.clientWidth / SW})`; }); }
   function renderThumbs() {
@@ -192,7 +199,7 @@
   function boxOf(el) { return isLine(el) ? Render.lineBox(el) : el; }
   function drawSel() {
     const ov = $("#ov"); const el = selEl();
-    if (!el || S.editing) { ov.innerHTML = ""; return; }
+    if (!el || S.editing) { ov.innerHTML = ""; drawChkBox(); return; }
     const b = boxOf(el), hs = 11 / scale, bw = 2 / scale;
     let h = `<div class="selbox${el.locked ? " locked" : ""}" style="left:${b.x - bw}px;top:${b.y - bw}px;width:${b.w + 2 * bw}px;height:${b.h + 2 * bw}px;border-width:${bw}px"></div>`;
     if (!el.locked) {
@@ -202,7 +209,7 @@
            ["se", b.x + b.w, b.y + b.h], ["s", b.x + b.w / 2, b.y + b.h], ["sw", b.x, b.y + b.h], ["w", b.x, b.y + b.h / 2]];
       h += pts.map(([d, x, y]) => `<div class="hd" data-h="${d}" style="left:${x - hs / 2}px;top:${y - hs / 2}px;width:${hs}px;height:${hs}px;border-width:${bw}px;cursor:${d.length === 2 && d[0] !== "p" ? d + "-resize" : d === "n" || d === "s" ? "ns-resize" : d === "e" || d === "w" ? "ew-resize" : "move"}"></div>`).join("");
     }
-    ov.innerHTML = h;
+    ov.innerHTML = h; drawChkBox();
   }
 
   // ---------------------------------------------------------------- PPT 렌더 미리보기
@@ -455,6 +462,46 @@
     if (b.dataset.rs) body = { action: "update", id: rid, status: b.dataset.rs };
     if (b.dataset.rdel) { if (!confirm("이 요청을 지울까요?")) return; body = { action: "delete", id: rid }; }
     if (body) { const r = await api("POST", `/api/requests/${S.id}`, body); if (r.ok) { S.reqs = r.data; renderReqs(); renderThumbs(); } }
+  }
+
+  // ---------------------------------------------------------------- 레이아웃 검사 (check_layout.py)
+  let chkT = 0;
+  function scheduleCheck(ms = 600) { clearTimeout(chkT); chkT = setTimeout(runCheck, ms); }
+  async function runCheck() {
+    if (!S.id) return;
+    const r = await api("GET", `/api/check/${S.id}`); if (!r.ok) return;
+    S.check = r.data; renderCheck(); renderThumbs(); drawChkBox();
+  }
+  function renderCheck() {
+    const C = $("#tab-check"), c = S.check; if (!C) return;
+    const cnt = $("#chkCnt");
+    if (!c) { C.innerHTML = `<div class="hint">검사 중…</div>`; cnt.style.display = "none"; return; }
+    const tot = c.errors + c.warnings; cnt.textContent = tot; cnt.style.display = tot ? "" : "none";
+    cnt.style.background = c.errors ? "#BA1A1A" : "#7D5700";
+    const s = slide(), list = c.issues.filter((x) => !S.chkOnlySlide || (s && x.slide === s.id));
+    C.innerHTML = `<div class="sec"><h3>레이아웃 검사 — ERROR ${c.errors} · WARNING ${c.warnings}</h3>
+      <div class="hint">저장할 때마다 다시 검사한다. 항목을 누르면 그 슬라이드·요소로 간다. ERROR 는 고칠 것, WARNING 은 눈으로 확인할 것.
+      최소 글자 ${Object.entries(c.minFontPt).map(([k, v]) => `${k} ${v}pt`).join(" · ")} (nexa-slide.json "check")</div>
+      <div class="row"><span class="seg" id="chkFilter"><button data-v="0" class="${S.chkOnlySlide ? "" : "on"}">전체 (${c.issues.length})</button><button data-v="1" class="${S.chkOnlySlide ? "on" : ""}">이 슬라이드</button></span>
+      <button class="chip sm" id="chkRun">다시 검사</button></div></div>
+      ${list.length ? list.map((x, k) => `<div class="chk" data-k="${c.issues.indexOf(x)}"><span class="sev ${x.severity}">${x.severity}</span>
+        <b>${x.n}</b> <span class="rule">${esc(x.rule)}</span><div class="msg">${esc(x.message)}</div></div>`).join("") : `<div class="hint">문제 없음.</div>`}`;
+  }
+  function drawChkBox() {
+    $$("#ov .chkbox").forEach((b) => b.remove());
+    const x = S.chkBox, s = slide(); if (!x || !s || x.slide !== s.id || !x.box) return;
+    const d = document.createElement("div"); d.className = "chkbox";
+    Object.assign(d.style, { left: x.box[0] + "px", top: x.box[1] + "px", width: Math.max(4, x.box[2]) + "px", height: Math.max(4, x.box[3]) + "px" });
+    $("#ov").appendChild(d);
+  }
+  function onChkClick(e) {
+    if (e.target.id === "chkRun") { S.check = null; renderCheck(); runCheck(); return; }
+    const f = e.target.closest("#chkFilter button"); if (f) { S.chkOnlySlide = f.dataset.v === "1"; renderCheck(); return; }
+    const it = e.target.closest(".chk"); if (!it || !S.check) return;
+    const x = S.check.issues[+it.dataset.k]; const i = S.deck.slides.findIndex((s) => s.id === x.slide);
+    if (i < 0) return;
+    S.chkBox = x; S.cur = i; S.sel = x.elements && elById(x.elements[0], S.deck.slides[i]) ? x.elements[0] : null;
+    renderAll(); revealThumb(S.cur); drawChkBox(); switchTab("check");
   }
 
   // ---------------------------------------------------------------- 세션 연결(요청 감시)
@@ -786,6 +833,7 @@
     P.addEventListener("change", onPropChange);
     P.addEventListener("click", onPropClick);
     $("#tab-reqs").addEventListener("click", onReqClick);
+    $("#tab-check").addEventListener("click", onChkClick);
     $("#notesTa").addEventListener("input", onNotes);
     const nb = $("#notesBar"), setFold = (f) => { nb.classList.toggle("fold", f); $("#notesFold").textContent = f ? "펴기" : "접기"; fitStage(); };
     try { setFold(localStorage.getItem("rs-notes-fold") === "1"); } catch (e) { /* 저장소 없음 */ }

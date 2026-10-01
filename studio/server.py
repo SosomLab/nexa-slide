@@ -28,6 +28,7 @@ API
   GET  /api/config                   작업 공간 이름·브랜드(로고·워드마크·파비콘·로고 비율)
   GET  /api/session                  Claude 세션 연결 상태(watch_requests.py 하트비트) + 처리 중 요청 수
   POST /api/flush/<id>               "지금 보내기" — 대기 시간 없이 열린 요청을 세션에 바로 전달하라는 신호
+  GET  /api/check/<id>               레이아웃 검사(check_layout.py) — 겹침·넘침·최소 글자·슬라이드 밖·고정폭 정렬
 """
 import argparse
 import datetime as dt
@@ -279,6 +280,13 @@ class H(BaseHTTPRequestHandler):
 
     def api_get_version(self, i, q):
         self.send_json({"deck": ver(deck_path(i)), "requests": ver(req_path(i)), "session": session_status()})
+
+    # ---------- 레이아웃 검사 ----------
+    def api_get_check(self, i, q):
+        if not deck_path(i).exists():
+            return self.err(404, "덱 없음")
+        import check_layout
+        self.send_json(check_layout.check_deck(i))
 
     # ---------- 작업 공간·세션 ----------
     def api_get_config(self, _, q):
