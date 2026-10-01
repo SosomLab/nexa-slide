@@ -1146,6 +1146,7 @@
   }
   async function loadConfig() {
     const r = await api("GET", "/api/config"); if (!r.ok) return;
+    if (r.data.mode === "hub") { location.replace("/studio/home.html"); return false; }  // 작업 공간 없음 → 시작 페이지
     S.brand = r.data.brand || {}; S.template = r.data.template || null;
     document.title = `${r.data.title} — nexa-slide`;
     $("#appTitle").textContent = r.data.title || "nexa-slide";
@@ -1155,7 +1156,8 @@
   }
   async function switchDeck(id) { if (id === S.id) return; if (S.dirty) await save(); await loadDeck(id); }
   async function init() {
-    await loadConfig();
+    if (window.NexaMenu) NexaMenu.mount($("#menuBtn"));
+    if ((await loadConfig()) === false) return;
     S.tokens = await (await fetch("tokens.json", { cache: "no-store" })).json();
     Render.setTokens(S.tokens); $("#rs-css").textContent = Render.css();
     await loadFonts();
@@ -1164,7 +1166,7 @@
     const rw = +LS.get("railW", 0); if (rw) document.documentElement.style.setProperty("--railW", rw + "px");
     setMode(["edit", "pick", "draw"].includes(S.mode) ? S.mode : "edit"); setTool("rect");
     setBtab(S.btab); if (LS.get("bfold", "0") === "1") toggleBottom();
-    if (!S.decks.length) { setStatus("error", "덱 없음"); toast("decks 에 덱이 없습니다 — build_deck.py 로 먼저 만드세요", 6000); return; }
+    if (!S.decks.length) { location.replace("/studio/home.html"); return; }  // 작업할 덱이 없으면 시작 페이지
     const [hid, hn] = decodeURIComponent(location.hash.slice(1)).split("/");
     await loadDeck(S.decks.some((d) => d.id === hid) ? hid : S.decks[0].id);
     if (hn) { goSlide(+hn - 1); revealThumb(S.cur, true); }

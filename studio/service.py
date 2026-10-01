@@ -8,6 +8,7 @@
     python3 studio/service.py --workspace <작업 공간> url       # 접속 주소 한 줄
 
 서비스 구성(포트·제목·브랜드·경로)은 모두 작업 공간의 nexa-slide.json 에 있다 — 엔진은 실행만 한다.
+작업 공간 없이(작업 공간 밖에서) 실행하면 허브(시작 페이지) 서버를 다룬다 — 포트 5599, 로그·실행 정보는 사용자 설정 폴더.
 작업 공간마다 포트를 다르게 두면 여러 작업 공간을 함께 띄울 수 있다(같은 작업 공간은 서버 하나).
 서버 로그: <out>/.studio/server.log · 실행 정보: <out>/.studio/server.json
 """
@@ -21,7 +22,7 @@ from pathlib import Path
 
 STUDIO = Path(__file__).resolve().parent
 sys.path.insert(0, str(STUDIO))
-from common import DEFAULT_PORT, SERVER_INFO, STATE, WORKSPACE, running_server  # noqa: E402
+from common import DEFAULT_PORT, HUB, SERVER_INFO, STATE, WORKSPACE, running_server  # noqa: E402
 
 LOG = STATE / "server.log"
 
@@ -40,8 +41,14 @@ def start(extra):
         kw["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.DETACHED_PROCESS | subprocess.CREATE_NO_WINDOW
     else:
         kw["start_new_session"] = True
-    env = {**os.environ, "NEXA_SLIDE_WORKSPACE": str(WORKSPACE), "PYTHONIOENCODING": "utf-8", "PYTHONUNBUFFERED": "1"}
-    p = subprocess.Popen([sys.executable, str(STUDIO / "server.py"), *extra], cwd=str(WORKSPACE), env=env,
+    env = {**os.environ, "PYTHONIOENCODING": "utf-8", "PYTHONUNBUFFERED": "1"}
+    if HUB:  # 허브: 작업 공간 없이 — 현재 폴더가 어디든 엔진·그 폴더에 쓰지 않는다
+        env.pop("NEXA_SLIDE_WORKSPACE", None)
+        cwd = STATE
+    else:
+        env["NEXA_SLIDE_WORKSPACE"] = str(WORKSPACE)
+        cwd = WORKSPACE
+    p = subprocess.Popen([sys.executable, str(STUDIO / "server.py"), *extra], cwd=str(cwd), env=env,
                          stdout=log, stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL, **kw)
     for _ in range(40):  # 최대 10초 — 포트가 열리고 server.json 이 쓰일 때까지
         time.sleep(0.25)

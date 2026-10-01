@@ -5,7 +5,10 @@
 ```bash
 python3 studio/service.py --workspace <작업 공간> start|stop|restart|status|url   # 백그라운드 서비스(권장)
 python3 studio/server.py  --workspace <작업 공간> [--port N | --port auto] [--force] # 앞에서 실행
+python3 studio/service.py start                                                    # 작업 공간 밖에서 → 시작 페이지(허브, 5599)
 ```
+
+- 작업 공간 없이 띄우면 **허브**(시작 페이지)로 뜬다. 실행 정보·로그는 사용자 설정 폴더 `hub/.studio/` - [home.md](home.md).
 
 - 포트: `--port` > `nexa-slide.json` 의 `port` > 5600. 쓰는 중인 포트면 알리고 끝낸다(`--port auto` = 그 포트부터 빈 포트 50개 탐색).
 - **작업 공간당 서버 하나**: 이 작업 공간 서버가 이미 살아 있으면(`out/.studio/server.json` 의 포트·설정 포트에 실제로 물어 확인) 시작을 거부하고 주소를 알려 준다(`--force` 로 무시).
@@ -19,7 +22,7 @@ python3 studio/server.py  --workspace <작업 공간> [--port N | --port auto] [
 
 | 경로 | 내주는 곳 |
 |---|---|
-| `/` | `/studio/` 로 이동 |
+| `/` | 덱이 있으면 `/studio/`(Studio), 없거나 허브면 `/studio/home.html`(시작 페이지) |
 | `/studio/…` | 엔진 `studio/` 폴더(편집기 `index.html`·`render.js`·`studio.js`·`slide.html`) |
 | `/studio/tokens.json` | 작업 공간 토큰(없으면 엔진 기본값) |
 | `/out/…` | 작업 공간 `out/` — PPTX·렌더 PNG |
@@ -53,6 +56,7 @@ python3 studio/server.py  --workspace <작업 공간> [--port N | --port auto] [
 | `POST /api/flush/<id>` | "지금 보내기" — 감시 스크립트가 대기 없이 열린 요청을 바로 전달 |
 | `GET /api/history/<id>` | 자동 백업 목록 `[{file, kind(save/build), at, size}]` · `?f=<파일>` 이면 그 시점 덱 JSON |
 | `GET /api/templates` | 템플릿 목록과 선택된 템플릿 |
+| `GET /api/home` · `POST /api/project` · `POST /api/settings` · `GET /api/fs` | 시작 페이지 - [home.md](home.md#api) |
 | `GET /api/check/<id>` | 레이아웃 검사 결과 `{issues[{rule, severity, slide, n, elements, box, message, detail}], errors, warnings, minFontPt}` |
 
 ## 요청 메모 파일

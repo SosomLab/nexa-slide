@@ -19,7 +19,7 @@ macOS·Linux 에서도 서버·편집기·빌드·PPTX 내보내기는 된다. P
 git clone git@github.com:SosomLab/nexa-slide.git
 cd nexa-slide
 python3 -m pip install -r requirements.txt
-python3 studio/server.py --workspace example     # 동작 확인 → http://127.0.0.1:5600/
+python3 studio/server.py                          # 동작 확인 → http://127.0.0.1:5599/ 시작 페이지 → "데모"
 ```
 
 > Windows Git Bash 에서는 `python` 이 다른 래퍼일 수 있다. `python-pptx` 가 설치된 `python3`(또는 venv 의 python)을 쓴다.
