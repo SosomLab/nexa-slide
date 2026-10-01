@@ -31,6 +31,14 @@ API
   POST /api/flush/<id>               "지금 보내기" — 대기 시간 없이 열린 요청을 세션에 바로 전달하라는 신호
   GET  /api/templates                템플릿 목록과 이 작업 공간이 고른 템플릿
   GET  /api/check/<id>               레이아웃 검사(check_layout.py) — 겹침·넘침·최소 글자·슬라이드 밖·고정폭 정렬
+시작 페이지(허브) — studio/home.html · hub.py
+  GET  /api/home                     기준 폴더·최근 작업·템플릿·시작용 내용·샘플·현재 작업 공간
+  POST /api/project                  {"action": "create"|"open"|"demo"|"forget", ...} → {"url": 그 작업 공간 서버 주소}
+  POST /api/settings                 {"projectsRoot"?, "samples"?} — 사용자 설정(엔진·작업 공간 밖)
+  GET  /api/fs?path=<폴더>           폴더 고르기 — 하위 폴더 목록(git 저장소·작업 공간 표시)
+
+작업 공간 없이 띄우면(또는 작업 공간에 덱이 없으면) / 는 시작 페이지로 간다. 덱이 있으면 편집기(Studio)로.
+엔진 폴더 안의 작업 공간은 열지 않는다(허브로 뜬다) — 슬라이드 내용은 엔진 밖에 둔다.
 """
 import argparse
 import datetime as dt
@@ -50,8 +58,9 @@ from urllib.parse import parse_qs, unquote, urlparse
 
 STUDIO = Path(__file__).resolve().parent
 sys.path.insert(0, str(STUDIO))
-from common import ASSET_ROOT, BRAND, CONFIG, DECKS, DEFAULT_PORT, OUT, SERVER_INFO, STATE, TEMPLATE, WORKSPACE, list_templates, read_config, resolve_tokens, running_server, safe_id  # noqa: E402
+from common import ASSET_ROOT, BRAND, CONFIG, DECKS, DEFAULT_PORT, HUB, OUT, REFUSED, SERVER_INFO, STATE, TEMPLATE, WORKSPACE, list_templates, read_config, resolve_tokens, running_server, safe_id  # noqa: E402
 from watch_requests import session_status  # noqa: E402
+import hub  # noqa: E402
 
 HISTORY_KEEP = 50
 RENDER_LOCK = threading.Lock()
@@ -112,7 +121,7 @@ def dumps(o):
 
 
 def run(cmd, timeout):
-    r = subprocess.run(cmd, cwd=str(WORKSPACE), capture_output=True, timeout=timeout,
+    r = subprocess.run(cmd, cwd=str(WORKSPACE or STATE), capture_output=True, timeout=timeout,
                        env={**os.environ, "PYTHONIOENCODING": "utf-8"})
     out = (r.stdout or b"").decode("utf-8", "replace") + (r.stderr or b"").decode("utf-8", "replace")
     return r.returncode, out.strip()
@@ -120,6 +129,10 @@ def run(cmd, timeout):
 
 def export(i):
     return run([sys.executable, str(STUDIO / "export_pptx.py"), i], 120)
+
+
+def has_decks():
+    return not HUB and DECKS.is_dir() and any(not f.name.endswith(".requests.json") for f in DECKS.glob("*.json"))
 
 
 def render_list(i):
@@ -193,9 +206,9 @@ class H(BaseHTTPRequestHandler):
 
     # ---------- 정적 ----------
     def static(self, path, head=False):
-        if path in ("", "/", "/studio"):
+        if path in ("", "/", "/studio"):  # 작업할 덱이 있으면 편집기, 없으면 시작 페이지
             self.send_response(302)
-            self.send_header("Location", "/studio/")
+            self.send_header("Location", "/studio/" if has_decks() else "/studio/home.html")
             self.end_headers()
             return
         rel = unquote(path).lstrip("/")
@@ -208,6 +221,8 @@ class H(BaseHTTPRequestHandler):
                 return self.send_json(resolve_tokens(read_config()))
         elif parts and parts[0] == "out":  # 작업 공간 산출물
             root, rel = OUT, "/".join(parts[1:])
+        elif HUB:  # 허브: 작업 공간 파일 없음
+            return self.err(404, "작업 공간 없음")
         else:  # 덱 그림 경로 기준 폴더
             root = ASSET_ROOT
         root = root.resolve()
@@ -292,11 +307,42 @@ class H(BaseHTTPRequestHandler):
 
     # ---------- 작업 공간·세션 ----------
     def api_get_config(self, _, q):
+        if HUB:
+            return self.send_json({"mode": "hub", "workspace": "", "path": "", "port": self.server.server_port, "title": "nexa-slide",
+                                   "template": None, "brand": {}, "refused": str(REFUSED) if REFUSED else None})
         from layouts import LOGO, LOGO_RATIO, WORDMARK
-        self.send_json({"workspace": WORKSPACE.name, "path": str(WORKSPACE), "port": self.server.server_port,
+        self.send_json({"mode": "workspace", "workspace": WORKSPACE.name, "path": str(WORKSPACE), "port": self.server.server_port,
                         "template": {"name": TEMPLATE["name"], "label": TEMPLATE.get("label", TEMPLATE["name"])},
                         "title": CONFIG.get("title", WORKSPACE.name),
                         "brand": {**BRAND, "logo": LOGO, "wordmark": WORDMARK, "logoRatio": LOGO_RATIO}})
+
+    # ---------- 시작 페이지(허브) ----------
+    def hub_call(self, fn, *args):
+        try:
+            self.send_json(fn(*args))
+        except hub.HubError as e:
+            self.send_json({"ok": False, "error": str(e), **e.extra}, 400)
+
+    def api_get_home(self, _, q):
+        d = hub.home(None if HUB else WORKSPACE, REFUSED)
+        d.update({"mode": "hub" if HUB else "workspace", "port": self.server.server_port})
+        self.send_json(d)
+
+    def api_post_project(self, _, q):
+        b = self.body_json() or {}
+        if b.get("action") == "open" and not HUB and b.get("path") and Path(b["path"]).resolve() == WORKSPACE:
+            hub.remember(WORKSPACE, CONFIG.get("title", WORKSPACE.name))
+            return self.send_json({"ok": True, "path": str(WORKSPACE), "url": f"http://127.0.0.1:{self.server.server_port}/"})
+        self.hub_call(hub.project, b)
+
+    def api_post_settings(self, _, q):
+        def save(b):
+            hub.update_settings(b)
+            return {"ok": True, **hub.home(None if HUB else WORKSPACE, REFUSED)}
+        self.hub_call(save, self.body_json() or {})
+
+    def api_get_fs(self, _, q):
+        self.hub_call(hub.list_dir, (q.get("path") or [""])[0])
 
     def api_get_templates(self, _, q):
         self.send_json({"current": TEMPLATE["name"], "templates": list_templates()})
@@ -504,15 +550,21 @@ def main():
         sys.exit(f"이 작업 공간의 서버가 이미 실행 중이다: {run['url']} (pid {run['pid']}, {run['started']}) — 그대로 쓰면 된다")
     auto = str(a.port).lower() == "auto"
     port = DEFAULT_PORT if a.port is None or auto else int(a.port)
-    DECKS.mkdir(parents=True, exist_ok=True)
+    if not HUB:
+        DECKS.mkdir(parents=True, exist_ok=True)
     srv = _bind(port, auto)
     port = srv.server_port
     url = f"http://127.0.0.1:{port}/"
     STATE.mkdir(parents=True, exist_ok=True)
-    atomic_write(SERVER_INFO, dumps({"port": port, "url": url, "pid": os.getpid(), "workspace": str(WORKSPACE),
-                                     "title": CONFIG.get("title", WORKSPACE.name),
+    atomic_write(SERVER_INFO, dumps({"port": port, "url": url, "pid": os.getpid(), "workspace": "" if HUB else str(WORKSPACE),
+                                     "mode": "hub" if HUB else "workspace",
+                                     "title": "nexa-slide 시작 페이지" if HUB else CONFIG.get("title", WORKSPACE.name),
                                      "started": dt.datetime.now().isoformat(timespec="seconds")}))
-    print(f"nexa-slide: {url}  작업 공간 {WORKSPACE}  (Ctrl+C 로 종료)", flush=True)
+    if HUB:
+        why = f" — 엔진 폴더 안의 작업 공간은 열지 않는다: {REFUSED}" if REFUSED else ""
+        print(f"nexa-slide: {url}  시작 페이지(작업 공간 없음{why})  (Ctrl+C 로 종료)", flush=True)
+    else:
+        print(f"nexa-slide: {url}  작업 공간 {WORKSPACE}  (Ctrl+C 로 종료)", flush=True)
     try:
         srv.serve_forever()
     except KeyboardInterrupt:

@@ -1,0 +1,548 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>nexa-slide 시작</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='9' fill='%23A91F24'/%3E%3Cpath d='M10 23V9l12 14V9' fill='none' stroke='%23fff' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<style>
+  :root {
+    --p: #A91F24; --pc: #FFDAD6; --onpc: #410004;
+    --bg: #F4F1F1; --card: #FFFFFF; --tone: #F2EFEF; --tone2: #ECE8E8; --ink: #1F1B1B; --ink2: #534343; --line: #D8C2C0;
+    --ok: #146C2E; --okc: #C4EED0; --warnc: #FFDEA6; --warn: #7D5700; --info: #0B4A9E; --infoc: #D6E3FF; --err: #BA1A1A;
+    --r: 16px; --font: "Pretendard", "Malgun Gothic", "맑은 고딕", "Apple SD Gothic Neo", sans-serif;
+    --sh1: 0 1px 2px rgba(0,0,0,.08); --sh2: 0 6px 24px rgba(0,0,0,.16);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body { background: var(--bg); color: var(--ink); font: 14px/1.55 var(--font); min-height: 100vh; }
+  button, input, select, textarea { font: inherit; color: inherit; }
+  button { cursor: pointer; }
+  a { color: var(--info); }
+  code, kbd { font: 12.5px Consolas, "D2Coding", monospace; background: var(--tone); border-radius: 5px; padding: 1px 5px; }
+  .chip { border: 0; background: var(--tone); border-radius: 999px; padding: 7px 16px; display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; text-decoration: none; color: var(--ink); }
+  .chip:hover { background: var(--tone2); }
+  .chip.primary { background: var(--p); color: #fff; font-weight: 700; }
+  .chip.primary:hover { filter: brightness(1.08); }
+  .chip.sm { padding: 4px 12px; font-size: 13px; }
+  .chip:disabled { opacity: .45; cursor: default; }
+  .ib { border: 0; background: none; border-radius: 8px; height: 30px; min-width: 30px; padding: 0 7px; display: inline-flex; align-items: center; justify-content: center; gap: 4px; color: var(--ink2); }
+  .ib:hover { background: var(--tone); color: var(--ink); }
+  /* 머리줄 */
+  header { position: sticky; top: 0; z-index: 10; display: flex; align-items: center; gap: 10px; padding: 8px 16px; background: var(--card); box-shadow: var(--sh1); min-height: 52px; }
+  header h1 { font-size: 15px; margin: 0; display: flex; align-items: center; gap: 8px; }
+  header .sp { flex: 1; }
+  header .where { color: var(--ink2); font-size: 12px; }
+  nav.tabs { display: flex; gap: 2px; padding: 0 16px; background: var(--card); border-bottom: 1px solid var(--line); overflow-x: auto; position: sticky; top: 52px; z-index: 9; }
+  nav.tabs a { display: inline-flex; align-items: center; gap: 6px; padding: 10px 12px; color: var(--ink2); text-decoration: none; border-bottom: 2px solid transparent; white-space: nowrap; }
+  nav.tabs a:hover { color: var(--ink); }
+  nav.tabs a.on { color: var(--ink); font-weight: 700; border-bottom-color: var(--p); }
+  main { max-width: 1180px; margin: 0 auto; padding: 20px 16px 64px; }
+  .page { display: none; } .page.on { display: block; }
+  h2 { font-size: 20px; margin: 4px 0 4px; } h3 { font-size: 15px; margin: 0 0 8px; }
+  .lead { color: var(--ink2); margin: 0 0 18px; }
+  .card { background: var(--card); border-radius: var(--r); box-shadow: var(--sh1); padding: 20px; }
+  .grid2 { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+  .stack { display: grid; gap: 16px; grid-template-columns: minmax(0, 1fr); }
+  @media (max-width: 880px) { .grid2 { grid-template-columns: minmax(0, 1fr); } }
+  @media (max-width: 560px) { header .where { display: none; } header h1 { font-size: 14px; } .card { padding: 14px; } .step { gap: 8px; } }
+  .banner { background: var(--warnc); color: var(--warn); border-radius: 12px; padding: 10px 14px; margin-bottom: 14px; }
+  .banner.info { background: var(--infoc); color: var(--info); }
+  .cur { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  /* 양식 */
+  .step { display: flex; gap: 12px; padding: 14px 0; border-top: 1px solid var(--tone2); }
+  .step:first-of-type { border-top: 0; padding-top: 4px; }
+  .num { flex: none; width: 24px; height: 24px; border-radius: 50%; background: var(--pc); color: var(--onpc); font-weight: 700; font-size: 12px; display: inline-flex; align-items: center; justify-content: center; margin-top: 2px; }
+  .step > div { flex: 1; min-width: 0; }
+  label.f { display: block; font-size: 12px; font-weight: 700; color: var(--ink2); margin: 8px 0 4px; }
+  label.f:first-child { margin-top: 0; }
+  input[type=text], input[type=url], input[type=search], textarea, select { width: 100%; border: 1px solid var(--line); border-radius: 10px; padding: 8px 11px; background: var(--card); }
+  input:focus, textarea:focus, select:focus { outline: 2px solid var(--p); outline-offset: -1px; border-color: transparent; }
+  textarea { resize: vertical; min-height: 64px; }
+  .row { display: flex; gap: 8px; align-items: center; }
+  .row > input { flex: 1; min-width: 0; width: auto; }
+  .hint { color: var(--ink2); font-size: 12px; margin-top: 4px; }
+  .tpls { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px; }
+  .tpl { border: 1.5px solid var(--line); border-radius: 12px; padding: 10px 12px; cursor: pointer; background: var(--card); text-align: left; }
+  .tpl:hover { border-color: var(--ink2); }
+  .tpl.on { border-color: var(--p); box-shadow: 0 0 0 2px var(--pc); }
+  .tpl b { display: block; font-size: 13px; }
+  .tpl small { color: var(--ink2); font-size: 11.5px; }
+  .sw { display: flex; height: 8px; border-radius: 4px; overflow: hidden; margin: 0 0 8px; }
+  .sw i { flex: 1; }
+  .opt { display: flex; gap: 8px; align-items: flex-start; padding: 8px 10px; border-radius: 10px; border: 1.5px solid var(--line); margin-top: 6px; cursor: pointer; }
+  .opt.on { border-color: var(--p); background: #fffafa; }
+  .opt input { margin-top: 4px; }
+  .path { font: 12.5px Consolas, "D2Coding", monospace; background: var(--tone); border-radius: 8px; padding: 6px 10px; margin-top: 8px; word-break: break-all; }
+  .acts { display: flex; gap: 8px; align-items: center; justify-content: flex-end; margin-top: 14px; flex-wrap: wrap; }
+  .chk { display: flex; gap: 8px; align-items: center; font-size: 13px; margin-right: auto; }
+  /* 목록 */
+  .list { display: grid; gap: 2px; grid-template-columns: minmax(0, 1fr); }
+  .ritem { display: flex; gap: 10px; align-items: center; padding: 8px 10px; border-radius: 10px; }
+  .ritem:hover { background: var(--tone); }
+  .ritem .t { flex: 1; min-width: 0; cursor: pointer; }
+  .ritem .t b { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ritem .t small { display: block; color: var(--ink2); font-size: 11.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .av { width: 30px; height: 30px; border-radius: 9px; color: #fff; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; flex: none; }
+  .badge { font-size: 11px; border-radius: 999px; padding: 1px 8px; background: var(--tone2); color: var(--ink2); white-space: nowrap; }
+  .badge.ok { background: var(--okc); color: var(--ok); }
+  .badge.git { background: var(--infoc); color: var(--info); }
+  .empty { color: var(--ink2); padding: 10px; font-size: 13px; }
+  /* 튜토리얼 */
+  .tut { display: grid; gap: 12px; }
+  .tstep { display: grid; grid-template-columns: 40px 1fr; gap: 12px; }
+  .tstep .num { width: 32px; height: 32px; font-size: 14px; }
+  .tstep ul { margin: 6px 0 0; padding-left: 18px; } .tstep li { margin: 2px 0; }
+  /* 템플릿·샘플 카드 */
+  .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px; }
+  .tcard { display: flex; flex-direction: column; gap: 8px; }
+  .tcard .sw { height: 14px; border-radius: 6px; }
+  .tcard p { margin: 0; color: var(--ink2); font-size: 13px; flex: 1; }
+  .tcard .acts { justify-content: flex-start; margin-top: 4px; }
+  .preview { aspect-ratio: 16 / 9; border-radius: 10px; overflow: hidden; background: var(--tone); position: relative; }
+  .preview .bar { position: absolute; left: 7%; top: 9%; width: 52%; height: 7%; border-radius: 4px; }
+  .preview .l { position: absolute; left: 7%; height: 4%; border-radius: 3px; background: #0001; }
+  .preview .chipx { position: absolute; right: 7%; top: 9%; width: 12%; height: 7%; border-radius: 99px; }
+  /* 창 */
+  .modal-back { position: fixed; inset: 0; background: rgba(0,0,0,.35); z-index: 50; display: none; align-items: center; justify-content: center; padding: 16px; }
+  .modal-back.on { display: flex; }
+  .modal { background: var(--card); border-radius: 18px; box-shadow: var(--sh2); width: min(720px, 100%); max-height: 86vh; display: flex; flex-direction: column; }
+  .modal .mh { padding: 16px 18px 8px; display: flex; align-items: center; gap: 8px; }
+  .modal .mh h3 { margin: 0; flex: 1; }
+  .modal .mb { padding: 0 18px; overflow: auto; flex: 1; }
+  .modal .mf { padding: 12px 18px 16px; display: flex; gap: 8px; justify-content: flex-end; align-items: center; }
+  .places { display: flex; gap: 6px; flex-wrap: wrap; margin: 4px 0 8px; }
+  .dirs { border: 1px solid var(--line); border-radius: 12px; max-height: 46vh; overflow: auto; }
+  .dir { display: flex; gap: 8px; align-items: center; padding: 7px 12px; cursor: pointer; border-bottom: 1px solid var(--tone2); }
+  .dir:last-child { border-bottom: 0; }
+  .dir:hover { background: var(--tone); }
+  .dir span.n { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #busy { position: fixed; inset: 0; background: rgba(255,255,255,.6); z-index: 60; display: none; align-items: center; justify-content: center; font-weight: 700; }
+  #busy.on { display: flex; }
+  pre.log { white-space: pre-wrap; font: 12px Consolas, monospace; background: var(--tone); padding: 8px; border-radius: 8px; max-height: 160px; overflow: auto; }
+</style>
+<script src="menu.js"></script>
+</head>
+<body>
+<header>
+  <button id="menuBtn" type="button"></button>
+  <h1><span id="hMark"></span>nexa-slide</h1>
+  <span class="where" id="where"></span>
+  <span class="sp"></span>
+  <a class="chip sm" id="studioLink" href="/studio/" style="display:none"></a>
+  <a class="chip sm primary" href="#new">＋ 새 슬라이드</a>
+</header>
+<nav class="tabs" id="tabs">
+  <a href="#start" data-p="start">시작</a>
+  <a href="#tutorial" data-p="tutorial">튜토리얼</a>
+  <a href="#demo" data-p="demo">데모</a>
+  <a href="#templates" data-p="templates">템플릿</a>
+  <a href="#samples" data-p="samples">샘플 둘러보기</a>
+</nav>
+<main>
+  <div id="refused" class="banner" style="display:none"></div>
+
+  <!-- ===== 시작 ===== -->
+  <section class="page" id="p-start">
+    <h2>무엇을 만들까요?</h2>
+    <p class="lead">템플릿과 작성 방향, 자료를 간단히 적고 <b>내용을 둘 폴더·저장소</b>를 먼저 정합니다. 제작 도구(엔진)와 만든 슬라이드는 서로 다른 폴더에 있습니다.</p>
+    <div id="curBox" class="banner info cur" style="display:none"></div>
+    <div class="grid2">
+      <form class="card" id="newForm" autocomplete="off">
+        <h3>새 슬라이드 만들기</h3>
+        <div class="step"><span class="num">1</span><div>
+          <label class="f" for="fTitle">제목</label>
+          <input type="text" id="fTitle" required maxlength="80" placeholder="예: 2026 하반기 S&amp;OP 교육">
+          <label class="f">템플릿</label>
+          <div class="tpls" id="fTpls"></div>
+          <div id="starterBox" style="display:none">
+            <label class="f" for="fStarter">시작용 내용</label>
+            <select id="fStarter"><option value="">빈 시작(표지 · 글머리 · 표 · 정리 · 끝 5장)</option></select>
+          </div>
+        </div></div>
+        <div class="step"><span class="num">2</span><div>
+          <label class="f" for="fPurpose">목적</label>
+          <input type="text" id="fPurpose" maxlength="300" placeholder="예: 신규 담당자가 수요계획 화면을 혼자 쓸 수 있게">
+          <label class="f" for="fAudience">대상(청중)</label>
+          <input type="text" id="fAudience" maxlength="200" placeholder="예: 현업 계획 담당자 20명, SQL 초급">
+          <label class="f" for="fDirection">작성 방향</label>
+          <textarea id="fDirection" rows="3" maxlength="3000" placeholder="분량·구성·말투·강조할 점 - 예: 3시간 강의, 장마다 실습 1개, 용어는 표준 용어로"></textarea>
+          <label class="f" for="fMaterials">참고 자료</label>
+          <textarea id="fMaterials" rows="3" maxlength="5000" placeholder="한 줄에 하나 - 파일 경로, 웹 주소, 메모"></textarea>
+          <div class="hint">적은 내용은 작업 공간의 <code>BRIEF.md</code> 에 남습니다. Claude 세션이 초안을 쓸 때 먼저 읽습니다.</div>
+        </div></div>
+        <div class="step"><span class="num">3</span><div>
+          <label class="f">저장 위치</label>
+          <label class="opt on" data-loc="default"><input type="radio" name="loc" value="default" checked><div><b>기본 위치</b><div class="hint" id="locDefaultHint"></div></div></label>
+          <label class="opt" data-loc="custom"><input type="radio" name="loc" value="custom"><div style="flex:1;min-width:0"><b>폴더·저장소 지정</b>
+            <div class="hint">지정한 폴더 아래에 내용(content·decks·assets)과 서버 실행 정보(nexa-slide.json · nexa.py)를 넣습니다.</div>
+            <div class="row" style="margin-top:6px"><input type="text" id="fFolder" placeholder="폴더 경로"><button type="button" class="chip sm" id="fBrowse">찾아보기</button></div>
+            <label class="f" for="fSub">하위 폴더 (비우면 그 폴더에 바로)</label>
+            <input type="text" id="fSub" placeholder="예: slides">
+          </div></label>
+          <div class="path" id="fPath"></div>
+        </div></div>
+        <div class="acts">
+          <label class="chk"><input type="checkbox" id="fAsk" checked> Claude 세션에 초안 작성 요청 남기기</label>
+          <button type="submit" class="chip primary" id="fGo">만들고 Studio 열기</button>
+        </div>
+        <div id="fErr"></div>
+      </form>
+      <div class="stack">
+        <div class="card" id="openCard">
+          <h3>폴더·저장소 열기</h3>
+          <p class="hint" style="margin-top:0">이미 만든 작업 공간(nexa-slide.json 이 있는 폴더)을 엽니다. 작업 공간이 없는 폴더면 그 자리에 새로 만들 수 있습니다.</p>
+          <div class="row"><input type="text" id="oPath" placeholder="폴더 경로"><button type="button" class="chip sm" id="oBrowse">찾아보기</button><button type="button" class="chip sm primary" id="oGo">열기</button></div>
+        </div>
+        <div class="card">
+          <h3>최근 작업</h3>
+          <input type="search" id="rFind" placeholder="이름·경로로 찾기" style="margin-bottom:6px">
+          <div class="list" id="recent"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== 튜토리얼 ===== -->
+  <section class="page" id="p-tutorial">
+    <h2>튜토리얼 - 처음 만드는 슬라이드</h2>
+    <p class="lead">다섯 단계로 작성 흐름을 익힙니다. 직접 따라 해 보려면 <a href="#demo">데모</a>를 열어 같은 화면에서 해 보세요.</p>
+    <div class="tut">
+      <div class="card tstep"><span class="num">1</span><div><h3>작업 공간을 정한다</h3>
+        제작 도구(nexa-slide 엔진)는 내용을 자기 폴더에 두지 않습니다. 제작마다 작업 공간 폴더를 하나 만듭니다.
+        <ul><li>기본 위치: 문서 폴더 아래 <code>NexaSlide/&lt;제목&gt;</code></li>
+          <li>교재·프로젝트 저장소 안에 두려면 "폴더·저장소 지정"으로 그 저장소를 고르고 하위 폴더(예: <code>slides</code>)를 적습니다. 그러면 내용이 그 저장소의 git 이력으로 관리됩니다.</li>
+          <li>작업 공간 구성: <code>nexa-slide.json</code>(포트·템플릿 선택) · <code>nexa.py</code>(실행기) · <code>content/</code>(내용 원본) · <code>decks/</code>(편집 대상) · <code>assets/</code>(그림) · <code>BRIEF.md</code>(작성 방향)</li></ul></div></div>
+      <div class="card tstep"><span class="num">2</span><div><h3>템플릿을 고르고 방향을 적는다</h3>
+        색·글꼴·글자 크기는 엔진의 <b>템플릿</b>에 있고, 작업 공간은 이름만 고릅니다. 목적·대상·작성 방향·참고 자료를 적어 두면 Claude 세션이 초안을 쓸 때 기준으로 씁니다.
+        <ul><li>자료에 없는 내용은 지어내지 않고 확인 질문으로 남깁니다.</li></ul></div></div>
+      <div class="card tstep"><span class="num">3</span><div><h3>Studio 에서 고친다</h3>
+        <ul><li><b>편집</b> 모드: 글자를 바로 고치고, 서식 줄로 굵게·색·크기를 바꿉니다. 저장은 자동입니다.</li>
+          <li><b>선택</b> 모드: 요소를 눌러 그 자리에 요청 메모를 남깁니다. <b>그리기</b> 모드: 영역을 그려 요청합니다.</li>
+          <li>아래 <b>검사</b> 탭: 겹침·넘침·최소 글자 크기·슬라이드 밖을 알려 줍니다.</li></ul></div></div>
+      <div class="card tstep"><span class="num">4</span><div><h3>Claude 세션에 요청한다</h3>
+        작업 공간 폴더에서 Claude Code 세션을 열고 요청 감시를 겁니다(작업 공간의 <code>CLAUDE.md</code> 에 명령이 있습니다).
+        <ul><li><code>python3 nexa.py watch_requests --stream --takeover</code> 를 Monitor 로 실행</li>
+          <li>머리줄 칩이 "세션 연결됨"이 되면, 남긴 메모를 "요청 N개 보내기"로 보냅니다. 처리 결과와 답변은 요청 탭에 돌아옵니다.</li></ul></div></div>
+      <div class="card tstep"><span class="num">5</span><div><h3>발표하고 내보낸다</h3>
+        <ul><li><kbd>F5</kbd> 처음부터 발표 · <kbd>Shift+F5</kbd> 현재 슬라이드부터 · 발표 중 <kbd>N</kbd> 노트</li>
+          <li>"내보내기"로 편집 가능한 PPTX 를 만듭니다(Windows 에 PowerPoint 가 있으면 렌더 미리보기도).</li>
+          <li>잘못 고쳤으면 "기록"에서 저장 시점으로 되돌립니다(자동 백업 50개).</li></ul></div></div>
+    </div>
+  </section>
+
+  <!-- ===== 데모 ===== -->
+  <section class="page" id="p-demo">
+    <h2>데모 - 기능 훑어보기</h2>
+    <p class="lead">엔진에 들어 있는 예제 덱으로 Studio 의 기능을 직접 눌러 봅니다. 예제는 엔진 폴더에서 바로 열지 않고, 기준 폴더에 복사본을 만들어 엽니다(처음 한 번).</p>
+    <div class="grid2">
+      <div class="card">
+        <h3>데모에서 해 볼 것</h3>
+        <ul>
+          <li>레이아웃 여러 종(표지 · 글머리 · 표 · 코드 · 비교 · 정리 · 끝)과 발표자 노트</li>
+          <li>편집 · 선택 · 그리기 모드, 서식 줄, 실행 취소</li>
+          <li>요청 메모 남기기와 보내기, 세션 연결 칩</li>
+          <li>레이아웃 검사 탭, 발표(F5), PPTX 내보내기, 기록으로 되돌리기</li>
+        </ul>
+        <div class="path" id="demoPath"></div>
+        <div class="acts" style="justify-content:flex-start"><button type="button" class="chip primary" id="demoGo">▶ 데모 열기</button></div>
+      </div>
+      <div class="card">
+        <h3>데모는 내 작업과 섞이지 않습니다</h3>
+        <p class="hint" style="margin:0">데모 폴더는 마음껏 고쳐도 됩니다. 처음 상태로 돌리려면 데모 폴더를 지우고 다시 여세요.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== 템플릿 ===== -->
+  <section class="page" id="p-templates">
+    <h2>템플릿</h2>
+    <p class="lead">디자인(색 · 글꼴 · 글자 크기 · 검사 기준)은 엔진의 템플릿에 있습니다. 작업 공간은 템플릿 이름만 고르고 디자인을 따로 두지 않습니다.</p>
+    <div class="cards" id="tplCards"></div>
+    <div id="starterSec" style="display:none">
+      <h2 style="margin-top:28px">시작용 내용</h2>
+      <p class="lead">구성 예시가 들어 있는 시작 내용입니다. 새로 만들 때 "시작용 내용"에서 고릅니다.</p>
+      <div class="cards" id="starterCards"></div>
+    </div>
+  </section>
+
+  <!-- ===== 샘플 ===== -->
+  <section class="page" id="p-samples">
+    <h2>샘플 둘러보기</h2>
+    <p class="lead">참고할 슬라이드·발표 사이트를 등록해 두고 둘러봅니다. 목록은 이 PC 의 사용자 설정에 저장됩니다(엔진·작업 공간 밖).</p>
+    <div class="cards" id="sampleCards"></div>
+    <form class="card" id="sampleForm" style="margin-top:16px" autocomplete="off">
+      <h3>샘플 등록</h3>
+      <div class="row" style="flex-wrap:wrap">
+        <input type="text" id="sName" placeholder="이름" style="flex:1 1 160px">
+        <input type="url" id="sUrl" placeholder="https://..." required style="flex:2 1 260px">
+        <input type="text" id="sNote" placeholder="메모(선택)" style="flex:2 1 200px">
+        <button type="submit" class="chip primary sm">등록</button>
+      </div>
+    </form>
+  </section>
+</main>
+
+<!-- 폴더 고르기 -->
+<div class="modal-back" id="fsModal"><div class="modal">
+  <div class="mh"><h3 id="fsTitle">폴더 고르기</h3><button type="button" class="ib" data-close>✕</button></div>
+  <div class="mb">
+    <div class="places" id="fsPlaces"></div>
+    <div class="row" style="margin-bottom:8px"><button type="button" class="ib" id="fsUp" title="위 폴더"></button><input type="text" id="fsPath"><button type="button" class="chip sm" id="fsGo">이동</button></div>
+    <div class="hint" id="fsInfo" style="margin:-2px 0 6px"></div>
+    <div class="dirs" id="fsDirs"></div>
+  </div>
+  <div class="mf"><span class="hint" style="margin-right:auto">저장소(git) 폴더를 고르면 하위 폴더(예: slides)에 만드는 것을 권합니다.</span>
+    <button type="button" class="chip" data-close>취소</button><button type="button" class="chip primary" id="fsPick">이 폴더 선택</button></div>
+</div></div>
+<!-- 기준 폴더 설정 -->
+<div class="modal-back" id="setModal"><div class="modal" style="width:min(600px,100%)">
+  <div class="mh"><h3>기준 폴더 설정</h3><button type="button" class="ib" data-close>✕</button></div>
+  <div class="mb">
+    <p class="hint" style="margin-top:0">새로 만들 때 기본 위치입니다. 비우면 운영체제의 문서 폴더 아래 <code>NexaSlide</code> 를 씁니다.</p>
+    <label class="f" for="setRoot">제작 기준 폴더</label>
+    <div class="row"><input type="text" id="setRoot"><button type="button" class="chip sm" id="setBrowse">찾아보기</button></div>
+    <div class="hint" id="setInfo"></div>
+  </div>
+  <div class="mf"><button type="button" class="chip" id="setReset">기본으로</button><button type="button" class="chip" data-close>취소</button><button type="button" class="chip primary" id="setSave">저장</button></div>
+</div></div>
+<div id="busy"><span id="busyMsg">처리 중...</span></div>
+
+<script>
+(() => {
+  const { icon, mark, esc, post, toast, go } = NexaMenu;
+  const $ = (s) => document.querySelector(s), $$ = (s) => [...document.querySelectorAll(s)];
+  const PAGES = ["start", "tutorial", "demo", "templates", "samples"];
+  const H = { home: null, tpl: "lecture" };
+  const color = (s) => { let h = 0; for (const c of s) h = (h * 31 + c.charCodeAt(0)) >>> 0; return `hsl(${h % 360} 45% 45%)`; };
+  const sep = () => (H.home && H.home.projectsRoot.includes("\\") ? "\\" : "/");
+  const slug = (t) => t.trim().replace(/[<>:"/\\|?*\x00-\x1f]+/g, "-").replace(/\s+/g, "-").replace(/^[.\- ]+|[.\- ]+$/g, "").slice(0, 60) || "slides";
+  const join = (a, b) => (b ? a.replace(/[\\/]+$/, "") + sep() + b.replace(/^[\\/]+/, "") : a);
+  function busy(on, msg) { $("#busy").classList.toggle("on", on); if (msg) $("#busyMsg").textContent = msg; }
+
+  // ---------- 화면 ----------
+  function route() {
+    let h = location.hash.slice(1) || "start";
+    if (h === "settings") { openSettings(); h = "start"; history.replaceState(null, "", "#start"); }
+    const p = ["new", "open"].includes(h) ? "start" : PAGES.includes(h) ? h : "start";
+    $$(".page").forEach((x) => x.classList.toggle("on", x.id === "p-" + p));
+    $$("#tabs a").forEach((a) => a.classList.toggle("on", a.dataset.p === p));
+    if (h === "new") setTimeout(() => $("#fTitle").focus(), 30);
+    if (h === "open") setTimeout(() => { $("#openCard").scrollIntoView({ block: "center" }); $("#oPath").focus(); }, 30);
+    window.scrollTo(0, 0);
+  }
+  async function load() {
+    H.home = await (await fetch("/api/home", { cache: "no-store" })).json();
+    const d = H.home;
+    $("#where").textContent = d.mode === "hub" ? `시작 페이지 · 포트 ${d.port}` : `작업 공간 서버 · 포트 ${d.port}`;
+    if (d.refused) { $("#refused").style.display = ""; $("#refused").innerHTML = `엔진 폴더 안의 작업 공간은 열지 않습니다: <code>${esc(d.refused)}</code> - 슬라이드 내용은 엔진과 다른 폴더·저장소에 둡니다. 예제는 <a href="#demo">데모</a>로 엽니다.`; }
+    const cur = d.current && d.current.workspace ? d.current : null;
+    if (cur) {
+      $("#studioLink").style.display = ""; $("#studioLink").innerHTML = `${icon("pen", 14)} Studio - ${esc(cur.title)}`;
+      $("#curBox").style.display = "";
+      $("#curBox").innerHTML = cur.decks.length
+        ? `${icon("pen")}<span>이 서버의 작업 공간 <b>${esc(cur.title)}</b> (덱 ${cur.decks.length}개)</span><a class="chip sm primary" href="/studio/">Studio 로</a>`
+        : `${icon("folder")}<span>이 서버의 작업 공간 <b>${esc(cur.title)}</b> 에는 아직 덱이 없습니다. <code>content/</code> 를 빌드하면 Studio 로 바로 열립니다.</span>`;
+      $("#curBox").title = cur.path;
+    }
+    renderTpls(); renderRecent(); renderTemplates(); renderSamples(); updatePath();
+    $("#demoPath").textContent = `복사 위치: ${d.demo}`;
+    $("#locDefaultHint").textContent = `${d.projectsRoot}${sep()}<제목>`;
+  }
+
+  // ---------- 새로 만들기 ----------
+  function renderTpls() {
+    const d = H.home;
+    $("#fTpls").innerHTML = d.templates.map((t) => `<button type="button" class="tpl${t.name === H.tpl ? " on" : ""}" data-tpl="${esc(t.name)}">
+      <div class="sw">${t.swatches.map((c) => `<i style="background:${c}"></i>`).join("")}</div><b>${esc(t.label)}</b><small>${esc(t.name)}</small></button>`).join("");
+    if (d.starters.length) {
+      $("#starterBox").style.display = "";
+      $("#fStarter").innerHTML = '<option value="">빈 시작(표지 · 글머리 · 표 · 정리 · 끝 5장)</option>' +
+        d.starters.map((s) => `<option value="${esc(s.name)}">${esc(s.label)}</option>`).join("");
+    }
+  }
+  $("#fTpls").addEventListener("click", (e) => { const b = e.target.closest("[data-tpl]"); if (!b) return; H.tpl = b.dataset.tpl; renderTpls(); });
+  $("#fStarter").addEventListener("change", () => { const s = H.home.starters.find((x) => x.name === $("#fStarter").value); if (s && s.template) { H.tpl = s.template; renderTpls(); } });
+  const loc = () => (document.querySelector("input[name=loc]:checked") || {}).value;
+  function setLoc(v) { document.querySelector(`input[name=loc][value=${v}]`).checked = true; $$(".opt").forEach((o) => o.classList.toggle("on", o.dataset.loc === v)); updatePath(); }
+  $$("input[name=loc]").forEach((r) => r.addEventListener("change", () => setLoc(r.value)));
+  function target() {
+    const t = $("#fTitle").value;
+    if (loc() === "custom") { const f = $("#fFolder").value.trim(); return f ? join(f, $("#fSub").value.trim()) : ""; }
+    return join(H.home.projectsRoot, slug(t || "제목"));
+  }
+  function updatePath() { if (!H.home) return; const t = target(); $("#fPath").textContent = t ? `만들 위치: ${t}` : "만들 위치: 폴더를 고르세요"; }
+  ["#fTitle", "#fFolder", "#fSub"].forEach((s) => $(s).addEventListener("input", updatePath));
+  $("#fFolder").addEventListener("focus", () => setLoc("custom"));
+  $("#fBrowse").onclick = () => { setLoc("custom"); pickFolder("저장 위치 고르기", $("#fFolder").value, (p, info) => { $("#fFolder").value = p; if (info.git && !$("#fSub").value) $("#fSub").value = "slides"; updatePath(); }); };
+  $("#newForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    $("#fErr").innerHTML = "";
+    const custom = loc() === "custom";
+    if (custom && !$("#fFolder").value.trim()) { toast("저장할 폴더를 고르세요"); return; }
+    const body = { action: "create", title: $("#fTitle").value.trim(), template: H.tpl, starter: $("#fStarter").value || null,
+      purpose: $("#fPurpose").value, audience: $("#fAudience").value, direction: $("#fDirection").value, materials: $("#fMaterials").value,
+      askDraft: $("#fAsk").checked };
+    if (custom) { body.folder = $("#fFolder").value.trim(); body.sub = $("#fSub").value.trim(); }
+    busy(true, "작업 공간을 만들고 서버를 띄우는 중...");
+    const r = await post("/api/project", body);
+    busy(false);
+    if (r.ok) { location.href = r.data.url; return; }
+    $("#fErr").innerHTML = `<div class="banner" style="margin-top:12px">${esc(r.data.error || "만들지 못했습니다")}${r.data.existing ? ` <button type="button" class="chip sm" data-open="${esc(r.data.existing)}">그 작업 공간 열기</button>` : ""}${r.data.log ? `<pre class="log">${esc(r.data.log)}</pre>` : ""}</div>`;
+  });
+  document.addEventListener("click", (e) => { const b = e.target.closest("[data-open]"); if (b) go(b.dataset.open); });
+
+  // ---------- 열기 ----------
+  async function openPath(p) {
+    if (!p) { toast("폴더 경로를 적거나 고르세요"); return; }
+    busy(true, "작업 공간 서버를 띄우는 중...");
+    const r = await go(p);
+    busy(false);
+    if (!r.ok && r.data.needInit) offerInit(r.data);
+  }
+  function offerInit(d) {
+    location.hash = "new";
+    setLoc("custom"); $("#fFolder").value = d.path; $("#fSub").value = d.git ? "slides" : ""; updatePath();
+    toast(d.git ? "저장소에는 작업 공간이 없습니다 - 하위 폴더(slides)에 새로 만들 수 있습니다" : "이 폴더에 작업 공간이 없습니다 - 여기에 새로 만들 수 있습니다", 5000);
+  }
+  window.addEventListener("nx-need-init", (e) => offerInit(e.detail));
+  $("#oGo").onclick = () => openPath($("#oPath").value.trim());
+  $("#oPath").addEventListener("keydown", (e) => { if (e.key === "Enter") openPath($("#oPath").value.trim()); });
+  $("#oBrowse").onclick = () => pickFolder("열 폴더 고르기", $("#oPath").value, (p) => { $("#oPath").value = p; openPath(p); });
+
+  // ---------- 최근 ----------
+  function renderRecent() {
+    const q = $("#rFind").value.toLowerCase();
+    const list = H.home.recent.filter((r) => !q || `${r.title} ${r.path}`.toLowerCase().includes(q));
+    $("#recent").innerHTML = list.length ? list.map((r) => `<div class="ritem">
+      <span class="av" style="background:${color(r.path)}">${esc((r.title || "?").trim().charAt(0).toUpperCase())}</span>
+      <div class="t" data-open="${esc(r.path)}" title="${esc(r.path)}"><b>${esc(r.title || r.path)}</b><small>${esc(r.path)}</small></div>
+      ${!r.exists ? '<span class="badge">폴더 없음</span>' : r.workspace ? `${r.git ? `<span class="badge git">git</span>` : ""}<span class="badge">덱 ${r.decks.length}</span>` : '<span class="badge">작업 공간 아님</span>'}
+      <button type="button" class="ib" data-forget="${esc(r.path)}" title="목록에서 빼기(폴더는 그대로)">${icon("x", 14)}</button></div>`).join("")
+      : `<div class="empty">${q ? "찾는 작업이 없습니다" : "아직 연 작업이 없습니다. 새로 만들거나 폴더를 열어 보세요."}</div>`;
+  }
+  $("#rFind").addEventListener("input", renderRecent);
+  $("#recent").addEventListener("click", async (e) => {
+    const f = e.target.closest("[data-forget]"); if (!f) return;
+    e.stopPropagation();
+    await post("/api/project", { action: "forget", path: f.dataset.forget }); await load();
+  });
+
+  // ---------- 데모 ----------
+  $("#demoGo").onclick = async () => {
+    busy(true, "데모를 준비하는 중... (처음 한 번 복사)");
+    const r = await post("/api/project", { action: "demo" });
+    busy(false);
+    if (r.ok) location.href = r.data.url; else toast(r.data.error || "데모를 열지 못했습니다", 5000);
+  };
+
+  // ---------- 템플릿 ----------
+  function preview(t) {
+    const [a, b, c] = [t.swatches[0] || "#888", t.swatches[1] || "#ddd", t.swatches[2] || "#aaa"];
+    return `<div class="preview" style="background:#fff;outline:1px solid var(--line)"><div class="bar" style="background:${a}"></div><div class="chipx" style="background:${b}"></div>
+      <div class="l" style="top:26%;width:70%"></div><div class="l" style="top:36%;width:62%"></div><div class="l" style="top:46%;width:66%;background:${c}55"></div><div class="l" style="top:56%;width:48%"></div>
+      <div class="l" style="top:86%;width:18%;height:3%"></div></div>`;
+  }
+  function renderTemplates() {
+    const d = H.home;
+    $("#tplCards").innerHTML = d.templates.map((t) => `<div class="card tcard">${preview(t)}
+      <div class="sw">${t.swatches.map((c) => `<i style="background:${c}"></i>`).join("")}</div>
+      <h3 style="margin:0">${esc(t.label)}</h3><small class="hint" style="margin:0">${esc(t.name)}${t.extends ? ` · ${esc(t.extends)} 바탕` : ""}</small>
+      <p>${esc(t.description)}</p>
+      <div class="acts"><button type="button" class="chip sm primary" data-use="${esc(t.name)}">이 템플릿으로 만들기</button>
+      ${t.concept ? `<a class="chip sm" href="${esc(t.concept)}" target="_blank" rel="noopener">디자인 기준 ${icon("ext", 13)}</a>` : ""}</div></div>`).join("");
+    $("#starterSec").style.display = d.starters.length ? "" : "none";
+    $("#starterCards").innerHTML = d.starters.map((s) => `<div class="card tcard"><h3 style="margin:0">${esc(s.label)}</h3><small class="hint" style="margin:0">${esc(s.name)}${s.template ? ` · 템플릿 ${esc(s.template)}` : ""}</small>
+      <p>${esc(s.description)}</p><div class="acts"><button type="button" class="chip sm primary" data-starter="${esc(s.name)}">이 내용으로 시작</button></div></div>`).join("");
+  }
+  document.addEventListener("click", (e) => {
+    const u = e.target.closest("[data-use]");
+    if (u) { H.tpl = u.dataset.use; renderTpls(); location.hash = "new"; }
+    const s = e.target.closest("[data-starter]");
+    if (s) { $("#fStarter").value = s.dataset.starter; $("#fStarter").dispatchEvent(new Event("change")); location.hash = "new"; }
+  });
+
+  // ---------- 샘플 ----------
+  function renderSamples() {
+    const list = H.home.samples;
+    $("#sampleCards").innerHTML = list.length ? list.map((s, i) => `<div class="card tcard">
+      <div class="row"><span class="av" style="background:${color(s.url)}">${icon("globe", 16)}</span><div style="min-width:0;flex:1"><h3 style="margin:0">${esc(s.name)}</h3>
+      <small class="hint" style="display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin:0">${esc(s.url)}</small></div></div>
+      ${s.note ? `<p>${esc(s.note)}</p>` : "<p></p>"}
+      <div class="acts"><a class="chip sm primary" href="${esc(s.url)}" target="_blank" rel="noopener noreferrer">둘러보기 ${icon("ext", 13)}</a>
+      <button type="button" class="chip sm" data-del="${i}">${icon("trash", 13)} 삭제</button></div></div>`).join("")
+      : '<div class="card empty">등록한 샘플이 없습니다. 아래에서 참고할 사이트를 등록하세요.</div>';
+  }
+  async function saveSamples(list) {
+    const r = await post("/api/settings", { samples: list });
+    if (!r.ok) { toast(r.data.error || "저장하지 못했습니다", 4000); return false; }
+    H.home.samples = r.data.samples; renderSamples(); return true;
+  }
+  $("#sampleForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const url = $("#sUrl").value.trim();
+    if (await saveSamples([...H.home.samples, { name: $("#sName").value.trim() || url, url, note: $("#sNote").value.trim() }])) {
+      $("#sName").value = $("#sUrl").value = $("#sNote").value = ""; toast("등록했습니다");
+    }
+  });
+  $("#sampleCards").addEventListener("click", (e) => {
+    const b = e.target.closest("[data-del]"); if (!b) return;
+    const s = H.home.samples[+b.dataset.del];
+    if (confirm(`"${s.name}" 샘플을 목록에서 지울까요?`)) saveSamples(H.home.samples.filter((_, i) => i !== +b.dataset.del));
+  });
+
+  // ---------- 폴더 고르기 ----------
+  let fsCb = null, fsCur = null;
+  function closeModals() { $$(".modal-back").forEach((m) => m.classList.remove("on")); }
+  $$("[data-close]").forEach((b) => (b.onclick = closeModals));
+  $$(".modal-back").forEach((m) => m.addEventListener("mousedown", (e) => { if (e.target === m) closeModals(); }));
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeModals(); });
+  async function fsLoad(p) {
+    const r = await fetch("/api/fs?path=" + encodeURIComponent(p || ""), { cache: "no-store" });
+    const d = await r.json();
+    if (!r.ok || d.ok === false) { toast(d.error || "열 수 없는 폴더입니다"); return; }
+    fsCur = d; $("#fsPath").value = d.path; $("#fsUp").disabled = !d.parent;
+    $("#fsPlaces").innerHTML = Object.entries(d.places).map(([k, v]) => `<button type="button" class="chip sm" data-go="${esc(v)}">${esc(k)}</button>`).join("") +
+      d.roots.map((x) => `<button type="button" class="chip sm" data-go="${esc(x)}">${esc(x)}</button>`).join("");
+    $("#fsInfo").innerHTML = d.insideEngine ? '<span style="color:var(--err)">엔진 폴더 안은 고를 수 없습니다.</span>'
+      : d.workspace ? '<span class="badge ok">작업 공간</span> 이 폴더에는 이미 작업 공간이 있습니다.'
+      : d.git ? '<span class="badge git">git</span> 저장소 폴더입니다.' : d.gitRoot ? `<span class="badge git">git</span> 저장소 <code>${esc(d.gitRoot)}</code> 안입니다.` : "";
+    $("#fsPick").disabled = d.insideEngine;
+    $("#fsDirs").innerHTML = d.dirs.length ? d.dirs.map((x) => `<div class="dir" data-go="${esc(x.path)}">${icon(x.git ? "repo" : "folder")}<span class="n">${esc(x.name)}</span>
+      ${x.workspace ? '<span class="badge ok">작업 공간</span>' : ""}${x.git ? '<span class="badge git">git</span>' : ""}</div>`).join("") : '<div class="empty">하위 폴더가 없습니다</div>';
+  }
+  function pickFolder(title, start, cb) { fsCb = cb; $("#fsTitle").textContent = title; $("#fsModal").classList.add("on"); fsLoad(start); }
+  $("#fsUp").innerHTML = icon("up");
+  $("#fsUp").onclick = () => fsCur && fsCur.parent && fsLoad(fsCur.parent);
+  $("#fsGo").onclick = () => fsLoad($("#fsPath").value.trim());
+  $("#fsPath").addEventListener("keydown", (e) => { if (e.key === "Enter") fsLoad($("#fsPath").value.trim()); });
+  $("#fsModal").addEventListener("click", (e) => { const g = e.target.closest("[data-go]"); if (g) fsLoad(g.dataset.go); });
+  $("#fsPick").onclick = () => { if (!fsCur) return; closeModals(); fsCb && fsCb(fsCur.path, fsCur); };
+
+  // ---------- 기준 폴더 설정 ----------
+  function openSettings() {
+    if (!H.home) { setTimeout(openSettings, 200); return; }
+    $("#setRoot").value = H.home.projectsRoot;
+    $("#setInfo").innerHTML = `문서 폴더: <code>${esc(H.home.documents)}</code> · 기본: <code>${esc(H.home.projectsRootDefault)}</code>` +
+      (H.home.projectsRootFromEnv ? "<br>환경변수 NEXA_SLIDE_PROJECTS 가 지정되어 있어 그 값이 먼저 쓰입니다." : "");
+    $("#setModal").classList.add("on");
+  }
+  $("#setBrowse").onclick = () => pickFolder("기준 폴더 고르기", $("#setRoot").value, (p) => { $("#setRoot").value = p; $("#setModal").classList.add("on"); });
+  $("#setReset").onclick = () => ($("#setRoot").value = "");
+  $("#setSave").onclick = async () => {
+    const v = $("#setRoot").value.trim();
+    const r = await post("/api/settings", { projectsRoot: v === H.home.projectsRootDefault ? "" : v });
+    if (!r.ok) { toast(r.data.error || "저장하지 못했습니다", 4000); return; }
+    closeModals(); await load(); toast("기준 폴더를 저장했습니다");
+  };
+
+  // ---------- 시작 ----------
+  NexaMenu.mount($("#menuBtn"));
+  $("#hMark").innerHTML = mark(24);
+  window.addEventListener("hashchange", route);
+  route();
+  load().catch((e) => toast("시작 정보를 읽지 못했습니다: " + e.message, 6000));
+})();
+</script>
+</body>
+</html>

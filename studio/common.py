@@ -26,7 +26,8 @@ def _workspace():
     """작업 공간(덱·내용·산출물이 있는 폴더)을 정한다.
 
     우선순위: 명령행 --workspace <경로> > 환경변수 NEXA_SLIDE_WORKSPACE > 현재 폴더부터 위로 올라가며
-    nexa-slide.json 이 있는 첫 폴더 > 현재 폴더. --workspace 는 여기서 꺼내 지우므로 각 도구의 인자 해석과 겹치지 않는다.
+    nexa-slide.json 이 있는 첫 폴더. 못 찾으면 None — 현재 폴더(엔진 폴더일 수 있다)를 작업 공간으로 쓰지 않는다.
+    --workspace 는 여기서 꺼내 지우므로 각 도구의 인자 해석과 겹치지 않는다.
     """
     argv = sys.argv
     for k, a in enumerate(argv[1:], 1):
@@ -45,13 +46,28 @@ def _workspace():
     for d in (cwd, *cwd.parents):
         if (d / CONFIG_NAME).is_file():
             return d
-    return cwd
+    return None
 
 
+# 작업 공간 없이 도는 도구 — 서버는 이때 허브(시작 페이지)로 뜬다. 나머지 도구는 작업 공간이 있어야 한다.
+HUB_TOOLS = {"server.py", "service.py", "status.py"}
+_TOOL = Path(sys.argv[0]).name if sys.argv and sys.argv[0] else ""
 WORKSPACE = _workspace()
-os.environ["NEXA_SLIDE_WORKSPACE"] = str(WORKSPACE)  # 하위 프로세스(export·set_fonts 등)도 같은 작업 공간
+REFUSED = None  # 엔진 폴더 안이라 서버가 열지 않은 작업 공간
+if WORKSPACE is not None and _TOOL in HUB_TOOLS:
+    from paths import inside_engine
+    if inside_engine(WORKSPACE):  # 엔진은 슬라이드 내용을 자기 폴더에 두지 않는다(예제는 데모로 복사해 연다)
+        REFUSED, WORKSPACE = WORKSPACE, None
+if WORKSPACE is None and _TOOL not in HUB_TOOLS and __name__ != "__main__":
+    sys.exit("nexa-slide 작업 공간을 찾지 못했다 — --workspace <폴더> 를 주거나 작업 공간(nexa-slide.json 이 있는 폴더) 안에서 실행한다. "
+             "새로 만들려면 서버(python3 studio/server.py)를 띄워 시작 페이지에서 만든다")
+HUB = WORKSPACE is None  # 허브 모드: 시작 페이지만(덱 API 는 빈 결과)
+if HUB:
+    os.environ.pop("NEXA_SLIDE_WORKSPACE", None)
+else:
+    os.environ["NEXA_SLIDE_WORKSPACE"] = str(WORKSPACE)  # 하위 프로세스(export·set_fonts 등)도 같은 작업 공간
 CONFIG = {}
-if (WORKSPACE / CONFIG_NAME).is_file():
+if not HUB and (WORKSPACE / CONFIG_NAME).is_file():
     CONFIG = json.loads((WORKSPACE / CONFIG_NAME).read_text(encoding="utf-8"))
 
 
@@ -59,14 +75,20 @@ def _ws_path(key, default):
     return (WORKSPACE / CONFIG.get(key, default)).resolve()
 
 
-# 덱 JSON 의 그림 경로(src·img)는 assetRoot 기준 상대 경로다. 서버는 이 폴더를 / 로 내준다.
-REPO = ASSET_ROOT = _ws_path("assetRoot", ".")
-CONTENT = _ws_path("content", "content")
-DECKS = _ws_path("decks", "decks")
-OUT = _ws_path("out", "out")
+if HUB:  # 허브 상태(서버 정보·로그)는 사용자 설정 폴더에 — 엔진·현재 폴더에 아무것도 쓰지 않는다
+    from paths import hub_port, user_dir
+    OUT = user_dir() / "hub"
+    REPO = ASSET_ROOT = CONTENT = DECKS = OUT / "_no-workspace"  # 만들지 않는 자리(덱·그림 없음)
+    DEFAULT_PORT = hub_port()
+else:
+    # 덱 JSON 의 그림 경로(src·img)는 assetRoot 기준 상대 경로다. 서버는 이 폴더를 / 로 내준다.
+    REPO = ASSET_ROOT = _ws_path("assetRoot", ".")
+    CONTENT = _ws_path("content", "content")
+    DECKS = _ws_path("decks", "decks")
+    OUT = _ws_path("out", "out")
+    DEFAULT_PORT = int(CONFIG.get("port", 5600))  # 작업 공간마다 다른 포트를 주면 여러 서버를 함께 띄울 수 있다
 STATE = OUT / ".studio"  # 세션 연결 상태·즉시 전송 신호·실행 중 서버 정보 (git 제외 영역)
 SERVER_INFO = STATE / "server.json"  # 실행 중인 서버 {port, url, pid, workspace, started}
-DEFAULT_PORT = int(CONFIG.get("port", 5600))  # 작업 공간마다 다른 포트를 주면 여러 서버를 함께 띄울 수 있다
 
 
 def _serves_here(port):
@@ -80,7 +102,9 @@ def _serves_here(port):
     try:
         with urllib.request.urlopen(f"http://127.0.0.1:{int(port)}/api/config", timeout=1.5) as r:
             cfg = json.loads(r.read().decode("utf-8"))
-        return Path(cfg.get("path", "")).resolve() == WORKSPACE
+        if HUB:
+            return cfg.get("mode") == "hub"
+        return bool(cfg.get("path")) and Path(cfg["path"]).resolve() == WORKSPACE
     except Exception:  # noqa: BLE001 — 응답 없음·다른 서비스
         return False
 
@@ -167,6 +191,8 @@ def resolve_tokens(config=None):
 
 def read_config():
     """nexa-slide.json 을 지금 다시 읽는다(서버처럼 오래 도는 프로세스용)."""
+    if HUB:
+        return {}
     f = WORKSPACE / CONFIG_NAME
     return json.loads(f.read_text(encoding="utf-8")) if f.is_file() else {}
 BRAND = {"name": "", "logo": "", "wordmark": "", "favicon": "", **CONFIG.get("brand", {})}

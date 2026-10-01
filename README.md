@@ -16,15 +16,17 @@ git clone git@github.com:SosomLab/nexa-slide.git
 cd nexa-slide
 python3 -m pip install -r requirements.txt
 
-# 내 저장소에 작업 공간 만들기 → docs/new-project.md
+python3 studio/service.py start      # 시작 페이지 → http://127.0.0.1:5599/  (새로 만들기 · 열기 · 튜토리얼 · 데모 · 템플릿 · 샘플)
+
+# 명령으로 작업 공간 만들기 → docs/new-project.md
 python3 studio/init_workspace.py ../my-talk/slides --title "신제품 소개"
 # 강의 교안이면 시작용 교안으로 → docs/lecture-starter.md
 python3 studio/init_workspace.py ../my-course/slides --title "과정 이름" --starter lecture-course
-
-python3 studio/service.py --workspace example start   # 백그라운드 서버 → http://127.0.0.1:5601/ (예제 설정 포트)
-python3 studio/export_pptx.py --workspace example demo # → example/out/demo.pptx
-python3 studio/service.py --workspace example stop
+python3 ../my-talk/slides/nexa.py start   # 덱이 있으면 바로 Studio
 ```
+
+**엔진에는 슬라이드 내용을 저장하지 않는다.** 시작 페이지에서 템플릿·작성 방향·자료를 받고 **내용을 둘 폴더·저장소를 먼저 정한다**.
+정하지 않으면 운영체제의 문서 폴더 아래 `NexaSlide/<제목>` 에 만든다. 자세히는 [docs/home.md](docs/home.md).
 
 ## 여러 작업 공간을 함께 운영
 
@@ -47,6 +49,7 @@ D:\Projects\
 nexa-slide/
 ├─ studio/                 엔진 — 이 폴더만 있으면 어디서든 동작(작업 공간은 --workspace 로 지정)
 │   ├─ server.py           로컬 서버(정적 파일 + API)          ├─ index.html · studio.js   편집기
+│   ├─ hub.py · paths.py   시작 페이지 동작 · 기준 폴더·사용자 설정 ├─ home.html · menu.js     시작 페이지 · 기본 메뉴
 │   ├─ common.py           작업 공간·설정 해석, 공용 규칙      ├─ render.js                요소 → HTML 렌더러
 │   ├─ layouts.py          레이아웃 빌더 21종                  ├─ slide.html               검증용 1:1 슬라이드
 │   ├─ build_deck.py       content → 덱 JSON                  ├─ (토큰은 templates/<이름>/)
@@ -59,7 +62,7 @@ nexa-slide/
 │   ├─ check_layout.py      레이아웃 검사 — 겹침·넘침·최소 글자(pt)·슬라이드 밖·고정폭 정렬
 │   ├─ templates/          디자인 템플릿 — lecture(기존 디자인) · lecture-large(글자 확대). tokens.json · template.json · design/
 │   └─ set_fonts.py · gen_tokens_css.py · render_mermaid.py
-├─ example/                예제 작업 공간(nexa-slide.json · content · decks · 자리 표시 로고)
+├─ example/                예제(데모 원본) - 서버는 엔진 안에서 열지 않고 시작 페이지 "데모"가 기준 폴더로 복사해 연다
 ├─ starters/               시작용 내용 — lecture-course(강의 교안 3일 과정 뼈대, init_workspace.py --starter)
 └─ docs/                   설치 · 설정 · 서버 · 운영 · 세션 연결 · 덱 형식 · 편집기
 ```
@@ -71,6 +74,7 @@ nexa-slide/
 
 | 문서 | 내용 |
 |---|---|
+| **[docs/home.md](docs/home.md)** | **시작 페이지·기본 메뉴 — 기준 폴더(OS 문서 폴더), 새로 만들기·열기·데모·템플릿·샘플, 사용자 설정** |
 | **[docs/new-project.md](docs/new-project.md)** | **새 폴더·저장소에서 시작하기 — VS Code·Claude Desktop 연결, 슬라이드 초안 작성·검토·내보내기 상세 절차(macOS·Windows 명령)** |
 | [docs/install.md](docs/install.md) | 요구 사항, 설치, 글꼴, 새 작업 공간 만들기, 기존 저장소에 붙이기(실행기) |
 | [docs/lecture-starter.md](docs/lecture-starter.md) | 강의 교안 시작용(`--starter lecture-course`) — 구성 순서, 장·절·실습 번호 체계, 각주·노트 규약, 작성 규칙 |
