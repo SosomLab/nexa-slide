@@ -45,7 +45,8 @@
 | [02-visual-families](02-visual-families.md) | 완료 - 시각 계열 9묶음, nexa 템플릿 후보 8개(editorial·ledger·keynote·archive·signal·blueprint·forest·swiss) |
 | [03-slide-archetypes](03-slide-archetypes.md) | 완료 - 기존 레이아웃 대응 1,734장(76%), 새 유형 540장 → 대표 28개(1순위 10 · 2순위 14 · 3순위 4) |
 | [04-image-slots](04-image-slots.md) | 완료 - 자리 형태 6가지·역할 8가지·어울리는 이미지·레이아웃 연결·기준값 |
-| 05-purpose-decks | 대기 - 템플릿·레이아웃 선정 뒤 목적별 샘플 덱 구성 |
+| 검토·승인 | 진행 - 검토 등록부([../review](../review/README.md))에 템플릿 후보 8 · 레이아웃 28 · 참고 덱 156 등록. 승인한 것부터 구현 |
+| 05-purpose-decks | 대기 - 승인된 템플릿·레이아웃으로 목적별 샘플 덱 구성 |
 
 이미지 자리 기록 항목(4단계): 위치·크기(1280 기준)·면적 비율·잘림(object-fit)·밝기 필터·겹친 그라데이션·HTML 주석과 파일 이름의 의미 힌트 → 시각 검토로 내용·의미·역할(분위기·증거·인물 소개 등)과 "이 자리에 어울리는 이미지"를 붙인다.
 

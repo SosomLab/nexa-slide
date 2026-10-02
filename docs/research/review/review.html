@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>검토 등록부 — nexa-slide</title>
+<style>
+  :root { --p: #A91F24; --pc: #FFDAD6; --bg: #F4F1F1; --card: #fff; --tone: #F2EFEF; --tone2: #E9E4E4; --ink: #1F1B1B; --ink2: #5A4C4C; --line: #D8C2C0;
+    --ok: #146C2E; --okc: #C4EED0; --warn: #7D5700; --warnc: #FFDEA6; --info: #0B4A9E; --infoc: #D6E3FF; --no: #93000A; --noc: #FFDAD6;
+    --font: "Pretendard", "Malgun Gothic", "맑은 고딕", "Apple SD Gothic Neo", sans-serif; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body { background: var(--bg); color: var(--ink); font: 13.5px/1.55 var(--font); display: flex; flex-direction: column; }
+  button, input, select, textarea { font: inherit; color: inherit; }
+  header { display: flex; align-items: center; gap: 10px; padding: 8px 14px; background: var(--card); box-shadow: 0 1px 2px rgba(0,0,0,.08); flex-wrap: wrap; }
+  header h1 { font-size: 15px; margin: 0 8px 0 0; }
+  .chip { border: 0; background: var(--tone); border-radius: 999px; padding: 4px 12px; cursor: pointer; white-space: nowrap; }
+  .chip:hover { background: var(--tone2); } .chip.on { background: var(--ink); color: #fff; } .chip.primary { background: var(--p); color: #fff; font-weight: 700; }
+  .chip .n { opacity: .7; margin-left: 4px; font-size: 12px; }
+  select, input[type=search], input[type=text], textarea { border: 1px solid var(--line); border-radius: 9px; padding: 5px 9px; background: #fff; }
+  main { flex: 1; display: grid; grid-template-columns: minmax(320px, 420px) 1fr; min-height: 0; }
+  #list { overflow: auto; border-right: 1px solid var(--line); background: var(--card); }
+  .it { padding: 9px 14px; border-bottom: 1px solid var(--tone); cursor: pointer; }
+  .it:hover { background: var(--tone); } .it.on { background: var(--pc); }
+  .it .t { font-weight: 700; } .it .m { color: var(--ink2); font-size: 12px; display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-top: 2px; }
+  .st { font-size: 11.5px; border-radius: 999px; padding: 0 8px; white-space: nowrap; }
+  .st.registered { background: var(--infoc); color: var(--info); } .st.reviewing { background: var(--warnc); color: var(--warn); }
+  .st.approved { background: var(--okc); color: var(--ok); } .st.held { background: var(--tone2); color: var(--ink2); } .st.rejected { background: var(--noc); color: var(--no); }
+  .kd { font-size: 11.5px; color: var(--ink2); border: 1px solid var(--line); border-radius: 6px; padding: 0 5px; }
+  #detail { overflow: auto; padding: 16px 20px 40px; }
+  .card { background: var(--card); border-radius: 14px; padding: 14px 16px; box-shadow: 0 1px 2px rgba(0,0,0,.06); margin-bottom: 12px; }
+  .dates { display: flex; gap: 18px; flex-wrap: wrap; color: var(--ink2); font-size: 12.5px; } .dates b { color: var(--ink); font-weight: 600; }
+  .acts { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; }
+  table.kv td { padding: 3px 8px 3px 0; vertical-align: top; } table.kv td:first-child { color: var(--ink2); white-space: nowrap; width: 90px; }
+  .thumbs { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 8px; }
+  .th { cursor: pointer; } .th img { width: 100%; aspect-ratio: 16/9; object-fit: cover; border-radius: 6px; outline: 1px solid var(--line); background: #ddd; display: block; }
+  .th:hover img { outline: 2px solid var(--p); } .th small { display: block; color: var(--ink2); font-size: 11.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .deckh { display: flex; align-items: center; gap: 8px; margin: 10px 0 6px; }
+  .hist { font-size: 12px; color: var(--ink2); } .hist div { padding: 2px 0; border-bottom: 1px dashed var(--tone2); }
+  #viewer { position: fixed; inset: 0; background: rgba(0,0,0,.6); display: none; z-index: 20; align-items: center; justify-content: center; flex-direction: column; gap: 8px; }
+  #viewer.on { display: flex; }
+  #vbox { width: min(94vw, calc((92vh - 60px) * 16 / 9)); aspect-ratio: 16 / 9; background: #fff; position: relative; overflow: hidden; border-radius: 6px; }
+  #vbox iframe { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; border: 0; transform-origin: 0 0; }
+  #vbar { display: flex; gap: 8px; align-items: center; color: #fff; }
+  #addDlg { position: fixed; inset: 0; background: rgba(0,0,0,.35); display: none; z-index: 15; align-items: center; justify-content: center; }
+  #addDlg.on { display: flex; } #addDlg .card { width: min(560px, 94vw); }
+  #addDlg label { display: block; font-size: 12px; font-weight: 700; color: var(--ink2); margin: 8px 0 3px; } #addDlg input, #addDlg select, #addDlg textarea { width: 100%; }
+  .empty { padding: 30px; color: var(--ink2); }
+</style>
+</head>
+<body>
+<header>
+  <h1>검토 등록부</h1>
+  <span id="stBar"></span>
+  <select id="fKind"><option value="">모든 종류</option><option value="template">템플릿</option><option value="layout">레이아웃</option><option value="reference-deck">참고 덱</option><option value="site">사이트</option><option value="file">파일</option></select>
+  <select id="fSort"><option value="reg">최근 등록 순</option><option value="rev">최근 검토 순</option><option value="appr">최근 승인 순</option><option value="title">이름 순</option></select>
+  <input type="search" id="fQ" placeholder="찾기 — 이름·태그·메모" style="width:200px">
+  <span style="flex:1"></span>
+  <button class="chip primary" id="addBtn">+ 대상 추가</button>
+</header>
+<main>
+  <div id="list"></div>
+  <div id="detail"><div class="empty">왼쪽에서 대상을 고르면 미리보기와 검토 단추가 나옵니다.</div></div>
+</main>
+<div id="viewer"><div id="vbar"><button class="chip" id="vPrev">◀</button><span id="vInfo"></span><button class="chip" id="vNext">▶</button>
+  <a class="chip" id="vOpen" target="_blank" rel="noopener" style="text-decoration:none;color:inherit">새 탭 ↗</a><button class="chip" id="vClose">닫기 (Esc)</button></div>
+  <div id="vbox"><iframe id="vFrame" sandbox="allow-same-origin allow-scripts"></iframe></div></div>
+<div id="addDlg"><div class="card"><h3 style="margin:0">대상 추가</h3>
+  <label>종류</label><select id="aKind"><option value="site">사이트</option><option value="file">파일</option><option value="template">템플릿</option><option value="layout">레이아웃</option><option value="reference-deck">참고 덱</option></select>
+  <label>제목</label><input type="text" id="aTitle" placeholder="예: OO 사의 연례 보고서 디자인">
+  <label>주소 또는 파일 경로</label><input type="text" id="aRef" placeholder="https://… 또는 D:\…\sample.pptx">
+  <label>태그 (쉼표로)</label><input type="text" id="aTags" placeholder="보고서, 남색">
+  <label>메모</label><textarea id="aNote" rows="3"></textarea>
+  <div class="acts" style="justify-content:flex-end"><button class="chip" id="aCancel">취소</button><button class="chip primary" id="aSave">등록</button></div></div></div>
+<script>
+(() => {
+  const $ = (s) => document.querySelector(s);
+  const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  const ST = { registered: "등록", reviewing: "검토 중", approved: "승인", held: "보류", rejected: "제외" };
+  const KO = { template: 0, layout: 1, "reference-deck": 2, site: 3, file: 4 };
+  const KD = { template: "템플릿", layout: "레이아웃", "reference-deck": "참고 덱", site: "사이트", file: "파일" };
+  const S = { items: [], counts: {}, st: "", cur: null, view: [], vi: 0 };
+  const day = (s) => (s ? s.replace("T", " ").slice(0, 16) : "—");
+  const api = async (m, u, b) => { const r = await fetch(u, { method: m, headers: b ? { "Content-Type": "application/json" } : {}, body: b ? JSON.stringify(b) : undefined }); return r.json(); };
+
+  async function load(keep) {
+    const d = await api("GET", "/api/items"); S.items = d.items; S.counts = d.counts;
+    $("#stBar").innerHTML = [["", "전체", S.items.length], ...Object.entries(ST).map(([k, v]) => [k, v, d.counts[k] || 0])]
+      .map(([k, v, n]) => `<button class="chip${S.st === k ? " on" : ""}" data-st="${k}">${v}<span class="n">${n}</span></button>`).join(" ");
+    renderList(); if (keep && S.cur) showDetail(S.cur);
+  }
+  function filtered() {
+    const q = $("#fQ").value.trim().toLowerCase(), k = $("#fKind").value, so = $("#fSort").value;
+    const xs = S.items.filter((x) => (!S.st || x.status === S.st) && (!k || x.kind === k) &&
+      (!q || `${x.title} ${(x.tags || []).join(" ")} ${x.note || ""} ${x.id}`.toLowerCase().includes(q)));
+    const key = { reg: "registeredAt", rev: "reviewedAt", appr: "approvedAt" }[so];
+    return so === "title" ? xs.sort((a, b) => a.title.localeCompare(b.title)) : xs.sort((a, b) => (b[key] || "").localeCompare(a[key] || "") || (KO[a.kind] ?? 9) - (KO[b.kind] ?? 9) || a.id.localeCompare(b.id));
+  }
+  function renderList() {
+    const xs = filtered();
+    $("#list").innerHTML = xs.length ? xs.map((x) => `<div class="it${S.cur === x.id ? " on" : ""}" data-id="${esc(x.id)}"><div class="t">${esc(x.title)}</div>
+      <div class="m"><span class="st ${x.status}">${ST[x.status]}</span><span class="kd">${KD[x.kind] || x.kind}</span>${(x.tags || []).slice(0, 3).map((t) => `<span>${esc(t)}</span>`).join(" · ")}
+      <span style="margin-left:auto">등록 ${day(x.registeredAt).slice(0, 10)}</span></div></div>`).join("") : `<div class="empty">조건에 맞는 대상이 없습니다.</div>`;
+  }
+  async function showDetail(id) {
+    S.cur = id; renderList(); if (location.hash.slice(1).split("/")[0] !== id) history.replaceState(null, "", "#" + encodeURIComponent(id));
+    const x = S.items.find((i) => i.id === id); if (!x) return;
+    const det = (x.source && x.source.detail) || {};
+    $("#detail").innerHTML = `<div class="card"><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><h2 style="margin:0;font-size:17px;flex:1">${esc(x.title)}</h2>
+        <span class="st ${x.status}" style="font-size:13px;padding:2px 10px">${ST[x.status]}</span><span class="kd">${KD[x.kind] || x.kind}</span></div>
+      <div class="dates" style="margin-top:6px"><span>등록 <b>${day(x.registeredAt)}</b></span><span>검토 <b>${day(x.reviewedAt)}</b></span><span>승인 <b>${day(x.approvedAt)}</b></span><span>id <code>${esc(x.id)}</code></span></div>
+      <div class="acts">${x.status === "registered" ? `<button class="chip" data-act="review">검토 시작</button>` : ""}
+        <button class="chip primary" data-act="approve">승인</button><button class="chip" data-act="hold">보류</button><button class="chip" data-act="reject">제외</button>
+        ${x.status !== "registered" ? `<button class="chip" data-act="reopen">다시 등록 상태로</button>` : ""}</div>
+      <textarea id="note" rows="2" style="width:100%;margin-top:8px" placeholder="검토 메모 — 무엇을 가져올지, 고칠 점">${esc(x.note || "")}</textarea>
+      <div class="acts" style="margin-top:4px"><button class="chip" data-act="note">메모 저장</button></div></div>
+      ${Object.keys(det).length ? `<div class="card"><table class="kv">${Object.entries(det).filter(([, v]) => v).map(([k, v]) => `<tr><td>${esc(k)}</td><td>${esc(v)}</td></tr>`).join("")}</table></div>` : ""}
+      <div class="card" id="pv"><div class="empty" style="padding:6px">미리보기 불러오는 중…</div></div>
+      <div class="card hist"><b style="color:var(--ink)">이력</b>${(x.history || []).slice().reverse().map((h) => `<div>${day(h.at)} · ${esc({ register: "등록", review: "검토 시작", approve: "승인", hold: "보류", reject: "제외", reopen: "다시 등록", note: "메모" }[h.action] || h.action)}${h.note ? ` — ${esc(h.note)}` : ""}</div>`).join("")}</div>`;
+    const p = await api("GET", `/api/preview/${encodeURIComponent(id)}`);
+    let h = "";
+    if (p.decks) h += p.decks.map((d) => `<div class="deckh"><b>${esc(d.no)} ${esc(d.title)}</b><span class="kd">${d.slides.length}장</span></div>
+      <div class="thumbs">${d.slides.map((s, i) => thumb(s)).join("") || `<div class="empty">미리보기 원본이 없습니다(조사 폴더 확인)</div>`}</div>`).join("");
+    if (p.slides) h += `<div class="deckh"><b>예시 장</b><span class="kd">${p.slides.length}장</span></div><div class="thumbs">${p.slides.map(thumb).join("")}</div>`;
+    if (p.site) h += `<div><a href="${esc(p.site)}" target="_blank" rel="noopener noreferrer">${esc(p.site)} ↗</a><div class="empty" style="padding:6px 0">사이트는 새 탭에서 봅니다(대부분의 사이트는 다른 페이지 안에 넣어 보여 주지 못하게 막는다).</div></div>`;
+    if (p.file) h += `<div><code>${esc(p.file.path)}</code> — ${p.file.exists ? `있음${p.file.size != null ? ` · ${Math.round(p.file.size / 1024)}KB` : ""}` : "<b style='color:var(--no)'>없음</b>"}</div>`;
+    $("#pv").innerHTML = h || `<div class="empty" style="padding:6px">미리보기 자료가 없습니다.</div>`;
+    S.view = [...(p.decks || []).flatMap((d) => d.slides), ...(p.slides || [])];
+  }
+  const thumb = (s) => `<div class="th" data-html="${esc(s.html)}"><img loading="lazy" src="${esc(s.thumb || "")}" alt=""><small>${esc(s.id)} ${esc(s.kind)}</small></div>`;
+  function fitView() { const b = $("#vbox"); $("#vFrame").style.transform = `scale(${b.clientWidth / 1920})`; }
+  function openView(i) {
+    S.vi = Math.max(0, Math.min(S.view.length - 1, i)); const s = S.view[S.vi]; if (!s) return;
+    $("#vFrame").src = s.html; $("#vOpen").href = s.html; $("#vInfo").textContent = `${S.vi + 1} / ${S.view.length} · ${s.id} ${s.kind}`;
+    $("#viewer").classList.add("on"); requestAnimationFrame(fitView);
+  }
+  async function act(a) {
+    const note = $("#note") ? $("#note").value : "";
+    await api("POST", `/api/items/${encodeURIComponent(S.cur)}`, { action: a, note: a === "note" ? note : (note !== (S.items.find((x) => x.id === S.cur) || {}).note ? note : "") });
+    await load(true);
+  }
+  document.addEventListener("click", (e) => {
+    const st = e.target.closest("[data-st]"); if (st) { S.st = st.dataset.st; load(); return; }
+    const it = e.target.closest(".it"); if (it) { showDetail(it.dataset.id); return; }
+    const a = e.target.closest("[data-act]"); if (a) { act(a.dataset.act); return; }
+    const th = e.target.closest(".th"); if (th) { openView(S.view.findIndex((s) => s.html === th.dataset.html)); return; }
+  });
+  ["#fKind", "#fSort"].forEach((s) => $(s).addEventListener("change", renderList)); $("#fQ").addEventListener("input", renderList);
+  $("#vClose").onclick = () => { $("#viewer").classList.remove("on"); $("#vFrame").src = "about:blank"; };
+  $("#vPrev").onclick = () => openView(S.vi - 1); $("#vNext").onclick = () => openView(S.vi + 1);
+  window.addEventListener("resize", () => { if ($("#viewer").classList.contains("on")) fitView(); });
+  document.addEventListener("keydown", (e) => {
+    if (!$("#viewer").classList.contains("on")) return;
+    if (e.key === "Escape") $("#vClose").click(); if (e.key === "ArrowRight") openView(S.vi + 1); if (e.key === "ArrowLeft") openView(S.vi - 1);
+  });
+  $("#addBtn").onclick = () => $("#addDlg").classList.add("on");
+  $("#aCancel").onclick = () => $("#addDlg").classList.remove("on");
+  $("#aSave").onclick = async () => {
+    const kind = $("#aKind").value, ref = $("#aRef").value.trim();
+    const source = /^https?:/i.test(ref) ? { type: "site", url: ref } : ref ? { type: "file", path: ref } : {};
+    const r = await api("POST", "/api/items", { kind, title: $("#aTitle").value, source, note: $("#aNote").value, tags: $("#aTags").value.split(",").map((t) => t.trim()).filter(Boolean) });
+    if (r.error) { alert(r.error); return; }
+    $("#addDlg").classList.remove("on"); ["#aTitle", "#aRef", "#aTags", "#aNote"].forEach((s) => ($(s).value = ""));
+    S.st = ""; $("#fSort").value = "reg"; await load(); showDetail(r.id);
+  };
+  // 주소 #<대상 id>[/v<장 번호>] — 그 대상을 열고(장 번호가 있으면 장 보기 창까지)
+  async function fromHash() {
+    const [id, v] = decodeURIComponent(location.hash.slice(1)).split("/");
+    if (!id || !S.items.some((x) => x.id === id)) return;
+    await showDetail(id);
+    if (v && v[0] === "v") openView(+v.slice(1) - 1);
+  }
+  window.addEventListener("hashchange", fromHash);
+  load().then(fromHash);
+})();
+</script>
+</body>
+</html>
