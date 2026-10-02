@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""슬라이드 유형용 레이아웃 17종 — Genspark 전수 조사(docs/research/genspark-skills/03-slide-archetypes.md)의 새 유형을 구현.
+"""슬라이드 유형용 레이아웃 19종 — Genspark 전수 조사(docs/research/genspark-skills/03-slide-archetypes.md)의 새 유형을 구현.
 
 기존 요소(rect·text·pill·ellipse·line·image)만 조합한다 — 렌더러(render.js·export_pptx.py)는 그대로라 편집기와 PPTX 가 같다.
 좌표·크기 px(1280×720). 슬라이드 유형 목록(studio/slide_types.json)이 이 레이아웃에 목적별 예시 내용을 채워 쓴다.
@@ -22,12 +22,14 @@ worked_example  단계별 풀이          왼쪽 문제·번호 단계 / 오른�
 quiz            확인 문제            문제 + 보기 2×2 + 아래 메모
 references      참고문헌             번호 목록 2단(저자·제목·연도·쓴 장)
 qa              예상 질문            질문(크게) + 답 띠 + 근거
+donut           도넛 구성비          원호(굵은 곡선) + 가운데 큰 값 + 오른쪽 범례·비율
+heatmap         히트맵               행×열 칸을 값 4단 색으로(코호트 빈 칸 가능) + 해석 패널
 """
 from layouts import H, PAD, W, B, text_width  # noqa: F401
 from layouts_extra import bottom_extras
 
 RIGHT = W - PAD
-DARK, ON_DARK = "on-surface", "white"  # 결론 패널(먹색 바탕 + 흰 글자)
+DARK, ON_DARK = "panel", "on-panel"  # 결론 패널(토큰 — 기본 먹색 바탕 + 흰 글자, 어두운 템플릿은 다른 값)
 
 
 def line(b, x1, y1, x2, y2, color, width=2, **kw):
@@ -462,7 +464,78 @@ def qa(b, f):
     b.foot(f.get("crumb", ""))
 
 
+def donut(b, f):
+    """도넛 구성비 - parts [[라벨, 값]…] 2~6개, center [큰 값, 라벨](가운데), items(오른쪽 해석 목록 — 없으면 범례).
+    원호는 굵은 곡선(curve, 끝 평평)으로 그린다 — PPTX 에서도 편집 가능한 자유형."""
+    import math
+    b.head(f["title"], f.get("sub"), f.get("kick"))
+    parts = f["parts"][:6]
+    tot = sum(v for _, v in parts) or 1
+    cx, cy, r, ring = PAD + 220, 400, 150, 54
+    tones = ["primary", "s3", "s5", "s2", "s6", "s4"]
+    a0 = -90.0
+    for i, (lab, v) in enumerate(parts):
+        sweep = 360 * v / tot
+        gap = 1.2 if len(parts) > 1 else 0
+        a1, a2 = a0 + gap / 2, a0 + sweep - gap / 2
+        n = max(2, int((a2 - a1) / 4) + 1)
+        pts = [(cx + r * math.cos(math.radians(a1 + (a2 - a1) * k / (n - 1))), cy + r * math.sin(math.radians(a1 + (a2 - a1) * k / (n - 1)))) for k in range(n)]
+        xs, ys = [p[0] for p in pts], [p[1] for p in pts]
+        x0, y0 = min(xs), min(ys)
+        b.add({"type": "curve", "x": round(x0), "y": round(y0), "w": round(max(1, max(xs) - x0)), "h": round(max(1, max(ys) - y0)),
+               "points": [[round(px - round(x0), 1), round(py - round(y0), 1)] for px, py in pts], "color": tones[i % 6], "width": ring, "head": "none"})
+        a0 += sweep
+    if f.get("center"):
+        b.text(cx - 110, cy - 46, 220, 60, f["center"][0], size=44, bold=True, align="center", lineHeight=1.2, font="heading")
+        b.text(cx - 110, cy + 16, 220, 26, f["center"][1] if len(f["center"]) > 1 else "", size=15, align="center",
+               color="on-surface-variant", lineHeight=1.4)
+    lx, y = PAD + 520, 200
+    for i, (lab, v) in enumerate(parts):
+        b.rect(lx, y + 8, 18, 18, tones[i % 6], "r-s")
+        b.text(lx + 30, y, 360, 32, lab, size=19, bold=True, lineHeight=1.5)
+        b.text(RIGHT - 200, y, 200, 32, f"{round(100 * v / tot)}%  ·  {v:g}{f.get('unit', '')}", size=18, align="right", lineHeight=1.5,
+               color="on-surface-variant")
+        line(b, lx, y + 44, RIGHT, y + 44, "outline-variant", 1)
+        y += 56
+    for k, it in enumerate(f.get("items", [])[:3]):
+        b.text(lx, y + 14 + k * 38, RIGHT - lx, 34, f"→  {it}", size=17, lineHeight=1.5)
+    bottom_extras(b, f, 620)
+    b.foot(f.get("crumb", ""))
+
+
+def heatmap(b, f):
+    """히트맵 - rows [라벨…], cols [라벨…], values [[행별 값…]…], levels [경계 3개](없으면 값 범위를 4단으로), unit, note(오른쪽 아래 해석).
+    칸 색 = 4단(낮음 → 높음), 숫자 표기. 코호트처럼 빈 칸은 None."""
+    b.head(f["title"], f.get("sub"), f.get("kick"))
+    rows, cols, vals = f["rows"][:9], f["cols"][:10], f["values"]
+    flat = [v for r in vals for v in r if v is not None]
+    lo, hi = (min(flat), max(flat)) if flat else (0, 1)
+    lv = f.get("levels") or [lo + (hi - lo) * k / 4 for k in (1, 2, 3)]
+    fills = [("surface-container", "on-surface"), ("primary-container", "on-primary-container"), ("s2", "white"), ("primary", "on-primary")]
+    lw = 200
+    cw = min(110, (RIGHT - PAD - lw - (300 if f.get("note") else 0)) / len(cols))
+    ch = min(50, 380 / len(rows))
+    x0, y0 = PAD + lw, 214
+    for j, c in enumerate(cols):
+        b.text(x0 + j * cw, y0 - 34, cw, 26, c, size=15, bold=True, align="center", color="on-surface-variant", lineHeight=1.4)
+    for i, rlab in enumerate(rows):
+        b.text(PAD, y0 + i * ch + ch / 2 - 13, lw - 12, 26, rlab, size=16, bold=True, lineHeight=1.5)
+        for j in range(len(cols)):
+            v = vals[i][j] if i < len(vals) and j < len(vals[i]) else None
+            if v is None:
+                continue
+            k = sum(v >= t for t in lv)
+            fl, fg = fills[k]
+            b.rect(x0 + j * cw + 2, y0 + i * ch + 2, cw - 4, ch - 4, fl, "r-s", text=f"{v:g}{f.get('unit', '')}", size=15, color=fg,
+                   align="center", valign="middle", bold=k >= 2)
+    if f.get("note"):
+        panel(b, RIGHT - 280, y0 - 30, 280, 360, f["note"] if isinstance(f["note"], dict) else {"label": "읽는 법", "text": f["note"]})
+    bottom_extras(b, f, 620)
+    b.foot(f.get("crumb", ""))
+
+
 MORE = {
+    "donut": ("도넛 구성비", donut), "heatmap": ("히트맵", heatmap),
     "insight_panel": ("본문 + 결론 패널", insight_panel), "line_chart": ("선 그래프", line_chart), "number_chart": ("숫자 + 근거 차트", number_chart),
     "range_bars": ("범위 막대", range_bars), "funnel": ("깔때기·계층", funnel), "tier_columns": ("선택지 열(추천 강조)", tier_columns),
     "matrix_plot": ("사분면", matrix_plot), "numbered_rows": ("큰 번호 행", numbered_rows), "tree": ("트리", tree),
@@ -472,6 +545,11 @@ MORE = {
 }
 
 MORE_SAMPLES = {
+    "donut": {"title": "시간의 절반이 회의에 쓰인다", "parts": [["회의", 48], ["개발", 30], ["문서", 14], ["기타", 8]], "unit": "%",
+              "center": ["48%", "회의 비중"], "items": ["회의 시간을 30% 로 줄이면 개발 1.5배"], "crumb": ""},
+    "heatmap": {"title": "가입 월별 유지율 — 3월 가입자가 가장 오래 남는다", "rows": ["1월 가입", "2월 가입", "3월 가입", "4월 가입"],
+                "cols": ["1개월", "2개월", "3개월", "4개월"], "values": [[100, 62, 48, 40], [100, 58, 44, None], [100, 71, None, None], [100, None, None, None]],
+                "unit": "%", "levels": [45, 60, 90], "note": "진할수록 높음 — 대각선 아래가 비는 코호트 표", "crumb": ""},
     "insight_panel": {"title": "결론형 제목 — 근거와 해석을 한 장에", "items": ["근거 1 — 숫자와 출처", "근거 2 — 비교 기준", "근거 3 — 반례와 한계"],
                       "panel": {"label": "핵심", "value": "+18", "unit": "%", "text": "근거를 종합한 해석 한두 문장"}, "crumb": ""},
     "line_chart": {"title": "추이가 말하는 것", "categories": ["1월", "2월", "3월", "4월", "5월", "6월"],

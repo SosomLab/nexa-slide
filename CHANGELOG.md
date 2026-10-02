@@ -1,5 +1,14 @@
 # 변경 이력
 
+## 0.12.0 - 2026-10-02 · 승인 템플릿 반영 · 겹치는 기존 것 정리 · 슬라이드 유형 = 장 선별 기준
+
+- **승인한 시각 템플릿 4개** 엔진에 추가: `keynote`(어두운 무대·금색·명조) · `archive`(종이 미색·테라코타·명조) · `blueprint`(도면 청록·주황·각진 모서리) · `swiss`(흰 바탕·빨강 하나·모서리 없음). 레이아웃 56종 견본 검사 ERROR 0.
+- **승인한 템플릿 유형 5개 → 시작용 내용**: `periodic-report`(swiss) · `board-decision`(brief) · `ir-finance`(proposal) · `strategy-plan`(proposal) · `lecture-theory`(swiss) — 대표 장 흐름대로, 장마다 노트에 유형·목적(`build_type_starters.py`).
+- **겹치는 기존 것은 숨기고 검토 대상으로**: 템플릿 `story`(→ archive)·`report`(→ swiss), 시작용 내용 `weekly-report`·`monthly-report`(→ periodic-report)·`decision-brief`(→ board-decision). `hidden: true` — 목록에서만 빠지고 이미 쓰는 작업 공간·`--starter` 는 그대로. `story-retro` 는 `archive` 로.
+- 레이아웃 2종 추가(승인): `donut`(원호를 굵은 곡선으로 — PPTX 편집 가능) · `heatmap`(값 4단 색, 코호트 빈 칸). 결론 패널 색 토큰 `panel`·`on-panel`(어두운 템플릿에서도 읽히게).
+- **슬라이드 유형 = 장 선별 기준**: 54개로(도넛·히트맵 추가), 유형마다 고를 신호 `when`. `nexa.py slide_types [낱말] [--json] [--group]`, 작업 공간 `CLAUDE.md` 에 "초안·요청 처리 때 내용 성격에 맞는 유형으로 고른다". 문서 `docs/slide-types.md` 선별 기준.
+- 검토 등록부: 승인 안 된 대상 상태 초기화, 승인 대상에 구현 기록("구현됨"), 숨긴 기존 템플릿·시작용 내용을 검토 대상으로(그 템플릿으로 빌드한 미리보기).
+
 ## 0.11.0 - 2026-10-02 · 슬라이드 유형 52개 · 새 레이아웃 17종 · 템플릿 유형 15개 · 유형 검토
 
 - **새 레이아웃 17종**(`studio/layouts_more.py`, 기존 요소만 — 렌더러 그대로): 본문 + 결론 패널 · 선 그래프 · 숫자 + 근거 차트 · 범위 막대 · 깔때기 · 선택지 열(추천 강조) · 사분면 · 큰 번호 행 · 트리 · 인물 카드 · 사례 제시 · 사진 도판 · 사진 + 한 문장 · 단계별 풀이 · 확인 문제 · 참고문헌 · 예상 질문. Genspark 전수 조사의 새 유형(03-slide-archetypes) 1·2순위 구현.

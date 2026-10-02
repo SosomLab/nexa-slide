@@ -1,0 +1,54 @@
+{
+  "extends": "lecture",
+  "label": "스위스 - 흰 바탕·빨강 하나",
+  "description": "데이터 보고·평가·주간/월간 보고·이공계 교안. 흰 바탕, 먹색 글자, 빨강 강조 하나, 모서리 없음(템플릿 검토 승인 gs-tpl-swiss — 이전 report 대체).",
+  "sizes": {
+    "_comment": "업무·발표용은 칩·글자를 역할별 최소 px 로 올려 빌드한다(1280×720 에서 읽히는 크기). pt = px × 0.75",
+    "minPx": {
+      "default": 15,
+      "footnotes": 11,
+      "crumb": 12,
+      "page": 12
+    }
+  },
+  "check": {
+    "minFontPt": {
+      "default": 11,
+      "footnotes": 8,
+      "crumb": 9,
+      "page": 9
+    }
+  },
+  "tokenOverrides": {
+    "colors": {
+      "primary": "#D7322A",
+      "on-primary": "#FFFFFF",
+      "primary-container": "#FCE1DE",
+      "on-primary-container": "#560D08",
+      "surface": "#FFFFFF",
+      "surface-dim": "#F7F7F7",
+      "surface-container": "#F1F1F1",
+      "surface-container-high": "#E2E2E2",
+      "on-surface": "#111111",
+      "on-surface-variant": "#5A5A5A",
+      "outline-variant": "#CFCFCF",
+      "white": "#FFFFFF",
+      "panel": "#111111",
+      "on-panel": "#FFFFFF",
+      "day1": "#111111",
+      "day1-container": "#EDEDED",
+      "on-day1-container": "#111111",
+      "day2": "#D7322A",
+      "day2-container": "#FCE1DE",
+      "on-day2-container": "#560D08",
+      "day3": "#5A5A5A",
+      "day3-container": "#EDEDED",
+      "on-day3-container": "#111111"
+    },
+    "radius": {
+      "r-s": 0,
+      "r-m": 0,
+      "r-l": 0
+    }
+  }
+}

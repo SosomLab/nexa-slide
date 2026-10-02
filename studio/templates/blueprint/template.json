@@ -1,0 +1,54 @@
+{
+  "extends": "lecture",
+  "label": "블루프린트 - 도면 청록·주황",
+  "description": "기술·제조·인프라·설계 검토. 도면 미색 바탕, 청록 주색과 주황 보조, 각진 모서리(템플릿 검토 승인 gs-tpl-blueprint).",
+  "sizes": {
+    "_comment": "업무·발표용은 칩·글자를 역할별 최소 px 로 올려 빌드한다(1280×720 에서 읽히는 크기). pt = px × 0.75",
+    "minPx": {
+      "default": 15,
+      "footnotes": 11,
+      "crumb": 12,
+      "page": 12
+    }
+  },
+  "check": {
+    "minFontPt": {
+      "default": 11,
+      "footnotes": 8,
+      "crumb": 9,
+      "page": 9
+    }
+  },
+  "tokenOverrides": {
+    "colors": {
+      "primary": "#0E6C76",
+      "on-primary": "#FFFFFF",
+      "primary-container": "#CDE6E7",
+      "on-primary-container": "#052E33",
+      "surface": "#F3F1EA",
+      "surface-dim": "#EEEBE2",
+      "surface-container": "#E6E3D8",
+      "surface-container-high": "#D7D3C5",
+      "on-surface": "#1C282C",
+      "on-surface-variant": "#53626A",
+      "outline-variant": "#B7C1C3",
+      "white": "#FFFFFF",
+      "panel": "#183238",
+      "on-panel": "#E6F2F2",
+      "day1": "#D2652A",
+      "day1-container": "#F7DBC8",
+      "on-day1-container": "#4A1E06",
+      "day2": "#0E6C76",
+      "day2-container": "#CDE6E7",
+      "on-day2-container": "#052E33",
+      "day3": "#5E6C9A",
+      "day3-container": "#DDE1F0",
+      "on-day3-container": "#1B2340"
+    },
+    "radius": {
+      "r-s": 2,
+      "r-m": 3,
+      "r-l": 4
+    }
+  }
+}

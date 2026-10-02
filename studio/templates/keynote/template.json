@@ -1,0 +1,61 @@
+{
+  "extends": "lecture",
+  "label": "키노트 - 어두운 무대·금색",
+  "description": "강연·키노트·브랜드·이벤트 제안. 어두운 바탕, 금색 강조 하나, 명조 제목. 한 장 한 문장·전면 사진·큰 숫자가 주인공(템플릿 검토 승인 gs-tpl-keynote).",
+  "sizes": {
+    "_comment": "업무·발표용은 칩·글자를 역할별 최소 px 로 올려 빌드한다(1280×720 에서 읽히는 크기). pt = px × 0.75",
+    "minPx": {
+      "default": 15,
+      "footnotes": 11,
+      "crumb": 12,
+      "page": 12
+    }
+  },
+  "check": {
+    "minFontPt": {
+      "default": 11,
+      "footnotes": 8,
+      "crumb": 9,
+      "page": 9
+    }
+  },
+  "tokenOverrides": {
+    "colors": {
+      "primary": "#E0A64A",
+      "on-primary": "#1A1510",
+      "primary-container": "#3B3024",
+      "on-primary-container": "#F4E4C6",
+      "surface": "#141414",
+      "surface-dim": "#1A1A1A",
+      "surface-container": "#232323",
+      "surface-container-high": "#303030",
+      "on-surface": "#F3F0EA",
+      "on-surface-variant": "#B5AC9F",
+      "outline-variant": "#3D3A36",
+      "white": "#FFFFFF",
+      "panel": "#2B241C",
+      "on-panel": "#F4E4C6",
+      "day1": "#E0A64A",
+      "day1-container": "#3B3024",
+      "on-day1-container": "#F4E4C6",
+      "day2": "#7FB3A6",
+      "day2-container": "#22332F",
+      "on-day2-container": "#D3ECE5",
+      "day3": "#C48FB0",
+      "day3-container": "#35262F",
+      "on-day3-container": "#F0DCE8"
+    },
+    "fonts": {
+      "heading": {
+        "css": "\"Noto Serif KR\", \"Nanum Myeongjo\", \"나눔명조\", Batang, \"바탕\", serif",
+        "latin": "Noto Serif KR",
+        "ea": "Noto Serif KR"
+      }
+    },
+    "radius": {
+      "r-s": 4,
+      "r-m": 8,
+      "r-l": 14
+    }
+  }
+}

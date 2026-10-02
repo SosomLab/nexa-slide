@@ -1,0 +1,21 @@
+{
+ "label": "IR·재무 브리핑 (7장)",
+ "description": "실적·전망·밸류에이션을 원장풍으로 — 표·범위·요약 패널. 흐름: 표지 — 제목형 → KPI 대시보드 → 표 → 범위·민감도 → 근거 + 해석 패널 → 예상 질문(부록)",
+ "template": "proposal",
+ "config": {
+  "partLabels": {
+   "day1": "IR",
+   "day2": "IR",
+   "day3": "IR",
+   "apx": "부록"
+  },
+  "coverBadge": "IR"
+ },
+ "decks": [
+  "ir"
+ ],
+ "copy": [
+  "content"
+ ],
+ "source": "템플릿 유형 ir-finance(검토 승인) — docs/research/genspark-skills/05-template-types.md"
+}

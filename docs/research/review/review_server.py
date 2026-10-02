@@ -123,6 +123,8 @@ def preview(item):
             if s:
                 slides.append(s)
         return {"slides": slides}
+    if t == "engine-template":  # 엔진 템플릿·시작용 내용(숨긴 것 포함) — 화면이 /api/preview 로 그 템플릿으로 빌드한 슬라이드를 그림
+        return {"engine": {"template": src.get("template"), "starter": src.get("starter")}}
     if t == "site":
         return {"site": src.get("url")}
     if t == "file":

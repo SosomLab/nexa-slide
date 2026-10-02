@@ -13,7 +13,9 @@
 | 이름 | 내용 | 글자 크기 | 검사 기준(최소 pt) |
 |---|---|---|---|
 | `lecture` (기본) | 강의·교재 16:9, Material v2, 레이아웃 21종 — **기존 디자인 그대로** | 레이아웃에 정한 값 그대로(0.3 까지와 결과 동일) | 본문 11 · 각주 8 · 경로 9 · 쪽번호 9 — 알리기만, 조정은 장 단위 검토에서 |
-| `report` · `brief` · `story` · `notice` · `schedule` · `proposal` | 목적별(보고·결정·회고·공지·일정·RFP) - `lecture` 바탕에 색·글꼴·모서리만 바꿈([starters.md](starters.md)) | 역할별 최소 15px 로 올림 | lecture 와 같음 |
+| `brief` · `notice` · `schedule` · `proposal` | 목적별(결정·공지·일정·RFP) - `lecture` 바탕에 색·글꼴·모서리만 바꿈([starters.md](starters.md)) | 역할별 최소 15px 로 올림 | lecture 와 같음 |
+| `keynote` · `archive` · `blueprint` · `swiss` | 템플릿 검토에서 승인한 시각 템플릿(어두운 무대·금색 / 종이 미색·테라코타·명조 / 도면 청록·주황 / 흰 바탕·빨강 하나) - `lecture` 바탕 | 역할별 최소 15px 로 올림 | lecture 와 같음 |
+| ~~`story`~~ · ~~`report`~~ | **숨김** — `archive`·`swiss` 와 겹쳐 목록에서 뺐다(`hidden: true`, 검토 등록부 대상). 이미 쓰는 작업 공간은 그대로 동작 | | |
 | `lecture-large` | `lecture` 를 바탕으로 글자만 일괄 확대 | 빌드할 때 역할별 최소 px 로 올림 — 본문 15px · 각주 11px · 경로·쪽번호 12px. 상자 크기는 그대로라 촘촘한 도식은 넘칠 수 있음 | lecture 와 같음 |
 
 디자인 템플릿과 별도로, 내용 뼈대를 주는 **시작용 교안**이 있다 - `starters/lecture-course`(강의 교안 3일 과정, 템플릿 `lecture` 사용). [lecture-starter.md](lecture-starter.md)

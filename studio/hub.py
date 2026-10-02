@@ -59,7 +59,7 @@ def templates():
     out = []
     for d in sorted(TEMPLATES.iterdir()):
         t = _read_json(d / "template.json")
-        if not t:
+        if not t or t.get("hidden"):  # 숨긴 템플릿(검토 대상으로 옮김) — 목록에서 제외, 이미 쓰는 작업 공간은 그대로 동작
             continue
         tok = _read_json(d / t["tokens"]) if t.get("tokens") else None
         if tok is None and t.get("extends"):
@@ -88,7 +88,7 @@ def starters():
     if STARTERS.is_dir():
         for d in sorted(STARTERS.iterdir()):
             st = _read_json(d / "starter.json")
-            if st:
+            if st and not st.get("hidden"):  # 숨긴 시작용 내용(검토 대상으로 옮김)은 목록에서 제외
                 out.append({"name": d.name, "label": st.get("label", d.name), "description": st.get("description", ""),
                             "template": st.get("template")})
     return out
