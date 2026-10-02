@@ -1,0 +1,21 @@
+{
+ "label": "마케팅 캠페인·브랜드 (12장)",
+ "description": "인사이트→전략→실행→성과, 사진·브랜드 톤. 기본 구성: 표지 — 사진 전면 → 핵심 한 문장 → 인용 — 고객·현장의 말 → 깔때기·시장 규모 → 사분면 우선순위 → 구성비 — 도넛 → 사진 도판 → 로드맵 Now·Next·Later → 간트 → KPI 대시보드 → 다음 행동·부탁 → 끝",
+ "template": "keynote",
+ "config": {
+  "partLabels": {
+   "day1": "캠페인",
+   "day2": "캠페인",
+   "day3": "캠페인",
+   "apx": "부록"
+  },
+  "coverBadge": "캠페인"
+ },
+ "decks": [
+  "campaign"
+ ],
+ "copy": [
+  "content"
+ ],
+ "source": "템플릿 유형 marketing-campaign — docs/research/genspark-skills/05-template-types.md (참고 덱 011, 089, 096, 013)"
+}

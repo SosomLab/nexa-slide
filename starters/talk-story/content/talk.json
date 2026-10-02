@@ -1,0 +1,140 @@
+{
+ "id": "talk",
+ "title": "강연·이야기·포트폴리오",
+ "part": "day1",
+ "version": "0.1",
+ "slides": [
+  {
+   "layout": "photo_statement",
+   "text": "숫자 한 줄과 걱정 한 가지",
+   "kicker": "2026 연례 보고",
+   "sub": "발표자 · 날짜",
+   "notes": "유형: 표지 — 사진 전면 (cover-photo) — 장면 하나로 분위기를 먼저. 예시 내용을 이 덱의 내용으로 바꾼다."
+  },
+  {
+   "layout": "statement",
+   "text": "왜 같은 투자를 했는데 결과가 두 배 차이 났을까?",
+   "kicker": "질문",
+   "sub": "오늘 30분 동안 이 질문에 답합니다",
+   "crumb": "",
+   "notes": "유형: 질문으로 열기 (hook-question) — 청중이 답을 궁금해하게 만드는 질문 하나. 예시 내용을 이 덱의 내용으로 바꾼다."
+  },
+  {
+   "layout": "photo_statement",
+   "text": "새벽 4시, 물류센터는 이미 다음 날을 준비하고 있었다",
+   "kicker": "현장",
+   "sub": "보조 설명",
+   "notes": "유형: 사진 + 한 문장 (photo-statement) — 현장 사진 위에 기억할 문장. 예시 내용을 이 덱의 내용으로 바꾼다."
+  },
+  {
+   "layout": "statement",
+   "text": "숫자가 좋아질수록 놓친 것이 하나 있었다",
+   "kicker": "그런데",
+   "sub": "보조 설명",
+   "crumb": "",
+   "dark": true,
+   "notes": "유형: 어두운 전환 문장 (dark-statement) — 흐름을 끊고 강조하는 쉼표 장. 예시 내용을 이 덱의 내용으로 바꾼다."
+  },
+  {
+   "layout": "big_number",
+   "title": "숫자 하나",
+   "value": "42",
+   "unit": "%",
+   "label": "무엇의 숫자",
+   "context": "의미",
+   "compare": [
+    [
+     "전년",
+     "31%"
+    ]
+   ],
+   "crumb": "",
+   "notes": "유형: 숫자 하나 (big-number) — 결론이 되는 숫자 하나와 맥락. 예시 내용을 이 덱의 내용으로 바꾼다."
+  },
+  {
+   "layout": "quote",
+   "text": "주문이 멈추지 않는 것, 그거 하나면 됩니다.",
+   "who": "홍길동",
+   "role": "구매 담당",
+   "context": "2026년 9월 인터뷰",
+   "crumb": "",
+   "notes": "유형: 인용 — 고객·현장의 말 (quote-voice) — 실명 화자의 한마디로 신뢰. 예시 내용을 이 덱의 내용으로 바꾼다."
+  },
+  {
+   "layout": "milestones",
+   "title": "마일스톤",
+   "items": [
+    {
+     "date": "10-01",
+     "title": "착수"
+    },
+    {
+     "date": "11-01",
+     "title": "중간"
+    },
+    {
+     "date": "12-01",
+     "title": "완료"
+    }
+   ],
+   "now": 0.3,
+   "crumb": "",
+   "notes": "유형: 마일스톤 (milestones) — 날짜가 있는 주요 시점. 예시 내용을 이 덱의 내용으로 바꾼다."
+  },
+  {
+   "layout": "photo_plates",
+   "title": "현장 기록",
+   "plates": [
+    {
+     "caption": "설명"
+    },
+    {
+     "caption": "설명"
+    },
+    {
+     "caption": "설명"
+    }
+   ],
+   "crumb": "",
+   "notes": "유형: 사진 도판 (photo-plates) — 현장·결과물 사진 여러 장. 예시 내용을 이 덱의 내용으로 바꾼다."
+  },
+  {
+   "layout": "statement",
+   "text": "속도보다 멈추지 않는 것이 고객이 원한 것이었다",
+   "kicker": "핵심",
+   "sub": "보조 설명",
+   "crumb": "",
+   "notes": "유형: 핵심 한 문장 (one-sentence) — 덱 전체를 꿰는 문장(축). 예시 내용을 이 덱의 내용으로 바꾼다."
+  },
+  {
+   "layout": "numbered_rows",
+   "title": "세 가지",
+   "rows": [
+    {
+     "title": "첫째 문장",
+     "body": "설명",
+     "meta": "담당 · 기한"
+    },
+    {
+     "title": "둘째 문장",
+     "body": "설명",
+     "meta": "담당 · 기한"
+    },
+    {
+     "title": "셋째 문장",
+     "body": "설명",
+     "meta": "담당 · 기한"
+    }
+   ],
+   "crumb": "",
+   "notes": "유형: 큰 번호 단계·요점 (numbered-steps) — 세 가지 원인·요청·교훈을 번호로. 예시 내용을 이 덱의 내용으로 바꾼다."
+  },
+  {
+   "layout": "end",
+   "title": "End of Document",
+   "sub": "강연·이야기·포트폴리오",
+   "meta": "문의",
+   "notes": "유형: 끝 (end) — 문서 끝. 예시 내용을 이 덱의 내용으로 바꾼다."
+  }
+ ]
+}

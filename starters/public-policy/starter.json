@@ -1,0 +1,21 @@
+{
+ "label": "공공·정책·연구 지원 (15장)",
+ "description": "결론 먼저(BLUF)·대안 비교·근거·예산·요청. 기본 구성: 표지 — 제목형 → 요약 — 결론 먼저 → [현황과 근거] → 근거 + 해석 패널 → 추이 — 선 그래프 → 히트맵·코호트 → 깔때기·시장 규모 → [대안과 실행] → 선택지 비교(추천 강조) → 범위·민감도 → 간트 → 리스크·이슈와 요청 → 결정 요청 → 참고문헌·출처 → 끝",
+ "template": "blueprint",
+ "config": {
+  "partLabels": {
+   "day1": "정책",
+   "day2": "정책",
+   "day3": "정책",
+   "apx": "부록"
+  },
+  "coverBadge": "정책"
+ },
+ "decks": [
+  "policy"
+ ],
+ "copy": [
+  "content"
+ ],
+ "source": "템플릿 유형 public-policy — docs/research/genspark-skills/05-template-types.md (참고 덱 059, 106, 057, 068)"
+}

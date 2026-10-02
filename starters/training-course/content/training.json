@@ -1,0 +1,237 @@
+{
+ "id": "training",
+ "title": "직무·자격 교육",
+ "part": "day1",
+ "version": "0.1",
+ "slides": [
+  {
+   "layout": "cover",
+   "title": "제목은 결론 한 문장으로",
+   "subtitle": "직무·자격 교육 · 누구에게 · 언제",
+   "days": [
+    [
+     "day1",
+     "Day1 설계"
+    ]
+   ],
+   "meta": "작성 부서\n장 제목\nv0.1",
+   "badge": "교육",
+   "notes": "표지 — 현장 사례→규칙→실습→확인→휴대 카드"
+  },
+  {
+   "layout": "agenda",
+   "title": "진행 순서",
+   "items": [
+    {
+     "title": "순서 1",
+     "time": "10분",
+     "owner": "담당"
+    }
+   ],
+   "crumb": "",
+   "notes": "유형: 진행 순서 (agenda) — 시간·담당이 있는 순서. 예시 내용을 이 덱의 내용으로 바꾼다."
+  },
+  {
+   "layout": "case_story",
+   "title": "사례로 생각해 보기",
+   "case": {
+    "label": "사례",
+    "title": "무슨 일이 있었나",
+    "body": "상황 설명 서너 줄",
+    "meta": "언제 · 어디서"
+   },
+   "questions": [
+    "무엇이 문제였나",
+    "어떻게 했어야 했나"
+   ],
+   "crumb": "",
+   "notes": "유형: 사례 제시 (case-story) — 사례와 생각해 볼 질문. 예시 내용을 이 덱의 내용으로 바꾼다."
+  },
+  {
+   "layout": "chapter",
+   "number": "01",
+   "title": "알아야 할 것",
+   "desc": "이 장에서 다룰 내용 한 문장",
+   "notes": "유형: 장 구분 (section) — 긴 덱의 흐름을 나눈다."
+  },
+  {
+   "layout": "bullets",
+   "title": "소제목",
+   "sub": "부제",
+   "items": [
+    "항목 1",
+    {
+     "text": "항목 2",
+     "sub": [
+      "보조 설명"
+     ]
+    }
+   ],
+   "crumb": "chNN › 0.0",
+   "notes": "유형: 개념 설명 (concept) — 핵심 개념 글머리. 예시 내용을 이 덱의 내용으로 바꾼다."
+  },
+  {
+   "layout": "flow",
+   "title": "순서 흐름",
+   "steps": [
+    {
+     "title": "단계 1",
+     "desc": "설명"
+    },
+    {
+     "title": "단계 2",
+     "desc": "설명"
+    }
+   ],
+   "crumb": "",
+   "notes": "유형: 단계 흐름 (process-flow) — 화살표로 잇는 순서. 예시 내용을 이 덱의 내용으로 바꾼다."
+  },
+  {
+   "layout": "numbered_rows",
+   "title": "세 가지",
+   "rows": [
+    {
+     "title": "첫째 문장",
+     "body": "설명",
+     "meta": "담당 · 기한"
+    },
+    {
+     "title": "둘째 문장",
+     "body": "설명",
+     "meta": "담당 · 기한"
+    },
+    {
+     "title": "셋째 문장",
+     "body": "설명",
+     "meta": "담당 · 기한"
+    }
+   ],
+   "crumb": "",
+   "notes": "유형: 큰 번호 단계·요점 (numbered-steps) — 세 가지 원인·요청·교훈을 번호로. 예시 내용을 이 덱의 내용으로 바꾼다."
+  },
+  {
+   "layout": "cards",
+   "title": "카드 대비",
+   "cards": [
+    {
+     "label": "A",
+     "title": "제목",
+     "body": "내용"
+    },
+    {
+     "label": "B",
+     "title": "제목",
+     "body": "내용"
+    }
+   ],
+   "crumb": "",
+   "notes": "유형: 장단점·대비 카드 (pros-cons) — 두세 가지를 나란히 대비. 예시 내용을 이 덱의 내용으로 바꾼다."
+  },
+  {
+   "layout": "chapter",
+   "number": "02",
+   "title": "해 보기",
+   "desc": "이 장에서 다룰 내용 한 문장",
+   "notes": "유형: 장 구분 (section) — 긴 덱의 흐름을 나눈다."
+  },
+  {
+   "layout": "lab",
+   "title": "실습",
+   "steps": [
+    "단계 1",
+    "단계 2"
+   ],
+   "side": "**확인 지표**\n항목",
+   "crumb": "",
+   "notes": "유형: 실습 (lab) — 실습 과제와 단계. 예시 내용을 이 덱의 내용으로 바꾼다."
+  },
+  {
+   "layout": "quiz",
+   "title": "확인 문제",
+   "question": "질문 한 문장?",
+   "choices": [
+    "보기 1",
+    "보기 2",
+    "보기 3",
+    "보기 4"
+   ],
+   "answer": "B",
+   "crumb": "",
+   "notes": "유형: 확인 문제 (quiz) — 보기 4개로 이해도 확인. 예시 내용을 이 덱의 내용으로 바꾼다."
+  },
+  {
+   "layout": "case_story",
+   "title": "사례로 생각해 보기",
+   "case": {
+    "label": "상황",
+    "title": "마감 전날 핵심 담당자가 빠졌다",
+    "body": "출시 하루 전, 결제 모듈 담당자가 병가를 냈다. 남은 작업은 테스트 두 건.",
+    "meta": "D-1 · 오후 6시"
+   },
+   "questions": [
+    "무엇이 문제였나",
+    "어떻게 했어야 했나"
+   ],
+   "crumb": "",
+   "options": [
+    {
+     "key": "A",
+     "text": "출시를 하루 미룬다"
+    },
+    {
+     "key": "B",
+     "text": "다른 팀원이 테스트를 맡는다"
+    },
+    {
+     "key": "C",
+     "text": "결제 없이 먼저 출시한다"
+    },
+    {
+     "key": "D",
+     "text": "외부 지원을 요청한다"
+    }
+   ],
+   "notes": "유형: 사례 판단(선택지) (case-choice) — 사례를 보고 A~D 중 판단. 예시 내용을 이 덱의 내용으로 바꾼다."
+  },
+  {
+   "layout": "summary",
+   "title": "정리",
+   "items": [
+    "기억할 것 1",
+    "기억할 것 2"
+   ],
+   "crumb": "",
+   "notes": "유형: 정리 (summary) — 기억할 것. 예시 내용을 이 덱의 내용으로 바꾼다."
+  },
+  {
+   "layout": "numbered_rows",
+   "title": "다음 2주 — 세 가지 부탁",
+   "rows": [
+    {
+     "title": "결제 대행사 이중화 승인",
+     "body": "비용 월 120만 원, 장애 시 자동 전환",
+     "meta": "CFO · 10/10"
+    },
+    {
+     "title": "피크 시간 증설 일정 확정",
+     "body": "11월 행사 전 서버 2대",
+     "meta": "인프라팀 · 10/15"
+    },
+    {
+     "title": "고객 공지 문안 검토",
+     "body": "점검 시간 안내",
+     "meta": "CS팀 · 10/12"
+    }
+   ],
+   "crumb": "",
+   "notes": "유형: 다음 행동·부탁 (next-actions) — 누가 무엇을 언제까지. 예시 내용을 이 덱의 내용으로 바꾼다."
+  },
+  {
+   "layout": "end",
+   "title": "End of Document",
+   "sub": "직무·자격 교육",
+   "meta": "문의",
+   "notes": "유형: 끝 (end) — 문서 끝. 예시 내용을 이 덱의 내용으로 바꾼다."
+  }
+ ]
+}

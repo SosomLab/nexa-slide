@@ -1,6 +1,6 @@
 {
- "label": "강의·교안(이론·이공계) (9장)",
- "description": "직관→개념→풀이→한계→흔한 실수→과제. 흐름: 장 구분 → 개념 설명 → 구조도 → 단계별 풀이 → 확인 문제 → 코드 설명 → 정리",
+ "label": "강의·교안(이론·이공계) (14장)",
+ "description": "직관→개념→풀이→한계→흔한 실수→과제. 기본 구성: 표지 — 제목형 → 진행 순서 → 질문으로 열기 → [개념] → 개념 설명 → 구조도 → 단계별 풀이 → [적용] → 코드 설명 → 실습 → 확인 문제 → 정리 → 참고문헌·출처 → 끝",
  "template": "swiss",
  "config": {
   "partLabels": {
@@ -17,5 +17,5 @@
  "copy": [
   "content"
  ],
- "source": "템플릿 유형 lecture(검토 승인) — docs/research/genspark-skills/05-template-types.md"
+ "source": "템플릿 유형 lecture — docs/research/genspark-skills/05-template-types.md (참고 덱 104, 002, 035, 045)"
 }

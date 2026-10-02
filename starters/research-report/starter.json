@@ -1,0 +1,21 @@
+{
+ "label": "리서치·리뷰 보고서 (16장)",
+ "description": "조사·분석 결과를 논지로 전달 — 결론 먼저, 근거 패널, 참고문헌. 기본 구성: 표지 — 제목형 → 요약 — 결론 먼저 → 진행 순서 → [무엇을 봤나] → 근거 + 해석 패널 → 추이 — 선 그래프 → 히트맵·코호트 → 구성비 — 도넛 → [무엇을 뜻하나] → 사분면 우선순위 → 숫자 + 근거 차트 → 범위·민감도 → 리스크·이슈와 요청 → 정리 → 참고문헌·출처 → 끝",
+ "template": "swiss",
+ "config": {
+  "partLabels": {
+   "day1": "리서치",
+   "day2": "리서치",
+   "day3": "리서치",
+   "apx": "부록"
+  },
+  "coverBadge": "리서치"
+ },
+ "decks": [
+  "research"
+ ],
+ "copy": [
+  "content"
+ ],
+ "source": "템플릿 유형 research-report — docs/research/genspark-skills/05-template-types.md (참고 덱 001, 004, 006, 046)"
+}

@@ -1,0 +1,21 @@
+{
+ "label": "컨설팅·문제 해결 (16장)",
+ "description": "가설·이슈 트리·진단·권고 — 결론형 제목과 해석 패널. 기본 구성: 표지 — 제목형 → 요약 — 결론 먼저 → 진행 순서 → [진단] → 이슈·지표 트리 → 근거 + 해석 패널 → 히트맵·코호트 → 숫자 + 근거 차트 → [제언] → 사분면 우선순위 → 선택지 비교(추천 강조) → 장단점·대비 카드 → 로드맵 Now·Next·Later → 리스크·이슈와 요청 → 결정 요청 → 끝",
+ "template": "blueprint",
+ "config": {
+  "partLabels": {
+   "day1": "진단·제언",
+   "day2": "진단·제언",
+   "day3": "진단·제언",
+   "apx": "부록"
+  },
+  "coverBadge": "진단·제언"
+ },
+ "decks": [
+  "consulting"
+ ],
+ "copy": [
+  "content"
+ ],
+ "source": "템플릿 유형 consulting — docs/research/genspark-skills/05-template-types.md (참고 덱 071, 028, 039, 040)"
+}

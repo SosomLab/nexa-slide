@@ -6839,8 +6839,14 @@
      "at": "2026-10-02T16:16:38",
      "action": "recommend",
      "note": "분석 결과 추천(2026-10-02)"
+    },
+    {
+     "at": "2026-10-02T21:31:06",
+     "action": "implement",
+     "note": "시작용 내용 research-report (템플릿 swiss) — 기본 구성 16장"
     }
-   ]
+   ],
+   "implemented": "시작용 내용 research-report (템플릿 swiss) — 기본 구성 16장"
   },
   {
    "id": "rec-ttype-strategy-plan",
@@ -6910,9 +6916,14 @@
      "at": "2026-10-02T20:16:36",
      "action": "implement",
      "note": "시작용 내용 strategy-plan (템플릿 proposal)"
+    },
+    {
+     "at": "2026-10-02T21:31:06",
+     "action": "implement",
+     "note": "시작용 내용 strategy-plan (템플릿 proposal) — 기본 구성 17장"
     }
    ],
-   "implemented": "시작용 내용 strategy-plan (템플릿 proposal)"
+   "implemented": "시작용 내용 strategy-plan (템플릿 proposal) — 기본 구성 17장"
   },
   {
    "id": "rec-ttype-board-decision",
@@ -6980,9 +6991,14 @@
      "at": "2026-10-02T20:16:36",
      "action": "implement",
      "note": "시작용 내용 board-decision (템플릿 brief — decision-brief 대체)"
+    },
+    {
+     "at": "2026-10-02T21:31:06",
+     "action": "implement",
+     "note": "시작용 내용 board-decision (템플릿 brief) — 기본 구성 11장"
     }
    ],
-   "implemented": "시작용 내용 board-decision (템플릿 brief — decision-brief 대체)"
+   "implemented": "시작용 내용 board-decision (템플릿 brief) — 기본 구성 11장"
   },
   {
    "id": "rec-ttype-periodic-report",
@@ -7051,9 +7067,14 @@
      "at": "2026-10-02T20:16:36",
      "action": "implement",
      "note": "시작용 내용 periodic-report (템플릿 swiss — weekly/monthly-report 대체)"
+    },
+    {
+     "at": "2026-10-02T21:31:06",
+     "action": "implement",
+     "note": "시작용 내용 periodic-report (템플릿 swiss) — 기본 구성 12장"
     }
    ],
-   "implemented": "시작용 내용 periodic-report (템플릿 swiss — weekly/monthly-report 대체)"
+   "implemented": "시작용 내용 periodic-report (템플릿 swiss) — 기본 구성 12장"
   },
   {
    "id": "rec-ttype-investor-pitch",
@@ -7114,8 +7135,14 @@
      "at": "2026-10-02T16:16:38",
      "action": "recommend",
      "note": "분석 결과 추천(2026-10-02)"
+    },
+    {
+     "at": "2026-10-02T21:31:06",
+     "action": "implement",
+     "note": "시작용 내용 investor-pitch (템플릿 keynote) — 기본 구성 13장"
     }
-   ]
+   ],
+   "implemented": "시작용 내용 investor-pitch (템플릿 keynote) — 기본 구성 13장"
   },
   {
    "id": "rec-ttype-ir-finance",
@@ -7178,9 +7205,14 @@
      "at": "2026-10-02T20:16:36",
      "action": "implement",
      "note": "시작용 내용 ir-finance (템플릿 proposal)"
+    },
+    {
+     "at": "2026-10-02T21:31:06",
+     "action": "implement",
+     "note": "시작용 내용 ir-finance (템플릿 proposal) — 기본 구성 12장"
     }
    ],
-   "implemented": "시작용 내용 ir-finance (템플릿 proposal)"
+   "implemented": "시작용 내용 ir-finance (템플릿 proposal) — 기본 구성 12장"
   },
   {
    "id": "rec-ttype-sales-proposal",
@@ -7242,8 +7274,14 @@
      "at": "2026-10-02T16:16:38",
      "action": "recommend",
      "note": "분석 결과 추천(2026-10-02)"
+    },
+    {
+     "at": "2026-10-02T21:31:06",
+     "action": "implement",
+     "note": "시작용 내용 sales-proposal (템플릿 proposal) — 기본 구성 16장"
     }
-   ]
+   ],
+   "implemented": "시작용 내용 sales-proposal (템플릿 proposal) — 기본 구성 16장"
   },
   {
    "id": "rec-ttype-case-story",
@@ -7300,8 +7338,14 @@
      "at": "2026-10-02T16:16:38",
      "action": "recommend",
      "note": "분석 결과 추천(2026-10-02)"
+    },
+    {
+     "at": "2026-10-02T21:31:06",
+     "action": "implement",
+     "note": "시작용 내용 case-story (템플릿 archive) — 기본 구성 12장"
     }
-   ]
+   ],
+   "implemented": "시작용 내용 case-story (템플릿 archive) — 기본 구성 12장"
   },
   {
    "id": "rec-ttype-marketing-campaign",
@@ -7364,8 +7408,14 @@
      "at": "2026-10-02T16:16:38",
      "action": "recommend",
      "note": "분석 결과 추천(2026-10-02)"
+    },
+    {
+     "at": "2026-10-02T21:31:06",
+     "action": "implement",
+     "note": "시작용 내용 marketing-campaign (템플릿 keynote) — 기본 구성 12장"
     }
-   ]
+   ],
+   "implemented": "시작용 내용 marketing-campaign (템플릿 keynote) — 기본 구성 12장"
   },
   {
    "id": "rec-ttype-consulting",
@@ -7424,8 +7474,14 @@
      "at": "2026-10-02T16:16:38",
      "action": "recommend",
      "note": "분석 결과 추천(2026-10-02)"
+    },
+    {
+     "at": "2026-10-02T21:31:06",
+     "action": "implement",
+     "note": "시작용 내용 consulting (템플릿 blueprint) — 기본 구성 16장"
     }
-   ]
+   ],
+   "implemented": "시작용 내용 consulting (템플릿 blueprint) — 기본 구성 16장"
   },
   {
    "id": "rec-ttype-lecture",
@@ -7498,9 +7554,14 @@
      "at": "2026-10-02T20:16:36",
      "action": "implement",
      "note": "시작용 내용 lecture-theory (템플릿 swiss)"
+    },
+    {
+     "at": "2026-10-02T21:31:06",
+     "action": "implement",
+     "note": "시작용 내용 lecture-theory (템플릿 swiss) — 기본 구성 14장"
     }
    ],
-   "implemented": "시작용 내용 lecture-theory (템플릿 swiss)"
+   "implemented": "시작용 내용 lecture-theory (템플릿 swiss) — 기본 구성 14장"
   },
   {
    "id": "rec-ttype-training",
@@ -7570,8 +7631,14 @@
      "at": "2026-10-02T16:16:38",
      "action": "recommend",
      "note": "분석 결과 추천(2026-10-02)"
+    },
+    {
+     "at": "2026-10-02T21:31:06",
+     "action": "implement",
+     "note": "시작용 내용 training-course (템플릿 notice) — 기본 구성 15장"
     }
-   ]
+   ],
+   "implemented": "시작용 내용 training-course (템플릿 notice) — 기본 구성 15장"
   },
   {
    "id": "rec-ttype-classroom",
@@ -7630,8 +7697,14 @@
      "at": "2026-10-02T16:16:38",
      "action": "recommend",
      "note": "분석 결과 추천(2026-10-02)"
+    },
+    {
+     "at": "2026-10-02T21:31:06",
+     "action": "implement",
+     "note": "시작용 내용 classroom (템플릿 lecture) — 기본 구성 12장"
     }
-   ]
+   ],
+   "implemented": "시작용 내용 classroom (템플릿 lecture) — 기본 구성 12장"
   },
   {
    "id": "rec-ttype-public-policy",
@@ -7693,8 +7766,14 @@
      "at": "2026-10-02T16:16:38",
      "action": "recommend",
      "note": "분석 결과 추천(2026-10-02)"
+    },
+    {
+     "at": "2026-10-02T21:31:06",
+     "action": "implement",
+     "note": "시작용 내용 public-policy (템플릿 blueprint) — 기본 구성 15장"
     }
-   ]
+   ],
+   "implemented": "시작용 내용 public-policy (템플릿 blueprint) — 기본 구성 15장"
   },
   {
    "id": "rec-ttype-talk-story",
@@ -7757,8 +7836,14 @@
      "at": "2026-10-02T16:16:38",
      "action": "recommend",
      "note": "분석 결과 추천(2026-10-02)"
+    },
+    {
+     "at": "2026-10-02T21:31:06",
+     "action": "implement",
+     "note": "시작용 내용 talk-story (템플릿 keynote) — 기본 구성 11장"
     }
-   ]
+   ],
+   "implemented": "시작용 내용 talk-story (템플릿 keynote) — 기본 구성 11장"
   },
   {
    "id": "rec-stype-cover-title",

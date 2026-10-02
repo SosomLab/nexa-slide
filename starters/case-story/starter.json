@@ -1,0 +1,21 @@
+{
+ "label": "사례 연구·회고 이야기 (12장)",
+ "description": "목표→사건→선택→결과를 잡지처럼 — 인용·증거·전후 숫자. 기본 구성: 표지 — 사진 전면 → 핵심 한 문장 → 인물·대상 소개(사진+글) → 인용 — 고객·현장의 말 → 마일스톤 → 사진 도판 → 전후 비교 → 숫자 + 근거 차트 → 큰 번호 단계·요점 → 어두운 전환 문장 → 정리 → 끝",
+ "template": "archive",
+ "config": {
+  "partLabels": {
+   "day1": "사례",
+   "day2": "사례",
+   "day3": "사례",
+   "apx": "부록"
+  },
+  "coverBadge": "사례"
+ },
+ "decks": [
+  "case"
+ ],
+ "copy": [
+  "content"
+ ],
+ "source": "템플릿 유형 case-story — docs/research/genspark-skills/05-template-types.md (참고 덱 024, 047, 088, 098)"
+}

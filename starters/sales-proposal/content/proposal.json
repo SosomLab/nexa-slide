@@ -1,0 +1,286 @@
+{
+ "id": "proposal",
+ "title": "B2B 영업·제안서",
+ "part": "day1",
+ "version": "0.1",
+ "slides": [
+  {
+   "layout": "cover",
+   "title": "제목은 결론 한 문장으로",
+   "subtitle": "B2B 영업·제안서 · 누구에게 · 언제",
+   "days": [
+    [
+     "day1",
+     "Day1 설계"
+    ]
+   ],
+   "meta": "작성 부서\n장 제목\nv0.1",
+   "badge": "제안",
+   "notes": "표지 — 고객 과제→해법→근거→가격·일정→약속, 평가자 채점표"
+  },
+  {
+   "layout": "statement",
+   "text": "왜 같은 투자를 했는데 결과가 두 배 차이 났을까?",
+   "kicker": "질문",
+   "sub": "오늘 30분 동안 이 질문에 답합니다",
+   "crumb": "",
+   "notes": "유형: 질문으로 열기 (hook-question) — 청중이 답을 궁금해하게 만드는 질문 하나. 예시 내용을 이 덱의 내용으로 바꾼다."
+  },
+  {
+   "layout": "insight_panel",
+   "title": "요약 — 하반기 주문 실패를 1/3 로 줄였다",
+   "items": [
+    "재시도 설계 변경으로 중복 주문 0건",
+    "피크 시간 응답 2.1초 → 0.8초",
+    "남은 위험: 결제 대행사 장애"
+   ],
+   "panel": {
+    "label": "결론",
+    "value": "-67",
+    "unit": "%",
+    "text": "주문 실패율(전년 같은 분기 대비)"
+   },
+   "crumb": "",
+   "notes": "유형: 요약 — 결론 먼저 (exec-summary) — 근거 3개와 결론 수치를 첫 장에. 예시 내용을 이 덱의 내용으로 바꾼다."
+  },
+  {
+   "layout": "compare",
+   "title": "전후 비교",
+   "before": {
+    "label": "Before",
+    "title": "이전",
+    "desc": "설명",
+    "result": "결과"
+   },
+   "after": {
+    "label": "After",
+    "title": "이후",
+    "desc": "설명",
+    "result": "결과"
+   },
+   "crumb": "",
+   "notes": "유형: 전후 비교 (before-after) — 바꾸기 전과 후. 예시 내용을 이 덱의 내용으로 바꾼다."
+  },
+  {
+   "layout": "chapter",
+   "number": "01",
+   "title": "어떻게 푸나",
+   "desc": "이 장에서 다룰 내용 한 문장",
+   "notes": "유형: 장 구분 (section) — 긴 덱의 흐름을 나눈다."
+  },
+  {
+   "layout": "flow",
+   "title": "순서 흐름",
+   "steps": [
+    {
+     "title": "단계 1",
+     "desc": "설명"
+    },
+    {
+     "title": "단계 2",
+     "desc": "설명"
+    }
+   ],
+   "crumb": "",
+   "notes": "유형: 단계 흐름 (process-flow) — 화살표로 잇는 순서. 예시 내용을 이 덱의 내용으로 바꾼다."
+  },
+  {
+   "layout": "diagram",
+   "title": "다이어그램",
+   "sub": "Mermaid 원본은 content 의 mermaid 필드",
+   "img": "assets/brand/logo.png",
+   "imgScale": 0.4,
+   "side": "**해설**\n내용",
+   "crumb": "",
+   "notes": "유형: 구조도 (diagram) — 시스템·관계도(Mermaid). 예시 내용을 이 덱의 내용으로 바꾼다."
+  },
+  {
+   "layout": "case_story",
+   "title": "사례로 생각해 보기",
+   "case": {
+    "label": "사례",
+    "title": "무슨 일이 있었나",
+    "body": "상황 설명 서너 줄",
+    "meta": "언제 · 어디서"
+   },
+   "questions": [
+    "무엇이 문제였나",
+    "어떻게 했어야 했나"
+   ],
+   "crumb": "",
+   "notes": "유형: 사례 제시 (case-story) — 사례와 생각해 볼 질문. 예시 내용을 이 덱의 내용으로 바꾼다."
+  },
+  {
+   "layout": "quote",
+   "text": "주문이 멈추지 않는 것, 그거 하나면 됩니다.",
+   "who": "홍길동",
+   "role": "구매 담당",
+   "context": "2026년 9월 인터뷰",
+   "crumb": "",
+   "notes": "유형: 인용 — 고객·현장의 말 (quote-voice) — 실명 화자의 한마디로 신뢰. 예시 내용을 이 덱의 내용으로 바꾼다."
+  },
+  {
+   "layout": "number_chart",
+   "title": "숫자 하나가 결론",
+   "value": "1.8",
+   "unit": "배",
+   "label": "무엇이 몇 배 늘었나",
+   "metrics": [
+    [
+     "기준",
+     "100"
+    ],
+    [
+     "현재",
+     "180"
+    ]
+   ],
+   "categories": [
+    "1분기",
+    "2분기",
+    "3분기",
+    "4분기"
+   ],
+   "values": [
+    100,
+    120,
+    150,
+    180
+   ],
+   "crumb": "",
+   "notes": "유형: 숫자 + 근거 차트 (number-evidence) — 결론 숫자와 그 추이를 한 장에. 예시 내용을 이 덱의 내용으로 바꾼다."
+  },
+  {
+   "layout": "chapter",
+   "number": "02",
+   "title": "어떻게 시작하나",
+   "desc": "이 장에서 다룰 내용 한 문장",
+   "notes": "유형: 장 구분 (section) — 긴 덱의 흐름을 나눈다."
+  },
+  {
+   "layout": "tier_columns",
+   "title": "세 가지 패키지",
+   "columns": [
+    {
+     "name": "기본",
+     "value": "월 30만",
+     "items": [
+      "사용자 10명",
+      "기본 보고서"
+     ]
+    },
+    {
+     "name": "표준",
+     "value": "월 80만",
+     "items": [
+      "사용자 50명",
+      "맞춤 보고서",
+      "전화 지원"
+     ],
+     "pick": true
+    },
+    {
+     "name": "기업",
+     "value": "협의",
+     "items": [
+      "무제한",
+      "전담 담당자",
+      "SLA"
+     ]
+    }
+   ],
+   "crumb": "",
+   "pickLabel": "가장 많이 선택",
+   "notes": "유형: 가격·패키지 (pricing) — 등급별 값과 포함 항목. 예시 내용을 이 덱의 내용으로 바꾼다."
+  },
+  {
+   "layout": "gantt",
+   "title": "일정",
+   "periods": [
+    "W1",
+    "W2",
+    "W3",
+    "W4"
+   ],
+   "rows": [
+    {
+     "task": "작업 1",
+     "owner": "담당",
+     "bars": [
+      [
+       0,
+       1
+      ]
+     ]
+    },
+    {
+     "task": "작업 2",
+     "bars": [
+      [
+       1,
+       3
+      ]
+     ]
+    }
+   ],
+   "now": 1.5,
+   "crumb": "",
+   "notes": "유형: 간트 (gantt) — 기간×작업 일정. 예시 내용을 이 덱의 내용으로 바꾼다."
+  },
+  {
+   "layout": "people_cards",
+   "title": "함께하는 사람",
+   "people": [
+    {
+     "name": "이름",
+     "role": "역할",
+     "line": "한 줄 소개"
+    },
+    {
+     "name": "이름",
+     "role": "역할",
+     "line": "한 줄 소개"
+    },
+    {
+     "name": "이름",
+     "role": "역할",
+     "line": "한 줄 소개"
+    }
+   ],
+   "crumb": "",
+   "notes": "유형: 팀·인물 카드 (team) — 사람 2~4명 소개. 예시 내용을 이 덱의 내용으로 바꾼다."
+  },
+  {
+   "layout": "decision_brief",
+   "title": "결론 - 무엇을 하자",
+   "sub": "근거 한 줄",
+   "columns": [
+    {
+     "title": "근거 1",
+     "body": "내용"
+    },
+    {
+     "title": "근거 2",
+     "body": "내용"
+    },
+    {
+     "title": "근거 3",
+     "body": "내용"
+    }
+   ],
+   "ask": "결정할 것",
+   "owner": "결정권자",
+   "due": "MM-DD",
+   "impact": "미결정 시 영향",
+   "crumb": "",
+   "notes": "유형: 결정 요청 (decision-ask) — 무엇을·누가·언제까지 결정. 예시 내용을 이 덱의 내용으로 바꾼다."
+  },
+  {
+   "layout": "end",
+   "title": "End of Document",
+   "sub": "B2B 영업·제안서",
+   "meta": "문의",
+   "notes": "유형: 끝 (end) — 문서 끝. 예시 내용을 이 덱의 내용으로 바꾼다."
+  }
+ ]
+}

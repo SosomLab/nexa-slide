@@ -1,6 +1,6 @@
 {
- "label": "이사회·경영 결정 요청 (8장)",
- "description": "결정권자가 한 번에 판단 — 요약·숫자·리스크·결정 요청·부록. 흐름: 요약 — 결론 먼저 → KPI 대시보드 → 선택지 비교(추천 강조) → 리스크·이슈와 요청 → 결정 요청 → 예상 질문(부록)",
+ "label": "이사회·경영 결정 요청 (11장)",
+ "description": "결정권자가 한 번에 판단 — 요약·숫자·리스크·결정 요청·부록. 기본 구성: 표지 — 제목형 → 요약 — 결론 먼저 → KPI 대시보드 → 막대 비교 → 선택지 비교(추천 강조) → 범위·민감도 → 리스크·이슈와 요청 → 결정 요청 → 다음 행동·부탁 → 예상 질문(부록) → 끝",
  "template": "brief",
  "config": {
   "partLabels": {
@@ -17,5 +17,5 @@
  "copy": [
   "content"
  ],
- "source": "템플릿 유형 board-decision(검토 승인) — docs/research/genspark-skills/05-template-types.md"
+ "source": "템플릿 유형 board-decision — docs/research/genspark-skills/05-template-types.md (참고 덱 018, 005, 030, 094)"
 }

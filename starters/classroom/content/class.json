@@ -1,13 +1,13 @@
 {
- "id": "lecture",
- "title": "강의·교안(이론·이공계)",
+ "id": "class",
+ "title": "수업·학생 발표",
  "part": "day1",
  "version": "0.1",
  "slides": [
   {
    "layout": "cover",
    "title": "제목은 결론 한 문장으로",
-   "subtitle": "강의·교안(이론·이공계) · 누구에게 · 언제",
+   "subtitle": "수업·학생 발표 · 누구에게 · 언제",
    "days": [
     [
      "day1",
@@ -15,8 +15,16 @@
     ]
    ],
    "meta": "작성 부서\n장 제목\nv0.1",
-   "badge": "강의",
-   "notes": "표지 — 직관→개념→풀이→한계→흔한 실수→과제"
+   "badge": "수업",
+   "notes": "표지 — 목표→훅→시범→함께→혼자→나가기, 발표는 질문→방법→결과"
+  },
+  {
+   "layout": "statement",
+   "text": "왜 같은 투자를 했는데 결과가 두 배 차이 났을까?",
+   "kicker": "질문",
+   "sub": "오늘 30분 동안 이 질문에 답합니다",
+   "crumb": "",
+   "notes": "유형: 질문으로 열기 (hook-question) — 청중이 답을 궁금해하게 만드는 질문 하나. 예시 내용을 이 덱의 내용으로 바꾼다."
   },
   {
    "layout": "agenda",
@@ -30,21 +38,6 @@
    ],
    "crumb": "",
    "notes": "유형: 진행 순서 (agenda) — 시간·담당이 있는 순서. 예시 내용을 이 덱의 내용으로 바꾼다."
-  },
-  {
-   "layout": "statement",
-   "text": "왜 같은 투자를 했는데 결과가 두 배 차이 났을까?",
-   "kicker": "질문",
-   "sub": "오늘 30분 동안 이 질문에 답합니다",
-   "crumb": "",
-   "notes": "유형: 질문으로 열기 (hook-question) — 청중이 답을 궁금해하게 만드는 질문 하나. 예시 내용을 이 덱의 내용으로 바꾼다."
-  },
-  {
-   "layout": "chapter",
-   "number": "01",
-   "title": "개념",
-   "desc": "이 장에서 다룰 내용 한 문장",
-   "notes": "유형: 장 구분 (section) — 긴 덱의 흐름을 나눈다."
   },
   {
    "layout": "bullets",
@@ -92,32 +85,6 @@
    "notes": "유형: 단계별 풀이 (worked-example) — 문제 → 단계 → 답, 규칙·함정. 예시 내용을 이 덱의 내용으로 바꾼다."
   },
   {
-   "layout": "chapter",
-   "number": "02",
-   "title": "적용",
-   "desc": "이 장에서 다룰 내용 한 문장",
-   "notes": "유형: 장 구분 (section) — 긴 덱의 흐름을 나눈다."
-  },
-  {
-   "layout": "code_plan",
-   "title": "코드와 실행계획",
-   "code": "SELECT *\nFROM   t\nWHERE  c = :b;",
-   "plan": "| Id | Operation |",
-   "crumb": "",
-   "notes": "유형: 코드 설명 (code-walk) — 코드와 실행 계획. 예시 내용을 이 덱의 내용으로 바꾼다."
-  },
-  {
-   "layout": "lab",
-   "title": "실습",
-   "steps": [
-    "단계 1",
-    "단계 2"
-   ],
-   "side": "**확인 지표**\n항목",
-   "crumb": "",
-   "notes": "유형: 실습 (lab) — 실습 과제와 단계. 예시 내용을 이 덱의 내용으로 바꾼다."
-  },
-  {
    "layout": "quiz",
    "title": "확인 문제",
    "question": "질문 한 문장?",
@@ -132,6 +99,41 @@
    "notes": "유형: 확인 문제 (quiz) — 보기 4개로 이해도 확인. 예시 내용을 이 덱의 내용으로 바꾼다."
   },
   {
+   "layout": "photo_plates",
+   "title": "현장 기록",
+   "plates": [
+    {
+     "caption": "설명"
+    },
+    {
+     "caption": "설명"
+    },
+    {
+     "caption": "설명"
+    }
+   ],
+   "crumb": "",
+   "notes": "유형: 사진 도판 (photo-plates) — 현장·결과물 사진 여러 장. 예시 내용을 이 덱의 내용으로 바꾼다."
+  },
+  {
+   "layout": "cards",
+   "title": "카드 대비",
+   "cards": [
+    {
+     "label": "A",
+     "title": "제목",
+     "body": "내용"
+    },
+    {
+     "label": "B",
+     "title": "제목",
+     "body": "내용"
+    }
+   ],
+   "crumb": "",
+   "notes": "유형: 장단점·대비 카드 (pros-cons) — 두세 가지를 나란히 대비. 예시 내용을 이 덱의 내용으로 바꾼다."
+  },
+  {
    "layout": "summary",
    "title": "정리",
    "items": [
@@ -142,28 +144,20 @@
    "notes": "유형: 정리 (summary) — 기억할 것. 예시 내용을 이 덱의 내용으로 바꾼다."
   },
   {
-   "layout": "references",
-   "title": "참고문헌",
-   "refs": [
-    {
-     "who": "저자",
-     "title": "제목",
-     "year": "2026",
-     "used": "3·5장"
-    },
-    {
-     "who": "기관",
-     "title": "보고서",
-     "year": "2025"
-    }
+   "layout": "qa",
+   "question": "예상 질문?",
+   "answer": "한두 문장 답",
+   "evidence": [
+    "근거 1",
+    "근거 2"
    ],
    "crumb": "",
-   "notes": "유형: 참고문헌·출처 (references) — 근거 목록과 쓴 장. 예시 내용을 이 덱의 내용으로 바꾼다."
+   "notes": "유형: 예상 질문(부록) (qa) — 질문·답·근거를 미리. 예시 내용을 이 덱의 내용으로 바꾼다."
   },
   {
    "layout": "end",
    "title": "End of Document",
-   "sub": "강의·교안(이론·이공계)",
+   "sub": "수업·학생 발표",
    "meta": "문의",
    "notes": "유형: 끝 (end) — 문서 끝. 예시 내용을 이 덱의 내용으로 바꾼다."
   }
