@@ -3,7 +3,7 @@
   {
    "id": "gs-tpl-editorial",
    "kind": "template",
-   "title": "에디토리얼 — 미색·명조 (`editorial`)",
+   "title": "에디토리얼 — 미색·명조 (editorial)",
    "tags": [
     "미색·명조 에디토리얼",
     "Genspark"
@@ -40,7 +40,7 @@
   {
    "id": "gs-tpl-ledger",
    "kind": "template",
-   "title": "원장 — 남색·금색 (`ledger`)",
+   "title": "원장 — 남색·금색 (ledger)",
    "tags": [
     "남색 분할·기관",
     "Genspark"
@@ -76,7 +76,7 @@
   {
    "id": "gs-tpl-keynote",
    "kind": "template",
-   "title": "키노트 — 어두운 사진·한 문장 (`keynote`)",
+   "title": "키노트 — 어두운 사진·한 문장 (keynote)",
    "tags": [
     "어두운 사진·키노트",
     "Genspark"
@@ -112,7 +112,7 @@
   {
    "id": "gs-tpl-archive",
    "kind": "template",
-   "title": "아카이브 — 사진 도판·인화 (`archive`)",
+   "title": "아카이브 — 사진 도판·인화 (archive)",
    "tags": [
     "미색·명조 에디토리얼",
     "Genspark"
@@ -148,7 +148,7 @@
   {
    "id": "gs-tpl-signal",
    "kind": "template",
-   "title": "시그널 — 원색 띠 (`signal`)",
+   "title": "시그널 — 원색 띠 (signal)",
    "tags": [
     "원색 블록·포스터",
     "Genspark"
@@ -183,7 +183,7 @@
   {
    "id": "gs-tpl-blueprint",
    "kind": "template",
-   "title": "블루프린트 — 도면 프레임 (`blueprint`)",
+   "title": "블루프린트 — 도면 프레임 (blueprint)",
    "tags": [
     "도면·산업 사양",
     "Genspark"
@@ -217,7 +217,7 @@
   {
    "id": "gs-tpl-forest",
    "kind": "template",
-   "title": "포레스트 — 숲녹색·테라코타 (`forest`)",
+   "title": "포레스트 — 숲녹색·테라코타 (forest)",
    "tags": [
     "녹색 기관·지속가능",
     "Genspark"
@@ -251,7 +251,7 @@
   {
    "id": "gs-tpl-swiss",
    "kind": "template",
-   "title": "스위스 — 흰 바탕 데이터 (`swiss`)",
+   "title": "스위스 — 흰 바탕 데이터 (swiss)",
    "tags": [
     "흰 바탕 데이터·스위스",
     "Genspark"
@@ -287,7 +287,7 @@
   {
    "id": "gs-layout-insight_panel",
    "kind": "layout",
-   "title": "본문 + 결론 패널 (`insight_panel`)",
+   "title": "본문 + 결론 패널 (insight_panel)",
    "tags": [
     "1순위",
     "104장·46스킬",
@@ -327,7 +327,7 @@
   {
    "id": "gs-layout-worked_example",
    "kind": "layout",
-   "title": "풀이·수식 해부 (`worked_example`)",
+   "title": "풀이·수식 해부 (worked_example)",
    "tags": [
     "1순위",
     "36장·16스킬",
@@ -367,7 +367,7 @@
   {
    "id": "gs-layout-line_chart",
    "kind": "layout",
-   "title": "선·추이 차트 (`line_chart`)",
+   "title": "선·추이 차트 (line_chart)",
    "tags": [
     "1순위",
     "30장·21스킬",
@@ -407,7 +407,7 @@
   {
    "id": "gs-layout-quiz_check",
    "kind": "layout",
-   "title": "문제·확인·양식 (`quiz_check`)",
+   "title": "문제·확인·양식 (quiz_check)",
    "tags": [
     "1순위",
     "28장·16스킬",
@@ -447,7 +447,7 @@
   {
    "id": "gs-layout-matrix_plot",
    "kind": "layout",
-   "title": "사분면·산점도·포지셔닝 (`matrix_plot`)",
+   "title": "사분면·산점도·포지셔닝 (matrix_plot)",
    "tags": [
     "1순위",
     "25장·22스킬",
@@ -487,7 +487,7 @@
   {
    "id": "gs-layout-people_cards",
    "kind": "layout",
-   "title": "인물·팀 카드 (`people_cards`)",
+   "title": "인물·팀 카드 (people_cards)",
    "tags": [
     "1순위",
     "25장·20스킬",
@@ -527,7 +527,7 @@
   {
    "id": "gs-layout-big_number_evidence",
    "kind": "layout",
-   "title": "숫자 + 근거(차트·표·전후) (`big_number_evidence`)",
+   "title": "숫자 + 근거(차트·표·전후) (big_number_evidence)",
    "tags": [
     "1순위",
     "23장·14스킬",
@@ -567,7 +567,7 @@
   {
    "id": "gs-layout-case_story",
    "kind": "layout",
-   "title": "사례 제시 (`case_story`)",
+   "title": "사례 제시 (case_story)",
    "tags": [
     "1순위",
     "22장·10스킬",
@@ -607,7 +607,7 @@
   {
    "id": "gs-layout-references",
    "kind": "layout",
-   "title": "참고문헌·출처 (`references`)",
+   "title": "참고문헌·출처 (references)",
    "tags": [
     "1순위",
     "21장·21스킬",
@@ -647,7 +647,7 @@
   {
    "id": "gs-layout-photo_statement",
    "kind": "layout",
-   "title": "사진 전면 + 문장 (`photo_statement`)",
+   "title": "사진 전면 + 문장 (photo_statement)",
    "tags": [
     "1순위",
     "20장·8스킬",
@@ -687,7 +687,7 @@
   {
    "id": "gs-layout-qa_backup",
    "kind": "layout",
-   "title": "예상 질문 부록 (`qa_backup`)",
+   "title": "예상 질문 부록 (qa_backup)",
    "tags": [
     "2순위",
     "19장·2스킬",
@@ -727,7 +727,7 @@
   {
    "id": "gs-layout-storyboard",
    "kind": "layout",
-   "title": "그림·장면 연속 (`storyboard`)",
+   "title": "그림·장면 연속 (storyboard)",
    "tags": [
     "3순위",
     "18장·3스킬",
@@ -767,7 +767,7 @@
   {
    "id": "gs-layout-ui_mock",
    "kind": "layout",
-   "title": "화면·기기 목업 (`ui_mock`)",
+   "title": "화면·기기 목업 (ui_mock)",
    "tags": [
     "2순위",
     "18장·10스킬",
@@ -807,7 +807,7 @@
   {
    "id": "gs-layout-tree_org",
    "kind": "layout",
-   "title": "트리·조직도·구조도 (`tree_org`)",
+   "title": "트리·조직도·구조도 (tree_org)",
    "tags": [
     "2순위",
     "18장·16스킬",
@@ -847,7 +847,7 @@
   {
    "id": "gs-layout-range_scale",
    "kind": "layout",
-   "title": "범위·점·척도 막대 (`range_scale`)",
+   "title": "범위·점·척도 막대 (range_scale)",
    "tags": [
     "2순위",
     "18장·14스킬",
@@ -887,7 +887,7 @@
   {
    "id": "gs-layout-takeaway_card",
    "kind": "layout",
-   "title": "가져갈 카드·대본 (`takeaway_card`)",
+   "title": "가져갈 카드·대본 (takeaway_card)",
    "tags": [
     "2순위",
     "18장·10스킬",
@@ -927,7 +927,7 @@
   {
    "id": "gs-layout-tier_columns",
    "kind": "layout",
-   "title": "등급·시나리오 열(가격·요청) (`tier_columns`)",
+   "title": "등급·시나리오 열(가격·요청) (tier_columns)",
    "tags": [
     "2순위",
     "17장·14스킬",
@@ -967,7 +967,7 @@
   {
    "id": "gs-layout-funnel_pyramid",
    "kind": "layout",
-   "title": "깔때기·피라미드·층 (`funnel_pyramid`)",
+   "title": "깔때기·피라미드·층 (funnel_pyramid)",
    "tags": [
     "2순위",
     "16장·15스킬",
@@ -1007,7 +1007,7 @@
   {
    "id": "gs-layout-share_circle",
    "kind": "layout",
-   "title": "도넛·원형·벤 (`share_circle`)",
+   "title": "도넛·원형·벤 (share_circle)",
    "tags": [
     "2순위",
     "12장·11스킬",
@@ -1047,7 +1047,7 @@
   {
    "id": "gs-layout-annotated_passage",
    "kind": "layout",
-   "title": "원문 정독·인용 카드 (`annotated_passage`)",
+   "title": "원문 정독·인용 카드 (annotated_passage)",
    "tags": [
     "2순위",
     "10장·5스킬",
@@ -1087,7 +1087,7 @@
   {
    "id": "gs-layout-photo_plates",
    "kind": "layout",
-   "title": "사진 도판·격자 (`photo_plates`)",
+   "title": "사진 도판·격자 (photo_plates)",
    "tags": [
     "2순위",
     "9장·8스킬",
@@ -1127,7 +1127,7 @@
   {
    "id": "gs-layout-numbered_rows",
    "kind": "layout",
-   "title": "큰 번호 행·서사 (`numbered_rows`)",
+   "title": "큰 번호 행·서사 (numbered_rows)",
    "tags": [
     "2순위",
     "7장·5스킬",
@@ -1166,7 +1166,7 @@
   {
    "id": "gs-layout-heatmap",
    "kind": "layout",
-   "title": "히트맵·범주 매트릭스 (`heatmap`)",
+   "title": "히트맵·범주 매트릭스 (heatmap)",
    "tags": [
     "2순위",
     "6장·6스킬",
@@ -1204,7 +1204,7 @@
   {
    "id": "gs-layout-exhibit",
    "kind": "layout",
-   "title": "증거물 카드(문서·메일 재현) (`exhibit`)",
+   "title": "증거물 카드(문서·메일 재현) (exhibit)",
    "tags": [
     "2순위",
     "6장·3스킬",
@@ -1242,7 +1242,7 @@
   {
    "id": "gs-layout-status_board",
    "kind": "layout",
-   "title": "작업 흐름 상태·시각 기록 (`status_board`)",
+   "title": "작업 흐름 상태·시각 기록 (status_board)",
    "tags": [
     "2순위",
     "6장·3스킬",
@@ -1280,7 +1280,7 @@
   {
    "id": "gs-layout-board_grid",
    "kind": "layout",
-   "title": "벽·벤토 격자 (`board_grid`)",
+   "title": "벽·벤토 격자 (board_grid)",
    "tags": [
     "3순위",
     "3장·3스킬",
@@ -1315,7 +1315,7 @@
   {
    "id": "gs-layout-cover_variant",
    "kind": "layout",
-   "title": "표지 변형(데이터·포스터) (`cover_variant`)",
+   "title": "표지 변형(데이터·포스터) (cover_variant)",
    "tags": [
     "3순위",
     "3장·3스킬",
@@ -1350,7 +1350,7 @@
   {
    "id": "gs-layout-map",
    "kind": "layout",
-   "title": "지도·경로 (`map`)",
+   "title": "지도·경로 (map)",
    "tags": [
     "3순위",
     "2장·2스킬",

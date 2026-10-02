@@ -64,6 +64,11 @@ sys.path.insert(0, str(STUDIO))
 from common import ASSET_ROOT, BRAND, CONFIG, DECKS, DEFAULT_PORT, HUB, OUT, REFUSED, SERVER_INFO, STATE, TEMPLATE, WORKSPACE, fonts_dir, list_templates, read_config, resolve_tokens, running_server, safe_id  # noqa: E402
 from watch_requests import session_status  # noqa: E402
 import hub  # noqa: E402
+sys.path.insert(0, str(STUDIO.parent / "docs" / "research" / "review"))
+try:  # 템플릿 검토(검토 등록부) — 시작 페이지 메뉴 "템플릿 검토"(/review)
+    import review_server as review  # noqa: E402
+except ImportError:  # 문서 폴더 없이 엔진만 배포한 경우
+    review = None
 
 HISTORY_KEEP = 50
 RENDER_LOCK = threading.Lock()
@@ -191,6 +196,18 @@ class H(BaseHTTPRequestHandler):
         u = urlparse(self.path)
         parts = [unquote(p) for p in u.path.split("/") if p]
         q = parse_qs(u.query)
+        if review and (parts[:1] == ["review"] or parts[:2] == ["api", "review"]):
+            n = int(self.headers.get("Content-Length") or 0)
+            r = review.handle_get(self.path) if method in ("GET", "HEAD") else review.handle_post(self.path, self.rfile.read(n) if n else b"")
+            code, body, ctype = r or (404, json.dumps({"error": "없음"}).encode("utf-8"), "application/json; charset=utf-8")
+            self.send_response(code)
+            self.send_header("Content-Type", ctype)
+            self.send_header("Content-Length", str(len(body)))
+            self.send_header("Cache-Control", "no-store")
+            self.end_headers()
+            if method != "HEAD":
+                self.wfile.write(body)
+            return
         if not parts or parts[0] != "api":
             if method == "GET" or method == "HEAD":
                 return self.static(u.path, head=method == "HEAD")

@@ -27,12 +27,12 @@ def main():
     now = dt.datetime.now().isoformat(timespec="seconds")
     new = []
     for t in j("candidates.json")["templates"]:
-        new.append({"id": f"gs-tpl-{t['name']}", "kind": "template", "title": f"{t['label']} (`{t['name']}`)", "tags": [t["family"], "Genspark"],
+        new.append({"id": f"gs-tpl-{t['name']}", "kind": "template", "title": f"{t['label']} ({t['name']})", "tags": [t["family"], "Genspark"],
                     "source": {"type": "genspark-template", "sources": t["sources"],
                                "detail": {"색": t["colors"], "글꼴": t["fonts"], "구조 부품": " · ".join(t["parts"]), "쓰는 곳": t["useFor"]}}})
     for a in j("archetypes.json")["new"]:
         d = a["definitions"][0] if a["definitions"] else {}
-        new.append({"id": f"gs-layout-{a['name']}", "kind": "layout", "title": f"{a['label']} (`{a['name']}`)",
+        new.append({"id": f"gs-layout-{a['name']}", "kind": "layout", "title": f"{a['label']} ({a['name']})",
                     "tags": [f"{TIER.get(a['name'], 3)}순위", f"{a['slides']}장·{a['skills']}스킬", "Genspark"],
                     "source": {"type": "genspark-layout", "examples": a["examples"],
                                "detail": {"구조": d.get("structure", ""), "쓰는 곳": d.get("useFor", ""), "묶은 이름": ", ".join(a["members"])}}})
