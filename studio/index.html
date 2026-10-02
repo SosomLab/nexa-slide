@@ -281,6 +281,27 @@
   @keyframes sp { to { transform: rotate(360deg); } }
   #help { position: fixed; inset: 0; background: rgba(0,0,0,.35); z-index: 110; display: none; align-items: center; justify-content: center; }
   #help.show { display: flex; }
+  /* 슬라이드 추가 창 — 목적별 유형 카드 */
+  #addDlg { position: fixed; inset: 0; background: rgba(0,0,0,.35); z-index: 110; display: none; align-items: center; justify-content: center; }
+  #addDlg.show { display: flex; }
+  #addDlg .box { background: #fff; border-radius: 18px; padding: 16px 20px; width: min(1180px, 96vw); height: min(860px, 92vh); display: flex; flex-direction: column; box-shadow: var(--sh2); }
+  #addDlg .ad-h { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  #addDlg .seg { display: inline-flex; background: var(--tone); border-radius: 999px; padding: 2px; }
+  #addDlg .seg button { border: 0; background: none; border-radius: 999px; padding: 4px 12px; font-size: 13px; cursor: pointer; color: #1F1B1B; }
+  #addDlg .seg button.on { background: #fff; font-weight: 700; box-shadow: var(--sh1); }
+  #addDlg .ad-groups { display: flex; gap: 6px; flex-wrap: wrap; margin: 10px 0 8px; }
+  #addDlg .ad-groups button { border: 0; background: var(--tone); border-radius: 999px; padding: 4px 12px; font-size: 13px; cursor: pointer; }
+  #addDlg .ad-groups button.on { background: var(--ink); color: #fff; }
+  #addDlg .ad-body { flex: 1; overflow: auto; }
+  #addDlg .ad-gt { font-weight: 700; margin: 12px 0 6px; } #addDlg .ad-gt small { color: var(--ink2); font-weight: 400; margin-left: 6px; }
+  #addDlg .ad-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 12px; }
+  #addDlg .ad-card { border: 1.5px solid var(--line); border-radius: 12px; padding: 8px; cursor: pointer; background: #fff; text-align: left; }
+  #addDlg .ad-card:hover, #addDlg .ad-card:focus { border-color: var(--p); outline: none; box-shadow: 0 0 0 2px var(--pc); }
+  #addDlg .ad-vp { position: relative; width: 100%; aspect-ratio: 16/9; overflow: hidden; border-radius: 6px; background: #fff; outline: 1px solid var(--tone2); pointer-events: none; }
+  #addDlg .ad-vp > .rs-slide { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
+  #addDlg .ad-card b { display: block; font-size: 13.5px; margin-top: 6px; }
+  #addDlg .ad-card small { display: block; color: var(--ink2); font-size: 12px; line-height: 1.45; }
+  #addDlg .ad-card .lay { font: 11px Consolas, monospace; color: var(--ink2); }
   #fontDlg { position: fixed; inset: 0; background: rgba(0,0,0,.35); z-index: 110; display: none; align-items: center; justify-content: center; }
   #fontDlg.show { display: flex; }
   #fontDlg .box { background: #fff; border-radius: 18px; padding: 18px 22px; width: min(760px, 94vw); max-height: 88vh; overflow-y: auto; box-shadow: var(--sh2); }
@@ -398,6 +419,15 @@
 <div id="present"><div id="presentStage"></div><div id="presentInfo"></div><div id="presentNotes"></div></div>
 <div id="help"><div class="box"></div></div>
 <div id="fontDlg"><div class="box"></div></div>
+<div id="addDlg"><div class="box">
+  <div class="ad-h"><h3 style="margin:0">슬라이드 추가</h3>
+    <span class="seg" id="adTab"><button data-adtab="type" class="on">유형으로</button><button data-adtab="layout">레이아웃으로</button></span>
+    <input type="search" id="adQ" placeholder="찾기 — 결정, 추이, 사례…" style="width:200px"><span style="flex:1"></span>
+    <button class="chip sm" data-adclose="1">닫기 (Esc)</button></div>
+  <div class="ad-groups" id="adGroups"></div>
+  <div class="ad-body" id="adBody"></div>
+  <div class="hint" style="margin-top:6px">누르면 지금 슬라이드 다음에 들어갑니다(Ctrl+Z 로 되돌리기). 유형 = 이 장이 하는 일(목적·구성) — 예시 내용이 채워져 있으니 고쳐 쓰세요.</div>
+</div></div>
 <div id="toast"></div>
 <script src="render.js"></script>
 <script src="studio.js"></script>

@@ -1191,6 +1191,56 @@ ${names}
     if (!confirm(`슬라이드 ${i + 1}을(를) 지울까요? (Ctrl+Z 로 되돌리기 가능)`)) return;
     snapshot(); S.deck.slides.splice(i, 1); S.sel = null; afterChange(true);
   }
+  // ---------------------------------------------------------------- 슬라이드 추가 창 — 목적별 유형(studio/slide_types.json) 또는 레이아웃
+  const AD = { tab: "type", group: "", data: null, layouts: null };
+  async function openAddDlg() {
+    $("#addDlg").classList.add("show"); $("#adQ").value = "";
+    if (!AD.data) {
+      $("#adBody").innerHTML = `<div class="hint">유형을 불러오는 중…</div>`;
+      const r = await api("GET", `/api/slidetypes?part=${encodeURIComponent(S.deck.part || "day1")}`);
+      AD.data = r.ok ? r.data : { groups: [], types: [] };
+    }
+    renderAddDlg(); setTimeout(() => $("#adQ").focus(), 30);
+  }
+  function closeAddDlg() { $("#addDlg").classList.remove("show"); }
+  function fitAdd() { $$("#adBody .ad-vp").forEach((v) => { if (v.firstElementChild) v.firstElementChild.style.transform = `scale(${v.clientWidth / SW})`; }); }
+  async function renderAddDlg() {
+    $$("#adTab button").forEach((b) => b.classList.toggle("on", b.dataset.adtab === AD.tab));
+    const q = $("#adQ").value.trim().toLowerCase();
+    if (AD.tab === "layout") {
+      if (!AD.layouts) { const r = await api("GET", "/api/layouts"); AD.layouts = r.ok ? r.data : []; }
+      $("#adGroups").innerHTML = "";
+      const ls = AD.layouts.filter((l) => !q || `${l.label} ${l.name}`.toLowerCase().includes(q));
+      $("#adBody").innerHTML = `<div class="ad-grid">${ls.map((l) => `<button class="ad-card" data-adlayout="${esc(l.name)}"><b>${esc(l.label)}</b><span class="lay">${esc(l.name)}</span></button>`).join("")}</div>`;
+      return;
+    }
+    const d = AD.data;
+    $("#adGroups").innerHTML = [["", "전체"], ...d.groups.map((g) => [g.id, g.label])].map(([id, l]) =>
+      `<button data-adgroup="${id}" class="${AD.group === id ? "on" : ""}">${esc(l)} <small>${id ? d.types.filter((t) => t.group === id).length : d.types.length}</small></button>`).join("");
+    const show = d.types.filter((t) => t.slide && (!AD.group || t.group === AD.group) && (!q || `${t.label} ${t.purpose} ${t.layout} ${t.layoutLabel}`.toLowerCase().includes(q)));
+    $("#adBody").innerHTML = d.groups.filter((g) => show.some((t) => t.group === g.id)).map((g) => `<div class="ad-gt">${esc(g.label)}<small>${esc(g.desc)}</small></div>
+      <div class="ad-grid">${show.filter((t) => t.group === g.id).map((t) => `<button class="ad-card" data-adtype="${esc(t.id)}" title="${esc(t.purpose)}${t.image ? `\n이미지: ${esc(t.image)}` : ""}">
+        <div class="ad-vp">${Render.renderSlide(t.slide, 1)}</div><b>${esc(t.label)}</b><small>${esc(t.purpose)}</small><span class="lay">${esc(t.layout)}${t.image ? " · 사진 자리" : ""}</span></button>`).join("")}</div>`).join("")
+      || `<div class="hint">찾는 유형이 없습니다.</div>`;
+    requestAnimationFrame(fitAdd);
+  }
+  function insertSlide(s) {
+    snapshot(); S.deck.slides.splice(S.cur + 1, 0, s); S.cur += 1; S.sel = null; afterChange(true); closeAddDlg();
+    toast("슬라이드를 추가했습니다 — 예시 내용을 고쳐 쓰세요 (Ctrl+Z 로 되돌리기)");
+  }
+  async function onAddDlg(e) {
+    if (e.target === $("#addDlg") || e.target.closest("[data-adclose]")) return closeAddDlg();
+    const tb = e.target.closest("[data-adtab]"); if (tb) { AD.tab = tb.dataset.adtab; return renderAddDlg(); }
+    const g = e.target.closest("[data-adgroup]"); if (g) { AD.group = g.dataset.adgroup; return renderAddDlg(); }
+    const t = e.target.closest("[data-adtype]");
+    if (t) { const ty = AD.data.types.find((x) => x.id === t.dataset.adtype); const s = clone(ty.slide); s.id = newSlideId(); return insertSlide(s); }
+    const l = e.target.closest("[data-adlayout]");
+    if (l) {
+      const res = await api("POST", "/api/newslide", { layout: l.dataset.adlayout, part: S.deck.part || "day1", id: newSlideId() });
+      if (!res.ok) return toast("새 슬라이드 실패");
+      insertSlide(res.data);
+    }
+  }
   async function layoutMenu(btn) {
     if (!S.layouts.length) { const r = await api("GET", "/api/layouts"); S.layouts = r.ok ? r.data : []; }
     openMenu(btn, S.layouts.map((l) => ({ label: `${l.label}`, key: l.name, act: async () => {
@@ -1202,7 +1252,7 @@ ${names}
   function thumbMenu(e, i) {
     e.preventDefault(); goSlide(i);
     openMenu({ x: e.clientX, y: e.clientY }, [
-      { label: "슬라이드 복제", act: () => dupSlide(i) }, { label: "아래에 새 슬라이드", act: () => layoutMenu($("#addSlide")) },
+      { label: "슬라이드 복제", act: () => dupSlide(i) }, { label: "아래에 새 슬라이드…", act: () => openAddDlg() },
       { label: "삭제", act: () => delSlide(i) }, "-", { label: "이 슬라이드에 요청 메모", act: () => openMemo({ element: null }) },
       { label: "여기서부터 발표", key: "Shift+F5", act: () => present(true) },
     ]);
@@ -1247,6 +1297,7 @@ ${names}
   let spaceDown = false;
   function onKey(e) {
     if ($("#present").classList.contains("show")) { presentKey(e); return; }
+    if ($("#addDlg").classList.contains("show")) { if (e.key === "Escape") closeAddDlg(); return; }
     if ($("#help").classList.contains("show")) { if (e.key === "Escape" || e.key === "?") $("#help").classList.remove("show"); return; }
     const inField = /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName) || S.editing;
     const k = e.key, kl = k.toLowerCase(), ctrl = e.ctrlKey || e.metaKey;
@@ -1391,7 +1442,9 @@ ${names}
     // 머리줄
     $("#deckTabs").addEventListener("click", (e) => { const b = e.target.closest("[data-deck]"); if (b) switchDeck(b.dataset.deck); });
     $("#tab-chg").addEventListener("click", onChangesClick); renderChanges();
-    $("#fontDlg").addEventListener("click", onFontDlg); $("#fontChip").onclick = showFonts;
+    $("#fontDlg").addEventListener("click", onFontDlg);
+    $("#addDlg").addEventListener("click", onAddDlg); $("#adQ").addEventListener("input", renderAddDlg);
+    window.addEventListener("resize", () => { if ($("#addDlg").classList.contains("show")) fitAdd(); }); $("#fontChip").onclick = showFonts;
     $("#noticeClose").onclick = () => $("#notice").classList.remove("show");
     $("#noticeActs").addEventListener("click", async (e) => {
       const b = e.target.closest("[data-nact]"); if (!b) return;
@@ -1431,7 +1484,7 @@ ${names}
     // 왼쪽 레일
     const left = $("#left");
     left.addEventListener("click", (e) => {
-      if (e.target.id === "addSlide") return layoutMenu(e.target);
+      if (e.target.id === "addSlide") return openAddDlg();
       const t = e.target.closest(".thumb"); if (!t) return;
       const i = +t.dataset.i, act = e.target.dataset.act;
       if (act === "dup") dupSlide(i); else if (act === "del") delSlide(i); else goSlide(i);

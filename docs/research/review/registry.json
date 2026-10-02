@@ -5,8 +5,8 @@
    "kind": "template",
    "title": "에디토리얼 — 미색·명조 (editorial)",
    "tags": [
-    "미색·명조 에디토리얼",
-    "Genspark"
+    "시각 템플릿",
+    "미색·명조 에디토리얼"
    ],
    "source": {
     "type": "genspark-template",
@@ -25,7 +25,7 @@
     }
    },
    "note": "",
-   "status": "registered",
+   "status": "recommended",
    "registeredAt": "2026-10-02T15:38:17",
    "reviewedAt": null,
    "approvedAt": null,
@@ -35,15 +35,17 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": true
   },
   {
    "id": "gs-tpl-ledger",
    "kind": "template",
    "title": "원장 — 남색·금색 (ledger)",
    "tags": [
-    "남색 분할·기관",
-    "Genspark"
+    "시각 템플릿",
+    "남색 분할·기관"
    ],
    "source": {
     "type": "genspark-template",
@@ -61,7 +63,7 @@
     }
    },
    "note": "",
-   "status": "registered",
+   "status": "recommended",
    "registeredAt": "2026-10-02T15:38:17",
    "reviewedAt": null,
    "approvedAt": null,
@@ -71,15 +73,17 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": true
   },
   {
    "id": "gs-tpl-keynote",
    "kind": "template",
    "title": "키노트 — 어두운 사진·한 문장 (keynote)",
    "tags": [
-    "어두운 사진·키노트",
-    "Genspark"
+    "시각 템플릿",
+    "어두운 사진·키노트"
    ],
    "source": {
     "type": "genspark-template",
@@ -97,25 +101,32 @@
     }
    },
    "note": "",
-   "status": "registered",
+   "status": "approved",
    "registeredAt": "2026-10-02T15:38:17",
-   "reviewedAt": null,
-   "approvedAt": null,
+   "reviewedAt": "2026-10-02T15:50:18",
+   "approvedAt": "2026-10-02T15:50:18",
    "history": [
     {
      "at": "2026-10-02T15:38:17",
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
+    },
+    {
+     "at": "2026-10-02T15:50:18",
+     "action": "approve",
+     "note": ""
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": true
   },
   {
    "id": "gs-tpl-archive",
    "kind": "template",
    "title": "아카이브 — 사진 도판·인화 (archive)",
    "tags": [
-    "미색·명조 에디토리얼",
-    "Genspark"
+    "시각 템플릿",
+    "미색·명조 에디토리얼"
    ],
    "source": {
     "type": "genspark-template",
@@ -133,25 +144,37 @@
     }
    },
    "note": "",
-   "status": "registered",
+   "status": "approved",
    "registeredAt": "2026-10-02T15:38:17",
-   "reviewedAt": null,
-   "approvedAt": null,
+   "reviewedAt": "2026-10-02T15:48:24",
+   "approvedAt": "2026-10-02T15:48:26",
    "history": [
     {
      "at": "2026-10-02T15:38:17",
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
+    },
+    {
+     "at": "2026-10-02T15:48:24",
+     "action": "approve",
+     "note": ""
+    },
+    {
+     "at": "2026-10-02T15:48:26",
+     "action": "approve",
+     "note": ""
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": true
   },
   {
    "id": "gs-tpl-signal",
    "kind": "template",
    "title": "시그널 — 원색 띠 (signal)",
    "tags": [
-    "원색 블록·포스터",
-    "Genspark"
+    "시각 템플릿",
+    "원색 블록·포스터"
    ],
    "source": {
     "type": "genspark-template",
@@ -168,7 +191,7 @@
     }
    },
    "note": "",
-   "status": "registered",
+   "status": "recommended",
    "registeredAt": "2026-10-02T15:38:17",
    "reviewedAt": null,
    "approvedAt": null,
@@ -178,15 +201,17 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": true
   },
   {
    "id": "gs-tpl-blueprint",
    "kind": "template",
    "title": "블루프린트 — 도면 프레임 (blueprint)",
    "tags": [
-    "도면·산업 사양",
-    "Genspark"
+    "시각 템플릿",
+    "도면·산업 사양"
    ],
    "source": {
     "type": "genspark-template",
@@ -202,25 +227,32 @@
     }
    },
    "note": "",
-   "status": "registered",
+   "status": "approved",
    "registeredAt": "2026-10-02T15:38:17",
-   "reviewedAt": null,
-   "approvedAt": null,
+   "reviewedAt": "2026-10-02T15:50:14",
+   "approvedAt": "2026-10-02T15:50:14",
    "history": [
     {
      "at": "2026-10-02T15:38:17",
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
+    },
+    {
+     "at": "2026-10-02T15:50:14",
+     "action": "approve",
+     "note": ""
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": true
   },
   {
    "id": "gs-tpl-forest",
    "kind": "template",
    "title": "포레스트 — 숲녹색·테라코타 (forest)",
    "tags": [
-    "녹색 기관·지속가능",
-    "Genspark"
+    "시각 템플릿",
+    "녹색 기관·지속가능"
    ],
    "source": {
     "type": "genspark-template",
@@ -236,7 +268,7 @@
     }
    },
    "note": "",
-   "status": "registered",
+   "status": "recommended",
    "registeredAt": "2026-10-02T15:38:17",
    "reviewedAt": null,
    "approvedAt": null,
@@ -246,15 +278,17 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": true
   },
   {
    "id": "gs-tpl-swiss",
    "kind": "template",
    "title": "스위스 — 흰 바탕 데이터 (swiss)",
    "tags": [
-    "흰 바탕 데이터·스위스",
-    "Genspark"
+    "시각 템플릿",
+    "흰 바탕 데이터·스위스"
    ],
    "source": {
     "type": "genspark-template",
@@ -272,7 +306,7 @@
     }
    },
    "note": "",
-   "status": "registered",
+   "status": "recommended",
    "registeredAt": "2026-10-02T15:38:17",
    "reviewedAt": null,
    "approvedAt": null,
@@ -282,7 +316,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": true
   },
   {
    "id": "gs-layout-insight_panel",
@@ -290,8 +326,7 @@
    "title": "본문 + 결론 패널 (insight_panel)",
    "tags": [
     "1순위",
-    "104장·46스킬",
-    "Genspark"
+    "104장·46스킬"
    ],
    "source": {
     "type": "genspark-layout",
@@ -322,7 +357,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "slide",
+   "recommended": false
   },
   {
    "id": "gs-layout-worked_example",
@@ -330,8 +367,7 @@
    "title": "풀이·수식 해부 (worked_example)",
    "tags": [
     "1순위",
-    "36장·16스킬",
-    "Genspark"
+    "36장·16스킬"
    ],
    "source": {
     "type": "genspark-layout",
@@ -352,17 +388,24 @@
     }
    },
    "note": "",
-   "status": "registered",
+   "status": "approved",
    "registeredAt": "2026-10-02T15:38:17",
-   "reviewedAt": null,
-   "approvedAt": null,
+   "reviewedAt": "2026-10-02T15:55:22",
+   "approvedAt": "2026-10-02T15:55:22",
    "history": [
     {
      "at": "2026-10-02T15:38:17",
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
+    },
+    {
+     "at": "2026-10-02T15:55:22",
+     "action": "approve",
+     "note": ""
     }
-   ]
+   ],
+   "scope": "slide",
+   "recommended": false
   },
   {
    "id": "gs-layout-line_chart",
@@ -370,8 +413,7 @@
    "title": "선·추이 차트 (line_chart)",
    "tags": [
     "1순위",
-    "30장·21스킬",
-    "Genspark"
+    "30장·21스킬"
    ],
    "source": {
     "type": "genspark-layout",
@@ -392,17 +434,24 @@
     }
    },
    "note": "",
-   "status": "registered",
+   "status": "approved",
    "registeredAt": "2026-10-02T15:38:17",
-   "reviewedAt": null,
-   "approvedAt": null,
+   "reviewedAt": "2026-10-02T15:51:15",
+   "approvedAt": "2026-10-02T15:51:15",
    "history": [
     {
      "at": "2026-10-02T15:38:17",
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
+    },
+    {
+     "at": "2026-10-02T15:51:15",
+     "action": "approve",
+     "note": ""
     }
-   ]
+   ],
+   "scope": "slide",
+   "recommended": false
   },
   {
    "id": "gs-layout-quiz_check",
@@ -410,8 +459,7 @@
    "title": "문제·확인·양식 (quiz_check)",
    "tags": [
     "1순위",
-    "28장·16스킬",
-    "Genspark"
+    "28장·16스킬"
    ],
    "source": {
     "type": "genspark-layout",
@@ -442,7 +490,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "slide",
+   "recommended": false
   },
   {
    "id": "gs-layout-matrix_plot",
@@ -450,8 +500,7 @@
    "title": "사분면·산점도·포지셔닝 (matrix_plot)",
    "tags": [
     "1순위",
-    "25장·22스킬",
-    "Genspark"
+    "25장·22스킬"
    ],
    "source": {
     "type": "genspark-layout",
@@ -472,17 +521,24 @@
     }
    },
    "note": "",
-   "status": "registered",
+   "status": "approved",
    "registeredAt": "2026-10-02T15:38:17",
-   "reviewedAt": null,
-   "approvedAt": null,
+   "reviewedAt": "2026-10-02T15:53:23",
+   "approvedAt": "2026-10-02T15:53:23",
    "history": [
     {
      "at": "2026-10-02T15:38:17",
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
+    },
+    {
+     "at": "2026-10-02T15:53:23",
+     "action": "approve",
+     "note": ""
     }
-   ]
+   ],
+   "scope": "slide",
+   "recommended": false
   },
   {
    "id": "gs-layout-people_cards",
@@ -490,8 +546,7 @@
    "title": "인물·팀 카드 (people_cards)",
    "tags": [
     "1순위",
-    "25장·20스킬",
-    "Genspark"
+    "25장·20스킬"
    ],
    "source": {
     "type": "genspark-layout",
@@ -522,7 +577,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "slide",
+   "recommended": false
   },
   {
    "id": "gs-layout-big_number_evidence",
@@ -530,8 +587,7 @@
    "title": "숫자 + 근거(차트·표·전후) (big_number_evidence)",
    "tags": [
     "1순위",
-    "23장·14스킬",
-    "Genspark"
+    "23장·14스킬"
    ],
    "source": {
     "type": "genspark-layout",
@@ -552,17 +608,24 @@
     }
    },
    "note": "",
-   "status": "registered",
+   "status": "approved",
    "registeredAt": "2026-10-02T15:38:17",
-   "reviewedAt": null,
-   "approvedAt": null,
+   "reviewedAt": "2026-10-02T15:50:34",
+   "approvedAt": "2026-10-02T15:50:34",
    "history": [
     {
      "at": "2026-10-02T15:38:17",
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
+    },
+    {
+     "at": "2026-10-02T15:50:34",
+     "action": "approve",
+     "note": ""
     }
-   ]
+   ],
+   "scope": "slide",
+   "recommended": false
   },
   {
    "id": "gs-layout-case_story",
@@ -570,8 +633,7 @@
    "title": "사례 제시 (case_story)",
    "tags": [
     "1순위",
-    "22장·10스킬",
-    "Genspark"
+    "22장·10스킬"
    ],
    "source": {
     "type": "genspark-layout",
@@ -602,7 +664,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "slide",
+   "recommended": false
   },
   {
    "id": "gs-layout-references",
@@ -610,8 +674,7 @@
    "title": "참고문헌·출처 (references)",
    "tags": [
     "1순위",
-    "21장·21스킬",
-    "Genspark"
+    "21장·21스킬"
    ],
    "source": {
     "type": "genspark-layout",
@@ -642,7 +705,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "slide",
+   "recommended": false
   },
   {
    "id": "gs-layout-photo_statement",
@@ -650,8 +715,7 @@
    "title": "사진 전면 + 문장 (photo_statement)",
    "tags": [
     "1순위",
-    "20장·8스킬",
-    "Genspark"
+    "20장·8스킬"
    ],
    "source": {
     "type": "genspark-layout",
@@ -672,17 +736,24 @@
     }
    },
    "note": "",
-   "status": "registered",
+   "status": "approved",
    "registeredAt": "2026-10-02T15:38:17",
-   "reviewedAt": null,
-   "approvedAt": null,
+   "reviewedAt": "2026-10-02T15:53:44",
+   "approvedAt": "2026-10-02T15:53:44",
    "history": [
     {
      "at": "2026-10-02T15:38:17",
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
+    },
+    {
+     "at": "2026-10-02T15:53:44",
+     "action": "approve",
+     "note": ""
     }
-   ]
+   ],
+   "scope": "slide",
+   "recommended": false
   },
   {
    "id": "gs-layout-qa_backup",
@@ -690,8 +761,7 @@
    "title": "예상 질문 부록 (qa_backup)",
    "tags": [
     "2순위",
-    "19장·2스킬",
-    "Genspark"
+    "19장·2스킬"
    ],
    "source": {
     "type": "genspark-layout",
@@ -722,7 +792,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "slide",
+   "recommended": false
   },
   {
    "id": "gs-layout-storyboard",
@@ -730,8 +802,7 @@
    "title": "그림·장면 연속 (storyboard)",
    "tags": [
     "3순위",
-    "18장·3스킬",
-    "Genspark"
+    "18장·3스킬"
    ],
    "source": {
     "type": "genspark-layout",
@@ -762,7 +833,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "slide",
+   "recommended": false
   },
   {
    "id": "gs-layout-ui_mock",
@@ -770,8 +843,7 @@
    "title": "화면·기기 목업 (ui_mock)",
    "tags": [
     "2순위",
-    "18장·10스킬",
-    "Genspark"
+    "18장·10스킬"
    ],
    "source": {
     "type": "genspark-layout",
@@ -802,7 +874,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "slide",
+   "recommended": false
   },
   {
    "id": "gs-layout-tree_org",
@@ -810,8 +884,7 @@
    "title": "트리·조직도·구조도 (tree_org)",
    "tags": [
     "2순위",
-    "18장·16스킬",
-    "Genspark"
+    "18장·16스킬"
    ],
    "source": {
     "type": "genspark-layout",
@@ -842,7 +915,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "slide",
+   "recommended": false
   },
   {
    "id": "gs-layout-range_scale",
@@ -850,8 +925,7 @@
    "title": "범위·점·척도 막대 (range_scale)",
    "tags": [
     "2순위",
-    "18장·14스킬",
-    "Genspark"
+    "18장·14스킬"
    ],
    "source": {
     "type": "genspark-layout",
@@ -882,7 +956,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "slide",
+   "recommended": false
   },
   {
    "id": "gs-layout-takeaway_card",
@@ -890,8 +966,7 @@
    "title": "가져갈 카드·대본 (takeaway_card)",
    "tags": [
     "2순위",
-    "18장·10스킬",
-    "Genspark"
+    "18장·10스킬"
    ],
    "source": {
     "type": "genspark-layout",
@@ -922,7 +997,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "slide",
+   "recommended": false
   },
   {
    "id": "gs-layout-tier_columns",
@@ -930,8 +1007,7 @@
    "title": "등급·시나리오 열(가격·요청) (tier_columns)",
    "tags": [
     "2순위",
-    "17장·14스킬",
-    "Genspark"
+    "17장·14스킬"
    ],
    "source": {
     "type": "genspark-layout",
@@ -962,7 +1038,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "slide",
+   "recommended": false
   },
   {
    "id": "gs-layout-funnel_pyramid",
@@ -970,8 +1048,7 @@
    "title": "깔때기·피라미드·층 (funnel_pyramid)",
    "tags": [
     "2순위",
-    "16장·15스킬",
-    "Genspark"
+    "16장·15스킬"
    ],
    "source": {
     "type": "genspark-layout",
@@ -1002,7 +1079,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "slide",
+   "recommended": false
   },
   {
    "id": "gs-layout-share_circle",
@@ -1010,8 +1089,7 @@
    "title": "도넛·원형·벤 (share_circle)",
    "tags": [
     "2순위",
-    "12장·11스킬",
-    "Genspark"
+    "12장·11스킬"
    ],
    "source": {
     "type": "genspark-layout",
@@ -1032,17 +1110,24 @@
     }
    },
    "note": "",
-   "status": "registered",
+   "status": "approved",
    "registeredAt": "2026-10-02T15:38:17",
-   "reviewedAt": null,
-   "approvedAt": null,
+   "reviewedAt": "2026-10-02T15:54:06",
+   "approvedAt": "2026-10-02T15:54:06",
    "history": [
     {
      "at": "2026-10-02T15:38:17",
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
+    },
+    {
+     "at": "2026-10-02T15:54:06",
+     "action": "approve",
+     "note": ""
     }
-   ]
+   ],
+   "scope": "slide",
+   "recommended": false
   },
   {
    "id": "gs-layout-annotated_passage",
@@ -1050,8 +1135,7 @@
    "title": "원문 정독·인용 카드 (annotated_passage)",
    "tags": [
     "2순위",
-    "10장·5스킬",
-    "Genspark"
+    "10장·5스킬"
    ],
    "source": {
     "type": "genspark-layout",
@@ -1082,7 +1166,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "slide",
+   "recommended": false
   },
   {
    "id": "gs-layout-photo_plates",
@@ -1090,8 +1176,7 @@
    "title": "사진 도판·격자 (photo_plates)",
    "tags": [
     "2순위",
-    "9장·8스킬",
-    "Genspark"
+    "9장·8스킬"
    ],
    "source": {
     "type": "genspark-layout",
@@ -1122,7 +1207,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "slide",
+   "recommended": false
   },
   {
    "id": "gs-layout-numbered_rows",
@@ -1130,8 +1217,7 @@
    "title": "큰 번호 행·서사 (numbered_rows)",
    "tags": [
     "2순위",
-    "7장·5스킬",
-    "Genspark"
+    "7장·5스킬"
    ],
    "source": {
     "type": "genspark-layout",
@@ -1151,17 +1237,24 @@
     }
    },
    "note": "",
-   "status": "registered",
+   "status": "approved",
    "registeredAt": "2026-10-02T15:38:17",
-   "reviewedAt": null,
-   "approvedAt": null,
+   "reviewedAt": "2026-10-02T15:53:31",
+   "approvedAt": "2026-10-02T15:53:31",
    "history": [
     {
      "at": "2026-10-02T15:38:17",
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
+    },
+    {
+     "at": "2026-10-02T15:53:31",
+     "action": "approve",
+     "note": ""
     }
-   ]
+   ],
+   "scope": "slide",
+   "recommended": false
   },
   {
    "id": "gs-layout-heatmap",
@@ -1169,8 +1262,7 @@
    "title": "히트맵·범주 매트릭스 (heatmap)",
    "tags": [
     "2순위",
-    "6장·6스킬",
-    "Genspark"
+    "6장·6스킬"
    ],
    "source": {
     "type": "genspark-layout",
@@ -1189,17 +1281,24 @@
     }
    },
    "note": "",
-   "status": "registered",
+   "status": "approved",
    "registeredAt": "2026-10-02T15:38:17",
-   "reviewedAt": null,
-   "approvedAt": null,
+   "reviewedAt": "2026-10-02T15:51:07",
+   "approvedAt": "2026-10-02T15:51:07",
    "history": [
     {
      "at": "2026-10-02T15:38:17",
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
+    },
+    {
+     "at": "2026-10-02T15:51:07",
+     "action": "approve",
+     "note": ""
     }
-   ]
+   ],
+   "scope": "slide",
+   "recommended": false
   },
   {
    "id": "gs-layout-exhibit",
@@ -1207,8 +1306,7 @@
    "title": "증거물 카드(문서·메일 재현) (exhibit)",
    "tags": [
     "2순위",
-    "6장·3스킬",
-    "Genspark"
+    "6장·3스킬"
    ],
    "source": {
     "type": "genspark-layout",
@@ -1237,7 +1335,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "slide",
+   "recommended": false
   },
   {
    "id": "gs-layout-status_board",
@@ -1245,8 +1345,7 @@
    "title": "작업 흐름 상태·시각 기록 (status_board)",
    "tags": [
     "2순위",
-    "6장·3스킬",
-    "Genspark"
+    "6장·3스킬"
    ],
    "source": {
     "type": "genspark-layout",
@@ -1275,7 +1374,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "slide",
+   "recommended": false
   },
   {
    "id": "gs-layout-board_grid",
@@ -1283,8 +1384,7 @@
    "title": "벽·벤토 격자 (board_grid)",
    "tags": [
     "3순위",
-    "3장·3스킬",
-    "Genspark"
+    "3장·3스킬"
    ],
    "source": {
     "type": "genspark-layout",
@@ -1310,7 +1410,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "slide",
+   "recommended": false
   },
   {
    "id": "gs-layout-cover_variant",
@@ -1318,8 +1420,7 @@
    "title": "표지 변형(데이터·포스터) (cover_variant)",
    "tags": [
     "3순위",
-    "3장·3스킬",
-    "Genspark"
+    "3장·3스킬"
    ],
    "source": {
     "type": "genspark-layout",
@@ -1345,7 +1446,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "slide",
+   "recommended": false
   },
   {
    "id": "gs-layout-map",
@@ -1353,8 +1456,7 @@
    "title": "지도·경로 (map)",
    "tags": [
     "3순위",
-    "2장·2스킬",
-    "Genspark"
+    "2장·2스킬"
    ],
    "source": {
     "type": "genspark-layout",
@@ -1379,7 +1481,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "slide",
+   "recommended": false
   },
   {
    "id": "gs-deck-001",
@@ -1388,8 +1492,7 @@
    "tags": [
     "academic-research",
     "미색·명조 에디토리얼",
-    "5점",
-    "Genspark"
+    "5점"
    ],
    "source": {
     "type": "genspark-skill",
@@ -1411,7 +1514,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": false
   },
   {
    "id": "gs-deck-002",
@@ -1420,8 +1525,7 @@
    "tags": [
     "ai-literacy",
     "미색·명조 에디토리얼",
-    "4점",
-    "Genspark"
+    "4점"
    ],
    "source": {
     "type": "genspark-skill",
@@ -1443,7 +1547,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": false
   },
   {
    "id": "gs-deck-003",
@@ -1452,8 +1558,7 @@
    "tags": [
     "fundraising-pitch",
     "미색·명조 에디토리얼",
-    "5점",
-    "Genspark"
+    "5점"
    ],
    "source": {
     "type": "genspark-skill",
@@ -1475,7 +1580,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": false
   },
   {
    "id": "gs-deck-004",
@@ -1484,8 +1591,7 @@
    "tags": [
     "ai-literacy",
     "미색·명조 에디토리얼",
-    "5점",
-    "Genspark"
+    "5점"
    ],
    "source": {
     "type": "genspark-skill",
@@ -1507,7 +1613,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": false
   },
   {
    "id": "gs-deck-005",
@@ -1516,8 +1624,7 @@
    "tags": [
     "ai-literacy",
     "흰 바탕 데이터·스위스",
-    "4점",
-    "Genspark"
+    "4점"
    ],
    "source": {
     "type": "genspark-skill",
@@ -1539,7 +1646,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": false
   },
   {
    "id": "gs-deck-006",
@@ -1548,8 +1657,7 @@
    "tags": [
     "ai-literacy",
     "흰 바탕 데이터·스위스",
-    "4점",
-    "Genspark"
+    "4점"
    ],
    "source": {
     "type": "genspark-skill",
@@ -1571,7 +1679,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": false
   },
   {
    "id": "gs-deck-007",
@@ -1580,8 +1690,7 @@
    "tags": [
     "ai-literacy",
     "미색·명조 에디토리얼",
-    "3점",
-    "Genspark"
+    "3점"
    ],
    "source": {
     "type": "genspark-skill",
@@ -1603,7 +1712,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": false
   },
   {
    "id": "gs-deck-008",
@@ -1612,8 +1723,7 @@
    "tags": [
     "corporate-strategy",
     "미색·명조 에디토리얼",
-    "5점",
-    "Genspark"
+    "5점"
    ],
    "source": {
     "type": "genspark-skill",
@@ -1625,17 +1735,24 @@
     }
    },
    "note": "",
-   "status": "registered",
+   "status": "approved",
    "registeredAt": "2026-10-02T15:38:17",
-   "reviewedAt": null,
-   "approvedAt": null,
+   "reviewedAt": "2026-10-02T15:56:05",
+   "approvedAt": "2026-10-02T15:56:05",
    "history": [
     {
      "at": "2026-10-02T15:38:17",
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
+    },
+    {
+     "at": "2026-10-02T15:56:05",
+     "action": "approve",
+     "note": ""
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": false
   },
   {
    "id": "gs-deck-009",
@@ -1644,8 +1761,7 @@
    "tags": [
     "marketing-gtm",
     "남색 분할·기관",
-    "4점",
-    "Genspark"
+    "4점"
    ],
    "source": {
     "type": "genspark-skill",
@@ -1667,7 +1783,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": false
   },
   {
    "id": "gs-deck-010",
@@ -1676,8 +1794,7 @@
    "tags": [
     "corporate-strategy",
     "남색 분할·기관",
-    "3점",
-    "Genspark"
+    "3점"
    ],
    "source": {
     "type": "genspark-skill",
@@ -1699,7 +1816,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": false
   },
   {
    "id": "gs-deck-011",
@@ -1708,8 +1827,7 @@
    "tags": [
     "marketing-gtm",
     "남색 분할·기관",
-    "5점",
-    "Genspark"
+    "5점"
    ],
    "source": {
     "type": "genspark-skill",
@@ -1731,7 +1849,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": false
   },
   {
    "id": "gs-deck-012",
@@ -1740,8 +1860,7 @@
    "tags": [
     "design-craft",
     "미색·명조 에디토리얼",
-    "4점",
-    "Genspark"
+    "4점"
    ],
    "source": {
     "type": "genspark-skill",
@@ -1763,7 +1882,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": false
   },
   {
    "id": "gs-deck-013",
@@ -1772,8 +1893,7 @@
    "tags": [
     "marketing-gtm",
     "흰 바탕 데이터·스위스",
-    "4점",
-    "Genspark"
+    "4점"
    ],
    "source": {
     "type": "genspark-skill",
@@ -1795,7 +1915,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": false
   },
   {
    "id": "gs-deck-014",
@@ -1804,8 +1926,7 @@
    "tags": [
     "product-management",
     "남색 분할·기관",
-    "3점",
-    "Genspark"
+    "3점"
    ],
    "source": {
     "type": "genspark-skill",
@@ -1827,7 +1948,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": false
   },
   {
    "id": "gs-deck-015",
@@ -1836,8 +1959,7 @@
    "tags": [
     "life",
     "미색·명조 에디토리얼",
-    "4점",
-    "Genspark"
+    "4점"
    ],
    "source": {
     "type": "genspark-skill",
@@ -1859,7 +1981,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": false
   },
   {
    "id": "gs-deck-016",
@@ -1868,8 +1992,7 @@
    "tags": [
     "b2b-sales",
     "남색 분할·기관",
-    "3점",
-    "Genspark"
+    "3점"
    ],
    "source": {
     "type": "genspark-skill",
@@ -1891,7 +2014,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": false
   },
   {
    "id": "gs-deck-017",
@@ -1900,8 +2025,7 @@
    "tags": [
     "corporate-strategy",
     "미색·명조 에디토리얼",
-    "3점",
-    "Genspark"
+    "3점"
    ],
    "source": {
     "type": "genspark-skill",
@@ -1923,7 +2047,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": false
   },
   {
    "id": "gs-deck-018",
@@ -1932,8 +2058,7 @@
    "tags": [
     "design-craft",
     "남색 분할·기관",
-    "5점",
-    "Genspark"
+    "5점"
    ],
    "source": {
     "type": "genspark-skill",
@@ -1955,7 +2080,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": false
   },
   {
    "id": "gs-deck-019",
@@ -1964,8 +2091,7 @@
    "tags": [
     "design-craft",
     "채도 높은 SaaS",
-    "3점",
-    "Genspark"
+    "3점"
    ],
    "source": {
     "type": "genspark-skill",
@@ -1977,17 +2103,24 @@
     }
    },
    "note": "",
-   "status": "registered",
+   "status": "approved",
    "registeredAt": "2026-10-02T15:38:17",
-   "reviewedAt": null,
-   "approvedAt": null,
+   "reviewedAt": "2026-10-02T15:56:28",
+   "approvedAt": "2026-10-02T15:56:28",
    "history": [
     {
      "at": "2026-10-02T15:38:17",
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
+    },
+    {
+     "at": "2026-10-02T15:56:28",
+     "action": "approve",
+     "note": ""
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": false
   },
   {
    "id": "gs-deck-020",
@@ -1996,8 +2129,7 @@
    "tags": [
     "design-craft",
     "어두운 사진·키노트",
-    "3점",
-    "Genspark"
+    "3점"
    ],
    "source": {
     "type": "genspark-skill",
@@ -2009,17 +2141,24 @@
     }
    },
    "note": "",
-   "status": "registered",
+   "status": "approved",
    "registeredAt": "2026-10-02T15:38:17",
-   "reviewedAt": null,
-   "approvedAt": null,
+   "reviewedAt": "2026-10-02T15:56:39",
+   "approvedAt": "2026-10-02T15:56:39",
    "history": [
     {
      "at": "2026-10-02T15:38:17",
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
+    },
+    {
+     "at": "2026-10-02T15:56:39",
+     "action": "approve",
+     "note": ""
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": false
   },
   {
    "id": "gs-deck-021",
@@ -2028,8 +2167,7 @@
    "tags": [
     "marketing-gtm",
     "흰 바탕 데이터·스위스",
-    "4점",
-    "Genspark"
+    "4점"
    ],
    "source": {
     "type": "genspark-skill",
@@ -2051,7 +2189,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": false
   },
   {
    "id": "gs-deck-022",
@@ -2060,8 +2200,7 @@
    "tags": [
     "design-craft",
     "흰 바탕 데이터·스위스",
-    "3점",
-    "Genspark"
+    "3점"
    ],
    "source": {
     "type": "genspark-skill",
@@ -2083,7 +2222,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": false
   },
   {
    "id": "gs-deck-023",
@@ -2092,8 +2233,7 @@
    "tags": [
     "student-coursework",
     "일러스트",
-    "4점",
-    "Genspark"
+    "4점"
    ],
    "source": {
     "type": "genspark-skill",
@@ -2115,7 +2255,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": false
   },
   {
    "id": "gs-deck-024",
@@ -2124,8 +2266,7 @@
    "tags": [
     "marketing-gtm",
     "미색·명조 에디토리얼",
-    "5점",
-    "Genspark"
+    "5점"
    ],
    "source": {
     "type": "genspark-skill",
@@ -2147,7 +2288,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": false
   },
   {
    "id": "gs-deck-025",
@@ -2156,8 +2299,7 @@
    "tags": [
     "marketing-gtm",
     "흰 바탕 데이터·스위스",
-    "4점",
-    "Genspark"
+    "4점"
    ],
    "source": {
     "type": "genspark-skill",
@@ -2179,7 +2321,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": false
   },
   {
    "id": "gs-deck-026",
@@ -2188,8 +2332,7 @@
    "tags": [
     "corporate-strategy",
     "남색 분할·기관",
-    "5점",
-    "Genspark"
+    "5점"
    ],
    "source": {
     "type": "genspark-skill",
@@ -2211,7 +2354,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": false
   },
   {
    "id": "gs-deck-027",
@@ -2220,8 +2365,7 @@
    "tags": [
     "professional-training",
     "남색 분할·기관",
-    "3점",
-    "Genspark"
+    "3점"
    ],
    "source": {
     "type": "genspark-skill",
@@ -2243,7 +2387,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": false
   },
   {
    "id": "gs-deck-028",
@@ -2252,8 +2398,7 @@
    "tags": [
     "career",
     "미색·명조 에디토리얼",
-    "4점",
-    "Genspark"
+    "4점"
    ],
    "source": {
     "type": "genspark-skill",
@@ -2275,7 +2420,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": false
   },
   {
    "id": "gs-deck-029",
@@ -2284,8 +2431,7 @@
    "tags": [
     "professional-training",
     "미색·명조 에디토리얼",
-    "4점",
-    "Genspark"
+    "4점"
    ],
    "source": {
     "type": "genspark-skill",
@@ -2307,7 +2453,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": false
   },
   {
    "id": "gs-deck-030",
@@ -2316,8 +2464,7 @@
    "tags": [
     "corporate-strategy",
     "남색 분할·기관",
-    "4점",
-    "Genspark"
+    "4점"
    ],
    "source": {
     "type": "genspark-skill",
@@ -2339,7 +2486,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": false
   },
   {
    "id": "gs-deck-031",
@@ -2348,8 +2497,7 @@
    "tags": [
     "professional-training",
     "남색 분할·기관",
-    "4점",
-    "Genspark"
+    "4점"
    ],
    "source": {
     "type": "genspark-skill",
@@ -2371,7 +2519,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": false
   },
   {
    "id": "gs-deck-032",
@@ -2380,8 +2530,7 @@
    "tags": [
     "b2b-sales",
     "미색·명조 에디토리얼",
-    "5점",
-    "Genspark"
+    "5점"
    ],
    "source": {
     "type": "genspark-skill",
@@ -2403,7 +2552,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": false
   },
   {
    "id": "gs-deck-033",
@@ -2412,8 +2563,7 @@
    "tags": [
     "corporate-strategy",
     "도면·산업 사양",
-    "5점",
-    "Genspark"
+    "5점"
    ],
    "source": {
     "type": "genspark-skill",
@@ -2435,7 +2585,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": false
   },
   {
    "id": "gs-deck-034",
@@ -2444,8 +2596,7 @@
    "tags": [
     "professional-training",
     "미색·명조 에디토리얼",
-    "4점",
-    "Genspark"
+    "4점"
    ],
    "source": {
     "type": "genspark-skill",
@@ -2467,7 +2618,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": false
   },
   {
    "id": "gs-deck-035",
@@ -2476,8 +2629,7 @@
    "tags": [
     "student-coursework",
     "남색 분할·기관",
-    "4점",
-    "Genspark"
+    "4점"
    ],
    "source": {
     "type": "genspark-skill",
@@ -2499,7 +2651,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": false
   },
   {
    "id": "gs-deck-036",
@@ -2508,8 +2662,7 @@
    "tags": [
     "design-craft",
     "녹색 기관·지속가능",
-    "4점",
-    "Genspark"
+    "4점"
    ],
    "source": {
     "type": "genspark-skill",
@@ -2531,7 +2684,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": false
   },
   {
    "id": "gs-deck-037",
@@ -2540,8 +2695,7 @@
    "tags": [
     "professional-training",
     "미색·명조 에디토리얼",
-    "3점",
-    "Genspark"
+    "3점"
    ],
    "source": {
     "type": "genspark-skill",
@@ -2563,7 +2717,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": false
   },
   {
    "id": "gs-deck-038",
@@ -2572,8 +2728,7 @@
    "tags": [
     "consulting",
     "미색·명조 에디토리얼",
-    "4점",
-    "Genspark"
+    "4점"
    ],
    "source": {
     "type": "genspark-skill",
@@ -2595,7 +2750,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": false
   },
   {
    "id": "gs-deck-039",
@@ -2604,8 +2761,7 @@
    "tags": [
     "consulting",
     "흰 바탕 데이터·스위스",
-    "4점",
-    "Genspark"
+    "4점"
    ],
    "source": {
     "type": "genspark-skill",
@@ -2627,7 +2783,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": false
   },
   {
    "id": "gs-deck-040",
@@ -2636,8 +2794,7 @@
    "tags": [
     "consulting",
     "녹색 기관·지속가능",
-    "4점",
-    "Genspark"
+    "4점"
    ],
    "source": {
     "type": "genspark-skill",
@@ -2659,7 +2816,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": false
   },
   {
    "id": "gs-deck-041",
@@ -2668,8 +2827,7 @@
    "tags": [
     "corporate-strategy",
     "녹색 기관·지속가능",
-    "4점",
-    "Genspark"
+    "4점"
    ],
    "source": {
     "type": "genspark-skill",
@@ -2681,17 +2839,24 @@
     }
    },
    "note": "",
-   "status": "registered",
+   "status": "approved",
    "registeredAt": "2026-10-02T15:38:17",
-   "reviewedAt": null,
-   "approvedAt": null,
+   "reviewedAt": "2026-10-02T15:57:13",
+   "approvedAt": "2026-10-02T15:57:13",
    "history": [
     {
      "at": "2026-10-02T15:38:17",
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
+    },
+    {
+     "at": "2026-10-02T15:57:13",
+     "action": "approve",
+     "note": ""
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": false
   },
   {
    "id": "gs-deck-042",
@@ -2700,8 +2865,7 @@
    "tags": [
     "student-coursework",
     "흰 바탕 데이터·스위스",
-    "3점",
-    "Genspark"
+    "3점"
    ],
    "source": {
     "type": "genspark-skill",
@@ -2723,7 +2887,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": false
   },
   {
    "id": "gs-deck-043",
@@ -2732,8 +2898,7 @@
    "tags": [
     "corporate-strategy",
     "미색·명조 에디토리얼",
-    "4점",
-    "Genspark"
+    "4점"
    ],
    "source": {
     "type": "genspark-skill",
@@ -2755,7 +2920,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": false
   },
   {
    "id": "gs-deck-044",
@@ -2764,8 +2931,7 @@
    "tags": [
     "data-finance",
     "채도 높은 SaaS",
-    "3점",
-    "Genspark"
+    "3점"
    ],
    "source": {
     "type": "genspark-skill",
@@ -2787,7 +2953,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": false
   },
   {
    "id": "gs-deck-045",
@@ -2796,8 +2964,7 @@
    "tags": [
     "student-coursework",
     "미색·명조 에디토리얼",
-    "4점",
-    "Genspark"
+    "4점"
    ],
    "source": {
     "type": "genspark-skill",
@@ -2819,7 +2986,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": false
   },
   {
    "id": "gs-deck-046",
@@ -2828,8 +2997,7 @@
    "tags": [
     "data-finance",
     "미색·명조 에디토리얼",
-    "4점",
-    "Genspark"
+    "4점"
    ],
    "source": {
     "type": "genspark-skill",
@@ -2851,7 +3019,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": false
   },
   {
    "id": "gs-deck-047",
@@ -2860,8 +3030,7 @@
    "tags": [
     "b2b-sales",
     "미색·명조 에디토리얼",
-    "5점",
-    "Genspark"
+    "5점"
    ],
    "source": {
     "type": "genspark-skill",
@@ -2883,7 +3052,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": false
   },
   {
    "id": "gs-deck-048",
@@ -2892,8 +3063,7 @@
    "tags": [
     "b2b-sales",
     "미색·명조 에디토리얼",
-    "3점",
-    "Genspark"
+    "3점"
    ],
    "source": {
     "type": "genspark-skill",
@@ -2915,7 +3085,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": false
   },
   {
    "id": "gs-deck-049",
@@ -2924,8 +3096,7 @@
    "tags": [
     "design-craft",
     "흰 바탕 데이터·스위스",
-    "3점",
-    "Genspark"
+    "3점"
    ],
    "source": {
     "type": "genspark-skill",
@@ -2937,17 +3108,24 @@
     }
    },
    "note": "",
-   "status": "registered",
+   "status": "approved",
    "registeredAt": "2026-10-02T15:38:17",
-   "reviewedAt": null,
-   "approvedAt": null,
+   "reviewedAt": "2026-10-02T15:57:25",
+   "approvedAt": "2026-10-02T15:57:25",
    "history": [
     {
      "at": "2026-10-02T15:38:17",
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
+    },
+    {
+     "at": "2026-10-02T15:57:25",
+     "action": "approve",
+     "note": ""
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": false
   },
   {
    "id": "gs-deck-050",
@@ -2956,8 +3134,7 @@
    "tags": [
     "corporate-strategy",
     "채도 높은 SaaS",
-    "3점",
-    "Genspark"
+    "3점"
    ],
    "source": {
     "type": "genspark-skill",
@@ -2979,7 +3156,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": false
   },
   {
    "id": "gs-deck-051",
@@ -2988,8 +3167,7 @@
    "tags": [
     "student-coursework",
     "미색·명조 에디토리얼",
-    "3점",
-    "Genspark"
+    "3점"
    ],
    "source": {
     "type": "genspark-skill",
@@ -3011,7 +3189,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": false
   },
   {
    "id": "gs-deck-052",
@@ -3020,8 +3200,7 @@
    "tags": [
     "student-coursework",
     "원색 블록·포스터",
-    "4점",
-    "Genspark"
+    "4점"
    ],
    "source": {
     "type": "genspark-skill",
@@ -3043,7 +3222,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": false
   },
   {
    "id": "gs-deck-053",
@@ -3052,8 +3233,7 @@
    "tags": [
     "professional-training",
     "원색 블록·포스터",
-    "5점",
-    "Genspark"
+    "5점"
    ],
    "source": {
     "type": "genspark-skill",
@@ -3075,7 +3255,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": false
   },
   {
    "id": "gs-deck-054",
@@ -3084,8 +3266,7 @@
    "tags": [
     "fundraising-pitch",
     "원색 블록·포스터",
-    "3점",
-    "Genspark"
+    "3점"
    ],
    "source": {
     "type": "genspark-skill",
@@ -3107,7 +3288,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": false
   },
   {
    "id": "gs-deck-055",
@@ -3116,8 +3299,7 @@
    "tags": [
     "professional-training",
     "원색 블록·포스터",
-    "3점",
-    "Genspark"
+    "3점"
    ],
    "source": {
     "type": "genspark-skill",
@@ -3139,7 +3321,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": false
   },
   {
    "id": "gs-deck-056",
@@ -3148,8 +3332,7 @@
    "tags": [
     "student-coursework",
     "흰 바탕 데이터·스위스",
-    "4점",
-    "Genspark"
+    "4점"
    ],
    "source": {
     "type": "genspark-skill",
@@ -3171,7 +3354,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": false
   },
   {
    "id": "gs-deck-057",
@@ -3180,8 +3365,7 @@
    "tags": [
     "ai-literacy",
     "녹색 기관·지속가능",
-    "4점",
-    "Genspark"
+    "4점"
    ],
    "source": {
     "type": "genspark-skill",
@@ -3203,7 +3387,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": false
   },
   {
    "id": "gs-deck-058",
@@ -3212,8 +3398,7 @@
    "tags": [
     "data-finance",
     "미색·명조 에디토리얼",
-    "3점",
-    "Genspark"
+    "3점"
    ],
    "source": {
     "type": "genspark-skill",
@@ -3235,7 +3420,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": false
   },
   {
    "id": "gs-deck-059",
@@ -3244,8 +3431,7 @@
    "tags": [
     "academic-research",
     "남색 분할·기관",
-    "5점",
-    "Genspark"
+    "5점"
    ],
    "source": {
     "type": "genspark-skill",
@@ -3267,7 +3453,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": false
   },
   {
    "id": "gs-deck-060",
@@ -3276,8 +3464,7 @@
    "tags": [
     "corporate-strategy",
     "미색·명조 에디토리얼",
-    "5점",
-    "Genspark"
+    "5점"
    ],
    "source": {
     "type": "genspark-skill",
@@ -3299,7 +3486,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": false
   },
   {
    "id": "gs-deck-061",
@@ -3308,8 +3497,7 @@
    "tags": [
     "marketing-gtm",
     "원색 블록·포스터",
-    "4점",
-    "Genspark"
+    "4점"
    ],
    "source": {
     "type": "genspark-skill",
@@ -3331,7 +3519,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": false
   },
   {
    "id": "gs-deck-062",
@@ -3340,8 +3530,7 @@
    "tags": [
     "professional-training",
     "녹색 기관·지속가능",
-    "4점",
-    "Genspark"
+    "4점"
    ],
    "source": {
     "type": "genspark-skill",
@@ -3363,7 +3552,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": false
   },
   {
    "id": "gs-deck-063",
@@ -3372,8 +3563,7 @@
    "tags": [
     "corporate-strategy",
     "남색 분할·기관",
-    "3점",
-    "Genspark"
+    "3점"
    ],
    "source": {
     "type": "genspark-skill",
@@ -3395,7 +3585,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": false
   },
   {
    "id": "gs-deck-064",
@@ -3404,8 +3596,7 @@
    "tags": [
     "professional-training",
     "남색 분할·기관",
-    "4점",
-    "Genspark"
+    "4점"
    ],
    "source": {
     "type": "genspark-skill",
@@ -3427,7 +3618,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": false
   },
   {
    "id": "gs-deck-065",
@@ -3436,8 +3629,7 @@
    "tags": [
     "corporate-strategy",
     "미색·명조 에디토리얼",
-    "5점",
-    "Genspark"
+    "5점"
    ],
    "source": {
     "type": "genspark-skill",
@@ -3459,7 +3651,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": false
   },
   {
    "id": "gs-deck-066",
@@ -3468,8 +3662,7 @@
    "tags": [
     "government-policy",
     "남색 분할·기관",
-    "3점",
-    "Genspark"
+    "3점"
    ],
    "source": {
     "type": "genspark-skill",
@@ -3491,7 +3684,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": false
   },
   {
    "id": "gs-deck-067",
@@ -3500,8 +3695,7 @@
    "tags": [
     "corporate-strategy",
     "남색 분할·기관",
-    "4점",
-    "Genspark"
+    "4점"
    ],
    "source": {
     "type": "genspark-skill",
@@ -3523,7 +3717,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": false
   },
   {
    "id": "gs-deck-068",
@@ -3532,8 +3728,7 @@
    "tags": [
     "government-policy",
     "남색 분할·기관",
-    "4점",
-    "Genspark"
+    "4점"
    ],
    "source": {
     "type": "genspark-skill",
@@ -3555,7 +3750,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": false
   },
   {
    "id": "gs-deck-069",
@@ -3564,8 +3761,7 @@
    "tags": [
     "b2b-sales",
     "남색 분할·기관",
-    "3점",
-    "Genspark"
+    "3점"
    ],
    "source": {
     "type": "genspark-skill",
@@ -3587,7 +3783,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": false
   },
   {
    "id": "gs-deck-070",
@@ -3596,8 +3794,7 @@
    "tags": [
     "student-coursework",
     "남색 분할·기관",
-    "3점",
-    "Genspark"
+    "3점"
    ],
    "source": {
     "type": "genspark-skill",
@@ -3619,7 +3816,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": false
   },
   {
    "id": "gs-deck-071",
@@ -3628,8 +3827,7 @@
    "tags": [
     "student-coursework",
     "미색·명조 에디토리얼",
-    "5점",
-    "Genspark"
+    "5점"
    ],
    "source": {
     "type": "genspark-skill",
@@ -3651,7 +3849,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": false
   },
   {
    "id": "gs-deck-072",
@@ -3660,8 +3860,7 @@
    "tags": [
     "b2b-sales",
     "어두운 사진·키노트",
-    "5점",
-    "Genspark"
+    "5점"
    ],
    "source": {
     "type": "genspark-skill",
@@ -3683,7 +3882,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": false
   },
   {
    "id": "gs-deck-073",
@@ -3692,8 +3893,7 @@
    "tags": [
     "student-coursework",
     "남색 분할·기관",
-    "3점",
-    "Genspark"
+    "3점"
    ],
    "source": {
     "type": "genspark-skill",
@@ -3715,7 +3915,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": false
   },
   {
    "id": "gs-deck-074",
@@ -3724,8 +3926,7 @@
    "tags": [
     "b2b-sales",
     "남색 분할·기관",
-    "4점",
-    "Genspark"
+    "4점"
    ],
    "source": {
     "type": "genspark-skill",
@@ -3747,7 +3948,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": false
   },
   {
    "id": "gs-deck-075",
@@ -3756,8 +3959,7 @@
    "tags": [
     "marketing-gtm",
     "녹색 기관·지속가능",
-    "4점",
-    "Genspark"
+    "4점"
    ],
    "source": {
     "type": "genspark-skill",
@@ -3769,17 +3971,29 @@
     }
    },
    "note": "",
-   "status": "registered",
+   "status": "approved",
    "registeredAt": "2026-10-02T15:38:17",
-   "reviewedAt": null,
-   "approvedAt": null,
+   "reviewedAt": "2026-10-02T15:59:04",
+   "approvedAt": "2026-10-02T16:00:31",
    "history": [
     {
      "at": "2026-10-02T15:38:17",
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
+    },
+    {
+     "at": "2026-10-02T15:59:04",
+     "action": "approve",
+     "note": ""
+    },
+    {
+     "at": "2026-10-02T16:00:31",
+     "action": "approve",
+     "note": ""
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": false
   },
   {
    "id": "gs-deck-076",
@@ -3788,8 +4002,7 @@
    "tags": [
     "product-management",
     "흰 바탕 데이터·스위스",
-    "3점",
-    "Genspark"
+    "3점"
    ],
    "source": {
     "type": "genspark-skill",
@@ -3811,7 +4024,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": false
   },
   {
    "id": "gs-deck-077",
@@ -3820,8 +4035,7 @@
    "tags": [
     "b2b-sales",
     "도면·산업 사양",
-    "4점",
-    "Genspark"
+    "4점"
    ],
    "source": {
     "type": "genspark-skill",
@@ -3843,7 +4057,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": false
   },
   {
    "id": "gs-deck-078",
@@ -3852,8 +4068,7 @@
    "tags": [
     "data-finance",
     "미색·명조 에디토리얼",
-    "4점",
-    "Genspark"
+    "4점"
    ],
    "source": {
     "type": "genspark-skill",
@@ -3875,7 +4090,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": false
   },
   {
    "id": "gs-deck-079",
@@ -3884,8 +4101,7 @@
    "tags": [
     "student-coursework",
     "흰 바탕 데이터·스위스",
-    "4점",
-    "Genspark"
+    "4점"
    ],
    "source": {
     "type": "genspark-skill",
@@ -3907,7 +4123,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": false
   },
   {
    "id": "gs-deck-080",
@@ -3916,8 +4134,7 @@
    "tags": [
     "corporate-strategy",
     "남색 분할·기관",
-    "3점",
-    "Genspark"
+    "3점"
    ],
    "source": {
     "type": "genspark-skill",
@@ -3939,7 +4156,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": false
   },
   {
    "id": "gs-deck-081",
@@ -3948,8 +4167,7 @@
    "tags": [
     "fundraising-pitch",
     "미색·명조 에디토리얼",
-    "3점",
-    "Genspark"
+    "3점"
    ],
    "source": {
     "type": "genspark-skill",
@@ -3971,7 +4189,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": false
   },
   {
    "id": "gs-deck-082",
@@ -3980,8 +4200,7 @@
    "tags": [
     "corporate-strategy",
     "남색 분할·기관",
-    "3점",
-    "Genspark"
+    "3점"
    ],
    "source": {
     "type": "genspark-skill",
@@ -4003,7 +4222,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": false
   },
   {
    "id": "gs-deck-083",
@@ -4012,8 +4233,7 @@
    "tags": [
     "student-coursework",
     "원색 블록·포스터",
-    "5점",
-    "Genspark"
+    "5점"
    ],
    "source": {
     "type": "genspark-skill",
@@ -4035,7 +4255,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": false
   },
   {
    "id": "gs-deck-084",
@@ -4044,8 +4266,7 @@
    "tags": [
     "professional-training",
     "원색 블록·포스터",
-    "3점",
-    "Genspark"
+    "3점"
    ],
    "source": {
     "type": "genspark-skill",
@@ -4067,7 +4288,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": false
   },
   {
    "id": "gs-deck-085",
@@ -4076,8 +4299,7 @@
    "tags": [
     "academic-research",
     "미색·명조 에디토리얼",
-    "3점",
-    "Genspark"
+    "3점"
    ],
    "source": {
     "type": "genspark-skill",
@@ -4099,7 +4321,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": false
   },
   {
    "id": "gs-deck-086",
@@ -4108,8 +4332,7 @@
    "tags": [
     "design-craft",
     "어두운 사진·키노트",
-    "4점",
-    "Genspark"
+    "4점"
    ],
    "source": {
     "type": "genspark-skill",
@@ -4131,7 +4354,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": false
   },
   {
    "id": "gs-deck-087",
@@ -4140,8 +4365,7 @@
    "tags": [
     "consulting",
     "흰 바탕 데이터·스위스",
-    "3점",
-    "Genspark"
+    "3점"
    ],
    "source": {
     "type": "genspark-skill",
@@ -4163,7 +4387,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": false
   },
   {
    "id": "gs-deck-088",
@@ -4172,8 +4398,7 @@
    "tags": [
     "marketing-gtm",
     "흰 바탕 데이터·스위스",
-    "4점",
-    "Genspark"
+    "4점"
    ],
    "source": {
     "type": "genspark-skill",
@@ -4195,7 +4420,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": false
   },
   {
    "id": "gs-deck-089",
@@ -4204,8 +4431,7 @@
    "tags": [
     "marketing-gtm",
     "미색·명조 에디토리얼",
-    "5점",
-    "Genspark"
+    "5점"
    ],
    "source": {
     "type": "genspark-skill",
@@ -4227,7 +4453,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": false
   },
   {
    "id": "gs-deck-090",
@@ -4236,8 +4464,7 @@
    "tags": [
     "academic-research",
     "미색·명조 에디토리얼",
-    "3점",
-    "Genspark"
+    "3점"
    ],
    "source": {
     "type": "genspark-skill",
@@ -4259,7 +4486,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": false
   },
   {
    "id": "gs-deck-091",
@@ -4268,8 +4497,7 @@
    "tags": [
     "professional-training",
     "남색 분할·기관",
-    "3점",
-    "Genspark"
+    "3점"
    ],
    "source": {
     "type": "genspark-skill",
@@ -4291,7 +4519,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": false
   },
   {
    "id": "gs-deck-092",
@@ -4300,8 +4530,7 @@
    "tags": [
     "life",
     "미색·명조 에디토리얼",
-    "5점",
-    "Genspark"
+    "5점"
    ],
    "source": {
     "type": "genspark-skill",
@@ -4323,7 +4552,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": false
   },
   {
    "id": "gs-deck-093",
@@ -4332,8 +4563,7 @@
    "tags": [
     "life",
     "어두운 사진·키노트",
-    "5점",
-    "Genspark"
+    "5점"
    ],
    "source": {
     "type": "genspark-skill",
@@ -4355,7 +4585,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": false
   },
   {
    "id": "gs-deck-094",
@@ -4364,8 +4596,7 @@
    "tags": [
     "corporate-strategy",
     "남색 분할·기관",
-    "4점",
-    "Genspark"
+    "4점"
    ],
    "source": {
     "type": "genspark-skill",
@@ -4387,7 +4618,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": false
   },
   {
    "id": "gs-deck-095",
@@ -4396,8 +4629,7 @@
    "tags": [
     "marketing-gtm",
     "남색 분할·기관",
-    "4점",
-    "Genspark"
+    "4점"
    ],
    "source": {
     "type": "genspark-skill",
@@ -4419,7 +4651,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": false
   },
   {
    "id": "gs-deck-096",
@@ -4428,8 +4662,7 @@
    "tags": [
     "marketing-gtm",
     "남색 분할·기관",
-    "5점",
-    "Genspark"
+    "5점"
    ],
    "source": {
     "type": "genspark-skill",
@@ -4451,7 +4684,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": false
   },
   {
    "id": "gs-deck-097",
@@ -4460,8 +4695,7 @@
    "tags": [
     "marketing-gtm",
     "남색 분할·기관",
-    "4점",
-    "Genspark"
+    "4점"
    ],
    "source": {
     "type": "genspark-skill",
@@ -4483,7 +4717,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": false
   },
   {
    "id": "gs-deck-098",
@@ -4492,8 +4728,7 @@
    "tags": [
     "student-coursework",
     "미색·명조 에디토리얼",
-    "4점",
-    "Genspark"
+    "4점"
    ],
    "source": {
     "type": "genspark-skill",
@@ -4515,7 +4750,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": false
   },
   {
    "id": "gs-deck-099",
@@ -4524,8 +4761,7 @@
    "tags": [
     "consulting",
     "남색 분할·기관",
-    "4점",
-    "Genspark"
+    "4점"
    ],
    "source": {
     "type": "genspark-skill",
@@ -4547,7 +4783,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": false
   },
   {
    "id": "gs-deck-100",
@@ -4556,8 +4794,7 @@
    "tags": [
     "professional-training",
     "미색·명조 에디토리얼",
-    "3점",
-    "Genspark"
+    "3점"
    ],
    "source": {
     "type": "genspark-skill",
@@ -4579,7 +4816,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": false
   },
   {
    "id": "gs-deck-101",
@@ -4588,8 +4827,7 @@
    "tags": [
     "design-craft",
     "흰 바탕 데이터·스위스",
-    "3점",
-    "Genspark"
+    "3점"
    ],
    "source": {
     "type": "genspark-skill",
@@ -4601,17 +4839,24 @@
     }
    },
    "note": "",
-   "status": "registered",
+   "status": "approved",
    "registeredAt": "2026-10-02T15:38:17",
-   "reviewedAt": null,
-   "approvedAt": null,
+   "reviewedAt": "2026-10-02T16:00:58",
+   "approvedAt": "2026-10-02T16:00:58",
    "history": [
     {
      "at": "2026-10-02T15:38:17",
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
+    },
+    {
+     "at": "2026-10-02T16:00:58",
+     "action": "approve",
+     "note": ""
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": false
   },
   {
    "id": "gs-deck-102",
@@ -4620,8 +4865,7 @@
    "tags": [
     "professional-training",
     "어두운 사진·키노트",
-    "4점",
-    "Genspark"
+    "4점"
    ],
    "source": {
     "type": "genspark-skill",
@@ -4633,17 +4877,24 @@
     }
    },
    "note": "",
-   "status": "registered",
+   "status": "approved",
    "registeredAt": "2026-10-02T15:38:17",
-   "reviewedAt": null,
-   "approvedAt": null,
+   "reviewedAt": "2026-10-02T16:01:07",
+   "approvedAt": "2026-10-02T16:01:07",
    "history": [
     {
      "at": "2026-10-02T15:38:17",
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
+    },
+    {
+     "at": "2026-10-02T16:01:07",
+     "action": "approve",
+     "note": ""
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": false
   },
   {
    "id": "gs-deck-103",
@@ -4652,8 +4903,7 @@
    "tags": [
     "academic-research",
     "원색 블록·포스터",
-    "2점",
-    "Genspark"
+    "2점"
    ],
    "source": {
     "type": "genspark-skill",
@@ -4675,7 +4925,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": false
   },
   {
    "id": "gs-deck-104",
@@ -4684,8 +4936,7 @@
    "tags": [
     "student-coursework",
     "흰 바탕 데이터·스위스",
-    "5점",
-    "Genspark"
+    "5점"
    ],
    "source": {
     "type": "genspark-skill",
@@ -4707,7 +4958,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": false
   },
   {
    "id": "gs-deck-105",
@@ -4716,8 +4969,7 @@
    "tags": [
     "corporate-strategy",
     "남색 분할·기관",
-    "3점",
-    "Genspark"
+    "3점"
    ],
    "source": {
     "type": "genspark-skill",
@@ -4739,7 +4991,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": false
   },
   {
    "id": "gs-deck-106",
@@ -4748,8 +5002,7 @@
    "tags": [
     "government-policy",
     "남색 분할·기관",
-    "5점",
-    "Genspark"
+    "5점"
    ],
    "source": {
     "type": "genspark-skill",
@@ -4771,7 +5024,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": false
   },
   {
    "id": "gs-deck-107",
@@ -4780,8 +5035,7 @@
    "tags": [
     "academic-research",
     "미색·명조 에디토리얼",
-    "4점",
-    "Genspark"
+    "4점"
    ],
    "source": {
     "type": "genspark-skill",
@@ -4803,7 +5057,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": false
   },
   {
    "id": "gs-deck-108",
@@ -4812,8 +5068,7 @@
    "tags": [
     "academic-research",
     "어두운 사진·키노트",
-    "3점",
-    "Genspark"
+    "3점"
    ],
    "source": {
     "type": "genspark-skill",
@@ -4835,7 +5090,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": false
   },
   {
    "id": "gs-deck-109",
@@ -4844,8 +5101,7 @@
    "tags": [
     "marketing-gtm",
     "남색 분할·기관",
-    "4점",
-    "Genspark"
+    "4점"
    ],
    "source": {
     "type": "genspark-skill",
@@ -4867,7 +5123,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": false
   },
   {
    "id": "gs-deck-110",
@@ -4876,8 +5134,7 @@
    "tags": [
     "academic-research",
     "미색·명조 에디토리얼",
-    "3점",
-    "Genspark"
+    "3점"
    ],
    "source": {
     "type": "genspark-skill",
@@ -4899,7 +5156,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": false
   },
   {
    "id": "gs-deck-111",
@@ -4908,8 +5167,7 @@
    "tags": [
     "government-policy",
     "미색·명조 에디토리얼",
-    "4점",
-    "Genspark"
+    "4점"
    ],
    "source": {
     "type": "genspark-skill",
@@ -4931,7 +5189,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": false
   },
   {
    "id": "gs-deck-112",
@@ -4940,8 +5200,7 @@
    "tags": [
     "career",
     "어두운 사진·키노트",
-    "4점",
-    "Genspark"
+    "4점"
    ],
    "source": {
     "type": "genspark-skill",
@@ -4963,7 +5222,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": false
   },
   {
    "id": "gs-deck-113",
@@ -4972,8 +5233,7 @@
    "tags": [
     "corporate-strategy",
     "미색·명조 에디토리얼",
-    "4점",
-    "Genspark"
+    "4점"
    ],
    "source": {
     "type": "genspark-skill",
@@ -4995,7 +5255,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": false
   },
   {
    "id": "gs-deck-114",
@@ -5004,8 +5266,7 @@
    "tags": [
     "corporate-strategy",
     "채도 높은 SaaS",
-    "2점",
-    "Genspark"
+    "2점"
    ],
    "source": {
     "type": "genspark-skill",
@@ -5027,7 +5288,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": false
   },
   {
    "id": "gs-deck-115",
@@ -5036,8 +5299,7 @@
    "tags": [
     "professional-training",
     "녹색 기관·지속가능",
-    "3점",
-    "Genspark"
+    "3점"
    ],
    "source": {
     "type": "genspark-skill",
@@ -5059,7 +5321,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": false
   },
   {
    "id": "gs-deck-116",
@@ -5068,8 +5332,7 @@
    "tags": [
     "professional-training",
     "남색 분할·기관",
-    "3점",
-    "Genspark"
+    "3점"
    ],
    "source": {
     "type": "genspark-skill",
@@ -5091,7 +5354,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": false
   },
   {
    "id": "gs-deck-117",
@@ -5100,8 +5365,7 @@
    "tags": [
     "student-coursework",
     "남색 분할·기관",
-    "4점",
-    "Genspark"
+    "4점"
    ],
    "source": {
     "type": "genspark-skill",
@@ -5123,7 +5387,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": false
   },
   {
    "id": "gs-deck-118",
@@ -5132,8 +5398,7 @@
    "tags": [
     "academic-research",
     "미색·명조 에디토리얼",
-    "4점",
-    "Genspark"
+    "4점"
    ],
    "source": {
     "type": "genspark-skill",
@@ -5155,7 +5420,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": false
   },
   {
    "id": "gs-deck-119",
@@ -5164,8 +5431,7 @@
    "tags": [
     "product-management",
     "채도 높은 SaaS",
-    "3점",
-    "Genspark"
+    "3점"
    ],
    "source": {
     "type": "genspark-skill",
@@ -5187,7 +5453,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": false
   },
   {
    "id": "gs-deck-120",
@@ -5196,8 +5464,7 @@
    "tags": [
     "professional-training",
     "미색·명조 에디토리얼",
-    "4점",
-    "Genspark"
+    "4점"
    ],
    "source": {
     "type": "genspark-skill",
@@ -5219,7 +5486,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": false
   },
   {
    "id": "gs-deck-121",
@@ -5228,8 +5497,7 @@
    "tags": [
     "government-policy",
     "미색·명조 에디토리얼",
-    "4점",
-    "Genspark"
+    "4점"
    ],
    "source": {
     "type": "genspark-skill",
@@ -5251,7 +5519,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": false
   },
   {
    "id": "gs-deck-122",
@@ -5260,8 +5530,7 @@
    "tags": [
     "product-management",
     "미색·명조 에디토리얼",
-    "4점",
-    "Genspark"
+    "4점"
    ],
    "source": {
     "type": "genspark-skill",
@@ -5283,7 +5552,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": false
   },
   {
    "id": "gs-deck-123",
@@ -5292,8 +5563,7 @@
    "tags": [
     "student-coursework",
     "남색 분할·기관",
-    "3점",
-    "Genspark"
+    "3점"
    ],
    "source": {
     "type": "genspark-skill",
@@ -5315,7 +5585,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": false
   },
   {
    "id": "gs-deck-124",
@@ -5324,8 +5596,7 @@
    "tags": [
     "b2b-sales",
     "미색·명조 에디토리얼",
-    "3점",
-    "Genspark"
+    "3점"
    ],
    "source": {
     "type": "genspark-skill",
@@ -5347,7 +5618,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": false
   },
   {
    "id": "gs-deck-125",
@@ -5356,8 +5629,7 @@
    "tags": [
     "data-finance",
     "미색·명조 에디토리얼",
-    "3점",
-    "Genspark"
+    "3점"
    ],
    "source": {
     "type": "genspark-skill",
@@ -5379,7 +5651,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": false
   },
   {
    "id": "gs-deck-126",
@@ -5388,8 +5662,7 @@
    "tags": [
     "corporate-strategy",
     "남색 분할·기관",
-    "3점",
-    "Genspark"
+    "3점"
    ],
    "source": {
     "type": "genspark-skill",
@@ -5411,7 +5684,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": false
   },
   {
    "id": "gs-deck-127",
@@ -5420,8 +5695,7 @@
    "tags": [
     "student-coursework",
     "흰 바탕 데이터·스위스",
-    "3점",
-    "Genspark"
+    "3점"
    ],
    "source": {
     "type": "genspark-skill",
@@ -5443,7 +5717,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": false
   },
   {
    "id": "gs-deck-128",
@@ -5452,8 +5728,7 @@
    "tags": [
     "corporate-strategy",
     "미색·명조 에디토리얼",
-    "4점",
-    "Genspark"
+    "4점"
    ],
    "source": {
     "type": "genspark-skill",
@@ -5475,7 +5750,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": false
   },
   {
    "id": "gs-deck-129",
@@ -5484,8 +5761,7 @@
    "tags": [
     "product-management",
     "미색·명조 에디토리얼",
-    "4점",
-    "Genspark"
+    "4점"
    ],
    "source": {
     "type": "genspark-skill",
@@ -5507,7 +5783,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": false
   },
   {
    "id": "gs-deck-130",
@@ -5516,8 +5794,7 @@
    "tags": [
     "b2b-sales",
     "남색 분할·기관",
-    "3점",
-    "Genspark"
+    "3점"
    ],
    "source": {
     "type": "genspark-skill",
@@ -5539,7 +5816,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": false
   },
   {
    "id": "gs-deck-131",
@@ -5548,8 +5827,7 @@
    "tags": [
     "professional-training",
     "채도 높은 SaaS",
-    "3점",
-    "Genspark"
+    "3점"
    ],
    "source": {
     "type": "genspark-skill",
@@ -5571,7 +5849,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": false
   },
   {
    "id": "gs-deck-132",
@@ -5580,8 +5860,7 @@
    "tags": [
     "b2b-sales",
     "어두운 사진·키노트",
-    "2점",
-    "Genspark"
+    "2점"
    ],
    "source": {
     "type": "genspark-skill",
@@ -5603,7 +5882,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": false
   },
   {
    "id": "gs-deck-133",
@@ -5612,8 +5893,7 @@
    "tags": [
     "professional-training",
     "채도 높은 SaaS",
-    "3점",
-    "Genspark"
+    "3점"
    ],
    "source": {
     "type": "genspark-skill",
@@ -5635,7 +5915,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": false
   },
   {
    "id": "gs-deck-134",
@@ -5644,8 +5926,7 @@
    "tags": [
     "government-policy",
     "남색 분할·기관",
-    "4점",
-    "Genspark"
+    "4점"
    ],
    "source": {
     "type": "genspark-skill",
@@ -5667,7 +5948,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": false
   },
   {
    "id": "gs-deck-135",
@@ -5676,8 +5959,7 @@
    "tags": [
     "student-coursework",
     "어두운 사진·키노트",
-    "4점",
-    "Genspark"
+    "4점"
    ],
    "source": {
     "type": "genspark-skill",
@@ -5699,7 +5981,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": false
   },
   {
    "id": "gs-deck-136",
@@ -5708,8 +5992,7 @@
    "tags": [
     "fundraising-pitch",
     "미색·명조 에디토리얼",
-    "4점",
-    "Genspark"
+    "4점"
    ],
    "source": {
     "type": "genspark-skill",
@@ -5731,7 +6014,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": false
   },
   {
    "id": "gs-deck-137",
@@ -5740,8 +6025,7 @@
    "tags": [
     "fundraising-pitch",
     "채도 높은 SaaS",
-    "3점",
-    "Genspark"
+    "3점"
    ],
    "source": {
     "type": "genspark-skill",
@@ -5763,7 +6047,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": false
   },
   {
    "id": "gs-deck-138",
@@ -5772,8 +6058,7 @@
    "tags": [
     "career",
     "미색·명조 에디토리얼",
-    "3점",
-    "Genspark"
+    "3점"
    ],
    "source": {
     "type": "genspark-skill",
@@ -5795,7 +6080,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": false
   },
   {
    "id": "gs-deck-139",
@@ -5804,8 +6091,7 @@
    "tags": [
     "fundraising-pitch",
     "녹색 기관·지속가능",
-    "3점",
-    "Genspark"
+    "3점"
    ],
    "source": {
     "type": "genspark-skill",
@@ -5827,7 +6113,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": false
   },
   {
    "id": "gs-deck-140",
@@ -5836,8 +6124,7 @@
    "tags": [
     "marketing-gtm",
     "원색 블록·포스터",
-    "3점",
-    "Genspark"
+    "3점"
    ],
    "source": {
     "type": "genspark-skill",
@@ -5859,7 +6146,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": false
   },
   {
    "id": "gs-deck-141",
@@ -5868,8 +6157,7 @@
    "tags": [
     "data-finance",
     "흰 바탕 데이터·스위스",
-    "3점",
-    "Genspark"
+    "3점"
    ],
    "source": {
     "type": "genspark-skill",
@@ -5891,7 +6179,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": false
   },
   {
    "id": "gs-deck-142",
@@ -5900,8 +6190,7 @@
    "tags": [
     "student-coursework",
     "원색 블록·포스터",
-    "3점",
-    "Genspark"
+    "3점"
    ],
    "source": {
     "type": "genspark-skill",
@@ -5923,7 +6212,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": false
   },
   {
    "id": "gs-deck-143",
@@ -5932,8 +6223,7 @@
    "tags": [
     "fundraising-pitch",
     "남색 분할·기관",
-    "3점",
-    "Genspark"
+    "3점"
    ],
    "source": {
     "type": "genspark-skill",
@@ -5955,7 +6245,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": false
   },
   {
    "id": "gs-deck-144",
@@ -5964,8 +6256,7 @@
    "tags": [
     "student-coursework",
     "녹색 기관·지속가능",
-    "3점",
-    "Genspark"
+    "3점"
    ],
    "source": {
     "type": "genspark-skill",
@@ -5987,7 +6278,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": false
   },
   {
    "id": "gs-deck-145",
@@ -5996,8 +6289,7 @@
    "tags": [
     "student-coursework",
     "미색·명조 에디토리얼",
-    "4점",
-    "Genspark"
+    "4점"
    ],
    "source": {
     "type": "genspark-skill",
@@ -6019,7 +6311,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": false
   },
   {
    "id": "gs-deck-146",
@@ -6028,8 +6322,7 @@
    "tags": [
     "student-coursework",
     "흰 바탕 데이터·스위스",
-    "2점",
-    "Genspark"
+    "2점"
    ],
    "source": {
     "type": "genspark-skill",
@@ -6051,7 +6344,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": false
   },
   {
    "id": "gs-deck-147",
@@ -6060,8 +6355,7 @@
    "tags": [
     "career",
     "어두운 사진·키노트",
-    "5점",
-    "Genspark"
+    "5점"
    ],
    "source": {
     "type": "genspark-skill",
@@ -6083,7 +6377,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": false
   },
   {
    "id": "gs-deck-148",
@@ -6092,8 +6388,7 @@
    "tags": [
     "life",
     "어두운 사진·키노트",
-    "4점",
-    "Genspark"
+    "4점"
    ],
    "source": {
     "type": "genspark-skill",
@@ -6115,7 +6410,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": false
   },
   {
    "id": "gs-deck-149",
@@ -6124,8 +6421,7 @@
    "tags": [
     "corporate-strategy",
     "미색·명조 에디토리얼",
-    "4점",
-    "Genspark"
+    "4점"
    ],
    "source": {
     "type": "genspark-skill",
@@ -6147,7 +6443,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": false
   },
   {
    "id": "gs-deck-150",
@@ -6156,8 +6454,7 @@
    "tags": [
     "student-coursework",
     "남색 분할·기관",
-    "3점",
-    "Genspark"
+    "3점"
    ],
    "source": {
     "type": "genspark-skill",
@@ -6179,7 +6476,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": false
   },
   {
    "id": "gs-deck-151",
@@ -6188,8 +6487,7 @@
    "tags": [
     "professional-training",
     "미색·명조 에디토리얼",
-    "5점",
-    "Genspark"
+    "5점"
    ],
    "source": {
     "type": "genspark-skill",
@@ -6211,7 +6509,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": false
   },
   {
    "id": "gs-deck-152",
@@ -6220,8 +6520,7 @@
    "tags": [
     "professional-training",
     "미색·명조 에디토리얼",
-    "4점",
-    "Genspark"
+    "4점"
    ],
    "source": {
     "type": "genspark-skill",
@@ -6243,7 +6542,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": false
   },
   {
    "id": "gs-deck-153",
@@ -6252,8 +6553,7 @@
    "tags": [
     "academic-research",
     "남색 분할·기관",
-    "4점",
-    "Genspark"
+    "4점"
    ],
    "source": {
     "type": "genspark-skill",
@@ -6275,7 +6575,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": false
   },
   {
    "id": "gs-deck-154",
@@ -6284,8 +6586,7 @@
    "tags": [
     "student-coursework",
     "미색·명조 에디토리얼",
-    "4점",
-    "Genspark"
+    "4점"
    ],
    "source": {
     "type": "genspark-skill",
@@ -6307,7 +6608,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": false
   },
   {
    "id": "gs-deck-155",
@@ -6316,8 +6619,7 @@
    "tags": [
     "fundraising-pitch",
     "원색 블록·포스터",
-    "4점",
-    "Genspark"
+    "4점"
    ],
    "source": {
     "type": "genspark-skill",
@@ -6339,7 +6641,9 @@
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
     }
-   ]
+   ],
+   "scope": "template",
+   "recommended": false
   },
   {
    "id": "gs-deck-156",
@@ -6348,8 +6652,7 @@
    "tags": [
     "career",
     "미색·명조 에디토리얼",
-    "3점",
-    "Genspark"
+    "3점"
    ],
    "source": {
     "type": "genspark-skill",
@@ -6370,6 +6673,3268 @@
      "at": "2026-10-02T15:38:17",
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
+    }
+   ],
+   "scope": "template",
+   "recommended": false
+  },
+  {
+   "id": "rec-ttype-research-report",
+   "scope": "template",
+   "kind": "template-type",
+   "recommended": true,
+   "title": "리서치·리뷰 보고서 (research-report)",
+   "tags": [
+    "템플릿 유형",
+    "14덱·230장",
+    "평균 3.71점"
+   ],
+   "source": {
+    "type": "template-type",
+    "sources": [
+     "001",
+     "004",
+     "006",
+     "046"
+    ],
+    "members": [
+     "001",
+     "004",
+     "006",
+     "007",
+     "046",
+     "049",
+     "056",
+     "078",
+     "103",
+     "107",
+     "108",
+     "117",
+     "118",
+     "125"
+    ],
+    "flow": [
+     "cover-title",
+     "exec-summary",
+     "evidence-panel",
+     "trend-line",
+     "matrix-2x2",
+     "number-evidence",
+     "risk-issues",
+     "summary",
+     "references"
+    ],
+    "detail": {
+     "목적·구성": "조사·분석 결과를 논지로 전달 — 결론 먼저, 근거 패널, 참고문헌",
+     "어울리는 시각 템플릿": "editorial, swiss",
+     "대표 장 흐름": "cover-title → exec-summary → evidence-panel → trend-line → matrix-2x2 → number-evidence → risk-issues → summary → references",
+     "근거 덱": "001 004 006 007 046 049 056 078 103 107 108 117 118 125",
+     "시각 계열": "미색·명조 에디토리얼 8, 흰 바탕 데이터·스위스 3"
+    }
+   },
+   "note": "",
+   "status": "recommended",
+   "registeredAt": "2026-10-02T16:16:38",
+   "reviewedAt": null,
+   "approvedAt": null,
+   "history": [
+    {
+     "at": "2026-10-02T16:16:38",
+     "action": "recommend",
+     "note": "분석 결과 추천(2026-10-02)"
+    }
+   ]
+  },
+  {
+   "id": "rec-ttype-strategy-plan",
+   "scope": "template",
+   "kind": "template-type",
+   "recommended": true,
+   "title": "전략·연례 계획 (strategy-plan)",
+   "tags": [
+    "템플릿 유형",
+    "8덱·117장",
+    "평균 4.25점"
+   ],
+   "source": {
+    "type": "template-type",
+    "sources": [
+     "033",
+     "060",
+     "012",
+     "041"
+    ],
+    "members": [
+     "012",
+     "033",
+     "041",
+     "060",
+     "067",
+     "113",
+     "122",
+     "149"
+    ],
+    "flow": [
+     "cover-photo",
+     "one-sentence",
+     "kpi-dashboard",
+     "issue-tree",
+     "options",
+     "roadmap",
+     "milestones",
+     "next-actions",
+     "end"
+    ],
+    "detail": {
+     "목적·구성": "비전·전략·연간 계획을 한 흐름으로 — 목표·로드맵·투자",
+     "어울리는 시각 템플릿": "forest, ledger",
+     "대표 장 흐름": "cover-photo → one-sentence → kpi-dashboard → issue-tree → options → roadmap → milestones → next-actions → end",
+     "근거 덱": "012 033 041 060 067 113 122 149",
+     "시각 계열": "미색·명조 에디토리얼 5, 도면·산업 사양 1"
+    }
+   },
+   "note": "",
+   "status": "recommended",
+   "registeredAt": "2026-10-02T16:16:38",
+   "reviewedAt": null,
+   "approvedAt": null,
+   "history": [
+    {
+     "at": "2026-10-02T16:16:38",
+     "action": "recommend",
+     "note": "분석 결과 추천(2026-10-02)"
+    }
+   ]
+  },
+  {
+   "id": "rec-ttype-board-decision",
+   "scope": "template",
+   "kind": "template-type",
+   "recommended": true,
+   "title": "이사회·경영 결정 요청 (board-decision)",
+   "tags": [
+    "템플릿 유형",
+    "9덱·90장",
+    "평균 3.44점"
+   ],
+   "source": {
+    "type": "template-type",
+    "sources": [
+     "018",
+     "005",
+     "030",
+     "094"
+    ],
+    "members": [
+     "005",
+     "010",
+     "017",
+     "018",
+     "030",
+     "063",
+     "082",
+     "094",
+     "114"
+    ],
+    "flow": [
+     "exec-summary",
+     "kpi-dashboard",
+     "options",
+     "risk-issues",
+     "decision-ask",
+     "qa"
+    ],
+    "detail": {
+     "목적·구성": "결정권자가 한 번에 판단 — 요약·숫자·리스크·결정 요청·부록",
+     "어울리는 시각 템플릿": "ledger",
+     "대표 장 흐름": "exec-summary → kpi-dashboard → options → risk-issues → decision-ask → qa",
+     "근거 덱": "005 010 017 018 030 063 082 094 114",
+     "시각 계열": "남색 분할·기관 6, 흰 바탕 데이터·스위스 1"
+    }
+   },
+   "note": "",
+   "status": "recommended",
+   "registeredAt": "2026-10-02T16:16:38",
+   "reviewedAt": null,
+   "approvedAt": null,
+   "history": [
+    {
+     "at": "2026-10-02T16:16:38",
+     "action": "recommend",
+     "note": "분석 결과 추천(2026-10-02)"
+    }
+   ]
+  },
+  {
+   "id": "rec-ttype-periodic-report",
+   "scope": "template",
+   "kind": "template-type",
+   "recommended": true,
+   "title": "정기 업무 보고(주간·월간·QBR) (periodic-report)",
+   "tags": [
+    "템플릿 유형",
+    "10덱·120장",
+    "평균 3.1점"
+   ],
+   "source": {
+    "type": "template-type",
+    "sources": [
+     "128",
+     "044",
+     "048",
+     "050"
+    ],
+    "members": [
+     "044",
+     "048",
+     "050",
+     "080",
+     "087",
+     "090",
+     "105",
+     "126",
+     "128",
+     "141"
+    ],
+    "flow": [
+     "kpi-dashboard",
+     "trend-line",
+     "status-board",
+     "bar-compare",
+     "risk-issues",
+     "next-actions"
+    ],
+    "detail": {
+     "목적·구성": "매 회차 같은 배치 — 결론 KPI·추이·상태·이슈·다음 행동",
+     "어울리는 시각 템플릿": "swiss, ledger",
+     "대표 장 흐름": "kpi-dashboard → trend-line → status-board → bar-compare → risk-issues → next-actions",
+     "근거 덱": "044 048 050 080 087 090 105 126 128 141",
+     "시각 계열": "미색·명조 에디토리얼 3, 남색 분할·기관 3"
+    }
+   },
+   "note": "",
+   "status": "recommended",
+   "registeredAt": "2026-10-02T16:16:38",
+   "reviewedAt": null,
+   "approvedAt": null,
+   "history": [
+    {
+     "at": "2026-10-02T16:16:38",
+     "action": "recommend",
+     "note": "분석 결과 추천(2026-10-02)"
+    }
+   ]
+  },
+  {
+   "id": "rec-ttype-investor-pitch",
+   "scope": "template",
+   "kind": "template-type",
+   "recommended": true,
+   "title": "투자 유치 피치 (investor-pitch)",
+   "tags": [
+    "템플릿 유형",
+    "9덱·112장",
+    "평균 3.33점"
+   ],
+   "source": {
+    "type": "template-type",
+    "sources": [
+     "003",
+     "136",
+     "155",
+     "054"
+    ],
+    "members": [
+     "003",
+     "054",
+     "081",
+     "136",
+     "137",
+     "139",
+     "143",
+     "146",
+     "155"
+    ],
+    "flow": [
+     "cover-title",
+     "hook-question",
+     "one-sentence",
+     "funnel",
+     "number-evidence",
+     "team",
+     "pricing",
+     "options",
+     "end"
+    ],
+    "detail": {
+     "목적·구성": "문제→해결→시장→트랙션→팀→요청, 숫자 하나가 장마다",
+     "어울리는 시각 템플릿": "editorial, keynote",
+     "대표 장 흐름": "cover-title → hook-question → one-sentence → funnel → number-evidence → team → pricing → options → end",
+     "근거 덱": "003 054 081 136 137 139 143 146 155",
+     "시각 계열": "미색·명조 에디토리얼 3, 원색 블록·포스터 2"
+    }
+   },
+   "note": "",
+   "status": "recommended",
+   "registeredAt": "2026-10-02T16:16:38",
+   "reviewedAt": null,
+   "approvedAt": null,
+   "history": [
+    {
+     "at": "2026-10-02T16:16:38",
+     "action": "recommend",
+     "note": "분석 결과 추천(2026-10-02)"
+    }
+   ]
+  },
+  {
+   "id": "rec-ttype-ir-finance",
+   "scope": "template",
+   "kind": "template-type",
+   "recommended": true,
+   "title": "IR·재무 브리핑 (ir-finance)",
+   "tags": [
+    "템플릿 유형",
+    "4덱·124장",
+    "평균 4.0점"
+   ],
+   "source": {
+    "type": "template-type",
+    "sources": [
+     "026",
+     "009",
+     "074",
+     "058"
+    ],
+    "members": [
+     "009",
+     "026",
+     "058",
+     "074"
+    ],
+    "flow": [
+     "cover-title",
+     "kpi-dashboard",
+     "data-table",
+     "range-estimate",
+     "evidence-panel",
+     "qa"
+    ],
+    "detail": {
+     "목적·구성": "실적·전망·밸류에이션을 원장풍으로 — 표·범위·요약 패널",
+     "어울리는 시각 템플릿": "ledger",
+     "대표 장 흐름": "cover-title → kpi-dashboard → data-table → range-estimate → evidence-panel → qa",
+     "근거 덱": "009 026 058 074",
+     "시각 계열": "남색 분할·기관 3, 미색·명조 에디토리얼 1"
+    }
+   },
+   "note": "",
+   "status": "recommended",
+   "registeredAt": "2026-10-02T16:16:38",
+   "reviewedAt": null,
+   "approvedAt": null,
+   "history": [
+    {
+     "at": "2026-10-02T16:16:38",
+     "action": "recommend",
+     "note": "분석 결과 추천(2026-10-02)"
+    }
+   ]
+  },
+  {
+   "id": "rec-ttype-sales-proposal",
+   "scope": "template",
+   "kind": "template-type",
+   "recommended": true,
+   "title": "B2B 영업·제안서 (sales-proposal)",
+   "tags": [
+    "템플릿 유형",
+    "11덱·150장",
+    "평균 3.64점"
+   ],
+   "source": {
+    "type": "template-type",
+    "sources": [
+     "032",
+     "072",
+     "038",
+     "061"
+    ],
+    "members": [
+     "016",
+     "032",
+     "038",
+     "061",
+     "069",
+     "072",
+     "077",
+     "097",
+     "124",
+     "130",
+     "132"
+    ],
+    "flow": [
+     "cover-title",
+     "exec-summary",
+     "before-after",
+     "process-flow",
+     "case-story",
+     "pricing",
+     "gantt",
+     "decision-ask"
+    ],
+    "detail": {
+     "목적·구성": "고객 과제→해법→근거→가격·일정→약속, 평가자 채점표",
+     "어울리는 시각 템플릿": "ledger, editorial",
+     "대표 장 흐름": "cover-title → exec-summary → before-after → process-flow → case-story → pricing → gantt → decision-ask",
+     "근거 덱": "016 032 038 061 069 072 077 097 124 130 132",
+     "시각 계열": "남색 분할·기관 4, 미색·명조 에디토리얼 3"
+    }
+   },
+   "note": "",
+   "status": "recommended",
+   "registeredAt": "2026-10-02T16:16:38",
+   "reviewedAt": null,
+   "approvedAt": null,
+   "history": [
+    {
+     "at": "2026-10-02T16:16:38",
+     "action": "recommend",
+     "note": "분석 결과 추천(2026-10-02)"
+    }
+   ]
+  },
+  {
+   "id": "rec-ttype-case-story",
+   "scope": "template",
+   "kind": "template-type",
+   "recommended": true,
+   "title": "사례 연구·회고 이야기 (case-story)",
+   "tags": [
+    "템플릿 유형",
+    "6덱·77장",
+    "평균 4.0점"
+   ],
+   "source": {
+    "type": "template-type",
+    "sources": [
+     "024",
+     "047",
+     "088",
+     "098"
+    ],
+    "members": [
+     "024",
+     "047",
+     "076",
+     "088",
+     "098",
+     "156"
+    ],
+    "flow": [
+     "photo-statement",
+     "one-sentence",
+     "quote-voice",
+     "milestones",
+     "before-after",
+     "number-evidence",
+     "numbered-steps",
+     "summary"
+    ],
+    "detail": {
+     "목적·구성": "목표→사건→선택→결과를 잡지처럼 — 인용·증거·전후 숫자",
+     "어울리는 시각 템플릿": "archive, editorial",
+     "대표 장 흐름": "photo-statement → one-sentence → quote-voice → milestones → before-after → number-evidence → numbered-steps → summary",
+     "근거 덱": "024 047 076 088 098 156",
+     "시각 계열": "미색·명조 에디토리얼 4, 흰 바탕 데이터·스위스 2"
+    }
+   },
+   "note": "",
+   "status": "recommended",
+   "registeredAt": "2026-10-02T16:16:38",
+   "reviewedAt": null,
+   "approvedAt": null,
+   "history": [
+    {
+     "at": "2026-10-02T16:16:38",
+     "action": "recommend",
+     "note": "분석 결과 추천(2026-10-02)"
+    }
+   ]
+  },
+  {
+   "id": "rec-ttype-marketing-campaign",
+   "scope": "template",
+   "kind": "template-type",
+   "recommended": true,
+   "title": "마케팅 캠페인·브랜드 (marketing-campaign)",
+   "tags": [
+    "템플릿 유형",
+    "12덱·204장",
+    "평균 3.92점"
+   ],
+   "source": {
+    "type": "template-type",
+    "sources": [
+     "011",
+     "089",
+     "096",
+     "013"
+    ],
+    "members": [
+     "011",
+     "013",
+     "019",
+     "020",
+     "021",
+     "022",
+     "025",
+     "075",
+     "089",
+     "096",
+     "109",
+     "140"
+    ],
+    "flow": [
+     "cover-photo",
+     "one-sentence",
+     "funnel",
+     "matrix-2x2",
+     "roadmap",
+     "kpi-dashboard",
+     "photo-plates",
+     "next-actions"
+    ],
+    "detail": {
+     "목적·구성": "인사이트→전략→실행→성과, 사진·브랜드 톤",
+     "어울리는 시각 템플릿": "keynote, editorial",
+     "대표 장 흐름": "cover-photo → one-sentence → funnel → matrix-2x2 → roadmap → kpi-dashboard → photo-plates → next-actions",
+     "근거 덱": "011 013 019 020 021 022 025 075 089 096 109 140",
+     "시각 계열": "흰 바탕 데이터·스위스 4, 남색 분할·기관 3"
+    }
+   },
+   "note": "",
+   "status": "recommended",
+   "registeredAt": "2026-10-02T16:16:38",
+   "reviewedAt": null,
+   "approvedAt": null,
+   "history": [
+    {
+     "at": "2026-10-02T16:16:38",
+     "action": "recommend",
+     "note": "분석 결과 추천(2026-10-02)"
+    }
+   ]
+  },
+  {
+   "id": "rec-ttype-consulting",
+   "scope": "template",
+   "kind": "template-type",
+   "recommended": true,
+   "title": "컨설팅·문제 해결 (consulting)",
+   "tags": [
+    "템플릿 유형",
+    "9덱·142장",
+    "평균 3.78점"
+   ],
+   "source": {
+    "type": "template-type",
+    "sources": [
+     "071",
+     "028",
+     "039",
+     "040"
+    ],
+    "members": [
+     "014",
+     "028",
+     "039",
+     "040",
+     "071",
+     "099",
+     "101",
+     "119",
+     "129"
+    ],
+    "flow": [
+     "exec-summary",
+     "issue-tree",
+     "evidence-panel",
+     "matrix-2x2",
+     "options",
+     "roadmap",
+     "decision-ask"
+    ],
+    "detail": {
+     "목적·구성": "가설·이슈 트리·진단·권고 — 결론형 제목과 해석 패널",
+     "어울리는 시각 템플릿": "swiss, editorial",
+     "대표 장 흐름": "exec-summary → issue-tree → evidence-panel → matrix-2x2 → options → roadmap → decision-ask",
+     "근거 덱": "014 028 039 040 071 099 101 119 129",
+     "시각 계열": "미색·명조 에디토리얼 3, 남색 분할·기관 2"
+    }
+   },
+   "note": "",
+   "status": "recommended",
+   "registeredAt": "2026-10-02T16:16:38",
+   "reviewedAt": null,
+   "approvedAt": null,
+   "history": [
+    {
+     "at": "2026-10-02T16:16:38",
+     "action": "recommend",
+     "note": "분석 결과 추천(2026-10-02)"
+    }
+   ]
+  },
+  {
+   "id": "rec-ttype-lecture",
+   "scope": "template",
+   "kind": "template-type",
+   "recommended": true,
+   "title": "강의·교안(이론·이공계) (lecture)",
+   "tags": [
+    "템플릿 유형",
+    "13덱·186장",
+    "평균 3.85점"
+   ],
+   "source": {
+    "type": "template-type",
+    "sources": [
+     "104",
+     "002",
+     "035",
+     "045"
+    ],
+    "members": [
+     "002",
+     "035",
+     "042",
+     "045",
+     "051",
+     "079",
+     "095",
+     "102",
+     "104",
+     "123",
+     "135",
+     "145",
+     "154"
+    ],
+    "flow": [
+     "section",
+     "concept",
+     "diagram",
+     "worked-example",
+     "quiz",
+     "code-walk",
+     "summary"
+    ],
+    "detail": {
+     "목적·구성": "직관→개념→풀이→한계→흔한 실수→과제",
+     "어울리는 시각 템플릿": "swiss, editorial",
+     "대표 장 흐름": "section → concept → diagram → worked-example → quiz → code-walk → summary",
+     "근거 덱": "002 035 042 045 051 079 095 102 104 123 135 145 154",
+     "시각 계열": "미색·명조 에디토리얼 5, 남색 분할·기관 3"
+    }
+   },
+   "note": "",
+   "status": "recommended",
+   "registeredAt": "2026-10-02T16:16:38",
+   "reviewedAt": null,
+   "approvedAt": null,
+   "history": [
+    {
+     "at": "2026-10-02T16:16:38",
+     "action": "recommend",
+     "note": "분석 결과 추천(2026-10-02)"
+    }
+   ]
+  },
+  {
+   "id": "rec-ttype-training",
+   "scope": "template",
+   "kind": "template-type",
+   "recommended": true,
+   "title": "직무·자격 교육 (training)",
+   "tags": [
+    "템플릿 유형",
+    "19덱·268장",
+    "평균 3.58점"
+   ],
+   "source": {
+    "type": "template-type",
+    "sources": [
+     "053",
+     "151",
+     "029",
+     "031"
+    ],
+    "members": [
+     "027",
+     "029",
+     "031",
+     "034",
+     "037",
+     "053",
+     "055",
+     "062",
+     "064",
+     "084",
+     "091",
+     "100",
+     "115",
+     "116",
+     "120",
+     "131",
+     "133",
+     "151",
+     "152"
+    ],
+    "flow": [
+     "agenda",
+     "case-story",
+     "concept",
+     "process-flow",
+     "lab",
+     "quiz",
+     "case-choice",
+     "summary"
+    ],
+    "detail": {
+     "목적·구성": "현장 사례→규칙→실습→확인→휴대 카드",
+     "어울리는 시각 템플릿": "signal, archive",
+     "대표 장 흐름": "agenda → case-story → concept → process-flow → lab → quiz → case-choice → summary",
+     "근거 덱": "027 029 031 034 037 053 055 062 064 084 091 100 115 116 120 131 133 151 152",
+     "시각 계열": "미색·명조 에디토리얼 7, 남색 분할·기관 5"
+    }
+   },
+   "note": "",
+   "status": "recommended",
+   "registeredAt": "2026-10-02T16:16:38",
+   "reviewedAt": null,
+   "approvedAt": null,
+   "history": [
+    {
+     "at": "2026-10-02T16:16:38",
+     "action": "recommend",
+     "note": "분석 결과 추천(2026-10-02)"
+    }
+   ]
+  },
+  {
+   "id": "rec-ttype-classroom",
+   "scope": "template",
+   "kind": "template-type",
+   "recommended": true,
+   "title": "수업·학생 발표 (classroom)",
+   "tags": [
+    "템플릿 유형",
+    "9덱·112장",
+    "평균 3.44점"
+   ],
+   "source": {
+    "type": "template-type",
+    "sources": [
+     "083",
+     "023",
+     "052",
+     "070"
+    ],
+    "members": [
+     "023",
+     "052",
+     "070",
+     "073",
+     "083",
+     "127",
+     "142",
+     "144",
+     "150"
+    ],
+    "flow": [
+     "hook-question",
+     "agenda",
+     "concept",
+     "worked-example",
+     "quiz",
+     "photo-plates",
+     "summary"
+    ],
+    "detail": {
+     "목적·구성": "목표→훅→시범→함께→혼자→나가기, 발표는 질문→방법→결과",
+     "어울리는 시각 템플릿": "signal",
+     "대표 장 흐름": "hook-question → agenda → concept → worked-example → quiz → photo-plates → summary",
+     "근거 덱": "023 052 070 073 083 127 142 144 150",
+     "시각 계열": "원색 블록·포스터 3, 남색 분할·기관 3"
+    }
+   },
+   "note": "",
+   "status": "recommended",
+   "registeredAt": "2026-10-02T16:16:38",
+   "reviewedAt": null,
+   "approvedAt": null,
+   "history": [
+    {
+     "at": "2026-10-02T16:16:38",
+     "action": "recommend",
+     "note": "분석 결과 추천(2026-10-02)"
+    }
+   ]
+  },
+  {
+   "id": "rec-ttype-public-policy",
+   "scope": "template",
+   "kind": "template-type",
+   "recommended": true,
+   "title": "공공·정책·연구 지원 (public-policy)",
+   "tags": [
+    "템플릿 유형",
+    "11덱·175장",
+    "평균 3.91점"
+   ],
+   "source": {
+    "type": "template-type",
+    "sources": [
+     "059",
+     "106",
+     "057",
+     "068"
+    ],
+    "members": [
+     "057",
+     "059",
+     "066",
+     "068",
+     "085",
+     "106",
+     "110",
+     "111",
+     "121",
+     "134",
+     "153"
+    ],
+    "flow": [
+     "exec-summary",
+     "evidence-panel",
+     "options",
+     "funnel",
+     "gantt",
+     "risk-issues",
+     "decision-ask",
+     "references"
+    ],
+    "detail": {
+     "목적·구성": "결론 먼저(BLUF)·대안 비교·근거·예산·요청",
+     "어울리는 시각 템플릿": "ledger, forest",
+     "대표 장 흐름": "exec-summary → evidence-panel → options → funnel → gantt → risk-issues → decision-ask → references",
+     "근거 덱": "057 059 066 068 085 106 110 111 121 134 153",
+     "시각 계열": "남색 분할·기관 6, 미색·명조 에디토리얼 4"
+    }
+   },
+   "note": "",
+   "status": "recommended",
+   "registeredAt": "2026-10-02T16:16:38",
+   "reviewedAt": null,
+   "approvedAt": null,
+   "history": [
+    {
+     "at": "2026-10-02T16:16:38",
+     "action": "recommend",
+     "note": "분석 결과 추천(2026-10-02)"
+    }
+   ]
+  },
+  {
+   "id": "rec-ttype-talk-story",
+   "scope": "template",
+   "kind": "template-type",
+   "recommended": true,
+   "title": "강연·이야기·포트폴리오 (talk-story)",
+   "tags": [
+    "템플릿 유형",
+    "12덱·167장",
+    "평균 4.33점"
+   ],
+   "source": {
+    "type": "template-type",
+    "sources": [
+     "008",
+     "065",
+     "092",
+     "093"
+    ],
+    "members": [
+     "008",
+     "015",
+     "036",
+     "043",
+     "065",
+     "086",
+     "092",
+     "093",
+     "112",
+     "138",
+     "147",
+     "148"
+    ],
+    "flow": [
+     "cover-photo",
+     "photo-statement",
+     "dark-statement",
+     "big-number",
+     "quote-voice",
+     "photo-plates",
+     "one-sentence",
+     "end"
+    ],
+    "detail": {
+     "목적·구성": "한 장 한 문장·사진·큰 숫자의 리듬",
+     "어울리는 시각 템플릿": "keynote, archive",
+     "대표 장 흐름": "cover-photo → photo-statement → dark-statement → big-number → quote-voice → photo-plates → one-sentence → end",
+     "근거 덱": "008 015 036 043 065 086 092 093 112 138 147 148",
+     "시각 계열": "미색·명조 에디토리얼 6, 어두운 사진·키노트 5"
+    }
+   },
+   "note": "",
+   "status": "recommended",
+   "registeredAt": "2026-10-02T16:16:38",
+   "reviewedAt": null,
+   "approvedAt": null,
+   "history": [
+    {
+     "at": "2026-10-02T16:16:38",
+     "action": "recommend",
+     "note": "분석 결과 추천(2026-10-02)"
+    }
+   ]
+  },
+  {
+   "id": "rec-stype-cover-title",
+   "scope": "slide",
+   "kind": "slide-type",
+   "recommended": true,
+   "title": "표지 — 제목형 (cover-title)",
+   "tags": [
+    "시작·도입",
+    "cover",
+    "기존 레이아웃"
+   ],
+   "source": {
+    "type": "slide-type",
+    "ref": "cover-title",
+    "examples": [
+     "023-01",
+     "035-01",
+     "042-01",
+     "045-01",
+     "051-01",
+     "052-01",
+     "056-01",
+     "070-01"
+    ],
+    "detail": {
+     "목적": "덱 제목·부제·발표자로 시작",
+     "분류": "시작·도입",
+     "레이아웃": "cover",
+     "근거 유형": "기존 레이아웃 cover",
+     "이미지 자리": ""
+    }
+   },
+   "note": "",
+   "status": "recommended",
+   "registeredAt": "2026-10-02T16:16:38",
+   "reviewedAt": null,
+   "approvedAt": null,
+   "history": [
+    {
+     "at": "2026-10-02T16:16:38",
+     "action": "recommend",
+     "note": "분석 결과 추천(2026-10-02)"
+    }
+   ]
+  },
+  {
+   "id": "rec-stype-cover-photo",
+   "scope": "slide",
+   "kind": "slide-type",
+   "recommended": true,
+   "title": "표지 — 사진 전면 (cover-photo)",
+   "tags": [
+    "시작·도입",
+    "photo_statement",
+    "새 레이아웃"
+   ],
+   "source": {
+    "type": "slide-type",
+    "ref": "cover-photo",
+    "examples": [
+     "029-03",
+     "151-12",
+     "093-08",
+     "093-15",
+     "148-03",
+     "148-08",
+     "148-09",
+     "072-04"
+    ],
+    "detail": {
+     "목적": "장면 하나로 분위기를 먼저",
+     "분류": "시작·도입",
+     "레이아웃": "photo_statement",
+     "근거 유형": "photo_statement",
+     "이미지 자리": "전면 · 분위기 · 아래 1/3 어둡게"
+    }
+   },
+   "note": "",
+   "status": "recommended",
+   "registeredAt": "2026-10-02T16:16:38",
+   "reviewedAt": null,
+   "approvedAt": null,
+   "history": [
+    {
+     "at": "2026-10-02T16:16:38",
+     "action": "recommend",
+     "note": "분석 결과 추천(2026-10-02)"
+    }
+   ]
+  },
+  {
+   "id": "rec-stype-agenda",
+   "scope": "slide",
+   "kind": "slide-type",
+   "recommended": true,
+   "title": "진행 순서 (agenda)",
+   "tags": [
+    "시작·도입",
+    "agenda",
+    "기존 레이아웃"
+   ],
+   "source": {
+    "type": "slide-type",
+    "ref": "agenda",
+    "examples": [
+     "026-03",
+     "102-03",
+     "009-02",
+     "019-02",
+     "036-10",
+     "106-02"
+    ],
+    "detail": {
+     "목적": "시간·담당이 있는 순서",
+     "분류": "시작·도입",
+     "레이아웃": "agenda",
+     "근거 유형": "기존 레이아웃 agenda",
+     "이미지 자리": ""
+    }
+   },
+   "note": "",
+   "status": "recommended",
+   "registeredAt": "2026-10-02T16:16:38",
+   "reviewedAt": null,
+   "approvedAt": null,
+   "history": [
+    {
+     "at": "2026-10-02T16:16:38",
+     "action": "recommend",
+     "note": "분석 결과 추천(2026-10-02)"
+    }
+   ]
+  },
+  {
+   "id": "rec-stype-toc",
+   "scope": "slide",
+   "kind": "slide-type",
+   "recommended": true,
+   "title": "목차 (toc)",
+   "tags": [
+    "시작·도입",
+    "toc",
+    "기존 레이아웃"
+   ],
+   "source": {
+    "type": "slide-type",
+    "ref": "toc",
+    "examples": [
+     "026-60",
+     "080-14",
+     "094-15",
+     "149-14",
+     "024-02",
+     "025-03",
+     "075-03",
+     "096-03"
+    ],
+    "detail": {
+     "목적": "장 목록으로 길 안내",
+     "분류": "시작·도입",
+     "레이아웃": "toc",
+     "근거 유형": "기존 레이아웃 toc",
+     "이미지 자리": ""
+    }
+   },
+   "note": "",
+   "status": "recommended",
+   "registeredAt": "2026-10-02T16:16:38",
+   "reviewedAt": null,
+   "approvedAt": null,
+   "history": [
+    {
+     "at": "2026-10-02T16:16:38",
+     "action": "recommend",
+     "note": "분석 결과 추천(2026-10-02)"
+    }
+   ]
+  },
+  {
+   "id": "rec-stype-section",
+   "scope": "slide",
+   "kind": "slide-type",
+   "recommended": true,
+   "title": "장 구분 (section)",
+   "tags": [
+    "시작·도입",
+    "chapter",
+    "기존 레이아웃"
+   ],
+   "source": {
+    "type": "slide-type",
+    "ref": "section",
+    "examples": [
+     "096-04",
+     "096-07",
+     "096-12",
+     "096-15",
+     "099-04",
+     "099-09",
+     "099-14"
+    ],
+    "detail": {
+     "목적": "새 장을 여는 표지",
+     "분류": "시작·도입",
+     "레이아웃": "chapter",
+     "근거 유형": "기존 레이아웃 chapter",
+     "이미지 자리": ""
+    }
+   },
+   "note": "",
+   "status": "recommended",
+   "registeredAt": "2026-10-02T16:16:38",
+   "reviewedAt": null,
+   "approvedAt": null,
+   "history": [
+    {
+     "at": "2026-10-02T16:16:38",
+     "action": "recommend",
+     "note": "분석 결과 추천(2026-10-02)"
+    }
+   ]
+  },
+  {
+   "id": "rec-stype-hook-question",
+   "scope": "slide",
+   "kind": "slide-type",
+   "recommended": true,
+   "title": "질문으로 열기 (hook-question)",
+   "tags": [
+    "시작·도입",
+    "statement",
+    "기존 레이아웃"
+   ],
+   "source": {
+    "type": "slide-type",
+    "ref": "hook-question",
+    "examples": [
+     "035-02",
+     "052-03",
+     "056-02",
+     "083-02",
+     "098-02",
+     "117-02",
+     "117-11",
+     "135-10"
+    ],
+    "detail": {
+     "목적": "청중이 답을 궁금해하게 만드는 질문 하나",
+     "분류": "시작·도입",
+     "레이아웃": "statement",
+     "근거 유형": "기존 레이아웃 statement",
+     "이미지 자리": ""
+    }
+   },
+   "note": "",
+   "status": "recommended",
+   "registeredAt": "2026-10-02T16:16:38",
+   "reviewedAt": null,
+   "approvedAt": null,
+   "history": [
+    {
+     "at": "2026-10-02T16:16:38",
+     "action": "recommend",
+     "note": "분석 결과 추천(2026-10-02)"
+    }
+   ]
+  },
+  {
+   "id": "rec-stype-one-sentence",
+   "scope": "slide",
+   "kind": "slide-type",
+   "recommended": true,
+   "title": "핵심 한 문장 (one-sentence)",
+   "tags": [
+    "메시지",
+    "statement",
+    "기존 레이아웃"
+   ],
+   "source": {
+    "type": "slide-type",
+    "ref": "one-sentence",
+    "examples": [
+     "035-02",
+     "052-03",
+     "056-02",
+     "083-02",
+     "098-02",
+     "117-02",
+     "117-11",
+     "135-10"
+    ],
+    "detail": {
+     "목적": "덱 전체를 꿰는 문장(축)",
+     "분류": "메시지",
+     "레이아웃": "statement",
+     "근거 유형": "기존 레이아웃 statement",
+     "이미지 자리": ""
+    }
+   },
+   "note": "",
+   "status": "recommended",
+   "registeredAt": "2026-10-02T16:16:38",
+   "reviewedAt": null,
+   "approvedAt": null,
+   "history": [
+    {
+     "at": "2026-10-02T16:16:38",
+     "action": "recommend",
+     "note": "분석 결과 추천(2026-10-02)"
+    }
+   ]
+  },
+  {
+   "id": "rec-stype-dark-statement",
+   "scope": "slide",
+   "kind": "slide-type",
+   "recommended": true,
+   "title": "어두운 전환 문장 (dark-statement)",
+   "tags": [
+    "메시지",
+    "statement",
+    "기존 레이아웃"
+   ],
+   "source": {
+    "type": "slide-type",
+    "ref": "dark-statement",
+    "examples": [
+     "035-02",
+     "052-03",
+     "056-02",
+     "083-02",
+     "098-02",
+     "117-02",
+     "117-11",
+     "135-10"
+    ],
+    "detail": {
+     "목적": "흐름을 끊고 강조하는 쉼표 장",
+     "분류": "메시지",
+     "레이아웃": "statement",
+     "근거 유형": "기존 레이아웃 statement",
+     "이미지 자리": ""
+    }
+   },
+   "note": "",
+   "status": "recommended",
+   "registeredAt": "2026-10-02T16:16:38",
+   "reviewedAt": null,
+   "approvedAt": null,
+   "history": [
+    {
+     "at": "2026-10-02T16:16:38",
+     "action": "recommend",
+     "note": "분석 결과 추천(2026-10-02)"
+    }
+   ]
+  },
+  {
+   "id": "rec-stype-photo-statement",
+   "scope": "slide",
+   "kind": "slide-type",
+   "recommended": true,
+   "title": "사진 + 한 문장 (photo-statement)",
+   "tags": [
+    "메시지",
+    "photo_statement",
+    "새 레이아웃"
+   ],
+   "source": {
+    "type": "slide-type",
+    "ref": "photo-statement",
+    "examples": [
+     "029-03",
+     "151-12",
+     "093-08",
+     "093-15",
+     "148-03",
+     "148-08",
+     "148-09",
+     "072-04"
+    ],
+    "detail": {
+     "목적": "현장 사진 위에 기억할 문장",
+     "분류": "메시지",
+     "레이아웃": "photo_statement",
+     "근거 유형": "photo_statement",
+     "이미지 자리": "전면 · 장소·분위기 · 피사체 위쪽"
+    }
+   },
+   "note": "",
+   "status": "recommended",
+   "registeredAt": "2026-10-02T16:16:38",
+   "reviewedAt": null,
+   "approvedAt": null,
+   "history": [
+    {
+     "at": "2026-10-02T16:16:38",
+     "action": "recommend",
+     "note": "분석 결과 추천(2026-10-02)"
+    }
+   ]
+  },
+  {
+   "id": "rec-stype-quote-voice",
+   "scope": "slide",
+   "kind": "slide-type",
+   "recommended": true,
+   "title": "인용 — 고객·현장의 말 (quote-voice)",
+   "tags": [
+    "메시지",
+    "quote",
+    "기존 레이아웃"
+   ],
+   "source": {
+    "type": "slide-type",
+    "ref": "quote-voice",
+    "examples": [
+     "051-07",
+     "051-08",
+     "051-11",
+     "056-13",
+     "098-05",
+     "127-11",
+     "043-09",
+     "027-10"
+    ],
+    "detail": {
+     "목적": "실명 화자의 한마디로 신뢰",
+     "분류": "메시지",
+     "레이아웃": "quote",
+     "근거 유형": "기존 레이아웃 quote",
+     "이미지 자리": ""
+    }
+   },
+   "note": "",
+   "status": "recommended",
+   "registeredAt": "2026-10-02T16:16:38",
+   "reviewedAt": null,
+   "approvedAt": null,
+   "history": [
+    {
+     "at": "2026-10-02T16:16:38",
+     "action": "recommend",
+     "note": "분석 결과 추천(2026-10-02)"
+    }
+   ]
+  },
+  {
+   "id": "rec-stype-big-number",
+   "scope": "slide",
+   "kind": "slide-type",
+   "recommended": true,
+   "title": "숫자 하나 (big-number)",
+   "tags": [
+    "메시지",
+    "big_number",
+    "기존 레이아웃"
+   ],
+   "source": {
+    "type": "slide-type",
+    "ref": "big-number",
+    "examples": [
+     "144-03",
+     "030-04",
+     "041-03",
+     "067-03",
+     "053-04",
+     "053-09",
+     "115-06",
+     "011-02"
+    ],
+    "detail": {
+     "목적": "결론이 되는 숫자 하나와 맥락",
+     "분류": "메시지",
+     "레이아웃": "big_number",
+     "근거 유형": "기존 레이아웃 big_number",
+     "이미지 자리": ""
+    }
+   },
+   "note": "",
+   "status": "recommended",
+   "registeredAt": "2026-10-02T16:16:38",
+   "reviewedAt": null,
+   "approvedAt": null,
+   "history": [
+    {
+     "at": "2026-10-02T16:16:38",
+     "action": "recommend",
+     "note": "분석 결과 추천(2026-10-02)"
+    }
+   ]
+  },
+  {
+   "id": "rec-stype-exec-summary",
+   "scope": "slide",
+   "kind": "slide-type",
+   "recommended": true,
+   "title": "요약 — 결론 먼저 (exec-summary)",
+   "tags": [
+    "메시지",
+    "insight_panel",
+    "새 레이아웃"
+   ],
+   "source": {
+    "type": "slide-type",
+    "ref": "exec-summary",
+    "examples": [
+     "042-05",
+     "056-03",
+     "056-11",
+     "071-08",
+     "071-11",
+     "073-05",
+     "073-06",
+     "079-05"
+    ],
+    "detail": {
+     "목적": "근거 3개와 결론 수치를 첫 장에",
+     "분류": "메시지",
+     "레이아웃": "insight_panel",
+     "근거 유형": "insight_panel",
+     "이미지 자리": ""
+    }
+   },
+   "note": "",
+   "status": "recommended",
+   "registeredAt": "2026-10-02T16:16:38",
+   "reviewedAt": null,
+   "approvedAt": null,
+   "history": [
+    {
+     "at": "2026-10-02T16:16:38",
+     "action": "recommend",
+     "note": "분석 결과 추천(2026-10-02)"
+    }
+   ]
+  },
+  {
+   "id": "rec-stype-kpi-dashboard",
+   "scope": "slide",
+   "kind": "slide-type",
+   "recommended": true,
+   "title": "KPI 대시보드 (kpi-dashboard)",
+   "tags": [
+    "근거·데이터",
+    "kpi_tiles",
+    "기존 레이아웃"
+   ],
+   "source": {
+    "type": "slide-type",
+    "ref": "kpi-dashboard",
+    "examples": [
+     "052-04",
+     "079-11",
+     "079-12",
+     "123-07",
+     "127-05",
+     "127-09",
+     "142-03",
+     "144-08"
+    ],
+    "detail": {
+     "목적": "핵심 지표 2~4개를 목표·비교와 함께",
+     "분류": "근거·데이터",
+     "레이아웃": "kpi_tiles",
+     "근거 유형": "기존 레이아웃 kpi_tiles",
+     "이미지 자리": ""
+    }
+   },
+   "note": "",
+   "status": "recommended",
+   "registeredAt": "2026-10-02T16:16:38",
+   "reviewedAt": null,
+   "approvedAt": null,
+   "history": [
+    {
+     "at": "2026-10-02T16:16:38",
+     "action": "recommend",
+     "note": "분석 결과 추천(2026-10-02)"
+    }
+   ]
+  },
+  {
+   "id": "rec-stype-trend-line",
+   "scope": "slide",
+   "kind": "slide-type",
+   "recommended": true,
+   "title": "추이 — 선 그래프 (trend-line)",
+   "tags": [
+    "근거·데이터",
+    "line_chart",
+    "새 레이아웃"
+   ],
+   "source": {
+    "type": "slide-type",
+    "ref": "trend-line",
+    "examples": [
+     "033-05",
+     "033-06",
+     "031-09",
+     "100-06",
+     "102-26",
+     "088-10",
+     "096-08",
+     "032-11"
+    ],
+    "detail": {
+     "목적": "시간에 따른 변화·계획 대비·이벤트 전후",
+     "분류": "근거·데이터",
+     "레이아웃": "line_chart",
+     "근거 유형": "line_chart",
+     "이미지 자리": ""
+    }
+   },
+   "note": "",
+   "status": "recommended",
+   "registeredAt": "2026-10-02T16:16:38",
+   "reviewedAt": null,
+   "approvedAt": null,
+   "history": [
+    {
+     "at": "2026-10-02T16:16:38",
+     "action": "recommend",
+     "note": "분석 결과 추천(2026-10-02)"
+    }
+   ]
+  },
+  {
+   "id": "rec-stype-bar-compare",
+   "scope": "slide",
+   "kind": "slide-type",
+   "recommended": true,
+   "title": "막대 비교 (bar-compare)",
+   "tags": [
+    "근거·데이터",
+    "column_chart",
+    "기존 레이아웃"
+   ],
+   "source": {
+    "type": "slide-type",
+    "ref": "bar-compare",
+    "examples": [
+     "135-08",
+     "010-02",
+     "017-04",
+     "026-12",
+     "026-13",
+     "026-44",
+     "026-58",
+     "033-03"
+    ],
+    "detail": {
+     "목적": "항목·기간별 크기 비교",
+     "분류": "근거·데이터",
+     "레이아웃": "column_chart",
+     "근거 유형": "기존 레이아웃 column_chart",
+     "이미지 자리": ""
+    }
+   },
+   "note": "",
+   "status": "recommended",
+   "registeredAt": "2026-10-02T16:16:38",
+   "reviewedAt": null,
+   "approvedAt": null,
+   "history": [
+    {
+     "at": "2026-10-02T16:16:38",
+     "action": "recommend",
+     "note": "분석 결과 추천(2026-10-02)"
+    }
+   ]
+  },
+  {
+   "id": "rec-stype-composition",
+   "scope": "slide",
+   "kind": "slide-type",
+   "recommended": true,
+   "title": "구성비 (composition)",
+   "tags": [
+    "근거·데이터",
+    "stack_bars",
+    "기존 레이아웃"
+   ],
+   "source": {
+    "type": "slide-type",
+    "ref": "composition",
+    "examples": [
+     "071-06",
+     "145-06",
+     "010-06",
+     "030-05",
+     "033-13",
+     "067-07",
+     "067-09",
+     "113-06"
+    ],
+    "detail": {
+     "목적": "전체 안의 비율 비교",
+     "분류": "근거·데이터",
+     "레이아웃": "stack_bars",
+     "근거 유형": "기존 레이아웃 stack_bars",
+     "이미지 자리": ""
+    }
+   },
+   "note": "",
+   "status": "recommended",
+   "registeredAt": "2026-10-02T16:16:38",
+   "reviewedAt": null,
+   "approvedAt": null,
+   "history": [
+    {
+     "at": "2026-10-02T16:16:38",
+     "action": "recommend",
+     "note": "분석 결과 추천(2026-10-02)"
+    }
+   ]
+  },
+  {
+   "id": "rec-stype-number-evidence",
+   "scope": "slide",
+   "kind": "slide-type",
+   "recommended": true,
+   "title": "숫자 + 근거 차트 (number-evidence)",
+   "tags": [
+    "근거·데이터",
+    "number_chart",
+    "새 레이아웃"
+   ],
+   "source": {
+    "type": "slide-type",
+    "ref": "number-evidence",
+    "examples": [
+     "042-07",
+     "127-08",
+     "144-07",
+     "150-08",
+     "030-14",
+     "041-05",
+     "021-04",
+     "021-07"
+    ],
+    "detail": {
+     "목적": "결론 숫자와 그 추이를 한 장에",
+     "분류": "근거·데이터",
+     "레이아웃": "number_chart",
+     "근거 유형": "big_number_evidence",
+     "이미지 자리": ""
+    }
+   },
+   "note": "",
+   "status": "recommended",
+   "registeredAt": "2026-10-02T16:16:38",
+   "reviewedAt": null,
+   "approvedAt": null,
+   "history": [
+    {
+     "at": "2026-10-02T16:16:38",
+     "action": "recommend",
+     "note": "분석 결과 추천(2026-10-02)"
+    }
+   ]
+  },
+  {
+   "id": "rec-stype-evidence-panel",
+   "scope": "slide",
+   "kind": "slide-type",
+   "recommended": true,
+   "title": "근거 + 해석 패널 (evidence-panel)",
+   "tags": [
+    "근거·데이터",
+    "insight_panel",
+    "새 레이아웃"
+   ],
+   "source": {
+    "type": "slide-type",
+    "ref": "evidence-panel",
+    "examples": [
+     "042-05",
+     "056-03",
+     "056-11",
+     "071-08",
+     "071-11",
+     "073-05",
+     "073-06",
+     "079-05"
+    ],
+    "detail": {
+     "목적": "표·목록 근거 옆에 해석을 고정",
+     "분류": "근거·데이터",
+     "레이아웃": "insight_panel",
+     "근거 유형": "insight_panel",
+     "이미지 자리": ""
+    }
+   },
+   "note": "",
+   "status": "recommended",
+   "registeredAt": "2026-10-02T16:16:38",
+   "reviewedAt": null,
+   "approvedAt": null,
+   "history": [
+    {
+     "at": "2026-10-02T16:16:38",
+     "action": "recommend",
+     "note": "분석 결과 추천(2026-10-02)"
+    }
+   ]
+  },
+  {
+   "id": "rec-stype-data-table",
+   "scope": "slide",
+   "kind": "slide-type",
+   "recommended": true,
+   "title": "표 (data-table)",
+   "tags": [
+    "근거·데이터",
+    "table",
+    "기존 레이아웃"
+   ],
+   "source": {
+    "type": "slide-type",
+    "ref": "data-table",
+    "examples": [
+     "042-03",
+     "042-04",
+     "045-07",
+     "052-02",
+     "056-06",
+     "056-07",
+     "056-12",
+     "071-07"
+    ],
+    "detail": {
+     "목적": "여러 항목을 같은 기준으로",
+     "분류": "근거·데이터",
+     "레이아웃": "table",
+     "근거 유형": "기존 레이아웃 table",
+     "이미지 자리": ""
+    }
+   },
+   "note": "",
+   "status": "recommended",
+   "registeredAt": "2026-10-02T16:16:38",
+   "reviewedAt": null,
+   "approvedAt": null,
+   "history": [
+    {
+     "at": "2026-10-02T16:16:38",
+     "action": "recommend",
+     "note": "분석 결과 추천(2026-10-02)"
+    }
+   ]
+  },
+  {
+   "id": "rec-stype-status-board",
+   "scope": "slide",
+   "kind": "slide-type",
+   "recommended": true,
+   "title": "상태 표(신호등) (status-board)",
+   "tags": [
+    "근거·데이터",
+    "status_table",
+    "기존 레이아웃"
+   ],
+   "source": {
+    "type": "slide-type",
+    "ref": "status-board",
+    "examples": [
+     "070-04",
+     "071-10",
+     "117-06",
+     "123-08",
+     "150-11",
+     "017-03",
+     "026-54",
+     "065-14"
+    ],
+    "detail": {
+     "목적": "계획 대비 실적과 상태",
+     "분류": "근거·데이터",
+     "레이아웃": "status_table",
+     "근거 유형": "기존 레이아웃 status_table",
+     "이미지 자리": ""
+    }
+   },
+   "note": "",
+   "status": "recommended",
+   "registeredAt": "2026-10-02T16:16:38",
+   "reviewedAt": null,
+   "approvedAt": null,
+   "history": [
+    {
+     "at": "2026-10-02T16:16:38",
+     "action": "recommend",
+     "note": "분석 결과 추천(2026-10-02)"
+    }
+   ]
+  },
+  {
+   "id": "rec-stype-range-estimate",
+   "scope": "slide",
+   "kind": "slide-type",
+   "recommended": true,
+   "title": "범위·민감도 (range-estimate)",
+   "tags": [
+    "근거·데이터",
+    "range_bars",
+    "새 레이아웃"
+   ],
+   "source": {
+    "type": "slide-type",
+    "ref": "range-estimate",
+    "examples": [
+     "050-04",
+     "094-07",
+     "088-03",
+     "096-09",
+     "074-21",
+     "099-12",
+     "099-17",
+     "036-02"
+    ],
+    "detail": {
+     "목적": "추정치를 범위로·기준선과 함께",
+     "분류": "근거·데이터",
+     "레이아웃": "range_bars",
+     "근거 유형": "range_scale",
+     "이미지 자리": ""
+    }
+   },
+   "note": "",
+   "status": "recommended",
+   "registeredAt": "2026-10-02T16:16:38",
+   "reviewedAt": null,
+   "approvedAt": null,
+   "history": [
+    {
+     "at": "2026-10-02T16:16:38",
+     "action": "recommend",
+     "note": "분석 결과 추천(2026-10-02)"
+    }
+   ]
+  },
+  {
+   "id": "rec-stype-funnel",
+   "scope": "slide",
+   "kind": "slide-type",
+   "recommended": true,
+   "title": "깔때기·시장 규모 (funnel)",
+   "tags": [
+    "근거·데이터",
+    "funnel",
+    "새 레이아웃"
+   ],
+   "source": {
+    "type": "slide-type",
+    "ref": "funnel",
+    "examples": [
+     "026-46",
+     "041-08",
+     "082-11",
+     "053-06",
+     "053-14",
+     "097-06",
+     "039-08",
+     "074-08"
+    ],
+    "detail": {
+     "목적": "단계별로 줄어드는 수(전환·TAM)",
+     "분류": "근거·데이터",
+     "레이아웃": "funnel",
+     "근거 유형": "funnel_pyramid",
+     "이미지 자리": ""
+    }
+   },
+   "note": "",
+   "status": "recommended",
+   "registeredAt": "2026-10-02T16:16:38",
+   "reviewedAt": null,
+   "approvedAt": null,
+   "history": [
+    {
+     "at": "2026-10-02T16:16:38",
+     "action": "recommend",
+     "note": "분석 결과 추천(2026-10-02)"
+    }
+   ]
+  },
+  {
+   "id": "rec-stype-before-after",
+   "scope": "slide",
+   "kind": "slide-type",
+   "recommended": true,
+   "title": "전후 비교 (before-after)",
+   "tags": [
+    "비교·판단",
+    "compare",
+    "기존 레이아웃"
+   ],
+   "source": {
+    "type": "slide-type",
+    "ref": "before-after",
+    "examples": [
+     "035-04",
+     "035-09",
+     "035-10",
+     "045-03",
+     "045-06",
+     "045-09",
+     "045-10",
+     "045-11"
+    ],
+    "detail": {
+     "목적": "바꾸기 전과 후",
+     "분류": "비교·판단",
+     "레이아웃": "compare",
+     "근거 유형": "기존 레이아웃 compare",
+     "이미지 자리": ""
+    }
+   },
+   "note": "",
+   "status": "recommended",
+   "registeredAt": "2026-10-02T16:16:38",
+   "reviewedAt": null,
+   "approvedAt": null,
+   "history": [
+    {
+     "at": "2026-10-02T16:16:38",
+     "action": "recommend",
+     "note": "분석 결과 추천(2026-10-02)"
+    }
+   ]
+  },
+  {
+   "id": "rec-stype-options",
+   "scope": "slide",
+   "kind": "slide-type",
+   "recommended": true,
+   "title": "선택지 비교(추천 강조) (options)",
+   "tags": [
+    "비교·판단",
+    "tier_columns",
+    "새 레이아웃"
+   ],
+   "source": {
+    "type": "slide-type",
+    "ref": "options",
+    "examples": [
+     "009-17",
+     "097-11",
+     "109-16",
+     "109-19",
+     "048-12",
+     "072-09",
+     "099-16",
+     "124-07"
+    ],
+    "detail": {
+     "목적": "대안 2~4개 중 추천안",
+     "분류": "비교·판단",
+     "레이아웃": "tier_columns",
+     "근거 유형": "tier_columns",
+     "이미지 자리": ""
+    }
+   },
+   "note": "",
+   "status": "recommended",
+   "registeredAt": "2026-10-02T16:16:38",
+   "reviewedAt": null,
+   "approvedAt": null,
+   "history": [
+    {
+     "at": "2026-10-02T16:16:38",
+     "action": "recommend",
+     "note": "분석 결과 추천(2026-10-02)"
+    }
+   ]
+  },
+  {
+   "id": "rec-stype-matrix-2x2",
+   "scope": "slide",
+   "kind": "slide-type",
+   "recommended": true,
+   "title": "사분면 우선순위 (matrix-2x2)",
+   "tags": [
+    "비교·판단",
+    "matrix_plot",
+    "새 레이아웃"
+   ],
+   "source": {
+    "type": "slide-type",
+    "ref": "matrix-2x2",
+    "examples": [
+     "026-53",
+     "033-14",
+     "060-03",
+     "067-05",
+     "080-03",
+     "082-07",
+     "094-06",
+     "113-08"
+    ],
+    "detail": {
+     "목적": "효과×실행으로 항목 배치",
+     "분류": "비교·판단",
+     "레이아웃": "matrix_plot",
+     "근거 유형": "matrix_plot",
+     "이미지 자리": ""
+    }
+   },
+   "note": "",
+   "status": "recommended",
+   "registeredAt": "2026-10-02T16:16:38",
+   "reviewedAt": null,
+   "approvedAt": null,
+   "history": [
+    {
+     "at": "2026-10-02T16:16:38",
+     "action": "recommend",
+     "note": "분석 결과 추천(2026-10-02)"
+    }
+   ]
+  },
+  {
+   "id": "rec-stype-pros-cons",
+   "scope": "slide",
+   "kind": "slide-type",
+   "recommended": true,
+   "title": "장단점·대비 카드 (pros-cons)",
+   "tags": [
+    "비교·판단",
+    "cards",
+    "기존 레이아웃"
+   ],
+   "source": {
+    "type": "slide-type",
+    "ref": "pros-cons",
+    "examples": [
+     "042-08",
+     "045-02",
+     "051-03",
+     "051-09",
+     "052-10",
+     "070-03",
+     "070-07",
+     "070-08"
+    ],
+    "detail": {
+     "목적": "두세 가지를 나란히 대비",
+     "분류": "비교·판단",
+     "레이아웃": "cards",
+     "근거 유형": "기존 레이아웃 cards",
+     "이미지 자리": ""
+    }
+   },
+   "note": "",
+   "status": "recommended",
+   "registeredAt": "2026-10-02T16:16:38",
+   "reviewedAt": null,
+   "approvedAt": null,
+   "history": [
+    {
+     "at": "2026-10-02T16:16:38",
+     "action": "recommend",
+     "note": "분석 결과 추천(2026-10-02)"
+    }
+   ]
+  },
+  {
+   "id": "rec-stype-decision-ask",
+   "scope": "slide",
+   "kind": "slide-type",
+   "recommended": true,
+   "title": "결정 요청 (decision-ask)",
+   "tags": [
+    "비교·판단",
+    "decision_brief",
+    "기존 레이아웃"
+   ],
+   "source": {
+    "type": "slide-type",
+    "ref": "decision-ask",
+    "examples": [
+     "071-02",
+     "071-12",
+     "146-06",
+     "008-12",
+     "030-02",
+     "050-10",
+     "050-14",
+     "063-01"
+    ],
+    "detail": {
+     "목적": "무엇을·누가·언제까지 결정",
+     "분류": "비교·판단",
+     "레이아웃": "decision_brief",
+     "근거 유형": "기존 레이아웃 decision_brief",
+     "이미지 자리": ""
+    }
+   },
+   "note": "",
+   "status": "recommended",
+   "registeredAt": "2026-10-02T16:16:38",
+   "reviewedAt": null,
+   "approvedAt": null,
+   "history": [
+    {
+     "at": "2026-10-02T16:16:38",
+     "action": "recommend",
+     "note": "분석 결과 추천(2026-10-02)"
+    }
+   ]
+  },
+  {
+   "id": "rec-stype-risk-issues",
+   "scope": "slide",
+   "kind": "slide-type",
+   "recommended": true,
+   "title": "리스크·이슈와 요청 (risk-issues)",
+   "tags": [
+    "비교·판단",
+    "issue_cards",
+    "기존 레이아웃"
+   ],
+   "source": {
+    "type": "slide-type",
+    "ref": "risk-issues",
+    "examples": [
+     "008-06",
+     "026-23",
+     "026-29",
+     "026-35",
+     "026-41",
+     "026-55",
+     "050-06",
+     "060-09"
+    ],
+    "detail": {
+     "목적": "상황·영향·요청·담당·기한",
+     "분류": "비교·판단",
+     "레이아웃": "issue_cards",
+     "근거 유형": "기존 레이아웃 issue_cards",
+     "이미지 자리": ""
+    }
+   },
+   "note": "",
+   "status": "recommended",
+   "registeredAt": "2026-10-02T16:16:38",
+   "reviewedAt": null,
+   "approvedAt": null,
+   "history": [
+    {
+     "at": "2026-10-02T16:16:38",
+     "action": "recommend",
+     "note": "분석 결과 추천(2026-10-02)"
+    }
+   ]
+  },
+  {
+   "id": "rec-stype-pricing",
+   "scope": "slide",
+   "kind": "slide-type",
+   "recommended": true,
+   "title": "가격·패키지 (pricing)",
+   "tags": [
+    "비교·판단",
+    "tier_columns",
+    "새 레이아웃"
+   ],
+   "source": {
+    "type": "slide-type",
+    "ref": "pricing",
+    "examples": [
+     "009-17",
+     "097-11",
+     "109-16",
+     "109-19",
+     "048-12",
+     "072-09",
+     "099-16",
+     "124-07"
+    ],
+    "detail": {
+     "목적": "등급별 값과 포함 항목",
+     "분류": "비교·판단",
+     "레이아웃": "tier_columns",
+     "근거 유형": "tier_columns",
+     "이미지 자리": ""
+    }
+   },
+   "note": "",
+   "status": "recommended",
+   "registeredAt": "2026-10-02T16:16:38",
+   "reviewedAt": null,
+   "approvedAt": null,
+   "history": [
+    {
+     "at": "2026-10-02T16:16:38",
+     "action": "recommend",
+     "note": "분석 결과 추천(2026-10-02)"
+    }
+   ]
+  },
+  {
+   "id": "rec-stype-process-flow",
+   "scope": "slide",
+   "kind": "slide-type",
+   "recommended": true,
+   "title": "단계 흐름 (process-flow)",
+   "tags": [
+    "과정·계획",
+    "flow",
+    "기존 레이아웃"
+   ],
+   "source": {
+    "type": "slide-type",
+    "ref": "process-flow",
+    "examples": [
+     "035-08",
+     "098-03",
+     "123-05",
+     "127-06",
+     "145-07",
+     "060-10",
+     "082-10",
+     "149-03"
+    ],
+    "detail": {
+     "목적": "화살표로 잇는 순서",
+     "분류": "과정·계획",
+     "레이아웃": "flow",
+     "근거 유형": "기존 레이아웃 flow",
+     "이미지 자리": ""
+    }
+   },
+   "note": "",
+   "status": "recommended",
+   "registeredAt": "2026-10-02T16:16:38",
+   "reviewedAt": null,
+   "approvedAt": null,
+   "history": [
+    {
+     "at": "2026-10-02T16:16:38",
+     "action": "recommend",
+     "note": "분석 결과 추천(2026-10-02)"
+    }
+   ]
+  },
+  {
+   "id": "rec-stype-milestones",
+   "scope": "slide",
+   "kind": "slide-type",
+   "recommended": true,
+   "title": "마일스톤 (milestones)",
+   "tags": [
+    "과정·계획",
+    "milestones",
+    "기존 레이아웃"
+   ],
+   "source": {
+    "type": "slide-type",
+    "ref": "milestones",
+    "examples": [
+     "045-08",
+     "070-06",
+     "071-04",
+     "079-03",
+     "144-05",
+     "145-04",
+     "154-05",
+     "041-10"
+    ],
+    "detail": {
+     "목적": "날짜가 있는 주요 시점",
+     "분류": "과정·계획",
+     "레이아웃": "milestones",
+     "근거 유형": "기존 레이아웃 milestones",
+     "이미지 자리": ""
+    }
+   },
+   "note": "",
+   "status": "recommended",
+   "registeredAt": "2026-10-02T16:16:38",
+   "reviewedAt": null,
+   "approvedAt": null,
+   "history": [
+    {
+     "at": "2026-10-02T16:16:38",
+     "action": "recommend",
+     "note": "분석 결과 추천(2026-10-02)"
+    }
+   ]
+  },
+  {
+   "id": "rec-stype-roadmap",
+   "scope": "slide",
+   "kind": "slide-type",
+   "recommended": true,
+   "title": "로드맵 Now·Next·Later (roadmap)",
+   "tags": [
+    "과정·계획",
+    "roadmap",
+    "기존 레이아웃"
+   ],
+   "source": {
+    "type": "slide-type",
+    "ref": "roadmap",
+    "examples": [
+     "008-10",
+     "033-21",
+     "043-06",
+     "065-15",
+     "149-08",
+     "055-18",
+     "009-14",
+     "011-18"
+    ],
+    "detail": {
+     "목적": "시기별 할 일 묶음",
+     "분류": "과정·계획",
+     "레이아웃": "roadmap",
+     "근거 유형": "기존 레이아웃 roadmap",
+     "이미지 자리": ""
+    }
+   },
+   "note": "",
+   "status": "recommended",
+   "registeredAt": "2026-10-02T16:16:38",
+   "reviewedAt": null,
+   "approvedAt": null,
+   "history": [
+    {
+     "at": "2026-10-02T16:16:38",
+     "action": "recommend",
+     "note": "분석 결과 추천(2026-10-02)"
+    }
+   ]
+  },
+  {
+   "id": "rec-stype-gantt",
+   "scope": "slide",
+   "kind": "slide-type",
+   "recommended": true,
+   "title": "간트 (gantt)",
+   "tags": [
+    "과정·계획",
+    "gantt",
+    "기존 레이아웃"
+   ],
+   "source": {
+    "type": "slide-type",
+    "ref": "gantt",
+    "examples": [
+     "030-12",
+     "080-11",
+     "094-13",
+     "011-23",
+     "075-13",
+     "038-11",
+     "039-14",
+     "077-15"
+    ],
+    "detail": {
+     "목적": "기간×작업 일정",
+     "분류": "과정·계획",
+     "레이아웃": "gantt",
+     "근거 유형": "기존 레이아웃 gantt",
+     "이미지 자리": ""
+    }
+   },
+   "note": "",
+   "status": "recommended",
+   "registeredAt": "2026-10-02T16:16:38",
+   "reviewedAt": null,
+   "approvedAt": null,
+   "history": [
+    {
+     "at": "2026-10-02T16:16:38",
+     "action": "recommend",
+     "note": "분석 결과 추천(2026-10-02)"
+    }
+   ]
+  },
+  {
+   "id": "rec-stype-week-schedule",
+   "scope": "slide",
+   "kind": "slide-type",
+   "recommended": true,
+   "title": "시간표 (week-schedule)",
+   "tags": [
+    "과정·계획",
+    "week_grid",
+    "기존 레이아웃"
+   ],
+   "source": {
+    "type": "slide-type",
+    "ref": "week-schedule",
+    "examples": [
+     "065-05",
+     "095-13",
+     "140-04"
+    ],
+    "detail": {
+     "목적": "일자×시간 칸",
+     "분류": "과정·계획",
+     "레이아웃": "week_grid",
+     "근거 유형": "기존 레이아웃 week_grid",
+     "이미지 자리": ""
+    }
+   },
+   "note": "",
+   "status": "recommended",
+   "registeredAt": "2026-10-02T16:16:38",
+   "reviewedAt": null,
+   "approvedAt": null,
+   "history": [
+    {
+     "at": "2026-10-02T16:16:38",
+     "action": "recommend",
+     "note": "분석 결과 추천(2026-10-02)"
+    }
+   ]
+  },
+  {
+   "id": "rec-stype-numbered-steps",
+   "scope": "slide",
+   "kind": "slide-type",
+   "recommended": true,
+   "title": "큰 번호 단계·요점 (numbered-steps)",
+   "tags": [
+    "과정·계획",
+    "numbered_rows",
+    "새 레이아웃"
+   ],
+   "source": {
+    "type": "slide-type",
+    "ref": "numbered-steps",
+    "examples": [
+     "135-05",
+     "135-07",
+     "135-09",
+     "008-11",
+     "017-02",
+     "050-09",
+     "065-02"
+    ],
+    "detail": {
+     "목적": "세 가지 원인·요청·교훈을 번호로",
+     "분류": "과정·계획",
+     "레이아웃": "numbered_rows",
+     "근거 유형": "numbered_rows",
+     "이미지 자리": ""
+    }
+   },
+   "note": "",
+   "status": "recommended",
+   "registeredAt": "2026-10-02T16:16:38",
+   "reviewedAt": null,
+   "approvedAt": null,
+   "history": [
+    {
+     "at": "2026-10-02T16:16:38",
+     "action": "recommend",
+     "note": "분석 결과 추천(2026-10-02)"
+    }
+   ]
+  },
+  {
+   "id": "rec-stype-issue-tree",
+   "scope": "slide",
+   "kind": "slide-type",
+   "recommended": true,
+   "title": "이슈·지표 트리 (issue-tree)",
+   "tags": [
+    "과정·계획",
+    "tree",
+    "새 레이아웃"
+   ],
+   "source": {
+    "type": "slide-type",
+    "ref": "issue-tree",
+    "examples": [
+     "033-17",
+     "113-05",
+     "114-01",
+     "011-15",
+     "024-10",
+     "025-06",
+     "014-05",
+     "014-06"
+    ],
+    "detail": {
+     "목적": "하나를 갈래로 나눠 원인·구성 보기",
+     "분류": "과정·계획",
+     "레이아웃": "tree",
+     "근거 유형": "tree_org",
+     "이미지 자리": ""
+    }
+   },
+   "note": "",
+   "status": "recommended",
+   "registeredAt": "2026-10-02T16:16:38",
+   "reviewedAt": null,
+   "approvedAt": null,
+   "history": [
+    {
+     "at": "2026-10-02T16:16:38",
+     "action": "recommend",
+     "note": "분석 결과 추천(2026-10-02)"
+    }
+   ]
+  },
+  {
+   "id": "rec-stype-diagram",
+   "scope": "slide",
+   "kind": "slide-type",
+   "recommended": true,
+   "title": "구조도 (diagram)",
+   "tags": [
+    "과정·계획",
+    "diagram",
+    "기존 레이아웃"
+   ],
+   "source": {
+    "type": "slide-type",
+    "ref": "diagram",
+    "examples": [
+     "056-05",
+     "056-09",
+     "056-10",
+     "073-07",
+     "083-04",
+     "117-03",
+     "117-04",
+     "117-05"
+    ],
+    "detail": {
+     "목적": "시스템·관계도(Mermaid)",
+     "분류": "과정·계획",
+     "레이아웃": "diagram",
+     "근거 유형": "기존 레이아웃 diagram",
+     "이미지 자리": ""
+    }
+   },
+   "note": "",
+   "status": "recommended",
+   "registeredAt": "2026-10-02T16:16:38",
+   "reviewedAt": null,
+   "approvedAt": null,
+   "history": [
+    {
+     "at": "2026-10-02T16:16:38",
+     "action": "recommend",
+     "note": "분석 결과 추천(2026-10-02)"
+    }
+   ]
+  },
+  {
+   "id": "rec-stype-team",
+   "scope": "slide",
+   "kind": "slide-type",
+   "recommended": true,
+   "title": "팀·인물 카드 (team)",
+   "tags": [
+    "사람·사례",
+    "people_cards",
+    "새 레이아웃"
+   ],
+   "source": {
+    "type": "slide-type",
+    "ref": "team",
+    "examples": [
+     "055-16",
+     "025-07",
+     "089-02",
+     "089-05",
+     "089-06",
+     "089-07",
+     "016-03",
+     "016-11"
+    ],
+    "detail": {
+     "목적": "사람 2~4명 소개",
+     "분류": "사람·사례",
+     "레이아웃": "people_cards",
+     "근거 유형": "people_cards",
+     "이미지 자리": "카드 사진 · 인물 · 세로 3:4 · 줄 단위 톤 통일"
+    }
+   },
+   "note": "",
+   "status": "recommended",
+   "registeredAt": "2026-10-02T16:16:38",
+   "reviewedAt": null,
+   "approvedAt": null,
+   "history": [
+    {
+     "at": "2026-10-02T16:16:38",
+     "action": "recommend",
+     "note": "분석 결과 추천(2026-10-02)"
+    }
+   ]
+  },
+  {
+   "id": "rec-stype-profile",
+   "scope": "slide",
+   "kind": "slide-type",
+   "recommended": true,
+   "title": "인물·대상 소개(사진+글) (profile)",
+   "tags": [
+    "사람·사례",
+    "photo_text",
+    "기존 레이아웃"
+   ],
+   "source": {
+    "type": "slide-type",
+    "ref": "profile",
+    "examples": [
+     "052-05",
+     "073-09",
+     "079-07",
+     "104-02",
+     "104-03",
+     "104-05",
+     "127-07",
+     "135-02"
+    ],
+    "detail": {
+     "목적": "한 사람·한 대상을 깊게",
+     "분류": "사람·사례",
+     "레이아웃": "photo_text",
+     "근거 유형": "기존 레이아웃 photo_text",
+     "이미지 자리": "반쪽 · 인물·장소 · 시선이 글 쪽"
+    }
+   },
+   "note": "",
+   "status": "recommended",
+   "registeredAt": "2026-10-02T16:16:38",
+   "reviewedAt": null,
+   "approvedAt": null,
+   "history": [
+    {
+     "at": "2026-10-02T16:16:38",
+     "action": "recommend",
+     "note": "분석 결과 추천(2026-10-02)"
+    }
+   ]
+  },
+  {
+   "id": "rec-stype-case-story",
+   "scope": "slide",
+   "kind": "slide-type",
+   "recommended": true,
+   "title": "사례 제시 (case-story)",
+   "tags": [
+    "사람·사례",
+    "case_story",
+    "새 레이아웃"
+   ],
+   "source": {
+    "type": "slide-type",
+    "ref": "case-story",
+    "examples": [
+     "027-12",
+     "029-10",
+     "037-04",
+     "053-13",
+     "100-04",
+     "100-09",
+     "120-07",
+     "120-09"
+    ],
+    "detail": {
+     "목적": "사례와 생각해 볼 질문",
+     "분류": "사람·사례",
+     "레이아웃": "case_story",
+     "근거 유형": "case_story",
+     "이미지 자리": ""
+    }
+   },
+   "note": "",
+   "status": "recommended",
+   "registeredAt": "2026-10-02T16:16:38",
+   "reviewedAt": null,
+   "approvedAt": null,
+   "history": [
+    {
+     "at": "2026-10-02T16:16:38",
+     "action": "recommend",
+     "note": "분석 결과 추천(2026-10-02)"
+    }
+   ]
+  },
+  {
+   "id": "rec-stype-case-choice",
+   "scope": "slide",
+   "kind": "slide-type",
+   "recommended": true,
+   "title": "사례 판단(선택지) (case-choice)",
+   "tags": [
+    "사람·사례",
+    "case_story",
+    "새 레이아웃"
+   ],
+   "source": {
+    "type": "slide-type",
+    "ref": "case-choice",
+    "examples": [
+     "027-12",
+     "029-10",
+     "037-04",
+     "053-13",
+     "100-04",
+     "100-09",
+     "120-07",
+     "120-09"
+    ],
+    "detail": {
+     "목적": "사례를 보고 A~D 중 판단",
+     "분류": "사람·사례",
+     "레이아웃": "case_story",
+     "근거 유형": "case_story",
+     "이미지 자리": ""
+    }
+   },
+   "note": "",
+   "status": "recommended",
+   "registeredAt": "2026-10-02T16:16:38",
+   "reviewedAt": null,
+   "approvedAt": null,
+   "history": [
+    {
+     "at": "2026-10-02T16:16:38",
+     "action": "recommend",
+     "note": "분석 결과 추천(2026-10-02)"
+    }
+   ]
+  },
+  {
+   "id": "rec-stype-photo-plates",
+   "scope": "slide",
+   "kind": "slide-type",
+   "recommended": true,
+   "title": "사진 도판 (photo-plates)",
+   "tags": [
+    "사람·사례",
+    "photo_plates",
+    "새 레이아웃"
+   ],
+   "source": {
+    "type": "slide-type",
+    "ref": "photo-plates",
+    "examples": [
+     "008-04",
+     "041-09",
+     "027-05",
+     "029-04",
+     "015-01",
+     "015-02",
+     "024-06",
+     "012-04"
+    ],
+    "detail": {
+     "목적": "현장·결과물 사진 여러 장",
+     "분류": "사람·사례",
+     "레이아웃": "photo_plates",
+     "근거 유형": "photo_plates",
+     "이미지 자리": "가로 띠·카드 · 증거·과정 · 같은 톤"
+    }
+   },
+   "note": "",
+   "status": "recommended",
+   "registeredAt": "2026-10-02T16:16:38",
+   "reviewedAt": null,
+   "approvedAt": null,
+   "history": [
+    {
+     "at": "2026-10-02T16:16:38",
+     "action": "recommend",
+     "note": "분석 결과 추천(2026-10-02)"
+    }
+   ]
+  },
+  {
+   "id": "rec-stype-concept",
+   "scope": "slide",
+   "kind": "slide-type",
+   "recommended": true,
+   "title": "개념 설명 (concept)",
+   "tags": [
+    "학습·확인",
+    "bullets",
+    "기존 레이아웃"
+   ],
+   "source": {
+    "type": "slide-type",
+    "ref": "concept",
+    "examples": [
+     "042-02",
+     "070-11",
+     "073-11",
+     "079-13",
+     "117-13",
+     "123-02",
+     "123-09",
+     "127-12"
+    ],
+    "detail": {
+     "목적": "핵심 개념 글머리",
+     "분류": "학습·확인",
+     "레이아웃": "bullets",
+     "근거 유형": "기존 레이아웃 bullets",
+     "이미지 자리": ""
+    }
+   },
+   "note": "",
+   "status": "recommended",
+   "registeredAt": "2026-10-02T16:16:38",
+   "reviewedAt": null,
+   "approvedAt": null,
+   "history": [
+    {
+     "at": "2026-10-02T16:16:38",
+     "action": "recommend",
+     "note": "분석 결과 추천(2026-10-02)"
+    }
+   ]
+  },
+  {
+   "id": "rec-stype-worked-example",
+   "scope": "slide",
+   "kind": "slide-type",
+   "recommended": true,
+   "title": "단계별 풀이 (worked-example)",
+   "tags": [
+    "학습·확인",
+    "worked_example",
+    "새 레이아웃"
+   ],
+   "source": {
+    "type": "slide-type",
+    "ref": "worked-example",
+    "examples": [
+     "035-05",
+     "035-07",
+     "056-08",
+     "079-04",
+     "083-05",
+     "083-06",
+     "083-08",
+     "083-09"
+    ],
+    "detail": {
+     "목적": "문제 → 단계 → 답, 규칙·함정",
+     "분류": "학습·확인",
+     "레이아웃": "worked_example",
+     "근거 유형": "worked_example",
+     "이미지 자리": ""
+    }
+   },
+   "note": "",
+   "status": "recommended",
+   "registeredAt": "2026-10-02T16:16:38",
+   "reviewedAt": null,
+   "approvedAt": null,
+   "history": [
+    {
+     "at": "2026-10-02T16:16:38",
+     "action": "recommend",
+     "note": "분석 결과 추천(2026-10-02)"
+    }
+   ]
+  },
+  {
+   "id": "rec-stype-quiz",
+   "scope": "slide",
+   "kind": "slide-type",
+   "recommended": true,
+   "title": "확인 문제 (quiz)",
+   "tags": [
+    "학습·확인",
+    "quiz",
+    "새 레이아웃"
+   ],
+   "source": {
+    "type": "slide-type",
+    "ref": "quiz",
+    "examples": [
+     "035-03",
+     "035-06",
+     "035-12",
+     "083-07",
+     "083-14",
+     "123-03",
+     "123-15",
+     "123-16"
+    ],
+    "detail": {
+     "목적": "보기 4개로 이해도 확인",
+     "분류": "학습·확인",
+     "레이아웃": "quiz",
+     "근거 유형": "quiz_check",
+     "이미지 자리": ""
+    }
+   },
+   "note": "",
+   "status": "recommended",
+   "registeredAt": "2026-10-02T16:16:38",
+   "reviewedAt": null,
+   "approvedAt": null,
+   "history": [
+    {
+     "at": "2026-10-02T16:16:38",
+     "action": "recommend",
+     "note": "분석 결과 추천(2026-10-02)"
+    }
+   ]
+  },
+  {
+   "id": "rec-stype-lab",
+   "scope": "slide",
+   "kind": "slide-type",
+   "recommended": true,
+   "title": "실습 (lab)",
+   "tags": [
+    "학습·확인",
+    "lab",
+    "기존 레이아웃"
+   ],
+   "source": {
+    "type": "slide-type",
+    "ref": "lab",
+    "examples": [
+     "083-10",
+     "083-12",
+     "034-06",
+     "034-10",
+     "034-11",
+     "084-09",
+     "084-11",
+     "091-07"
+    ],
+    "detail": {
+     "목적": "실습 과제와 단계",
+     "분류": "학습·확인",
+     "레이아웃": "lab",
+     "근거 유형": "기존 레이아웃 lab",
+     "이미지 자리": ""
+    }
+   },
+   "note": "",
+   "status": "recommended",
+   "registeredAt": "2026-10-02T16:16:38",
+   "reviewedAt": null,
+   "approvedAt": null,
+   "history": [
+    {
+     "at": "2026-10-02T16:16:38",
+     "action": "recommend",
+     "note": "분석 결과 추천(2026-10-02)"
+    }
+   ]
+  },
+  {
+   "id": "rec-stype-code-walk",
+   "scope": "slide",
+   "kind": "slide-type",
+   "recommended": true,
+   "title": "코드 설명 (code-walk)",
+   "tags": [
+    "학습·확인",
+    "code_plan",
+    "기존 레이아웃"
+   ],
+   "source": {
+    "type": "slide-type",
+    "ref": "code-walk",
+    "examples": [
+     "042-09",
+     "079-14",
+     "034-04",
+     "055-06",
+     "055-12",
+     "055-14",
+     "102-11",
+     "131-05"
+    ],
+    "detail": {
+     "목적": "코드와 실행 계획",
+     "분류": "학습·확인",
+     "레이아웃": "code_plan",
+     "근거 유형": "기존 레이아웃 code_plan",
+     "이미지 자리": ""
+    }
+   },
+   "note": "",
+   "status": "recommended",
+   "registeredAt": "2026-10-02T16:16:38",
+   "reviewedAt": null,
+   "approvedAt": null,
+   "history": [
+    {
+     "at": "2026-10-02T16:16:38",
+     "action": "recommend",
+     "note": "분석 결과 추천(2026-10-02)"
+    }
+   ]
+  },
+  {
+   "id": "rec-stype-summary",
+   "scope": "slide",
+   "kind": "slide-type",
+   "recommended": true,
+   "title": "정리 (summary)",
+   "tags": [
+    "마무리·부록",
+    "summary",
+    "기존 레이아웃"
+   ],
+   "source": {
+    "type": "slide-type",
+    "ref": "summary",
+    "examples": [
+     "035-11",
+     "042-10",
+     "083-13",
+     "065-04",
+     "034-14",
+     "100-14",
+     "102-33",
+     "024-13"
+    ],
+    "detail": {
+     "목적": "기억할 것",
+     "분류": "마무리·부록",
+     "레이아웃": "summary",
+     "근거 유형": "기존 레이아웃 summary",
+     "이미지 자리": ""
+    }
+   },
+   "note": "",
+   "status": "recommended",
+   "registeredAt": "2026-10-02T16:16:38",
+   "reviewedAt": null,
+   "approvedAt": null,
+   "history": [
+    {
+     "at": "2026-10-02T16:16:38",
+     "action": "recommend",
+     "note": "분석 결과 추천(2026-10-02)"
+    }
+   ]
+  },
+  {
+   "id": "rec-stype-next-actions",
+   "scope": "slide",
+   "kind": "slide-type",
+   "recommended": true,
+   "title": "다음 행동·부탁 (next-actions)",
+   "tags": [
+    "마무리·부록",
+    "numbered_rows",
+    "새 레이아웃"
+   ],
+   "source": {
+    "type": "slide-type",
+    "ref": "next-actions",
+    "examples": [
+     "135-05",
+     "135-07",
+     "135-09",
+     "008-11",
+     "017-02",
+     "050-09",
+     "065-02"
+    ],
+    "detail": {
+     "목적": "누가 무엇을 언제까지",
+     "분류": "마무리·부록",
+     "레이아웃": "numbered_rows",
+     "근거 유형": "numbered_rows",
+     "이미지 자리": ""
+    }
+   },
+   "note": "",
+   "status": "recommended",
+   "registeredAt": "2026-10-02T16:16:38",
+   "reviewedAt": null,
+   "approvedAt": null,
+   "history": [
+    {
+     "at": "2026-10-02T16:16:38",
+     "action": "recommend",
+     "note": "분석 결과 추천(2026-10-02)"
+    }
+   ]
+  },
+  {
+   "id": "rec-stype-references",
+   "scope": "slide",
+   "kind": "slide-type",
+   "recommended": true,
+   "title": "참고문헌·출처 (references)",
+   "tags": [
+    "마무리·부록",
+    "references",
+    "새 레이아웃"
+   ],
+   "source": {
+    "type": "slide-type",
+    "ref": "references",
+    "examples": [
+     "045-12",
+     "051-12",
+     "073-12",
+     "117-14",
+     "154-10",
+     "027-14",
+     "091-12",
+     "100-16"
+    ],
+    "detail": {
+     "목적": "근거 목록과 쓴 장",
+     "분류": "마무리·부록",
+     "레이아웃": "references",
+     "근거 유형": "references",
+     "이미지 자리": ""
+    }
+   },
+   "note": "",
+   "status": "recommended",
+   "registeredAt": "2026-10-02T16:16:38",
+   "reviewedAt": null,
+   "approvedAt": null,
+   "history": [
+    {
+     "at": "2026-10-02T16:16:38",
+     "action": "recommend",
+     "note": "분석 결과 추천(2026-10-02)"
+    }
+   ]
+  },
+  {
+   "id": "rec-stype-qa",
+   "scope": "slide",
+   "kind": "slide-type",
+   "recommended": true,
+   "title": "예상 질문(부록) (qa)",
+   "tags": [
+    "마무리·부록",
+    "qa",
+    "새 레이아웃"
+   ],
+   "source": {
+    "type": "slide-type",
+    "ref": "qa",
+    "examples": [
+     "009-20",
+     "009-21",
+     "009-22",
+     "009-23",
+     "009-24",
+     "009-25",
+     "009-26",
+     "118-29"
+    ],
+    "detail": {
+     "목적": "질문·답·근거를 미리",
+     "분류": "마무리·부록",
+     "레이아웃": "qa",
+     "근거 유형": "qa_backup",
+     "이미지 자리": ""
+    }
+   },
+   "note": "",
+   "status": "recommended",
+   "registeredAt": "2026-10-02T16:16:38",
+   "reviewedAt": null,
+   "approvedAt": null,
+   "history": [
+    {
+     "at": "2026-10-02T16:16:38",
+     "action": "recommend",
+     "note": "분석 결과 추천(2026-10-02)"
+    }
+   ]
+  },
+  {
+   "id": "rec-stype-end",
+   "scope": "slide",
+   "kind": "slide-type",
+   "recommended": true,
+   "title": "끝 (end)",
+   "tags": [
+    "마무리·부록",
+    "end",
+    "기존 레이아웃"
+   ],
+   "source": {
+    "type": "slide-type",
+    "ref": "end",
+    "examples": [
+     "142-10",
+     "015-12",
+     "021-16",
+     "092-16",
+     "093-17",
+     "109-22",
+     "148-14",
+     "032-14"
+    ],
+    "detail": {
+     "목적": "문서 끝",
+     "분류": "마무리·부록",
+     "레이아웃": "end",
+     "근거 유형": "기존 레이아웃 end",
+     "이미지 자리": ""
+    }
+   },
+   "note": "",
+   "status": "recommended",
+   "registeredAt": "2026-10-02T16:16:38",
+   "reviewedAt": null,
+   "approvedAt": null,
+   "history": [
+    {
+     "at": "2026-10-02T16:16:38",
+     "action": "recommend",
+     "note": "분석 결과 추천(2026-10-02)"
     }
    ]
   }

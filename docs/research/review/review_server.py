@@ -10,8 +10,9 @@
 저장소 밖 조사 폴더에서 읽기만 한다(기본 <저장소>/../_research/genspark-slides, NEXA_RESEARCH_GENSPARK 또는 --genspark 로 바꿈).
 
 경로
-  GET  /review                                 검토 화면(review.html)
-  GET  /api/review/items                       대상 목록(최근 등록 순) + 집계
+  GET  /review                                 템플릿 검토 화면(review.html, 범위 template)
+  GET  /review/slides                          슬라이드 유형 검토 화면(같은 화면, 범위 slide)
+  GET  /api/review/items?scope=template|slide  대상 목록(최근 등록 순) + 상태별 집계 — 상태 recommended(추천)·registered(등록)·…
   POST /api/review/items                       {kind, title, source:{type:"site"|"file"|…, url?, path?}, note?, tags?} → 새 대상
   POST /api/review/items/<id>                  {action: "review"|"approve"|"hold"|"reject"|"reopen"|"note", note?}
   GET  /api/review/preview/<id>                미리보기 자료(장 썸네일·장 HTML 주소·근거 덱 등)
@@ -33,7 +34,7 @@ REPO = HERE.parents[2]
 REGISTRY = HERE / "registry.json"
 GS_DATA = REPO / "docs/research/genspark-skills/data"
 LOCK = threading.Lock()
-STATUS = ("registered", "reviewing", "approved", "held", "rejected")
+STATUS = ("recommended", "registered", "reviewing", "approved", "held", "rejected")
 GS = None  # Genspark 조사 폴더(없으면 미리보기 없음)
 _gs = {}
 
@@ -102,6 +103,18 @@ def preview(item):
     if t == "genspark-template":
         cen = {c["no"]: c for c in (gs_json("census.json") or [])}
         return {"decks": [{"no": n, "title": cen.get(n, {}).get("name", n), "slides": gs_slides(n)} for n in src.get("sources", [])]}
+    if t == "template-type":  # 추천 템플릿 유형 — 근거 덱(상위 점수) 장 + 대표 흐름(슬라이드 유형 id, 화면이 엔진으로 그림)
+        cen = {c["no"]: c for c in (gs_json("census.json") or [])}
+        return {"decks": [{"no": n, "title": cen.get(n, {}).get("name", n), "slides": gs_slides(n)} for n in src.get("sources", [])],
+                "flow": src.get("flow", [])}
+    if t == "slide-type":  # 추천 슬라이드 유형 — 엔진으로 그린 예시(화면이 /api/slidetypes 로) + 근거 장
+        slides = []
+        for sid in src.get("examples", []):
+            no, n = sid.split("-")
+            x = next((y for y in gs_slides(no) if y["n"] == int(n)), None)
+            if x:
+                slides.append(x)
+        return {"nexaType": src.get("ref"), "slides": slides}
     if t == "genspark-layout":
         slides = []
         for sid in src.get("examples", []):
@@ -129,12 +142,14 @@ def js(code, obj):
 def handle_get(path):
     """(상태 코드, 본문 바이트, Content-Type) 또는 이 모듈의 경로가 아니면 None."""
     p = unquote(urlparse(path).path)
-    if p in ("/review", "/review/"):
+    if p in ("/review", "/review/", "/review/slides", "/review/slides/"):
         return 200, (HERE / "review.html").read_bytes(), "text/html; charset=utf-8"
     if p == "/api/review/items":
         if GS is None:
             configure()
-        items = sorted(load()["items"], key=lambda x: (x.get("registeredAt", ""), x["id"]), reverse=True)
+        scope = (re.search(r"scope=(\w+)", urlparse(path).query or "") or [None, None])[1]
+        items = [x for x in load()["items"] if not scope or x.get("scope", "template") == scope]
+        items = sorted(items, key=lambda x: (x.get("registeredAt", ""), x["id"]), reverse=True)
         return js(200, {"items": items, "counts": {s: sum(1 for x in items if x.get("status") == s) for s in STATUS}, "genspark": str(GS) if GS else None})
     m = re.fullmatch(r"/api/review/preview/([\w.:-]+)", p)
     if m:
@@ -142,6 +157,12 @@ def handle_get(path):
             configure()
         it = next((x for x in load()["items"] if x["id"] == m.group(1)), None)
         return js(200, preview(it)) if it else js(404, {"error": "없는 대상"})
+    if p.startswith("/review/brand/"):  # 미리보기 슬라이드의 로고 — 엔진 예제의 자리 표시 이미지(작업 공간이 없는 허브용)
+        base = (REPO / "example").resolve()
+        f = (base / p[len("/review/brand/"):]).resolve()
+        if base not in f.parents or not f.is_file():
+            return js(404, {"error": "없음"})
+        return 200, f.read_bytes(), CTYPE.get(f.suffix.lower(), "application/octet-stream")
     if p.startswith("/review/gs/"):
         if GS is None:
             configure()
@@ -174,6 +195,7 @@ def handle_post(path, raw):
             while f"{base}-{dt.date.today():%Y%m%d}-{k}" in ids:
                 k += 1
             it = {"id": f"{base}-{dt.date.today():%Y%m%d}-{k}", "kind": b.get("kind") or "reference", "title": title,
+                  "scope": b.get("scope") or "template", "recommended": False,
                   "source": b.get("source") or {}, "tags": b.get("tags") or [], "note": b.get("note") or "",
                   "status": "registered", "registeredAt": now(), "reviewedAt": None, "approvedAt": None,
                   "history": [{"at": now(), "action": "register", "note": b.get("note") or ""}]}
@@ -187,16 +209,17 @@ def handle_post(path, raw):
         if not it:
             return js(404, {"error": "없는 대상"})
         act, note = b.get("action"), str(b.get("note") or "")
-        to = {"review": "reviewing", "approve": "approved", "hold": "held", "reject": "rejected", "reopen": "registered"}.get(act)
+        to = {"review": "reviewing", "approve": "approved", "hold": "held", "reject": "rejected",
+              "reopen": "recommended" if it.get("recommended") else "registered"}.get(act)
         if act != "note" and not to:
             return js(400, {"error": "action = review|approve|hold|reject|reopen|note"})
         if to:
             it["status"] = to
-            if to != "registered" and not it.get("reviewedAt"):
+            if to not in ("registered", "recommended") and not it.get("reviewedAt"):
                 it["reviewedAt"] = now()  # 처음 검토한 날
             if to == "approved":
                 it["approvedAt"] = now()
-            if to == "registered":
+            if to in ("registered", "recommended"):
                 it["approvedAt"] = None
         if act == "note":
             it["note"] = note
