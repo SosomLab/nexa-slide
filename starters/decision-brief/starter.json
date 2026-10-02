@@ -1,0 +1,20 @@
+{
+ "label": "결정 요청 1~2장",
+ "description": "1장: 결론 배너·근거 3열·결정 띠(무엇을·누가·언제까지·안 하면). 2장: 대안 비교 표.",
+ "template": "brief",
+ "config": {
+  "partLabels": {
+   "day1": "결정 요청",
+   "day2": "결정 요청",
+   "day3": "결정 요청",
+   "apx": "부록"
+  },
+  "coverBadge": "결정 요청"
+ },
+ "decks": [
+  "brief"
+ ],
+ "copy": [
+  "content"
+ ]
+}

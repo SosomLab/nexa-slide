@@ -182,10 +182,16 @@ def fit_size(px, role=None):
 def resolve_tokens(config=None):
     """템플릿 토큰 + 작업 공간이 고른 글꼴 프리셋(fontPreset). config 를 주면 그 설정으로(서버가 매번 새로 읽을 때)."""
     t = json.loads(TOKENS.read_text(encoding="utf-8"))
+    # 템플릿의 tokenOverrides(색·반경 등)를 토큰 파일 위에 덮는다 — 목적별 템플릿은 lecture 토큰을 바탕으로 값만 바꾼다
+    ov = TEMPLATE.get("tokenOverrides") or {}
+    t = _merge(t, {k: v for k, v in ov.items() if k != "fonts"})
     preset = (config if config is not None else CONFIG).get("fontPreset")
     if preset and preset in t.get("fontPresets", {}):
         t["fonts"] = json.loads(json.dumps(t["fontPresets"][preset]))
         t["fontPreset"] = preset
+    if ov.get("fonts"):  # 글꼴 덮어쓰기는 프리셋 뒤에(예: heading 만 명조)
+        t["fonts"] = _merge(t["fonts"], ov["fonts"])
+    t["fonts"].setdefault("heading", t["fonts"]["body"])
     return t
 
 

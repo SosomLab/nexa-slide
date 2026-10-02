@@ -27,7 +27,7 @@
   --day1: #00696E;  --day1-container: #CCE8E9;  --on-day1-container: #002021;   /* 설계 */
   --day2: #3B5BA9;  --day2-container: #DCE1FF;  --on-day2-container: #001550;   /* 쿼리와 옵티마이저 */
   --day3: #6750A4;  --day3-container: #EADDFF;  --on-day3-container: #21005D;   /* 실무 종합 */
-  --apx:  #5F5E62;  --apx-container:  #E4E1E6;  --on-apx-container:  #1B1B1F;   /* 부록 */
+  --apx: #5F5E62;  --apx-container: #E4E1E6;  --on-apx-container: #1B1B1F;   /* 부록 */
 
   /* 절 성격 */
   --theory: #7D5700;   --theory-container: #FFDEA6;   /* 이론 */
@@ -54,4 +54,16 @@
   --font: "Malgun Gothic", "맑은 고딕", "Apple SD Gothic Neo", sans-serif;
   --mono: Consolas, "D2Coding", monospace;
   --sw: 1280px; --sh: 720px; --pad: 64px;   /* 16:9 = 13.333in × 7.5in */
+
+  /* tokens.json 에서 추가 */
+  --ok: #146C2E;
+  --ok-container: #C4EED0;
+  --caution: #8A5A00;
+  --caution-container: #FFE3A8;
+  --bad: #B3261E;
+  --bad-container: #F9DEDC;
+  --info: #3B5BA9;
+  --info-container: #DCE1FF;
+  --idle: #5F5E62;
+  --idle-container: #E4E1E6;
 }

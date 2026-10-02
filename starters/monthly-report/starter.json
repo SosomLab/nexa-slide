@@ -1,0 +1,20 @@
+{
+ "label": "월간 운영 보고 (11장)",
+ "description": "순서 → 결론 KPI → 추이 차트 → 목표 대비 → 잘된 것·미달 → 리스크 → 원인 워터폴 → 로드맵 → 결정 요청.",
+ "template": "report",
+ "config": {
+  "partLabels": {
+   "day1": "월간 보고",
+   "day2": "월간 보고",
+   "day3": "월간 보고",
+   "apx": "부록"
+  },
+  "coverBadge": "월간 보고"
+ },
+ "decks": [
+  "monthly"
+ ],
+ "copy": [
+  "content"
+ ]
+}

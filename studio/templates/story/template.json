@@ -1,0 +1,54 @@
+{
+  "extends": "lecture",
+  "label": "이야기·회고 - 따뜻한 미색",
+  "description": "프로젝트 회고·고객 사례·연말 회고용. 미색 바탕, 테라코타 강조, 명조 제목(Noto Serif KR). 한 문장·인용·큰 숫자가 주인공.",
+  "sizes": {
+    "_comment": "업무·발표용은 칩·글자를 역할별 최소 px 로 올려 빌드한다(1280×720 에서 읽히는 크기). pt = px × 0.75",
+    "minPx": {
+      "default": 15,
+      "footnotes": 11,
+      "crumb": 12,
+      "page": 12
+    }
+  },
+  "check": {
+    "minFontPt": {
+      "default": 11,
+      "footnotes": 8,
+      "crumb": 9,
+      "page": 9
+    }
+  },
+  "tokenOverrides": {
+    "colors": {
+      "primary": "#A4502F",
+      "on-primary": "#FFFFFF",
+      "primary-container": "#F5DCCD",
+      "on-primary-container": "#3D1A0B",
+      "surface": "#FBF7F0",
+      "surface-dim": "#F7F1E7",
+      "surface-container": "#F2E9DA",
+      "surface-container-high": "#E6D8C0",
+      "on-surface": "#2B2118",
+      "on-surface-variant": "#6B5A47",
+      "outline-variant": "#D6C3A3",
+      "white": "#FFFDF9",
+      "day1": "#7A4E2D",
+      "day1-container": "#EEDFCB",
+      "on-day1-container": "#2E1B0C",
+      "day2": "#4F6B4A",
+      "day2-container": "#DDE7D6",
+      "on-day2-container": "#1B2A18",
+      "day3": "#8C5A7A",
+      "day3-container": "#EEDDE8",
+      "on-day3-container": "#33182A"
+    },
+    "fonts": {
+      "heading": {
+        "css": "\"Noto Serif KR\", \"Nanum Myeongjo\", \"나눔명조\", Batang, \"바탕\", serif",
+        "latin": "Noto Serif KR",
+        "ea": "Noto Serif KR"
+      }
+    }
+  }
+}

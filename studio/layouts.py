@@ -228,7 +228,13 @@ def section(b, f):
 
 def bullets(b, f):
     b.head(f["title"], f.get("sub"))
-    b.add({"type": "bullets", "x": 64, "y": 184, "w": 1152, "h": 330, "items": f["items"], "size": 20,
+    bw = 1152
+    if f.get("aside"):  # 오른쪽 작은 그림(개념 차트) - layouts_extra.draw_aside
+        from layouts_extra import draw_aside
+        aw = f.get("asideW", 420)
+        bw = 1152 - aw - 28
+        draw_aside(b, f["aside"], W - PAD - aw, 184, aw, f.get("asideH", 440))
+    b.add({"type": "bullets", "x": 64, "y": 184, "w": bw, "h": f.get("bulletsH", 330), "items": f["items"], "size": 20,
            "subSize": 17, "lineHeight": 1.55, "dot": b.dc, "color": "on-surface", "subColor": "on-surface-variant",
            "gap": 14, "subGap": 6})
     if f.get("note"):
@@ -687,3 +693,10 @@ def build_slide(layout, fields, part="day1", sid="s01"):
     b.source = fields.get("source")
     LAYOUTS[layout][1](b, copy.deepcopy(fields))
     return {"id": sid, "layout": layout, "notes": fields.get("notes", ""), "elements": b.els}
+
+
+# 업무·일정·이야기용 레이아웃(layouts_extra.py) — 같은 표에 등록한다
+from layouts_extra import EXTRA, EXTRA_SAMPLES  # noqa: E402
+
+LAYOUTS.update(EXTRA)
+SAMPLES.update(EXTRA_SAMPLES)
