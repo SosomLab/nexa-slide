@@ -1,0 +1,65 @@
+{
+  "extends": "lecture",
+  "label": "포레스트 - 숲녹색·크림·테라코타",
+  "description": "ESG·연례 보고·워크숍·비영리. 크림 바탕, 숲녹색 주색, 테라코타 보조, 명조 제목, 큰 장식 쪽 번호(템플릿 검토 추천 gs-tpl-forest).",
+  "sizes": {
+    "_comment": "업무·발표용은 칩·글자를 역할별 최소 px 로 올려 빌드한다(1280×720 에서 읽히는 크기). pt = px × 0.75",
+    "minPx": {
+      "default": 15,
+      "footnotes": 11,
+      "crumb": 12,
+      "page": 12
+    }
+  },
+  "check": {
+    "minFontPt": {
+      "default": 11,
+      "footnotes": 8,
+      "crumb": 9,
+      "page": 9
+    }
+  },
+  "tokenOverrides": {
+    "colors": {
+      "primary": "#2F5D3A",
+      "on-primary": "#FFFFFF",
+      "primary-container": "#D6E5D8",
+      "on-primary-container": "#0F2816",
+      "surface": "#F4F1E8",
+      "surface-dim": "#EDEADF",
+      "surface-container": "#E5E1D3",
+      "surface-container-high": "#D5D0BE",
+      "on-surface": "#1F2A22",
+      "on-surface-variant": "#5A665C",
+      "outline-variant": "#C4C7B2",
+      "white": "#FFFDF8",
+      "panel": "#1F3E29",
+      "on-panel": "#EEF3E8",
+      "day1": "#2F5D3A",
+      "day1-container": "#D6E5D8",
+      "on-day1-container": "#0F2816",
+      "day2": "#B5563A",
+      "day2-container": "#F1DBD2",
+      "on-day2-container": "#471D10",
+      "day3": "#7A6A3E",
+      "day3-container": "#EAE3CF",
+      "on-day3-container": "#302810"
+    },
+    "fonts": {
+      "heading": {
+        "css": "\"Noto Serif KR\", \"Nanum Myeongjo\", \"나눔명조\", Batang, \"바탕\", serif",
+        "latin": "Noto Serif KR",
+        "ea": "Noto Serif KR"
+      }
+    },
+    "radius": {
+      "r-s": 4,
+      "r-m": 8,
+      "r-l": 12
+    }
+  },
+  "parts": {
+    "_comment": "구조 부품(layouts.py PARTS) — labels·foot·pageGhost",
+    "pageGhost": true
+  }
+}
