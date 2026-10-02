@@ -27,7 +27,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from common import CONFIG, DECKS, TEMPLATE, code_lines, load_deck, plain, safe_id, text_width  # noqa: E402
+from common import CONFIG, DECKS, TEMPLATE, code_lines, load_deck, plain, safe_id, text_width, use_fonts  # noqa: E402
 
 W, H = 1280, 720
 CHK = CONFIG.get("check", {})  # 작업 공간은 제외 대상(ignore·ignoreSlides)만 고른다 — 기준값은 템플릿
@@ -119,10 +119,12 @@ def _contains(outer, inner, tol=1):
 def check_slide(slide, n):
     out = []
     textual = []
-    shapes = [e for e in slide.get("elements", []) if e.get("type") in ("rect", "ellipse", "pill") and (e.get("fill") or e.get("stroke"))]
+    # 장식(role "decor" — 템플릿 구조 부품의 테두리·흐린 쪽번호·띠)은 검사하지 않는다
+    shapes = [e for e in slide.get("elements", []) if e.get("type") in ("rect", "ellipse", "pill") and (e.get("fill") or e.get("stroke"))
+              and e.get("role") != "decor"]
     for el in slide.get("elements", []):
         t = el.get("type")
-        if t in ("line", "arrow", "curve"):
+        if t in ("line", "arrow", "curve") or el.get("role") == "decor":
             continue
         box = [el.get("x", 0), el.get("y", 0), el.get("w", 0), el.get("h", 0)]
         # t3 슬라이드 밖
@@ -227,7 +229,9 @@ def check_deck(deck_id):
     for n, s in enumerate(deck.get("slides", []), 1):
         if s.get("id") in skip:
             continue
+        use_fonts(s.get("fontPreset") or deck.get("fontPreset"))  # 글자 폭을 그 장의 글꼴로 잰다
         issues += [dict(i, deck=deck_id) for i in check_slide(s, n) if i["rule"] not in IGNORE]
+    use_fonts(None)
     order = {"ERROR": 0, "WARNING": 1}
     issues.sort(key=lambda i: (i["n"], order[i["severity"]], i["rule"]))
     return {"deck": deck_id, "slides": len(deck.get("slides", [])), "issues": issues,

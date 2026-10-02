@@ -3758,5 +3758,236 @@
   "filter": null,
   "brightness": 220,
   "darkSlide": false
+ },
+ {
+  "skill": "caregiver-cert-training-deck",
+  "id": "027-01-i1",
+  "content": "손 씻는 의료진의 손과 세면대 클로즈업",
+  "form": "왼쪽 위 큰 인셋(약 5:4), cover",
+  "role": "process",
+  "meaning": "주제(손 위생)를 행동 장면으로 먼저 보여 주는 표지 시각물",
+  "fit": "손·도구가 가운데 오는 밝은 실내 클로즈업, 얼굴은 잘려도 무방, 흰·청색 위생 톤",
+  "slot": "inset",
+  "box": [
+   53,
+   75,
+   400,
+   320
+  ],
+  "area": 0.14,
+  "filter": null,
+  "brightness": 170,
+  "darkSlide": false,
+  "source": "css"
+ },
+ {
+  "skill": "caregiver-cert-training-deck",
+  "id": "027-05-i1",
+  "content": "벽에 붙은 흰 비누 디스펜서",
+  "form": "2×3 격자 카드 칸(약 2.8:1), cover",
+  "role": "product",
+  "meaning": "준비물 목록의 한 항목을 실물로 보여 줌",
+  "fit": "흰 타일 배경의 단일 비품, 같은 줄 카드끼리 같은 앵글·밝기",
+  "slot": "card_thumb",
+  "box": [
+   53,
+   227,
+   373,
+   133
+  ],
+  "area": 0.05,
+  "filter": null,
+  "brightness": 189,
+  "darkSlide": false,
+  "source": "css"
+ },
+ {
+  "skill": "caregiver-cert-training-deck",
+  "id": "027-05-i2",
+  "content": "스테인리스 종이 타월 디스펜서",
+  "form": "2×3 격자 카드 칸, cover",
+  "role": "product",
+  "meaning": "준비물 목록 항목의 실물",
+  "fit": "같은 연작 비품 사진(흰 벽·금속), 피사체 가운데",
+  "slot": "card_thumb",
+  "box": [
+   453,
+   227,
+   373,
+   133
+  ],
+  "area": 0.05,
+  "filter": null,
+  "brightness": 165,
+  "darkSlide": false,
+  "source": "css"
+ },
+ {
+  "skill": "caregiver-cert-training-deck",
+  "id": "027-05-i3",
+  "content": "손 소독제 펌프 병",
+  "form": "2×3 격자 카드 칸, cover",
+  "role": "product",
+  "meaning": "준비물 목록 항목의 실물",
+  "fit": "밝은 배경 위 투명·흰 용기 정물, 피사체 가운데·여백 넉넉히",
+  "slot": "card_thumb",
+  "box": [
+   853,
+   227,
+   373,
+   133
+  ],
+  "area": 0.05,
+  "filter": null,
+  "brightness": 190,
+  "darkSlide": false,
+  "source": "css"
+ },
+ {
+  "skill": "caregiver-cert-training-deck",
+  "id": "027-05-i4",
+  "content": "상자에 든 파란 일회용 장갑",
+  "form": "2×3 격자 카드 칸, cover",
+  "role": "product",
+  "meaning": "준비물 목록 항목의 실물",
+  "fit": "같은 연작 비품 정물, 포인트 색 하나(파랑)",
+  "slot": "card_thumb",
+  "box": [
+   53,
+   453,
+   373,
+   133
+  ],
+  "area": 0.05,
+  "filter": null,
+  "brightness": 183,
+  "darkSlide": false,
+  "source": "css"
+ },
+ {
+  "skill": "caregiver-cert-training-deck",
+  "id": "027-05-i5",
+  "content": "개어 둔 일회용 가운과 마스크 상자",
+  "form": "2×3 격자 카드 칸, cover",
+  "role": "product",
+  "meaning": "준비물 목록 항목의 실물",
+  "fit": "같은 연작 비품 정물, 선반 위 배치·밝은 톤",
+  "slot": "card_thumb",
+  "box": [
+   453,
+   453,
+   373,
+   133
+  ],
+  "area": 0.05,
+  "filter": null,
+  "brightness": 156,
+  "darkSlide": false,
+  "source": "css"
+ },
+ {
+  "skill": "ehs-safety-drill-deck",
+  "id": "053-01-i1",
+  "content": "불 꺼진 공장 생산 라인 실내",
+  "form": "오른쪽 반쪽 이상 차지하는 큰 사진(약 2:1), cover",
+  "role": "place",
+  "meaning": "제조 현장이 주제임을 표지에서 알림",
+  "fit": "어둡고 원근이 깊은 공장·창고 실내, 왼쪽은 글자 패널, 저채도",
+  "slot": "half_split",
+  "box": [
+   520,
+   53,
+   720,
+   360
+  ],
+  "area": 0.28,
+  "filter": null,
+  "brightness": 36,
+  "darkSlide": true,
+  "source": "css"
+ },
+ {
+  "skill": "enterprise-ai-copilot-rollout-brief",
+  "id": "057-06-i1",
+  "content": "정장 차림 5인 상반신(한 장에 나란히, 스프라이트)",
+  "form": "지름 80px 원형 아바타 5개 — 한 장을 500% 로 키워 위치만 바꿔 씀",
+  "role": "portrait",
+  "meaning": "조직(CoE) 구성원의 얼굴로 책임자를 보여 줌",
+  "fit": "같은 배경·조명의 흉상 연작, 얼굴이 가운데, 원형으로 잘라도 머리·어깨가 남는 구도",
+  "slot": "card_thumb",
+  "box": [
+   53,
+   300,
+   53,
+   53
+  ],
+  "area": 0.0,
+  "filter": null,
+  "brightness": 160,
+  "darkSlide": false,
+  "source": "css"
+ },
+ {
+  "skill": "executive-retreat-agenda-deck",
+  "id": "065-01-i1",
+  "content": "숲에 면한 목재 마감 숙소 객실",
+  "form": "전면 배경 + 왼쪽 짙은 녹색 그라데이션 덮개",
+  "role": "place",
+  "meaning": "행사 장소(수련회 숙소)의 분위기로 표지를 엶",
+  "fit": "따뜻한 목재·자연광 실내, 피사체(창·숲)는 오른쪽, 왼쪽 1/2 은 어둡게 덮어 글자 자리",
+  "slot": "full_bleed",
+  "box": [
+   0,
+   0,
+   1280,
+   720
+  ],
+  "area": 1.0,
+  "filter": null,
+  "brightness": 122,
+  "darkSlide": true,
+  "source": "css"
+ },
+ {
+  "skill": "nonprofit-fundraising-deck",
+  "id": "111-01-i1",
+  "content": "해 질 녘 언덕 위 빽빽한 주택가",
+  "form": "전면 배경, cover(세로 원본을 가로로 크게 자름)",
+  "role": "mood",
+  "meaning": "도시 빈곤·주거 주제의 정서를 먼저 전달",
+  "fit": "저조도 도시 전경, 창 불빛 몇 개, 위쪽 하늘이 비어 글자 자리, 저채도 청색 톤",
+  "slot": "full_bleed",
+  "box": [
+   0,
+   0,
+   1280,
+   720
+  ],
+  "area": 1.0,
+  "filter": null,
+  "brightness": 57,
+  "darkSlide": false,
+  "source": "css"
+ },
+ {
+  "skill": "nonprofit-fundraising-deck",
+  "id": "111-03-i1",
+  "content": "밤의 지하보도 계단 아래 웅크린 사람",
+  "form": "왼쪽 세로 사진 칸(약 2:3), cover",
+  "role": "evidence",
+  "meaning": "통계 옆에 실제 장면을 붙여 문제를 실감하게 함",
+  "fit": "세로 다큐 사진, 어둡고 인물은 작게·비식별, 빛이 한 점에 모이는 구도",
+  "slot": "inset",
+  "box": [
+   80,
+   160,
+   347,
+   507
+  ],
+  "area": 0.19,
+  "filter": null,
+  "brightness": 44,
+  "darkSlide": false,
+  "source": "css"
  }
 ]

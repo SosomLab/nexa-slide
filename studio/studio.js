@@ -120,6 +120,7 @@
     const deck = await r.json();
     if (keep && S.deck && S.id === id) snapshot(); else { S.undo = []; S.redo = []; }
     S.id = id; S.deck = deck; S.version = r.headers.get("X-Deck-Version"); S.savedJson = deckJson();
+    Render.setDeckFonts(deck.fontPreset);  // 덱 글꼴 세트(있으면)
     S.dirty = false; S.conflict = false; banner(false);
     if (!keep) { S.cur = 0; S.sel = null; closeMemo(); }
     if (S.cur >= deck.slides.length) S.cur = Math.max(0, deck.slides.length - 1);
@@ -137,7 +138,7 @@
     try {
       const r = await api("GET", `/api/version/${S.id}`);
       if (!r.ok) return;
-      if (r.data.session) renderSession(r.data.session);
+      if (r.data.session) renderSession(r.data.session, r.data.activity);
       await checkWorkspace(r.data);
       if (r.data.requests !== S.reqVersion) await loadReqs();
       if (r.data.deck !== S.version && !S.saving) {
@@ -777,6 +778,8 @@ ${names}
     if (!el) {
       P.innerHTML = `<div class="sec"><h3>슬라이드 ${S.cur + 1} · ${esc(s.id)} · 레이아웃 ${esc(s.layout || "-")}</h3>
         <div class="row"><label>배경</label><select class="colorSel" data-slide="bg">${colorOptions(s.bg || "surface")}</select></div>
+        <div class="row"><label>글꼴 세트</label><select data-slide="fontPreset"><option value="">(덱 기본${S.deck.fontPreset ? ` — ${esc(S.deck.fontPreset)}` : ""})</option>${((S.fonts && S.fonts.presets) || []).map((p) => `<option value="${esc(p.name)}"${s.fontPreset === p.name ? " selected" : ""}>${esc(p.name)} — ${esc(p.label)}</option>`).join("")}</select></div>
+        <div class="row"><label>덱 글꼴 세트</label><select data-deckfont="1"><option value="">(작업 공간 — ${esc((S.fonts && S.fonts.current) || "기본")})</option>${((S.fonts && S.fonts.presets) || []).map((p) => `<option value="${esc(p.name)}"${S.deck.fontPreset === p.name ? " selected" : ""}>${esc(p.name)} — ${esc(p.label)}</option>`).join("")}</select></div>
         <div class="hint">요소를 누르면 위 서식 줄과 여기서 고칠 수 있다. 색은 토큰 이름으로 고른다(색의 의미 유지).</div></div>${list}`;
       return;
     }
@@ -835,6 +838,8 @@ ${names}
   function onPropChange(e) {
     const t = e.target, el = selEl(), s = slide();
     if (t.dataset.slide === "bg") { snapshot(); s.bg = t.value; afterChange(); return; }
+    if (t.dataset.slide === "fontPreset") { snapshot(); if (t.value) s.fontPreset = t.value; else delete s.fontPreset; afterChange(true); return; }  // 이 장만
+    if (t.dataset.deckfont) { snapshot(); if (t.value) S.deck.fontPreset = t.value; else delete S.deck.fontPreset; Render.setDeckFonts(S.deck.fontPreset); afterChange(true); return; }  // 덱 전체
     if (!el || t.id === "elJson") return;
     snapshot();
     if (t.dataset.k) setProp(el, t.dataset.k, t.type === "checkbox" ? t.checked : t.value);
@@ -960,12 +965,23 @@ ${names}
   }
 
   // ---------------------------------------------------------------- 세션 연결(요청 감시)
-  function renderSession(st) {
+  function renderSession(st, act) {
     S.session = st;
     const c = $("#sessChip"); if (!c) return;
-    c.className = "chip sm " + (st.connected ? (st.working ? "busy" : "on") : "off");
-    c.innerHTML = `<span class="dot"></span>` + (st.connected ? (st.working ? `세션 처리 중 ${st.working}` : "세션 연결됨") : "세션 연결 없음");
-    c.title = st.connected ? `${st.label || "Claude Code"} · 마지막 확인 ${st.last_seen} (${st.age}초 전) · 대기 ${st.open} · 처리 중 ${st.working}`
+    // 활동(Claude Code 훅 — 작업 공간 .claude/settings.json): 감시 담당 세션이 대화 입력을 처리 중인지·요청 처리 중인지·대기인지
+    const w = act && act.watcher;
+    let label = st.connected ? (st.working ? `세션 처리 중 ${st.working}` : "세션 연결됨") : "세션 연결 없음";
+    if (st.connected && w) {
+      if (w.state === "busy" && w.source === "chat") label = `대화 작업 중 ${w.minutes ? w.minutes + "분째" : ""}${st.working ? ` · 요청 ${st.working} 대기` : st.open ? ` · 요청 ${st.open} 대기` : ""}`;
+      else if (w.state === "busy") label = st.working ? `요청 처리 중 ${st.working}` : "작업 중";
+      else if (w.state === "idle") label = st.working ? `세션 처리 중 ${st.working}` : "대기 — 요청 바로 처리";
+    }
+    if (act && act.othersBusy) label += ` · 다른 세션 ${act.othersBusy}`;
+    c.className = "chip sm " + (st.connected ? (st.working || (w && w.state === "busy") ? "busy" : "on") : "off");
+    c.innerHTML = `<span class="dot"></span>${esc(label)}`;
+    if (w && w.state === "busy" && w.source === "chat" && w.prompt) c.dataset.prompt = w.prompt; else delete c.dataset.prompt;
+    c.title = st.connected ? `${st.label || "Claude Code"} · 마지막 확인 ${st.last_seen} (${st.age}초 전) · 대기 ${st.open} · 처리 중 ${st.working}${c.dataset.prompt ? `
+대화 입력: ${c.dataset.prompt}` : ""}`
       : `요청 감시가 실행 중이 아니다${st.last_seen ? ` — 마지막 확인 ${st.last_seen}` : ""}. 세션에서 watch_requests.py --stream 을 Monitor 로 실행하면 연결된다`;
   }
   async function flushReqs(quiet) {
@@ -1192,8 +1208,12 @@ ${names}
     snapshot(); S.deck.slides.splice(i, 1); S.sel = null; afterChange(true);
   }
   // ---------------------------------------------------------------- 슬라이드 추가 창 — 목적별 유형(studio/slide_types.json) 또는 레이아웃
-  const AD = { tab: "type", group: "", data: null, layouts: null };
-  async function openAddDlg() {
+  const AD = { tab: "type", group: "", data: null, layouts: null, mode: "add" };
+  async function openAddDlg(mode) {
+    AD.mode = mode === "replace" ? "replace" : "add";
+    $("#adTitle").textContent = AD.mode === "replace" ? `유형 바꾸기 — 슬라이드 ${S.cur + 1}` : "슬라이드 추가";
+    $("#adHint").textContent = AD.mode === "replace" ? "누르면 지금 슬라이드를 그 유형으로 바꿉니다 — 제목·발표자 노트·슬라이드 id(요청 메모)는 그대로 옮깁니다(Ctrl+Z 로 되돌리기)."
+      : "누르면 지금 슬라이드 다음에 들어갑니다(Ctrl+Z 로 되돌리기). 유형 = 이 장이 하는 일(목적·구성) — 예시 내용이 채워져 있으니 고쳐 쓰세요.";
     $("#addDlg").classList.add("show"); $("#adQ").value = "";
     if (!AD.data) {
       $("#adBody").innerHTML = `<div class="hint">유형을 불러오는 중…</div>`;
@@ -1224,7 +1244,17 @@ ${names}
       || `<div class="hint">찾는 유형이 없습니다.</div>`;
     requestAnimationFrame(fitAdd);
   }
+  const titleEl = (sl) => (sl.elements || []).find((e) => e.role === "title" && e.text != null);
   function insertSlide(s) {
+    if (AD.mode === "replace") {  // 유형 바꾸기 — 제목·노트·id 를 옮긴다
+      const old = slide(), ot = titleEl(old), nt = titleEl(s);
+      if (ot && nt) nt.text = ot.text;
+      if (old.notes) s.notes = old.notes;
+      s.id = old.id;
+      snapshot(); S.deck.slides[S.cur] = s; S.sel = null; afterChange(true); closeAddDlg();
+      toast("유형을 바꿨습니다 — 제목·노트는 옮겼고 본문은 예시 내용입니다 (Ctrl+Z 로 되돌리기)", 4000);
+      return;
+    }
     snapshot(); S.deck.slides.splice(S.cur + 1, 0, s); S.cur += 1; S.sel = null; afterChange(true); closeAddDlg();
     toast("슬라이드를 추가했습니다 — 예시 내용을 고쳐 쓰세요 (Ctrl+Z 로 되돌리기)");
   }
@@ -1252,7 +1282,7 @@ ${names}
   function thumbMenu(e, i) {
     e.preventDefault(); goSlide(i);
     openMenu({ x: e.clientX, y: e.clientY }, [
-      { label: "슬라이드 복제", act: () => dupSlide(i) }, { label: "아래에 새 슬라이드…", act: () => openAddDlg() },
+      { label: "슬라이드 복제", act: () => dupSlide(i) }, { label: "아래에 새 슬라이드…", act: () => openAddDlg() }, { label: "유형 바꾸기…", act: () => openAddDlg("replace") },
       { label: "삭제", act: () => delSlide(i) }, "-", { label: "이 슬라이드에 요청 메모", act: () => openMemo({ element: null }) },
       { label: "여기서부터 발표", key: "Shift+F5", act: () => present(true) },
     ]);

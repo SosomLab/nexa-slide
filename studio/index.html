@@ -420,13 +420,13 @@
 <div id="help"><div class="box"></div></div>
 <div id="fontDlg"><div class="box"></div></div>
 <div id="addDlg"><div class="box">
-  <div class="ad-h"><h3 style="margin:0">슬라이드 추가</h3>
+  <div class="ad-h"><h3 style="margin:0" id="adTitle">슬라이드 추가</h3>
     <span class="seg" id="adTab"><button data-adtab="type" class="on">유형으로</button><button data-adtab="layout">레이아웃으로</button></span>
     <input type="search" id="adQ" placeholder="찾기 — 결정, 추이, 사례…" style="width:200px"><span style="flex:1"></span>
     <button class="chip sm" data-adclose="1">닫기 (Esc)</button></div>
   <div class="ad-groups" id="adGroups"></div>
   <div class="ad-body" id="adBody"></div>
-  <div class="hint" style="margin-top:6px">누르면 지금 슬라이드 다음에 들어갑니다(Ctrl+Z 로 되돌리기). 유형 = 이 장이 하는 일(목적·구성) — 예시 내용이 채워져 있으니 고쳐 쓰세요.</div>
+  <div class="hint" style="margin-top:6px" id="adHint"></div>
 </div></div>
 <div id="toast"></div>
 <script src="render.js"></script>

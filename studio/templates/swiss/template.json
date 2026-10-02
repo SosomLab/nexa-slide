@@ -50,5 +50,10 @@
       "r-m": 0,
       "r-l": 0
     }
+  },
+  "parts": {
+    "_comment": "구조 부품(layouts.py PARTS) — labels·foot·pageGhost",
+    "labels": "mono",
+    "foot": "band"
   }
 }

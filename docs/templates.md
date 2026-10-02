@@ -40,6 +40,8 @@ studio/templates/<이름>/
 | `sizes.minPx` | 빌드할 때 글자 크기의 역할별 하한(px, 0 = 쓰지 않음). 역할 = 요소의 `role`(`footnotes`·`crumb`·`page`·`title`·`subtitle` …), 없으면 `default`. 이미 크면 그대로 |
 | `tokenOverrides` | 토큰 파일 위에 덮을 값(`colors`·`radius`·`fonts` - 예: `story` 의 `heading` 명조). 바탕 템플릿의 토큰 파일을 그대로 두고 값만 바꾼다 |
 | `check.minFontPt` | 레이아웃 검사(`check_layout.py`)의 역할별 최소 pt |
+| `parts` | 공통 부품의 모양(레이아웃 코드는 그대로) — `labels: "mono"`(머리 라벨을 고정폭 대문자), `foot: "band"`(아래 어두운 띠에 경로·쪽) · `"titleblock"`(도면 테두리 + SHEET 쪽 상자) · `"minimal"`(큰 쪽 번호만), `pageGhost: true`(큰 옅은 쪽 번호를 바탕에). 장식 요소는 `role: "decor"` 라 검사에서 빠진다 |
+| `hidden` · `replacedBy` | 목록에서 숨김(이미 쓰는 작업 공간은 그대로) · 대신 쓸 템플릿 |
 
 ## 작업 공간이 고를 수 있는 것 (선택만)
 

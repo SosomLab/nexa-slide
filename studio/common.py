@@ -206,7 +206,37 @@ def resolve_tokens(config=None):
     if ov.get("fonts"):  # 글꼴 덮어쓰기는 프리셋 뒤에(예: heading 만 명조)
         t["fonts"] = _merge(t["fonts"], ov["fonts"])
     t["fonts"].setdefault("heading", t["fonts"]["body"])
+    t["fontOverrides"] = ov.get("fonts") or {}  # 슬라이드·덱 글꼴 세트도 같은 순서로 계산하게(render.js presetFonts)
     return t
+
+
+def preset_fonts(name, t=None):
+    """글꼴 세트 이름 → 역할별 글꼴(resolve_tokens 와 같은 규칙: 빠진 body·mono 는 지금 값, 템플릿 글꼴 덮어쓰기는 뒤에, heading 은 body).
+    없는 이름이면 None. 슬라이드·덱의 fontPreset 에 쓴다."""
+    t = t or tokens()
+    p = (t.get("fontPresets") or {}).get(name) if name else None
+    if not p:
+        return None
+    f = json.loads(json.dumps(p))
+    for k in ("body", "mono"):
+        f.setdefault(k, t["fonts"][k])
+    if t.get("fontOverrides"):
+        f = _merge(f, t["fontOverrides"])
+    f.setdefault("heading", f["body"])
+    return f
+
+
+_font_over = None  # 지금 다루는 장의 글꼴 세트(슬라이드 fontPreset > 덱 fontPreset) — 없으면 작업 공간 글꼴
+
+
+def use_fonts(name):
+    """내보내기·검사가 장마다 부른다 — 이름이 없거나 모르는 세트면 작업 공간 글꼴로."""
+    global _font_over
+    _font_over = preset_fonts(name) if name else None
+
+
+def cur_fonts():
+    return _font_over or tokens()["fonts"]
 
 
 def read_config():
@@ -429,11 +459,11 @@ def text_width(s, size_px, bold=False, mono=False):
     """문자열 폭(px) 추정. Pillow + 설치된 글꼴이 있으면 현재 글꼴 프리셋(tokens.json fonts.*.measure)으로 잰다.
     고정폭: 라틴은 글꼴로 재고, 한글·한자 등 넓은 글자는 라틴 2칸으로 센다(코드의 한글은 D2Coding 등 2칸 글꼴)."""
     s = plain(s)
-    key = (bold, mono, round(size_px * 4))
+    key = (bold, mono, round(size_px * 4), id(_font_over))
     if key not in _fonts:
         try:
             from PIL import ImageFont
-            ms = tokens()["fonts"]["mono" if mono else "body"].get("measure") or {}
+            ms = cur_fonts()["mono" if mono else "body"].get("measure") or {}
             name = ms.get("bold" if bold else "regular") or (
                 ("consolab.ttf" if bold else "consola.ttf") if mono else ("malgunbd.ttf" if bold else "malgun.ttf"))
             path = _font_file(name) or _font_file(("consolab.ttf" if bold else "consola.ttf") if mono else ("malgunbd.ttf" if bold else "malgun.ttf"))
