@@ -27,6 +27,7 @@
     cur: 0, sel: null, undo: [], redo: [], dirty: false, saving: false, conflict: false,
     reqs: [], reqOnlySlide: true, layouts: [], preview: false, pngs: [], renderAt: 0, editing: null, clip: null,
     tab: "props", brand: {}, session: null, check: null, chkOnlySlide: true, chkBox: null, template: null,
+    changes: [], chgMark: {}, chgSeq: 0,
     mode: LS.get("mode", "edit"), tool: "rect", zoom: null, btab: LS.get("btab", "notes"), memo: null, drawing: null, pan: null,
   };
 
@@ -142,9 +143,113 @@
       if (r.data.deck !== S.version && !S.saving) {
         if (S.dirty || S.editing) {
           if (!S.conflict) { S.conflict = true; setStatus("conflict", "충돌"); banner(true, "편집 중에 덱 파일이 밖에서(Claude 등) 바뀌었습니다. 어느 쪽을 남길까요?"); }
-        } else { await loadDeck(S.id, true); toast("밖에서 바뀐 덱을 다시 불러왔습니다 (Ctrl+Z 로 되돌리기 가능)"); }
+        } else await reloadExternal("밖에서 바뀐 덱을 다시 불러왔습니다");
       }
     } catch (e) { setStatus("error", "서버 끊김"); }
+  }
+
+  // ---------------------------------------------------------------- 외부 변경 기록 — 밖에서(Claude 등) 바뀐 덱을 불러올 때 전·후를 비교해
+  // 무엇이 바뀌었는지 남긴다: 오른쪽 "변경" 탭 목록 · 썸네일·개요 배지 · 캔버스 점선 테두리. 기록은 이 화면을 연 동안만 유지(최근 30건).
+  const GEO = new Set(["x", "y", "w", "h", "x1", "y1", "x2", "y2", "z", "rot"]);
+  const TXT = new Set(["text", "rows", "header", "items", "code", "lines", "cells", "label", "title", "sub"]);
+  const short = (v, n = 60) => { const t = Render.plain(typeof v === "string" ? v : JSON.stringify(v ?? "")).replace(/\s+/g, " ").trim(); return t.length > n ? t.slice(0, n) + "…" : t; };
+  function diffEl(a, b) {
+    const keys = new Set([...Object.keys(a), ...Object.keys(b)]), kinds = new Set();
+    let before = "", after = "";
+    for (const k of keys) {
+      if (k === "id" || JSON.stringify(a[k]) === JSON.stringify(b[k])) continue;
+      if (GEO.has(k)) kinds.add("위치·크기");
+      else if (TXT.has(k)) { kinds.add("글자"); if (!before && !after) { before = short(a[k]); after = short(b[k]); } }
+      else if (k === "src") kinds.add("그림");
+      else kinds.add("모양");
+    }
+    return kinds.size ? { kinds: [...kinds], before, after } : null;
+  }
+  function diffDeck(old, nw) {
+    const om = new Map(old.slides.map((s, i) => [s.id, [s, i]])), nm = new Map(nw.slides.map((s, i) => [s.id, [s, i]]));
+    // 이동: 양쪽에 있는 장의 순서에서 가장 긴 "순서가 유지된 흐름"(최장 증가 부분 수열) 밖의 장만 옮긴 것으로 본다
+    const oc = old.slides.filter((s) => nm.has(s.id)).map((s) => s.id), np = new Map(nw.slides.filter((s) => om.has(s.id)).map((s, i) => [s.id, i]));
+    const seq = oc.map((id) => np.get(id)), tails = [], prev = new Array(seq.length);
+    seq.forEach((v, i) => {
+      let lo = 0, hi = tails.length; while (lo < hi) { const m = (lo + hi) >> 1; if (seq[tails[m]] < v) lo = m + 1; else hi = m; }
+      prev[i] = lo ? tails[lo - 1] : -1; tails[lo] = i;
+    });
+    const stable = new Set(); for (let i = tails.length ? tails[tails.length - 1] : -1; i >= 0; i = prev[i]) stable.add(oc[i]);
+    const items = [];
+    nw.slides.forEach((s, i) => {
+      if (!om.has(s.id)) { items.push({ sid: s.id, idx: i, kind: "추가", title: slideTitle(s), els: [], extra: [] }); return; }
+      const [o, oi] = om.get(s.id), els = [], extra = [];
+      const oe = new Map((o.elements || []).map((e) => [e.id, e])), ne = new Map((s.elements || []).map((e) => [e.id, e]));
+      for (const e of s.elements || []) {
+        if (!oe.has(e.id)) els.push({ id: e.id, kinds: ["추가"], before: "", after: short(e.text || e.src || e.type) });
+        else { const d = diffEl(oe.get(e.id), e); if (d) els.push({ id: e.id, ...d }); }
+      }
+      for (const e of o.elements || []) if (!ne.has(e.id)) els.push({ id: e.id, kinds: ["삭제"], before: short(e.text || e.src || e.type), after: "", gone: true });
+      if (JSON.stringify(o.notes ?? "") !== JSON.stringify(s.notes ?? "")) extra.push("노트");
+      for (const k of ["layout", "bg", "part"]) if (JSON.stringify(o[k]) !== JSON.stringify(s[k])) extra.push(k === "bg" ? "바탕" : k === "layout" ? "레이아웃" : "부");
+      const moved = !stable.has(s.id);
+      if (els.length || extra.length || moved)
+        items.push({ sid: s.id, idx: i, kind: els.length || extra.length ? "수정" : "이동", moved: moved ? [oi + 1, i + 1] : null, title: slideTitle(s), els, extra });
+    });
+    old.slides.forEach((s, i) => { if (!nm.has(s.id)) items.push({ sid: s.id, idx: i, kind: "삭제", title: slideTitle(s), els: [], extra: [], gone: true }); });
+    return items;
+  }
+  function recordChange(old, nw) {
+    const items = diffDeck(old, nw);
+    if (!items.length) return null;
+    const rec = { n: ++S.chgSeq, at: new Date().toTimeString().slice(0, 8), deck: S.id, items, shown: true };  // 새 묶음은 표시된 채로
+    S.changes.unshift(rec); S.changes.length = Math.min(S.changes.length, 30);
+    rebuildMarks();
+    return rec;
+  }
+  // 표시(배지·점선) = 표시 중인 변경 묶음들의 합 — 묶음마다 켜고 끈다
+  function rebuildMarks() {
+    S.chgMark = {};
+    for (const r of S.changes) {
+      if (!r.shown) continue;
+      const mark = (S.chgMark[r.deck] = S.chgMark[r.deck] || {});
+      for (const it of r.items) if (!it.gone) { const m = (mark[it.sid] = mark[it.sid] || new Set()); it.els.filter((e) => !e.gone).forEach((e) => m.add(e.id)); }
+    }
+  }
+  function chgSummary(items) {
+    const c = {}; items.forEach((it) => (c[it.kind] = (c[it.kind] || 0) + 1));
+    return ["수정", "추가", "삭제", "이동"].filter((k) => c[k]).map((k) => `${c[k]}장 ${k}`).join(" · ");
+  }
+  const chgOf = (sid) => (S.chgMark[S.id] || {})[sid];
+  async function reloadExternal(msg) {
+    const old = S.deck ? clone(S.deck) : null;
+    await loadDeck(S.id, true);
+    const rec = old ? recordChange(old, S.deck) : null;
+    renderAll(); renderChanges();
+    if (rec) notice(`${msg} — ${chgSummary(rec.items)}. Ctrl+Z 로 되돌릴 수 있습니다.`, [{ act: "changes", label: "변경 보기", primary: true }]);
+    else toast(msg + " (바뀐 내용 없음)");
+  }
+  function renderChanges() {
+    const n = Object.values(S.chgMark[S.id] || {}).length;
+    $("#chgCnt").style.display = n ? "" : "none"; $("#chgCnt").textContent = n;
+    const P = $("#tab-chg"); if (!P) return;
+    P.innerHTML = `<div class="sec"><h3>변경 — 밖에서 바뀐 내용</h3><div class="hint">Claude 등이 덱 파일을 바꿔 다시 불러올 때마다 전·후를 비교해 남깁니다(이 화면을 연 동안, 최근 30건). 항목을 누르면 그 슬라이드·요소로 갑니다. 바뀐 요소는 캔버스에 파란 점선으로 표시됩니다.</div>
+      ${S.changes.length ? `<div class="row" style="gap:6px;margin-top:6px">${S.changes.some((r) => r.shown) ? `<button class="chip sm" data-chg-all="0">표시 지우기</button>` : ""}${S.changes.some((r) => !r.shown) ? `<button class="chip sm" data-chg-all="1">모두 다시 표시</button>` : ""}</div>` : ""}</div>` +
+      (S.changes.length ? S.changes.map((r) => `<div class="chg-rec${r.shown ? " on" : ""}"><div class="chg-h"><b>${esc(r.at)}</b> <span class="hint" style="margin:0">${esc(r.deck)} · ${esc(chgSummary(r.items))}</span>
+        <button class="chip sm chg-tg" data-chg-tg="${r.n}" title="이 묶음의 변경을 썸네일·개요 배지와 캔버스 점선으로 ${r.shown ? "그만 표시" : "다시 표시"}">${r.shown ? "숨기기" : "표시"}</button></div>` +
+        r.items.map((it) => `<div class="chg-it${it.gone ? " gone" : ""}" ${it.gone ? "" : `data-cdeck="${esc(r.deck)}" data-csid="${esc(it.sid)}"`}>
+          <span class="k ${it.kind}">${it.kind}</span> <b>${it.idx + 1}.</b> ${esc(it.title)}${it.moved ? ` <span class="hint" style="margin:0">(순서 ${it.moved[0]} → ${it.moved[1]})</span>` : ""}${it.extra.length ? ` <span class="hint" style="margin:0">· ${esc(it.extra.join("·"))}</span>` : ""}
+          ${it.els.map((e) => `<div class="chg-el${e.gone ? " gone" : ""}" ${e.gone ? "" : `data-cel="${esc(e.id)}"`}><code>${esc(e.id)}</code> ${esc(e.kinds.join("·"))}${e.before || e.after ? `<div class="chg-tx">${e.before ? `<s>${esc(e.before)}</s>` : ""}${e.before && e.after ? " → " : ""}${e.after ? `<span>${esc(e.after)}</span>` : ""}</div>` : ""}</div>`).join("")}</div>`).join("") + `</div>`).join("")
+        : `<div class="hint">아직 밖에서 바뀐 내용이 없습니다.</div>`);
+  }
+  async function onChangesClick(e) {
+    const all = e.target.closest("[data-chg-all]"), tg = e.target.closest("[data-chg-tg]");
+    if (all || tg) {
+      if (all) S.changes.forEach((r) => (r.shown = all.dataset.chgAll === "1"));
+      else { const r = S.changes.find((x) => x.n === +tg.dataset.chgTg); if (r) r.shown = !r.shown; }
+      rebuildMarks(); renderAll(); renderChanges(); return;
+    }
+    const it = e.target.closest("[data-csid]"); if (!it) return;
+    if (it.dataset.cdeck !== S.id) await switchDeck(it.dataset.cdeck);
+    const i = S.deck.slides.findIndex((s) => s.id === it.dataset.csid); if (i < 0) { toast("그 슬라이드가 지금은 없습니다"); return; }
+    goSlide(i); revealThumb(i, true);
+    const el = e.target.closest("[data-cel]");
+    if (el && elById(el.dataset.cel)) { S.sel = el.dataset.cel; renderAll(); }
   }
 
   // 덱 목록·설정·엔진 변경 감지 — 지금 보는 슬라이드와 상관없이 머리 아래 안내 띠로 알린다.
@@ -174,7 +279,7 @@
     }
     if (v.config !== W.config) {  // 설정(템플릿 색·글꼴·로고·제목)은 다시 불러와 바로 적용 — 새로 고침 불필요
       W.config = v.config;
-      await loadConfig();
+      await loadConfig(); await loadFonts();
       S.tokens = await (await fetch("tokens.json", { cache: "no-store" })).json();
       Render.setTokens(S.tokens); $("#rs-css").textContent = Render.css();
       if (S.deck) { renderAll(); revealThumb(S.cur); }
@@ -200,7 +305,7 @@
     return `<div class="thumb${i === S.cur ? " cur" : ""}" data-i="${i}" draggable="true"><span class="num">${i + 1}</span>
       <div class="vp">${Render.renderSlide(s, i + 1)}</div>
       <div class="tools"><button data-act="dup" title="복제">복제</button><button data-act="del" title="삭제">삭제</button></div>
-      <div class="badges">${dr ? `<span class="bd draft" title="보내지 않은 요청 메모">✎ ${dr}</span>` : ""}${op ? `<span class="bd req" title="세션에 보낸 요청(대기)">요청 ${op}</span>` : ""}${wk ? `<span class="bd work" title="세션 처리 중">처리 ${wk}</span>` : ""}${chkBadge(s.id)}</div></div>`;
+      <div class="badges">${dr ? `<span class="bd draft" title="보내지 않은 요청 메모">✎ ${dr}</span>` : ""}${op ? `<span class="bd req" title="세션에 보낸 요청(대기)">요청 ${op}</span>` : ""}${wk ? `<span class="bd work" title="세션 처리 중">처리 ${wk}</span>` : ""}${chgOf(s.id) ? `<span class="bd chg" title="밖에서 바뀐 슬라이드 — 변경 탭">변경${chgOf(s.id).size ? " " + chgOf(s.id).size : ""}</span>` : ""}${chkBadge(s.id)}</div></div>`;
   }
   function chkBadge(sid) {
     if (!S.check) return "";
@@ -310,6 +415,8 @@
       });
     }
     if (S.drawing) svg += S.drawing.svg || "";
+    const cm = s && chgOf(s.id);  // 밖에서 바뀐 요소 — 파란 점선
+    if (cm) for (const id of cm) { const el = elById(id); if (!el) continue; const b = boxOf(el); h += `<div class="chgbox" style="left:${b.x - 4}px;top:${b.y - 4}px;width:${b.w + 8}px;height:${b.h + 8}px;border-width:${2 / scale}px"></div>`; }
     M.innerHTML = h; D.innerHTML = svg;
     renderMarkbar();
   }
@@ -592,17 +699,33 @@
     if (r.ok) { S.pngs = r.data.slides; S.renderAt = Date.now(); renderPng(); toast("PowerPoint 렌더 완료"); }
     else toast("렌더 실패: " + (r.data && (r.data.error + " " + (r.data.log || "")) || r.status), 5000);
   }
-  async function doExport() {
-    const b = $("#exportBtn"); b.disabled = true; b.innerHTML = `<span class="spin"></span> 만드는 중`;
+  async function doExport(embed, install) {
+    const b = $("#exportBtn"); b.disabled = true; b.innerHTML = `<span class="spin"></span> ${embed ? "글꼴 넣는 중" : "만드는 중"}`;
     if (S.dirty) await save();
-    const r = await api("POST", `/api/export/${S.id}`);
+    const r = await api("POST", `/api/export/${S.id}${embed ? `?embed=1${install ? "&install=1" : ""}` : ""}`);
     b.disabled = false; b.textContent = "내보내기 ▾";
-    if (r.ok) { const a = $("#dl"); a.href = r.data.url; a.setAttribute("download", `${S.id}.pptx`); a.style.display = ""; a.textContent = `⬇ ${S.id}.pptx`; toast("PPTX 를 만들었습니다 — ⬇ 로 받기"); }
+    if (embed && r.status === 409 && r.data && r.data.needInstall) {  // PowerPoint 는 설치된 글꼴만 넣는다
+      const names = r.data.needInstall.map((p) => p.split(/[\\/]/).pop()).join(", ");
+      if (confirm(`PowerPoint 가 글꼴을 넣으려면 작업 공간 글꼴을 이 PC 에 설치해야 합니다(현재 사용자, 관리자 권한 불필요).
+
+${names}
+
+설치하고 계속할까요?`)) doExport(true, true);
+      return;
+    }
+    const fn = embed ? `${S.id}-fonts.pptx` : `${S.id}.pptx`;
+    if (r.ok) {
+      const a = $("#dl"); a.href = r.data.url; a.setAttribute("download", fn); a.style.display = ""; a.textContent = `⬇ ${fn}`;
+      toast(embed ? `글꼴을 넣은 PPTX 를 만들었습니다 — 글꼴 ${(r.data.typefaces || []).join(", ")} · ${r.data.sizeKB}KB` : "PPTX 를 만들었습니다 — ⬇ 로 받기 (쓴 글꼴은 out/" + S.id + ".fonts.json 에 기록)", 5000);
+    }
     else toast("내보내기 실패: " + (r.data && (r.data.error + " " + (r.data.log || "")) || r.status), 6000);
   }
   function exportMenu(btn) {
     openMenu(btn, [
-      { icon: "📄", label: "PPTX 내보내기 (편집 가능한 도형)", act: doExport },
+      { icon: "📄", label: "PPTX 내보내기 (편집 가능한 도형)", act: () => doExport() },
+      { icon: "🔤", label: "PPTX 내보내기 — 글꼴 포함 (PowerPoint 필요)", act: () => doExport(true) },
+      { icon: "📋", label: "쓴 글꼴 기록 보기 (마지막 내보내기)", act: () => window.open(`/out/${S.id}.fonts.json`, "_blank") },
+      { icon: "❓", label: "글꼴 받기·설치 안내", act: () => window.open("/studio/fonts.html", "_blank") },
       { icon: "🖼", label: S.preview ? "PowerPoint 렌더 미리보기 닫기" : "PowerPoint 렌더 미리보기 (나란히)", act: togglePreview },
       { icon: "↻", label: "PowerPoint 로 다시 렌더 (Windows)", act: () => { if (!S.preview) togglePreview(); doRender(); } },
     ], { right: true });
@@ -879,7 +1002,7 @@
   }
   function renderOutline() {
     if (!S.deck) return;
-    $("#outlineList").innerHTML = S.deck.slides.map((s, i) => `<div data-i="${i}" class="${i === S.cur ? "on" : ""}"><span class="n">${i + 1}</span><span>${esc(slideTitle(s))}</span><span class="hint" style="margin:0 0 0 auto">${esc(s.layout || "")}</span></div>`).join("");
+    $("#outlineList").innerHTML = S.deck.slides.map((s, i) => `<div data-i="${i}" class="${i === S.cur ? "on" : ""}"><span class="n">${i + 1}</span><span>${esc(slideTitle(s))}</span>${chgOf(s.id) ? `<span class="bd chg">변경</span>` : ""}<span class="hint" style="margin:0 0 0 auto">${esc(s.layout || "")}</span></div>`).join("");
   }
   function renderCounter() { $("#slideCounter").textContent = S.deck ? `${S.cur + 1} / ${S.deck.slides.length}` : "- / -"; }
 
@@ -1164,21 +1287,68 @@
   }
 
   // ---------------------------------------------------------------- 시작
-  async function loadFonts() { const r = await api("GET", "/api/fonts"); S.fonts = r.ok ? r.data : { presets: [], current: "" }; }
+  async function loadFonts() { const r = await api("GET", "/api/fonts"); S.fonts = r.ok ? r.data : { presets: [], current: "" }; renderFontChip(); }
   async function setFonts(name) {
     const r = await api("POST", "/api/fonts", { preset: name });
     if (!r.ok) { toast("글꼴 세트를 바꾸지 못했습니다"); return; }
-    S.fonts = r.data;
+    await applyFonts(r.data);
+    toast(`글꼴 세트: ${name} — PPTX 는 다음 내보내기부터 적용`, 4000);
+  }
+  async function applyFonts(info) {  // 글꼴 정보·토큰을 다시 읽어 화면에 적용
+    S.fonts = info; renderFontChip();
     S.tokens = await (await fetch("tokens.json", { cache: "no-store" })).json();
     Render.setTokens(S.tokens); $("#rs-css").textContent = Render.css();
     if (document.fonts && document.fonts.ready) await document.fonts.ready;
     if (S.deck) { renderAll(); revealThumb(S.cur); }
-    toast(`글꼴 세트: ${name} — PPTX 는 다음 내보내기부터 적용`, 4000);
+    if ($("#fontDlg").classList.contains("show")) showFonts();
+  }
+  // 작업 공간이 직접 지정한 글꼴 세트(nexa-slide.json fontPresets)를 쓰면 머리줄에 칩으로 알린다 — 누르면 글꼴 창
+  function renderFontChip() {
+    const f = S.fonts, c = $("#fontChip"); if (!c) return;
+    const on = !!(f && f.source === "workspace");
+    c.style.display = on ? "" : "none";
+    if (on) { c.textContent = `글꼴 · ${(f.fonts.body || {}).latin || f.current} · 작업 공간`; c.title = `작업 공간이 직접 지정한 글꼴 세트 "${f.current}" — 눌러서 확인·수정`; }
+  }
+  const ROLE = { body: "본문", heading: "제목", mono: "코드" };
+  function showFonts() {
+    const f = S.fonts || { presets: [], fonts: {}, files: [] }, cur = f.current, ws = f.source === "workspace";
+    const def = ws ? f.workspacePresets[cur] : f.fonts;  // 템플릿 세트면 지금 값으로 새 작업 공간 세트를 시작
+    const files = f.files || [];
+    $("#fontDlg .box").innerHTML = `<div class="row" style="align-items:center;gap:8px"><h3 style="margin:0;flex:1">글꼴 — 지금 세트 <b>${esc(cur || "(템플릿 기본)")}</b>
+        <span class="bd ${ws ? "chg" : ""}" style="font-size:12px">${ws ? "작업 공간 지정" : "템플릿 기본"}</span></h3><button class="chip sm" data-fd="close">닫기</button></div>
+      <div class="hint">기본 세트(default·modern)는 엔진 템플릿에 있고, 회사 서체 같은 전용 글꼴은 이 작업 공간이 <code>nexa-slide.json</code> 의 <code>fontPresets</code> 와 <code>fonts/</code> 폴더로 관리합니다.
+        글꼴은 되도록 무료 글꼴로 — <a href="/studio/fonts.html" target="_blank">글꼴 받기·설치 안내 ↗</a> (쓰는 글꼴이 무료·시스템 기본·전용 중 무엇인지 확인)</div>
+      <h4>역할별 글꼴</h4><table>${["body", "heading", "mono"].map((k) => { const v = (f.fonts || {})[k] || {}; const ms = v.measure || {};
+        return `<tr><td><b>${ROLE[k]}</b> <code>${k}</code></td><td>${esc(v.latin || "-")} / ${esc(v.ea || "-")}<div style="font-family:${esc(v.css || "inherit")};font-size:18px;margin-top:2px">가나다 ABC 123 — 견본 글자</div>
+          <div class="hint">측정 ${esc(ms.regular || "-")} · ${esc(ms.bold || "-")}</div></td></tr>`; }).join("")}</table>
+      <h4>작업 공간 글꼴 파일 <span class="hint" style="margin:0">${esc(f.fontsDir || "")}</span></h4>
+      ${files.length ? `<table>${files.map((x) => `<tr><td><code>${esc(x.file)}</code></td><td>${esc(x.family)} ${esc(x.style)}</td><td>${x.installed ? "설치됨" : `<b style="color:#93000A">미설치</b>`}</td></tr>`).join("")}</table>
+        ${files.some((x) => !x.installed) ? `<div class="hint">PowerPoint 에서도 쓰려면 설치: <code>python3 nexa.py install_fonts</code> (편집기는 설치 없이 이 파일을 씁니다)</div>` : ""}`
+        : `<div class="hint">fonts/ 에 글꼴 파일이 없습니다. 전용 글꼴은 이 폴더에 .ttf·.otf 로 둡니다.</div>`}
+      <h4>${ws ? `작업 공간 세트 <code>${esc(cur)}</code> 수정` : "작업 공간 세트 만들기 (지금 값에서 시작)"}</h4>
+      <div class="hint">역할마다 <code>css</code>(화면 글꼴 목록) · <code>latin</code>·<code>ea</code>(PPTX 글꼴 이름 — 영문·한글) · <code>measure</code>(검사용 파일, fonts/ 또는 설치 폴더에서 찾음). 빠진 역할은 기본값.</div>
+      <div class="row" style="gap:6px;margin:6px 0"><label class="hint" style="margin:0">세트 이름</label><input id="fdName" value="${esc(ws ? cur : "custom")}" style="width:160px"></div>
+      <textarea id="fdJson" spellcheck="false" style="width:100%;min-height:220px;font:12.5px Consolas,monospace">${esc(JSON.stringify(def, null, 2))}</textarea>
+      <div class="row" style="gap:6px;justify-content:flex-end;margin-top:6px"><span class="hint" id="fdErr" style="margin:0 auto 0 0;color:#93000A"></span>
+        <button class="chip sm primary" data-fd="save">저장하고 이 세트 쓰기</button></div>`;
+    $("#fontDlg").classList.add("show");
+  }
+  async function onFontDlg(e) {
+    if (e.target === $("#fontDlg")) { $("#fontDlg").classList.remove("show"); return; }
+    const b = e.target.closest("[data-fd]"); if (!b) return;
+    if (b.dataset.fd === "close") { $("#fontDlg").classList.remove("show"); return; }
+    let pr;
+    try { pr = JSON.parse($("#fdJson").value); } catch (err) { $("#fdErr").textContent = "JSON 형식 오류: " + err.message; return; }
+    const r = await api("POST", "/api/fonts", { savePreset: $("#fdName").value.trim(), preset: pr, select: true });
+    if (!r.ok) { $("#fdErr").textContent = (r.data && r.data.error) || "저장하지 못했습니다"; return; }
+    await applyFonts(r.data); toast("작업 공간 글꼴 세트를 저장했습니다 — PPTX 는 다음 내보내기부터", 4000);
   }
   function moreMenu(btn) {
     const f = S.fonts || { presets: [] };
     openMenu(btn, [
-      { h: "글꼴 세트 (템플릿 프리셋 — 저장소는 선택만)" }, ...f.presets.map((p) => ({ label: `${p.name} — ${p.label}`, on: p.name === f.current, act: () => setFonts(p.name) })), "-",
+      { h: "글꼴 세트 — 템플릿 기본" }, ...f.presets.filter((p) => p.source !== "workspace").map((p) => ({ label: `${p.name} — ${p.label}`, on: p.name === f.current, act: () => setFonts(p.name) })),
+      ...(f.presets.some((p) => p.source === "workspace") ? [{ h: "글꼴 세트 — 작업 공간 지정(nexa-slide.json)" }, ...f.presets.filter((p) => p.source === "workspace").map((p) => ({ label: `${p.name} — ${p.label}`, on: p.name === f.current, act: () => setFonts(p.name) }))] : []),
+      { label: "글꼴 설정 보기·수정…", act: showFonts }, "-",
       { h: `템플릿: ${S.template ? S.template.label : "-"}` },
       { label: "단축키 보기", key: "?", act: showHelp },
       { label: "편집기 화면 배치 초기화", act: () => { ["mode", "btab", "bfold", "noright", "railW"].forEach((k) => LS.set(k, "")); location.reload(); } },
@@ -1220,11 +1390,14 @@
 
     // 머리줄
     $("#deckTabs").addEventListener("click", (e) => { const b = e.target.closest("[data-deck]"); if (b) switchDeck(b.dataset.deck); });
+    $("#tab-chg").addEventListener("click", onChangesClick); renderChanges();
+    $("#fontDlg").addEventListener("click", onFontDlg); $("#fontChip").onclick = showFonts;
     $("#noticeClose").onclick = () => $("#notice").classList.remove("show");
     $("#noticeActs").addEventListener("click", async (e) => {
       const b = e.target.closest("[data-nact]"); if (!b) return;
       $("#notice").classList.remove("show");
       if (b.dataset.nact === "open") await switchDeck(b.dataset.arg);
+      if (b.dataset.nact === "changes") switchTab("chg");
       if (b.dataset.nact === "reload") { if (S.dirty) await save(); location.reload(); }
     });
     $("#undoBtn").onclick = undo; $("#redoBtn").onclick = redo;
@@ -1235,7 +1408,7 @@
     $("#rightBtn").onclick = toggleRight;
     $("#renderBtn").onclick = doRender;
     api("GET", "/api/session").then((x) => x.ok && renderSession(x.data));
-    $("#bnTheirs").onclick = async () => { S.dirty = false; await loadDeck(S.id, true); toast("외부 버전을 불러왔습니다 (Ctrl+Z 로 내 편집 복구 가능)"); };
+    $("#bnTheirs").onclick = async () => { S.dirty = false; await reloadExternal("외부 버전을 불러왔습니다(내 편집은 Ctrl+Z 로 복구)"); };
     $("#bnMine").onclick = async () => { S.conflict = false; await save(true); };
     // 모드 바
     $$("#modeSeg [data-mode]").forEach((b) => (b.onclick = () => setMode(b.dataset.mode)));

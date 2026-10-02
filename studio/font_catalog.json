@@ -1,0 +1,30 @@
+{
+ "_comment": "글꼴 안내 목록 — 파일은 두지 않고 이름·라이선스·공식 받는 곳만. free = 누구나 무료로 직접 받아 쓸 수 있는 글꼴(문서 포함·상업 사용 가능), system = 운영체제 기본 글꼴(따로 받을 수 없음). 슬라이드에는 되도록 free 글꼴을 쓴다(docs/fonts.md).",
+ "fonts": [
+  {"name": "Pretendard", "kind": "sans", "status": "free", "license": "SIL OFL 1.1", "families": ["Pretendard", "Pretendard Variable"],
+   "url": "https://github.com/orioncactus/pretendard/releases", "files": "public/static/Pretendard-*.otf (굵기별 정적 파일 — PowerPoint 는 가변 글꼴의 굵기를 제대로 못 쓴다)",
+   "note": "본문·제목 겸용 한글 산세리프. modern 세트의 본문.", "preset": "modern"},
+  {"name": "Noto Sans KR", "kind": "sans", "status": "free", "license": "SIL OFL 1.1", "families": ["Noto Sans KR", "Noto Sans CJK KR"],
+   "url": "https://fonts.google.com/noto/specimen/Noto+Sans+KR", "files": "static/NotoSansKR-*.ttf", "note": "구글·어도비 공동 한글 산세리프. 굵기 다양."},
+  {"name": "Noto Serif KR", "kind": "serif", "status": "free", "license": "SIL OFL 1.1", "families": ["Noto Serif KR", "Noto Serif CJK KR"],
+   "url": "https://fonts.google.com/noto/specimen/Noto+Serif+KR", "files": "static/NotoSerifKR-*.ttf", "note": "한글 명조(세리프) — 에디토리얼·이야기형 제목."},
+  {"name": "나눔고딕", "kind": "sans", "status": "free", "license": "SIL OFL 1.1", "families": ["NanumGothic", "나눔고딕"],
+   "url": "https://hangeul.naver.com/font", "files": "NanumGothic.ttf · NanumGothicBold.ttf", "note": "네이버 나눔 글꼴. 오래 쓰여 호환성이 좋다."},
+  {"name": "나눔명조", "kind": "serif", "status": "free", "license": "SIL OFL 1.1", "families": ["NanumMyeongjo", "나눔명조"],
+   "url": "https://hangeul.naver.com/font", "files": "NanumMyeongjo.ttf · NanumMyeongjoBold.ttf", "note": "나눔 명조."},
+  {"name": "나눔스퀘어", "kind": "sans", "status": "free", "license": "SIL OFL 1.1", "families": ["NanumSquare", "나눔스퀘어"],
+   "url": "https://hangeul.naver.com/font", "files": "NanumSquareR.ttf · NanumSquareB.ttf · NanumSquareEB.ttf", "note": "각진 제목용 산세리프."},
+  {"name": "IBM Plex Sans KR", "kind": "sans", "status": "free", "license": "SIL OFL 1.1", "families": ["IBM Plex Sans KR"],
+   "url": "https://fonts.google.com/specimen/IBM+Plex+Sans+KR", "files": "IBMPlexSansKR-*.ttf", "note": "기술 문서·보고서 톤."},
+  {"name": "Spoqa Han Sans Neo", "kind": "sans", "status": "free", "license": "SIL OFL 1.1", "families": ["Spoqa Han Sans Neo"],
+   "url": "https://spoqa.github.io/spoqa-han-sans/", "files": "SpoqaHanSansNeo-*.otf", "note": "숫자·영문이 단정한 UI 산세리프."},
+  {"name": "JetBrains Mono", "kind": "mono", "status": "free", "license": "SIL OFL 1.1", "families": ["JetBrains Mono"],
+   "url": "https://github.com/JetBrains/JetBrainsMono/releases", "files": "fonts/ttf/JetBrainsMono-*.ttf", "note": "코드(라틴). modern 세트의 코드.", "preset": "modern"},
+  {"name": "D2Coding", "kind": "mono", "status": "free", "license": "SIL OFL 1.1", "families": ["D2Coding"],
+   "url": "https://github.com/naver/d2codingfont/releases", "files": "D2Coding-Ver*.ttf · D2CodingBold-Ver*.ttf", "note": "코드 안의 한글(고정폭, 한글 2칸). modern 세트.", "preset": "modern"},
+  {"name": "맑은 고딕", "kind": "sans", "status": "system", "license": "Windows 기본 글꼴", "families": ["Malgun Gothic", "맑은 고딕"],
+   "url": "", "files": "Windows 에 기본 설치", "note": "default 세트. Windows 에만 있다 — macOS 에서 PPTX 를 열면 다른 글꼴로 바뀐다(받는 쪽이 macOS 면 무료 글꼴 권장).", "preset": "default"},
+  {"name": "Consolas", "kind": "mono", "status": "system", "license": "Windows 기본 글꼴", "families": ["Consolas"],
+   "url": "", "files": "Windows 에 기본 설치", "note": "default 세트의 코드.", "preset": "default"}
+ ]
+}

@@ -57,11 +57,11 @@ import time
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import parse_qs, unquote, urlparse
+from urllib.parse import parse_qs, quote, unquote, urlparse
 
 STUDIO = Path(__file__).resolve().parent
 sys.path.insert(0, str(STUDIO))
-from common import ASSET_ROOT, BRAND, CONFIG, DECKS, DEFAULT_PORT, HUB, OUT, REFUSED, SERVER_INFO, STATE, TEMPLATE, WORKSPACE, list_templates, read_config, resolve_tokens, running_server, safe_id  # noqa: E402
+from common import ASSET_ROOT, BRAND, CONFIG, DECKS, DEFAULT_PORT, HUB, OUT, REFUSED, SERVER_INFO, STATE, TEMPLATE, WORKSPACE, fonts_dir, list_templates, read_config, resolve_tokens, running_server, safe_id  # noqa: E402
 from watch_requests import session_status  # noqa: E402
 import hub  # noqa: E402
 
@@ -238,6 +238,10 @@ class H(BaseHTTPRequestHandler):
                 return self.send_json(resolve_tokens(read_config()))
         elif parts and parts[0] == "out":  # 작업 공간 산출물
             root, rel = OUT, "/".join(parts[1:])
+        elif parts and parts[0] == "wsfonts":  # 작업 공간 글꼴 파일(fonts/) — 글꼴은 엔진에 두지 않는다
+            if not fonts_dir():
+                return self.err(404, "작업 공간 없음")
+            root, rel = fonts_dir(), "/".join(parts[1:])
         elif parts and parts[0] == "preview":  # 미리보기 임시 작업 공간의 그림
             root, rel = hub.PREVIEW_ROOT, "/".join(parts[1:])
         elif HUB:  # 허브: 작업 공간 파일 없음
@@ -444,6 +448,20 @@ class H(BaseHTTPRequestHandler):
     def api_post_export(self, i, q):
         if not deck_path(i).exists():
             return self.err(404, "덱 없음")
+        if (q.get("embed") or ["0"])[0] == "1":  # 글꼴 포함 PPTX(PowerPoint) — 작업 공간 글꼴이 설치 안 됐으면 409 needInstall
+            args = [sys.executable, str(STUDIO / "embed_fonts.py"), i] + (["--install"] if (q.get("install") or ["0"])[0] == "1" else [])
+            code, log = run(args, 420)
+            last = (log.strip().splitlines() or [""])[-1]
+            try:
+                res = json.loads(last)
+            except ValueError:
+                res = {}
+            if code == 3 and res.get("needInstall"):
+                return self.send_json({"ok": False, "needInstall": res["needInstall"]}, 409)
+            f = OUT / f"{i}-fonts.pptx"
+            if code != 0 or not f.exists():
+                return self.send_json({"ok": False, "error": "글꼴 포함 저장 실패", "log": log}, 500)
+            return self.send_json({"ok": True, **res, "url": f"/out/{i}-fonts.pptx?v={ver(f)}", "report": f"/out/{i}.fonts.json"})
         code, log = export(i)
         f = OUT / f"{i}.pptx"
         if code != 0 or not f.exists():
@@ -452,10 +470,38 @@ class H(BaseHTTPRequestHandler):
 
     # ---------- 글꼴 프리셋 ----------
     def fonts_info(self):
-        t = resolve_tokens(read_config())
-        ps = [{"name": k, "label": f"{v['body']['latin']} · {v['mono']['latin']}" + (f" + {v['mono']['ea']}" if v['mono'].get('ea') not in (None, v['body']['ea']) else "")}
-              for k, v in t.get("fontPresets", {}).items()]
-        return {"ok": True, "current": t.get("fontPreset", ""), "presets": ps}
+        """글꼴 세트 목록(출처: template = 엔진 템플릿 기본 세트, workspace = 이 작업 공간이 nexa-slide.json 에 직접 정의한 세트),
+        지금 쓰는 역할별 글꼴, 작업 공간 fonts/ 파일(글꼴 이름·굵기·설치 여부)."""
+        cfg = read_config()
+        t = resolve_tokens(cfg)
+        wsp = cfg.get("fontPresets") if isinstance(cfg.get("fontPresets"), dict) else {}
+        ps = []
+        for k, v in t.get("fontPresets", {}).items():
+            b, m = v.get("body", t["fonts"]["body"]), v.get("mono", t["fonts"]["mono"])  # 작업 공간 세트는 일부 역할만 있을 수 있다
+            ps.append({"name": k, "source": "workspace" if k in wsp else "template",
+                       "label": f"{b['latin']} · {m['latin']}" + (f" + {m['ea']}" if m.get("ea") not in (None, b["ea"]) else "")})
+        cur = t.get("fontPreset", "")
+        return {"ok": True, "current": cur, "source": "workspace" if cur in wsp else "template", "presets": ps,
+                "fonts": {k: t["fonts"].get(k) for k in ("body", "heading", "mono")}, "workspacePresets": wsp,
+                "fontsDir": str(fonts_dir()) if fonts_dir() else "", "files": self.font_files()}
+
+    def font_files(self):
+        d = fonts_dir()
+        if not d or not d.is_dir():
+            return []
+        from PIL import ImageFont
+        inst = [Path(os.environ.get("LOCALAPPDATA", "")) / "Microsoft/Windows/Fonts", Path("C:/Windows/Fonts"),
+                Path.home() / "Library/Fonts", Path.home() / ".local/share/fonts"]
+        out = []
+        for f in sorted(d.iterdir()):
+            if f.suffix.lower() not in (".ttf", ".otf", ".woff", ".woff2"):
+                continue
+            try:
+                fam, style = ImageFont.truetype(str(f), 12).getname()
+            except Exception:  # noqa: BLE001
+                fam, style = f.stem, ""
+            out.append({"file": f.name, "family": fam, "style": style, "installed": any((x / f.name).is_file() for x in inst)})
+        return out
 
     FONT_FILES = {
         "Pretendard-Regular": "Pretendard-Regular.otf", "Pretendard-Medium": "Pretendard-Medium.otf",
@@ -484,11 +530,82 @@ class H(BaseHTTPRequestHandler):
                 return
         return self.err(404, "글꼴 파일 없음 — ppt/studio/install_fonts.ps1 로 설치")
 
+    WEIGHTS = (("thin", 100), ("extralight", 200), ("ultralight", 200), ("light", 300), ("medium", 500), ("semibold", 600),
+               ("demibold", 600), ("extrabold", 800), ("ultrabold", 800), ("heavy", 900), ("black", 900), ("bold", 700))
+
+    def api_get_fontcss(self, _, q):
+        """작업 공간 fonts/ 의 글꼴 파일마다 @font-face — 이름·굵기는 파일에서 읽는다(편집기·미리보기가 설치 없이도 보이게)."""
+        css = []
+        d = fonts_dir()
+        if d and d.is_dir():
+            from PIL import ImageFont
+            for f in sorted(d.iterdir()):
+                if f.suffix.lower() not in (".ttf", ".otf", ".woff", ".woff2"):
+                    continue
+                try:
+                    fam, style = ImageFont.truetype(str(f), 12).getname()
+                except Exception:  # noqa: BLE001 — woff 등 Pillow 가 못 읽으면 파일 이름으로
+                    fam, style = f.stem, f.stem
+                st = (style or "").lower().replace(" ", "").replace("-", "")
+                w = next((v for k, v in self.WEIGHTS if k in st), 400)
+                fmt = {".otf": "opentype", ".ttf": "truetype", ".woff": "woff", ".woff2": "woff2"}[f.suffix.lower()]
+                url = "/wsfonts/" + quote(f.name)
+                css.append(f'@font-face {{ font-family: "{fam}"; font-weight: {w}; font-style: {"italic" if "italic" in st or "oblique" in st else "normal"}; '
+                           f'font-display: swap; src: url("{url}") format("{fmt}"); }}')
+        b = ("/* 작업 공간 글꼴(fonts/) */\n" + "\n".join(css) + "\n").encode("utf-8")
+        self.send_response(200)
+        self.send_header("Content-Type", "text/css; charset=utf-8")
+        self.send_header("Content-Length", str(len(b)))
+        self.send_header("Cache-Control", "no-store")
+        self.end_headers()
+        self.wfile.write(b)
+
+    def api_get_fontguide(self, _, q):
+        """글꼴 안내 페이지(fonts.html)용 — 무료 글꼴 목록 + (작업 공간이면) 지금 세트의 역할별 글꼴·상태·설치 여부."""
+        import font_report
+        out = {"catalog": font_report.catalog(), "workspace": None}
+        if not HUB:
+            cfg = read_config()
+            t = resolve_tokens(cfg)
+            wsp = cfg.get("fontPresets") if isinstance(cfg.get("fontPresets"), dict) else {}
+            roles, seen = [], set()
+            for role in ("body", "heading", "mono"):
+                f = t["fonts"].get(role) or {}
+                for k in ("latin", "ea"):
+                    name = f.get(k)
+                    if not name or name in seen:
+                        continue
+                    seen.add(name)
+                    st, cat = font_report.classify(name)
+                    files = font_report.font_index().get(name.lower(), [])
+                    roles.append({"role": role, "typeface": name, "status": st, "catalog": cat, "files": [
+                        {"path": str(x), "where": "workspace" if fonts_dir() and x.parent == fonts_dir() else "system",
+                         "installed": font_report.installed(x), "embed": font_report.embed_kind(font_report.fs_type(x))} for x in files[:3]]})
+            out["workspace"] = {"title": CONFIG.get("title", WORKSPACE.name), "path": str(WORKSPACE), "preset": t.get("fontPreset", ""),
+                                "source": "workspace" if t.get("fontPreset") in wsp else "template", "fontsDir": str(fonts_dir()), "fonts": roles}
+        self.send_json(out)
+
     def api_get_fonts(self, _, q):
         self.send_json(self.fonts_info())
 
     def api_post_fonts(self, _, q):
         body = self.body_json() or {}
+        if "savePreset" in body:  # 작업 공간 글꼴 세트 저장 — nexa-slide.json 의 fontPresets (엔진 템플릿은 바꾸지 않는다)
+            name, pr = str(body.get("savePreset") or ""), body.get("preset")
+            if HUB or not safe_id(name):
+                return self.err(400, "세트 이름은 영문·숫자·-·_")
+            if not isinstance(pr, dict) or not isinstance(pr.get("body"), dict) or not all(isinstance(pr["body"].get(k), str) and pr["body"].get(k) for k in ("css", "latin", "ea")):
+                return self.err(400, "세트 형식: {body: {css, latin, ea, measure?}, heading?, mono?}")
+            for k in pr:
+                if k not in ("body", "heading", "mono") or not isinstance(pr[k], dict):
+                    return self.err(400, f"모르는 역할: {k} (body·heading·mono)")
+            with WRITE_LOCK:
+                cfg = read_config()
+                cfg.setdefault("fontPresets", {})[name] = pr
+                if body.get("select"):
+                    cfg["fontPreset"] = name
+                atomic_write(WORKSPACE / "nexa-slide.json", json.dumps(cfg, ensure_ascii=False, indent=2) + "\n")
+            return self.send_json(self.fonts_info())
         name = str(body.get("preset", ""))
         if name not in {p["name"] for p in self.fonts_info()["presets"]}:
             return self.err(400, "없는 프리셋")

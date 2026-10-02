@@ -28,7 +28,8 @@
 | `decks` | `decks` | 덱 `<id>.json` · 요청 메모 `<id>.requests.json` · 백업 `.history/` |
 | `out` | `out` | PPTX · 렌더 PNG · 비교 이미지 · 세션 상태 `.studio/` |
 | `template` | `lecture` | **디자인 템플릿 이름**(`studio/templates/<이름>/`) — 색·글꼴·글자 크기·검사 기준은 모두 템플릿에 있다([templates.md](templates.md)) |
-| `fontPreset` | 템플릿 기본 | 템플릿 `fontPresets` 중 하나(편집기 글꼴 선택·`set_fonts.py` 가 바꾼다) |
+| `fontPreset` | 템플릿 기본 | 템플릿 `fontPresets` 또는 작업 공간 `fontPresets` 중 하나(편집기 글꼴 선택·`set_fonts.py` 가 바꾼다) |
+| `fontPresets` | 없음 | 작업 공간 전용 글꼴 세트 `{이름: {body, heading?, mono?}}` — 글꼴 파일은 `fonts/`(`fontsDir` 로 바꿀 수 있음). [fonts.md](fonts.md) |
 | `brand.name` | `""` | 로고 대체 글자(alt) |
 | `brand.logo` | `assets/brand/logo.png` | 머리 오른쪽·표지 로고(`assetRoot` 기준). 가로세로 비율은 PNG 머리에서 읽는다 |
 | `brand.wordmark` | `assets/brand/wordmark.png` | 바닥 워드마크 |

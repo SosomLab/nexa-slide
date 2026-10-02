@@ -30,7 +30,12 @@ example/decks/*.requests.json
 # mermaid 렌더 중간 설정
 _mermaid-config.json
 
-# ---- 글꼴 내려받기 캐시 (install_fonts.ps1) ----
+# ---- 글꼴 — 엔진에 글꼴 파일을 두지 않는다(작업 공간 fonts/ 에 둔다, docs/fonts.md) ----
+*.ttf
+*.otf
+*.woff
+*.woff2
+*.ttc
 .cache/
 
 # ---- 비밀·로컬 설정 ----

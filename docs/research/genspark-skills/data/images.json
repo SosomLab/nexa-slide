@@ -1,0 +1,3762 @@
+[
+ {
+  "skill": "dschool-group-project-deck",
+  "id": "052-05-i1",
+  "content": "심야의 어두운 열람실, 칸막이 책상과 작은 조명",
+  "form": "우상단 가로로 긴 파노라마 인셋(약 3:1), cover 크롭, 원본 자체가 어두움",
+  "role": "evidence",
+  "meaning": "현장을 실제로 관찰했다는 증거이자 새벽 공간의 분위기 전달",
+  "fit": "가로로 긴 현장 사진, 원근이 깊은 실내 전경, 어두워도 무방(텍스트는 사진 밖에 배치)",
+  "slot": "wide_band",
+  "box": [
+   447,
+   207,
+   773,
+   253
+  ],
+  "area": 0.21,
+  "filter": null,
+  "brightness": 38,
+  "darkSlide": false
+ },
+ {
+  "skill": "mit-stem-topic-deep-dive",
+  "id": "104-03-i1",
+  "content": "19세기 수학자의 흑백 판화풍 초상",
+  "form": "좌측 열 세로형 인물 사진(약 3:4), cover 크롭, 필터 없음",
+  "role": "portrait",
+  "meaning": "수식 뒤의 실제 인물을 보여 역사적 맥락을 부여",
+  "fit": "세로형 흉상 초상, 밝은 배경의 흑백·판화풍, 얼굴이 상단 1/3에 오는 구도",
+  "slot": "card_thumb",
+  "box": [
+   80,
+   260,
+   307,
+   367
+  ],
+  "area": 0.12,
+  "filter": null,
+  "brightness": 131,
+  "darkSlide": false
+ },
+ {
+  "skill": "self-study-explainer-deck",
+  "id": "135-01-i1",
+  "content": "어두운 배경 위 김이 나는 라멘 한 그릇(측면)",
+  "form": "전면 배경, cover 크롭, 원본이 어두워 좌측 텍스트 가독성 확보",
+  "role": "mood",
+  "meaning": "주제 대상을 감각적으로 제시해 호기심을 여는 표지 분위기",
+  "fit": "어두운 배경의 단일 피사체 정물 사진, 피사체는 오른쪽, 왼쪽 절반은 어둡고 비어 있어야 함",
+  "slot": "full_bleed",
+  "box": [
+   null,
+   null,
+   1280,
+   720
+  ],
+  "area": 1.0,
+  "filter": null,
+  "brightness": 35,
+  "darkSlide": true
+ },
+ {
+  "skill": "self-study-explainer-deck",
+  "id": "135-02-i1",
+  "content": "라멘 그릇 위에서 내려다본 톱뷰",
+  "form": "전면 배경, cover 크롭, 어두운 원본",
+  "role": "mood",
+  "meaning": "그릇 형태 자체에 주목하게 하며 이야기 도입",
+  "fit": "위에서 본 원형 피사체, 어두운 배경, 피사체 우측 배치로 좌측 텍스트 공간",
+  "slot": "full_bleed",
+  "box": [
+   null,
+   null,
+   1280,
+   720
+  ],
+  "area": 1.0,
+  "filter": null,
+  "brightness": 37,
+  "darkSlide": true
+ },
+ {
+  "skill": "self-study-explainer-deck",
+  "id": "135-03-i1",
+  "content": "흰 배경에 놓인 같은 모양 빈 그릇 3개",
+  "form": "하단 가로 띠(약 5:1), cover 크롭, 밝은 원본",
+  "role": "evidence",
+  "meaning": "세계 어디서나 그릇 모양이 같다는 관찰을 보여주는 증거",
+  "fit": "흰 배경 제품 사진, 같은 물건 반복 배열, 가로로 긴 구도, 밝고 그림자 약함",
+  "slot": "wide_band",
+  "box": [
+   80,
+   387,
+   1120,
+   227
+  ],
+  "area": 0.28,
+  "filter": null,
+  "brightness": 222,
+  "darkSlide": false
+ },
+ {
+  "skill": "stem-student-research-project-deck",
+  "id": "142-02-i1",
+  "content": "웨어러블 기기와 멀티미터가 연결된 시연 장면",
+  "form": "전면 배경, cover 크롭, 원본 어두움, 좌하단 텍스트",
+  "role": "product",
+  "meaning": "실제로 작동하는 시제품을 보여 주장의 신뢰도 확보",
+  "fit": "어두운 책상 위 기기 클로즈업, 화면·계기판이 빛나는 저조도 사진, 좌하단 비어 있는 구도",
+  "slot": "full_bleed",
+  "box": [
+   null,
+   null,
+   1280,
+   720
+  ],
+  "area": 1.0,
+  "filter": null,
+  "brightness": 34,
+  "darkSlide": true
+ },
+ {
+  "skill": "student-extracurricular-showcase-deck",
+  "id": "144-06-i1",
+  "content": "창가 책상에서 두 학생이 함께 공부하는 장면",
+  "form": "격자 셀 안 작은 인셋(약 2.4:1), cover 크롭",
+  "role": "evidence",
+  "meaning": "멘토링이 실제 진행되었음을 보여주는 기록 사진",
+  "fit": "실제 활동 현장 스냅, 인물 뒷모습·측면 위주(얼굴 비식별), 가로형, 자연광",
+  "slot": "card_thumb",
+  "box": [
+   840,
+   347,
+   387,
+   160
+  ],
+  "area": 0.07,
+  "filter": null,
+  "brightness": 108,
+  "darkSlide": false
+ },
+ {
+  "skill": "stuyvesant-class-presentation",
+  "id": "145-01-i1",
+  "content": "1910년대 인쇄 열차 시간표 문서",
+  "form": "우측 1/3 세로 기둥 전체 높이, cover 크롭, 세피아 약간 + 대비 미세 상향",
+  "role": "evidence",
+  "meaning": "주제의 1차 사료를 표지에서 바로 보여 역사적 실재감 부여",
+  "fit": "오래된 인쇄 문서·사료 스캔, 세로형, 누런 종이 톤, 텍스트는 이미지 밖",
+  "slot": "half_split",
+  "box": [
+   853,
+   0,
+   427,
+   720
+  ],
+  "area": 0.33,
+  "filter": "sepia(0.15) contrast(1.02)",
+  "brightness": 191,
+  "darkSlide": false
+ },
+ {
+  "skill": "stuyvesant-class-presentation",
+  "id": "145-09-i1",
+  "content": "진격 경로 화살표가 그려진 고지도",
+  "form": "좌측 큰 인셋(약 3:2), 화면 절반 차지, cover 크롭",
+  "role": "evidence",
+  "meaning": "작전 경로를 공간적으로 보여 논증의 핵심 증거 역할",
+  "fit": "지도·도면류, 가로형, 주석 화살표가 이미지 안에 포함된 고풍스러운 톤, 옆에 해설 열",
+  "slot": "inset",
+  "box": [
+   80,
+   160,
+   787,
+   524
+  ],
+  "area": 0.45,
+  "filter": null,
+  "brightness": 179,
+  "darkSlide": false
+ },
+ {
+  "skill": "yale-seminar-humanities-deck",
+  "id": "154-09-i1",
+  "content": "1920년대 흑백 런던 국회의사당·시계탑 전경",
+  "form": "좌측 절반 전체 높이(약 1:1), cover 크롭, 흑백 원본, 우측 어두운 패널과 맞닿음",
+  "role": "place",
+  "meaning": "작품 속 시간을 지배하는 장소를 시대 사진으로 보여 정독을 시각적으로 닫음",
+  "fit": "시대 고증 흑백 도시·건축 사진, 정사각~세로형, 랜드마크가 상단에 오는 구도, 텍스트는 옆 패널",
+  "slot": "half_split",
+  "box": [
+   null,
+   null,
+   733,
+   720
+  ],
+  "area": 0.57,
+  "filter": null,
+  "brightness": 121,
+  "darkSlide": true
+ },
+ {
+  "skill": "all-hands-town-hall-deck",
+  "id": "008-01-i1",
+  "content": "무대 화면이 주황빛으로 빛나는 대형 강당과 청중 뒷모습",
+  "form": "전면 풀블리드 배경, 밝기 절반 이하로 어둡게·채도 약간 낮춤",
+  "role": "mood",
+  "meaning": "전 직원이 모이는 타운홀 현장감을 표지에서 바로 전달",
+  "fit": "가로형 행사·군중 장면, 하단 좌측에 제목이 놓일 어두운 영역 필요, 어둡게 눌러도 형태가 읽히는 사진",
+  "slot": "full_bleed",
+  "box": [
+   null,
+   null,
+   1280,
+   720
+  ],
+  "area": 1.0,
+  "filter": "brightness(0.45) saturate(0.85)",
+  "brightness": 53,
+  "darkSlide": true
+ },
+ {
+  "skill": "all-hands-town-hall-deck",
+  "id": "008-02-i1",
+  "content": "어두운 배경 앞에 앉은 대표 인물 상반신",
+  "form": "좌측 3/8 세로 기둥 꽉 채움, 약한 흑백화·대비 증가",
+  "role": "portrait",
+  "meaning": "편지의 화자를 얼굴로 보여 신뢰와 개인적 어조를 부여",
+  "fit": "세로형 인물 사진, 단색 어두운 배경, 시선이 본문(오른쪽)을 향하면 좋음",
+  "slot": "half_split",
+  "box": [
+   null,
+   null,
+   480,
+   720
+  ],
+  "area": 0.38,
+  "filter": "grayscale(0.15) contrast(1.05)",
+  "brightness": 44,
+  "darkSlide": false
+ },
+ {
+  "skill": "all-hands-town-hall-deck",
+  "id": "008-04-i1",
+  "content": "모니터 앞에서 화면을 가리키며 논의하는 팀",
+  "form": "3열 카드 상단 썸네일(가로형), 필터 없음",
+  "role": "evidence",
+  "meaning": "첫 번째 성과를 만든 사람들을 보여줌",
+  "fit": "가로 약 16:10 팀 작업 장면, 3장 톤·밝기를 맞출 것",
+  "slot": "card_thumb",
+  "box": [
+   64,
+   287,
+   373,
+   227
+  ],
+  "area": 0.09,
+  "filter": null,
+  "brightness": 92,
+  "darkSlide": false
+ },
+ {
+  "skill": "all-hands-town-hall-deck",
+  "id": "008-04-i2",
+  "content": "밝은 사무실 테이블에서 노트북으로 대화하는 팀",
+  "form": "3열 카드 상단 썸네일",
+  "role": "evidence",
+  "meaning": "두 번째 성과(고객 응대) 담당 팀",
+  "fit": "가로형 협업 장면, 밝은 실내",
+  "slot": "card_thumb",
+  "box": [
+   453,
+   287,
+   373,
+   227
+  ],
+  "area": 0.09,
+  "filter": null,
+  "brightness": 124,
+  "darkSlide": false
+ },
+ {
+  "skill": "all-hands-town-hall-deck",
+  "id": "008-04-i3",
+  "content": "여러 모니터 앞에서 작업하는 엔지니어들",
+  "form": "3열 카드 상단 썸네일",
+  "role": "evidence",
+  "meaning": "세 번째 성과(기술 인증) 담당 엔지니어",
+  "fit": "가로형 작업 장면, 다른 두 장과 노출 균형 필요(원본이 어두운 편)",
+  "slot": "card_thumb",
+  "box": [
+   843,
+   287,
+   373,
+   227
+  ],
+  "area": 0.09,
+  "filter": null,
+  "brightness": 40,
+  "darkSlide": false
+ },
+ {
+  "skill": "all-hands-town-hall-deck",
+  "id": "008-08-i1",
+  "content": "밝게 웃는 고객 측 인물 상반신",
+  "form": "우측 절반 세로 풀블리드, 약간의 채도 감소·대비 증가",
+  "role": "portrait",
+  "meaning": "인용문의 화자를 실제 얼굴로 제시해 신뢰도 강화",
+  "fit": "세로형 인물, 밝고 깨끗한 배경, 왼쪽 인용문 쪽으로 열린 구도",
+  "slot": "half_split",
+  "box": [
+   720,
+   null,
+   560,
+   720
+  ],
+  "area": 0.44,
+  "filter": "saturate(0.9) contrast(1.05)",
+  "brightness": 141,
+  "darkSlide": true
+ },
+ {
+  "skill": "corporate-profile-intro-deck",
+  "id": "041-09-i1",
+  "content": "정장 차림 중년 남성 경영자 증명사진",
+  "form": "2×2 카드 좌측 상단 작은 정사각 증명사진(약 93px), 필터 없음",
+  "role": "portrait",
+  "meaning": "대표의 얼굴로 신뢰 부여",
+  "fit": "밝은 단색 배경의 정면 상반신 증명사진, 4장의 배경·조명 통일, 얼굴이 중앙",
+  "slot": "card_thumb",
+  "box": [
+   107,
+   187,
+   93,
+   93
+  ],
+  "area": 0.01,
+  "filter": null,
+  "brightness": 168,
+  "darkSlide": false
+ },
+ {
+  "skill": "corporate-profile-intro-deck",
+  "id": "041-09-i2",
+  "content": "정장 차림 여성 임원 증명사진",
+  "form": "2×2 카드 좌측 상단 작은 정사각 증명사진(약 93px), 필터 없음",
+  "role": "portrait",
+  "meaning": "운영 책임자 소개",
+  "fit": "밝은 단색 배경의 정면 상반신 증명사진, 4장의 배경·조명 통일, 얼굴이 중앙",
+  "slot": "card_thumb",
+  "box": [
+   680,
+   187,
+   93,
+   93
+  ],
+  "area": 0.01,
+  "filter": null,
+  "brightness": 153,
+  "darkSlide": false
+ },
+ {
+  "skill": "corporate-profile-intro-deck",
+  "id": "041-09-i3",
+  "content": "니트 차림 여성 임원 증명사진",
+  "form": "2×2 카드 좌측 상단 작은 정사각 증명사진(약 93px), 필터 없음",
+  "role": "portrait",
+  "meaning": "기술 책임자 소개",
+  "fit": "밝은 단색 배경의 정면 상반신 증명사진, 4장의 배경·조명 통일, 얼굴이 중앙",
+  "slot": "card_thumb",
+  "box": [
+   107,
+   460,
+   93,
+   93
+  ],
+  "area": 0.01,
+  "filter": null,
+  "brightness": 142,
+  "darkSlide": false
+ },
+ {
+  "skill": "corporate-profile-intro-deck",
+  "id": "041-09-i4",
+  "content": "정장 차림 남성 임원 증명사진",
+  "form": "2×2 카드 좌측 상단 작은 정사각 증명사진(약 93px), 필터 없음",
+  "role": "portrait",
+  "meaning": "제휴 담당 책임자 소개",
+  "fit": "밝은 단색 배경의 정면 상반신 증명사진, 4장의 배경·조명 통일, 얼굴이 중앙",
+  "slot": "card_thumb",
+  "box": [
+   680,
+   460,
+   93,
+   93
+  ],
+  "area": 0.01,
+  "filter": null,
+  "brightness": 159,
+  "darkSlide": false
+ },
+ {
+  "skill": "esg-sustainability-report-deck",
+  "id": "060-01-i1",
+  "content": "어두운 공장에서 손으로 실 타래를 들어 올리는 장면",
+  "form": "우측 상단 가로형 인셋(약 2:1), 필터 없음",
+  "role": "product",
+  "meaning": "제조 원료·장인 정신을 보여 친환경 섬유 기업의 실체감 부여",
+  "fit": "가로형 손·소재 클로즈업, 어둡고 따뜻한 톤, 짙은 녹색 바탕과 어울리는 저채도",
+  "slot": "inset",
+  "box": [
+   693,
+   93,
+   507,
+   253
+  ],
+  "area": 0.14,
+  "filter": null,
+  "brightness": 61,
+  "darkSlide": false
+ },
+ {
+  "skill": "esg-sustainability-report-deck",
+  "id": "060-02-i1",
+  "content": "섬유 공장에서 앞치마를 두른 여성 경영자 인물",
+  "form": "좌측 세로 사진 카드(약 5:6), 필터 없음",
+  "role": "portrait",
+  "meaning": "편지 화자를 현장 속 인물로 보여 진정성 강조",
+  "fit": "세로형 인물, 작업 현장 배경, 밝기 중간, 정면 시선",
+  "slot": "card_thumb",
+  "box": [
+   107,
+   140,
+   307,
+   360
+  ],
+  "area": 0.12,
+  "filter": null,
+  "brightness": 129,
+  "darkSlide": false
+ },
+ {
+  "skill": "cefr-language-lesson-deck",
+  "id": "029-01-i1",
+  "content": "바닷가 거리의 노면전차와 커피잔·노트가 놓인 카페 테이블",
+  "form": "오른쪽 약 60% 세로 전체 패널, cover 크롭, 어둡게 처리 없음",
+  "role": "mood",
+  "meaning": "여행·휴가라는 수업 주제를 한눈에 환기",
+  "fit": "따뜻한 황금빛 가로 사진, 주제 장소·사물이 오른쪽 중앙에 있고 왼쪽 가장자리는 잘려도 무방",
+  "slot": "half_split",
+  "box": [
+   507,
+   null,
+   773,
+   720
+  ],
+  "area": 0.6,
+  "filter": null,
+  "brightness": 128,
+  "darkSlide": false
+ },
+ {
+  "skill": "cefr-language-lesson-deck",
+  "id": "029-03-i1",
+  "content": "029-01과 같은 카페 테이블·전차 풍경",
+  "form": "전면 배경, cover 크롭, 왼쪽에 텍스트 오버레이(별도 그라데이션 없이)",
+  "role": "mood",
+  "meaning": "학생의 지난 휴가 기억을 끌어내는 훅의 장면",
+  "fit": "왼쪽 1/3이 비교적 단순하고 어두운 가로 사진, 오른쪽에 주제 사물",
+  "slot": "full_bleed",
+  "box": [
+   null,
+   null,
+   1280,
+   720
+  ],
+  "area": 1.0,
+  "filter": null,
+  "brightness": 128,
+  "darkSlide": true
+ },
+ {
+  "skill": "cefr-language-lesson-deck",
+  "id": "029-04-i1",
+  "content": "여행 행동(짐 싸기·휴대폰·호텔·식사·촬영·해변 등) 8컷 세로 조각 콜라주",
+  "form": "본문 상단 가로 띠(약 1120×190), cover 크롭",
+  "role": "illustration",
+  "meaning": "각 동사 표현에 대응하는 장면을 시각 단서로 제공",
+  "fit": "같은 톤으로 맞춘 세로 조각 사진 여러 장, 각 조각 중앙에 동작이 보이는 구도",
+  "slot": "wide_band",
+  "box": [
+   80,
+   173,
+   1120,
+   187
+  ],
+  "area": 0.23,
+  "filter": null,
+  "brightness": 106,
+  "darkSlide": false
+ },
+ {
+  "skill": "employee-onboarding-deck",
+  "id": "055-02-i1",
+  "content": "사무실 화이트보드 앞에서 카메라를 보며 말하는 중년 임원",
+  "form": "왼쪽 카드 썸네일(약 550×290), cover 크롭, 위에 재생 버튼 오버레이",
+  "role": "portrait",
+  "meaning": "대표가 직접 환영하는 영상이 있다는 신호, 사람의 얼굴로 신뢰를 줌",
+  "fit": "가로 16:9 상반신 인물, 시선 정면, 얼굴이 중앙 약간 위, 배경은 업무 공간으로 은은하게",
+  "slot": "inset",
+  "box": [
+   59,
+   349,
+   547,
+   287
+  ],
+  "area": 0.17,
+  "filter": null,
+  "brightness": 99,
+  "darkSlide": false
+ },
+ {
+  "skill": "employee-onboarding-deck",
+  "id": "055-16-i1",
+  "content": "밝은 배경의 여성 상반신 프로필 사진",
+  "form": "64px 원형 아바타, cover 크롭",
+  "role": "portrait",
+  "meaning": "버디가 누구인지 얼굴로 기억하게 함",
+  "fit": "정사각 증명 사진, 얼굴 중앙, 밝은 단색 배경, 다른 아바타와 톤 통일",
+  "slot": "card_thumb",
+  "box": [
+   80,
+   297,
+   64,
+   64
+  ],
+  "area": 0.0,
+  "filter": null,
+  "brightness": 144,
+  "darkSlide": false
+ },
+ {
+  "skill": "employee-onboarding-deck",
+  "id": "055-16-i2",
+  "content": "남색 니트 남성 프로필 사진",
+  "form": "64px 원형 아바타, cover 크롭",
+  "role": "portrait",
+  "meaning": "매니저 얼굴 소개",
+  "fit": "정사각 증명 사진, 얼굴 중앙, 밝은 단색 배경",
+  "slot": "card_thumb",
+  "box": [
+   325,
+   297,
+   64,
+   64
+  ],
+  "area": 0.0,
+  "filter": null,
+  "brightness": 145,
+  "darkSlide": false
+ },
+ {
+  "skill": "employee-onboarding-deck",
+  "id": "055-16-i3",
+  "content": "밝은 재킷 여성 프로필 사진",
+  "form": "64px 원형 아바타, cover 크롭",
+  "role": "portrait",
+  "meaning": "제품 담당자 얼굴 소개",
+  "fit": "정사각 증명 사진, 얼굴 중앙, 밝은 단색 배경",
+  "slot": "card_thumb",
+  "box": [
+   571,
+   297,
+   64,
+   64
+  ],
+  "area": 0.0,
+  "filter": null,
+  "brightness": 198,
+  "darkSlide": false
+ },
+ {
+  "skill": "employee-onboarding-deck",
+  "id": "055-16-i4",
+  "content": "회색 셔츠 중년 남성 프로필 사진",
+  "form": "64px 원형 아바타, cover 크롭",
+  "role": "portrait",
+  "meaning": "고객 쪽 이해관계자 얼굴 소개",
+  "fit": "정사각 증명 사진, 얼굴 중앙, 밝은 단색 배경",
+  "slot": "card_thumb",
+  "box": [
+   816,
+   297,
+   64,
+   64
+  ],
+  "area": 0.0,
+  "filter": null,
+  "brightness": 185,
+  "darkSlide": false
+ },
+ {
+  "skill": "employee-onboarding-deck",
+  "id": "055-16-i5",
+  "content": "안경 쓴 검정 니트 여성 프로필 사진",
+  "form": "64px 원형 아바타, cover 크롭",
+  "role": "portrait",
+  "meaning": "협업 팀 담당자 얼굴 소개",
+  "fit": "정사각 증명 사진, 얼굴 중앙, 밝은 단색 배경",
+  "slot": "card_thumb",
+  "box": [
+   1061,
+   297,
+   64,
+   64
+  ],
+  "area": 0.0,
+  "filter": null,
+  "brightness": 123,
+  "darkSlide": false
+ },
+ {
+  "skill": "medical-cme-deck",
+  "id": "100-13-i1",
+  "content": "실제 응답 페이지로 연결되는 QR 코드",
+  "form": "오른쪽 남색 패널 안 정사각 240px 인셋, 크롭 없음",
+  "role": "evidence",
+  "meaning": "청중이 휴대폰으로 바로 응답하도록 하는 실행 수단",
+  "fit": "흰 여백이 있는 고대비 정사각 QR, 어두운 패널 위 흰 바탕 카드에 배치",
+  "slot": "card_thumb",
+  "box": [
+   893,
+   219,
+   240,
+   240
+  ],
+  "area": 0.06,
+  "filter": null,
+  "brightness": 157,
+  "darkSlide": false
+ },
+ {
+  "skill": "vocational-trade-skills-deck",
+  "id": "151-01-i1",
+  "content": "어두운 나무 도마 위 셰프 칼과 반 자른 양파·작은 큐브",
+  "form": "전면 배경, cover 크롭, 밝기 약 0.8로 낮추고 채도 약간 낮춤",
+  "role": "mood",
+  "meaning": "기술의 대상·도구를 고급스럽게 보여주며 표지 분위기를 결정",
+  "fit": "위에서 비스듬히 찍은 어두운 정물 가로 사진, 왼쪽 절반이 거의 검정이라 제목이 올라갈 안전 영역",
+  "slot": "full_bleed",
+  "box": [
+   null,
+   null,
+   1280,
+   720
+  ],
+  "area": 1.0,
+  "filter": "brightness(0.78) contrast(1.05) saturate(0.92)",
+  "brightness": 33,
+  "darkSlide": true
+ },
+ {
+  "skill": "vocational-trade-skills-deck",
+  "id": "151-03-i1",
+  "content": "도마 위 칼·샤프닝 스틸·준비 그릇 배치",
+  "form": "왼쪽 열 사진(약 520×450), cover 크롭, 어둡게 처리 없음",
+  "role": "product",
+  "meaning": "필요한 도구와 작업대 배치를 실물로 제시",
+  "fit": "위에서 내려다본 도구 정물, 가로 4:3, 어두운 나무 배경",
+  "slot": "inset",
+  "box": [
+   64,
+   197,
+   520,
+   453
+  ],
+  "area": 0.26,
+  "filter": null,
+  "brightness": 69,
+  "darkSlide": false
+ },
+ {
+  "skill": "vocational-trade-skills-deck",
+  "id": "151-05-i1",
+  "content": "껍질을 벗기는 중인 양파 측면",
+  "form": "왼쪽 큰 세로형 사진(약 520×560), cover 크롭",
+  "role": "process",
+  "meaning": "첫 단계에서 무엇을 남기고 자르는지 형태로 보여줌",
+  "fit": "대상 하나를 측면 클로즈업, 어두운 배경, 중앙 배치로 세로 크롭에 안전",
+  "slot": "inset",
+  "box": [
+   64,
+   85,
+   520,
+   560
+  ],
+  "area": 0.32,
+  "filter": null,
+  "brightness": 86,
+  "darkSlide": false
+ },
+ {
+  "skill": "vocational-trade-skills-deck",
+  "id": "151-07-i1",
+  "content": "손으로 양파를 막대 모양으로 써는 장면",
+  "form": "왼쪽 사진(약 520×370), cover 크롭",
+  "role": "process",
+  "meaning": "칼질 손 자세와 결과 모양을 함께 보여줌",
+  "fit": "손과 칼이 화면 중앙에 오는 가로 클로즈업, 따뜻한 조명",
+  "slot": "inset",
+  "box": [
+   64,
+   253,
+   520,
+   373
+  ],
+  "area": 0.21,
+  "filter": null,
+  "brightness": 92,
+  "darkSlide": false
+ },
+ {
+  "skill": "vocational-trade-skills-deck",
+  "id": "151-08-i1",
+  "content": "완성된 작은 정육면체 다이스 더미",
+  "form": "오른쪽 사진(약 500×450), cover 크롭",
+  "role": "evidence",
+  "meaning": "목표 완성도를 기준 이미지로 제시",
+  "fit": "결과물을 위에서 비스듬히 찍은 가로 사진, 결과물 중앙",
+  "slot": "inset",
+  "box": [
+   720,
+   197,
+   496,
+   453
+  ],
+  "area": 0.24,
+  "filter": null,
+  "brightness": 114,
+  "darkSlide": false
+ },
+ {
+  "skill": "vocational-trade-skills-deck",
+  "id": "151-12-i1",
+  "content": "나무 테이블 위 여러 뿌리채소 정물",
+  "form": "전면 배경, cover 크롭, 밝기 약 0.32로 매우 어둡게",
+  "role": "texture",
+  "meaning": "‘전문가 감각’ 메시지의 분위기 배경, 내용은 거의 읽히지 않게 깔림",
+  "fit": "색감 있는 가로 정물이면 충분, 아주 어둡게 깔아도 질감이 남는 사진",
+  "slot": "full_bleed",
+  "box": [
+   null,
+   null,
+   1280,
+   720
+  ],
+  "area": 1.0,
+  "filter": "brightness(0.32) saturate(0.85)",
+  "brightness": 124,
+  "darkSlide": true
+ },
+ {
+  "skill": "wellness-workshop-deck",
+  "id": "152-01-i1",
+  "content": "밝은 창가 바닥에 앉아 명상하는 여성 전신",
+  "form": "왼쪽 절반 세로 전체 패널, cover 크롭, 어둡게 처리 없음",
+  "role": "portrait",
+  "meaning": "워크숍이 몸과 호흡을 다룬다는 분위기를 사람으로 전달",
+  "fit": "밝고 따뜻한 중성색 세로 인물 사진, 인물이 중앙, 상하 여백 충분, 배경 단순",
+  "slot": "half_split",
+  "box": [
+   null,
+   null,
+   640,
+   720
+  ],
+  "area": 0.5,
+  "filter": null,
+  "brightness": 142,
+  "darkSlide": false
+ },
+ {
+  "skill": "wellness-workshop-deck",
+  "id": "152-06-i1",
+  "content": "가슴과 배에 손을 얹은 상반신(얼굴 제외)",
+  "form": "왼쪽 하단 인셋(약 350×310), cover 크롭",
+  "role": "process",
+  "meaning": "호흡 기법의 손 위치를 시연으로 보여줌",
+  "fit": "정사각에 가까운 크롭, 손 동작이 중앙, 밝은 베이지 톤으로 크림 배경과 조화",
+  "slot": "card_thumb",
+  "box": [
+   80,
+   341,
+   347,
+   309
+  ],
+  "area": 0.12,
+  "filter": null,
+  "brightness": 149,
+  "darkSlide": false
+ },
+ {
+  "skill": "brand-identity-portfolio",
+  "id": "021-03-i1",
+  "content": "콘크리트 배경 앞 크라프트 종이 포대 패키지",
+  "form": "우측 5/8 큰 사진 칸, 여백 안쪽, cover 크롭, 보정 없음",
+  "role": "product",
+  "meaning": "리브랜딩 '이후' 결과물을 실제 제품 사진으로 증명",
+  "fit": "제품 하나가 중앙에 놓인 가로 스튜디오 사진, 중간 밝기, 배경 단순, 텍스트 겹침 없음",
+  "slot": "inset",
+  "box": [
+   480,
+   93,
+   733,
+   520
+  ],
+  "area": 0.41,
+  "filter": null,
+  "brightness": 130,
+  "darkSlide": false
+ },
+ {
+  "skill": "brand-identity-portfolio",
+  "id": "021-06-i1",
+  "content": "선명한 파란 배경에서 손에 든 스마트폰 앱 화면",
+  "form": "우측 5/8 큰 사진 칸, cover 크롭",
+  "role": "product",
+  "meaning": "새 브랜드 색 하나가 화면 전체를 지배함을 보여줌",
+  "fit": "브랜드 단색 배경의 제품·화면 목업, 가로형, 피사체 중앙",
+  "slot": "inset",
+  "box": [
+   480,
+   93,
+   733,
+   520
+  ],
+  "area": 0.41,
+  "filter": null,
+  "brightness": 63,
+  "darkSlide": false
+ },
+ {
+  "skill": "brand-identity-portfolio",
+  "id": "021-09-i1",
+  "content": "옅은 하늘색 바탕의 투명 유리병 세 개",
+  "form": "우측 5/8 큰 사진 칸, cover 크롭, 밝은 톤",
+  "role": "product",
+  "meaning": "라벨을 줄여 유리를 보여준 결과",
+  "fit": "밝은 하이키 제품 사진, 반복 배열, 가로형",
+  "slot": "inset",
+  "box": [
+   480,
+   93,
+   733,
+   520
+  ],
+  "area": 0.41,
+  "filter": null,
+  "brightness": 207,
+  "darkSlide": false
+ },
+ {
+  "skill": "brand-identity-portfolio",
+  "id": "021-12-i1",
+  "content": "흰 벽의 화살표 사인과 미술관 복도",
+  "form": "우측 5/8 큰 사진 칸, cover 크롭, 밝음",
+  "role": "place",
+  "meaning": "새 안내 체계가 실제 공간에 설치된 모습",
+  "fit": "설치된 사인·공간 사진, 밝고 여백 많은 가로형",
+  "slot": "inset",
+  "box": [
+   480,
+   93,
+   733,
+   520
+  ],
+  "area": 0.41,
+  "filter": null,
+  "brightness": 201,
+  "darkSlide": false
+ },
+ {
+  "skill": "campaign-case-study-deck",
+  "id": "024-01-i1",
+  "content": "따뜻한 조명의 어두운 복도에 선 인물 뒷모습",
+  "form": "전면 배경, cover 크롭, 채도·밝기 낮춤",
+  "role": "mood",
+  "meaning": "기록 보관소를 걷는 듯한 회고·아카이브 분위기",
+  "fit": "어둡고 따뜻한 저조도 장소 사진, 가로형, 좌측 하단에 제목이 놓일 어두운 여백",
+  "slot": "full_bleed",
+  "box": [
+   null,
+   null,
+   1280,
+   720
+  ],
+  "area": 1.0,
+  "filter": "saturate(0.72) brightness(0.82)",
+  "brightness": 35,
+  "darkSlide": true
+ },
+ {
+  "skill": "campaign-case-study-deck",
+  "id": "024-04-i1",
+  "content": "책상 위 펼쳐진 인쇄 보고서와 펜",
+  "form": "인용판 우측 작은 삽화 사진, cover 크롭, 약간 탈색",
+  "role": "evidence",
+  "meaning": "고객이 원한 '근거 자료 한 장'을 시각화",
+  "fit": "작업물·문서 클로즈업, 가로형, 중간 밝기",
+  "slot": "card_thumb",
+  "box": [
+   872,
+   224,
+   333,
+   180
+  ],
+  "area": 0.07,
+  "filter": "saturate(0.74) brightness(0.94)",
+  "brightness": 123,
+  "darkSlide": false
+ },
+ {
+  "skill": "campaign-case-study-deck",
+  "id": "024-05-i1",
+  "content": "빛이 드는 종이 문서 더미",
+  "form": "카드 하단 가는 가로 띠 사진, cover 크롭",
+  "role": "process",
+  "meaning": "1수(조사) 단계의 분위기 표지",
+  "fit": "매우 납작한 띠에 맞는 질감형 사진, 피사체 위치 무관",
+  "slot": "wide_band",
+  "box": [
+   99,
+   564,
+   291,
+   68
+  ],
+  "area": 0.02,
+  "filter": "saturate(0.72) brightness(0.95)",
+  "brightness": 163,
+  "darkSlide": false
+ },
+ {
+  "skill": "campaign-case-study-deck",
+  "id": "024-05-i2",
+  "content": "흑백 풍경 사진이 인쇄된 패키지 시안들",
+  "form": "카드 하단 가는 가로 띠 사진",
+  "role": "process",
+  "meaning": "2수(패키징) 단계 표지",
+  "fit": "탁상 위 시안 배열, 납작 크롭에 견디는 사진",
+  "slot": "wide_band",
+  "box": [
+   495,
+   564,
+   291,
+   68
+  ],
+  "area": 0.02,
+  "filter": "saturate(0.72) brightness(0.95)",
+  "brightness": 121,
+  "darkSlide": false
+ },
+ {
+  "skill": "campaign-case-study-deck",
+  "id": "024-05-i3",
+  "content": "끈으로 묶은 서류 뭉치와 커피잔",
+  "form": "카드 하단 가는 가로 띠 사진",
+  "role": "process",
+  "meaning": "3수(배포) 단계 표지",
+  "fit": "납작 띠용 정물 사진, 어두운 톤 허용",
+  "slot": "wide_band",
+  "box": [
+   891,
+   564,
+   291,
+   68
+  ],
+  "area": 0.02,
+  "filter": "saturate(0.72) brightness(0.95)",
+  "brightness": 79,
+  "darkSlide": false
+ },
+ {
+  "skill": "campaign-case-study-deck",
+  "id": "024-06-i1",
+  "content": "테라코타 표지의 제본 보고서",
+  "form": "4장 도판 줄 중 1번, 거의 정사각, cover 크롭",
+  "role": "product",
+  "meaning": "실제 산출물(보고서) 증거",
+  "fit": "밝은 바탕 위 단일 인쇄물 정물, 일관된 조명·톤",
+  "slot": "card_thumb",
+  "box": [
+   75,
+   225,
+   265,
+   219
+  ],
+  "area": 0.06,
+  "filter": "saturate(0.74) brightness(0.98)",
+  "brightness": 150,
+  "darkSlide": false
+ },
+ {
+  "skill": "campaign-case-study-deck",
+  "id": "024-06-i2",
+  "content": "그래프가 인쇄된 펼친 소책자",
+  "form": "도판 줄 2번",
+  "role": "product",
+  "meaning": "지역판 산출물 증거",
+  "fit": "같은 배경·조명의 인쇄물 정물",
+  "slot": "card_thumb",
+  "box": [
+   363,
+   225,
+   265,
+   219
+  ],
+  "area": 0.06,
+  "filter": "saturate(0.74) brightness(0.98)",
+  "brightness": 167,
+  "darkSlide": false
+ },
+ {
+  "skill": "campaign-case-study-deck",
+  "id": "024-06-i3",
+  "content": "겹쳐 놓은 테라코타 소책자 세 권",
+  "form": "도판 줄 3번",
+  "role": "product",
+  "meaning": "배포용 소책자 증거",
+  "fit": "같은 배경·조명의 인쇄물 정물",
+  "slot": "card_thumb",
+  "box": [
+   651,
+   225,
+   265,
+   219
+  ],
+  "area": 0.06,
+  "filter": "saturate(0.74) brightness(0.98)",
+  "brightness": 175,
+  "darkSlide": false
+ },
+ {
+  "skill": "campaign-case-study-deck",
+  "id": "024-06-i4",
+  "content": "막대가 인쇄된 한 장짜리 단가표",
+  "form": "도판 줄 4번",
+  "role": "product",
+  "meaning": "단가표 산출물 증거",
+  "fit": "같은 배경·조명의 인쇄물 정물",
+  "slot": "card_thumb",
+  "box": [
+   939,
+   225,
+   265,
+   219
+  ],
+  "area": 0.06,
+  "filter": "saturate(0.74) brightness(0.98)",
+  "brightness": 180,
+  "darkSlide": false
+ },
+ {
+  "skill": "campaign-case-study-deck",
+  "id": "024-11-i1",
+  "content": "선반에 쌓인 테라코타·회색 서류철",
+  "form": "우측 세로 패널 배경, 강하게 어둡게 처리, 위에 흰 글 패널",
+  "role": "texture",
+  "meaning": "자산이 쌓여 영역이 넓어졌다는 은유",
+  "fit": "세로형 어두운 질감 사진, 글을 올릴 수 있게 대비 낮음",
+  "slot": "inset",
+  "box": [
+   832,
+   224,
+   373,
+   413
+  ],
+  "area": 0.17,
+  "filter": "saturate(0.68) brightness(0.74)",
+  "brightness": 41,
+  "darkSlide": false
+ },
+ {
+  "skill": "campaign-case-study-deck",
+  "id": "024-12-i1",
+  "content": "책장에 꽂힌 바인더와 상자",
+  "form": "하단 우측 납작 띠 배경, 어둡게 처리, 위에 원칙 글",
+  "role": "texture",
+  "meaning": "보관·재사용 원칙의 배경 질감",
+  "fit": "가로로 긴 선반 사진, 어둡고 균일해 글 겹침 안전",
+  "slot": "wide_band",
+  "box": [
+   651,
+   504,
+   555,
+   127
+  ],
+  "area": 0.08,
+  "filter": "saturate(0.68) brightness(0.72)",
+  "brightness": 37,
+  "darkSlide": false
+ },
+ {
+  "skill": "campaign-case-study-deck",
+  "id": "024-13-i1",
+  "content": "창가 어두운 탁자 위 문서와 찻잔",
+  "form": "전면 배경, cover 크롭, 강하게 어둡게",
+  "role": "mood",
+  "meaning": "프로젝트를 마친 뒤 정리하는 고요한 마무리",
+  "fit": "저조도 실내 정물, 가로형, 좌측·중앙에 글 올릴 어두운 면",
+  "slot": "full_bleed",
+  "box": [
+   null,
+   null,
+   1280,
+   720
+  ],
+  "area": 1.0,
+  "filter": "saturate(0.68) brightness(0.76)",
+  "brightness": 25,
+  "darkSlide": true
+ },
+ {
+  "skill": "event-sponsorship-pitch-deck",
+  "id": "061-01-i1",
+  "content": "녹색 유니폼 선수가 공을 모는 경기 장면",
+  "form": "전면 배경(세로 원본을 가로로 크롭), 어두운 오버레이",
+  "role": "mood",
+  "meaning": "리그의 역동성과 실제 경기 현장감",
+  "fit": "액션 스포츠 사진, 피사체를 우측에 두고 좌측 하단은 어둡게 처리 가능한 구도",
+  "slot": "full_bleed",
+  "box": [
+   null,
+   null,
+   1280,
+   720
+  ],
+  "area": 1.0,
+  "filter": "grayscale(0.15) contrast(1.05)",
+  "brightness": 93,
+  "darkSlide": true
+ },
+ {
+  "skill": "event-sponsorship-pitch-deck",
+  "id": "061-07-i1",
+  "content": "포옹하며 기뻐하는 선수들",
+  "form": "좌측 절반 전면 세로 사진, cover 크롭, 하단 캡션 라벨",
+  "role": "evidence",
+  "meaning": "유니폼 정면 노출 자산이 실제로 보이는 순간",
+  "fit": "세로형 인물 군집 사진, 가슴 높이 로고 영역이 화면 중앙",
+  "slot": "half_split",
+  "box": [
+   null,
+   null,
+   587,
+   720
+  ],
+  "area": 0.46,
+  "filter": "contrast(1.05)",
+  "brightness": 72,
+  "darkSlide": true
+ },
+ {
+  "skill": "event-sponsorship-pitch-deck",
+  "id": "061-09-i1",
+  "content": "광고판이 둘린 경기장 관중석",
+  "form": "우측 절반 전면 사진, 약간 어둡게, 하단에 흰 결과 카드 겹침",
+  "role": "place",
+  "meaning": "현장 관중 규모와 매장·결제 접점",
+  "fit": "넓은 경기장·관중 사진, 하단 1/3은 카드가 덮어도 되는 구도",
+  "slot": "half_split",
+  "box": [
+   693,
+   0,
+   587,
+   720
+  ],
+  "area": 0.46,
+  "filter": "contrast(1.05) brightness(0.85)",
+  "brightness": 77,
+  "darkSlide": true
+ },
+ {
+  "skill": "imc-campaign-deck",
+  "id": "075-01-i1",
+  "content": "블라인드 사이로 빛이 드는 어두운 침실",
+  "form": "전면 배경, 거의 검정에 가까운 저조도, 진녹색 톤",
+  "role": "mood",
+  "meaning": "잠들지 못하는 밤이라는 캠페인 문제 상황",
+  "fit": "매우 어두운 실내 시네마틱 사진, 좌측에 글 올릴 균일한 어둠",
+  "slot": "full_bleed",
+  "box": [
+   0,
+   0,
+   1280,
+   720
+  ],
+  "area": 1.0,
+  "filter": null,
+  "brightness": 14,
+  "darkSlide": false
+ },
+ {
+  "skill": "imc-campaign-deck",
+  "id": "075-03-i1",
+  "content": "어두운 지하철 통로의 디지털 옥외 광고판",
+  "form": "우측 세로 패널 사진, 어둡고 하단에 아이디어 캡션 겹침",
+  "role": "evidence",
+  "meaning": "핵심 아이디어가 집행될 매체 장면",
+  "fit": "어두운 도시 공간 사진, 세로 크롭 가능, 하단 1/3 글 겹침 안전",
+  "slot": "inset",
+  "box": [
+   827,
+   200,
+   395,
+   436
+  ],
+  "area": 0.19,
+  "filter": null,
+  "brightness": 18,
+  "darkSlide": false
+ },
+ {
+  "skill": "imc-campaign-deck",
+  "id": "075-05-i1",
+  "content": "침대에 누워 눈을 뜬 남성",
+  "form": "좌측 블록 사진, 위에 타깃 인용 글 겹침",
+  "role": "portrait",
+  "meaning": "타깃의 실제 감정 상태를 얼굴로 보여줌",
+  "fit": "어두운 톤 인물 사진, 얼굴이 한쪽에 치우쳐 반대편에 글 공간",
+  "slot": "card_thumb",
+  "box": [
+   59,
+   200,
+   413,
+   260
+  ],
+  "area": 0.12,
+  "filter": null,
+  "brightness": 21,
+  "darkSlide": false
+ },
+ {
+  "skill": "imc-campaign-deck",
+  "id": "075-06-i1",
+  "content": "청록 조명의 약국 진열대",
+  "form": "우측 상단 가로 패널 사진, 위에 라벨 겹침",
+  "role": "evidence",
+  "meaning": "비슷한 제품이 넘치는 진열대 = 선택 장벽",
+  "fit": "선반·진열 사진, 가로형, 어둡고 반복 패턴",
+  "slot": "card_thumb",
+  "box": [
+   791,
+   200,
+   431,
+   193
+  ],
+  "area": 0.09,
+  "filter": null,
+  "brightness": 24,
+  "darkSlide": false
+ },
+ {
+  "skill": "imc-campaign-deck",
+  "id": "075-07-i1",
+  "content": "어둠 속 벽 스위치를 누르는 손",
+  "form": "하단 전폭 가로 띠 배경, 위에 빅 아이디어 문구",
+  "role": "mood",
+  "meaning": "'끄는 순간'이라는 아이디어의 은유",
+  "fit": "가로로 긴 띠에 맞는 어두운 손·사물 클로즈업, 좌측 글 공간",
+  "slot": "wide_band",
+  "box": [
+   59,
+   515,
+   1163,
+   152
+  ],
+  "area": 0.19,
+  "filter": null,
+  "brightness": 21,
+  "darkSlide": false
+ },
+ {
+  "skill": "imc-campaign-deck",
+  "id": "075-11-i1",
+  "content": "어두운 침대 옆 은은한 빛의 원형 기기",
+  "form": "우측 납작 띠 사진, 어둡게",
+  "role": "product",
+  "meaning": "핵심 자산의 제품 모습",
+  "fit": "어두운 배경의 단일 제품 정물, 가로로 납작한 크롭",
+  "slot": "wide_band",
+  "box": [
+   648,
+   244,
+   573,
+   107
+  ],
+  "area": 0.07,
+  "filter": null,
+  "brightness": 16,
+  "darkSlide": false
+ },
+ {
+  "skill": "imc-campaign-deck",
+  "id": "075-16-i1",
+  "content": "새벽빛이 드는 창가 침실",
+  "form": "전면 배경, 진녹색 톤으로 어둡게, 위에 근거·승인 패널",
+  "role": "mood",
+  "meaning": "숙면 후 아침 — 캠페인이 약속하는 결과",
+  "fit": "어두운 실내 와이드 사진, 화면 전체에 글이 올라가도 될 만큼 균일한 저조도",
+  "slot": "full_bleed",
+  "box": [
+   0,
+   0,
+   1280,
+   720
+  ],
+  "area": 1.0,
+  "filter": null,
+  "brightness": 18,
+  "darkSlide": false
+ },
+ {
+  "skill": "kol-influencer-deck",
+  "id": "089-05-i1",
+  "content": "창가 자연광 속 젊은 여성 상반신 초상",
+  "form": "좌측 세로 초상 칸(약 1/3 폭), cover 크롭, 하단에 이름 겹침",
+  "role": "portrait",
+  "meaning": "제안 크리에이터의 얼굴과 분위기 소개",
+  "fit": "세로형 상반신 인물, 밝고 따뜻한 톤, 하단 1/5에 흰 글이 올라갈 여유",
+  "slot": "inset",
+  "box": [
+   53,
+   93,
+   413,
+   573
+  ],
+  "area": 0.26,
+  "filter": null,
+  "brightness": 154,
+  "darkSlide": false
+ },
+ {
+  "skill": "kol-influencer-deck",
+  "id": "089-06-i1",
+  "content": "연녹색 배경 앞 흰 옷 여성 정면 초상",
+  "form": "좌측 세로 초상 칸, cover 크롭",
+  "role": "portrait",
+  "meaning": "전문가형 크리에이터의 신뢰감 표현",
+  "fit": "단색 배경 정면 인물, 세로형, 밝음",
+  "slot": "inset",
+  "box": [
+   53,
+   93,
+   413,
+   573
+  ],
+  "area": 0.26,
+  "filter": null,
+  "brightness": 171,
+  "darkSlide": false
+ },
+ {
+  "skill": "kol-influencer-deck",
+  "id": "089-07-i1",
+  "content": "따뜻한 실내에서 미소 짓는 중년 여성",
+  "form": "좌측 세로 초상 칸, cover 크롭",
+  "role": "portrait",
+  "meaning": "생활형 크리에이터의 친근함 표현",
+  "fit": "실내 환경 인물, 세로형, 중간 밝기, 얼굴이 상단 1/3",
+  "slot": "inset",
+  "box": [
+   53,
+   93,
+   413,
+   573
+  ],
+  "area": 0.26,
+  "filter": null,
+  "brightness": 115,
+  "darkSlide": false
+ },
+ {
+  "skill": "life-event-storyboard-deck",
+  "id": "092-01-i1",
+  "content": "할머니 손에 감싸인 아기 발",
+  "form": "우측 인화 사진(흰 테두리·그림자·캡션), 정사각에 가까움",
+  "role": "mood",
+  "meaning": "세대를 잇는 이야기의 시작을 상징",
+  "fit": "따뜻한 톤의 손·디테일 클로즈업, 정사각, 텍스트 겹침 없음",
+  "slot": "card_thumb",
+  "box": [
+   887,
+   227,
+   287,
+   347
+  ],
+  "area": 0.11,
+  "filter": null,
+  "brightness": 114,
+  "darkSlide": false
+ },
+ {
+  "skill": "life-event-storyboard-deck",
+  "id": "092-03-i1",
+  "content": "1950년대 시장에서 일하는 여성 흑백 사진",
+  "form": "우측 큰 인화 사진, 약한 세피아 필터",
+  "role": "portrait",
+  "meaning": "시대를 여는 단 한 장의 기록",
+  "fit": "흑백·세피아 시대 사진, 세로~정사각, 인물 중심",
+  "slot": "inset",
+  "box": [
+   787,
+   133,
+   387,
+   480
+  ],
+  "area": 0.2,
+  "filter": "sepia(0.15)",
+  "brightness": 79,
+  "darkSlide": false
+ },
+ {
+  "skill": "life-event-storyboard-deck",
+  "id": "092-04-i1",
+  "content": "어두운 작업장에서 생선을 다루는 인물 흑백 사진",
+  "form": "우측 상단 인화(메인), 약한 세피아, 살짝 기울임",
+  "role": "evidence",
+  "meaning": "첫 일터의 장면",
+  "fit": "세로형 흑백 현장 사진, 메인 크기",
+  "slot": "card_thumb",
+  "box": [
+   893,
+   120,
+   280,
+   360
+  ],
+  "area": 0.11,
+  "filter": "sepia(0.10)",
+  "brightness": 63,
+  "darkSlide": false
+ },
+ {
+  "skill": "life-event-storyboard-deck",
+  "id": "092-04-i2",
+  "content": "누렇게 바랜 손글씨 영수증",
+  "form": "메인 아래 겹친 작은 인화",
+  "role": "evidence",
+  "meaning": "기억을 증명하는 물건 디테일",
+  "fit": "낡은 종이·물건 클로즈업, 정사각, 작아도 읽히는 단순 구도",
+  "slot": "card_thumb",
+  "box": [
+   800,
+   427,
+   187,
+   213
+  ],
+  "area": 0.04,
+  "filter": null,
+  "brightness": 102,
+  "darkSlide": false
+ },
+ {
+  "skill": "life-event-storyboard-deck",
+  "id": "092-05-i1",
+  "content": "1970년대 신랑·신부 결혼 기념사진",
+  "form": "좌측 큰 인화 사진(약 1/3), 캡션",
+  "role": "portrait",
+  "meaning": "가정을 이룬 전환점",
+  "fit": "세로형 인물 기념사진, 빈티지 색감",
+  "slot": "inset",
+  "box": [
+   93,
+   123,
+   453,
+   493
+  ],
+  "area": 0.24,
+  "filter": null,
+  "brightness": 81,
+  "darkSlide": false
+ },
+ {
+  "skill": "life-event-storyboard-deck",
+  "id": "092-07-i1",
+  "content": "돌잔치 한복 아기를 안은 엄마",
+  "form": "3장 앨범 띠 중 좌측(가장 큼), 기울임",
+  "role": "portrait",
+  "meaning": "가족이 태어난 순간",
+  "fit": "실내 가족 스냅, 정사각, 따뜻한 빈티지 톤",
+  "slot": "card_thumb",
+  "box": [
+   107,
+   333,
+   320,
+   311
+  ],
+  "area": 0.11,
+  "filter": null,
+  "brightness": 106,
+  "darkSlide": false
+ },
+ {
+  "skill": "life-event-storyboard-deck",
+  "id": "092-07-i2",
+  "content": "김이 오르는 누룽지 그릇",
+  "form": "앨범 띠 가운데 작은 정사각 인화",
+  "role": "mood",
+  "meaning": "그 시절의 일상 음식 기억",
+  "fit": "음식 클로즈업, 정사각, 따뜻함",
+  "slot": "card_thumb",
+  "box": [
+   453,
+   373,
+   253,
+   253
+  ],
+  "area": 0.07,
+  "filter": null,
+  "brightness": 92,
+  "darkSlide": false
+ },
+ {
+  "skill": "life-event-storyboard-deck",
+  "id": "092-07-i3",
+  "content": "이불 속 사촌 아이들 단체 사진",
+  "form": "앨범 띠 우측 인화, 기울임",
+  "role": "portrait",
+  "meaning": "함께 자란 가족들",
+  "fit": "아이들 군집 스냅, 정사각~세로",
+  "slot": "card_thumb",
+  "box": [
+   733,
+   333,
+   253,
+   308
+  ],
+  "area": 0.08,
+  "filter": null,
+  "brightness": 121,
+  "darkSlide": false
+ },
+ {
+  "skill": "life-event-storyboard-deck",
+  "id": "092-08-i1",
+  "content": "새벽 창가 탁자 위 보온병",
+  "form": "우측 세로 인화, 어두운 톤",
+  "role": "mood",
+  "meaning": "매일 새벽 차를 끓이는 습관의 상징 사물",
+  "fit": "어두운 실내 정물, 세로형",
+  "slot": "tall_column",
+  "box": [
+   893,
+   160,
+   280,
+   467
+  ],
+  "area": 0.14,
+  "filter": null,
+  "brightness": 37,
+  "darkSlide": false
+ },
+ {
+  "skill": "life-event-storyboard-deck",
+  "id": "092-10-i1",
+  "content": "밤 골목의 내려진 가게 셔터",
+  "form": "우측 하단의 아주 작은 사진(의도적 축소), 어두운 바탕",
+  "role": "place",
+  "meaning": "가게가 닫힌 시기의 상실을 절제해 표현",
+  "fit": "어두운 밤 장소 사진, 가로형, 작게 써도 형태가 읽히는 단순 구도",
+  "slot": "card_thumb",
+  "box": [
+   920,
+   453,
+   253,
+   200
+  ],
+  "area": 0.05,
+  "filter": null,
+  "brightness": 51,
+  "darkSlide": false
+ },
+ {
+  "skill": "life-event-storyboard-deck",
+  "id": "092-11-i1",
+  "content": "도마 위에 줄지어 빚은 만두",
+  "form": "우측 정사각 인화와 메타 캡션",
+  "role": "evidence",
+  "meaning": "다시 일어선 생업(만두)의 증거",
+  "fit": "위에서 찍은 음식 사진, 정사각, 밝음",
+  "slot": "card_thumb",
+  "box": [
+   893,
+   360,
+   280,
+   280
+  ],
+  "area": 0.09,
+  "filter": null,
+  "brightness": 118,
+  "darkSlide": false
+ },
+ {
+  "skill": "life-event-storyboard-deck",
+  "id": "092-13-i1",
+  "content": "베란다의 빨간 제라늄 화분",
+  "form": "우측 세로 3단 인화 중 첫째, 가로형",
+  "role": "mood",
+  "meaning": "최근의 소소한 일상 리듬",
+  "fit": "같은 장소·조명의 화분 사진, 가로형, 밝음",
+  "slot": "card_thumb",
+  "box": [
+   880,
+   133,
+   293,
+   173
+  ],
+  "area": 0.06,
+  "filter": null,
+  "brightness": 123,
+  "darkSlide": false
+ },
+ {
+  "skill": "life-event-storyboard-deck",
+  "id": "092-13-i2",
+  "content": "베란다의 산세베리아 화분",
+  "form": "3단 인화 중 둘째",
+  "role": "mood",
+  "meaning": "반복되는 돌봄의 리듬",
+  "fit": "같은 시리즈의 화분 사진",
+  "slot": "card_thumb",
+  "box": [
+   880,
+   320,
+   293,
+   173
+  ],
+  "area": 0.06,
+  "filter": null,
+  "brightness": 106,
+  "darkSlide": false
+ },
+ {
+  "skill": "life-event-storyboard-deck",
+  "id": "092-13-i3",
+  "content": "흰 화분의 다육식물",
+  "form": "3단 인화 중 셋째",
+  "role": "mood",
+  "meaning": "반복되는 돌봄의 리듬",
+  "fit": "같은 시리즈의 화분 사진, 밝음",
+  "slot": "card_thumb",
+  "box": [
+   880,
+   507,
+   293,
+   160
+  ],
+  "area": 0.05,
+  "filter": null,
+  "brightness": 163,
+  "darkSlide": false
+ },
+ {
+  "skill": "lonely-planet-travel-deck",
+  "id": "093-01-i1",
+  "content": "노란 벽과 붉은 등이 달린 옛 고택 정면",
+  "form": "우측 약 60% 풀블리드 세로 분할, cover 크롭",
+  "role": "place",
+  "meaning": "목적지의 색과 분위기를 첫눈에 전달",
+  "fit": "선명한 색의 장소 사진, 세로 크롭에 견디는 정면 구도, 글 겹침 없음",
+  "slot": "half_split",
+  "box": [
+   507,
+   null,
+   773,
+   720
+  ],
+  "area": 0.6,
+  "filter": null,
+  "brightness": null,
+  "darkSlide": false
+ },
+ {
+  "skill": "lonely-planet-travel-deck",
+  "id": "093-04-i1",
+  "content": "노란 벽 앞을 지나는 삿갓 쓴 행상",
+  "form": "좌측 2/3 풀블리드, cover 크롭",
+  "role": "place",
+  "meaning": "도착 순간의 거리 인상",
+  "fit": "인물이 작게 들어간 거리 풍경, 가로~세로 모두 견디는 구도, 밝음",
+  "slot": "half_split",
+  "box": [
+   null,
+   null,
+   827,
+   720
+  ],
+  "area": 0.65,
+  "filter": null,
+  "brightness": null,
+  "darkSlide": false
+ },
+ {
+  "skill": "lonely-planet-travel-deck",
+  "id": "093-05-i1",
+  "content": "길거리 간식 노점 수레",
+  "form": "우측 큰 세로 사진(여백 안), cover 크롭",
+  "role": "evidence",
+  "meaning": "만남이 일어난 장소·음식",
+  "fit": "세로형 근접 장소 사진, 밝고 채도 높음",
+  "slot": "inset",
+  "box": [
+   520,
+   80,
+   453,
+   560
+  ],
+  "area": 0.28,
+  "filter": null,
+  "brightness": null,
+  "darkSlide": false
+ },
+ {
+  "skill": "lonely-planet-travel-deck",
+  "id": "093-05-i2",
+  "content": "등불 켜진 저녁 거리 보조 사진",
+  "form": "큰 사진 옆 작은 세로 사진",
+  "role": "mood",
+  "meaning": "같은 날의 분위기 보충",
+  "fit": "작은 세로 칸에 맞는 단순한 장면",
+  "slot": "card_thumb",
+  "box": [
+   1000,
+   80,
+   200,
+   267
+  ],
+  "area": 0.06,
+  "filter": null,
+  "brightness": null,
+  "darkSlide": false
+ },
+ {
+  "skill": "lonely-planet-travel-deck",
+  "id": "093-06-i1",
+  "content": "과일을 파는 삿갓 쓴 노점상",
+  "form": "좌측 절반 풀블리드, 검정 바탕 옆",
+  "role": "portrait",
+  "meaning": "가격 흥정의 마찰이 있었던 상대",
+  "fit": "세로 크롭 가능한 인물·현장 사진, 중간 밝기",
+  "slot": "half_split",
+  "box": [
+   null,
+   null,
+   640,
+   720
+  ],
+  "area": 0.5,
+  "filter": null,
+  "brightness": null,
+  "darkSlide": true
+ },
+ {
+  "skill": "lonely-planet-travel-deck",
+  "id": "093-07-i1",
+  "content": "노란 벽 골목을 걷는 흰 옷 여성",
+  "form": "우측 절반 풀블리드",
+  "role": "mood",
+  "meaning": "혼자 걷는 내향적 여행의 깨달음",
+  "fit": "여백 많은 거리 사진, 인물 작게, 세로 크롭",
+  "slot": "half_split",
+  "box": [
+   640,
+   null,
+   640,
+   720
+  ],
+  "area": 0.5,
+  "filter": null,
+  "brightness": null,
+  "darkSlide": false
+ },
+ {
+  "skill": "lonely-planet-travel-deck",
+  "id": "093-08-i1",
+  "content": "초록 산을 굽이도는 고갯길 항공 사진",
+  "form": "전면 배경, 좌측 상단에 글 겹침",
+  "role": "mood",
+  "meaning": "도시 간 이동 구간 — 아무것도 일어나지 않은 시간",
+  "fit": "넓은 풍경 항공 사진, 한쪽에 글 올릴 균일한 면",
+  "slot": "full_bleed",
+  "box": [
+   null,
+   null,
+   1280,
+   720
+  ],
+  "area": 1.0,
+  "filter": null,
+  "brightness": null,
+  "darkSlide": true
+ },
+ {
+  "skill": "lonely-planet-travel-deck",
+  "id": "093-09-i1",
+  "content": "물에 비친 옛 성곽 누각",
+  "form": "좌측 2/3 풀블리드",
+  "role": "place",
+  "meaning": "두 번째 도시 도착",
+  "fit": "랜드마크 풍경, 하늘·반영으로 여백 있는 구도",
+  "slot": "half_split",
+  "box": [
+   null,
+   null,
+   827,
+   720
+  ],
+  "area": 0.65,
+  "filter": null,
+  "brightness": null,
+  "darkSlide": false
+ },
+ {
+  "skill": "lonely-planet-travel-deck",
+  "id": "093-10-i1",
+  "content": "핀 드리퍼로 내리는 커피",
+  "form": "우측 큰 세로 사진",
+  "role": "evidence",
+  "meaning": "만남의 매개가 된 커피",
+  "fit": "밝은 음식·음료 정물, 세로형",
+  "slot": "inset",
+  "box": [
+   520,
+   80,
+   440,
+   560
+  ],
+  "area": 0.27,
+  "filter": null,
+  "brightness": null,
+  "darkSlide": false
+ },
+ {
+  "skill": "lonely-planet-travel-deck",
+  "id": "093-10-i2",
+  "content": "도시의 다리 보조 사진",
+  "form": "큰 사진 옆 작은 세로 사진",
+  "role": "place",
+  "meaning": "도시 맥락 보충",
+  "fit": "작은 세로 칸용 단순 풍경",
+  "slot": "card_thumb",
+  "box": [
+   987,
+   80,
+   213,
+   280
+  ],
+  "area": 0.06,
+  "filter": null,
+  "brightness": null,
+  "darkSlide": false
+ },
+ {
+  "skill": "lonely-planet-travel-deck",
+  "id": "093-11-i1",
+  "content": "붐비는 시장 흑백 사진",
+  "form": "우측 절반 풀블리드, 검정 바탕 옆, 흑백",
+  "role": "mood",
+  "meaning": "더위·혼잡 속 마찰의 감정",
+  "fit": "흑백 군중 현장 사진, 세로 크롭",
+  "slot": "half_split",
+  "box": [
+   640,
+   null,
+   640,
+   720
+  ],
+  "area": 0.5,
+  "filter": null,
+  "brightness": null,
+  "darkSlide": true
+ },
+ {
+  "skill": "lonely-planet-travel-deck",
+  "id": "093-12-i1",
+  "content": "안개 낀 계단식 논",
+  "form": "좌측 약 57% 풀블리드",
+  "role": "place",
+  "meaning": "평온한 깨달음의 장면",
+  "fit": "부드러운 녹색 풍경, 밝음, 세로 크롭",
+  "slot": "half_split",
+  "box": [
+   null,
+   null,
+   733,
+   720
+  ],
+  "area": 0.57,
+  "filter": null,
+  "brightness": null,
+  "darkSlide": false
+ },
+ {
+  "skill": "lonely-planet-travel-deck",
+  "id": "093-15-i1",
+  "content": "야자수와 해안 도로 위 화려한 노을",
+  "form": "전면 배경, 글·캡션 없음",
+  "role": "mood",
+  "meaning": "결론 뒤 잠시 쉬어가는 여운",
+  "fit": "인상적인 와이드 풍경, 글 없이 혼자 서는 사진",
+  "slot": "full_bleed",
+  "box": [
+   null,
+   null,
+   1280,
+   720
+  ],
+  "area": 1.0,
+  "filter": null,
+  "brightness": null,
+  "darkSlide": true
+ },
+ {
+  "skill": "marketing-lecture-deck",
+  "id": "095-01-i1",
+  "content": "야경 창가 강의실에서 노트북을 보는 수강생들 뒷모습",
+  "form": "전면 배경, 남색 오버레이로 매우 어둡게",
+  "role": "mood",
+  "meaning": "실습형 워크숍 현장 분위기",
+  "fit": "어두운 실내 단체 장면, 가로형, 좌측에 글 공간",
+  "slot": "full_bleed",
+  "box": [
+   null,
+   null,
+   1280,
+   720
+  ],
+  "area": 1.0,
+  "filter": null,
+  "brightness": 27,
+  "darkSlide": true
+ },
+ {
+  "skill": "marketing-lecture-deck",
+  "id": "095-03-i1",
+  "content": "어두운 방에서 노트북 앞에 고민하는 남성",
+  "form": "하단 전폭 납작 띠, 남색 오버레이 위 결론 문장",
+  "role": "mood",
+  "meaning": "혼자 막히는 실패 상황의 공감",
+  "fit": "가로로 긴 크롭에 견디는 어두운 인물 사진, 좌측 글 공간",
+  "slot": "wide_band",
+  "box": [
+   64,
+   541,
+   1152,
+   131
+  ],
+  "area": 0.16,
+  "filter": null,
+  "brightness": 13,
+  "darkSlide": false
+ },
+ {
+  "skill": "marketing-lecture-deck",
+  "id": "095-05-i1",
+  "content": "어둠 속 냉장고 문을 연 사람 실루엣",
+  "form": "우측 카드 상단 가로 사진, 위에 비유 라벨",
+  "role": "illustration",
+  "meaning": "'냉장고 정리' 비유를 시각화",
+  "fit": "비유를 직관적으로 보여주는 어두운 일상 장면, 가로형",
+  "slot": "wide_band",
+  "box": [
+   709,
+   223,
+   507,
+   184
+  ],
+  "area": 0.1,
+  "filter": null,
+  "brightness": 19,
+  "darkSlide": false
+ },
+ {
+  "skill": "marketing-lecture-deck",
+  "id": "095-07-i1",
+  "content": "노트북·커피·노트가 있는 책상 탑뷰",
+  "form": "상단 전폭 띠(약 200px), 위에 제목 겹침",
+  "role": "texture",
+  "meaning": "작업 시간 단축이라는 주제의 배경",
+  "fit": "가로 띠용 어두운 작업 책상 사진, 글이 겹쳐도 읽히는 균일한 어둠",
+  "slot": "wide_band",
+  "box": [
+   null,
+   null,
+   1280,
+   200
+  ],
+  "area": 0.28,
+  "filter": null,
+  "brightness": 54,
+  "darkSlide": false
+ },
+ {
+  "skill": "marketing-lecture-deck",
+  "id": "095-08-i1",
+  "content": "모니터를 가리키며 함께 실습하는 사람들",
+  "form": "우측 하단 납작 패널 배경, 어둡게, 위에 도움말 글",
+  "role": "process",
+  "meaning": "막히면 함께 확인하라는 실습 상황",
+  "fit": "어두운 협업 장면, 납작 크롭",
+  "slot": "wide_band",
+  "box": [
+   683,
+   484,
+   533,
+   131
+  ],
+  "area": 0.08,
+  "filter": null,
+  "brightness": 34,
+  "darkSlide": false
+ },
+ {
+  "skill": "marketing-lecture-deck",
+  "id": "095-12-i1",
+  "content": "노트에 손글씨를 쓰는 손",
+  "form": "우측 예시 카드의 머리 사진, 납작 크롭",
+  "role": "process",
+  "meaning": "워크시트를 직접 작성하는 행동",
+  "fit": "손·필기 클로즈업, 가로로 납작한 칸",
+  "slot": "wide_band",
+  "box": [
+   813,
+   208,
+   403,
+   120
+  ],
+  "area": 0.05,
+  "filter": null,
+  "brightness": 48,
+  "darkSlide": false
+ },
+ {
+  "skill": "marketing-lecture-deck",
+  "id": "095-14-i1",
+  "content": "수업이 끝난 빈 강의실 저녁",
+  "form": "전면 배경, 남색으로 어둡게, 위에 요약 패널",
+  "role": "mood",
+  "meaning": "강의를 마친 뒤의 여운과 정리",
+  "fit": "어두운 빈 공간 와이드, 화면 전체에 글이 올라갈 수 있는 저조도",
+  "slot": "full_bleed",
+  "box": [
+   null,
+   null,
+   1280,
+   720
+  ],
+  "area": 1.0,
+  "filter": null,
+  "brightness": 31,
+  "darkSlide": true
+ },
+ {
+  "skill": "marketing-performance-deck",
+  "id": "096-01-i1",
+  "content": "야경이 보이는 어두운 사무실 책상 위 서류",
+  "form": "전면 배경, 매우 어둡게, 금색 숫자와 제목 겹침",
+  "role": "mood",
+  "meaning": "분기 결과를 차분히 검토하는 내부 보고 분위기",
+  "fit": "저조도 사무 공간 와이드, 좌측에 글 올릴 어두운 면",
+  "slot": "full_bleed",
+  "box": [
+   null,
+   null,
+   1280,
+   720
+  ],
+  "area": 1.0,
+  "filter": null,
+  "brightness": 23,
+  "darkSlide": true
+ },
+ {
+  "skill": "marketing-performance-deck",
+  "id": "096-04-i1",
+  "content": "어두운 방의 스프레드시트 모니터",
+  "form": "파트 표지 우측 절반 사진, 어둡게",
+  "role": "texture",
+  "meaning": "목표 대비 숫자를 보는 파트",
+  "fit": "어두운 업무 사물 사진, 가로 원본을 세로 반쪽으로 크롭 가능",
+  "slot": "half_split",
+  "box": [
+   640,
+   null,
+   640,
+   720
+  ],
+  "area": 0.5,
+  "filter": null,
+  "brightness": 37,
+  "darkSlide": true
+ },
+ {
+  "skill": "marketing-performance-deck",
+  "id": "096-07-i1",
+  "content": "창밖 도시 야경에 겹친 꺾은선 반사",
+  "form": "파트 표지 우측 절반 사진",
+  "role": "texture",
+  "meaning": "이상 신호를 다루는 파트",
+  "fit": "같은 톤의 어두운 도시·데이터 은유 사진",
+  "slot": "half_split",
+  "box": [
+   640,
+   null,
+   640,
+   720
+  ],
+  "area": 0.5,
+  "filter": null,
+  "brightness": 37,
+  "darkSlide": true
+ },
+ {
+  "skill": "marketing-performance-deck",
+  "id": "096-12-i1",
+  "content": "빛 줄기 아래 흩어진 서류",
+  "form": "파트 표지 우측 절반 사진",
+  "role": "texture",
+  "meaning": "데이터를 쪼개 보는 파트",
+  "fit": "같은 시리즈의 어두운 정물",
+  "slot": "half_split",
+  "box": [
+   640,
+   null,
+   640,
+   720
+  ],
+  "area": 0.5,
+  "filter": null,
+  "brightness": 41,
+  "darkSlide": true
+ },
+ {
+  "skill": "marketing-performance-deck",
+  "id": "096-15-i1",
+  "content": "문틈으로 빛이 새는 어두운 복도",
+  "form": "파트 표지 우측 절반 사진",
+  "role": "mood",
+  "meaning": "틀린 것을 남겨두는 성찰의 파트",
+  "fit": "같은 시리즈의 어두운 공간 사진, 빛 한 줄기",
+  "slot": "half_split",
+  "box": [
+   640,
+   null,
+   640,
+   720
+  ],
+  "area": 0.5,
+  "filter": null,
+  "brightness": 29,
+  "darkSlide": true
+ },
+ {
+  "skill": "marketing-performance-deck",
+  "id": "096-17-i1",
+  "content": "작은 유리병과 봉투 정물",
+  "form": "좌측 작은 세로 사진 카드(출처 열)",
+  "role": "product",
+  "meaning": "후기들이 말하는 바로 그 제품",
+  "fit": "어두운 배경 제품 정물, 세로형",
+  "slot": "card_thumb",
+  "box": [
+   53,
+   235,
+   213,
+   280
+  ],
+  "area": 0.06,
+  "filter": null,
+  "brightness": 46,
+  "darkSlide": false
+ },
+ {
+  "skill": "marketing-performance-deck",
+  "id": "096-19-i1",
+  "content": "새벽 도시가 보이는 창가",
+  "form": "좌측 약 1/3 세로 전면 패널, 어둡게, 위에 제목",
+  "role": "mood",
+  "meaning": "다음 분기로 넘어가는 전환",
+  "fit": "세로형 어두운 창가 사진, 위쪽에 글 공간",
+  "slot": "half_split",
+  "box": [
+   null,
+   null,
+   400,
+   720
+  ],
+  "area": 0.31,
+  "filter": null,
+  "brightness": 43,
+  "darkSlide": true
+ },
+ {
+  "skill": "tedx-18min-resident-talk-deck",
+  "id": "148-01-i1",
+  "content": "가로등 하나가 비추는 비 젖은 밤 골목",
+  "form": "전면 배경, 밝기·채도 낮춤, 좌측 하단에 이름",
+  "role": "mood",
+  "meaning": "위기의 밤거리라는 이야기의 무대",
+  "fit": "매우 어두운 시네마틱 야경, 가로형, 하단 좌측에 균일한 어둠",
+  "slot": "full_bleed",
+  "box": [
+   0,
+   0,
+   1280,
+   720
+  ],
+  "area": 1.0,
+  "filter": "brightness(0.85) saturate(0.92)",
+  "brightness": 17,
+  "darkSlide": true
+ },
+ {
+  "skill": "tedx-18min-resident-talk-deck",
+  "id": "148-03-i1",
+  "content": "어둠 속 형광등이 켜진 편의점 외관",
+  "form": "전면 배경, 어둡게, 좌측 하단에 장면 문장",
+  "role": "place",
+  "meaning": "도입 일화가 일어난 장소로 청중을 데려감",
+  "fit": "어두운 밤 장소 사진, 피사체 우측, 하단 좌측 글 공간",
+  "slot": "full_bleed",
+  "box": [
+   0,
+   0,
+   1280,
+   720
+  ],
+  "area": 1.0,
+  "filter": "brightness(0.78) saturate(0.9) contrast(1.05)",
+  "brightness": 26,
+  "darkSlide": true
+ },
+ {
+  "skill": "tedx-18min-resident-talk-deck",
+  "id": "148-06-i1",
+  "content": "펜으로 손글씨를 쓰는 노트 클로즈업",
+  "form": "좌측 사각 사진(약 40% 폭, 여백 안), 약간 어둡게",
+  "role": "texture",
+  "meaning": "레지던시 기록 노트라는 모티프",
+  "fit": "손·필기 클로즈업, 가로~정사각, 중간 어둠",
+  "slot": "inset",
+  "box": [
+   93,
+   173,
+   520,
+   453
+  ],
+  "area": 0.26,
+  "filter": "brightness(0.85) saturate(0.85)",
+  "brightness": null,
+  "darkSlide": true
+ },
+ {
+  "skill": "tedx-18min-resident-talk-deck",
+  "id": "148-08-i1",
+  "content": "끝에 문 하나가 보이는 어두운 복도",
+  "form": "전면 배경, 어둡게, 좌측 상단·하단에 문장",
+  "role": "mood",
+  "meaning": "개인적 취약함의 순간",
+  "fit": "소실점이 중앙인 어두운 공간, 좌우에 글 공간",
+  "slot": "full_bleed",
+  "box": [
+   0,
+   0,
+   1280,
+   720
+  ],
+  "area": 1.0,
+  "filter": "brightness(0.78) saturate(0.85) contrast(1.05)",
+  "brightness": 35,
+  "darkSlide": true
+ },
+ {
+  "skill": "tedx-18min-resident-talk-deck",
+  "id": "148-09-i1",
+  "content": "낡은 손글씨 현장 노트 펼친 면",
+  "form": "전면 배경, 강하게 어둡게, 위에 큰 문장",
+  "role": "texture",
+  "meaning": "현장 기록에서 나온 깨달음",
+  "fit": "어둡게 깔아도 질감만 남는 사물 사진, 글 대비 확보",
+  "slot": "full_bleed",
+  "box": [
+   0,
+   0,
+   1280,
+   720
+  ],
+  "area": 1.0,
+  "filter": "brightness(0.65) saturate(0.78) contrast(1.05)",
+  "brightness": 59,
+  "darkSlide": true
+ },
+ {
+  "skill": "b2b-saas-sales-proposal",
+  "id": "016-03-i1",
+  "content": "회색 배경의 정장 차림 중년 여성 임원 증명사진",
+  "form": "프로필 카드 안 작은 정사각(원형) 썸네일, 크롭만, 어둡게 처리 없음",
+  "role": "portrait",
+  "meaning": "의사결정자를 실제 사람으로 느끼게 해 제안서를 '이 사람을 위한 문서'로 만든다",
+  "fit": "어깨 위 정면 인물, 단색 밝은 배경, 얼굴이 중앙에 오는 정사각 사진. 작은 크기라 배경이 단순해야 함",
+  "slot": "card_thumb",
+  "box": [
+   85,
+   240,
+   80,
+   80
+  ],
+  "area": 0.01,
+  "filter": null,
+  "brightness": 137,
+  "darkSlide": false
+ },
+ {
+  "skill": "b2b-saas-sales-proposal",
+  "id": "016-11-i1",
+  "content": "회색 배경의 니트 차림 남성 실무 리더 증명사진",
+  "form": "프로필 카드 안 작은 정사각 썸네일, 크롭만",
+  "role": "portrait",
+  "meaning": "내부 지지자(챔피언)의 얼굴을 보여 주어 그를 돕는 장임을 강조",
+  "fit": "정면 상반신 인물, 단색 배경, 정사각, 밝기 중간 이상",
+  "slot": "card_thumb",
+  "box": [
+   85,
+   240,
+   67,
+   67
+  ],
+  "area": 0.0,
+  "filter": null,
+  "brightness": 139,
+  "darkSlide": false
+ },
+ {
+  "skill": "customer-case-study",
+  "id": "047-06-i1",
+  "content": "물류 창고를 배경으로 선 작업 재킷 차림 남성 운영 책임자",
+  "form": "왼쪽 열의 큰 정사각 인물 사진(약 1/4 폭), 크롭만, 어둡게 처리 없음",
+  "role": "portrait",
+  "meaning": "인용의 주인을 현장 맥락과 함께 보여 주어 증언의 신뢰를 높인다",
+  "fit": "인물 상반신 + 업무 현장이 흐리게 보이는 정사각 사진, 중간 밝기, 얼굴이 위쪽 1/3에",
+  "slot": "card_thumb",
+  "box": [
+   100,
+   113,
+   333,
+   333
+  ],
+  "area": 0.12,
+  "filter": null,
+  "brightness": 115,
+  "darkSlide": false
+ },
+ {
+  "skill": "customer-case-study",
+  "id": "047-08-i1",
+  "content": "사무실 창가에 앉은 정장 차림 여성 임원",
+  "form": "인용 카드 하단의 작은 정사각 썸네일(서명 옆), 크롭만",
+  "role": "portrait",
+  "meaning": "성과 인용의 출처(임원)를 서명처럼 표시",
+  "fit": "정면 상반신, 단순한 배경, 작은 크기에서도 얼굴이 식별되는 정사각",
+  "slot": "card_thumb",
+  "box": [
+   740,
+   527,
+   80,
+   80
+  ],
+  "area": 0.01,
+  "filter": null,
+  "brightness": 116,
+  "darkSlide": false
+ },
+ {
+  "skill": "hospitality-venue-sales-deck",
+  "id": "072-01-i1",
+  "content": "촛불과 꽃 장식이 있는 어두운 고급 연회장 실내",
+  "form": "전면 배경, 채도 살짝 낮춤, 원본 자체가 매우 어두움",
+  "role": "mood",
+  "meaning": "행사 다음 날까지 남는 분위기라는 메시지를 첫 화면에서 감각으로 전달",
+  "fit": "가로형 어두운 실내 분위기 사진, 하단 왼쪽이 비어 글이 얹힐 수 있는 구도, 따뜻한 조명 포인트",
+  "slot": "full_bleed",
+  "box": [
+   null,
+   null,
+   1280,
+   720
+  ],
+  "area": 1.0,
+  "filter": "saturate(0.92) contrast(1.04)",
+  "brightness": 29,
+  "darkSlide": true
+ },
+ {
+  "skill": "hospitality-venue-sales-deck",
+  "id": "072-04-i1",
+  "content": "샹들리에 아래 긴 테이블의 갈라 디너 장면",
+  "form": "전면 배경, 약간 어둡게, 하단에 문장 오버레이",
+  "role": "mood",
+  "meaning": "저녁 행사의 경험을 보여 주며 만족도 수치와 연결",
+  "fit": "사람이 있는 행사 장면 가로 사진, 아래쪽이 어둡고 단순해 글 대비가 확보되는 것",
+  "slot": "full_bleed",
+  "box": [
+   null,
+   null,
+   1280,
+   720
+  ],
+  "area": 1.0,
+  "filter": "saturate(0.9) brightness(0.92)",
+  "brightness": 65,
+  "darkSlide": true
+ },
+ {
+  "skill": "hospitality-venue-sales-deck",
+  "id": "072-05-i1",
+  "content": "아치형 창으로 빛이 드는 밝은 회의실 좌석 배치",
+  "form": "오른쪽 5/8 세로 열 전체, 크롭만, 밝기 유지",
+  "role": "place",
+  "meaning": "낮 회의 공간의 쾌적함을 실물로 증명",
+  "fit": "세로로 잘려도 공간감이 남는 밝은 실내 사진, 소실점이 중앙",
+  "slot": "half_split",
+  "box": [
+   480,
+   null,
+   800,
+   720
+  ],
+  "area": 0.62,
+  "filter": "saturate(0.95) brightness(1.0)",
+  "brightness": 156,
+  "darkSlide": false
+ },
+ {
+  "skill": "hospitality-venue-sales-deck",
+  "id": "072-08-i1",
+  "content": "샹들리에 아래 정장 차림 손님들의 만찬 테이블",
+  "form": "오른쪽 1/3 세로 열, 약간 어둡게",
+  "role": "mood",
+  "meaning": "식음 프로그램의 격을 사진으로 뒷받침",
+  "fit": "세로 크롭 가능한 행사·음식 장면, 어두운 바탕 슬라이드와 어울리는 중저 밝기",
+  "slot": "half_split",
+  "box": [
+   853,
+   null,
+   427,
+   720
+  ],
+  "area": 0.33,
+  "filter": "brightness(0.85) saturate(0.9)",
+  "brightness": 93,
+  "darkSlide": true
+ },
+ {
+  "skill": "hospitality-venue-sales-deck",
+  "id": "072-12-i1",
+  "content": "샹들리에와 대리석 바닥이 있는 호텔 로비",
+  "form": "오른쪽 절반 세로 열, 크게 어둡게 처리 후 그 위에 방문 요청 문구",
+  "role": "place",
+  "meaning": "현장 방문을 권하는 마무리 장면의 배경",
+  "fit": "세로형 건축·로비 사진, 어둡게 눌러도 형태가 읽히는 대칭 구도, 글이 얹힐 상단 여백",
+  "slot": "half_split",
+  "box": [
+   640,
+   null,
+   640,
+   720
+  ],
+  "area": 0.5,
+  "filter": "brightness(0.55) saturate(0.85)",
+  "brightness": 106,
+  "darkSlide": true
+ },
+ {
+  "skill": "ibd-company-roadshow-deck",
+  "id": "074-01-i1",
+  "content": "남색 바탕의 금색 원형 물결 로고 마크",
+  "form": "표지 회사명 왼쪽 작은 정사각 로고(약 90px), 크롭 없음",
+  "role": "product",
+  "meaning": "발행 회사의 정체성을 표시하는 브랜드 마크",
+  "fit": "배경색과 같은 단색 바탕의 정사각 로고, 투명 또는 표지 바탕색과 일치, 금색·흰색 단색 선화",
+  "slot": "card_thumb",
+  "box": [
+   80,
+   147,
+   93,
+   93
+  ],
+  "area": 0.01,
+  "filter": null,
+  "brightness": 42,
+  "darkSlide": false
+ },
+ {
+  "skill": "annual-report-art-direction-deck",
+  "id": "012-04-i1",
+  "content": "어두운 밤 가게 셔터와 위 조명",
+  "form": "스프레드 견본 안의 가로 사진(작은 인셋), 하단에 제목 오버레이, 약간 탈채도",
+  "role": "mood",
+  "meaning": "보고서 표지 지면의 분위기 견본 — 문 닫은 가게로 '손익분기'의 긴장을 암시",
+  "fit": "어둡고 단순한 질감 배경의 가로 사진, 아래쪽 1/3에 글자를 얹을 수 있는 어두운 여백",
+  "slot": "card_thumb",
+  "box": [
+   93,
+   240,
+   320,
+   227
+  ],
+  "area": 0.08,
+  "filter": "contrast(0.96) saturate(0.92)",
+  "brightness": 62,
+  "darkSlide": false
+ },
+ {
+  "skill": "annual-report-art-direction-deck",
+  "id": "012-04-i2",
+  "content": "가게 안 노년 상인이 장부를 보는 모습",
+  "form": "견본 지면 안의 세로 사진, 커버 크롭, 약간 탈채도",
+  "role": "portrait",
+  "meaning": "본문 오프너 스프레드에 쓰일 실제 인물 사진 견본",
+  "fit": "실제 현장 인물을 담은 세로 다큐 사진, 자연광, 얼굴이 위 1/3에 위치",
+  "slot": "inset",
+  "box": [
+   453,
+   227,
+   347,
+   373
+  ],
+  "area": 0.14,
+  "filter": "contrast(0.95) saturate(0.9)",
+  "brightness": 78,
+  "darkSlide": false
+ },
+ {
+  "skill": "annual-report-art-direction-deck",
+  "id": "012-07-i1",
+  "content": "카메라를 든 사진가 흑백 초상",
+  "form": "왼쪽 열 가로 초상, 커버 크롭, 하단 이름 캡션 오버레이",
+  "role": "portrait",
+  "meaning": "사진 방향을 정한 사진가를 소개해 '서명 있는 사진' 원칙을 보여 줌",
+  "fit": "흑백 또는 저채도 인물 반신 초상, 하단에 이름표가 얹힐 어두운 영역",
+  "slot": "card_thumb",
+  "box": [
+   107,
+   280,
+   320,
+   253
+  ],
+  "area": 0.09,
+  "filter": "contrast(0.96)",
+  "brightness": 75,
+  "darkSlide": false
+ },
+ {
+  "skill": "annual-report-art-direction-deck",
+  "id": "012-07-i2",
+  "content": "현금과 계산기, 장부를 쓰는 손 클로즈업",
+  "form": "오른쪽 작은 가로 썸네일, 커버 크롭",
+  "role": "evidence",
+  "meaning": "실제 촬영 샘플 컷 — 숫자 뒤의 사람의 손을 보여 주는 예",
+  "fit": "손·사물 클로즈업 가로 사진, 밝은 실내, 텍스트 없는 작은 썸네일용",
+  "slot": "wide_band",
+  "box": [
+   853,
+   253,
+   347,
+   113
+  ],
+  "area": 0.04,
+  "filter": "contrast(0.95) saturate(0.9)",
+  "brightness": 92,
+  "darkSlide": false
+ },
+ {
+  "skill": "annual-report-art-direction-deck",
+  "id": "012-07-i3",
+  "content": "카페 주인이 태블릿을 보는 모습",
+  "form": "오른쪽 작은 가로 썸네일, 커버 크롭",
+  "role": "evidence",
+  "meaning": "실제 촬영 샘플 컷 — 소상공인의 일상 현장",
+  "fit": "밝은 실내 다큐 인물 사진 가로형, 인물이 한쪽에 치우친 구도",
+  "slot": "wide_band",
+  "box": [
+   853,
+   427,
+   347,
+   113
+  ],
+  "area": 0.04,
+  "filter": "contrast(0.95) saturate(0.9)",
+  "brightness": 97,
+  "darkSlide": false
+ },
+ {
+  "skill": "annual-report-art-direction-deck",
+  "id": "012-11-i1",
+  "content": "어두운 가게 셔터와 조명(표지 최종안)",
+  "form": "왼쪽 큰 가로 사진(슬라이드 약 1/5), 하단 왼쪽 제목 오버레이",
+  "role": "mood",
+  "meaning": "확정된 표지 이미지를 크게 보여 주며 결정을 하나로 환원",
+  "fit": "어둡고 여백 많은 가로 사진, 왼쪽 아래에 흰 글자를 얹을 수 있는 어두운 영역",
+  "slot": "inset",
+  "box": [
+   107,
+   140,
+   453,
+   360
+  ],
+  "area": 0.18,
+  "filter": "contrast(0.96) saturate(0.92)",
+  "brightness": 62,
+  "darkSlide": false
+ },
+ {
+  "skill": "brand-application-deck",
+  "id": "019-01-i1",
+  "content": "푸른 조명의 데이터센터 서버 복도",
+  "form": "오른쪽 절반 세로 영역, 커버 크롭, 약한 남색 오버레이",
+  "role": "place",
+  "meaning": "인프라 제품임을 한눈에 알리는 현장 이미지",
+  "fit": "깊이감 있는 차가운 색 기술 공간 사진, 소실점이 가운데, 글자 없음(텍스트는 왼쪽 패널)",
+  "slot": "half_split",
+  "box": [
+   640,
+   null,
+   640,
+   720
+  ],
+  "area": 0.5,
+  "filter": "saturate(0.85) contrast(1.05)",
+  "brightness": 58,
+  "darkSlide": true
+ },
+ {
+  "skill": "brand-application-deck",
+  "id": "019-15-i1",
+  "content": "어두운 방에서 모니터를 보는 엔지니어",
+  "form": "전면 배경, 커버 크롭, 회색조·남색 오버레이로 매우 어둡게",
+  "role": "mood",
+  "meaning": "제품의 사용자(엔지니어)를 비추며 감성적으로 마무리",
+  "fit": "어두운 실내 인물 사진, 인물은 오른쪽, 왼쪽 아래에 흰 글자를 둘 넓은 어두운 영역",
+  "slot": "full_bleed",
+  "box": [
+   null,
+   null,
+   1280,
+   720
+  ],
+  "area": 1.0,
+  "filter": "grayscale(0.15) contrast(1.05) saturate(0.85)",
+  "brightness": 13,
+  "darkSlide": true
+ },
+ {
+  "skill": "brand-event-experiential-deck",
+  "id": "020-01-i1",
+  "content": "노을 아래 군중과 빛나는 원통형 구조물",
+  "form": "전면 배경, 커버 크롭, 밝기 약 55%로 어둡게",
+  "role": "mood",
+  "meaning": "이벤트의 결정적 장면을 표지에서 먼저 보여 줌",
+  "fit": "넓은 풍경·군중 가로 사진, 하늘이 위, 왼쪽 아래 1/3에 글자를 둘 수 있는 어두운 영역",
+  "slot": "full_bleed",
+  "box": [
+   null,
+   null,
+   1280,
+   720
+  ],
+  "area": 1.0,
+  "filter": "brightness(0.55) saturate(1.05)",
+  "brightness": 77,
+  "darkSlide": true
+ },
+ {
+  "skill": "brand-event-experiential-deck",
+  "id": "020-02-i1",
+  "content": "노을 아래 군중과 빛나는 구조물(같은 사진)",
+  "form": "전면 배경, 필터 없이 원본 밝기, 하단 어두운 그라데이션",
+  "role": "mood",
+  "meaning": "관객이 기억할 '그 순간'을 크게 보여 주는 히어로",
+  "fit": "색이 강한 감성적 가로 사진, 아래쪽이 어두워 큰 흰 글자와 숫자가 읽히는 구도",
+  "slot": "full_bleed",
+  "box": [
+   null,
+   null,
+   1280,
+   720
+  ],
+  "area": 1.0,
+  "filter": null,
+  "brightness": 77,
+  "darkSlide": true
+ },
+ {
+  "skill": "brand-event-experiential-deck",
+  "id": "020-03-i1",
+  "content": "입장·체험·퇴장 3장면을 이은 스토리보드",
+  "form": "슬라이드 가운데 가로 띠(높이 절반), 전폭, 커버",
+  "role": "process",
+  "meaning": "관객 동선을 시간 순서로 보여 주는 장면 연출",
+  "fit": "3장면이 나란한 와이드 콜라주, 각 패널 주제가 중앙에 있어 상하 크롭에 강함",
+  "slot": "wide_band",
+  "box": [
+   null,
+   200,
+   1280,
+   360
+  ],
+  "area": 0.5,
+  "filter": null,
+  "brightness": 83,
+  "darkSlide": true
+ },
+ {
+  "skill": "brand-event-experiential-deck",
+  "id": "020-05-i1",
+  "content": "원형 무대와 부스가 보이는 야간 조감도",
+  "form": "왼쪽 정사각에 가까운 영역(약 56%), 커버, 약간 어둡게",
+  "role": "place",
+  "meaning": "현장 배치와 규모를 직관적으로 전달",
+  "fit": "위에서 내려다본 배치도·지도형 이미지, 어두운 톤, 오른쪽 경계가 텍스트 영역과 맞닿음",
+  "slot": "half_split",
+  "box": [
+   null,
+   null,
+   720,
+   720
+  ],
+  "area": 0.56,
+  "filter": "brightness(0.85)",
+  "brightness": 43,
+  "darkSlide": true
+ },
+ {
+  "skill": "brand-event-experiential-deck",
+  "id": "020-06-i1",
+  "content": "AR 거울 앞에서 셀카를 찍는 여성",
+  "form": "왼쪽 절반 세로, 커버 크롭, 왼쪽 아래 제목 오버레이",
+  "role": "evidence",
+  "meaning": "메인 액티베이션의 체험 장면을 구체적으로 보여 줌",
+  "fit": "인물 체험 장면 세로형, 어두운 배경에 네온 포인트, 하단 왼쪽에 글자 공간",
+  "slot": "half_split",
+  "box": [
+   null,
+   null,
+   640,
+   720
+  ],
+  "area": 0.5,
+  "filter": null,
+  "brightness": 41,
+  "darkSlide": true
+ },
+ {
+  "skill": "brand-event-experiential-deck",
+  "id": "020-07-i1",
+  "content": "노을 해변의 터치업 바와 줄 선 관객",
+  "form": "왼쪽 절반 세로, 커버 크롭",
+  "role": "evidence",
+  "meaning": "보조 액티베이션 공간과 대기 줄로 인기를 보여 줌",
+  "fit": "밝은 야외 공간 사진, 구조물이 화면 중심, 하단에 짧은 캡션 공간",
+  "slot": "half_split",
+  "box": [
+   null,
+   null,
+   640,
+   720
+  ],
+  "area": 0.5,
+  "filter": null,
+  "brightness": 87,
+  "darkSlide": true
+ },
+ {
+  "skill": "brand-event-experiential-deck",
+  "id": "020-08-i1",
+  "content": "야간 샘플 보관함 키오스크 앞 관객",
+  "form": "왼쪽 절반 세로, 커버 크롭",
+  "role": "evidence",
+  "meaning": "상시 운영 키오스크의 실제 사용 장면",
+  "fit": "야간 조명 아래 사물+인물 사진, 어두운 톤, 네온 빛 포인트",
+  "slot": "half_split",
+  "box": [
+   null,
+   null,
+   640,
+   720
+  ],
+  "area": 0.5,
+  "filter": null,
+  "brightness": 47,
+  "darkSlide": true
+ },
+ {
+  "skill": "brand-event-experiential-deck",
+  "id": "020-09-i1",
+  "content": "검은 옷 여성 모델 초상",
+  "form": "카드 안 작은 세로 썸네일(120×160), 커버",
+  "role": "portrait",
+  "meaning": "출연 후보 인물을 얼굴로 식별",
+  "fit": "어두운 단색 배경의 상반신 세로 초상, 얼굴 중앙, 작은 크기에서도 식별되는 조명",
+  "slot": "card_thumb",
+  "box": [
+   85,
+   245,
+   120,
+   160
+  ],
+  "area": 0.02,
+  "filter": null,
+  "brightness": 39,
+  "darkSlide": true
+ },
+ {
+  "skill": "brand-event-experiential-deck",
+  "id": "020-09-i2",
+  "content": "가죽 재킷 남성 아티스트 초상",
+  "form": "카드 안 작은 세로 썸네일(120×160), 커버",
+  "role": "portrait",
+  "meaning": "두 번째 출연 후보 인물 식별",
+  "fit": "어두운 배경 상반신 세로 초상, 색 조명 포인트, 얼굴 중앙",
+  "slot": "card_thumb",
+  "box": [
+   475,
+   245,
+   120,
+   160
+  ],
+  "area": 0.02,
+  "filter": null,
+  "brightness": 33,
+  "darkSlide": true
+ },
+ {
+  "skill": "keynote-redesign-polish-deck",
+  "id": "086-01-i1",
+  "content": "검정 공간의 빛나는 유리 구체와 사선 광선",
+  "form": "전면 배경, 커버, 매우 어두움(중앙 오브젝트만 발광)",
+  "role": "mood",
+  "meaning": "제품 브랜드의 상징 이미지로 첫인상을 만듦",
+  "fit": "검정 바탕 위 중앙 발광 오브젝트 하나, 주변은 완전히 어두워 왼쪽 아래 작은 워드마크를 둘 수 있음",
+  "slot": "full_bleed",
+  "box": [
+   null,
+   null,
+   1280,
+   720
+  ],
+  "area": 1.0,
+  "filter": null,
+  "brightness": 5,
+  "darkSlide": true
+ },
+ {
+  "skill": "keynote-redesign-polish-deck",
+  "id": "086-09-i1",
+  "content": "대시보드를 띄운 모니터·태블릿·휴대폰",
+  "form": "상단 넓은 가로 띠(약 1070×400), 커버, 검정 바탕과 이어짐",
+  "role": "product",
+  "meaning": "어떤 기기에서도 쓴다는 메시지를 제품 화면으로 증명",
+  "fit": "검정 배경 제품 목업 사진, 기기들이 가운데 수평 정렬, 위아래 여백이 어두워 띠 경계가 보이지 않음",
+  "slot": "wide_band",
+  "box": [
+   107,
+   93,
+   1067,
+   400
+  ],
+  "area": 0.46,
+  "filter": null,
+  "brightness": 6,
+  "darkSlide": true
+ },
+ {
+  "skill": "keynote-redesign-polish-deck",
+  "id": "086-15-i1",
+  "content": "일부 대륙만 파랗게 빛나는 점 세계지도",
+  "form": "상단 넓은 가로 띠, 커버, 검정 바탕",
+  "role": "data",
+  "meaning": "출시 지역 확장을 지도 한 장으로 표시",
+  "fit": "검정 바탕 단색 점지도, 강조 지역만 브랜드 색, 가로형",
+  "slot": "wide_band",
+  "box": [
+   107,
+   80,
+   1067,
+   400
+  ],
+  "area": 0.46,
+  "filter": null,
+  "brightness": 7,
+  "darkSlide": true
+ },
+ {
+  "skill": "keynote-redesign-polish-deck",
+  "id": "086-16-i1",
+  "content": "은색 보안 인증 방패 배지",
+  "form": "중앙 정사각 오브젝트(약 270px), contain",
+  "role": "illustration",
+  "meaning": "엔터프라이즈 보안 인증 달성을 상징",
+  "fit": "검정 배경의 단일 오브젝트 렌더, 정사각, 가장자리가 배경에 녹아드는 이미지",
+  "slot": "card_thumb",
+  "box": [
+   507,
+   107,
+   267,
+   267
+  ],
+  "area": 0.08,
+  "filter": null,
+  "brightness": 18,
+  "darkSlide": true
+ },
+ {
+  "skill": "keynote-redesign-polish-deck",
+  "id": "086-17-i1",
+  "content": "파랗게 발광하는 중괄호 기호",
+  "form": "상단 넓은 가로 띠, 커버, 매우 어두움",
+  "role": "illustration",
+  "meaning": "개발자용 API 공개를 기호 하나로 상징",
+  "fit": "검정 배경 네온 기호·아이콘 렌더, 중앙 배치, 가로형",
+  "slot": "wide_band",
+  "box": [
+   107,
+   80,
+   1067,
+   400
+  ],
+  "area": 0.46,
+  "filter": null,
+  "brightness": 4,
+  "darkSlide": true
+ },
+ {
+  "skill": "keynote-redesign-polish-deck",
+  "id": "086-18-i1",
+  "content": "검정 니트 여성 초상",
+  "form": "4열 중 1번째 세로 초상(약 253×413), 커버",
+  "role": "portrait",
+  "meaning": "팀 구성원을 얼굴로만 소개",
+  "fit": "검정 단색 배경 스튜디오 상반신 세로 초상, 얼굴이 위 1/3, 네 장의 조명·톤 통일",
+  "slot": "card_thumb",
+  "box": [
+   93,
+   107,
+   253,
+   413
+  ],
+  "area": 0.11,
+  "filter": null,
+  "brightness": 22,
+  "darkSlide": true
+ },
+ {
+  "skill": "keynote-redesign-polish-deck",
+  "id": "086-18-i2",
+  "content": "안경 쓴 남성 초상",
+  "form": "4열 중 2번째 세로 초상, 커버",
+  "role": "portrait",
+  "meaning": "팀 구성원 소개",
+  "fit": "검정 배경 상반신 세로 초상, 동일 조명·크롭",
+  "slot": "card_thumb",
+  "box": [
+   373,
+   107,
+   253,
+   413
+  ],
+  "area": 0.11,
+  "filter": null,
+  "brightness": 26,
+  "darkSlide": true
+ },
+ {
+  "skill": "keynote-redesign-polish-deck",
+  "id": "086-18-i3",
+  "content": "회색 셔츠 중년 남성 초상",
+  "form": "4열 중 3번째 세로 초상, 커버",
+  "role": "portrait",
+  "meaning": "팀 구성원 소개",
+  "fit": "검정 배경 상반신 세로 초상, 동일 조명·크롭",
+  "slot": "card_thumb",
+  "box": [
+   653,
+   107,
+   253,
+   413
+  ],
+  "area": 0.11,
+  "filter": null,
+  "brightness": 33,
+  "darkSlide": true
+ },
+ {
+  "skill": "keynote-redesign-polish-deck",
+  "id": "086-18-i4",
+  "content": "정장 차림 여성 초상",
+  "form": "4열 중 4번째 세로 초상, 커버",
+  "role": "portrait",
+  "meaning": "팀 구성원 소개",
+  "fit": "검정 배경 상반신 세로 초상, 동일 조명·크롭",
+  "slot": "card_thumb",
+  "box": [
+   933,
+   107,
+   253,
+   413
+  ],
+  "area": 0.11,
+  "filter": null,
+  "brightness": 34,
+  "darkSlide": true
+ },
+ {
+  "skill": "world-bank-grant-deck",
+  "id": "153-01-i1",
+  "content": "산간 마을에서 아기를 안은 어머니",
+  "form": "왼쪽 세로 열(약 46%), 전체 높이, 커버, 밝은 자연광",
+  "role": "portrait",
+  "meaning": "사업의 수혜자를 첫 장에서 사람으로 보여 줌",
+  "fit": "현장 다큐 세로 사진, 인물이 화면 중앙, 밝고 따뜻한 톤, 텍스트는 오른쪽 흰 영역에",
+  "slot": "half_split",
+  "box": [
+   null,
+   null,
+   587,
+   720
+  ],
+  "area": 0.46,
+  "filter": "saturate(0.96)",
+  "brightness": 118,
+  "darkSlide": false
+ },
+ {
+  "skill": "world-bank-grant-deck",
+  "id": "153-07-i1",
+  "content": "보건요원이 어머니와 아기에게 설명하는 장면",
+  "form": "왼쪽 세로 사진 열(약 360×600), 커버",
+  "role": "process",
+  "meaning": "지역 보건요원 활동이 실제로 어떤 모습인지 증명",
+  "fit": "활동 중인 사람을 담은 세로 다큐 사진, 밝은 실내·외, 손과 얼굴이 함께 보이는 구도",
+  "slot": "tall_column",
+  "box": [
+   53,
+   73,
+   360,
+   600
+  ],
+  "area": 0.23,
+  "filter": null,
+  "brightness": 124,
+  "darkSlide": false
+ },
+ {
+  "skill": "world-bank-grant-deck",
+  "id": "153-09-i1",
+  "content": "쓰레기가 흐르는 마을 하천과 판잣집",
+  "form": "오른쪽 위 가로 인셋(약 427×287), 커버",
+  "role": "evidence",
+  "meaning": "위생·식수 문제의 현장 상황을 보여 주는 근거",
+  "fit": "문제 현장을 담은 가로 사진, 밝은 낮, 하단에 수치 패널이 붙어도 주제가 위쪽에 있는 구도",
+  "slot": "inset",
+  "box": [
+   800,
+   73,
+   427,
+   287
+  ],
+  "area": 0.13,
+  "filter": null,
+  "brightness": 132,
+  "darkSlide": false
+ },
+ {
+  "skill": "world-bank-grant-deck",
+  "id": "153-11-i1",
+  "content": "아기를 안은 두 어머니",
+  "form": "왼쪽 세로 사진(약 373×493), 커버, 약간 탈채도",
+  "role": "portrait",
+  "meaning": "성평등 조치의 대상인 여성을 직접 보여 줌",
+  "fit": "여성 인물 세로 다큐 사진, 밝은 자연광, 얼굴이 위 1/2에 위치",
+  "slot": "tall_column",
+  "box": [
+   53,
+   73,
+   373,
+   493
+  ],
+  "area": 0.2,
+  "filter": "saturate(0.96)",
+  "brightness": 134,
+  "darkSlide": false
+ },
+ {
+  "skill": "emerging-market-founder-pitch-deck",
+  "id": "054-11-i1",
+  "content": "밝은 배경의 정장 차림 여성 창업자 상반신",
+  "form": "카드 상단 정사각 소형 아바타(약 93px), 크롭만",
+  "role": "portrait",
+  "meaning": "팀 카드에서 실존 인물임을 보여주는 신뢰 장치",
+  "fit": "밝은 단색 배경의 정면 상반신, 정사각 크롭, 얼굴이 중앙 상단",
+  "slot": "card_thumb",
+  "box": [
+   80,
+   213,
+   93,
+   93
+  ],
+  "area": 0.01,
+  "filter": null,
+  "brightness": 116,
+  "darkSlide": false
+ },
+ {
+  "skill": "emerging-market-founder-pitch-deck",
+  "id": "054-11-i2",
+  "content": "밝은 배경의 정장 차림 남성 창업자 상반신",
+  "form": "카드 상단 정사각 소형 아바타, 크롭만",
+  "role": "portrait",
+  "meaning": "공동 창업자 신뢰 표시",
+  "fit": "배경·조명이 다른 인물과 맞는 정면 상반신, 정사각",
+  "slot": "card_thumb",
+  "box": [
+   480,
+   213,
+   93,
+   93
+  ],
+  "area": 0.01,
+  "filter": null,
+  "brightness": 143,
+  "darkSlide": false
+ },
+ {
+  "skill": "emerging-market-founder-pitch-deck",
+  "id": "054-11-i3",
+  "content": "오렌지 재킷의 여성 창업자 상반신",
+  "form": "카드 상단 정사각 소형 아바타, 크롭만",
+  "role": "portrait",
+  "meaning": "공동 창업자 신뢰 표시(옷 색이 브랜드 색과 호응)",
+  "fit": "같은 톤의 스튜디오 정면 사진, 정사각, 브랜드 색 의상이면 좋음",
+  "slot": "card_thumb",
+  "box": [
+   880,
+   213,
+   93,
+   93
+  ],
+  "area": 0.01,
+  "filter": null,
+  "brightness": 166,
+  "darkSlide": false
+ },
+ {
+  "skill": "onboarding-self-intro-deck",
+  "id": "112-01-i1",
+  "content": "카페에서 웃고 있는 여성 인물 상반신",
+  "form": "우측 세로 열 전체 높이(약 43%), cover 크롭, 보정 없음",
+  "role": "portrait",
+  "meaning": "발표자 본인을 첫 화면에 친근하게 각인",
+  "fit": "세로 구도 인물 사진, 따뜻한 실내 톤, 얼굴이 열 중앙 상단, 글은 사진 밖에 둠",
+  "slot": "half_split",
+  "box": [
+   733,
+   null,
+   547,
+   720
+  ],
+  "area": 0.43,
+  "filter": null,
+  "brightness": 101,
+  "darkSlide": false
+ },
+ {
+  "skill": "onboarding-self-intro-deck",
+  "id": "112-02-i1",
+  "content": "어두운 무대 뒤 책상과 스탠드 조명",
+  "form": "좌측 세로 열 전체 높이, cover 크롭, 원본 자체가 매우 어두움",
+  "role": "mood",
+  "meaning": "과거 직업(무대 감독)의 장면으로 이야기의 훅을 만듦",
+  "fit": "어둡고 대비가 큰 장소 사진, 세로 구도, 한 점 조명이 있는 분위기 사진",
+  "slot": "half_split",
+  "box": [
+   null,
+   null,
+   547,
+   720
+  ],
+  "area": 0.43,
+  "filter": null,
+  "brightness": 34,
+  "darkSlide": false
+ },
+ {
+  "skill": "onboarding-self-intro-deck",
+  "id": "112-08-i1",
+  "content": "따뜻한 조명의 로비 카페 테이블과 커피잔",
+  "form": "우측 세로 열 전체 높이, cover 크롭 + 어두운 오버레이 위에 흰 글자",
+  "role": "place",
+  "meaning": "실제로 만날 장소를 보여주며 커피챗 초대를 구체화",
+  "fit": "세로 구도 공간 사진, 중간 밝기, 상단·중앙에 글자를 얹을 수 있는 단순한 영역",
+  "slot": "half_split",
+  "box": [
+   787,
+   null,
+   493,
+   720
+  ],
+  "area": 0.39,
+  "filter": null,
+  "brightness": 74,
+  "darkSlide": false
+ },
+ {
+  "skill": "series-a-pitch-deck",
+  "id": "136-11-i1",
+  "content": "검은 배경의 남성 창업자 흑백조 상반신",
+  "form": "카드 좌측 세로 인물 사진(약 160×187), cover 크롭, 원본이 어두움",
+  "role": "portrait",
+  "meaning": "창업자 신뢰·진지함 표현",
+  "fit": "어두운 단색 배경의 스튜디오 상반신, 세로 4:5, 차분한 무채색",
+  "slot": "card_thumb",
+  "box": [
+   85,
+   345,
+   160,
+   187
+  ],
+  "area": 0.03,
+  "filter": null,
+  "brightness": 44,
+  "darkSlide": false
+ },
+ {
+  "skill": "series-a-pitch-deck",
+  "id": "136-11-i2",
+  "content": "적갈색 배경의 여성 창업자 상반신",
+  "form": "카드 좌측 세로 인물 사진, cover 크롭",
+  "role": "portrait",
+  "meaning": "공동 창업자 소개 — 배경색이 브랜드 적갈과 호응",
+  "fit": "브랜드 색 단색 배경 스튜디오 상반신, 세로 4:5, 두 사진 밝기 일치",
+  "slot": "card_thumb",
+  "box": [
+   667,
+   345,
+   160,
+   187
+  ],
+  "area": 0.03,
+  "filter": null,
+  "brightness": 40,
+  "darkSlide": false
+ },
+ {
+  "skill": "smb-business-plan-deck",
+  "id": "139-01-i1",
+  "content": "손님이 앉은 한식 덮밥 매장 카운터 내부",
+  "form": "좌측 약 57% 풀하이트 사진, cover 크롭, 채도 살짝 낮춤",
+  "role": "place",
+  "meaning": "실제 영업 중인 매장을 첫 화면에서 증거로 보여줌",
+  "fit": "가로/정사각 구도의 밝은 매장 실내, 사람과 음식이 함께 보이는 장면, 글은 사진 밖",
+  "slot": "half_split",
+  "box": [
+   null,
+   null,
+   733,
+   720
+  ],
+  "area": 0.57,
+  "filter": "saturate(0.92) contrast(1.02)",
+  "brightness": 111,
+  "darkSlide": false
+ },
+ {
+  "skill": "smb-business-plan-deck",
+  "id": "139-03-i1",
+  "content": "같은 매장 내부 사진(재사용)",
+  "form": "우측 약 54% 풀하이트 사진, cover 크롭",
+  "role": "product",
+  "meaning": "제품이 팔리는 현장을 메뉴 설명 옆에 둠",
+  "fit": "제품·공간을 보여주는 밝은 실사, 세로로 잘려도 주제가 중앙에 남는 구도",
+  "slot": "half_split",
+  "box": [
+   587,
+   null,
+   693,
+   720
+  ],
+  "area": 0.54,
+  "filter": null,
+  "brightness": 111,
+  "darkSlide": false
+ },
+ {
+  "skill": "smb-business-plan-deck",
+  "id": "139-07-i1",
+  "content": "앞치마 차림 여성 창업자 매장 내 상반신",
+  "form": "카드 안 원형/정사각 소형 아바타(약 93px)",
+  "role": "portrait",
+  "meaning": "운영 책임자의 현장성 강조",
+  "fit": "현장 배경의 정면 상반신, 얼굴 중앙, 정사각",
+  "slot": "card_thumb",
+  "box": [
+   527,
+   307,
+   93,
+   93
+  ],
+  "area": 0.01,
+  "filter": null,
+  "brightness": 90,
+  "darkSlide": false
+ },
+ {
+  "skill": "smb-business-plan-deck",
+  "id": "139-07-i2",
+  "content": "논밭을 배경으로 한 남성 창업자 상반신",
+  "form": "카드 안 소형 아바타",
+  "role": "portrait",
+  "meaning": "산지 직거래 담당 — 배경이 역할을 말해 줌",
+  "fit": "역할을 암시하는 배경의 정면 상반신, 정사각",
+  "slot": "card_thumb",
+  "box": [
+   1107,
+   307,
+   93,
+   93
+  ],
+  "area": 0.01,
+  "filter": null,
+  "brightness": 78,
+  "darkSlide": false
+ },
+ {
+  "skill": "smb-business-plan-deck",
+  "id": "139-10-i1",
+  "content": "매장에서 그릇을 든 남성 고객",
+  "form": "좌측 세로 인물 사진(약 373×547), cover 크롭, 여백 안쪽 배치",
+  "role": "portrait",
+  "meaning": "후기 화자가 실제 손님임을 보여주는 증거",
+  "fit": "세로 3:4 인물 사진, 매장·제품이 함께 보이고 밝기 중간 이상",
+  "slot": "tall_column",
+  "box": [
+   93,
+   93,
+   373,
+   547
+  ],
+  "area": 0.22,
+  "filter": null,
+  "brightness": 97,
+  "darkSlide": false
+ },
+ {
+  "skill": "strategic-cvc-pitch-deck",
+  "id": "143-12-i1",
+  "content": "회색 배경 정장 남성 CEO 상반신",
+  "form": "카드 상단 사진(약 231×221), cover 크롭",
+  "role": "portrait",
+  "meaning": "경영진 실존·신뢰 표시",
+  "fit": "옅은 회색 스튜디오 배경 정면 상반신, 거의 정사각, 4장 톤 통일",
+  "slot": "card_thumb",
+  "box": [
+   85,
+   208,
+   231,
+   221
+  ],
+  "area": 0.06,
+  "filter": null,
+  "brightness": 99,
+  "darkSlide": false
+ },
+ {
+  "skill": "strategic-cvc-pitch-deck",
+  "id": "143-12-i2",
+  "content": "회색 배경 검은 니트 여성 CTO 상반신",
+  "form": "카드 상단 사진, cover 크롭",
+  "role": "portrait",
+  "meaning": "기술 책임자 소개",
+  "fit": "같은 스튜디오 조건의 정면 상반신",
+  "slot": "card_thumb",
+  "box": [
+   378,
+   208,
+   231,
+   221
+  ],
+  "area": 0.06,
+  "filter": null,
+  "brightness": 107,
+  "darkSlide": false
+ },
+ {
+  "skill": "strategic-cvc-pitch-deck",
+  "id": "143-12-i3",
+  "content": "밝은 배경 셔츠 차림 남성 VP 상반신",
+  "form": "카드 상단 사진, cover 크롭",
+  "role": "portrait",
+  "meaning": "파트너 엔지니어링 책임자 소개",
+  "fit": "밝은 단색 배경 상반신, 다른 사진과 밝기 맞춤 필요",
+  "slot": "card_thumb",
+  "box": [
+   671,
+   208,
+   231,
+   221
+  ],
+  "area": 0.06,
+  "filter": null,
+  "brightness": 194,
+  "darkSlide": false
+ },
+ {
+  "skill": "strategic-cvc-pitch-deck",
+  "id": "143-12-i4",
+  "content": "밝은 배경 아이보리 재킷 여성 VP 상반신",
+  "form": "카드 상단 사진, cover 크롭",
+  "role": "portrait",
+  "meaning": "엔터프라이즈 영업 책임자 소개",
+  "fit": "밝은 단색 배경 상반신, 정사각 근접 비율",
+  "slot": "card_thumb",
+  "box": [
+   963,
+   208,
+   231,
+   221
+  ],
+  "area": 0.06,
+  "filter": null,
+  "brightness": 170,
+  "darkSlide": false
+ },
+ {
+  "skill": "ted-personal-talk-deck",
+  "id": "147-01-i1",
+  "content": "밤하늘 별 궤적과 나무 실루엣",
+  "form": "풀블리드 배경, cover 크롭, 원본이 어두움",
+  "role": "mood",
+  "meaning": "호기심·시간의 흐름을 상징하며 강연의 톤을 정함",
+  "fit": "어둡고 질감이 균일한 하늘·풍경, 중앙에 글을 얹을 단순한 영역",
+  "slot": "full_bleed",
+  "box": [
+   null,
+   null,
+   1280,
+   720
+  ],
+  "area": 1.0,
+  "filter": null,
+  "brightness": 34,
+  "darkSlide": true
+ },
+ {
+  "skill": "ted-personal-talk-deck",
+  "id": "147-03-i1",
+  "content": "손으로 메모한 실험 노트와 펜",
+  "form": "풀블리드, cover 크롭, 하단 어두운 그라데이션",
+  "role": "evidence",
+  "meaning": "이야기의 출발점인 실제 기록물을 보여줌",
+  "fit": "밝은 물건 클로즈업, 하단 1/4을 어둡게 눌러 캡션 자리 확보",
+  "slot": "full_bleed",
+  "box": [
+   null,
+   null,
+   1280,
+   720
+  ],
+  "area": 1.0,
+  "filter": null,
+  "brightness": 201,
+  "darkSlide": true
+ },
+ {
+  "skill": "ted-personal-talk-deck",
+  "id": "147-04-i1",
+  "content": "비어 있는 회의실과 스크린",
+  "form": "풀블리드, cover + 약한 흑백화, 숫자 뒤 배경",
+  "role": "place",
+  "meaning": "잘못된 채용이 일어나는 현장을 배경으로 숫자에 맥락 부여",
+  "fit": "인물 없는 실내 공간, 중앙이 단순하고 중간 밝기, 무채색화해도 읽히는 구도",
+  "slot": "full_bleed",
+  "box": [
+   null,
+   null,
+   1280,
+   720
+  ],
+  "area": 1.0,
+  "filter": "grayscale(0.3)",
+  "brightness": 96,
+  "darkSlide": true
+ },
+ {
+  "skill": "ted-personal-talk-deck",
+  "id": "147-05-i1",
+  "content": "흑백 톤의 긴 복도 소실점",
+  "form": "풀블리드, cover + 밝기 약 70%로 낮춤",
+  "role": "mood",
+  "meaning": "막힘·긴장을 시각적으로 표현",
+  "fit": "대칭 원근 구도의 어두운 공간, 상단 모서리에 글자 영역",
+  "slot": "full_bleed",
+  "box": [
+   null,
+   null,
+   1280,
+   720
+  ],
+  "area": 1.0,
+  "filter": "brightness(0.7)",
+  "brightness": 66,
+  "darkSlide": true
+ },
+ {
+  "skill": "ted-personal-talk-deck",
+  "id": "147-07-i1",
+  "content": "따뜻한 빛의 백열전구와 흐린 배경 불빛",
+  "form": "풀블리드, cover + 밝기 약 85%",
+  "role": "mood",
+  "meaning": "새로운 생각의 첫 신호를 은유",
+  "fit": "어두운 배경에 한 점 광원, 하단 여백, 따뜻한 색",
+  "slot": "full_bleed",
+  "box": [
+   null,
+   null,
+   1280,
+   720
+  ],
+  "area": 1.0,
+  "filter": "brightness(0.85)",
+  "brightness": 93,
+  "darkSlide": true
+ },
+ {
+  "skill": "ted-personal-talk-deck",
+  "id": "147-08-i1",
+  "content": "밤의 책상 위 스탠드 불빛과 노트",
+  "form": "풀블리드, cover, 원본이 매우 어두움",
+  "role": "mood",
+  "meaning": "개인적 순간의 고요함을 표현",
+  "fit": "광원이 한쪽에 몰린 어두운 실내, 반대쪽 어두운 영역에 글자",
+  "slot": "full_bleed",
+  "box": [
+   null,
+   null,
+   1280,
+   720
+  ],
+  "area": 1.0,
+  "filter": null,
+  "brightness": 20,
+  "darkSlide": true
+ },
+ {
+  "skill": "ted-personal-talk-deck",
+  "id": "147-09-i1",
+  "content": "흩어진 흑백 옛 사진 더미",
+  "form": "풀블리드, cover + 밝기 약 55%로 크게 낮춤",
+  "role": "illustration",
+  "meaning": "기억·사람의 이야기를 통해 깨달음 문장을 받쳐 줌",
+  "fit": "패턴처럼 반복되는 질감 이미지, 크게 어둡게 해도 형태가 남는 사진",
+  "slot": "full_bleed",
+  "box": [
+   null,
+   null,
+   1280,
+   720
+  ],
+  "area": 1.0,
+  "filter": "brightness(0.55)",
+  "brightness": 127,
+  "darkSlide": true
+ },
+ {
+  "skill": "ted-personal-talk-deck",
+  "id": "147-10-i1",
+  "content": "책상을 사이에 두고 마주한 두 사람의 손과 커피잔",
+  "form": "풀블리드, cover, 원본이 어두움",
+  "role": "process",
+  "meaning": "1:1 대화라는 작은 적용 장면을 보여줌",
+  "fit": "따뜻한 측광의 손·사물 클로즈업, 한쪽이 어두워 글자 영역 확보",
+  "slot": "full_bleed",
+  "box": [
+   null,
+   null,
+   1280,
+   720
+  ],
+  "area": 1.0,
+  "filter": null,
+  "brightness": 40,
+  "darkSlide": true
+ },
+ {
+  "skill": "ted-personal-talk-deck",
+  "id": "147-12-i1",
+  "content": "새벽빛이 드는 빈 강의실과 펼친 책",
+  "form": "풀블리드, cover + 밝기 약 78%",
+  "role": "mood",
+  "meaning": "생각이 옳다면 열릴 미래를 희망적으로 표현",
+  "fit": "역광이 들어오는 넓은 공간, 하단 중앙 어두운 영역에 문장",
+  "slot": "full_bleed",
+  "box": [
+   null,
+   null,
+   1280,
+   720
+  ],
+  "area": 1.0,
+  "filter": "brightness(0.78)",
+  "brightness": 66,
+  "darkSlide": true
+ },
+ {
+  "skill": "yc-demo-day-pitch",
+  "id": "155-01-i1",
+  "content": "흰 가운 수의사가 강아지를 안고 태블릿을 보는 장면",
+  "form": "좌측 세로 카드형 인셋 사진(약 347×560), cover 크롭",
+  "role": "product",
+  "meaning": "고객(동물병원) 현장에서 쓰이는 제품을 한눈에 보여줌",
+  "fit": "세로 2:3 실사, 밝은 실내, 인물+사용 맥락이 함께 보이는 장면",
+  "slot": "tall_column",
+  "box": [
+   53,
+   69,
+   347,
+   560
+  ],
+  "area": 0.21,
+  "filter": null,
+  "brightness": 170,
+  "darkSlide": false
+ },
+ {
+  "skill": "yc-demo-day-pitch",
+  "id": "155-05-i1",
+  "content": "약국·병원 배경의 흰 가운 여성",
+  "form": "인용 아래 원형 소형 아바타(약 67px)",
+  "role": "portrait",
+  "meaning": "인용의 화자가 실제 고객임을 표시",
+  "fit": "얼굴 중심 정사각 크롭, 밝은 배경",
+  "slot": "card_thumb",
+  "box": [
+   107,
+   501,
+   67,
+   67
+  ],
+  "area": 0.0,
+  "filter": null,
+  "brightness": 151,
+  "darkSlide": false
+ },
+ {
+  "skill": "yc-demo-day-pitch",
+  "id": "155-09-i1",
+  "content": "크림 배경 남성 창업자 상반신",
+  "form": "카드 상단 원형 소형 아바타(약 72px)",
+  "role": "portrait",
+  "meaning": "팀 구성원 얼굴 표시",
+  "fit": "단색 크림 배경 정면 얼굴, 정사각, 세 장 톤 일치",
+  "slot": "card_thumb",
+  "box": [
+   104,
+   264,
+   72,
+   72
+  ],
+  "area": 0.01,
+  "filter": null,
+  "brightness": 157,
+  "darkSlide": false
+ },
+ {
+  "skill": "yc-demo-day-pitch",
+  "id": "155-09-i2",
+  "content": "안경 쓴 남성 창업자 상반신",
+  "form": "카드 상단 원형 소형 아바타",
+  "role": "portrait",
+  "meaning": "팀 구성원 얼굴 표시",
+  "fit": "단색 배경 정면 얼굴, 정사각",
+  "slot": "card_thumb",
+  "box": [
+   484,
+   264,
+   72,
+   72
+  ],
+  "area": 0.01,
+  "filter": null,
+  "brightness": 143,
+  "darkSlide": false
+ },
+ {
+  "skill": "yc-demo-day-pitch",
+  "id": "155-09-i3",
+  "content": "크림 배경 여성 창업자 상반신",
+  "form": "카드 상단 원형 소형 아바타(오렌지 카드 위)",
+  "role": "portrait",
+  "meaning": "팀 구성원 얼굴 표시",
+  "fit": "단색 배경 정면 얼굴, 색 카드 위에서도 경계가 보이는 밝기",
+  "slot": "card_thumb",
+  "box": [
+   864,
+   264,
+   77,
+   77
+  ],
+  "area": 0.01,
+  "filter": null,
+  "brightness": 185,
+  "darkSlide": false
+ },
+ {
+  "skill": "municipal-hearing-deck",
+  "id": "106-01-i1",
+  "content": "도시 상징 인장(원형 엠블럼, 건물·소나무·강)",
+  "form": "표지 좌상단 네이비 패널 위 작은 원형 로고(약 107px), 크롭·어둡게 처리 없음",
+  "role": "illustration",
+  "meaning": "발표 주체가 공공기관임을 공식 인장으로 표시해 권위·출처를 드러냄",
+  "fit": "정사각에 가까운 단색/투명 배경 로고·인장, 어두운 패널 위에서 읽히는 밝은 선 또는 흰 테두리, 작게 써도 식별되는 단순 형태",
+  "slot": "card_thumb",
+  "box": [
+   53,
+   53,
+   107,
+   107
+  ],
+  "area": 0.01,
+  "filter": null,
+  "brightness": 173,
+  "darkSlide": false
+ },
+ {
+  "skill": "municipal-hearing-deck",
+  "id": "106-05-i1",
+  "content": "사업 구간 노선도와 차로·자전거도로·보도 횡단면 일러스트",
+  "form": "본문 좌측 약 57% 폭의 가로형 도식, contain 맞춤으로 여백 유지, 필터 없음",
+  "role": "process",
+  "meaning": "재설계 후 도로 구성(차로 축소·자전거도로 신설)을 한눈에 보여주는 설계 근거",
+  "fit": "가로로 긴 기술 도식·평면도·단면도, 밝은 배경에 색 코드가 슬라이드 강조색과 맞을 것, 잘리지 않도록 contain",
+  "slot": "inset",
+  "box": [
+   53,
+   219,
+   720,
+   371
+  ],
+  "area": 0.29,
+  "filter": null,
+  "brightness": 220,
+  "darkSlide": false
+ }
+]
