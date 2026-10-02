@@ -1,11 +1,12 @@
 # 시작용 교안과 목적별 템플릿
 
-새 작업 공간을 **목적에 맞는 구성 + 디자인**으로 시작한다. 시작용 교안(`starters/<이름>/`)은 내용 뼈대(장 구성·작성 규칙·예시 내용)이고,
-디자인은 엔진 템플릿(`studio/templates/<이름>/`)을 고른다. 시작용 교안마다 어울리는 템플릿이 정해져 있다.
+새 작업 공간을 **목적에 맞는 구성 + 디자인**으로 시작한다. 시작용 내용(`starters/<이름>/`)은 내용 뼈대(장 구성·작성 규칙·예시 내용)이고,
+디자인은 엔진 템플릿(`studio/templates/<이름>/`)을 고른다. 시작용마다 어울리는 템플릿이 정해져 있지만 시작 페이지에서 다른 템플릿과 짝지어 미리 볼 수 있다.
+지금은 두 갈래 — Genspark 조사에서 묶은 **템플릿 유형 15개의 기본 구성**(슬라이드 유형을 섞은 장 흐름, 내용은 유형별 예시)과 **직접 쓴 예시 내용 6개**(강의 교안·일정·회고·공지·RFP).
 
 ```
-python3 <엔진>/studio/init_workspace.py <폴더> --title "제목" --starter weekly-report
-python3 <폴더>/nexa.py build_deck weekly --force
+python3 <엔진>/studio/init_workspace.py <폴더> --title "제목" --starter periodic-report --template graphite
+python3 <폴더>/nexa.py build_deck report --force
 python3 <폴더>/nexa.py start
 ```
 
