@@ -416,6 +416,98 @@
    "notes": "장 번호는 교육 순서와 같게 매긴다. 장을 새로 넣으면 번호를 다시 매기고 참조(장·절·실습 번호)를 함께 고친다."
   },
   {
+   "layout": "week_grid",
+   "level": "req",
+   "title": "0.3 3일 시간표 - 오전은 이론, 오후는 실습",
+   "sub": "필수 절은 정해진 교시에, 심화 절은 그날 마지막 심화 세션에서",
+   "crumb": "ch00 › 0.3",
+   "days": [
+    "1일차 기초",
+    "2일차 응용",
+    "3일차 실무 종합"
+   ],
+   "slots": [
+    "09:00",
+    "10:00",
+    "11:00",
+    "13:00",
+    "14:00",
+    "15:00",
+    "16:00"
+   ],
+   "sessions": [
+    {
+     "day": 0,
+     "slot": 0,
+     "span": 2,
+     "title": "ch00 과정 안내",
+     "tone": "day1"
+    },
+    {
+     "day": 0,
+     "slot": 2,
+     "title": "ch01 개념과 모델",
+     "tone": "day1"
+    },
+    {
+     "day": 0,
+     "slot": 3,
+     "span": 3,
+     "title": "ch01 실습",
+     "sub": "실습 01-01 · 01-02",
+     "tone": "lab"
+    },
+    {
+     "day": 0,
+     "slot": 6,
+     "title": "심화 세션",
+     "tone": "day3"
+    },
+    {
+     "day": 1,
+     "slot": 0,
+     "span": 3,
+     "title": "ch02 · ch03 강의",
+     "tone": "day2"
+    },
+    {
+     "day": 1,
+     "slot": 3,
+     "span": 3,
+     "title": "ch02 · ch03 실습",
+     "tone": "lab"
+    },
+    {
+     "day": 1,
+     "slot": 6,
+     "title": "심화 세션",
+     "tone": "day3"
+    },
+    {
+     "day": 2,
+     "slot": 0,
+     "span": 2,
+     "title": "ch04 실무 주제",
+     "tone": "day3"
+    },
+    {
+     "day": 2,
+     "slot": 2,
+     "title": "질의응답",
+     "tone": "day1"
+    },
+    {
+     "day": 2,
+     "slot": 3,
+     "span": 4,
+     "title": "ch05 종합 사례 실습 · 발표",
+     "tone": "lab"
+    }
+   ],
+   "footnote": "점심 12:00 ~ 13:00. 시간표는 week_grid 레이아웃 - 세션의 day·slot·span 만 고치면 된다.",
+   "notes": "시간표 - 장 번호 = 교육 순서라 시간표와 전체 목차가 같은 순서로 읽힌다."
+  },
+  {
    "layout": "table",
    "level": "req",
    "title": "0.3 공통 사례 ①~③",

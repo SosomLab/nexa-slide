@@ -1,0 +1,46 @@
+{
+  "extends": "lecture",
+  "label": "RFP·제안 - 인디고·골드",
+  "description": "발주자용 RFP 요약·응답자용 제안용 격식 톤. 인디고 기본 + 골드 보조, 표·준수 매트릭스·평가 기준이 주인공.",
+  "sizes": {
+    "_comment": "업무·발표용은 칩·글자를 역할별 최소 px 로 올려 빌드한다(1280×720 에서 읽히는 크기). pt = px × 0.75",
+    "minPx": {
+      "default": 15,
+      "footnotes": 11,
+      "crumb": 12,
+      "page": 12
+    }
+  },
+  "check": {
+    "minFontPt": {
+      "default": 11,
+      "footnotes": 8,
+      "crumb": 9,
+      "page": 9
+    }
+  },
+  "tokenOverrides": {
+    "colors": {
+      "primary": "#2C3E7A",
+      "on-primary": "#FFFFFF",
+      "primary-container": "#DFE4F5",
+      "on-primary-container": "#0E1A3D",
+      "surface": "#FFFFFF",
+      "surface-dim": "#F7F7FA",
+      "surface-container": "#F0F1F6",
+      "surface-container-high": "#E0E3EE",
+      "on-surface": "#191C27",
+      "on-surface-variant": "#4A4F63",
+      "outline-variant": "#C6CADA",
+      "day1": "#2C3E7A",
+      "day1-container": "#E2E6F4",
+      "on-day1-container": "#0E1A3D",
+      "day2": "#8A6D1D",
+      "day2-container": "#F3EACF",
+      "on-day2-container": "#3A2D05",
+      "day3": "#4E5D6C",
+      "day3-container": "#E3E8ED",
+      "on-day3-container": "#1C252E"
+    }
+  }
+}

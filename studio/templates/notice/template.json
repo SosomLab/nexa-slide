@@ -1,0 +1,51 @@
+{
+  "extends": "lecture",
+  "label": "공지·온보딩 - 밝은 오렌지",
+  "description": "사내 공지·환영·온보딩용 캐주얼 톤. 오렌지 강조 + 틸·바이올렛·그린 보조, 둥근 모서리를 크게. 카드·사진·큰 숫자 중심.",
+  "sizes": {
+    "_comment": "업무·발표용은 칩·글자를 역할별 최소 px 로 올려 빌드한다(1280×720 에서 읽히는 크기). pt = px × 0.75",
+    "minPx": {
+      "default": 15,
+      "footnotes": 11,
+      "crumb": 12,
+      "page": 12
+    }
+  },
+  "check": {
+    "minFontPt": {
+      "default": 11,
+      "footnotes": 8,
+      "crumb": 9,
+      "page": 9
+    }
+  },
+  "tokenOverrides": {
+    "colors": {
+      "primary": "#D9480F",
+      "on-primary": "#FFFFFF",
+      "primary-container": "#FFE3D3",
+      "on-primary-container": "#4A1A00",
+      "surface": "#FFFFFF",
+      "surface-dim": "#FFFAF6",
+      "surface-container": "#FFF3EA",
+      "surface-container-high": "#FBE4D3",
+      "on-surface": "#2A1E17",
+      "on-surface-variant": "#5E4B3F",
+      "outline-variant": "#EBCBB5",
+      "day1": "#0B7285",
+      "day1-container": "#D3F0F4",
+      "on-day1-container": "#022C33",
+      "day2": "#5F3DC4",
+      "day2-container": "#E5DBFF",
+      "on-day2-container": "#1F0F54",
+      "day3": "#2B8A3E",
+      "day3-container": "#D3F9D8",
+      "on-day3-container": "#0B3315"
+    },
+    "radius": {
+      "r-s": 10,
+      "r-m": 20,
+      "r-l": 32
+    }
+  }
+}

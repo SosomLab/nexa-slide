@@ -1,5 +1,14 @@
 # 변경 이력
 
+## 0.8.0 - 2026-10-02 · 목적별 시작용 교안 8종 · 목적별 디자인 6종 · 레이아웃 16종
+
+- 시작용 교안(`starters/`): `weekly-report`(8장) · `monthly-report`(11장) · `decision-brief`(2장) · `schedule`(7장) · `story-retro`(12장) · `notice-onboarding`(10장) · `rfp-owner`(12장) · `rfp-response`(14장), `lecture-course` 보강(3일 시간표·한 문장 장). 용도별 인기 템플릿 조사에서 나온 공통 규칙(제목 = 결론, 결론 2장 안, 마지막 장 = 다음 행동, 숫자에 기준·실명·기한, 나쁜 소식 같은 무게)대로 예시를 썼다. `init_workspace.py --starter` 는 시작용 교안이 정한 디자인 템플릿을 기본으로 고른다.
+- 디자인 템플릿 6종(`lecture` 바탕, `tokenOverrides` 로 색·글꼴·모서리만): `report`(네이비) · `brief`(차콜·딥 틸) · `story`(미색·테라코타·명조 제목) · `notice`(오렌지·큰 모서리) · `schedule`(블루) · `proposal`(인디고·골드). 칩·글자 최소 15px.
+- 토큰: 상태색 `ok`·`caution`·`bad`·`info`·`idle`(+`-container`), 글꼴 키 `heading`(제목용, 기본 = 본문). `template.json` 의 `tokenOverrides` 를 `resolve_tokens` 가 적용(편집기·PPTX·허브 미리보기 공통).
+- 레이아웃 16종(`studio/layouts_extra.py`, 기존 요소만 조합): `status_table` · `kpi_tiles` · `issue_cards` · `grid_cards` · `statement` · `quote` · `big_number` · `decision_brief` · `milestones` · `roadmap` · `gantt` · `week_grid` · `photo_text` · `agenda` · `column_chart`(누적·워터폴·합계 막대·여러 판) · `stack_bars`. 공통 필드 `action`(행동 띠)·`footnote`·`kick`.
+- `bullets` 에 `aside`(오른쪽 작은 개념 차트 - 세로 막대·가로 누적 막대·범례).
+- 문서 `docs/starters.md`(목록·디자인·공통 작성 규칙·레이아웃 필드).
+
 ## 0.7.0 - 2026-10-02 · 시작 페이지 · 기본 메뉴 · 제작 도구와 내용 분리
 
 - 엔진에 슬라이드 내용을 두지 않는다: 작업 공간을 못 찾으면 현재 폴더를 쓰지 않고, 서버는 **허브(시작 페이지)** 로 뜬다(포트 5599, 실행 정보는 사용자 설정 폴더). 엔진 폴더 안의 작업 공간(`example/`)은 서버가 열지 않는다. 작업 공간이 필요한 도구는 안내를 내고 끝난다.

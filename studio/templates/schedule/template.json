@@ -1,0 +1,46 @@
+{
+  "extends": "lecture",
+  "label": "일정·로드맵 - 차분한 블루",
+  "description": "간트·마일스톤·로드맵·시간표용. 단계마다 색이 갈리도록 블루·틸·바이올렛을 단계 색으로, 바탕은 옅은 회청색.",
+  "sizes": {
+    "_comment": "업무·발표용은 칩·글자를 역할별 최소 px 로 올려 빌드한다(1280×720 에서 읽히는 크기). pt = px × 0.75",
+    "minPx": {
+      "default": 15,
+      "footnotes": 11,
+      "crumb": 12,
+      "page": 12
+    }
+  },
+  "check": {
+    "minFontPt": {
+      "default": 11,
+      "footnotes": 8,
+      "crumb": 9,
+      "page": 9
+    }
+  },
+  "tokenOverrides": {
+    "colors": {
+      "primary": "#1565C0",
+      "on-primary": "#FFFFFF",
+      "primary-container": "#DCEBFB",
+      "on-primary-container": "#06264D",
+      "surface": "#FFFFFF",
+      "surface-dim": "#F6F8FB",
+      "surface-container": "#EEF2F7",
+      "surface-container-high": "#DEE5EE",
+      "on-surface": "#16202B",
+      "on-surface-variant": "#475466",
+      "outline-variant": "#C2CCDA",
+      "day1": "#1565C0",
+      "day1-container": "#DCEBFB",
+      "on-day1-container": "#06264D",
+      "day2": "#00897B",
+      "day2-container": "#D2F0EC",
+      "on-day2-container": "#00332D",
+      "day3": "#6A1B9A",
+      "day3-container": "#EEDCF7",
+      "on-day3-container": "#2A0840"
+    }
+  }
+}

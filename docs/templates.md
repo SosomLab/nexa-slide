@@ -13,6 +13,7 @@
 | 이름 | 내용 | 글자 크기 | 검사 기준(최소 pt) |
 |---|---|---|---|
 | `lecture` (기본) | 강의·교재 16:9, Material v2, 레이아웃 21종 — **기존 디자인 그대로** | 레이아웃에 정한 값 그대로(0.3 까지와 결과 동일) | 본문 11 · 각주 8 · 경로 9 · 쪽번호 9 — 알리기만, 조정은 장 단위 검토에서 |
+| `report` · `brief` · `story` · `notice` · `schedule` · `proposal` | 목적별(보고·결정·회고·공지·일정·RFP) - `lecture` 바탕에 색·글꼴·모서리만 바꿈([starters.md](starters.md)) | 역할별 최소 15px 로 올림 | lecture 와 같음 |
 | `lecture-large` | `lecture` 를 바탕으로 글자만 일괄 확대 | 빌드할 때 역할별 최소 px 로 올림 — 본문 15px · 각주 11px · 경로·쪽번호 12px. 상자 크기는 그대로라 촘촘한 도식은 넘칠 수 있음 | lecture 와 같음 |
 
 디자인 템플릿과 별도로, 내용 뼈대를 주는 **시작용 교안**이 있다 - `starters/lecture-course`(강의 교안 3일 과정, 템플릿 `lecture` 사용). [lecture-starter.md](lecture-starter.md)
@@ -35,6 +36,7 @@ studio/templates/<이름>/
 | `tokens` | 토큰 파일(이 폴더 기준) |
 | `design.concept` · `design.css` | 디자인 기준 문서 |
 | `sizes.minPx` | 빌드할 때 글자 크기의 역할별 하한(px, 0 = 쓰지 않음). 역할 = 요소의 `role`(`footnotes`·`crumb`·`page`·`title`·`subtitle` …), 없으면 `default`. 이미 크면 그대로 |
+| `tokenOverrides` | 토큰 파일 위에 덮을 값(`colors`·`radius`·`fonts` - 예: `story` 의 `heading` 명조). 바탕 템플릿의 토큰 파일을 그대로 두고 값만 바꾼다 |
 | `check.minFontPt` | 레이아웃 검사(`check_layout.py`)의 역할별 최소 pt |
 
 ## 작업 공간이 고를 수 있는 것 (선택만)

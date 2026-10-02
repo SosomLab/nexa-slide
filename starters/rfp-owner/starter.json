@@ -1,0 +1,20 @@
+{
+ "label": "RFP 제안요청서 요약 - 발주자용 (12장)",
+ "description": "사업 한 문장 → 개요 2×2 → 기능·비기능 요구(조항 번호) → 범위 밖 → 평가 기준 → 제출 일정 → 제출물 → 제약 → 접수 방법.",
+ "template": "proposal",
+ "config": {
+  "partLabels": {
+   "day1": "제안요청서",
+   "day2": "제안요청서",
+   "day3": "제안요청서",
+   "apx": "부록"
+  },
+  "coverBadge": "제안요청서"
+ },
+ "decks": [
+  "rfp"
+ ],
+ "copy": [
+  "content"
+ ]
+}

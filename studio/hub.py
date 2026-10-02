@@ -65,7 +65,8 @@ def templates():
         if tok is None and t.get("extends"):
             base = _read_json(TEMPLATES / t["extends"] / "template.json") or {}
             tok = _read_json(TEMPLATES / t["extends"] / base.get("tokens", "tokens.json")) or {}
-        cs = (tok or {}).get("colors", {})
+        cs = dict((tok or {}).get("colors", {}))
+        cs.update(((t.get("tokenOverrides") or {}).get("colors")) or {})
 
         def c(k):
             v = cs.get(k)

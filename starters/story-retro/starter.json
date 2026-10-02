@@ -1,0 +1,20 @@
+{
+ "label": "프로젝트 회고·사례 이야기 (12장)",
+ "description": "한 문장 축 → 큰 숫자 → 흐름 → 목소리 → 잘된 것 → 어려웠던 순간 → 바꾼 것 → 가져갈 것 → 처음 문장으로.",
+ "template": "story",
+ "config": {
+  "partLabels": {
+   "day1": "회고",
+   "day2": "회고",
+   "day3": "회고",
+   "apx": "부록"
+  },
+  "coverBadge": "프로젝트 회고"
+ },
+ "decks": [
+  "retro"
+ ],
+ "copy": [
+  "content"
+ ]
+}

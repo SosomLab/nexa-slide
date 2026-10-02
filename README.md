@@ -63,7 +63,7 @@ nexa-slide/
 │   ├─ templates/          디자인 템플릿 — lecture(기존 디자인) · lecture-large(글자 확대). tokens.json · template.json · design/
 │   └─ set_fonts.py · gen_tokens_css.py · render_mermaid.py
 ├─ example/                예제(데모 원본) - 서버는 엔진 안에서 열지 않고 시작 페이지 "데모"가 기준 폴더로 복사해 연다
-├─ starters/               시작용 내용 — lecture-course(강의 교안 3일 과정 뼈대, init_workspace.py --starter)
+├─ starters/               시작용 교안 9종 — 강의 교안·주간/월간 보고·결정 요청·일정·회고·공지·RFP(발주/응답) (init_workspace.py --starter)
 └─ docs/                   설치 · 설정 · 서버 · 운영 · 세션 연결 · 덱 형식 · 편집기
 ```
 
@@ -77,6 +77,7 @@ nexa-slide/
 | **[docs/home.md](docs/home.md)** | **시작 페이지·기본 메뉴 — 기준 폴더(OS 문서 폴더), 새로 만들기·열기·데모·템플릿·샘플, 사용자 설정** |
 | **[docs/new-project.md](docs/new-project.md)** | **새 폴더·저장소에서 시작하기 — VS Code·Claude Desktop 연결, 슬라이드 초안 작성·검토·내보내기 상세 절차(macOS·Windows 명령)** |
 | [docs/install.md](docs/install.md) | 요구 사항, 설치, 글꼴, 새 작업 공간 만들기, 기존 저장소에 붙이기(실행기) |
+| [docs/starters.md](docs/starters.md) | 목적별 시작용 교안 9종과 디자인 템플릿 6종 — 구성, 공통 작성 규칙, 새 레이아웃 16종 필드 |
 | [docs/lecture-starter.md](docs/lecture-starter.md) | 강의 교안 시작용(`--starter lecture-course`) — 구성 순서, 장·절·실습 번호 체계, 각주·노트 규약, 작성 규칙 |
 | [docs/templates.md](docs/templates.md) | 디자인 템플릿 — 제공 템플릿, 폴더 구성, 작업 공간이 고르는 것, 바꾸기·새로 만들기 |
 | [docs/configuration.md](docs/configuration.md) | `nexa-slide.json` 전 항목·기본값, 작업 공간 찾기 순서, `tokens.json`·글꼴 프리셋 |

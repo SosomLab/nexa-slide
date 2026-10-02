@@ -127,7 +127,7 @@ def main():
     ap.add_argument("folder")
     ap.add_argument("--title")
     ap.add_argument("--port", type=int)
-    ap.add_argument("--template", default="lecture")
+    ap.add_argument("--template", help="디자인 템플릿(기본: 시작용 교안이 정한 것, 없으면 lecture)")
     ap.add_argument("--deck", default="intro")
     ap.add_argument("--asset-root", default=".", help="덱 그림 경로의 기준 폴더(작업 공간 기준). 저장소 루트 자산을 쓰려면 ..")
     ap.add_argument("--starter", help="시작용 교안(엔진 starters/ 폴더 이름) — 예: lecture-course")
@@ -141,6 +141,7 @@ def main():
         st = json.loads((STARTERS / a.starter / "starter.json").read_text(encoding="utf-8"))
     ws = Path(a.folder).resolve()
     ws.mkdir(parents=True, exist_ok=True)
+    a.template = a.template or (st or {}).get("template") or "lecture"
     if not (ENGINE / "studio" / "templates" / a.template / "template.json").is_file():
         sys.exit(f"없는 템플릿: {a.template}")
     made = []

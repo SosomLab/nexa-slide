@@ -1,0 +1,20 @@
+{
+ "label": "사내 공지·온보딩 (10장)",
+ "description": "인사 → 숫자로 보는 팀 → 첫 주 할 일 3 → 일정 → 담당 표 → 일하는 방식 → 버디 한마디 → 시간표 → 부탁 3가지.",
+ "template": "notice",
+ "config": {
+  "partLabels": {
+   "day1": "온보딩",
+   "day2": "온보딩",
+   "day3": "온보딩",
+   "apx": "부록"
+  },
+  "coverBadge": "환영합니다"
+ },
+ "decks": [
+  "onboarding"
+ ],
+ "copy": [
+  "content"
+ ]
+}

@@ -1,0 +1,46 @@
+{
+  "extends": "lecture",
+  "label": "결정 요청 - 차콜·딥 틸",
+  "description": "1~2장 요약·경영진 결정 요청용. 차콜 바탕 글자에 딥 틸 강조 한 색, 결론 배너와 결정 띠가 눈에 먼저 들어오게.",
+  "sizes": {
+    "_comment": "업무·발표용은 칩·글자를 역할별 최소 px 로 올려 빌드한다(1280×720 에서 읽히는 크기). pt = px × 0.75",
+    "minPx": {
+      "default": 15,
+      "footnotes": 11,
+      "crumb": 12,
+      "page": 12
+    }
+  },
+  "check": {
+    "minFontPt": {
+      "default": 11,
+      "footnotes": 8,
+      "crumb": 9,
+      "page": 9
+    }
+  },
+  "tokenOverrides": {
+    "colors": {
+      "primary": "#0F5257",
+      "on-primary": "#FFFFFF",
+      "primary-container": "#D5ECEB",
+      "on-primary-container": "#062A2D",
+      "surface": "#FFFFFF",
+      "surface-dim": "#F6F7F7",
+      "surface-container": "#EFF1F1",
+      "surface-container-high": "#E1E5E5",
+      "on-surface": "#1C2324",
+      "on-surface-variant": "#46514F",
+      "outline-variant": "#C2CBCA",
+      "day1": "#263238",
+      "day1-container": "#E6EAEC",
+      "on-day1-container": "#102027",
+      "day2": "#0F5257",
+      "day2-container": "#D5ECEB",
+      "on-day2-container": "#062A2D",
+      "day3": "#5D4037",
+      "day3-container": "#EFE5E1",
+      "on-day3-container": "#2B1B15"
+    }
+  }
+}
