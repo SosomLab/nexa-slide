@@ -700,3 +700,9 @@ from layouts_extra import EXTRA, EXTRA_SAMPLES  # noqa: E402
 
 LAYOUTS.update(EXTRA)
 SAMPLES.update(EXTRA_SAMPLES)
+
+# 슬라이드 유형용 레이아웃(layouts_more.py — Genspark 전수 조사의 새 유형)
+from layouts_more import MORE, MORE_SAMPLES  # noqa: E402
+
+LAYOUTS.update(MORE)
+SAMPLES.update(MORE_SAMPLES)

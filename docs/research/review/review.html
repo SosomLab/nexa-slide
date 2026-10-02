@@ -5,6 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>템플릿 검토 — nexa-slide</title>
 <script src="/studio/menu.js"></script>
+<script src="/studio/render.js"></script>
+<link rel="stylesheet" href="/studio/fonts.css">
+<style id="rs-css"></style>
 <style>
   :root { --p: #A91F24; --pc: #FFDAD6; --bg: #F4F1F1; --card: #fff; --tone: #F2EFEF; --tone2: #E9E4E4; --ink: #1F1B1B; --ink2: #5A4C4C; --line: #D8C2C0;
     --ok: #146C2E; --okc: #C4EED0; --warn: #7D5700; --warnc: #FFDEA6; --info: #0B4A9E; --infoc: #D6E3FF; --no: #93000A; --noc: #FFDAD6;
@@ -26,7 +29,7 @@
   .it:hover { background: var(--tone); } .it.on { background: var(--pc); }
   .it .t { font-weight: 700; } .it .m { color: var(--ink2); font-size: 12px; display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-top: 2px; }
   .st { font-size: 11.5px; border-radius: 999px; padding: 0 8px; white-space: nowrap; }
-  .st.registered { background: var(--infoc); color: var(--info); } .st.reviewing { background: var(--warnc); color: var(--warn); }
+  .st.recommended { background: #EADDFF; color: #4A2D85; } .st.registered { background: var(--infoc); color: var(--info); } .st.reviewing { background: var(--warnc); color: var(--warn); }
   .st.approved { background: var(--okc); color: var(--ok); } .st.held { background: var(--tone2); color: var(--ink2); } .st.rejected { background: var(--noc); color: var(--no); }
   .kd { font-size: 11.5px; color: var(--ink2); border: 1px solid var(--line); border-radius: 6px; padding: 0 5px; }
   #detail { overflow: auto; padding: 16px 20px 40px; }
@@ -39,6 +42,14 @@
   .th:hover img { outline: 2px solid var(--p); } .th small { display: block; color: var(--ink2); font-size: 11.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .deckh { display: flex; align-items: center; gap: 8px; margin: 10px 0 6px; }
   .hist { font-size: 12px; color: var(--ink2); } .hist div { padding: 2px 0; border-bottom: 1px dashed var(--tone2); }
+  .scopes { display: inline-flex; background: var(--tone); border-radius: 999px; padding: 2px; }
+  .scopes a { padding: 4px 12px; border-radius: 999px; text-decoration: none; color: var(--ink2); font-weight: 600; white-space: nowrap; }
+  .scopes a.on { background: var(--card); color: var(--ink); box-shadow: 0 1px 2px rgba(0,0,0,.1); }
+  .nx-vp { position: relative; width: 100%; aspect-ratio: 16 / 9; overflow: hidden; border-radius: 6px; outline: 1px solid var(--line); background: #fff; }
+  .nx-vp > .rs-slide { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
+  .th .nx-vp { pointer-events: none; }
+  .nxbig { max-width: 760px; cursor: zoom-in; }
+  #vNexa { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
   #viewer { position: fixed; inset: 0; background: rgba(0,0,0,.6); display: none; z-index: 20; align-items: center; justify-content: center; flex-direction: column; gap: 8px; }
   #viewer.on { display: flex; }
   #vbox { width: min(94vw, calc((92vh - 60px) * 16 / 9)); aspect-ratio: 16 / 9; background: #fff; position: relative; overflow: hidden; border-radius: 6px; }
@@ -53,9 +64,9 @@
 <body>
 <header>
   <button id="menuBtn" type="button"></button>
-  <h1>템플릿 검토</h1>
+  <span class="scopes"><a href="/review" id="scT">템플릿 검토</a><a href="/review/slides" id="scS">슬라이드 유형 검토</a></span>
   <span id="stBar"></span>
-  <select id="fKind"><option value="">모든 종류</option><option value="template">템플릿</option><option value="layout">레이아웃</option><option value="reference-deck">참고 덱</option><option value="site">사이트</option><option value="file">파일</option></select>
+  <select id="fKind"></select>
   <select id="fSort"><option value="reg">최근 등록 순</option><option value="rev">최근 검토 순</option><option value="appr">최근 승인 순</option><option value="title">이름 순</option></select>
   <input type="search" id="fQ" placeholder="찾기 — 이름·태그·메모" style="width:200px">
   <span style="flex:1"></span>
@@ -67,9 +78,9 @@
 </main>
 <div id="viewer"><div id="vbar"><button class="chip" id="vPrev">◀</button><span id="vInfo"></span><button class="chip" id="vNext">▶</button>
   <a class="chip" id="vOpen" target="_blank" rel="noopener" style="text-decoration:none;color:inherit">새 탭 ↗</a><button class="chip" id="vClose">닫기 (Esc)</button></div>
-  <div id="vbox"><iframe id="vFrame" sandbox="allow-same-origin allow-scripts"></iframe></div></div>
+  <div id="vbox"><iframe id="vFrame" sandbox="allow-same-origin allow-scripts"></iframe><div id="vNexa" class="nx"></div></div></div>
 <div id="addDlg"><div class="card"><h3 style="margin:0">대상 추가</h3>
-  <label>종류</label><select id="aKind"><option value="site">사이트</option><option value="file">파일</option><option value="template">템플릿</option><option value="layout">레이아웃</option><option value="reference-deck">참고 덱</option></select>
+  <label>종류</label><select id="aKind"><option value="site">사이트</option><option value="file">파일</option><option value="template">템플릿</option><option value="layout">레이아웃</option><option value="slide-type">슬라이드 유형</option><option value="reference-deck">참고 덱</option></select>
   <label>제목</label><input type="text" id="aTitle" placeholder="예: OO 사의 연례 보고서 디자인">
   <label>주소 또는 파일 경로</label><input type="text" id="aRef" placeholder="https://… 또는 D:\…\sample.pptx">
   <label>태그 (쉼표로)</label><input type="text" id="aTags" placeholder="보고서, 남색">
@@ -79,15 +90,34 @@
 (() => {
   const $ = (s) => document.querySelector(s);
   const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-  const ST = { registered: "등록", reviewing: "검토 중", approved: "승인", held: "보류", rejected: "제외" };
-  const KO = { template: 0, layout: 1, "reference-deck": 2, site: 3, file: 4 };
-  const KD = { template: "템플릿", layout: "레이아웃", "reference-deck": "참고 덱", site: "사이트", file: "파일" };
+  const ST = { recommended: "추천", registered: "등록", reviewing: "검토 중", approved: "승인", held: "보류", rejected: "제외" };
+  const KO = { "template-type": 0, "slide-type": 0, template: 1, layout: 1, "reference-deck": 2, site: 3, file: 4 };
+  const KD = { "template-type": "템플릿 유형", template: "시각 템플릿", "slide-type": "슬라이드 유형", layout: "레이아웃 유형", "reference-deck": "참고 덱", site: "사이트", file: "파일" };
+  // 범위 — /review = 템플릿 검토, /review/slides = 슬라이드 유형 검토
+  const SCOPE = location.pathname.startsWith("/review/slides") ? "slide" : "template";
+  const KINDS = SCOPE === "slide" ? ["slide-type", "layout", "site", "file"] : ["template-type", "template", "reference-deck", "site", "file"];
+  document.getElementById(SCOPE === "slide" ? "scS" : "scT").classList.add("on");
+  document.title = (SCOPE === "slide" ? "슬라이드 유형 검토" : "템플릿 검토") + " — nexa-slide";
+  document.getElementById("fKind").innerHTML = `<option value="">모든 종류</option>` + KINDS.map((k) => `<option value="${k}">${KD[k]}</option>`).join("");
+  // 엔진 렌더러(우리 슬라이드 미리보기) — 토큰 CSS 는 .nx 안에만(검토 화면 색 변수와 이름이 겹치지 않게)
+  const NX = { types: null, ready: null };
+  function nxReady() {
+    if (!NX.ready) NX.ready = (async () => {
+      const [tok, st] = await Promise.all([fetch("/studio/tokens.json").then((r) => r.json()), fetch("/api/slidetypes").then((r) => r.json())]);
+      window.RENDER_BASE = "/review/brand/";  // 로고 등 그림 경로 — 엔진 예제의 자리 표시 이미지
+      Render.setTokens(tok); document.getElementById("rs-css").textContent = Render.css().replace(":root{", ".nx{");
+      NX.types = Object.fromEntries(st.types.filter((t) => t.slide).map((t) => [t.id, t])); NX.groups = st.groups;
+    })();
+    return NX.ready;
+  }
+  const nxCard = (t, big) => `<div class="th${big ? " nxbig" : ""}" data-nx="${esc(t.id)}"><div class="nx-vp nx">${Render.renderSlide(t.slide, 1)}</div><small>${esc(t.label)} · ${esc(t.layout)}</small></div>`;
+  function fitNx() { document.querySelectorAll(".nx-vp").forEach((v) => { if (v.firstElementChild) v.firstElementChild.style.transform = `scale(${v.clientWidth / 1280})`; }); }
   const S = { items: [], counts: {}, st: "", cur: null, view: [], vi: 0 };
   const day = (s) => (s ? s.replace("T", " ").slice(0, 16) : "—");
   const api = async (m, u, b) => { const r = await fetch(u, { method: m, headers: b ? { "Content-Type": "application/json" } : {}, body: b ? JSON.stringify(b) : undefined }); return r.json(); };
 
   async function load(keep) {
-    const d = await api("GET", "/api/review/items"); S.items = d.items; S.counts = d.counts;
+    const d = await api("GET", `/api/review/items?scope=${SCOPE}`); S.items = d.items; S.counts = d.counts;
     $("#stBar").innerHTML = [["", "전체", S.items.length], ...Object.entries(ST).map(([k, v]) => [k, v, d.counts[k] || 0])]
       .map(([k, v, n]) => `<button class="chip${S.st === k ? " on" : ""}" data-st="${k}">${v}<span class="n">${n}</span></button>`).join(" ");
     renderList(); if (keep && S.cur) showDetail(S.cur);
@@ -128,9 +158,9 @@
     $("#detail").innerHTML = `<div class="card"><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><h2 style="margin:0;font-size:17px;flex:1">${esc(x.title)}</h2>
         <span class="st ${x.status}" style="font-size:13px;padding:2px 10px">${ST[x.status]}</span><span class="kd">${KD[x.kind] || x.kind}</span></div>
       <div class="dates" style="margin-top:6px"><span>등록 <b>${day(x.registeredAt)}</b></span><span>검토 <b>${day(x.reviewedAt)}</b></span><span>승인 <b>${day(x.approvedAt)}</b></span><span>id <code>${esc(x.id)}</code></span></div>
-      <div class="acts">${x.status === "registered" ? `<button class="chip" data-act="review">검토 시작</button>` : ""}
+      <div class="acts">${["registered", "recommended"].includes(x.status) ? `<button class="chip" data-act="review">검토 시작</button>` : ""}
         <button class="chip primary" data-act="approve">승인</button><button class="chip" data-act="hold">보류</button><button class="chip" data-act="reject">제외</button>
-        ${x.status !== "registered" ? `<button class="chip" data-act="reopen">다시 등록 상태로</button>` : ""}</div>
+        ${!["registered", "recommended"].includes(x.status) ? `<button class="chip" data-act="reopen">다시 ${x.recommended ? "추천" : "등록"} 상태로</button>` : ""}</div>
       <textarea id="note" rows="2" style="width:100%;margin-top:8px" placeholder="검토 메모 — 무엇을 가져올지, 고칠 점">${esc(x.note || "")}</textarea>
       <div class="acts" style="margin-top:4px"><button class="chip" data-act="note">메모 저장</button></div></div>
       ${Object.keys(det).length ? `<div class="card"><table class="kv">${Object.entries(det).filter(([, v]) => v).map(([k, v]) => `<tr><td>${esc(k)}</td><td>${esc(v)}</td></tr>`).join("")}</table></div>` : ""}
@@ -140,18 +170,30 @@
     const p = await api("GET", `/api/review/preview/${encodeURIComponent(id)}`);
     if (seq !== S.seq) return;
     let h = "";
+    if (p.nexaType || p.flow) await nxReady();
+    if (seq !== S.seq) return;
+    if (p.nexaType && NX.types[p.nexaType]) h += `<div class="deckh"><b>nexa-slide 로 그린 이 유형</b><span class="kd">예시 내용 · 편집기 "슬라이드 추가 → 유형으로"</span></div>${nxCard(NX.types[p.nexaType], true)}`;
+    if (p.flow) h += `<div class="deckh"><b>대표 장 흐름</b><span class="kd">${p.flow.length}장 · 슬라이드 유형으로 그림</span></div><div class="thumbs">${p.flow.map((id) => NX.types[id] ? nxCard(NX.types[id]) : "").join("")}</div>`;
     if (p.decks) h += p.decks.map((d) => `<div class="deckh"><b>${esc(d.no)} ${esc(d.title)}</b><span class="kd">${d.slides.length}장</span></div>
       <div class="thumbs">${d.slides.map((s, i) => thumb(s)).join("") || `<div class="empty">미리보기 원본이 없습니다(조사 폴더 확인)</div>`}</div>`).join("");
-    if (p.slides) h += `<div class="deckh"><b>예시 장</b><span class="kd">${p.slides.length}장</span></div><div class="thumbs">${p.slides.map(thumb).join("")}</div>`;
+    if (p.slides) h += `<div class="deckh"><b>${p.nexaType ? "근거 — Genspark 예시 장" : "예시 장"}</b><span class="kd">${p.slides.length}장</span></div><div class="thumbs">${p.slides.map(thumb).join("")}</div>`;
     if (p.site) h += `<div><a href="${esc(p.site)}" target="_blank" rel="noopener noreferrer">${esc(p.site)} ↗</a><div class="empty" style="padding:6px 0">사이트는 새 탭에서 봅니다(대부분의 사이트는 다른 페이지 안에 넣어 보여 주지 못하게 막는다).</div></div>`;
     if (p.file) h += `<div><code>${esc(p.file.path)}</code> — ${p.file.exists ? `있음${p.file.size != null ? ` · ${Math.round(p.file.size / 1024)}KB` : ""}` : "<b style='color:var(--no)'>없음</b>"}</div>`;
     $("#pv").innerHTML = h || `<div class="empty" style="padding:6px">미리보기 자료가 없습니다.</div>`;
-    S.view = [...(p.decks || []).flatMap((d) => d.slides), ...(p.slides || [])];
+    S.view = [...(p.nexaType && NX.types && NX.types[p.nexaType] ? [{ nx: p.nexaType }] : []), ...(p.flow || []).filter((id) => NX.types && NX.types[id]).map((id) => ({ nx: id })),
+      ...(p.decks || []).flatMap((d) => d.slides), ...(p.slides || [])];
+    requestAnimationFrame(fitNx);
   }
   const thumb = (s) => `<div class="th" data-html="${esc(s.html)}"><img loading="lazy" src="${esc(s.thumb || "")}" alt=""><small>${esc(s.id)} ${esc(s.kind)}</small></div>`;
-  function fitView() { const b = $("#vbox"); $("#vFrame").style.transform = `scale(${b.clientWidth / 1920})`; }
+  function fitView() { const b = $("#vbox"); $("#vFrame").style.transform = `scale(${b.clientWidth / 1920})`; $("#vNexa").style.transform = `scale(${b.clientWidth / 1280})`; }
   function openView(i) {
     S.vi = Math.max(0, Math.min(S.view.length - 1, i)); const s = S.view[S.vi]; if (!s) return;
+    if (s.nx) {  // 우리 슬라이드 — 엔진 렌더러로
+      const t = NX.types[s.nx]; $("#vFrame").style.display = "none"; $("#vNexa").style.display = ""; $("#vNexa").innerHTML = Render.renderSlide(t.slide, 1);
+      $("#vOpen").style.display = "none"; $("#vInfo").textContent = `${S.vi + 1} / ${S.view.length} · nexa-slide · ${t.label}`;
+      $("#viewer").classList.add("on"); requestAnimationFrame(fitView); return;
+    }
+    $("#vFrame").style.display = ""; $("#vNexa").style.display = "none"; $("#vOpen").style.display = "";
     $("#vFrame").src = s.html; $("#vOpen").href = s.html; $("#vInfo").textContent = `${S.vi + 1} / ${S.view.length} · ${s.id} ${s.kind}`;
     $("#viewer").classList.add("on"); requestAnimationFrame(fitView);
   }
@@ -164,12 +206,12 @@
     const st = e.target.closest("[data-st]"); if (st) { S.st = st.dataset.st; load(); return; }
     const it = e.target.closest(".it"); if (it) { $("#list").focus({ preventScroll: true }); if (it.dataset.id !== S.cur) showDetail(it.dataset.id, false); return; }
     const a = e.target.closest("[data-act]"); if (a) { act(a.dataset.act); return; }
-    const th = e.target.closest(".th"); if (th) { openView(S.view.findIndex((s) => s.html === th.dataset.html)); return; }
+    const th = e.target.closest(".th"); if (th) { openView(S.view.findIndex((s) => th.dataset.nx ? s.nx === th.dataset.nx : s.html === th.dataset.html)); return; }
   });
   ["#fKind", "#fSort"].forEach((s) => $(s).addEventListener("change", renderList)); $("#fQ").addEventListener("input", renderList);
   $("#vClose").onclick = () => { $("#viewer").classList.remove("on"); $("#vFrame").src = "about:blank"; };
   $("#vPrev").onclick = () => openView(S.vi - 1); $("#vNext").onclick = () => openView(S.vi + 1);
-  window.addEventListener("resize", () => { if ($("#viewer").classList.contains("on")) fitView(); });
+  window.addEventListener("resize", () => { if ($("#viewer").classList.contains("on")) fitView(); fitNx(); });
   // 목록 키보드 — 목록에 포커스가 있거나 입력 칸 밖이면 ↑↓ · PageUp/PageDown · Home/End 로 선택 이동
   document.addEventListener("keydown", (e) => {
     if ($("#viewer").classList.contains("on") || $("#addDlg").classList.contains("on")) return;
@@ -187,7 +229,7 @@
   $("#aSave").onclick = async () => {
     const kind = $("#aKind").value, ref = $("#aRef").value.trim();
     const source = /^https?:/i.test(ref) ? { type: "site", url: ref } : ref ? { type: "file", path: ref } : {};
-    const r = await api("POST", "/api/review/items", { kind, title: $("#aTitle").value, source, note: $("#aNote").value, tags: $("#aTags").value.split(",").map((t) => t.trim()).filter(Boolean) });
+    const r = await api("POST", "/api/review/items", { scope: SCOPE, kind, title: $("#aTitle").value, source, note: $("#aNote").value, tags: $("#aTags").value.split(",").map((t) => t.trim()).filter(Boolean) });
     if (r.error) { alert(r.error); return; }
     $("#addDlg").classList.remove("on"); ["#aTitle", "#aRef", "#aTags", "#aNote"].forEach((s) => ($(s).value = ""));
     S.st = ""; $("#fSort").value = "reg"; await load(); showDetail(r.id);

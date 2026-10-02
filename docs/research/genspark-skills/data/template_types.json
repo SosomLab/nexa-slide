@@ -1,0 +1,937 @@
+{
+ "types": [
+  {
+   "id": "research-report",
+   "label": "리서치·리뷰 보고서",
+   "desc": "조사·분석 결과를 논지로 전달 — 결론 먼저, 근거 패널, 참고문헌",
+   "visual": [
+    "editorial",
+    "swiss"
+   ],
+   "flow": [
+    "cover-title",
+    "exec-summary",
+    "evidence-panel",
+    "trend-line",
+    "matrix-2x2",
+    "number-evidence",
+    "risk-issues",
+    "summary",
+    "references"
+   ],
+   "members": [
+    "001",
+    "004",
+    "006",
+    "007",
+    "046",
+    "049",
+    "056",
+    "078",
+    "103",
+    "107",
+    "108",
+    "117",
+    "118",
+    "125"
+   ],
+   "count": 14,
+   "slides": 230,
+   "avgScore": 3.71,
+   "families": [
+    [
+     "미색·명조 에디토리얼",
+     8
+    ],
+    [
+     "흰 바탕 데이터·스위스",
+     3
+    ]
+   ],
+   "categories": [
+    [
+     "academic-research",
+     5
+    ],
+    [
+     "ai-literacy",
+     3
+    ],
+    [
+     "data-finance",
+     3
+    ]
+   ],
+   "best": [
+    "001",
+    "004",
+    "006",
+    "046"
+   ]
+  },
+  {
+   "id": "strategy-plan",
+   "label": "전략·연례 계획",
+   "desc": "비전·전략·연간 계획을 한 흐름으로 — 목표·로드맵·투자",
+   "visual": [
+    "forest",
+    "ledger"
+   ],
+   "flow": [
+    "cover-photo",
+    "one-sentence",
+    "kpi-dashboard",
+    "issue-tree",
+    "options",
+    "roadmap",
+    "milestones",
+    "next-actions",
+    "end"
+   ],
+   "members": [
+    "012",
+    "033",
+    "041",
+    "060",
+    "067",
+    "113",
+    "122",
+    "149"
+   ],
+   "count": 8,
+   "slides": 117,
+   "avgScore": 4.25,
+   "families": [
+    [
+     "미색·명조 에디토리얼",
+     5
+    ],
+    [
+     "도면·산업 사양",
+     1
+    ]
+   ],
+   "categories": [
+    [
+     "corporate-strategy",
+     6
+    ],
+    [
+     "design-craft",
+     1
+    ],
+    [
+     "product-management",
+     1
+    ]
+   ],
+   "best": [
+    "033",
+    "060",
+    "012",
+    "041"
+   ]
+  },
+  {
+   "id": "board-decision",
+   "label": "이사회·경영 결정 요청",
+   "desc": "결정권자가 한 번에 판단 — 요약·숫자·리스크·결정 요청·부록",
+   "visual": [
+    "ledger"
+   ],
+   "flow": [
+    "exec-summary",
+    "kpi-dashboard",
+    "options",
+    "risk-issues",
+    "decision-ask",
+    "qa"
+   ],
+   "members": [
+    "005",
+    "010",
+    "017",
+    "018",
+    "030",
+    "063",
+    "082",
+    "094",
+    "114"
+   ],
+   "count": 9,
+   "slides": 90,
+   "avgScore": 3.44,
+   "families": [
+    [
+     "남색 분할·기관",
+     6
+    ],
+    [
+     "흰 바탕 데이터·스위스",
+     1
+    ]
+   ],
+   "categories": [
+    [
+     "corporate-strategy",
+     7
+    ],
+    [
+     "ai-literacy",
+     1
+    ],
+    [
+     "design-craft",
+     1
+    ]
+   ],
+   "best": [
+    "018",
+    "005",
+    "030",
+    "094"
+   ]
+  },
+  {
+   "id": "periodic-report",
+   "label": "정기 업무 보고(주간·월간·QBR)",
+   "desc": "매 회차 같은 배치 — 결론 KPI·추이·상태·이슈·다음 행동",
+   "visual": [
+    "swiss",
+    "ledger"
+   ],
+   "flow": [
+    "kpi-dashboard",
+    "trend-line",
+    "status-board",
+    "bar-compare",
+    "risk-issues",
+    "next-actions"
+   ],
+   "members": [
+    "044",
+    "048",
+    "050",
+    "080",
+    "087",
+    "090",
+    "105",
+    "126",
+    "128",
+    "141"
+   ],
+   "count": 10,
+   "slides": 120,
+   "avgScore": 3.1,
+   "families": [
+    [
+     "미색·명조 에디토리얼",
+     3
+    ],
+    [
+     "남색 분할·기관",
+     3
+    ]
+   ],
+   "categories": [
+    [
+     "corporate-strategy",
+     5
+    ],
+    [
+     "data-finance",
+     2
+    ],
+    [
+     "b2b-sales",
+     1
+    ]
+   ],
+   "best": [
+    "128",
+    "044",
+    "048",
+    "050"
+   ]
+  },
+  {
+   "id": "investor-pitch",
+   "label": "투자 유치 피치",
+   "desc": "문제→해결→시장→트랙션→팀→요청, 숫자 하나가 장마다",
+   "visual": [
+    "editorial",
+    "keynote"
+   ],
+   "flow": [
+    "cover-title",
+    "hook-question",
+    "one-sentence",
+    "funnel",
+    "number-evidence",
+    "team",
+    "pricing",
+    "options",
+    "end"
+   ],
+   "members": [
+    "003",
+    "054",
+    "081",
+    "136",
+    "137",
+    "139",
+    "143",
+    "146",
+    "155"
+   ],
+   "count": 9,
+   "slides": 112,
+   "avgScore": 3.33,
+   "families": [
+    [
+     "미색·명조 에디토리얼",
+     3
+    ],
+    [
+     "원색 블록·포스터",
+     2
+    ]
+   ],
+   "categories": [
+    [
+     "fundraising-pitch",
+     8
+    ],
+    [
+     "student-coursework",
+     1
+    ]
+   ],
+   "best": [
+    "003",
+    "136",
+    "155",
+    "054"
+   ]
+  },
+  {
+   "id": "ir-finance",
+   "label": "IR·재무 브리핑",
+   "desc": "실적·전망·밸류에이션을 원장풍으로 — 표·범위·요약 패널",
+   "visual": [
+    "ledger"
+   ],
+   "flow": [
+    "cover-title",
+    "kpi-dashboard",
+    "data-table",
+    "range-estimate",
+    "evidence-panel",
+    "qa"
+   ],
+   "members": [
+    "009",
+    "026",
+    "058",
+    "074"
+   ],
+   "count": 4,
+   "slides": 124,
+   "avgScore": 4.0,
+   "families": [
+    [
+     "남색 분할·기관",
+     3
+    ],
+    [
+     "미색·명조 에디토리얼",
+     1
+    ]
+   ],
+   "categories": [
+    [
+     "marketing-gtm",
+     1
+    ],
+    [
+     "corporate-strategy",
+     1
+    ],
+    [
+     "data-finance",
+     1
+    ]
+   ],
+   "best": [
+    "026",
+    "009",
+    "074",
+    "058"
+   ]
+  },
+  {
+   "id": "sales-proposal",
+   "label": "B2B 영업·제안서",
+   "desc": "고객 과제→해법→근거→가격·일정→약속, 평가자 채점표",
+   "visual": [
+    "ledger",
+    "editorial"
+   ],
+   "flow": [
+    "cover-title",
+    "exec-summary",
+    "before-after",
+    "process-flow",
+    "case-story",
+    "pricing",
+    "gantt",
+    "decision-ask"
+   ],
+   "members": [
+    "016",
+    "032",
+    "038",
+    "061",
+    "069",
+    "072",
+    "077",
+    "097",
+    "124",
+    "130",
+    "132"
+   ],
+   "count": 11,
+   "slides": 150,
+   "avgScore": 3.64,
+   "families": [
+    [
+     "남색 분할·기관",
+     4
+    ],
+    [
+     "미색·명조 에디토리얼",
+     3
+    ]
+   ],
+   "categories": [
+    [
+     "b2b-sales",
+     8
+    ],
+    [
+     "marketing-gtm",
+     2
+    ],
+    [
+     "consulting",
+     1
+    ]
+   ],
+   "best": [
+    "032",
+    "072",
+    "038",
+    "061"
+   ]
+  },
+  {
+   "id": "case-story",
+   "label": "사례 연구·회고 이야기",
+   "desc": "목표→사건→선택→결과를 잡지처럼 — 인용·증거·전후 숫자",
+   "visual": [
+    "archive",
+    "editorial"
+   ],
+   "flow": [
+    "photo-statement",
+    "one-sentence",
+    "quote-voice",
+    "milestones",
+    "before-after",
+    "number-evidence",
+    "numbered-steps",
+    "summary"
+   ],
+   "members": [
+    "024",
+    "047",
+    "076",
+    "088",
+    "098",
+    "156"
+   ],
+   "count": 6,
+   "slides": 77,
+   "avgScore": 4.0,
+   "families": [
+    [
+     "미색·명조 에디토리얼",
+     4
+    ],
+    [
+     "흰 바탕 데이터·스위스",
+     2
+    ]
+   ],
+   "categories": [
+    [
+     "marketing-gtm",
+     2
+    ],
+    [
+     "b2b-sales",
+     1
+    ],
+    [
+     "product-management",
+     1
+    ]
+   ],
+   "best": [
+    "024",
+    "047",
+    "088",
+    "098"
+   ]
+  },
+  {
+   "id": "marketing-campaign",
+   "label": "마케팅 캠페인·브랜드",
+   "desc": "인사이트→전략→실행→성과, 사진·브랜드 톤",
+   "visual": [
+    "keynote",
+    "editorial"
+   ],
+   "flow": [
+    "cover-photo",
+    "one-sentence",
+    "funnel",
+    "matrix-2x2",
+    "roadmap",
+    "kpi-dashboard",
+    "photo-plates",
+    "next-actions"
+   ],
+   "members": [
+    "011",
+    "013",
+    "019",
+    "020",
+    "021",
+    "022",
+    "025",
+    "075",
+    "089",
+    "096",
+    "109",
+    "140"
+   ],
+   "count": 12,
+   "slides": 204,
+   "avgScore": 3.92,
+   "families": [
+    [
+     "흰 바탕 데이터·스위스",
+     4
+    ],
+    [
+     "남색 분할·기관",
+     3
+    ]
+   ],
+   "categories": [
+    [
+     "marketing-gtm",
+     9
+    ],
+    [
+     "design-craft",
+     3
+    ]
+   ],
+   "best": [
+    "011",
+    "089",
+    "096",
+    "013"
+   ]
+  },
+  {
+   "id": "consulting",
+   "label": "컨설팅·문제 해결",
+   "desc": "가설·이슈 트리·진단·권고 — 결론형 제목과 해석 패널",
+   "visual": [
+    "swiss",
+    "editorial"
+   ],
+   "flow": [
+    "exec-summary",
+    "issue-tree",
+    "evidence-panel",
+    "matrix-2x2",
+    "options",
+    "roadmap",
+    "decision-ask"
+   ],
+   "members": [
+    "014",
+    "028",
+    "039",
+    "040",
+    "071",
+    "099",
+    "101",
+    "119",
+    "129"
+   ],
+   "count": 9,
+   "slides": 142,
+   "avgScore": 3.78,
+   "families": [
+    [
+     "미색·명조 에디토리얼",
+     3
+    ],
+    [
+     "남색 분할·기관",
+     2
+    ]
+   ],
+   "categories": [
+    [
+     "product-management",
+     3
+    ],
+    [
+     "consulting",
+     3
+    ],
+    [
+     "career",
+     1
+    ]
+   ],
+   "best": [
+    "071",
+    "028",
+    "039",
+    "040"
+   ]
+  },
+  {
+   "id": "lecture",
+   "label": "강의·교안(이론·이공계)",
+   "desc": "직관→개념→풀이→한계→흔한 실수→과제",
+   "visual": [
+    "swiss",
+    "editorial"
+   ],
+   "flow": [
+    "section",
+    "concept",
+    "diagram",
+    "worked-example",
+    "quiz",
+    "code-walk",
+    "summary"
+   ],
+   "members": [
+    "002",
+    "035",
+    "042",
+    "045",
+    "051",
+    "079",
+    "095",
+    "102",
+    "104",
+    "123",
+    "135",
+    "145",
+    "154"
+   ],
+   "count": 13,
+   "slides": 186,
+   "avgScore": 3.85,
+   "families": [
+    [
+     "미색·명조 에디토리얼",
+     5
+    ],
+    [
+     "남색 분할·기관",
+     3
+    ]
+   ],
+   "categories": [
+    [
+     "student-coursework",
+     10
+    ],
+    [
+     "ai-literacy",
+     1
+    ],
+    [
+     "marketing-gtm",
+     1
+    ]
+   ],
+   "best": [
+    "104",
+    "002",
+    "035",
+    "045"
+   ]
+  },
+  {
+   "id": "training",
+   "label": "직무·자격 교육",
+   "desc": "현장 사례→규칙→실습→확인→휴대 카드",
+   "visual": [
+    "signal",
+    "archive"
+   ],
+   "flow": [
+    "agenda",
+    "case-story",
+    "concept",
+    "process-flow",
+    "lab",
+    "quiz",
+    "case-choice",
+    "summary"
+   ],
+   "members": [
+    "027",
+    "029",
+    "031",
+    "034",
+    "037",
+    "053",
+    "055",
+    "062",
+    "064",
+    "084",
+    "091",
+    "100",
+    "115",
+    "116",
+    "120",
+    "131",
+    "133",
+    "151",
+    "152"
+   ],
+   "count": 19,
+   "slides": 268,
+   "avgScore": 3.58,
+   "families": [
+    [
+     "미색·명조 에디토리얼",
+     7
+    ],
+    [
+     "남색 분할·기관",
+     5
+    ]
+   ],
+   "categories": [
+    [
+     "professional-training",
+     19
+    ]
+   ],
+   "best": [
+    "053",
+    "151",
+    "029",
+    "031"
+   ]
+  },
+  {
+   "id": "classroom",
+   "label": "수업·학생 발표",
+   "desc": "목표→훅→시범→함께→혼자→나가기, 발표는 질문→방법→결과",
+   "visual": [
+    "signal"
+   ],
+   "flow": [
+    "hook-question",
+    "agenda",
+    "concept",
+    "worked-example",
+    "quiz",
+    "photo-plates",
+    "summary"
+   ],
+   "members": [
+    "023",
+    "052",
+    "070",
+    "073",
+    "083",
+    "127",
+    "142",
+    "144",
+    "150"
+   ],
+   "count": 9,
+   "slides": 112,
+   "avgScore": 3.44,
+   "families": [
+    [
+     "원색 블록·포스터",
+     3
+    ],
+    [
+     "남색 분할·기관",
+     3
+    ]
+   ],
+   "categories": [
+    [
+     "student-coursework",
+     9
+    ]
+   ],
+   "best": [
+    "083",
+    "023",
+    "052",
+    "070"
+   ]
+  },
+  {
+   "id": "public-policy",
+   "label": "공공·정책·연구 지원",
+   "desc": "결론 먼저(BLUF)·대안 비교·근거·예산·요청",
+   "visual": [
+    "ledger",
+    "forest"
+   ],
+   "flow": [
+    "exec-summary",
+    "evidence-panel",
+    "options",
+    "funnel",
+    "gantt",
+    "risk-issues",
+    "decision-ask",
+    "references"
+   ],
+   "members": [
+    "057",
+    "059",
+    "066",
+    "068",
+    "085",
+    "106",
+    "110",
+    "111",
+    "121",
+    "134",
+    "153"
+   ],
+   "count": 11,
+   "slides": 175,
+   "avgScore": 3.91,
+   "families": [
+    [
+     "남색 분할·기관",
+     6
+    ],
+    [
+     "미색·명조 에디토리얼",
+     4
+    ]
+   ],
+   "categories": [
+    [
+     "government-policy",
+     6
+    ],
+    [
+     "academic-research",
+     4
+    ],
+    [
+     "ai-literacy",
+     1
+    ]
+   ],
+   "best": [
+    "059",
+    "106",
+    "057",
+    "068"
+   ]
+  },
+  {
+   "id": "talk-story",
+   "label": "강연·이야기·포트폴리오",
+   "desc": "한 장 한 문장·사진·큰 숫자의 리듬",
+   "visual": [
+    "keynote",
+    "archive"
+   ],
+   "flow": [
+    "cover-photo",
+    "photo-statement",
+    "dark-statement",
+    "big-number",
+    "quote-voice",
+    "photo-plates",
+    "one-sentence",
+    "end"
+   ],
+   "members": [
+    "008",
+    "015",
+    "036",
+    "043",
+    "065",
+    "086",
+    "092",
+    "093",
+    "112",
+    "138",
+    "147",
+    "148"
+   ],
+   "count": 12,
+   "slides": 167,
+   "avgScore": 4.33,
+   "families": [
+    [
+     "미색·명조 에디토리얼",
+     6
+    ],
+    [
+     "어두운 사진·키노트",
+     5
+    ]
+   ],
+   "categories": [
+    [
+     "life",
+     4
+    ],
+    [
+     "corporate-strategy",
+     3
+    ],
+    [
+     "career",
+     3
+    ]
+   ],
+   "best": [
+    "008",
+    "065",
+    "092",
+    "093"
+   ]
+  }
+ ]
+}

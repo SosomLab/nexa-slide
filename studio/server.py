@@ -657,6 +657,23 @@ class H(BaseHTTPRequestHandler):
         from layouts import LAYOUTS
         self.send_json([{"name": k, "label": v[0]} for k, v in LAYOUTS.items()])
 
+    def api_get_slidetypes(self, _, q):
+        """슬라이드 유형(studio/slide_types.json) — 목적별 묶음과, 유형마다 그 목적의 예시 내용으로 빌드한 슬라이드(미리보기·추가용)."""
+        from layouts import LAYOUTS, SAMPLES, build_slide
+        cat = json.loads((STUDIO / "slide_types.json").read_text(encoding="utf-8"))
+        part = (q.get("part") or ["day1"])[0]
+        types = []
+        for i, t in enumerate(cat["types"]):
+            if t["layout"] not in LAYOUTS:
+                continue
+            try:
+                s = build_slide(t["layout"], {**SAMPLES.get(t["layout"], {}), **t.get("fields", {})}, part, f"t{i:02d}")
+            except Exception as e:  # noqa: BLE001 — 한 유형이 실패해도 목록은 보인다
+                s = None
+                t = {**t, "error": f"{type(e).__name__}: {e}"}
+            types.append({**t, "layoutLabel": LAYOUTS[t["layout"]][0], "slide": s})
+        self.send_json({"groups": cat["groups"], "types": types})
+
     def api_post_newslide(self, _, q):
         from layouts import SAMPLES, build_slide
         b = self.body_json() or {}
