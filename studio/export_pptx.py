@@ -478,6 +478,13 @@ def main():
     out = Path(a.out) if a.out else OUT / f"{a.id}.pptx"
     counts = export(load_deck(a.id), out)
     print(f"{out} — 슬라이드 {len(counts)}장, 도형 {sum(counts)}개 ({', '.join(map(str, counts))})")
+    if not a.out:  # 실제로 쓴 글꼴 기록 → out/<덱>.fonts.json (기록 실패는 내보내기를 막지 않는다)
+        try:
+            import font_report
+            fo, rep = font_report.write(a.id, out)
+            print(f"{fo} — 글꼴 " + ", ".join(u["typeface"] for u in rep["used"]))
+        except Exception as e:  # noqa: BLE001
+            print(f"글꼴 기록 실패: {e}", file=sys.stderr)
 
 
 if __name__ == "__main__":

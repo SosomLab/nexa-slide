@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>글꼴 받기·설치 안내 — nexa-slide</title>
+<style>
+  :root { --p: #A91F24; --pc: #FFDAD6; --bg: #F4F1F1; --card: #fff; --tone: #F2EFEF; --ink: #1F1B1B; --ink2: #534343; --line: #D8C2C0;
+    --ok: #146C2E; --okc: #C4EED0; --warn: #7D5700; --warnc: #FFDEA6; --info: #0B4A9E; --infoc: #D6E3FF; --err: #93000A; --errc: #FFDAD6;
+    --font: "Pretendard", "Malgun Gothic", "맑은 고딕", "Apple SD Gothic Neo", sans-serif; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.6 var(--font); }
+  header { position: sticky; top: 0; z-index: 5; display: flex; align-items: center; gap: 10px; padding: 8px 16px; background: var(--card); box-shadow: 0 1px 2px rgba(0,0,0,.08); }
+  header h1 { font-size: 15px; margin: 0; }
+  main { max-width: 1040px; margin: 0 auto; padding: 20px 16px 64px; }
+  h2 { font-size: 18px; margin: 26px 0 8px; }
+  .card { background: var(--card); border-radius: 16px; padding: 16px 18px; box-shadow: 0 1px 2px rgba(0,0,0,.06); margin-bottom: 12px; overflow-x: auto; }
+  .lead { color: var(--ink2); margin: 4px 0 12px; }
+  table { border-collapse: collapse; width: 100%; min-width: 620px; }
+  th, td { text-align: left; padding: 7px 8px; border-bottom: 1px solid var(--tone); vertical-align: top; }
+  th { font-size: 12px; color: var(--ink2); font-weight: 700; }
+  code { font: 12.5px Consolas, "D2Coding", monospace; background: var(--tone); border-radius: 5px; padding: 1px 5px; }
+  .b { font-size: 11.5px; border-radius: 999px; padding: 1px 8px; white-space: nowrap; }
+  .free { background: var(--okc); color: var(--ok); } .system { background: var(--infoc); color: var(--info); } .custom { background: var(--warnc); color: var(--warn); }
+  .no { background: var(--errc); color: var(--err); }
+  a.dl { display: inline-block; border-radius: 999px; background: var(--p); color: #fff; padding: 3px 12px; text-decoration: none; font-weight: 700; font-size: 12.5px; white-space: nowrap; }
+  .os { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px; }
+  .os ol { margin: 6px 0 0; padding-left: 20px; } .os li { margin: 3px 0; }
+  .hint { color: var(--ink2); font-size: 12.5px; }
+  .warnbox { background: var(--warnc); color: var(--warn); border-radius: 12px; padding: 10px 14px; margin: 8px 0; }
+</style>
+<script src="menu.js"></script>
+</head>
+<body>
+<header><button id="menuBtn" type="button"></button><h1>글꼴 받기·설치 안내</h1></header>
+<main>
+  <div class="card">
+    <b>규칙</b>
+    <ul style="margin:6px 0 0;padding-left:20px">
+      <li>슬라이드 글꼴은 <b>되도록 아래 목록의 무료 글꼴</b>(누구나 직접 받아 문서·상업용으로 쓸 수 있는 SIL OFL 등)로 고릅니다. 받는 사람도 같은 글꼴을 구할 수 있어야 같은 모양으로 보입니다.</li>
+      <li>글꼴 파일은 nexa-slide 엔진에 두지 않습니다. 작업 공간 <code>fonts/</code> 에 두고, 글꼴 세트는 작업 공간 <code>nexa-slide.json</code> 의 <code>fontPresets</code> 로 정합니다.</li>
+      <li>목록에 없는 글꼴(회사 전용 서체 등)은 <b>전용</b>으로 표시합니다 — 받는 사람이 구할 수 있는지, 배포가 허용되는지 확인하고, 밖으로 보낼 때는 <b>내보내기 → PPTX 글꼴 포함</b>을 씁니다.</li>
+    </ul>
+  </div>
+
+  <section id="wsSec" style="display:none">
+    <h2>이 작업 공간에서 쓰는 글꼴</h2>
+    <div class="lead" id="wsLead"></div>
+    <div class="card" id="wsCard"></div>
+  </section>
+
+  <h2>무료 글꼴 목록</h2>
+  <div class="lead">공식 배포처에서 직접 받습니다. "세트"는 nexa-slide 기본 글꼴 세트에서 쓰는 글꼴입니다.</div>
+  <div class="card" id="catCard"></div>
+
+  <h2>설치 방법</h2>
+  <div class="os">
+    <div class="card"><b>Windows</b>
+      <ol><li>받은 zip 을 풀고 굵기별 <code>.ttf</code>·<code>.otf</code> 를 고른다(가변 글꼴보다 정적 파일).</li>
+        <li>파일을 오른쪽 단추 → <b>설치</b>(현재 사용자) 또는 <b>모든 사용자용으로 설치</b>.</li>
+        <li>PowerPoint·브라우저를 다시 연다.</li></ol>
+      <div class="hint">작업 공간 <code>fonts/</code> 에 넣은 글꼴은 그 폴더에서 <code>python3 nexa.py install_fonts</code> 로 한 번에 설치(관리자 권한 불필요).</div></div>
+    <div class="card"><b>macOS</b>
+      <ol><li>글꼴 파일을 두 번 눌러 <b>서체 관리자</b>(Font Book) → <b>설치</b>.</li>
+        <li>또는 <code>~/Library/Fonts</code> 에 복사.</li><li>PowerPoint 를 다시 연다.</li></ol>
+      <div class="hint">맑은 고딕·Consolas 는 Windows 기본 글꼴이라 macOS 에는 없다 — 받는 쪽이 macOS 면 무료 글꼴 세트를 쓴다.</div></div>
+    <div class="card"><b>Linux</b>
+      <ol><li><code>~/.local/share/fonts</code> 에 복사.</li><li><code>fc-cache -f</code></li><li>프로그램을 다시 연다.</li></ol>
+      <div class="hint"><code>python3 nexa.py install_fonts</code> 도 같은 일을 한다.</div></div>
+  </div>
+  <div class="card"><b>설치 없이 보내기</b> — 편집기 <b>내보내기 → PPTX 내보내기 — 글꼴 포함</b>(Windows·PowerPoint 필요): 쓴 글자만 PPTX 안에 넣어 받는 사람이 설치하지 않아도 같은 모양으로 본다. 포함 금지(fsType) 글꼴은 들어가지 않는다. 쓴 글꼴은 내보낼 때마다 <code>out/&lt;덱&gt;.fonts.json</code> 에 기록된다.</div>
+</main>
+<script>
+(async () => {
+  const { esc } = NexaMenu; NexaMenu.mount(document.getElementById("menuBtn"));
+  const ST = { free: "무료", system: "시스템 기본", custom: "전용(목록 밖)" };
+  const d = await (await fetch("/api/fontguide", { cache: "no-store" })).json();
+  document.getElementById("catCard").innerHTML = `<table><tr><th>글꼴</th><th>종류</th><th>라이선스</th><th>받을 파일</th><th></th></tr>${d.catalog.map((c) => `<tr>
+    <td><b style="font-family:'${esc(c.families[0])}',inherit">${esc(c.name)}</b> <span class="b ${c.status}">${ST[c.status]}</span>${c.preset ? ` <span class="hint">세트 ${esc(c.preset)}</span>` : ""}<div class="hint">${esc(c.note || "")}</div></td>
+    <td style="white-space:nowrap">${{ sans: "산세리프", serif: "세리프(명조)", mono: "고정폭" }[c.kind] || c.kind}</td><td>${esc(c.license)}</td><td class="hint">${esc(c.files)}</td>
+    <td>${c.url ? `<a class="dl" href="${esc(c.url)}" target="_blank" rel="noopener noreferrer">받기</a>` : ""}</td></tr>`).join("")}</table>`;
+  const w = d.workspace;
+  if (w) {
+    document.getElementById("wsSec").style.display = "";
+    document.getElementById("wsLead").innerHTML = `${esc(w.title)} · 글꼴 세트 <b>${esc(w.preset || "(템플릿 기본)")}</b> (${w.source === "workspace" ? "작업 공간 지정" : "템플릿 기본"}) · 작업 공간 글꼴 폴더 <code>${esc(w.fontsDir)}</code>`;
+    const custom = w.fonts.filter((f) => f.status === "custom");
+    document.getElementById("wsCard").innerHTML = (custom.length ? `<div class="warnbox">무료 목록에 없는 글꼴 ${custom.map((f) => `<b>${esc(f.typeface)}</b>`).join(", ")} — 받는 사람이 이 글꼴을 구할 수 있는지(배포 허용) 확인하세요. 밖으로 보낼 때는 "PPTX 글꼴 포함"을 쓰거나 무료 글꼴 세트로 바꿉니다.</div>` : "") +
+      `<table><tr><th>역할</th><th>글꼴</th><th>구분</th><th>파일 · 설치</th><th></th></tr>${w.fonts.map((f) => `<tr>
+        <td>${{ body: "본문", heading: "제목", mono: "코드" }[f.role]}</td><td><b style="font-family:'${esc(f.typeface)}',inherit">${esc(f.typeface)}</b></td>
+        <td><span class="b ${f.status}">${ST[f.status]}</span>${f.catalog ? `<div class="hint">${esc(f.catalog.license)}</div>` : ""}</td>
+        <td>${f.files.length ? f.files.map((x) => `<div><code>${esc(x.path.split(/[\\/]/).pop())}</code> <span class="hint">${x.where === "workspace" ? "작업 공간 fonts/" : "시스템"}</span> ${x.installed ? `<span class="b free">설치됨</span>` : `<span class="b no">미설치</span>`} <span class="hint">포함 ${esc(x.embed)}</span></div>`).join("") : `<span class="b no">이 PC 에 없음</span>`}</td>
+        <td>${f.catalog && f.catalog.url ? `<a class="dl" href="${esc(f.catalog.url)}" target="_blank" rel="noopener noreferrer">받기</a>` : ""}</td></tr>`).join("")}</table>
+      ${w.fonts.some((f) => f.files.some((x) => !x.installed)) ? `<div class="hint" style="margin-top:6px">작업 공간 글꼴 설치: 작업 공간 폴더에서 <code>python3 nexa.py install_fonts</code></div>` : ""}`;
+  }
+})();
+</script>
+</body>
+</html>

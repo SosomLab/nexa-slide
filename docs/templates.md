@@ -44,12 +44,13 @@ studio/templates/<이름>/
 | 키 | 고르는 것 |
 |---|---|
 | `template` | 템플릿 이름 |
-| `fontPreset` | 템플릿 `tokens.json` 의 `fontPresets` 중 하나(편집기 글꼴 선택·`set_fonts.py` 가 이 값을 바꾼다) |
+| `fontPreset` | 템플릿 `tokens.json` 의 `fontPresets`(기본 세트) 또는 작업 공간 `fontPresets`(전용 글꼴) 중 하나(편집기 글꼴 선택·`set_fonts.py` 가 이 값을 바꾼다) |
+| `fontPresets` | (선택) 작업 공간 전용 글꼴 세트 — 회사 서체 등. 파일은 작업 공간 `fonts/`([fonts.md](fonts.md)) |
 | `brand` | 자기 로고·워드마크·파비콘 파일 경로(작업 공간의 자산을 가리킴) |
 | `partLabels` · `coverBadge` · `endNextNote` | 슬라이드에 들어가는 문구(내용) |
 | `check.ignore` · `check.ignoreSlides` | 검사에서 뺄 규칙·슬라이드 |
 
-작업 공간에 `tokens.json`·`design/`·검사 기준값을 두지 않는다. 다른 크기·글꼴·색이 필요하면 **새 템플릿을 엔진에 추가**하고 이름으로 고른다.
+작업 공간에 `tokens.json`·`design/`·검사 기준값을 두지 않는다(예외: 전용 글꼴 세트 `fontPresets` 와 글꼴 파일 `fonts/` — 엔진에 회사 서체를 넣지 않기 위해). 다른 크기·글꼴·색이 필요하면 **새 템플릿을 엔진에 추가**하고 이름으로 고른다.
 
 ## 템플릿 바꾸기
 

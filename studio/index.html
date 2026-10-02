@@ -6,6 +6,7 @@
 <title>nexa-slide</title>
 <link rel="icon" id="favicon" href="data:,">
 <link rel="stylesheet" href="fonts.css">
+<link rel="stylesheet" href="/api/fontcss"><!-- 작업 공간 fonts/ 의 글꼴 -->
 <script src="menu.js"></script>
 <style id="rs-css"></style>
 <style>
@@ -137,6 +138,22 @@
   .editor { position: absolute; background: rgba(255,255,255,.97); outline: 3px solid var(--p); white-space: pre-wrap; overflow: visible; z-index: 3; pointer-events: auto; padding: 2px; min-height: 20px; color: #1F1B1B; }
   #ov .chkbox { position: absolute; border: 2px dashed var(--err); background: rgba(186, 26, 26, .08); pointer-events: none; }
   /* 요청 표시(초안·대기·처리 중) */
+  /* 밖에서 바뀐 내용(변경 탭·배지·점선) */
+  #marks .chgbox { position: absolute; border: 2px dashed #1D5FD1; border-radius: 4px; background: rgba(29, 95, 209, .06); }
+  .bd.chg { background: #D6E3FF; color: #0B2E6B; }
+  .chg-rec { border-top: 1px solid var(--tone2); padding: 8px 0; }
+  .chg-h { margin-bottom: 4px; word-break: keep-all; overflow-wrap: anywhere; display: flex; gap: 6px; align-items: baseline; flex-wrap: wrap; }
+  .chg-h .chg-tg { margin-left: auto; padding: 2px 10px; }
+  .chg-rec:not(.on) .chg-it { opacity: .6; }
+  .chg-rec.on .chg-h .chg-tg { background: #D6E3FF; color: #0B2E6B; }
+  .chg-it { padding: 6px 8px; border-radius: 8px; cursor: pointer; font-size: 12.5px; }
+  .chg-it:hover { background: var(--tone); }
+  .chg-it.gone, .chg-el.gone { cursor: default; opacity: .7; }
+  .chg-it .k { font-size: 11px; border-radius: 999px; padding: 1px 7px; background: #D6E3FF; color: #0B2E6B; }
+  .chg-it .k.추가 { background: var(--okc); color: var(--ok); } .chg-it .k.삭제 { background: #FFDAD6; color: #93000A; }
+  .chg-el { margin: 3px 0 0 14px; padding: 2px 6px; border-left: 2px solid #A8C3F0; font-size: 12px; }
+  .chg-el:hover { background: #EEF3FD; }
+  .chg-tx { color: var(--ink2); margin-top: 2px; word-break: break-all; } .chg-tx s { color: #93000A; }
   .mk { position: absolute; border: 2px solid var(--mark); border-radius: 4px; }
   .mk.open { border-color: #C98A00; border-style: dashed; }
   .mk.working { border-color: var(--info); border-style: dashed; }
@@ -264,6 +281,12 @@
   @keyframes sp { to { transform: rotate(360deg); } }
   #help { position: fixed; inset: 0; background: rgba(0,0,0,.35); z-index: 110; display: none; align-items: center; justify-content: center; }
   #help.show { display: flex; }
+  #fontDlg { position: fixed; inset: 0; background: rgba(0,0,0,.35); z-index: 110; display: none; align-items: center; justify-content: center; }
+  #fontDlg.show { display: flex; }
+  #fontDlg .box { background: #fff; border-radius: 18px; padding: 18px 22px; width: min(760px, 94vw); max-height: 88vh; overflow-y: auto; box-shadow: var(--sh2); }
+  #fontDlg h4 { margin: 14px 0 6px; font-size: 13px; }
+  #fontDlg table { border-collapse: collapse; width: 100%; }
+  #fontDlg td { padding: 5px 8px; border-bottom: 1px solid var(--tone2); vertical-align: top; font-size: 12.5px; }
   #help .box { background: #fff; border-radius: 18px; padding: 18px 22px; width: min(720px, 92vw); max-height: 84vh; overflow-y: auto; box-shadow: var(--sh2); }
   #help table { border-collapse: collapse; width: 100%; }
   #help td { padding: 4px 8px; border-bottom: 1px solid var(--tone2); vertical-align: top; }
@@ -278,6 +301,7 @@
   <nav id="deckTabs" title="덱(장) — 누르면 바뀐다"></nav>
   <span class="sp"></span>
   <span id="status" class="chip sm">불러오는 중</span>
+  <span id="fontChip" class="chip sm" style="display:none;background:#D6E3FF;color:#0B2E6B;cursor:pointer"></span>
   <span id="sessChip" class="chip sm off" title="Claude Code 세션의 요청 감시 연결 상태"><span class="dot"></span>세션 확인 중</span>
   <button id="presentBtn" class="chip sm" title="발표 (F5 처음부터 · Shift+F5 현재 슬라이드부터) — 발표 중 N = 노트, Esc = 끝">▶ 발표</button>
   <button id="histBtn" class="chip sm" title="기록 — 저장할 때마다 남긴 자동 백업으로 되돌리기">기록</button>
@@ -363,14 +387,17 @@
       <button class="chip on" data-tab="props">속성</button>
       <button class="chip" data-tab="reqs">요청 <span class="cnt" id="reqCnt" style="display:none"></span></button>
       <button class="chip" data-tab="hist">기록</button>
+      <button class="chip" data-tab="chg" title="밖에서(Claude 등) 바뀐 슬라이드·요소">변경 <span class="cnt" id="chgCnt" style="display:none"></span></button>
     </div>
     <div class="panel on" id="tab-props"></div>
     <div class="panel" id="tab-reqs"></div>
     <div class="panel" id="tab-hist"></div>
+    <div class="panel" id="tab-chg"></div>
   </aside>
 </main>
 <div id="present"><div id="presentStage"></div><div id="presentInfo"></div><div id="presentNotes"></div></div>
 <div id="help"><div class="box"></div></div>
+<div id="fontDlg"><div class="box"></div></div>
 <div id="toast"></div>
 <script src="render.js"></script>
 <script src="studio.js"></script>

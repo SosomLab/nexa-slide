@@ -185,9 +185,15 @@ def resolve_tokens(config=None):
     # 템플릿의 tokenOverrides(색·반경 등)를 토큰 파일 위에 덮는다 — 목적별 템플릿은 lecture 토큰을 바탕으로 값만 바꾼다
     ov = TEMPLATE.get("tokenOverrides") or {}
     t = _merge(t, {k: v for k, v in ov.items() if k != "fonts"})
-    preset = (config if config is not None else CONFIG).get("fontPreset")
+    cfg = config if config is not None else CONFIG
+    if isinstance(cfg.get("fontPresets"), dict):  # 작업 공간 전용 글꼴 세트(회사 서체 등) — 파일은 작업 공간 fonts/ 에 둔다
+        t["fontPresets"] = {**t.get("fontPresets", {}), **cfg["fontPresets"]}
+    preset = cfg.get("fontPreset")
     if preset and preset in t.get("fontPresets", {}):
-        t["fonts"] = json.loads(json.dumps(t["fontPresets"][preset]))
+        f = json.loads(json.dumps(t["fontPresets"][preset]))
+        for k in ("body", "mono"):  # 세트에 없는 역할은 기본값(heading 은 아래에서 세트의 body 를 따른다)
+            f.setdefault(k, t["fonts"][k])
+        t["fonts"] = f
         t["fontPreset"] = preset
     if ov.get("fonts"):  # 글꼴 덮어쓰기는 프리셋 뒤에(예: heading 만 명조)
         t["fonts"] = _merge(t["fonts"], ov["fonts"])
@@ -396,9 +402,16 @@ def code_style(role):
 _fonts = {}
 
 
+def fonts_dir():
+    """작업 공간의 글꼴 파일 폴더(nexa-slide.json "fontsDir", 기본 fonts/). 글꼴 파일은 엔진에 두지 않는다."""
+    return (WORKSPACE / CONFIG.get("fontsDir", "fonts")) if WORKSPACE else None
+
+
 def _font_file(name):
     import os
-    for d in (Path("C:/Windows/Fonts"), Path(os.environ.get("LOCALAPPDATA", "")) / "Microsoft/Windows/Fonts"):
+    wd = fonts_dir()
+    for d in ((wd,) if wd else ()) + (Path("C:/Windows/Fonts"), Path(os.environ.get("LOCALAPPDATA", "")) / "Microsoft/Windows/Fonts",
+                                     Path.home() / "Library/Fonts", Path("/Library/Fonts"), Path.home() / ".local/share/fonts"):
         if (d / name).exists():
             return d / name
     return None

@@ -1,14 +1,16 @@
-# 추천 글꼴(modern 프리셋)을 내려받아 현재 사용자에게 설치한다(관리자 권한 불필요).
+﻿# 추천 글꼴(modern 프리셋)을 내려받아 현재 사용자에게 설치한다(관리자 권한 불필요).
 #   pwsh -NoProfile -File studio/install_fonts.ps1
 #
 # 글꼴(모두 SIL Open Font License 1.1 — 무료, 재배포·임베드 가능)
 #   Pretendard 1.3.9        본문(한글·라틴) — 정적 굵기 파일(PowerPoint는 가변 글꼴의 굵기 축을 제대로 못 쓴다)
 #   JetBrains Mono 2.304    코드(라틴) — 0/O, 1/l/I, 5/S, rn/m 구분이 뚜렷
 #   D2Coding 1.3.2          코드 안의 한글(고정폭, 한글 2칸 = 라틴 1칸 × 2)
-# 내려받은 파일은 엔진 저장소의 .cache/fonts 에 둔다(git 제외). PowerPoint·브라우저는 설치 후 다시 열어야 보인다.
+# 내려받은 zip 은 엔진 밖 사용자 폴더(%LOCALAPPDATA%
+exa-slideont-cache)에 둔다 — 글꼴 파일은 엔진에 두지 않는다.
+# 작업 공간 전용 글꼴(회사 서체 등)은 <작업 공간>/fonts/ 에 두고 `nexa.py install_fonts` 로 설치한다(docs/fonts.md).
+# PowerPoint·브라우저는 설치 후 다시 열어야 보인다.
 $ErrorActionPreference = 'Stop'
-$engine = (Resolve-Path "$PSScriptRoot/..").Path
-$cache = Join-Path $engine '.cache/fonts'
+$cache = Join-Path $env:LOCALAPPDATA 'nexa-slide/font-cache'
 New-Item -ItemType Directory -Force $cache | Out-Null
 $src = @(
   @{ name = 'Pretendard'; url = 'https://github.com/orioncactus/pretendard/releases/download/v1.3.9/Pretendard-1.3.9.zip';

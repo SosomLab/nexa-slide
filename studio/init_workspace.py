@@ -194,8 +194,21 @@ CLAUDE_MD = '''# 슬라이드 작업 공간 (nexa-slide) — Claude 세션 안�
 - **요청 처리 규약**(엔진 `docs/claude-session.md`): `decks/<덱>.requests.json` 에서 status `working` → 덱 수정(요소 id 유지, 원자적 쓰기)
   → 같은 변경을 `content/` 에도 → status `done` + `reply` 한두 문장. 영역 요청(`region`)은 그 좌표와 겹치는 요소가 대상.
 - 기존 디자인·레이아웃 규칙을 유지한다 — 검사 경고를 없애려고 요소를 지우지 않는다. 근거·각주는 지어내지 않는다.
+- **글꼴 파일은 이 작업 공간 `fonts/` 에만 둔다**(엔진에 넣지 않는다). 전용 글꼴 세트는 `nexa-slide.json` 의 `fontPresets` 에 정의하고
+  `fontPreset` 으로 고른다. PowerPoint 에 쓰려면 `python3 {ws}/nexa.py install_fonts` (엔진 `docs/fonts.md`).
 - 사용자 답변은 한국어.
 '''
+
+FONTS_README = """# 글꼴 (이 작업 공간 전용)
+
+이 작업 공간에서 쓰는 글꼴 파일(.ttf · .otf)을 여기에 둔다. **글꼴 파일은 nexa-slide 엔진 폴더에 두지 않는다.**
+
+1. 파일을 이 폴더에 넣는다(굵기별 파일 - 예: `MyFont-Regular.ttf`, `MyFont-Bold.ttf`).
+2. `nexa-slide.json` 에 글꼴 세트를 정의하고 고른다 - 형식은 엔진 `docs/fonts.md`.
+3. PowerPoint 에서도 쓰려면 설치: `python3 nexa.py install_fonts` (편집기는 설치하지 않아도 이 폴더를 바로 쓴다).
+
+라이선스: 배포가 허용되지 않은 글꼴(회사 전용 서체 등)을 공개 저장소에 커밋하지 않는다 - 필요하면 이 폴더를 `.gitignore` 에 넣는다.
+"""
 
 
 def starter(deck, title):
@@ -301,6 +314,7 @@ def main():
                     made.append(rel(dst, ws))
     else:
         write(ws / "content" / f"{a.deck}.json", json.dumps(starter(a.deck, cfg.get("title", ws.name)), ensure_ascii=False, indent=1) + "\n")
+    write(ws / "fonts" / "README.md", FONTS_README)
     write(ws / ".gitignore", "# nexa-slide 산출물·자동 백업 — 다시 만들 수 있음\nout/\ndecks/.history/\n")
     write(ws / "CLAUDE.md", CLAUDE_MD.format(engine=rel(ENGINE, ws), template=cfg.get("template"), ws=show, port=cfg.get("port")))
     (ws / "decks").mkdir(exist_ok=True)
