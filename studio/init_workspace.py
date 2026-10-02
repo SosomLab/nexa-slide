@@ -18,6 +18,8 @@
     decks/  out/  assets/brand/   (로고는 엔진 예제의 자리 표시 이미지 — 자기 로고로 바꿔 쓴다)
     .gitignore         out/ · decks/.history/
     CLAUDE.md          이 작업 공간에서 일하는 Claude 세션 안내(요청 감시·처리 규약·명령)
+    AGENTS.md          Claude 가 아닌 AI 도구(Codex·Gemini CLI·Cursor) 안내 — 같은 규칙, 요청은 1회 대기 반복
+    .claude/settings.json  Claude Code 훅 — 세션 활동(대화 작업 중·요청 처리 중·대기)을 편집기에 표시(session_hook.py)
 포트를 주지 않으면(또는 auto) 5600 부터 비어 있고 최근 작업 공간(사용자 설정 recent)이 쓰지 않는 포트를 고른다.
 포트를 주면 지금 다른 프로그램이 쓰는 포트는 거절하고, 다른 작업 공간 설정과 겹치면 알린다(동시에 띄우지 않으면 괜찮다).
 이미 작업 공간이 있는 폴더에 --port 를 주면 그 포트로 설정을 바꾼다.
@@ -202,6 +204,20 @@ CLAUDE_MD = '''# 슬라이드 작업 공간 (nexa-slide) — Claude 세션 안�
 - 사용자 답변은 한국어.
 '''
 
+AGENTS_MD = '''# 슬라이드 작업 공간 (nexa-slide) — AI 에이전트 안내 (Codex · Gemini CLI · Cursor 등)
+
+이 파일은 Claude 가 아닌 AI 코딩 도구용이다. 규칙·명령은 같은 폴더의 `CLAUDE.md` 와 같고(먼저 읽는다), 요청 감시 방법만 다르다.
+Gemini CLI 는 기본으로 `GEMINI.md` 를 읽는다 — 이 파일을 `GEMINI.md` 로 복사하거나 설정 `contextFileName` 에 `AGENTS.md` 를 넣는다.
+
+- 편집기에서 오는 요청(1회 대기 반복): `python3 nexa.py watch_requests --label "<도구 이름>"` 실행 → 요청이 생기면 JSON 목록을 출력하고 끝난다
+  → 요청마다 `decks/<덱>.requests.json` 의 status 를 "working" → `decks/<덱>.json` 수정(요소 id 유지, 임시 파일에 쓴 뒤 교체) → 같은 변경을 `content/` 에도
+  → status "done" + reply 한두 문장 → 다시 실행해 다음 요청을 기다린다. 셸을 못 쓰면 사용자가 "열린 요청 처리해 줘"라고 할 때 위 파일을 직접 읽어 처리한다.
+- 장 고르기 기준 = 슬라이드 유형: `python3 nexa.py slide_types [낱말]` — 내용 성격에 맞는 유형의 레이아웃·필드 구조로 쓴다.
+- 빌드·검사: `python3 nexa.py build_deck <덱> --force` → `python3 nexa.py check_layout <덱>`(ERROR 0 목표).
+- 글꼴 파일은 `fonts/` 에만(엔진에 넣지 않음). 근거·각주는 지어내지 않는다. 사용자 답변은 한국어.
+- 엔진 문서: {engine}/docs/ai-editing.md (AI 로 고치기) · {engine}/docs/slide-types.md · {engine}/docs/claude-session.md(요청 규약)
+'''
+
 FONTS_README = """# 글꼴 (이 작업 공간 전용)
 
 이 작업 공간에서 쓰는 글꼴 파일(.ttf · .otf)을 여기에 둔다. **글꼴 파일은 nexa-slide 엔진 폴더에 두지 않는다.**
@@ -320,6 +336,13 @@ def main():
     write(ws / "fonts" / "README.md", FONTS_README)
     write(ws / ".gitignore", "# nexa-slide 산출물·자동 백업 — 다시 만들 수 있음\nout/\ndecks/.history/\n")
     write(ws / "CLAUDE.md", CLAUDE_MD.format(engine=rel(ENGINE, ws), template=cfg.get("template"), ws=show, port=cfg.get("port")))
+    write(ws / "AGENTS.md", AGENTS_MD.format(engine=rel(ENGINE, ws)))  # Claude 가 아닌 AI 도구(Codex 등)용
+    # Claude Code 훅 — 세션 활동(대화 작업 중·요청 처리 중·대기)을 편집기에 보여 주려고(studio/session_hook.py, docs/ai-editing.md)
+    py = "python3" if shutil.which("python3") else "python"
+    hook = lambda: [{"type": "command", "command": f'cd "$CLAUDE_PROJECT_DIR" && {py} nexa.py session_hook', "timeout": 10}]  # noqa: E731
+    write(ws / ".claude" / "settings.json", json.dumps({"hooks": {
+        "UserPromptSubmit": [{"hooks": hook()}], "PreToolUse": [{"matcher": "*", "hooks": hook()}],
+        "PostToolUse": [{"matcher": "Monitor", "hooks": hook()}], "Stop": [{"hooks": hook()}]}}, ensure_ascii=False, indent=2) + "\n")
     (ws / "decks").mkdir(exist_ok=True)
     for f in ("logo.png", "wordmark.png", "favicon.png"):
         dst = ws / cfg.get("assetRoot", ".") / "assets" / "brand" / f

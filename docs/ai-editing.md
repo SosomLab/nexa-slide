@@ -81,7 +81,8 @@ Monitor 로 python3 "<작업 공간>/nexa.py" watch_requests --stream --takeover
 
 ### 2.3 그 밖의 AI 도구 (Codex CLI · Gemini CLI · Cursor 등)
 
-이 도구들은 작업 공간의 `CLAUDE.md` 를 자동으로 읽지 않는다(Codex 는 `AGENTS.md`, Gemini CLI 는 `GEMINI.md` 를 읽는다 — 작업 공간에는 아직 만들지 않는다).
+이 도구들은 작업 공간의 `CLAUDE.md` 를 자동으로 읽지 않는다. 그래서 새 작업 공간에는 **`AGENTS.md`**(Codex·Cursor 등이 읽는 안내 — 같은 규칙, 요청은 1회 대기 반복)도 만든다. Gemini CLI 는 기본으로 `GEMINI.md` 를 읽으므로 `AGENTS.md` 를 `GEMINI.md` 로 복사하거나 설정 `contextFileName` 에 `AGENTS.md` 를 넣는다.
+이미 있는 작업 공간에는 `python3 <엔진>/studio/init_workspace.py <작업 공간>` 을 다시 실행하면 없는 파일(`AGENTS.md` 등)만 만든다.
 작업 공간 폴더에서 도구를 열고 아래 요청을 붙여 넣는다. 셸 명령을 실행할 수 있으면 **B 방식**:
 
 ```text
@@ -105,6 +106,18 @@ Monitor 로 python3 "<작업 공간>/nexa.py" watch_requests --stream --takeover
 | 초록 **세션 연결됨** | 감시가 돌고 있다 — 보낸 요청은 바로 전달된다. 마우스를 올리면 세션 이름·마지막 확인 시각 |
 | 파랑 **세션 처리 중 n** | AI 가 요청 n건을 처리하는 중(`working`) |
 | 회색 **세션 연결 없음** | 감시가 없다 — 요청은 저장되고, 감시를 시작하면 전달된다 |
+
+Claude Code 를 쓰면 칩에 **세션 활동**도 보인다 — 새 작업 공간의 `.claude/settings.json` 훅(`UserPromptSubmit`·`PreToolUse`·`PostToolUse(Monitor)`·`Stop`)이
+`python3 nexa.py session_hook` 을 불러 `out/.studio/activity.json` 에 세션별 상태를 남긴다(엔진 `studio/session_hook.py`, 빨리 끝나고 실패해도 세션을 막지 않는다).
+
+| 활동 표시 | 뜻 |
+|---|---|
+| **대화 작업 중 N분째** | 요청을 감시하는 세션이 대화창 입력을 처리하는 중(마우스를 올리면 입력 첫 줄) — 이때 보낸 요청은 그 일이 끝난 뒤 처리된다(` · 요청 n 대기`) |
+| **요청 처리 중 n** · **작업 중** | 감시 세션이 편집기 요청(또는 스스로 이어 가는 일)을 처리하는 중 |
+| **대기 — 요청 바로 처리** | 감시 세션이 쉬고 있다 |
+| **다른 세션 N** | 같은 폴더에서 다른 Claude 세션도 일하는 중(감시는 한 세션만) |
+
+훅은 프로젝트 설정이라 처음 열 때 Claude Code 가 신뢰 확인을 묻는다. 이미 있는 작업 공간은 `init_workspace.py` 를 다시 실행하면 없는 파일만 만든다. 다른 AI 도구에는 이 표시가 없다(연결·처리 중 칩만).
 
 같은 작업 공간을 이미 다른 세션이 감시 중이면 새 감시는 `{"event":"refused"}` 를 내고 멈춘다(요청이 두 번 처리되지 않게).
 넘겨받으려면 `--takeover`, 정말 둘 다 띄워야 하면 `--force`.

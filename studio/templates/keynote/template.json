@@ -57,5 +57,9 @@
       "r-m": 8,
       "r-l": 14
     }
+  },
+  "parts": {
+    "_comment": "구조 부품(layouts.py PARTS) — labels·foot·pageGhost",
+    "foot": "minimal"
   }
 }

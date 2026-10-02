@@ -140,6 +140,32 @@ def export(i):
     return run([sys.executable, str(STUDIO / "export_pptx.py"), i], 120)
 
 
+def activity():
+    """세션 활동(session_hook.py 가 쓴 out/.studio/activity.json) — 요청 감시 담당 세션의 상태와 다른 세션 작업 수.
+    상태: idle(대기) · busy+chat(대화 입력 처리 중) · busy+auto(요청 등 대화 밖 작업). 15분 넘게 소식 없는 작업 중은 unknown."""
+    try:
+        data = json.loads((STATE / "activity.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    now = dt.datetime.now()
+    out = []
+    for sid, s in data.get("sessions", {}).items():
+        try:
+            last = dt.datetime.fromisoformat(s.get("last") or s.get("since"))
+            since = dt.datetime.fromisoformat(s.get("since") or s.get("last"))
+        except (TypeError, ValueError):
+            continue
+        st = s.get("state", "idle")
+        if st == "busy" and (now - last).total_seconds() > 900:
+            st = "unknown"
+        out.append({"id": sid[:8], "state": st, "source": s.get("source", ""), "prompt": s.get("prompt", ""), "watcher": bool(s.get("watcher")),
+                    "minutes": int((now - since).total_seconds() // 60), "last": s.get("last")})
+    if not out:
+        return None
+    w = max((x for x in out if x["watcher"]), key=lambda x: x["last"] or "", default=None)
+    return {"watcher": w, "othersBusy": sum(1 for x in out if x is not w and x["state"] == "busy"), "sessions": len(out)}
+
+
 ENGINE_UI = ("index.html", "studio.js", "render.js", "menu.js", "fonts.css")
 
 
@@ -336,7 +362,7 @@ class H(BaseHTTPRequestHandler):
             self.send_json({"ok": True, "version": ver(p), "updated": deck["updated"]})
 
     def api_get_version(self, i, q):
-        self.send_json({"deck": ver(deck_path(i)), "requests": ver(req_path(i)), "session": session_status(), **workspace_stamp()})
+        self.send_json({"deck": ver(deck_path(i)), "requests": ver(req_path(i)), "session": session_status(), "activity": activity(), **workspace_stamp()})
 
     # ---------- 레이아웃 검사 ----------
     def api_get_check(self, i, q):

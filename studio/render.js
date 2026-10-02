@@ -32,7 +32,18 @@
     const c = T && T.pptTextShift && T.pptTextShift[k === "mono" ? "mono" : "body"];
     return c ? +(s * (c[0] * lh + c[1])).toFixed(2) : 0;
   };
-  const font = (k) => (T && T.fonts && T.fonts[k || "body"] ? T.fonts[k || "body"].css : "'Malgun Gothic', sans-serif").replace(/"/g, "'");
+  // 슬라이드·덱 글꼴 세트(fontPreset) — common.preset_fonts 와 같은 규칙. FO = 지금 그리는 장의 글꼴(없으면 작업 공간 글꼴)
+  let FO = null, DECK_FP = null;
+  function presetFonts(name) {
+    const p = name && T && T.fontPresets && T.fontPresets[name]; if (!p) return null;
+    const f = JSON.parse(JSON.stringify(p));
+    for (const k of ["body", "mono"]) if (!f[k]) f[k] = T.fonts[k];
+    for (const [k, v] of Object.entries(T.fontOverrides || {})) f[k] = { ...(f[k] || {}), ...v };
+    if (!f.heading) f.heading = f.body;
+    return f;
+  }
+  function setDeckFonts(name) { DECK_FP = name || null; }
+  const font = (k) => { const fs = FO || (T && T.fonts); return (fs && fs[k || "body"] ? fs[k || "body"].css : "'Malgun Gothic', sans-serif").replace(/"/g, "'"); };
 
   // ---------- 인라인 강조 ----------
   const MARK = /\*\*(.+?)\*\*|==(.+?)==|\[\[([#\w-]+)\|(.+?)\]\]/g;
@@ -423,7 +434,8 @@
   /** 슬라이드 → HTML 문자열 (1280×720, 축소는 호출자가 transform 으로) */
   function renderSlide(slide, page) {
     const bg = color(slide.bg || "surface");
-    return `<div class="rs-slide" style="background:${bg}">${sorted(slide.elements).map((e) => renderElement(e, page)).join("")}</div>`;
+    FO = presetFonts(slide.fontPreset || DECK_FP);
+    return `<div class="rs-slide" style="background:${bg}${FO ? `;font-family:${font("body")}` : ""}">${sorted(slide.elements).map((e) => renderElement(e, page)).join("")}</div>`;
   }
 
   /** 렌더러용 CSS (토큰 → CSS 변수 포함) */
@@ -445,7 +457,7 @@
 .rs-cell>.rs-ct{white-space:pre-wrap;word-break:keep-all;flex:1}`;
   }
 
-  const api = { setTokens, color, radius, runs, plain, hlSQL, hlPython, codeLines, planRuns, tableGrid, bulletRows, renderElement, renderSlide, css, esc, lineBox };
+  const api = { setDeckFonts, presetFonts,  setTokens, color, radius, runs, plain, hlSQL, hlPython, codeLines, planRuns, tableGrid, bulletRows, renderElement, renderSlide, css, esc, lineBox };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   root.Render = api;
 })(typeof window !== "undefined" ? window : globalThis);

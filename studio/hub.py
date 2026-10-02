@@ -300,6 +300,13 @@ def plan(b):
         args += ["--ask-draft"]
     start = [(ws or Path("<폴더>")) / "nexa.py", "start"]
     py = _py()
+    if ws and "&" in str(ws) and os.name == "nt":
+        # pyenv-win 등의 python3 은 배치(.bat) 대리 실행기라 인자 경로의 & 에서 명령이 잘린다 → 실제 실행 파일로 안내
+        shim = shutil.which("python3") or ""
+        if shim.lower().endswith((".bat", ".cmd")) and " " not in sys.executable:
+            py = sys.executable
+        warn.append("경로에 & 가 있습니다 - Windows 의 python3(배치 실행기)는 & 에서 명령이 잘려 실제 파이썬 실행 파일 경로로 안내합니다. "
+                    "가능하면 폴더 이름에서 & 를 빼세요(예: S&OP → S-OP).")
     cmds = {sh: {"init": _cmdline([py, *args], sh), "start": _cmdline([py, *start], sh)} for sh in ("powershell", "bash")}
     return {"ok": True, "path": str(ws) if ws else "", "title": title, "port": port, "url": f"http://127.0.0.1:{port}/",
             "args": [str(x) for x in args], "commands": cmds, "warnings": warn, "ready": bool(title and ws)}

@@ -12,7 +12,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from common import (CODE_GUTTER_W, CODE_PAD_Y, OUT, REPO, HL_ROLE, code_lines, code_style, color, load_deck, plan_runs, radius,  # noqa: E402
+from common import (cur_fonts, use_fonts, CODE_GUTTER_W, CODE_PAD_Y, OUT, REPO, HL_ROLE, code_lines, code_style, color, load_deck, plan_runs, radius,  # noqa: E402
                     runs, safe_id, table_grid, tokens)
 
 from lxml import etree  # noqa: E402  (python-pptx 의존성)
@@ -47,7 +47,8 @@ def rgb_el(parent_tag, hexv):
 
 
 def fonts_of(key):
-    f = tokens()["fonts"].get(key or "body", tokens()["fonts"]["body"])
+    fs = cur_fonts()  # 슬라이드·덱 글꼴 세트(fontPreset)가 있으면 그 글꼴
+    f = fs.get(key or "body", fs["body"])
     return f["latin"], f["ea"]
 
 
@@ -447,6 +448,7 @@ def export(deck, out):
     blank = prs.slide_layouts[6]
     counts = []
     for n, s in enumerate(deck["slides"], 1):
+        use_fonts(s.get("fontPreset") or deck.get("fontPreset"))  # 슬라이드 > 덱 > 작업 공간
         slide = prs.slides.add_slide(blank)
         slide.background.fill.solid()
         slide.background.fill.fore_color.rgb = RGBColor.from_string(color(s.get("bg", "surface"))[1:])

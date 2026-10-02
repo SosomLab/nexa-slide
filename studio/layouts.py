@@ -8,7 +8,15 @@
 import copy
 import struct
 
-from common import ASSET_ROOT, BRAND, CONFIG, fit_size, text_width
+from common import ASSET_ROOT, BRAND, CONFIG, TEMPLATE, fit_size, text_width
+
+# 템플릿 구조 부품(template.json "parts") — 색이 아니라 배치로 템플릿을 구분한다(장식은 role "decor" — 검사에서 뺀다)
+#   labels: "mono"      머리 칩 대신 고정폭 대문자 라벨(swiss·blueprint)
+#   foot:   "band"      아래 전폭 어두운 띠 안에 경로·쪽번호(swiss)
+#           "titleblock" 도면 테두리 + 오른쪽 아래 표제란(blueprint)
+#           "minimal"   경로·워드마크 없이 큰 쪽번호만(keynote)
+#   pageGhost: true      오른쪽 아래 거대 흐린 쪽번호(archive)
+PARTS = TEMPLATE.get("parts") or {}
 
 W, H, PAD = 1280, 720, 64
 
@@ -83,7 +91,7 @@ class B:
     def text(self, x, y, w, h, text, size=20, color="on-surface", **kw):
         return self.add({"type": "text", "x": x, "y": y, "w": w, "h": h, "text": text, "size": size, "color": color, **kw})
 
-    def pill(self, x, y, text, fill, color, size=14, h=30, padx=14, bold=True, w=None, **kw):
+    def pill(self, x, y, text, fill, color, size=15, h=30, padx=14, bold=True, w=None, **kw):
         size = fit_size(size, kw.get("role"))  # 폭을 재기 전에 — 칩 폭이 커진 글자에 맞게
         if w is None:
             w = text_width(text, size, bold, kw.get("font") == "mono") + padx * 2 + 2
@@ -99,7 +107,7 @@ class B:
 
     # 칩 묶음
     def tag(self, x, y, kind, sm=True):
-        h, size, padx = (26, 13, 12) if sm else (30, 14, 14)
+        h, size, padx = (26, 15, 12) if sm else (30, 15, 14)  # 15px = 11.25pt — 검사 최소 11pt 이상
         spec = {
             "req": ("primary", "on-primary", "필수", True, None),
             "adv": (None, "on-surface-variant", "심화", False, "outline-variant"),
@@ -119,7 +127,7 @@ class B:
         return x
 
     def day_pill(self, x, y, label=None):
-        return self.pill(x, y, label or PART_LABEL.get(self.part, self.part), self.dcc, self.dco)
+        return self.pill(x, y, label or PART_LABEL.get(self.part, self.part), self.dcc, self.dco, size=15)
 
     def logo(self, x=None, y=36, h=34):
         w = h * LOGO_RATIO
@@ -128,7 +136,13 @@ class B:
     # 공통 머리·바닥
     def head(self, title, sub=None, kick=None):
         """kick: None(부 칩) | 'neutral:전체' 같은 칩 목록"""
-        if kick is None:
+        if PARTS.get("labels") == "mono":  # 고정폭 라벨(구조 부품)
+            if kick is None:
+                lab = PART_LABEL.get(self.part, self.part) + ("  ·  필수" if self.level == "req" else "  ·  심화" if self.level == "adv" else "")
+            else:
+                lab = "  ·  ".join(k.split(":", 1)[-1] for k in (kick if isinstance(kick, list) else [kick]))
+            self.text(PAD, 40, 760, 24, lab.upper(), size=15, bold=True, font="mono", color="primary", lineHeight=1.4, role="label")
+        elif kick is None:
             p = self.day_pill(PAD, 36)
             if self.level:
                 self.tag(PAD + p["w"] + 8, 36, self.level, sm=False)
@@ -149,7 +163,32 @@ class B:
             text, h = foot_lines(self.source)
             self.text(PAD, 668 - h, W - 2 * PAD, h, text, size=FOOT_PX, color="on-surface-variant",
                       lineHeight=FOOT_LH, valign="bottom", role="footnotes")
+        self.foot_parts(crumb, wh)
+
+    def foot_parts(self, crumb, wh):
+        """바닥 — 템플릿 구조 부품(PARTS)에 따라. 기본은 경로 + 워드마크 + 쪽번호 칩."""
+        foot = PARTS.get("foot")
+        if PARTS.get("pageGhost"):  # 거대 흐린 쪽번호 — 맨 뒤(z -1)
+            self.text(W - 330, H - 150, 282, 130, "{page}", size=120, bold=True, color="surface-container-high", align="right",
+                      lineHeight=1.05, font="heading", role="decor", z=-1)
+        if foot == "band":
+            self.rect(0, H - 40, W, 40, "panel", 0, role="decor", z=-1)
+            self.text(PAD, H - 30, 900, 20, crumb, size=13, color="on-panel", lineHeight=1.4, role="crumb")
+            self.text(W - 48 - 80, H - 30, 80, 20, "{page}", size=13, bold=True, color="on-panel", align="right", lineHeight=1.4, role="page")
+            return
+        if foot == "titleblock":
+            self.rect(12, 12, W - 24, H - 24, None, 0, stroke="on-surface-variant", strokeWidth=1.5, role="decor", z=-1)
+            self.text(PAD, 675, 800, 20, crumb, size=13, color="on-surface-variant", lineHeight=1.4, role="crumb")
+            self.rect(W - 300, H - 56, 276, 40, "surface", 0, stroke="on-surface-variant", strokeWidth=1.5, role="decor")
+            self.text(W - 290, H - 48, 150, 24, "SHEET", size=13, bold=True, font="mono", color="on-surface-variant", lineHeight=1.4, role="page")
+            self.text(W - 140, H - 48, 104, 24, "{page}", size=15, bold=True, font="mono", color="primary", align="right", lineHeight=1.4, role="page")
+            return
+        if foot == "minimal":
+            self.text(W - 48 - 120, H - 44, 120, 30, "{page}", size=18, bold=True, color="primary", align="right", lineHeight=1.4, role="page")
+            return
         self.text(PAD, 675, 800, 20, crumb, size=13, color="on-surface-variant", lineHeight=1.4, role="crumb")
+        if PARTS.get("pageGhost"):  # 흐린 쪽번호가 쪽번호 노릇 — 칩·워드마크는 뺀다
+            return
         self.image(W - 112 - wh * WM_RATIO, H - 30 - wh, wh * WM_RATIO, wh, WORDMARK, locked=True)
         self.pill(W - 48 - 44, H - 22 - 28, "{page}", "surface-container", "on-surface-variant", size=13, h=28, bold=False, w=44, role="page")
 
@@ -183,7 +222,7 @@ def toc(b, f):
             cur = code == f.get("current")
             if cur:
                 b.rect(x + 12, ry + 1, 344, 36, "white", "r-s")
-            b.pill(x + 20, ry + 6, code, ip, "white", size=13, h=26, padx=10, font="mono", w=56)
+            b.pill(x + 20, ry + 6, code, ip, "white", size=15, h=26, padx=10, font="mono", w=56)
             b.text(x + 86, ry + 6, 262, 26, name, size=16, lineHeight=1.6, valign="middle", bold=cur,
                    color="primary" if cur else "on-surface")
     b.foot(f.get("crumb", "목차"))
@@ -478,7 +517,7 @@ def files(b, f):
         b.rect(x + 20, y + 20, 64, 64, "ci-dark", "r-m", text=kind, size=17, bold=True, color="white", align="center", valign="middle")
         b.text(x + 108, y + 20, 820, 28, path, size=19, font="mono", lineHeight=1.4)
         b.text(x + 108, y + 58, 820, 24, desc, size=16, color="on-surface-variant", lineHeight=1.5)
-        p = b.pill(0, y + 36, lab, "lab-container", "lab", size=13, h=26, padx=12)
+        p = b.pill(0, y + 36, lab, "lab-container", "lab", size=15, h=28, padx=12)
         p["x"] = x + 1152 - 24 - p["w"]
     b.foot(f.get("crumb", ""))
 
@@ -518,14 +557,14 @@ def chapter_toc(b, f):
         x = 64 + (i // per) * 588
         y = 184 + (i % per) * rh
         b.rect(x, y, 564, rh - 10, "surface-container", "r-m")
-        b.pill(x + 16, y + (rh - 10 - 30) / 2, num, b.dc, "white", size=14, h=30, padx=10, font="mono", w=64)
+        b.pill(x + 16, y + (rh - 10 - 30) / 2, num, b.dc, "white", size=15, h=30, padx=10, font="mono", w=64)
         b.text(x + 96, y + (rh - 10 - 28) / 2, 370, 28, title, size=17, lineHeight=1.6, valign="middle")
         t = b.tag(0, y + (rh - 10 - 26) / 2, lv)
         t["x"] = x + 564 - 16 - t["w"]
     if f.get("stats"):  # 요약 칩 줄: [["절", "필수 8 · 심화 3"], ["예상 시간", "필수 90분 · 전체 140분"], …]
         x, y = 64, 184 + per * rh + 10
         for label, value in f["stats"]:
-            p = b.pill(x, y, label, b.dcc, b.dco, size=13, h=28, padx=12)
+            p = b.pill(x, y, label, b.dcc, b.dco, size=15, h=28, padx=12)
             vw = text_width(value, 16, True) + 4
             b.text(x + p["w"] + 10, y, vw, 28, value, size=16, bold=True, lineHeight=1.6, valign="middle")
             x += p["w"] + 10 + vw + 28
@@ -553,7 +592,7 @@ def subsection(b, f):
         for num, name in sib:
             cur = num == f["number"]
             p = b.pill(xx, y, f"{num}  {name}", b.dc if cur else "surface-container",
-                       "white" if cur else "on-surface-variant", size=14, h=32, padx=14, bold=cur)
+                       "white" if cur else "on-surface-variant", size=15, h=32, padx=14, bold=cur)
             xx += p["w"] + 10
     b.foot(f.get("crumb", ""))
 

@@ -52,5 +52,9 @@
         "ea": "Noto Serif KR"
       }
     }
+  },
+  "parts": {
+    "_comment": "구조 부품(layouts.py PARTS) — labels·foot·pageGhost",
+    "pageGhost": true
   }
 }
