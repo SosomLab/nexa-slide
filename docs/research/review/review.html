@@ -20,7 +20,8 @@
   .chip .n { opacity: .7; margin-left: 4px; font-size: 12px; }
   select, input[type=search], input[type=text], textarea { border: 1px solid var(--line); border-radius: 9px; padding: 5px 9px; background: #fff; }
   main { flex: 1; display: grid; grid-template-columns: minmax(320px, 420px) 1fr; min-height: 0; }
-  #list { overflow: auto; border-right: 1px solid var(--line); background: var(--card); }
+  #list { overflow: auto; border-right: 1px solid var(--line); background: var(--card); outline: none; overflow-anchor: none; }
+  #list:focus-visible .it.on, #list:focus .it.on { box-shadow: inset 3px 0 0 var(--p); }
   .it { padding: 9px 14px; border-bottom: 1px solid var(--tone); cursor: pointer; }
   .it:hover { background: var(--tone); } .it.on { background: var(--pc); }
   .it .t { font-weight: 700; } .it .m { color: var(--ink2); font-size: 12px; display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-top: 2px; }
@@ -61,7 +62,7 @@
   <button class="chip primary" id="addBtn">+ 대상 추가</button>
 </header>
 <main>
-  <div id="list"></div>
+  <div id="list" tabindex="0" aria-label="검토 대상 목록 — ↑↓ 로 이동"></div>
   <div id="detail"><div class="empty">왼쪽에서 대상을 고르면 미리보기와 검토 단추가 나옵니다.</div></div>
 </main>
 <div id="viewer"><div id="vbar"><button class="chip" id="vPrev">◀</button><span id="vInfo"></span><button class="chip" id="vNext">▶</button>
@@ -98,14 +99,30 @@
     const key = { reg: "registeredAt", rev: "reviewedAt", appr: "approvedAt" }[so];
     return so === "title" ? xs.sort((a, b) => a.title.localeCompare(b.title)) : xs.sort((a, b) => (b[key] || "").localeCompare(a[key] || "") || (KO[a.kind] ?? 9) - (KO[b.kind] ?? 9) || a.id.localeCompare(b.id));
   }
-  function renderList() {
-    const xs = filtered();
-    $("#list").innerHTML = xs.length ? xs.map((x) => `<div class="it${S.cur === x.id ? " on" : ""}" data-id="${esc(x.id)}"><div class="t">${esc(x.title)}</div>
+  function renderList() {  // 다시 그려도 스크롤 위치는 그대로
+    const xs = filtered(), L = $("#list"), top = L.scrollTop;
+    L.innerHTML = xs.length ? xs.map((x) => `<div class="it${S.cur === x.id ? " on" : ""}" data-id="${esc(x.id)}"><div class="t">${esc(x.title)}</div>
       <div class="m"><span class="st ${x.status}">${ST[x.status]}</span><span class="kd">${KD[x.kind] || x.kind}</span>${(x.tags || []).slice(0, 3).map((t) => `<span>${esc(t)}</span>`).join(" · ")}
       <span style="margin-left:auto">등록 ${day(x.registeredAt).slice(0, 10)}</span></div></div>`).join("") : `<div class="empty">조건에 맞는 대상이 없습니다.</div>`;
+    L.scrollTop = top;
   }
-  async function showDetail(id) {
-    S.cur = id; renderList(); if (location.hash.slice(1).split("/")[0] !== id) history.replaceState(null, "", "#" + encodeURIComponent(id));
+  // 선택 표시만 바꾼다(목록을 다시 그리지 않아 위치가 움직이지 않는다). reveal = 키보드 이동 등에서 선택 항목이 보이게
+  function markSelected(reveal) {
+    let cur = null;
+    document.querySelectorAll("#list .it").forEach((el) => { const on = el.dataset.id === S.cur; el.classList.toggle("on", on); if (on) cur = el; });
+    if (cur && reveal) cur.scrollIntoView({ block: "nearest" });
+  }
+  function moveSel(d) {  // d: +1/-1 한 칸, ±"page" 한 화면, "home"/"end"
+    const els = [...document.querySelectorAll("#list .it")]; if (!els.length) return;
+    let i = els.findIndex((el) => el.dataset.id === S.cur);
+    const per = Math.max(1, Math.floor($("#list").clientHeight / (els[0].offsetHeight || 60)) - 1);
+    i = d === "home" ? 0 : d === "end" ? els.length - 1 : d === "page" ? i + per : d === "-page" ? i - per : (i < 0 ? 0 : i + d);
+    i = Math.max(0, Math.min(els.length - 1, i));
+    showDetail(els[i].dataset.id, true);
+  }
+  async function showDetail(id, reveal) {
+    S.cur = id; markSelected(reveal !== false); if (location.hash.slice(1).split("/")[0] !== id) history.replaceState(null, "", "#" + encodeURIComponent(id));
+    const seq = (S.seq = (S.seq || 0) + 1);  // 빠르게 넘길 때 늦게 온 이전 미리보기는 버린다
     const x = S.items.find((i) => i.id === id); if (!x) return;
     const det = (x.source && x.source.detail) || {};
     $("#detail").innerHTML = `<div class="card"><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><h2 style="margin:0;font-size:17px;flex:1">${esc(x.title)}</h2>
@@ -119,7 +136,9 @@
       ${Object.keys(det).length ? `<div class="card"><table class="kv">${Object.entries(det).filter(([, v]) => v).map(([k, v]) => `<tr><td>${esc(k)}</td><td>${esc(v)}</td></tr>`).join("")}</table></div>` : ""}
       <div class="card" id="pv"><div class="empty" style="padding:6px">미리보기 불러오는 중…</div></div>
       <div class="card hist"><b style="color:var(--ink)">이력</b>${(x.history || []).slice().reverse().map((h) => `<div>${day(h.at)} · ${esc({ register: "등록", review: "검토 시작", approve: "승인", hold: "보류", reject: "제외", reopen: "다시 등록", note: "메모" }[h.action] || h.action)}${h.note ? ` — ${esc(h.note)}` : ""}</div>`).join("")}</div>`;
+    $("#detail").scrollTop = 0;
     const p = await api("GET", `/api/review/preview/${encodeURIComponent(id)}`);
+    if (seq !== S.seq) return;
     let h = "";
     if (p.decks) h += p.decks.map((d) => `<div class="deckh"><b>${esc(d.no)} ${esc(d.title)}</b><span class="kd">${d.slides.length}장</span></div>
       <div class="thumbs">${d.slides.map((s, i) => thumb(s)).join("") || `<div class="empty">미리보기 원본이 없습니다(조사 폴더 확인)</div>`}</div>`).join("");
@@ -143,7 +162,7 @@
   }
   document.addEventListener("click", (e) => {
     const st = e.target.closest("[data-st]"); if (st) { S.st = st.dataset.st; load(); return; }
-    const it = e.target.closest(".it"); if (it) { showDetail(it.dataset.id); return; }
+    const it = e.target.closest(".it"); if (it) { $("#list").focus({ preventScroll: true }); if (it.dataset.id !== S.cur) showDetail(it.dataset.id, false); return; }
     const a = e.target.closest("[data-act]"); if (a) { act(a.dataset.act); return; }
     const th = e.target.closest(".th"); if (th) { openView(S.view.findIndex((s) => s.html === th.dataset.html)); return; }
   });
@@ -151,6 +170,14 @@
   $("#vClose").onclick = () => { $("#viewer").classList.remove("on"); $("#vFrame").src = "about:blank"; };
   $("#vPrev").onclick = () => openView(S.vi - 1); $("#vNext").onclick = () => openView(S.vi + 1);
   window.addEventListener("resize", () => { if ($("#viewer").classList.contains("on")) fitView(); });
+  // 목록 키보드 — 목록에 포커스가 있거나 입력 칸 밖이면 ↑↓ · PageUp/PageDown · Home/End 로 선택 이동
+  document.addEventListener("keydown", (e) => {
+    if ($("#viewer").classList.contains("on") || $("#addDlg").classList.contains("on")) return;
+    if (/^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName) || e.ctrlKey || e.altKey || e.metaKey) return;
+    const m = { ArrowDown: 1, ArrowUp: -1, PageDown: "page", PageUp: "-page", Home: "home", End: "end" }[e.key];
+    if (m === undefined) return;
+    e.preventDefault(); $("#list").focus({ preventScroll: true }); moveSel(m);
+  });
   document.addEventListener("keydown", (e) => {
     if (!$("#viewer").classList.contains("on")) return;
     if (e.key === "Escape") $("#vClose").click(); if (e.key === "ArrowRight") openView(S.vi + 1); if (e.key === "ArrowLeft") openView(S.vi - 1);
