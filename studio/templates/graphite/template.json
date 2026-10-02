@@ -1,0 +1,58 @@
+{
+  "extends": "lecture",
+  "label": "그래파이트 - 흰 바탕·회색 단계·검정",
+  "description": "사내 정리 문서·디자인 시스템·내부 보고. 흰 바탕, 검정 글자, 강조색 없이 회색 단계와 검정 굵기만, 가는 회색 선 구획, 큰 검정 숫자, 모서리 없음(템플릿 검토 승인 참고 덱 101 minimalist-content-cleanup-deck).",
+  "sizes": {
+    "_comment": "업무·발표용은 칩·글자를 역할별 최소 px 로 올려 빌드한다(1280×720 에서 읽히는 크기). pt = px × 0.75",
+    "minPx": {
+      "default": 15,
+      "footnotes": 11,
+      "crumb": 12,
+      "page": 12
+    }
+  },
+  "check": {
+    "minFontPt": {
+      "default": 11,
+      "footnotes": 8,
+      "crumb": 9,
+      "page": 9
+    }
+  },
+  "tokenOverrides": {
+    "colors": {
+      "primary": "#111111",
+      "on-primary": "#FFFFFF",
+      "primary-container": "#E5E7EB",
+      "on-primary-container": "#111111",
+      "surface": "#FFFFFF",
+      "surface-dim": "#F7F8F9",
+      "surface-container": "#F1F2F4",
+      "surface-container-high": "#E5E7EB",
+      "on-surface": "#111111",
+      "on-surface-variant": "#6B7280",
+      "outline-variant": "#D1D5DB",
+      "white": "#FFFFFF",
+      "panel": "#111111",
+      "on-panel": "#FFFFFF",
+      "day1": "#111111",
+      "day1-container": "#E5E7EB",
+      "on-day1-container": "#111111",
+      "day2": "#3F4A57",
+      "day2-container": "#E5E7EB",
+      "on-day2-container": "#1F252C",
+      "day3": "#6B7280",
+      "day3-container": "#F1F2F4",
+      "on-day3-container": "#1F252C"
+    },
+    "radius": {
+      "r-s": 0,
+      "r-m": 0,
+      "r-l": 0
+    }
+  },
+  "parts": {
+    "_comment": "구조 부품(layouts.py PARTS) — labels·foot·pageGhost. 참고 덱은 작은 회색 라벨·가는 선 바닥줄이라 기본 부품 그대로",
+    "foot": "minimal"
+  }
+}
