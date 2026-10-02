@@ -1,0 +1,65 @@
+{
+  "extends": "lecture",
+  "label": "원장 - 크림·남색·금색",
+  "description": "IR·재무·이사회·공공 보고. 크림 바탕, 남색 면과 글자, 금색 보조, 명조 제목, 모서리 없음 — 원장풍 가는 선 표(템플릿 검토 추천 gs-tpl-ledger).",
+  "sizes": {
+    "_comment": "업무·발표용은 칩·글자를 역할별 최소 px 로 올려 빌드한다(1280×720 에서 읽히는 크기). pt = px × 0.75",
+    "minPx": {
+      "default": 15,
+      "footnotes": 11,
+      "crumb": 12,
+      "page": 12
+    }
+  },
+  "check": {
+    "minFontPt": {
+      "default": 11,
+      "footnotes": 8,
+      "crumb": 9,
+      "page": 9
+    }
+  },
+  "tokenOverrides": {
+    "colors": {
+      "primary": "#1F3A5F",
+      "on-primary": "#FFFFFF",
+      "primary-container": "#D9E1EC",
+      "on-primary-container": "#0B1A30",
+      "surface": "#F5F1E8",
+      "surface-dim": "#EFEADF",
+      "surface-container": "#E8E2D4",
+      "surface-container-high": "#D9D1BF",
+      "on-surface": "#1B2433",
+      "on-surface-variant": "#5A6272",
+      "outline-variant": "#C8C0AE",
+      "white": "#FFFDF8",
+      "panel": "#1F3A5F",
+      "on-panel": "#F5F1E8",
+      "day1": "#1F3A5F",
+      "day1-container": "#D9E1EC",
+      "on-day1-container": "#0B1A30",
+      "day2": "#B08D3C",
+      "day2-container": "#F0E6CC",
+      "on-day2-container": "#3F2F08",
+      "day3": "#8C2F39",
+      "day3-container": "#F1D9DC",
+      "on-day3-container": "#3E0F15"
+    },
+    "fonts": {
+      "heading": {
+        "css": "\"Noto Serif KR\", \"Nanum Myeongjo\", \"나눔명조\", Batang, \"바탕\", serif",
+        "latin": "Noto Serif KR",
+        "ea": "Noto Serif KR"
+      }
+    },
+    "radius": {
+      "r-s": 0,
+      "r-m": 0,
+      "r-l": 0
+    }
+  },
+  "parts": {
+    "_comment": "구조 부품(layouts.py PARTS) — labels·foot·pageGhost",
+    "foot": "band"
+  }
+}

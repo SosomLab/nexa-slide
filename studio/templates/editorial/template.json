@@ -1,0 +1,66 @@
+{
+  "extends": "lecture",
+  "label": "에디토리얼 - 미색·명조·진홍",
+  "description": "리서치·케이스·보고서·제안 논지. 미색 바탕, 짙은 남색 글자, 진홍 강조 하나, 명조 제목, 고정폭 라벨, 검정 결론 띠(템플릿 검토 추천 gs-tpl-editorial).",
+  "sizes": {
+    "_comment": "업무·발표용은 칩·글자를 역할별 최소 px 로 올려 빌드한다(1280×720 에서 읽히는 크기). pt = px × 0.75",
+    "minPx": {
+      "default": 15,
+      "footnotes": 11,
+      "crumb": 12,
+      "page": 12
+    }
+  },
+  "check": {
+    "minFontPt": {
+      "default": 11,
+      "footnotes": 8,
+      "crumb": 9,
+      "page": 9
+    }
+  },
+  "tokenOverrides": {
+    "colors": {
+      "primary": "#B3263A",
+      "on-primary": "#FFFFFF",
+      "primary-container": "#F6DADD",
+      "on-primary-container": "#4A0A14",
+      "surface": "#F8F4EC",
+      "surface-dim": "#F2EDE2",
+      "surface-container": "#ECE6D9",
+      "surface-container-high": "#DED6C5",
+      "on-surface": "#1E2230",
+      "on-surface-variant": "#5B5F6B",
+      "outline-variant": "#CFC8B8",
+      "white": "#FFFDF9",
+      "panel": "#141414",
+      "on-panel": "#F8F4EC",
+      "day1": "#1E2230",
+      "day1-container": "#E4E1D8",
+      "on-day1-container": "#1E2230",
+      "day2": "#B3263A",
+      "day2-container": "#F6DADD",
+      "on-day2-container": "#4A0A14",
+      "day3": "#5B5F6B",
+      "day3-container": "#E4E1D8",
+      "on-day3-container": "#1E2230"
+    },
+    "fonts": {
+      "heading": {
+        "css": "\"Noto Serif KR\", \"Nanum Myeongjo\", \"나눔명조\", Batang, \"바탕\", serif",
+        "latin": "Noto Serif KR",
+        "ea": "Noto Serif KR"
+      }
+    },
+    "radius": {
+      "r-s": 2,
+      "r-m": 4,
+      "r-l": 6
+    }
+  },
+  "parts": {
+    "_comment": "구조 부품(layouts.py PARTS) — labels·foot·pageGhost",
+    "labels": "mono",
+    "foot": "band"
+  }
+}

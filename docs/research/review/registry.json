@@ -34,10 +34,16 @@
      "at": "2026-10-02T15:38:17",
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
+    },
+    {
+     "at": "2026-10-02T21:49:16",
+     "action": "implement",
+     "note": "엔진 템플릿 editorial (추천 상태에서 먼저 구현 — 검토 계속)"
     }
    ],
    "scope": "template",
-   "recommended": true
+   "recommended": true,
+   "implemented": "엔진 템플릿 editorial (추천 상태에서 먼저 구현 — 검토 계속)"
   },
   {
    "id": "gs-tpl-ledger",
@@ -72,10 +78,16 @@
      "at": "2026-10-02T15:38:17",
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
+    },
+    {
+     "at": "2026-10-02T21:49:16",
+     "action": "implement",
+     "note": "엔진 템플릿 ledger (추천 상태에서 먼저 구현 — 검토 계속)"
     }
    ],
    "scope": "template",
-   "recommended": true
+   "recommended": true,
+   "implemented": "엔진 템플릿 ledger (추천 상태에서 먼저 구현 — 검토 계속)"
   },
   {
    "id": "gs-tpl-keynote",
@@ -212,10 +224,16 @@
      "at": "2026-10-02T15:38:17",
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
+    },
+    {
+     "at": "2026-10-02T21:49:16",
+     "action": "implement",
+     "note": "엔진 템플릿 signal (추천 상태에서 먼저 구현 — 검토 계속)"
     }
    ],
    "scope": "template",
-   "recommended": true
+   "recommended": true,
+   "implemented": "엔진 템플릿 signal (추천 상태에서 먼저 구현 — 검토 계속)"
   },
   {
    "id": "gs-tpl-blueprint",
@@ -295,10 +313,16 @@
      "at": "2026-10-02T15:38:17",
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
+    },
+    {
+     "at": "2026-10-02T21:49:16",
+     "action": "implement",
+     "note": "엔진 템플릿 forest (추천 상태에서 먼저 구현 — 검토 계속)"
     }
    ],
    "scope": "template",
-   "recommended": true
+   "recommended": true,
+   "implemented": "엔진 템플릿 forest (추천 상태에서 먼저 구현 — 검토 계속)"
   },
   {
    "id": "gs-tpl-swiss",

@@ -1,0 +1,58 @@
+{
+  "extends": "lecture",
+  "label": "시그널 - 노랑·검정·빨강",
+  "description": "안전 교육·현장 교육·초중등 수업·모집 포스터. 흰 바탕, 노랑 강조와 검정 띠, 빨강 경고, 굵은 고딕, 모서리 없음 — 큰 숫자·단계 띠가 주인공(템플릿 검토 추천 gs-tpl-signal).",
+  "sizes": {
+    "_comment": "업무·발표용은 칩·글자를 역할별 최소 px 로 올려 빌드한다(1280×720 에서 읽히는 크기). pt = px × 0.75",
+    "minPx": {
+      "default": 15,
+      "footnotes": 11,
+      "crumb": 12,
+      "page": 12
+    }
+  },
+  "check": {
+    "minFontPt": {
+      "default": 11,
+      "footnotes": 8,
+      "crumb": 9,
+      "page": 9
+    }
+  },
+  "tokenOverrides": {
+    "colors": {
+      "primary": "#111111",
+      "on-primary": "#F2C200",
+      "primary-container": "#FFF1B3",
+      "on-primary-container": "#111111",
+      "surface": "#FFFFFF",
+      "surface-dim": "#F6F6F6",
+      "surface-container": "#EFEFEF",
+      "surface-container-high": "#E0E0E0",
+      "on-surface": "#111111",
+      "on-surface-variant": "#4D4D4D",
+      "outline-variant": "#BDBDBD",
+      "white": "#FFFFFF",
+      "panel": "#111111",
+      "on-panel": "#F2C200",
+      "day1": "#111111",
+      "day1-container": "#FFF1B3",
+      "on-day1-container": "#111111",
+      "day2": "#D7322A",
+      "day2-container": "#FCDAD7",
+      "on-day2-container": "#560D08",
+      "day3": "#1F3A5F",
+      "day3-container": "#D9E1EC",
+      "on-day3-container": "#0B1A30"
+    },
+    "radius": {
+      "r-s": 0,
+      "r-m": 0,
+      "r-l": 0
+    }
+  },
+  "parts": {
+    "_comment": "구조 부품(layouts.py PARTS) — labels·foot·pageGhost",
+    "foot": "band"
+  }
+}
