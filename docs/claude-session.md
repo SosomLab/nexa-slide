@@ -2,6 +2,8 @@
 
 편집기에서 남긴 요청 메모를 Claude Code 세션이 **바로** 받아 처리하게 하는 방법이다.
 
+> 작업 공간을 만든 직후의 연결 순서, Claude 가 아닌 AI 도구(Codex CLI·Gemini CLI·Cursor 등) 연결, 고치기 반복 과정은 [ai-editing.md](ai-editing.md).
+
 ```
 편집기 ──(요청 남기기 / 지금 보내기)──▶ decks/<id>.requests.json · out/.studio/flush.json
                                               │

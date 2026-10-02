@@ -137,6 +137,7 @@
       const r = await api("GET", `/api/version/${S.id}`);
       if (!r.ok) return;
       if (r.data.session) renderSession(r.data.session);
+      await checkWorkspace(r.data);
       if (r.data.requests !== S.reqVersion) await loadReqs();
       if (r.data.deck !== S.version && !S.saving) {
         if (S.dirty || S.editing) {
@@ -144,6 +145,45 @@
         } else { await loadDeck(S.id, true); toast("밖에서 바뀐 덱을 다시 불러왔습니다 (Ctrl+Z 로 되돌리기 가능)"); }
       }
     } catch (e) { setStatus("error", "서버 끊김"); }
+  }
+
+  // 덱 목록·설정·엔진 변경 감지 — 지금 보는 슬라이드와 상관없이 머리 아래 안내 띠로 알린다.
+  // 새 덱·지운 덱: 덱 탭을 바로 갱신(새로 고침 불필요)하고 [열기]를 준다. 설정·엔진: 화면을 새로 고쳐야 반영되므로 [새로 고침]을 준다.
+  function notice(msg, acts) {
+    $("#noticeMsg").textContent = msg;
+    $("#noticeActs").innerHTML = (acts || []).map((a) => `<button class="chip sm${a.primary ? " primary" : ""}" data-nact="${esc(a.act)}" data-arg="${esc(a.arg || "")}">${esc(a.label)}</button>`).join(" ");
+    $("#notice").classList.add("show");
+  }
+  async function checkWorkspace(v) {
+    if (!v.deckIds) return;  // 이전 서버
+    const ids = v.deckIds.join(",");
+    const W = S.ws;
+    if (!W) { S.ws = { ids, decksVer: v.decksVer, config: v.config, engine: v.engine }; return; }
+    if (ids !== W.ids || v.decksVer !== W.decksVer) {
+      const before = new Set(S.decks.map((d) => d.id));
+      const r = await api("GET", "/api/decks");
+      if (r.ok) { S.decks = r.data; renderDeckTabs(); }
+      const added = S.decks.filter((d) => !before.has(d.id));
+      if (ids !== W.ids && !v.deckIds.includes(S.id)) {
+        notice(`지금 보고 있는 덱(${S.id}) 파일이 없어졌습니다.`, [{ act: "reload", label: "새로 고침", primary: true }]);
+      } else if (added.length) {
+        notice(`새 덱 ${added.length}개가 생겼습니다 — ${added.map((d) => `${d.id}(${d.slides}장)`).join(", ")}. 위 덱 탭에도 추가했습니다.`,
+          added.slice(0, 6).map((d, i) => ({ act: "open", arg: d.id, label: `${d.id} 열기`, primary: i === 0 })));
+      }
+      W.ids = ids; W.decksVer = v.decksVer;
+    }
+    if (v.config !== W.config) {  // 설정(템플릿 색·글꼴·로고·제목)은 다시 불러와 바로 적용 — 새로 고침 불필요
+      W.config = v.config;
+      await loadConfig();
+      S.tokens = await (await fetch("tokens.json", { cache: "no-store" })).json();
+      Render.setTokens(S.tokens); $("#rs-css").textContent = Render.css();
+      if (S.deck) { renderAll(); revealThumb(S.cur); }
+    }
+    if (v.engine !== W.engine) {  // 편집기 코드·템플릿 파일은 화면을 새로 고쳐야 반영된다
+      W.engine = v.engine;
+      notice("편집기 코드·템플릿(엔진)이 바뀌었습니다. 새로 고침해야 반영됩니다.",
+        [{ act: "reload", label: S.dirty ? "저장하고 새로 고침" : "새로 고침", primary: true }]);
+    }
   }
 
   // ---------------------------------------------------------------- 그리기(화면)
@@ -1180,6 +1220,13 @@
 
     // 머리줄
     $("#deckTabs").addEventListener("click", (e) => { const b = e.target.closest("[data-deck]"); if (b) switchDeck(b.dataset.deck); });
+    $("#noticeClose").onclick = () => $("#notice").classList.remove("show");
+    $("#noticeActs").addEventListener("click", async (e) => {
+      const b = e.target.closest("[data-nact]"); if (!b) return;
+      $("#notice").classList.remove("show");
+      if (b.dataset.nact === "open") await switchDeck(b.dataset.arg);
+      if (b.dataset.nact === "reload") { if (S.dirty) await save(); location.reload(); }
+    });
     $("#undoBtn").onclick = undo; $("#redoBtn").onclick = redo;
     $("#exportBtn").onclick = (e) => exportMenu(e.currentTarget);
     $("#moreBtn").onclick = (e) => moreMenu(e.currentTarget);

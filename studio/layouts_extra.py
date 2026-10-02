@@ -714,6 +714,10 @@ EXTRA = {
 }
 
 EXTRA_SAMPLES = {
+    "column_chart": {"title": "결론형 제목 - 추이가 말하는 것", "categories": ["1월", "2월", "3월", "4월"], "values": [40, 52, 61, 75],
+                     "unit": "건", "note": "한 줄 해석", "crumb": ""},
+    "stack_bars": {"title": "구성 비교", "unit": "%", "rows": [{"label": "항목 A", "segments": [["가", 50], ["나", 30], ["다", 20]]},
+                                                           {"label": "항목 B", "segments": [["가", 35], ["나", 40], ["다", 25]]}], "crumb": ""},
     "status_table": {"title": "결론형 제목 - 무엇이 어떤 상태인가", "header": ["항목", "계획", "실적", "상태", "담당"],
                      "colW": [4, 2, 2, 2, 2], "align": ["left", "right", "right", "center", "left"],
                      "rows": [["항목 A", "100", "96", {"status": "ok"}, "홍길동"], ["항목 B", "80", "62", {"status": "bad", "text": "지연"}, "김철수"],

@@ -113,7 +113,13 @@ python3 slides\nexa.py start
 Start-Process (python3 slides\nexa.py url)
 ```
 
-옵션: `--port 5610`(포트 지정) · `--template lecture-large`(템플릿) · `--asset-root ..`(덱 그림 경로를 저장소 루트 기준으로 — 저장소에 이미 로고·그림이 있을 때) · `--force`(설정·실행기 다시 쓰기).
+> 시작 페이지(`python3 studio/service.py start` → http://127.0.0.1:5599/)의 "새 슬라이드 만들기" 아래 **"또는 명령으로 만들기"** 가
+> 고른 템플릿·폴더·포트·브리프를 채운 명령을 그대로 보여 준다(복사해서 붙여 넣기). `docs/home.md`.
+
+옵션: `--port 5610`(포트 지정 — 지금 다른 프로그램이 쓰면 거절, `auto` 또는 생략이면 빈 포트 자동. 이미 있는 작업 공간에 주면 포트만 바꾼다)
+· `--build`(만든 뒤 content → 덱 빌드 — 위의 `build_deck` 단계를 대신한다)
+· `--purpose` `--audience` `--direction …`(여러 번) `--material …`(여러 번)(작성 브리프 `BRIEF.md`) · `--ask-draft`(브리프로 초안 쓰기 요청을 남김)
+· `--template lecture-large`(템플릿) · `--asset-root ..`(덱 그림 경로를 저장소 루트 기준으로 — 저장소에 이미 로고·그림이 있을 때) · `--force`(설정·실행기 다시 쓰기).
 
 ### 2.1 만든 뒤 고칠 것 — `slides/nexa-slide.json` (선택만)
 
@@ -184,6 +190,8 @@ git add slides && git commit -m "슬라이드 작업 공간 추가 (nexa-slide)"
 ---
 
 ## 4. Claude 에게 맡기기 — 연결과 초안
+
+> 시작 페이지에서 만든 작업 공간이거나 Claude 가 아닌 AI 도구를 쓴다면 [ai-editing.md](ai-editing.md) 의 순서를 따른다.
 
 ### 4.1 첫 요청 (복사해 쓰기)
 

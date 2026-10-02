@@ -119,9 +119,41 @@
   .dir span.n { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   #busy { position: fixed; inset: 0; background: rgba(255,255,255,.6); z-index: 60; display: none; align-items: center; justify-content: center; font-weight: 700; }
   #busy.on { display: flex; }
+  /* 미리 보기 - 실제로 빌드한 덱을 render.js 로 그린다 */
+  #pvModal .modal { width: min(1180px, 100%); max-height: 92vh; height: 92vh; }
+  #pvModal .mh { flex-wrap: wrap; }
+  #pvModal .mh select { width: auto; max-width: 260px; padding: 5px 9px; font-size: 13px; }
+  .pv-decks { display: flex; gap: 6px; flex-wrap: wrap; margin: 0 0 10px; }
+  .pv-decks .chip.on { background: var(--pc); color: var(--onpc); font-weight: 700; }
+  .pv-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; padding: 3px 3px 12px; }
+  .pv-th { cursor: pointer; min-width: 0; }
+  .pv-th small { display: block; color: var(--ink2); font-size: 11.5px; margin-top: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pv-vp { position: relative; width: 100%; aspect-ratio: 16 / 9; overflow: hidden; border-radius: 8px; outline: 1px solid var(--line); background: #fff; }
+  .pv-th:hover .pv-vp { outline: 2px solid var(--p); }
+  .pv-vp > .rs-slide { position: absolute; left: 0; top: 0; transform-origin: 0 0; pointer-events: none; }
+  .pv-one { display: flex; flex-direction: column; gap: 10px; }
+  .pv-one .pv-vp { width: min(100%, calc((92vh - 220px) * 16 / 9)); margin: 0 auto; }
+  .pv-nav { display: flex; gap: 8px; align-items: center; justify-content: center; }
+  .pv-msg { padding: 40px 10px; text-align: center; color: var(--ink2); }
+  /* 명령으로 만들기 */
+  .cmdbox { margin-top: 14px; border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; background: #fcfbfb; }
+  .cmdbox .hd { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .cmdbox .hd b { margin-right: auto; }
+  .seg { display: inline-flex; background: var(--tone); border-radius: 999px; padding: 2px; }
+  .seg button { border: 0; background: none; border-radius: 999px; padding: 3px 11px; font-size: 12.5px; color: var(--ink2); }
+  .seg button.on { background: var(--card); color: var(--ink); font-weight: 700; box-shadow: var(--sh1); }
+  .cmd { position: relative; margin-top: 8px; }
+  .cmd .lbl { font-size: 12px; font-weight: 700; color: var(--ink2); margin-bottom: 3px; }
+  .cmd pre { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font: 12.5px/1.5 Consolas, "D2Coding", monospace; background: #1F1B1B; color: #F4EFEF; border-radius: 10px; padding: 10px 76px 10px 12px; }
+  .cmd .cp { position: absolute; right: 6px; bottom: 6px; background: #ffffff1f; color: #fff; }
+  .cmd .cp:hover { background: #ffffff33; }
+  .warn { color: var(--warn); background: var(--warnc); border-radius: 8px; padding: 6px 10px; font-size: 12.5px; margin-top: 8px; }
   pre.log { white-space: pre-wrap; font: 12px Consolas, monospace; background: var(--tone); padding: 8px; border-radius: 8px; max-height: 160px; overflow: auto; }
 </style>
 <script src="menu.js"></script>
+<script src="render.js"></script>
+<link rel="stylesheet" href="fonts.css">
+<style id="rs-css"></style>
 </head>
 <body>
 <header>
@@ -153,7 +185,8 @@
         <div class="step"><span class="num">1</span><div>
           <label class="f" for="fTitle">제목</label>
           <input type="text" id="fTitle" required maxlength="80" placeholder="예: 2026 하반기 S&amp;OP 교육">
-          <label class="f">템플릿</label>
+          <div class="row" style="justify-content:space-between;margin:8px 0 4px"><label class="f" style="margin:0">템플릿</label>
+            <button type="button" class="chip sm" id="fPreview" title="고른 템플릿과 시작용 내용으로 만든 슬라이드를 미리 봅니다"></button></div>
           <div class="tpls" id="fTpls"></div>
           <div id="starterBox" style="display:none">
             <label class="f" for="fStarter">시작용 내용</label>
@@ -181,12 +214,24 @@
             <input type="text" id="fSub" placeholder="예: slides">
           </div></label>
           <div class="path" id="fPath"></div>
+          <label class="f" for="fPort">포트</label>
+          <div class="row"><input type="text" id="fPort" inputmode="numeric" maxlength="5" style="max-width:120px" placeholder="자동">
+            <span class="hint" id="fPortHint" style="margin:0">비우면 이 PC 에서 비어 있고 다른 작업 공간이 쓰지 않는 포트를 고릅니다.</span></div>
         </div></div>
         <div class="acts">
           <label class="chk"><input type="checkbox" id="fAsk" checked> Claude 세션에 초안 작성 요청 남기기</label>
           <button type="submit" class="chip primary" id="fGo">만들고 Studio 열기</button>
         </div>
         <div id="fErr"></div>
+        <div class="cmdbox" id="cmdBox">
+          <div class="hd"><b>또는 명령으로 만들기</b>
+            <span class="seg" id="cmdShell"><button type="button" data-sh="powershell">PowerShell</button><button type="button" data-sh="bash">bash · zsh</button></span></div>
+          <div class="hint">위 버튼과 똑같은 작업 공간을 터미널에서 만듭니다(브리프·빌드·초안 요청·최근 작업 등록 포함). 위에서 고친 값이 바로 반영됩니다.</div>
+          <div id="cmdWarn"></div>
+          <div class="cmd"><div class="lbl">① 작업 공간 만들기 + 덱 빌드</div><pre id="cmdInit"></pre><button type="button" class="chip sm cp" data-copy="cmdInit">복사</button></div>
+          <div class="cmd"><div class="lbl">② 서버 시작 → <a id="cmdUrl" target="_blank" rel="noopener"></a> 를 브라우저로 엽니다</div><pre id="cmdStart"></pre><button type="button" class="chip sm cp" data-copy="cmdStart">복사</button></div>
+          <div class="hint">끝낼 때는 ② 의 <code>start</code> 를 <code>stop</code> 으로 바꿔 실행합니다. 다음부터는 ② 만 실행하면 됩니다.</div>
+        </div>
       </form>
       <div class="stack">
         <div class="card" id="openCard">
@@ -306,6 +351,16 @@
   </div>
   <div class="mf"><button type="button" class="chip" id="setReset">기본으로</button><button type="button" class="chip" data-close>취소</button><button type="button" class="chip primary" id="setSave">저장</button></div>
 </div></div>
+<!-- 미리 보기 -->
+<div class="modal-back" id="pvModal"><div class="modal">
+  <div class="mh"><h3>미리 보기</h3>
+    <label class="hint" style="margin:0">템플릿 <select id="pvTpl"></select></label>
+    <label class="hint" style="margin:0">내용 <select id="pvStarter"></select></label>
+    <button type="button" class="ib" data-close>✕</button></div>
+  <div class="mb" id="pvBody"></div>
+  <div class="mf"><span class="hint" id="pvInfo" style="margin-right:auto"></span>
+    <button type="button" class="chip" data-close>닫기</button><button type="button" class="chip primary" id="pvUse">이 조합으로 만들기</button></div>
+</div></div>
 <div id="busy"><span id="busyMsg">처리 중...</span></div>
 
 <script>
@@ -361,20 +416,80 @@
         d.starters.map((s) => `<option value="${esc(s.name)}">${esc(s.label)}</option>`).join("");
     }
   }
-  $("#fTpls").addEventListener("click", (e) => { const b = e.target.closest("[data-tpl]"); if (!b) return; H.tpl = b.dataset.tpl; renderTpls(); });
-  $("#fStarter").addEventListener("change", () => { const s = H.home.starters.find((x) => x.name === $("#fStarter").value); if (s && s.template) { H.tpl = s.template; renderTpls(); } });
+  $("#fTpls").addEventListener("click", (e) => { const b = e.target.closest("[data-tpl]"); if (!b) return; H.tpl = b.dataset.tpl; renderTpls(); schedulePlan(); });
+  $("#fStarter").addEventListener("change", () => { const s = H.home.starters.find((x) => x.name === $("#fStarter").value); if (s && s.template) { H.tpl = s.template; renderTpls(); } schedulePlan(); });
   const loc = () => (document.querySelector("input[name=loc]:checked") || {}).value;
-  function setLoc(v) { document.querySelector(`input[name=loc][value=${v}]`).checked = true; $$(".opt").forEach((o) => o.classList.toggle("on", o.dataset.loc === v)); updatePath(); }
+  // 하위 폴더 자동값 - 폴더·저장소 지정일 때만 제목(저장소를 골랐으면 slides)으로 채운다. 사용자가 직접 고치면 그 뒤로는 건드리지 않는다.
+  const SUB = { dirty: false, git: false };
+  function autoSub() {
+    if (loc() !== "custom" || SUB.dirty) return;
+    const t = $("#fTitle").value.trim();
+    $("#fSub").value = SUB.git ? "slides" : t ? slug(t) : "";
+  }
+  function setLoc(v) {
+    document.querySelector(`input[name=loc][value=${v}]`).checked = true; $$(".opt").forEach((o) => o.classList.toggle("on", o.dataset.loc === v));
+    if (v === "default") { $("#fFolder").value = $("#fSub").value = ""; SUB.dirty = SUB.git = false; }  // 기본 위치면 지정 값은 비운다
+    updatePath();
+  }
   $$("input[name=loc]").forEach((r) => r.addEventListener("change", () => setLoc(r.value)));
+  $("#fSub").addEventListener("input", () => { SUB.dirty = true; });
   function target() {
     const t = $("#fTitle").value;
     if (loc() === "custom") { const f = $("#fFolder").value.trim(); return f ? join(f, $("#fSub").value.trim()) : ""; }
     return join(H.home.projectsRoot, slug(t || "제목"));
   }
-  function updatePath() { if (!H.home) return; const t = target(); $("#fPath").textContent = t ? `만들 위치: ${t}` : "만들 위치: 폴더를 고르세요"; }
+  function updatePath() { if (!H.home) return; autoSub(); const t = target(); $("#fPath").textContent = t ? `만들 위치: ${t}` : "만들 위치: 폴더를 고르세요"; schedulePlan(); }
+
+  // ---------- 명령으로 만들기 ----------
+  // 서버의 plan(/api/project action=plan)이 만든 init_workspace 명령을 그대로 보여 준다. "만들고 Studio 열기"도 같은 명령을 실행한다.
+  let planTimer = null, planSeq = 0;
+  let shell = (() => { try { return localStorage.getItem("nx-shell"); } catch (e) { return null; } })();
+  function formBody() {
+    const custom = loc() === "custom";
+    const b = { title: $("#fTitle").value.trim(), template: H.tpl, starter: $("#fStarter").value || null, port: $("#fPort").value.trim(),
+      purpose: $("#fPurpose").value, audience: $("#fAudience").value, direction: $("#fDirection").value, materials: $("#fMaterials").value,
+      askDraft: $("#fAsk").checked, loc: loc() };
+    if (custom) { b.folder = $("#fFolder").value.trim(); b.sub = $("#fSub").value.trim(); }
+    return b;
+  }
+  function schedulePlan() { clearTimeout(planTimer); planTimer = setTimeout(loadPlan, 250); }
+  async function loadPlan() {
+    if (!H.home) return;
+    const seq = ++planSeq;
+    const r = await post("/api/project", { action: "plan", ...formBody() });
+    if (seq !== planSeq) return;
+    if (!r.ok) { H.plan = null; $("#cmdWarn").innerHTML = `<div class="warn">${esc(r.data.error || "명령을 만들지 못했습니다")}</div>`; $("#cmdInit").textContent = $("#cmdStart").textContent = ""; return; }
+    H.plan = r.data; drawPlan();
+  }
+  function drawPlan() {
+    const p = H.plan; if (!p) return;
+    if (!shell) shell = H.home.engine.includes("\\") ? "powershell" : "bash";
+    $$("#cmdShell button").forEach((b) => b.classList.toggle("on", b.dataset.sh === shell));
+    const c = p.commands[shell];
+    $("#cmdInit").textContent = c.init; $("#cmdStart").textContent = c.start;
+    $("#cmdUrl").textContent = p.url; $("#cmdUrl").href = p.url;
+    $("#fPort").placeholder = `자동 (${p.port})`;
+    const w = [...p.warnings];
+    if (!p.title) w.unshift("제목을 적으면 명령의 제목·폴더 이름이 채워집니다");
+    if (!p.path) w.unshift("저장할 폴더를 고르면 명령의 <폴더> 가 채워집니다");
+    $("#cmdWarn").innerHTML = w.map((x) => `<div class="warn">${esc(x)}</div>`).join("");
+  }
+  $("#cmdShell").addEventListener("click", (e) => {
+    const b = e.target.closest("[data-sh]"); if (!b) return;
+    shell = b.dataset.sh; try { localStorage.setItem("nx-shell", shell); } catch (err) { /* 저장 못 해도 이번 화면은 그대로 */ }
+    drawPlan();
+  });
+  $("#cmdBox").addEventListener("click", async (e) => {
+    const b = e.target.closest("[data-copy]"); if (!b) return;
+    const t = $("#" + b.dataset.copy).textContent;
+    try { await navigator.clipboard.writeText(t); toast("복사했습니다"); }
+    catch (err) { const rg = document.createRange(); rg.selectNodeContents($("#" + b.dataset.copy)); getSelection().removeAllRanges(); getSelection().addRange(rg); toast("선택했습니다 - Ctrl+C 로 복사하세요"); }
+  });
+  ["#fPort", "#fPurpose", "#fAudience", "#fDirection", "#fMaterials"].forEach((x) => $(x).addEventListener("input", schedulePlan));
+  $("#fAsk").addEventListener("change", schedulePlan);
   ["#fTitle", "#fFolder", "#fSub"].forEach((s) => $(s).addEventListener("input", updatePath));
   $("#fFolder").addEventListener("focus", () => setLoc("custom"));
-  $("#fBrowse").onclick = () => { setLoc("custom"); pickFolder("저장 위치 고르기", $("#fFolder").value, (p, info) => { $("#fFolder").value = p; if (info.git && !$("#fSub").value) $("#fSub").value = "slides"; updatePath(); }); };
+  $("#fBrowse").onclick = () => { setLoc("custom"); pickFolder("저장 위치 고르기", $("#fFolder").value, (p, info) => { $("#fFolder").value = p; SUB.git = !!info.git; updatePath(); }); };
   $("#newForm").addEventListener("submit", async (e) => {
     e.preventDefault();
     $("#fErr").innerHTML = "";
@@ -382,7 +497,7 @@
     if (custom && !$("#fFolder").value.trim()) { toast("저장할 폴더를 고르세요"); return; }
     const body = { action: "create", title: $("#fTitle").value.trim(), template: H.tpl, starter: $("#fStarter").value || null,
       purpose: $("#fPurpose").value, audience: $("#fAudience").value, direction: $("#fDirection").value, materials: $("#fMaterials").value,
-      askDraft: $("#fAsk").checked };
+      askDraft: $("#fAsk").checked, port: $("#fPort").value.trim() || (H.plan && H.plan.port) || "", loc: loc() };
     if (custom) { body.folder = $("#fFolder").value.trim(); body.sub = $("#fSub").value.trim(); }
     busy(true, "작업 공간을 만들고 서버를 띄우는 중...");
     const r = await post("/api/project", body);
@@ -402,7 +517,7 @@
   }
   function offerInit(d) {
     location.hash = "new";
-    setLoc("custom"); $("#fFolder").value = d.path; $("#fSub").value = d.git ? "slides" : ""; updatePath();
+    setLoc("custom"); $("#fFolder").value = d.path; $("#fSub").value = d.git ? "slides" : ""; SUB.dirty = true; updatePath();  // 연 폴더 자리에 만든다 - 자동값으로 바꾸지 않음
     toast(d.git ? "저장소에는 작업 공간이 없습니다 - 하위 폴더(slides)에 새로 만들 수 있습니다" : "이 폴더에 작업 공간이 없습니다 - 여기에 새로 만들 수 있습니다", 5000);
   }
   window.addEventListener("nx-need-init", (e) => offerInit(e.detail));
@@ -450,16 +565,109 @@
       <h3 style="margin:0">${esc(t.label)}</h3><small class="hint" style="margin:0">${esc(t.name)}${t.extends ? ` · ${esc(t.extends)} 바탕` : ""}</small>
       <p>${esc(t.description)}</p>
       <div class="acts"><button type="button" class="chip sm primary" data-use="${esc(t.name)}">이 템플릿으로 만들기</button>
+      <button type="button" class="chip sm" data-pv-tpl="${esc(t.name)}">${icon("eye", 13)} 미리 보기</button>
       ${t.concept ? `<a class="chip sm" href="${esc(t.concept)}" target="_blank" rel="noopener">디자인 기준 ${icon("ext", 13)}</a>` : ""}</div></div>`).join("");
     $("#starterSec").style.display = d.starters.length ? "" : "none";
     $("#starterCards").innerHTML = d.starters.map((s) => `<div class="card tcard"><h3 style="margin:0">${esc(s.label)}</h3><small class="hint" style="margin:0">${esc(s.name)}${s.template ? ` · 템플릿 ${esc(s.template)}` : ""}</small>
-      <p>${esc(s.description)}</p><div class="acts"><button type="button" class="chip sm primary" data-starter="${esc(s.name)}">이 내용으로 시작</button></div></div>`).join("");
+      <p>${esc(s.description)}</p><div class="acts"><button type="button" class="chip sm primary" data-starter="${esc(s.name)}">이 내용으로 시작</button>
+      <button type="button" class="chip sm" data-pv-starter="${esc(s.name)}">${icon("eye", 13)} 미리 보기</button></div></div>`).join("");
   }
   document.addEventListener("click", (e) => {
     const u = e.target.closest("[data-use]");
     if (u) { H.tpl = u.dataset.use; renderTpls(); location.hash = "new"; }
     const s = e.target.closest("[data-starter]");
     if (s) { $("#fStarter").value = s.dataset.starter; $("#fStarter").dispatchEvent(new Event("change")); location.hash = "new"; }
+    if (u) schedulePlan();
+  });
+
+  // ---------- 미리 보기 ----------
+  // 서버가 사용자 설정 폴더의 임시 작업 공간에 템플릿 × 내용을 실제로 빌드하고(/api/preview), 여기서는 render.js 로 그린다.
+  const PV = { tpl: null, starter: "", data: null, deck: 0, one: -1, seq: 0 };
+  const SW = 1280;
+  function fitPv() { $$("#pvBody .pv-vp").forEach((v) => { if (v.firstElementChild) v.firstElementChild.style.transform = `scale(${v.clientWidth / SW})`; }); }
+  window.addEventListener("resize", () => { if ($("#pvModal").classList.contains("on")) fitPv(); });
+  function openPreview(tpl, starter) {
+    const d = H.home;
+    PV.starter = starter || "";
+    PV.tpl = tpl || (starter && (d.starters.find((x) => x.name === starter) || {}).template) || H.tpl;
+    $("#pvTpl").innerHTML = d.templates.map((t) => `<option value="${esc(t.name)}">${esc(t.label)}</option>`).join("");
+    $("#pvStarter").innerHTML = '<option value="">레이아웃 견본(레이아웃마다 한 장)</option>' +
+      d.starters.map((x) => `<option value="${esc(x.name)}">${esc(x.label)}</option>`).join("");
+    $("#pvTpl").value = PV.tpl; $("#pvStarter").value = PV.starter;
+    $("#pvModal").classList.add("on");
+    loadPreview();
+  }
+  async function loadPreview() {
+    const seq = ++PV.seq;
+    PV.data = null; PV.deck = 0; PV.one = -1;
+    $("#pvInfo").textContent = "";
+    $("#pvBody").innerHTML = '<div class="pv-msg">미리 보기를 만드는 중... (조합마다 처음 한 번은 빌드합니다)</div>';
+    const q = new URLSearchParams({ template: PV.tpl }); if (PV.starter) q.set("starter", PV.starter);
+    let r = null, d;
+    try { r = await fetch("/api/preview?" + q, { cache: "no-store" }); d = await r.json(); } catch (e) { d = { error: String(e) }; }
+    if (seq !== PV.seq) return;  // 그 사이 다른 조합을 골랐다
+    if (!r || !r.ok || d.ok === false) {
+      $("#pvBody").innerHTML = `<div class="banner">${esc(d.error || "미리 보기를 만들지 못했습니다")}${d.log ? `<pre class="log">${esc(d.log)}</pre>` : ""}</div>`; return;
+    }
+    PV.data = d;
+    Render.setTokens(d.tokens);
+    window.RENDER_BASE = d.base;
+    $("#rs-css").textContent = Render.css().replace(":root{", "#pvModal{");  // 토큰 색 변수는 미리 보기 창 안에만
+    drawPreview();
+  }
+  function slideTitle(s) {
+    const els = s.elements || [];
+    const t = els.find((e) => e.role === "title") || els.find((e) => e.text);
+    return t ? Render.plain(String(t.text || "")).replace(/\n/g, " ") : "";
+  }
+  function drawPreview() {
+    const d = PV.data; if (!d) return;
+    const deck = d.decks[PV.deck], n = deck.slides.length;
+    const tabs = d.decks.length > 1 ? `<div class="pv-decks">${d.decks.map((x, i) => `<button type="button" class="chip sm${i === PV.deck ? " on" : ""}" data-pv-deck="${i}">${esc(x.title || x.id)} · ${x.slides.length}장</button>`).join("")}</div>` : "";
+    if (PV.one < 0) {
+      $("#pvBody").innerHTML = tabs + `<div class="pv-grid">${deck.slides.map((s, i) => `<div class="pv-th" data-pv-one="${i}"><div class="pv-vp">${Render.renderSlide(s, i + 1)}</div>
+        <small title="${esc(slideTitle(s))}">${i + 1}. ${esc(s.layout || "")} · ${esc(slideTitle(s))}</small></div>`).join("")}</div>`;
+    } else {
+      const s = deck.slides[PV.one];
+      $("#pvBody").innerHTML = tabs + `<div class="pv-one"><div class="pv-nav"><button type="button" class="chip sm" data-pv-go="-1" ${PV.one ? "" : "disabled"}>◀ 이전</button>
+        <span class="hint" style="margin:0">${PV.one + 1} / ${n} · ${esc(s.layout || "")}</span>
+        <button type="button" class="chip sm" data-pv-go="1" ${PV.one < n - 1 ? "" : "disabled"}>다음 ▶</button><button type="button" class="chip sm" data-pv-go="list">목록</button></div>
+        <div class="pv-vp">${Render.renderSlide(s, PV.one + 1)}</div></div>`;
+    }
+    const tl = (H.home.templates.find((t) => t.name === d.template) || {}).label || d.template;
+    const sl = d.starter ? (H.home.starters.find((x) => x.name === d.starter) || {}).label || d.starter : "레이아웃 견본";
+    $("#pvInfo").textContent = `${tl} · ${sl} · ${n}장 — ${PV.one < 0 ? "슬라이드를 누르면 크게 봅니다" : "← → 키로 넘깁니다"}`;
+    requestAnimationFrame(fitPv);
+  }
+  $("#pvTpl").addEventListener("change", () => { PV.tpl = $("#pvTpl").value; loadPreview(); });
+  $("#pvStarter").addEventListener("change", () => {
+    PV.starter = $("#pvStarter").value;
+    const s = H.home.starters.find((x) => x.name === PV.starter);
+    if (s && s.template) { PV.tpl = s.template; $("#pvTpl").value = PV.tpl; }  // 내용을 바꾸면 그 내용이 정한 템플릿으로(다시 바꿀 수 있다)
+    loadPreview();
+  });
+  $("#pvBody").addEventListener("click", (e) => {
+    const t = e.target.closest("[data-pv-deck]"); if (t) { PV.deck = +t.dataset.pvDeck; PV.one = -1; drawPreview(); $("#pvBody").scrollTop = 0; return; }
+    const o = e.target.closest("[data-pv-one]"); if (o) { PV.one = +o.dataset.pvOne; drawPreview(); $("#pvBody").scrollTop = 0; return; }
+    const g = e.target.closest("[data-pv-go]"); if (!g) return;
+    PV.one = g.dataset.pvGo === "list" ? -1 : PV.one + +g.dataset.pvGo; drawPreview();
+  });
+  document.addEventListener("keydown", (e) => {
+    if (!$("#pvModal").classList.contains("on") || !PV.data || PV.one < 0 || /SELECT|INPUT/.test(e.target.tagName)) return;
+    const n = PV.data.decks[PV.deck].slides.length;
+    if (e.key === "ArrowRight" && PV.one < n - 1) { PV.one++; drawPreview(); }
+    if (e.key === "ArrowLeft" && PV.one > 0) { PV.one--; drawPreview(); }
+  });
+  $("#pvUse").onclick = () => {  // 미리 본 템플릿이 시작용 내용의 기본 템플릿보다 우선
+    closeModals();
+    H.tpl = PV.tpl; renderTpls(); $("#fStarter").value = PV.starter; schedulePlan();
+    location.hash = "new";
+  };
+  $("#fPreview").innerHTML = `${icon("eye", 13)} 미리 보기`;
+  $("#fPreview").onclick = () => openPreview(H.tpl, $("#fStarter").value);
+  document.addEventListener("click", (e) => {
+    const a = e.target.closest("[data-pv-tpl]"); if (a) openPreview(a.dataset.pvTpl, "");
+    const b = e.target.closest("[data-pv-starter]"); if (b) openPreview(null, b.dataset.pvStarter);
   });
 
   // ---------- 샘플 ----------

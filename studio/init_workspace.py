@@ -1,8 +1,13 @@
 # -*- coding: utf-8 -*-
 """새 작업 공간 만들기 — 다른 폴더·저장소에 nexa-slide 를 연결하는 뼈대를 만든다.
 
-    python3 <엔진>/studio/init_workspace.py <작업 공간 폴더> [--title "제목"] [--port 5610] [--template lecture]
+    python3 <엔진>/studio/init_workspace.py <작업 공간 폴더> [--title "제목"] [--port 5610|auto] [--template lecture]
                                             [--deck intro] [--asset-root .] [--starter lecture-course] [--force]
+                                            [--build] [--purpose …] [--audience …] [--direction …]… [--material …]… [--ask-draft]
+
+    # 시작 페이지의 "만들고 Studio 열기"와 같은 결과(시작 페이지가 이 명령을 그대로 보여 주고 실행한다)
+    python3 <엔진>/studio/init_workspace.py <폴더> --title "제목" --template report --port 5601 --build --purpose "…" --ask-draft
+    python3 <폴더>/nexa.py start
 
 만드는 것(이미 있는 파일은 건드리지 않음 — --force 면 nexa-slide.json·nexa.py 만 다시 씀)
     nexa-slide.json    선택만 담은 설정: port · title · engine(이 폴더에서 엔진까지 상대 경로) · template · fontPreset · brand 파일 경로
@@ -13,30 +18,116 @@
     decks/  out/  assets/brand/   (로고는 엔진 예제의 자리 표시 이미지 — 자기 로고로 바꿔 쓴다)
     .gitignore         out/ · decks/.history/
     CLAUDE.md          이 작업 공간에서 일하는 Claude 세션 안내(요청 감시·처리 규약·명령)
-포트를 주지 않으면 5600 부터 이 PC 에서 비어 있는 포트를 고른다(다른 작업 공간과 겹치지 않게).
+포트를 주지 않으면(또는 auto) 5600 부터 비어 있고 최근 작업 공간(사용자 설정 recent)이 쓰지 않는 포트를 고른다.
+포트를 주면 지금 다른 프로그램이 쓰는 포트는 거절하고, 다른 작업 공간 설정과 겹치면 알린다(동시에 띄우지 않으면 괜찮다).
+이미 작업 공간이 있는 폴더에 --port 를 주면 그 포트로 설정을 바꾼다.
+
+--build       content/*.json(밑줄로 시작하는 공통 파일 제외)을 덱으로 빌드한다(이미 있는 덱은 그대로)
+--purpose · --audience · --direction(여러 번) · --material(여러 번)
+              작성 브리프 BRIEF.md 를 쓰고 CLAUDE.md 에 "초안 전에 BRIEF.md 를 읽는다"를 덧붙인다.
+              --direction · --material 은 한 줄씩 — 여러 줄이면 옵션을 줄 수만큼 반복한다
+--ask-draft   첫 덱 첫 슬라이드에 "브리프로 초안 써 주세요" 대기 요청을 남긴다(세션이 연결되면 전달) — --build 포함
+만든 작업 공간은 사용자 설정의 최근 작업에 올린다(시작 페이지 "최근 작업").
 """
 import argparse
+import datetime as dt
 import json
 import os
 import shutil
 import socket
+import subprocess
 import sys
 from pathlib import Path
 
 ENGINE = Path(__file__).resolve().parents[1]
 EXAMPLE = ENGINE / "example"
 STARTERS = ENGINE / "starters"
+sys.path.insert(0, str(ENGINE / "studio"))
+from paths import hub_port, load_settings, remember  # noqa: E402
 
 
-def free_port(start=5600, span=100):
+def port_busy(p):
+    """지금 이 PC 에서 다른 프로그램이 쓰는 포트인가."""
+    with socket.socket() as s:
+        try:
+            s.bind(("127.0.0.1", p))
+            return False
+        except OSError:
+            return True
+
+
+def taken_ports(skip=None):
+    """최근 작업 공간들이 설정에 정해 둔 포트 {포트: 작업 공간 경로} — 지금 꺼져 있어도 나중에 함께 띄울 수 있다."""
+    out = {}
+    for r in load_settings().get("recent", []):
+        p = Path(r.get("path", ""))
+        if skip and p.resolve() == Path(skip).resolve():
+            continue
+        try:
+            port = json.loads((p / "nexa-slide.json").read_text(encoding="utf-8")).get("port")
+        except (OSError, ValueError):
+            continue
+        if isinstance(port, int):
+            out.setdefault(port, str(p))
+    return out
+
+
+def free_port(start=5600, span=100, skip=None):
+    taken = taken_ports(skip)
+    hub = hub_port()
     for p in range(start, start + span):
-        with socket.socket() as s:
-            try:
-                s.bind(("127.0.0.1", p))
-                return p
-            except OSError:
-                continue
+        if p != hub and p not in taken and not port_busy(p):
+            return p
     return start
+
+
+def brief_md(title, template, starter, deck, fields):
+    lines = [f"# {title} - 작성 브리프", "",
+             f"- 만든 날짜: {dt.date.today().isoformat()}",
+             f"- 템플릿: {template}" + (f" · 시작용 내용: {starter}" if starter else ""),
+             f"- 첫 덱: `{deck}`", ""]
+    for head, v in (("목적", fields["purpose"]), ("대상(청중)", fields["audience"]), ("작성 방향", fields["direction"]), ("참고 자료", fields["materials"])):
+        lines += [f"## {head}", "", v.strip() or "(비어 있음)", ""]
+    lines += ["---", "", "> 이 파일은 작업 공간을 만들 때 받은 내용이다. Claude 세션은 초안을 쓰기 전에 먼저 읽는다.", ""]
+    return "\n".join(lines)
+
+
+def build_decks(ws, cfg):
+    """content/*.json(밑줄로 시작하는 공통 파일 제외) → decks/. 이미 있는 덱은 편집 내용을 지키려고 그대로 둔다."""
+    env = {**os.environ, "NEXA_SLIDE_WORKSPACE": str(ws), "PYTHONIOENCODING": "utf-8"}
+    content, decks = ws / cfg.get("content", "content"), ws / cfg.get("decks", "decks")
+    built = []
+    for f in sorted(content.glob("*.json")) if content.is_dir() else []:
+        if f.name.startswith("_"):
+            continue
+        if (decks / f.name).exists():
+            built.append(f.stem)
+            continue
+        r = subprocess.run([sys.executable, str(ENGINE / "studio" / "build_deck.py"), f.stem], cwd=str(ws), env=env, capture_output=True)
+        if r.returncode == 0:
+            built.append(f.stem)
+        else:
+            print(f"  빌드 실패 {f.stem}: {(r.stderr or r.stdout).decode('utf-8', 'replace').strip().splitlines()[-1:]}", file=sys.stderr)
+    return built
+
+
+def ask_draft(ws, cfg, deck):
+    """세션에 보낼 첫 요청 - 브리프로 초안 쓰기(대기 상태라 세션이 연결되면 전달된다)."""
+    d = ws / cfg.get("decks", "decks")
+    p = d / f"{deck}.requests.json"
+    try:
+        items = json.loads(p.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        items = []
+    try:
+        first = (json.loads((d / f"{deck}.json").read_text(encoding="utf-8")).get("slides") or [{}])[0].get("id")
+    except (OSError, ValueError):
+        first = None
+    items.append({"id": "r" + dt.datetime.now().strftime("%Y%m%d%H%M%S%f")[:17], "slide": first, "element": None,
+                  "text": "BRIEF.md 의 목적·대상·작성 방향·참고 자료로 이 덱의 초안을 써 주세요. 템플릿 디자인은 그대로 두고, 자료에 없는 내용은 지어내지 말고 확인 질문으로 남겨 주세요.",
+                  "status": "open", "reply": "", "created": dt.datetime.now().isoformat(timespec="seconds")})
+    p.parent.mkdir(parents=True, exist_ok=True)
+    p.write_text(json.dumps(items, ensure_ascii=False, indent=1), encoding="utf-8", newline="\n")
 
 
 def rel(target, base):
@@ -126,13 +217,28 @@ def main():
     ap = argparse.ArgumentParser(description="nexa-slide 작업 공간 만들기")
     ap.add_argument("folder")
     ap.add_argument("--title")
-    ap.add_argument("--port", type=int)
+    ap.add_argument("--port", help="포트 번호 또는 auto(기본 — 빈 포트를 고른다)")
     ap.add_argument("--template", help="디자인 템플릿(기본: 시작용 교안이 정한 것, 없으면 lecture)")
     ap.add_argument("--deck", default="intro")
     ap.add_argument("--asset-root", default=".", help="덱 그림 경로의 기준 폴더(작업 공간 기준). 저장소 루트 자산을 쓰려면 ..")
     ap.add_argument("--starter", help="시작용 교안(엔진 starters/ 폴더 이름) — 예: lecture-course")
     ap.add_argument("--force", action="store_true")
+    ap.add_argument("--build", action="store_true", help="content → decks 빌드")
+    ap.add_argument("--purpose", default="")
+    ap.add_argument("--audience", default="")
+    ap.add_argument("--direction", action="append", default=[], help="작성 방향 한 줄(여러 번)")
+    ap.add_argument("--material", action="append", default=[], help="참고 자료 한 줄(여러 번)")
+    ap.add_argument("--ask-draft", action="store_true", help="브리프로 초안 쓰기 요청을 남긴다(--build 포함)")
+    ap.add_argument("--no-remember", action="store_true", help="최근 작업에 올리지 않는다(미리보기용 임시 작업 공간)")
     a = ap.parse_args()
+    port = None
+    if a.port and a.port.lower() != "auto":
+        try:
+            port = int(a.port)
+        except ValueError:
+            sys.exit(f"포트는 숫자 또는 auto: {a.port}")
+        if not 1024 <= port <= 65535:
+            sys.exit(f"포트는 1024~65535: {port}")
     st = None
     if a.starter:
         if not (STARTERS / a.starter / "starter.json").is_file():
@@ -140,6 +246,19 @@ def main():
             sys.exit(f"없는 시작용 교안: {a.starter} (있는 것: {names})")
         st = json.loads((STARTERS / a.starter / "starter.json").read_text(encoding="utf-8"))
     ws = Path(a.folder).resolve()
+    if port is not None:
+        cur = None
+        try:
+            cur = json.loads((ws / "nexa-slide.json").read_text(encoding="utf-8")).get("port")
+        except (OSError, ValueError):
+            pass
+        if port == hub_port():
+            sys.exit(f"포트 {port} 는 시작 페이지(허브) 포트다 — 다른 포트를 주거나 --port auto")
+        if port != cur and port_busy(port):
+            sys.exit(f"포트 {port} 는 지금 다른 프로그램이 쓰고 있다 — 다른 포트를 주거나 --port auto")
+        other = taken_ports(skip=ws).get(port)
+        if other:
+            print(f"알림: 포트 {port} 는 작업 공간 {other} 설정과 같다 — 두 서버를 함께 띄우면 뒤에 띄운 쪽이 실패한다", file=sys.stderr)
     ws.mkdir(parents=True, exist_ok=True)
     a.template = a.template or (st or {}).get("template") or "lecture"
     if not (ENGINE / "studio" / "templates" / a.template / "template.json").is_file():
@@ -156,8 +275,11 @@ def main():
     cfg_path = ws / "nexa-slide.json"
     if cfg_path.exists() and not a.force:
         cfg = json.loads(cfg_path.read_text(encoding="utf-8"))
+        if port is not None and cfg.get("port") != port:  # 이미 있는 작업 공간: 포트만 바꾼다
+            cfg["port"] = port
+            write(cfg_path, json.dumps(cfg, ensure_ascii=False, indent=2) + "\n", overwrite=True)
     else:
-        cfg = {"port": a.port or free_port(), "title": a.title or ws.name, "engine": rel(ENGINE, ws),
+        cfg = {"port": port or free_port(skip=ws), "title": a.title or ws.name, "engine": rel(ENGINE, ws),
                "template": a.template, "fontPreset": "default", "assetRoot": a.asset_root,
                "brand": {"name": a.title or ws.name, "logo": "assets/brand/logo.png", "wordmark": "assets/brand/wordmark.png",
                          "favicon": "assets/brand/favicon.png"},
@@ -188,13 +310,34 @@ def main():
             dst.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(EXAMPLE / "assets" / "brand" / f, dst)
             made.append(rel(dst, ws))
+    deck_ids = st["decks"] if st else [a.deck]
+    fields = {"purpose": a.purpose, "audience": a.audience, "direction": "\n".join(a.direction), "materials": "\n".join(a.material)}
+    if any(v.strip() for v in fields.values()) or a.ask_draft:  # 작성 브리프 — Claude 세션이 초안 전에 읽는다
+        write(ws / "BRIEF.md", brief_md(cfg.get("title", ws.name), cfg.get("template"), a.starter, deck_ids[0], fields), overwrite=a.force)
+        cm = ws / "CLAUDE.md"
+        if cm.is_file() and "BRIEF.md" not in cm.read_text(encoding="utf-8"):
+            with cm.open("a", encoding="utf-8", newline="\n") as f:
+                f.write("\n## 작성 브리프\n\n- 작업 공간을 만들 때 받은 목적·대상·작성 방향·참고 자료는 `BRIEF.md` 에 있다. 초안을 쓰기 전에 먼저 읽고, 자료에 없는 내용은 지어내지 않는다.\n")
+    built = build_decks(ws, cfg) if a.build or a.ask_draft else []
+    if a.ask_draft and built:
+        ask_draft(ws, cfg, deck_ids[0] if deck_ids[0] in built else built[0])
+    if not a.no_remember:
+        try:
+            remember(ws, cfg.get("title", ws.name))
+        except OSError:
+            pass
     print(f"작업 공간: {ws}")
     print(f"  포트 {cfg.get('port')} · 템플릿 {cfg.get('template')} · 엔진 {cfg.get('engine')}")
     print("  만든 파일: " + (", ".join(made) or "(없음 — 이미 있음)"))
+    if built:
+        print("  빌드한 덱: " + ", ".join(built) + (" · 초안 요청을 남김" if a.ask_draft else ""))
+    py = "python3" if shutil.which("python3") else "python"
+    run = f'{py} "{ws / "nexa.py"}"'  # 그대로 붙여 넣을 수 있게 절대 경로 + 따옴표
     print("다음:")
-    for d in (st["decks"] if st else [a.deck]):
-        print(f"  python3 {show}/nexa.py build_deck {d}")
-    print(f"  python3 {show}/nexa.py start      → http://127.0.0.1:{cfg.get('port')}/")
+    for d in ([] if built else deck_ids):
+        print(f"  {run} build_deck {d}")
+    print(f"  {run} start")
+    print(f"  → http://127.0.0.1:{cfg.get('port')}/")
 
 
 if __name__ == "__main__":
