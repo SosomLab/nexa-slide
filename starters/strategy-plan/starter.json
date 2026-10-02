@@ -1,0 +1,21 @@
+{
+ "label": "전략·연례 계획 (9장)",
+ "description": "비전·전략·연간 계획을 한 흐름으로 — 목표·로드맵·투자. 흐름: 표지 — 사진 전면 → 핵심 한 문장 → KPI 대시보드 → 이슈·지표 트리 → 선택지 비교(추천 강조) → 로드맵 Now·Next·Later → 마일스톤 → 다음 행동·부탁 → 끝",
+ "template": "proposal",
+ "config": {
+  "partLabels": {
+   "day1": "전략 계획",
+   "day2": "전략 계획",
+   "day3": "전략 계획",
+   "apx": "부록"
+  },
+  "coverBadge": "전략 계획"
+ },
+ "decks": [
+  "plan"
+ ],
+ "copy": [
+  "content"
+ ],
+ "source": "템플릿 유형 strategy-plan(검토 승인) — docs/research/genspark-skills/05-template-types.md"
+}

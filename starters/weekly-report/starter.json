@@ -1,7 +1,7 @@
 {
  "label": "주간 진행 보고 (8장)",
  "description": "결론 KPI → 약속 대비 채점 → 이슈·요청 → 간트 → 다음 주 약속 → 요청. 매주 복제해 숫자만 바꾸는 고정 배치.",
- "template": "report",
+ "template": "swiss",
  "config": {
   "partLabels": {
    "day1": "주간 보고",
@@ -16,5 +16,8 @@
  ],
  "copy": [
   "content"
- ]
+ ],
+ "hidden": true,
+ "replacedBy": "periodic-report",
+ "_hidden": "시작용 내용 periodic-report 와 겹쳐 목록에서 제외(2026-10-02) — 검토 등록부 대상. --starter 로는 계속 쓸 수 있다"
 }

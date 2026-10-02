@@ -1,7 +1,7 @@
 {
  "label": "월간 운영 보고 (11장)",
  "description": "순서 → 결론 KPI → 추이 차트 → 목표 대비 → 잘된 것·미달 → 리스크 → 원인 워터폴 → 로드맵 → 결정 요청.",
- "template": "report",
+ "template": "swiss",
  "config": {
   "partLabels": {
    "day1": "월간 보고",
@@ -16,5 +16,8 @@
  ],
  "copy": [
   "content"
- ]
+ ],
+ "hidden": true,
+ "replacedBy": "periodic-report",
+ "_hidden": "시작용 내용 periodic-report 와 겹쳐 목록에서 제외(2026-10-02) — 검토 등록부 대상. --starter 로는 계속 쓸 수 있다"
 }

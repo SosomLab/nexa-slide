@@ -1,0 +1,112 @@
+{
+ "id": "lecture",
+ "title": "강의·교안(이론·이공계)",
+ "part": "day1",
+ "version": "0.1",
+ "slides": [
+  {
+   "layout": "cover",
+   "title": "제목은 결론 한 문장으로",
+   "subtitle": "강의·교안(이론·이공계) · 누구에게 · 언제",
+   "days": [
+    [
+     "day1",
+     "Day1 설계"
+    ]
+   ],
+   "meta": "작성 부서\n장 제목\nv0.1",
+   "badge": "강의",
+   "notes": "표지 — 직관→개념→풀이→한계→흔한 실수→과제"
+  },
+  {
+   "layout": "chapter",
+   "number": "00",
+   "title": "장 제목\n두 번째 줄",
+   "desc": "장 소개 문장",
+   "notes": "유형: 장 구분 (section) — 새 장을 여는 표지. 예시 내용을 이 덱의 내용으로 바꾼다."
+  },
+  {
+   "layout": "bullets",
+   "title": "소제목",
+   "sub": "부제",
+   "items": [
+    "항목 1",
+    {
+     "text": "항목 2",
+     "sub": [
+      "보조 설명"
+     ]
+    }
+   ],
+   "crumb": "chNN › 0.0",
+   "notes": "유형: 개념 설명 (concept) — 핵심 개념 글머리. 예시 내용을 이 덱의 내용으로 바꾼다."
+  },
+  {
+   "layout": "diagram",
+   "title": "다이어그램",
+   "sub": "Mermaid 원본은 content 의 mermaid 필드",
+   "img": "assets/brand/logo.png",
+   "imgScale": 0.4,
+   "side": "**해설**\n내용",
+   "crumb": "",
+   "notes": "유형: 구조도 (diagram) — 시스템·관계도(Mermaid). 예시 내용을 이 덱의 내용으로 바꾼다."
+  },
+  {
+   "layout": "worked_example",
+   "title": "단계별로 풀기",
+   "problem": "문제 한 문장",
+   "steps": [
+    "첫 단계",
+    "둘째 단계",
+    "셋째 단계 — 답"
+   ],
+   "rules": {
+    "label": "기억할 규칙",
+    "items": [
+     "규칙 1",
+     "흔한 실수"
+    ]
+   },
+   "crumb": "",
+   "notes": "유형: 단계별 풀이 (worked-example) — 문제 → 단계 → 답, 규칙·함정. 예시 내용을 이 덱의 내용으로 바꾼다."
+  },
+  {
+   "layout": "quiz",
+   "title": "확인 문제",
+   "question": "질문 한 문장?",
+   "choices": [
+    "보기 1",
+    "보기 2",
+    "보기 3",
+    "보기 4"
+   ],
+   "answer": "B",
+   "crumb": "",
+   "notes": "유형: 확인 문제 (quiz) — 보기 4개로 이해도 확인. 예시 내용을 이 덱의 내용으로 바꾼다."
+  },
+  {
+   "layout": "code_plan",
+   "title": "코드와 실행계획",
+   "code": "SELECT *\nFROM   t\nWHERE  c = :b;",
+   "plan": "| Id | Operation |",
+   "crumb": "",
+   "notes": "유형: 코드 설명 (code-walk) — 코드와 실행 계획. 예시 내용을 이 덱의 내용으로 바꾼다."
+  },
+  {
+   "layout": "summary",
+   "title": "정리",
+   "items": [
+    "기억할 것 1",
+    "기억할 것 2"
+   ],
+   "crumb": "",
+   "notes": "유형: 정리 (summary) — 기억할 것. 예시 내용을 이 덱의 내용으로 바꾼다."
+  },
+  {
+   "layout": "end",
+   "title": "End of Document",
+   "sub": "강의·교안(이론·이공계)",
+   "meta": "문의"
+  }
+ ]
+}

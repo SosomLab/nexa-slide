@@ -160,8 +160,16 @@ def load_template(name, _seen=()):
 
 
 def list_templates():
-    return [{"name": p.name, "label": json.loads((p / "template.json").read_text(encoding="utf-8")).get("label", p.name)}
-            for p in sorted(TEMPLATES.iterdir()) if (p / "template.json").is_file()]
+    """템플릿 목록 — 숨긴 템플릿(hidden: 검토 대상으로 옮김)은 빼되, 이 작업 공간이 쓰는 것이면 남긴다."""
+    out = []
+    for p in sorted(TEMPLATES.iterdir()):
+        if not (p / "template.json").is_file():
+            continue
+        t = json.loads((p / "template.json").read_text(encoding="utf-8"))
+        if t.get("hidden") and p.name != TEMPLATE["name"]:
+            continue
+        out.append({"name": p.name, "label": t.get("label", p.name)})
+    return out
 
 
 # NEXA_SLIDE_TEMPLATE 은 미리보기·비교용 임시 덮어쓰기(설정 파일은 그대로)

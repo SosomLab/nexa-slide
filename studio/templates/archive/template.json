@@ -1,0 +1,56 @@
+{
+  "extends": "lecture",
+  "label": "아카이브 - 종이 미색·테라코타",
+  "description": "사례집·회고·여행·실기 교육·이야기. 오래된 종이 같은 미색 바탕, 테라코타 강조, 명조 제목, 사진 도판(템플릿 검토 승인 gs-tpl-archive — 이전 story 대체).",
+  "sizes": {
+    "_comment": "업무·발표용은 칩·글자를 역할별 최소 px 로 올려 빌드한다(1280×720 에서 읽히는 크기). pt = px × 0.75",
+    "minPx": {
+      "default": 15,
+      "footnotes": 11,
+      "crumb": 12,
+      "page": 12
+    }
+  },
+  "check": {
+    "minFontPt": {
+      "default": 11,
+      "footnotes": 8,
+      "crumb": 9,
+      "page": 9
+    }
+  },
+  "tokenOverrides": {
+    "colors": {
+      "primary": "#9A472B",
+      "on-primary": "#FFFFFF",
+      "primary-container": "#EDD9C7",
+      "on-primary-container": "#3A170A",
+      "surface": "#F6F0E4",
+      "surface-dim": "#F1E9DA",
+      "surface-container": "#ECE2CF",
+      "surface-container-high": "#DECFB4",
+      "on-surface": "#29231E",
+      "on-surface-variant": "#6D5E4F",
+      "outline-variant": "#D3C2A5",
+      "white": "#FFFDF8",
+      "panel": "#2E2620",
+      "on-panel": "#F6EBDD",
+      "day1": "#5F4A39",
+      "day1-container": "#E8DDCB",
+      "on-day1-container": "#271A10",
+      "day2": "#56694F",
+      "day2-container": "#DCE5D3",
+      "on-day2-container": "#1B2617",
+      "day3": "#7E5470",
+      "day3-container": "#ECDCE5",
+      "on-day3-container": "#311828"
+    },
+    "fonts": {
+      "heading": {
+        "css": "\"Noto Serif KR\", \"Nanum Myeongjo\", \"나눔명조\", Batang, \"바탕\", serif",
+        "latin": "Noto Serif KR",
+        "ea": "Noto Serif KR"
+      }
+    }
+  }
+}

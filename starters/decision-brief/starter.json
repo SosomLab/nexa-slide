@@ -16,5 +16,8 @@
  ],
  "copy": [
   "content"
- ]
+ ],
+ "hidden": true,
+ "replacedBy": "board-decision",
+ "_hidden": "시작용 내용 board-decision 와 겹쳐 목록에서 제외(2026-10-02) — 검토 등록부 대상. --starter 로는 계속 쓸 수 있다"
 }

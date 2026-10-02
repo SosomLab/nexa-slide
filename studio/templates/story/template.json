@@ -50,5 +50,8 @@
         "ea": "Noto Serif KR"
       }
     }
-  }
+  },
+  "hidden": true,
+  "replacedBy": "archive",
+  "_hidden": "archive 와 겹쳐 새로 만들기·템플릿 목록에서 제외(2026-10-02) — 검토 등록부 대상. 이미 쓰는 작업 공간은 그대로 동작"
 }

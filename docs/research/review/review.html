@@ -91,11 +91,11 @@
   const $ = (s) => document.querySelector(s);
   const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   const ST = { recommended: "추천", registered: "등록", reviewing: "검토 중", approved: "승인", held: "보류", rejected: "제외" };
-  const KO = { "template-type": 0, "slide-type": 0, template: 1, layout: 1, "reference-deck": 2, site: 3, file: 4 };
-  const KD = { "template-type": "템플릿 유형", template: "시각 템플릿", "slide-type": "슬라이드 유형", layout: "레이아웃 유형", "reference-deck": "참고 덱", site: "사이트", file: "파일" };
+  const KO = { "template-type": 0, "slide-type": 0, template: 1, layout: 1, "engine-template": 2, "engine-starter": 2, "reference-deck": 3, site: 4, file: 5 };
+  const KD = { "template-type": "템플릿 유형", template: "시각 템플릿", "slide-type": "슬라이드 유형", layout: "레이아웃 유형", "reference-deck": "참고 덱", "engine-template": "기존 템플릿", "engine-starter": "기존 시작용 내용", site: "사이트", file: "파일" };
   // 범위 — /review = 템플릿 검토, /review/slides = 슬라이드 유형 검토
   const SCOPE = location.pathname.startsWith("/review/slides") ? "slide" : "template";
-  const KINDS = SCOPE === "slide" ? ["slide-type", "layout", "site", "file"] : ["template-type", "template", "reference-deck", "site", "file"];
+  const KINDS = SCOPE === "slide" ? ["slide-type", "layout", "site", "file"] : ["template-type", "template", "engine-template", "engine-starter", "reference-deck", "site", "file"];
   document.getElementById(SCOPE === "slide" ? "scS" : "scT").classList.add("on");
   document.title = (SCOPE === "slide" ? "슬라이드 유형 검토" : "템플릿 검토") + " — nexa-slide";
   document.getElementById("fKind").innerHTML = `<option value="">모든 종류</option>` + KINDS.map((k) => `<option value="${k}">${KD[k]}</option>`).join("");
@@ -105,10 +105,13 @@
     if (!NX.ready) NX.ready = (async () => {
       const [tok, st] = await Promise.all([fetch("/studio/tokens.json").then((r) => r.json()), fetch("/api/slidetypes").then((r) => r.json())]);
       window.RENDER_BASE = "/review/brand/";  // 로고 등 그림 경로 — 엔진 예제의 자리 표시 이미지
-      Render.setTokens(tok); document.getElementById("rs-css").textContent = Render.css().replace(":root{", ".nx{");
+      NX.tok = tok; useTokens(tok, "/review/brand/");
       NX.types = Object.fromEntries(st.types.filter((t) => t.slide).map((t) => [t.id, t])); NX.groups = st.groups;
     })();
     return NX.ready;
+  }
+  function useTokens(tok, base) {  // 엔진 렌더러 토큰·그림 경로 바꾸기(기본 ↔ 기존 템플릿 미리보기)
+    window.RENDER_BASE = base; Render.setTokens(tok); document.getElementById("rs-css").textContent = Render.css().replace(":root{", ".nx{");
   }
   const nxCard = (t, big) => `<div class="th${big ? " nxbig" : ""}" data-nx="${esc(t.id)}"><div class="nx-vp nx">${Render.renderSlide(t.slide, 1)}</div><small>${esc(t.label)} · ${esc(t.layout)}</small></div>`;
   function fitNx() { document.querySelectorAll(".nx-vp").forEach((v) => { if (v.firstElementChild) v.firstElementChild.style.transform = `scale(${v.clientWidth / 1280})`; }); }
@@ -132,7 +135,7 @@
   function renderList() {  // 다시 그려도 스크롤 위치는 그대로
     const xs = filtered(), L = $("#list"), top = L.scrollTop;
     L.innerHTML = xs.length ? xs.map((x) => `<div class="it${S.cur === x.id ? " on" : ""}" data-id="${esc(x.id)}"><div class="t">${esc(x.title)}</div>
-      <div class="m"><span class="st ${x.status}">${ST[x.status]}</span><span class="kd">${KD[x.kind] || x.kind}</span>${(x.tags || []).slice(0, 3).map((t) => `<span>${esc(t)}</span>`).join(" · ")}
+      <div class="m"><span class="st ${x.status}">${ST[x.status]}</span>${x.implemented ? `<span class="st approved" title="${esc(x.implemented)}">구현됨</span>` : ""}<span class="kd">${KD[x.kind] || x.kind}</span>${(x.tags || []).slice(0, 3).map((t) => `<span>${esc(t)}</span>`).join(" · ")}
       <span style="margin-left:auto">등록 ${day(x.registeredAt).slice(0, 10)}</span></div></div>`).join("") : `<div class="empty">조건에 맞는 대상이 없습니다.</div>`;
     L.scrollTop = top;
   }
@@ -157,6 +160,7 @@
     const det = (x.source && x.source.detail) || {};
     $("#detail").innerHTML = `<div class="card"><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><h2 style="margin:0;font-size:17px;flex:1">${esc(x.title)}</h2>
         <span class="st ${x.status}" style="font-size:13px;padding:2px 10px">${ST[x.status]}</span><span class="kd">${KD[x.kind] || x.kind}</span></div>
+      ${x.implemented ? `<div style="margin-top:6px"><span class="st approved">구현됨</span> ${esc(x.implemented)}</div>` : ""}
       <div class="dates" style="margin-top:6px"><span>등록 <b>${day(x.registeredAt)}</b></span><span>검토 <b>${day(x.reviewedAt)}</b></span><span>승인 <b>${day(x.approvedAt)}</b></span><span>id <code>${esc(x.id)}</code></span></div>
       <div class="acts">${["registered", "recommended"].includes(x.status) ? `<button class="chip" data-act="review">검토 시작</button>` : ""}
         <button class="chip primary" data-act="approve">승인</button><button class="chip" data-act="hold">보류</button><button class="chip" data-act="reject">제외</button>
@@ -170,8 +174,15 @@
     const p = await api("GET", `/api/review/preview/${encodeURIComponent(id)}`);
     if (seq !== S.seq) return;
     let h = "";
-    if (p.nexaType || p.flow) await nxReady();
+    if (p.nexaType || p.flow || p.engine) await nxReady();
     if (seq !== S.seq) return;
+    let eng = null;
+    if (p.engine) {  // 기존 템플릿 — 그 템플릿으로 빌드한 슬라이드(시작용 내용이 있으면 그 내용, 없으면 레이아웃 견본)
+      const q = new URLSearchParams({ template: p.engine.template }); if (p.engine.starter) q.set("starter", p.engine.starter);
+      eng = await api("GET", "/api/preview?" + q); if (seq !== S.seq) return;
+      if (eng && eng.decks) { useTokens(eng.tokens, eng.base); h += `<div class="deckh"><b>${esc(p.engine.template)} 템플릿${p.engine.starter ? ` · ${esc(p.engine.starter)}` : " · 레이아웃 견본"}</b><span class="kd">엔진으로 빌드</span></div>
+        <div class="thumbs">${eng.decks.flatMap((d) => d.slides).slice(0, 24).map((s, i) => `<div class="th" data-nxs="${i}"><div class="nx-vp nx">${Render.renderSlide(s, i + 1)}</div><small>${i + 1}. ${esc(s.layout || "")}</small></div>`).join("")}</div>`; }
+    } else if (NX.tok) useTokens(NX.tok, "/review/brand/");
     if (p.nexaType && NX.types[p.nexaType]) h += `<div class="deckh"><b>nexa-slide 로 그린 이 유형</b><span class="kd">예시 내용 · 편집기 "슬라이드 추가 → 유형으로"</span></div>${nxCard(NX.types[p.nexaType], true)}`;
     if (p.flow) h += `<div class="deckh"><b>대표 장 흐름</b><span class="kd">${p.flow.length}장 · 슬라이드 유형으로 그림</span></div><div class="thumbs">${p.flow.map((id) => NX.types[id] ? nxCard(NX.types[id]) : "").join("")}</div>`;
     if (p.decks) h += p.decks.map((d) => `<div class="deckh"><b>${esc(d.no)} ${esc(d.title)}</b><span class="kd">${d.slides.length}장</span></div>
@@ -180,7 +191,7 @@
     if (p.site) h += `<div><a href="${esc(p.site)}" target="_blank" rel="noopener noreferrer">${esc(p.site)} ↗</a><div class="empty" style="padding:6px 0">사이트는 새 탭에서 봅니다(대부분의 사이트는 다른 페이지 안에 넣어 보여 주지 못하게 막는다).</div></div>`;
     if (p.file) h += `<div><code>${esc(p.file.path)}</code> — ${p.file.exists ? `있음${p.file.size != null ? ` · ${Math.round(p.file.size / 1024)}KB` : ""}` : "<b style='color:var(--no)'>없음</b>"}</div>`;
     $("#pv").innerHTML = h || `<div class="empty" style="padding:6px">미리보기 자료가 없습니다.</div>`;
-    S.view = [...(p.nexaType && NX.types && NX.types[p.nexaType] ? [{ nx: p.nexaType }] : []), ...(p.flow || []).filter((id) => NX.types && NX.types[id]).map((id) => ({ nx: id })),
+    S.view = [...(eng && eng.decks ? eng.decks.flatMap((d) => d.slides).slice(0, 24).map((s, i) => ({ nxs: s, i })) : []), ...(p.nexaType && NX.types && NX.types[p.nexaType] ? [{ nx: p.nexaType }] : []), ...(p.flow || []).filter((id) => NX.types && NX.types[id]).map((id) => ({ nx: id })),
       ...(p.decks || []).flatMap((d) => d.slides), ...(p.slides || [])];
     requestAnimationFrame(fitNx);
   }
@@ -188,6 +199,11 @@
   function fitView() { const b = $("#vbox"); $("#vFrame").style.transform = `scale(${b.clientWidth / 1920})`; $("#vNexa").style.transform = `scale(${b.clientWidth / 1280})`; }
   function openView(i) {
     S.vi = Math.max(0, Math.min(S.view.length - 1, i)); const s = S.view[S.vi]; if (!s) return;
+    if (s.nxs) {  // 기존 템플릿으로 빌드한 슬라이드
+      $("#vFrame").style.display = "none"; $("#vNexa").style.display = ""; $("#vNexa").innerHTML = Render.renderSlide(s.nxs, s.i + 1);
+      $("#vOpen").style.display = "none"; $("#vInfo").textContent = `${S.vi + 1} / ${S.view.length} · ${s.nxs.layout || ""}`;
+      $("#viewer").classList.add("on"); requestAnimationFrame(fitView); return;
+    }
     if (s.nx) {  // 우리 슬라이드 — 엔진 렌더러로
       const t = NX.types[s.nx]; $("#vFrame").style.display = "none"; $("#vNexa").style.display = ""; $("#vNexa").innerHTML = Render.renderSlide(t.slide, 1);
       $("#vOpen").style.display = "none"; $("#vInfo").textContent = `${S.vi + 1} / ${S.view.length} · nexa-slide · ${t.label}`;
@@ -206,7 +222,7 @@
     const st = e.target.closest("[data-st]"); if (st) { S.st = st.dataset.st; load(); return; }
     const it = e.target.closest(".it"); if (it) { $("#list").focus({ preventScroll: true }); if (it.dataset.id !== S.cur) showDetail(it.dataset.id, false); return; }
     const a = e.target.closest("[data-act]"); if (a) { act(a.dataset.act); return; }
-    const th = e.target.closest(".th"); if (th) { openView(S.view.findIndex((s) => th.dataset.nx ? s.nx === th.dataset.nx : s.html === th.dataset.html)); return; }
+    const th = e.target.closest(".th"); if (th) { openView(S.view.findIndex((s) => th.dataset.nxs != null ? s.nxs && s.i === +th.dataset.nxs : th.dataset.nx ? s.nx === th.dataset.nx : s.html === th.dataset.html)); return; }
   });
   ["#fKind", "#fSort"].forEach((s) => $(s).addEventListener("change", renderList)); $("#fQ").addEventListener("input", renderList);
   $("#vClose").onclick = () => { $("#viewer").classList.remove("on"); $("#vFrame").src = "about:blank"; };

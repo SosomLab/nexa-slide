@@ -115,10 +115,16 @@
      "at": "2026-10-02T15:50:18",
      "action": "approve",
      "note": ""
+    },
+    {
+     "at": "2026-10-02T20:16:36",
+     "action": "implement",
+     "note": "엔진 템플릿 keynote"
     }
    ],
    "scope": "template",
-   "recommended": true
+   "recommended": true,
+   "implemented": "엔진 템플릿 keynote"
   },
   {
    "id": "gs-tpl-archive",
@@ -163,10 +169,16 @@
      "at": "2026-10-02T15:48:26",
      "action": "approve",
      "note": ""
+    },
+    {
+     "at": "2026-10-02T20:16:36",
+     "action": "implement",
+     "note": "엔진 템플릿 archive (story 대체)"
     }
    ],
    "scope": "template",
-   "recommended": true
+   "recommended": true,
+   "implemented": "엔진 템플릿 archive (story 대체)"
   },
   {
    "id": "gs-tpl-signal",
@@ -241,10 +253,16 @@
      "at": "2026-10-02T15:50:14",
      "action": "approve",
      "note": ""
+    },
+    {
+     "at": "2026-10-02T20:16:36",
+     "action": "implement",
+     "note": "엔진 템플릿 blueprint"
     }
    ],
    "scope": "template",
-   "recommended": true
+   "recommended": true,
+   "implemented": "엔진 템플릿 blueprint"
   },
   {
    "id": "gs-tpl-forest",
@@ -306,19 +324,30 @@
     }
    },
    "note": "",
-   "status": "recommended",
+   "status": "approved",
    "registeredAt": "2026-10-02T15:38:17",
-   "reviewedAt": null,
-   "approvedAt": null,
+   "reviewedAt": "2026-10-02T20:05:02",
+   "approvedAt": "2026-10-02T20:05:02",
    "history": [
     {
      "at": "2026-10-02T15:38:17",
      "action": "register",
      "note": "Genspark 전수 조사(2026-10-02)에서 가져옴"
+    },
+    {
+     "at": "2026-10-02T20:05:02",
+     "action": "approve",
+     "note": ""
+    },
+    {
+     "at": "2026-10-02T20:16:36",
+     "action": "implement",
+     "note": "엔진 템플릿 swiss (report 대체)"
     }
    ],
    "scope": "template",
-   "recommended": true
+   "recommended": true,
+   "implemented": "엔진 템플릿 swiss (report 대체)"
   },
   {
    "id": "gs-layout-insight_panel",
@@ -402,10 +431,16 @@
      "at": "2026-10-02T15:55:22",
      "action": "approve",
      "note": ""
+    },
+    {
+     "at": "2026-10-02T20:16:36",
+     "action": "implement",
+     "note": "레이아웃 worked_example"
     }
    ],
    "scope": "slide",
-   "recommended": false
+   "recommended": false,
+   "implemented": "레이아웃 worked_example"
   },
   {
    "id": "gs-layout-line_chart",
@@ -448,10 +483,16 @@
      "at": "2026-10-02T15:51:15",
      "action": "approve",
      "note": ""
+    },
+    {
+     "at": "2026-10-02T20:16:36",
+     "action": "implement",
+     "note": "레이아웃 line_chart"
     }
    ],
    "scope": "slide",
-   "recommended": false
+   "recommended": false,
+   "implemented": "레이아웃 line_chart"
   },
   {
    "id": "gs-layout-quiz_check",
@@ -535,10 +576,16 @@
      "at": "2026-10-02T15:53:23",
      "action": "approve",
      "note": ""
+    },
+    {
+     "at": "2026-10-02T20:16:36",
+     "action": "implement",
+     "note": "레이아웃 matrix_plot"
     }
    ],
    "scope": "slide",
-   "recommended": false
+   "recommended": false,
+   "implemented": "레이아웃 matrix_plot"
   },
   {
    "id": "gs-layout-people_cards",
@@ -622,10 +669,16 @@
      "at": "2026-10-02T15:50:34",
      "action": "approve",
      "note": ""
+    },
+    {
+     "at": "2026-10-02T20:16:36",
+     "action": "implement",
+     "note": "레이아웃 number_chart"
     }
    ],
    "scope": "slide",
-   "recommended": false
+   "recommended": false,
+   "implemented": "레이아웃 number_chart"
   },
   {
    "id": "gs-layout-case_story",
@@ -750,10 +803,16 @@
      "at": "2026-10-02T15:53:44",
      "action": "approve",
      "note": ""
+    },
+    {
+     "at": "2026-10-02T20:16:36",
+     "action": "implement",
+     "note": "레이아웃 photo_statement"
     }
    ],
    "scope": "slide",
-   "recommended": false
+   "recommended": false,
+   "implemented": "레이아웃 photo_statement"
   },
   {
    "id": "gs-layout-qa_backup",
@@ -1124,10 +1183,16 @@
      "at": "2026-10-02T15:54:06",
      "action": "approve",
      "note": ""
+    },
+    {
+     "at": "2026-10-02T20:16:36",
+     "action": "implement",
+     "note": "레이아웃 donut"
     }
    ],
    "scope": "slide",
-   "recommended": false
+   "recommended": false,
+   "implemented": "레이아웃 donut"
   },
   {
    "id": "gs-layout-annotated_passage",
@@ -1251,10 +1316,16 @@
      "at": "2026-10-02T15:53:31",
      "action": "approve",
      "note": ""
+    },
+    {
+     "at": "2026-10-02T20:16:36",
+     "action": "implement",
+     "note": "레이아웃 numbered_rows"
     }
    ],
    "scope": "slide",
-   "recommended": false
+   "recommended": false,
+   "implemented": "레이아웃 numbered_rows"
   },
   {
    "id": "gs-layout-heatmap",
@@ -1295,10 +1366,16 @@
      "at": "2026-10-02T15:51:07",
      "action": "approve",
      "note": ""
+    },
+    {
+     "at": "2026-10-02T20:16:36",
+     "action": "implement",
+     "note": "레이아웃 heatmap"
     }
    ],
    "scope": "slide",
-   "recommended": false
+   "recommended": false,
+   "implemented": "레이아웃 heatmap"
   },
   {
    "id": "gs-layout-exhibit",
@@ -1735,10 +1812,10 @@
     }
    },
    "note": "",
-   "status": "approved",
+   "status": "registered",
    "registeredAt": "2026-10-02T15:38:17",
-   "reviewedAt": "2026-10-02T15:56:05",
-   "approvedAt": "2026-10-02T15:56:05",
+   "reviewedAt": null,
+   "approvedAt": null,
    "history": [
     {
      "at": "2026-10-02T15:38:17",
@@ -1749,6 +1826,16 @@
      "at": "2026-10-02T15:56:05",
      "action": "approve",
      "note": ""
+    },
+    {
+     "at": "2026-10-02T20:05:34",
+     "action": "reopen",
+     "note": ""
+    },
+    {
+     "at": "2026-10-02T20:16:36",
+     "action": "reset",
+     "note": "승인 전 대상 초기화(registered → registered)"
     }
    ],
    "scope": "template",
@@ -2103,10 +2190,10 @@
     }
    },
    "note": "",
-   "status": "approved",
+   "status": "registered",
    "registeredAt": "2026-10-02T15:38:17",
-   "reviewedAt": "2026-10-02T15:56:28",
-   "approvedAt": "2026-10-02T15:56:28",
+   "reviewedAt": null,
+   "approvedAt": null,
    "history": [
     {
      "at": "2026-10-02T15:38:17",
@@ -2117,6 +2204,16 @@
      "at": "2026-10-02T15:56:28",
      "action": "approve",
      "note": ""
+    },
+    {
+     "at": "2026-10-02T20:05:46",
+     "action": "reopen",
+     "note": ""
+    },
+    {
+     "at": "2026-10-02T20:16:36",
+     "action": "reset",
+     "note": "승인 전 대상 초기화(registered → registered)"
     }
    ],
    "scope": "template",
@@ -6794,17 +6891,28 @@
     }
    },
    "note": "",
-   "status": "recommended",
+   "status": "approved",
    "registeredAt": "2026-10-02T16:16:38",
-   "reviewedAt": null,
-   "approvedAt": null,
+   "reviewedAt": "2026-10-02T20:07:26",
+   "approvedAt": "2026-10-02T20:07:26",
    "history": [
     {
      "at": "2026-10-02T16:16:38",
      "action": "recommend",
      "note": "분석 결과 추천(2026-10-02)"
+    },
+    {
+     "at": "2026-10-02T20:07:26",
+     "action": "approve",
+     "note": ""
+    },
+    {
+     "at": "2026-10-02T20:16:36",
+     "action": "implement",
+     "note": "시작용 내용 strategy-plan (템플릿 proposal)"
     }
-   ]
+   ],
+   "implemented": "시작용 내용 strategy-plan (템플릿 proposal)"
   },
   {
    "id": "rec-ttype-board-decision",
@@ -6853,17 +6961,28 @@
     }
    },
    "note": "",
-   "status": "recommended",
+   "status": "approved",
    "registeredAt": "2026-10-02T16:16:38",
-   "reviewedAt": null,
-   "approvedAt": null,
+   "reviewedAt": "2026-10-02T20:06:14",
+   "approvedAt": "2026-10-02T20:06:14",
    "history": [
     {
      "at": "2026-10-02T16:16:38",
      "action": "recommend",
      "note": "분석 결과 추천(2026-10-02)"
+    },
+    {
+     "at": "2026-10-02T20:06:14",
+     "action": "approve",
+     "note": ""
+    },
+    {
+     "at": "2026-10-02T20:16:36",
+     "action": "implement",
+     "note": "시작용 내용 board-decision (템플릿 brief — decision-brief 대체)"
     }
-   ]
+   ],
+   "implemented": "시작용 내용 board-decision (템플릿 brief — decision-brief 대체)"
   },
   {
    "id": "rec-ttype-periodic-report",
@@ -6913,17 +7032,28 @@
     }
    },
    "note": "",
-   "status": "recommended",
+   "status": "approved",
    "registeredAt": "2026-10-02T16:16:38",
-   "reviewedAt": null,
-   "approvedAt": null,
+   "reviewedAt": "2026-10-02T20:06:55",
+   "approvedAt": "2026-10-02T20:06:55",
    "history": [
     {
      "at": "2026-10-02T16:16:38",
      "action": "recommend",
      "note": "분석 결과 추천(2026-10-02)"
+    },
+    {
+     "at": "2026-10-02T20:06:55",
+     "action": "approve",
+     "note": ""
+    },
+    {
+     "at": "2026-10-02T20:16:36",
+     "action": "implement",
+     "note": "시작용 내용 periodic-report (템플릿 swiss — weekly/monthly-report 대체)"
     }
-   ]
+   ],
+   "implemented": "시작용 내용 periodic-report (템플릿 swiss — weekly/monthly-report 대체)"
   },
   {
    "id": "rec-ttype-investor-pitch",
@@ -7029,17 +7159,28 @@
     }
    },
    "note": "",
-   "status": "recommended",
+   "status": "approved",
    "registeredAt": "2026-10-02T16:16:38",
-   "reviewedAt": null,
-   "approvedAt": null,
+   "reviewedAt": "2026-10-02T20:06:39",
+   "approvedAt": "2026-10-02T20:06:39",
    "history": [
     {
      "at": "2026-10-02T16:16:38",
      "action": "recommend",
      "note": "분석 결과 추천(2026-10-02)"
+    },
+    {
+     "at": "2026-10-02T20:06:39",
+     "action": "approve",
+     "note": ""
+    },
+    {
+     "at": "2026-10-02T20:16:36",
+     "action": "implement",
+     "note": "시작용 내용 ir-finance (템플릿 proposal)"
     }
-   ]
+   ],
+   "implemented": "시작용 내용 ir-finance (템플릿 proposal)"
   },
   {
    "id": "rec-ttype-sales-proposal",
@@ -7338,17 +7479,28 @@
     }
    },
    "note": "",
-   "status": "recommended",
+   "status": "approved",
    "registeredAt": "2026-10-02T16:16:38",
-   "reviewedAt": null,
-   "approvedAt": null,
+   "reviewedAt": "2026-10-02T20:06:42",
+   "approvedAt": "2026-10-02T20:06:42",
    "history": [
     {
      "at": "2026-10-02T16:16:38",
      "action": "recommend",
      "note": "분석 결과 추천(2026-10-02)"
+    },
+    {
+     "at": "2026-10-02T20:06:42",
+     "action": "approve",
+     "note": ""
+    },
+    {
+     "at": "2026-10-02T20:16:36",
+     "action": "implement",
+     "note": "시작용 내용 lecture-theory (템플릿 swiss)"
     }
-   ]
+   ],
+   "implemented": "시작용 내용 lecture-theory (템플릿 swiss)"
   },
   {
    "id": "rec-ttype-training",
@@ -9935,6 +10087,164 @@
      "at": "2026-10-02T16:16:38",
      "action": "recommend",
      "note": "분석 결과 추천(2026-10-02)"
+    }
+   ]
+  },
+  {
+   "id": "eng-tpl-story",
+   "scope": "template",
+   "kind": "engine-template",
+   "recommended": false,
+   "title": "기존 템플릿 story — 이야기·회고(따뜻한 미색)",
+   "tags": [
+    "기존 엔진",
+    "→ archive"
+   ],
+   "source": {
+    "type": "engine-template",
+    "template": "story",
+    "detail": {
+     "상태": "목록에서 제외(숨김) — 이미 쓰는 작업 공간은 그대로 동작",
+     "겹치는 새 대상": "archive"
+    }
+   },
+   "note": "",
+   "status": "registered",
+   "registeredAt": "2026-10-02T20:16:36",
+   "reviewedAt": null,
+   "approvedAt": null,
+   "history": [
+    {
+     "at": "2026-10-02T20:16:36",
+     "action": "register",
+     "note": "archive 와 겹쳐 목록에서 빼고 검토 대상으로 옮김"
+    }
+   ]
+  },
+  {
+   "id": "eng-tpl-report",
+   "scope": "template",
+   "kind": "engine-template",
+   "recommended": false,
+   "title": "기존 템플릿 report — 업무 보고(신뢰 네이비)",
+   "tags": [
+    "기존 엔진",
+    "→ swiss"
+   ],
+   "source": {
+    "type": "engine-template",
+    "template": "report",
+    "detail": {
+     "상태": "목록에서 제외(숨김) — 이미 쓰는 작업 공간은 그대로 동작",
+     "겹치는 새 대상": "swiss"
+    }
+   },
+   "note": "",
+   "status": "registered",
+   "registeredAt": "2026-10-02T20:16:36",
+   "reviewedAt": null,
+   "approvedAt": null,
+   "history": [
+    {
+     "at": "2026-10-02T20:16:36",
+     "action": "register",
+     "note": "swiss 와 겹쳐 목록에서 빼고 검토 대상으로 옮김"
+    }
+   ]
+  },
+  {
+   "id": "eng-starter-decision-brief",
+   "scope": "template",
+   "kind": "engine-starter",
+   "recommended": false,
+   "title": "기존 시작용 내용 decision-brief — 결정 요청 1~2장",
+   "tags": [
+    "기존 엔진",
+    "→ board-decision"
+   ],
+   "source": {
+    "type": "engine-template",
+    "template": "brief",
+    "starter": "decision-brief",
+    "detail": {
+     "상태": "목록에서 제외(숨김) — 이미 쓰는 작업 공간은 그대로 동작",
+     "겹치는 새 대상": "board-decision"
+    }
+   },
+   "note": "",
+   "status": "registered",
+   "registeredAt": "2026-10-02T20:16:36",
+   "reviewedAt": null,
+   "approvedAt": null,
+   "history": [
+    {
+     "at": "2026-10-02T20:16:36",
+     "action": "register",
+     "note": "board-decision 와 겹쳐 목록에서 빼고 검토 대상으로 옮김"
+    }
+   ]
+  },
+  {
+   "id": "eng-starter-weekly-report",
+   "scope": "template",
+   "kind": "engine-starter",
+   "recommended": false,
+   "title": "기존 시작용 내용 weekly-report — 주간 진행 보고",
+   "tags": [
+    "기존 엔진",
+    "→ periodic-report"
+   ],
+   "source": {
+    "type": "engine-template",
+    "template": "swiss",
+    "starter": "weekly-report",
+    "detail": {
+     "상태": "목록에서 제외(숨김) — 이미 쓰는 작업 공간은 그대로 동작",
+     "겹치는 새 대상": "periodic-report"
+    }
+   },
+   "note": "",
+   "status": "registered",
+   "registeredAt": "2026-10-02T20:16:36",
+   "reviewedAt": null,
+   "approvedAt": null,
+   "history": [
+    {
+     "at": "2026-10-02T20:16:36",
+     "action": "register",
+     "note": "periodic-report 와 겹쳐 목록에서 빼고 검토 대상으로 옮김"
+    }
+   ]
+  },
+  {
+   "id": "eng-starter-monthly-report",
+   "scope": "template",
+   "kind": "engine-starter",
+   "recommended": false,
+   "title": "기존 시작용 내용 monthly-report — 월간 운영 보고",
+   "tags": [
+    "기존 엔진",
+    "→ periodic-report"
+   ],
+   "source": {
+    "type": "engine-template",
+    "template": "swiss",
+    "starter": "monthly-report",
+    "detail": {
+     "상태": "목록에서 제외(숨김) — 이미 쓰는 작업 공간은 그대로 동작",
+     "겹치는 새 대상": "periodic-report"
+    }
+   },
+   "note": "",
+   "status": "registered",
+   "registeredAt": "2026-10-02T20:16:36",
+   "reviewedAt": null,
+   "approvedAt": null,
+   "history": [
+    {
+     "at": "2026-10-02T20:16:36",
+     "action": "register",
+     "note": "periodic-report 와 겹쳐 목록에서 빼고 검토 대상으로 옮김"
     }
    ]
   }

@@ -144,7 +144,8 @@ LAUNCHER = '''# -*- coding: utf-8 -*-
     python3 {ws}/nexa.py build_deck <덱> [--force]                  # content → 덱
     python3 {ws}/nexa.py export_pptx <덱>                           # → out/<덱>.pptx
     python3 {ws}/nexa.py check_layout [<덱>]                        # 레이아웃 검사
-    python3 {ws}/nexa.py layout_samples                             # 레이아웃 21종·필드 예시
+    python3 {ws}/nexa.py layout_samples                             # 레이아웃·필드 예시
+    python3 {ws}/nexa.py slide_types [낱말]                         # 슬라이드 유형(목적별) — 내용에 맞는 장 고르기
     python3 {ws}/nexa.py watch_requests --stream --takeover         # Claude 세션 요청 감시(Monitor 로 실행)
 
 엔진 위치: 환경변수 NEXA_SLIDE_HOME > nexa-slide.json 의 "engine"(이 폴더 기준 상대 경로).
@@ -186,6 +187,8 @@ CLAUDE_MD = '''# 슬라이드 작업 공간 (nexa-slide) — Claude 세션 안�
 - 편집기: `python3 {ws}/nexa.py start` → http://127.0.0.1:{port}/  (`status` · `url` · `stop`)
 - 내용 원본은 `content/<덱>.json`(레이아웃 이름 + 필드), 빌드 결과(편집 대상)는 `decks/<덱>.json`.
   레이아웃·필드 예시: `python3 {ws}/nexa.py layout_samples` · 형식: 엔진 `docs/deck-format.md`
+- **장 고르기 기준 = 슬라이드 유형**: 초안을 쓰거나 요청을 처리할 때, 각 장의 내용 성격(결론 숫자·추이·비교·결정 요청·사례·풀이 …)에 맞는 유형을
+  `python3 {ws}/nexa.py slide_types [낱말]` 로 골라 그 레이아웃·필드 구조로 쓴다(유형의 목적·고를 신호 when — 엔진 `docs/slide-types.md`).
 - 초안을 쓰거나 고치면: `build_deck <덱> --force` → `check_layout <덱>`(ERROR 0 목표) → 편집기에서 확인.
   편집기에서 사람이 고친 슬라이드가 있으면 build 가 멈춘다 — 고친 내용을 content 에 옮긴 뒤 다시.
 - **요청 감시**: 세션을 시작하면 Monitor 도구로

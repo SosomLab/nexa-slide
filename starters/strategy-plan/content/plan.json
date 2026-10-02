@@ -1,0 +1,210 @@
+{
+ "id": "plan",
+ "title": "전략·연례 계획",
+ "part": "day1",
+ "version": "0.1",
+ "slides": [
+  {
+   "layout": "cover",
+   "title": "제목은 결론 한 문장으로",
+   "subtitle": "전략·연례 계획 · 누구에게 · 언제",
+   "days": [
+    [
+     "day1",
+     "Day1 설계"
+    ]
+   ],
+   "meta": "작성 부서\n장 제목\nv0.1",
+   "badge": "전략 계획",
+   "notes": "표지 — 비전·전략·연간 계획을 한 흐름으로 — 목표·로드맵·투자"
+  },
+  {
+   "layout": "statement",
+   "text": "속도보다 멈추지 않는 것이 고객이 원한 것이었다",
+   "kicker": "핵심",
+   "sub": "보조 설명",
+   "crumb": "",
+   "notes": "유형: 핵심 한 문장 (one-sentence) — 덱 전체를 꿰는 문장(축). 예시 내용을 이 덱의 내용으로 바꾼다."
+  },
+  {
+   "layout": "kpi_tiles",
+   "title": "핵심 지표",
+   "tiles": [
+    {
+     "label": "지표 1",
+     "value": "96",
+     "unit": "%",
+     "target": "목표 95%",
+     "delta": "+2%p 전주 대비",
+     "status": "ok"
+    },
+    {
+     "label": "지표 2",
+     "value": "3",
+     "unit": "건",
+     "target": "목표 0건",
+     "delta": "+1건",
+     "status": "bad"
+    }
+   ],
+   "crumb": "",
+   "notes": "유형: KPI 대시보드 (kpi-dashboard) — 핵심 지표 2~4개를 목표·비교와 함께. 예시 내용을 이 덱의 내용으로 바꾼다."
+  },
+  {
+   "layout": "tree",
+   "title": "지표를 나눠 보면",
+   "root": {
+    "label": "매출",
+    "value": "100"
+   },
+   "branches": [
+    {
+     "label": "고객 수",
+     "value": "40",
+     "leaves": [
+      [
+       "신규",
+       "15"
+      ],
+      [
+       "기존",
+       "25"
+      ]
+     ]
+    },
+    {
+     "label": "객단가",
+     "value": "2.5",
+     "leaves": [
+      [
+       "가격",
+       "2.0"
+      ],
+      [
+       "수량",
+       "1.25"
+      ]
+     ]
+    }
+   ],
+   "crumb": "",
+   "notes": "유형: 이슈·지표 트리 (issue-tree) — 하나를 갈래로 나눠 원인·구성 보기. 예시 내용을 이 덱의 내용으로 바꾼다."
+  },
+  {
+   "layout": "tier_columns",
+   "title": "선택지 비교",
+   "columns": [
+    {
+     "name": "A안",
+     "value": "3개월",
+     "items": [
+      "빠름",
+      "범위 작음"
+     ]
+    },
+    {
+     "name": "B안",
+     "value": "5개월",
+     "items": [
+      "균형",
+      "위험 낮음"
+     ],
+     "pick": true
+    },
+    {
+     "name": "C안",
+     "value": "9개월",
+     "items": [
+      "전면 개편",
+      "비용 큼"
+     ]
+    }
+   ],
+   "crumb": "",
+   "notes": "유형: 선택지 비교(추천 강조) (options) — 대안 2~4개 중 추천안. 예시 내용을 이 덱의 내용으로 바꾼다."
+  },
+  {
+   "layout": "roadmap",
+   "title": "로드맵",
+   "columns": [
+    {
+     "label": "Now",
+     "items": [
+      {
+       "title": "할 일"
+      }
+     ]
+    },
+    {
+     "label": "Next",
+     "items": [
+      {
+       "title": "할 일"
+      }
+     ]
+    },
+    {
+     "label": "Later",
+     "items": [
+      {
+       "title": "할 일"
+      }
+     ]
+    }
+   ],
+   "crumb": "",
+   "notes": "유형: 로드맵 Now·Next·Later (roadmap) — 시기별 할 일 묶음. 예시 내용을 이 덱의 내용으로 바꾼다."
+  },
+  {
+   "layout": "milestones",
+   "title": "마일스톤",
+   "items": [
+    {
+     "date": "10-01",
+     "title": "착수"
+    },
+    {
+     "date": "11-01",
+     "title": "중간"
+    },
+    {
+     "date": "12-01",
+     "title": "완료"
+    }
+   ],
+   "now": 0.3,
+   "crumb": "",
+   "notes": "유형: 마일스톤 (milestones) — 날짜가 있는 주요 시점. 예시 내용을 이 덱의 내용으로 바꾼다."
+  },
+  {
+   "layout": "numbered_rows",
+   "title": "다음 2주 — 세 가지 부탁",
+   "rows": [
+    {
+     "title": "결제 대행사 이중화 승인",
+     "body": "비용 월 120만 원, 장애 시 자동 전환",
+     "meta": "CFO · 10/10"
+    },
+    {
+     "title": "피크 시간 증설 일정 확정",
+     "body": "11월 행사 전 서버 2대",
+     "meta": "인프라팀 · 10/15"
+    },
+    {
+     "title": "고객 공지 문안 검토",
+     "body": "점검 시간 안내",
+     "meta": "CS팀 · 10/12"
+    }
+   ],
+   "crumb": "",
+   "notes": "유형: 다음 행동·부탁 (next-actions) — 누가 무엇을 언제까지. 예시 내용을 이 덱의 내용으로 바꾼다."
+  },
+  {
+   "layout": "end",
+   "title": "End of Document",
+   "sub": "부제",
+   "meta": "문의",
+   "notes": "유형: 끝 (end) — 문서 끝. 예시 내용을 이 덱의 내용으로 바꾼다."
+  }
+ ]
+}

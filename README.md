@@ -86,6 +86,7 @@ nexa-slide/
 | **[docs/ai-editing.md](docs/ai-editing.md)** | **새로 만든 작업 공간에서 AI 로 고치기 — Claude Code(터미널·VS Code·Desktop)·그 밖의 AI(Codex·Gemini CLI·Cursor) 연결, 요청·초안·마무리 과정** |
 | [docs/claude-session.md](docs/claude-session.md) | Claude Code 세션 연결 — 상시 감시(Monitor), 세션 상태 표시, 지금 보내기, 처리 규약 |
 | [docs/fonts.md](docs/fonts.md) | 글꼴 — 기본 세트(엔진)와 작업 공간 전용 글꼴(`fonts/` · `fontPresets`), 편집기 글꼴 창, `install_fonts` |
+| [docs/slide-types.md](docs/slide-types.md) | 슬라이드 유형 54개 — 목적·구성 기준, 고를 신호, 초안·요청 처리의 장 선별 기준, 편집기 "유형으로 추가" |
 | [docs/deck-format.md](docs/deck-format.md) | 덱 JSON·요소 모델, content 형식, 레이아웃, 인라인 강조, 각주 규칙 |
 | [docs/editor.md](docs/editor.md) | 편집기 조작, 화면↔PPT 일치 규칙, 알려진 한계 |
 | [docs/research/](docs/research/genspark-ai-slides.md) | 참고 조사 — Genspark AI Slides 실측(진행 과정·저장 구조·편집 화면·레이아웃 검사 원문) |

@@ -1,0 +1,155 @@
+{
+ "id": "board",
+ "title": "이사회·경영 결정 요청",
+ "part": "day1",
+ "version": "0.1",
+ "slides": [
+  {
+   "layout": "cover",
+   "title": "제목은 결론 한 문장으로",
+   "subtitle": "이사회·경영 결정 요청 · 누구에게 · 언제",
+   "days": [
+    [
+     "day1",
+     "Day1 설계"
+    ]
+   ],
+   "meta": "작성 부서\n장 제목\nv0.1",
+   "badge": "결정 요청",
+   "notes": "표지 — 결정권자가 한 번에 판단 — 요약·숫자·리스크·결정 요청·부록"
+  },
+  {
+   "layout": "insight_panel",
+   "title": "요약 — 하반기 주문 실패를 1/3 로 줄였다",
+   "items": [
+    "재시도 설계 변경으로 중복 주문 0건",
+    "피크 시간 응답 2.1초 → 0.8초",
+    "남은 위험: 결제 대행사 장애"
+   ],
+   "panel": {
+    "label": "결론",
+    "value": "-67",
+    "unit": "%",
+    "text": "주문 실패율(전년 같은 분기 대비)"
+   },
+   "crumb": "",
+   "notes": "유형: 요약 — 결론 먼저 (exec-summary) — 근거 3개와 결론 수치를 첫 장에. 예시 내용을 이 덱의 내용으로 바꾼다."
+  },
+  {
+   "layout": "kpi_tiles",
+   "title": "핵심 지표",
+   "tiles": [
+    {
+     "label": "지표 1",
+     "value": "96",
+     "unit": "%",
+     "target": "목표 95%",
+     "delta": "+2%p 전주 대비",
+     "status": "ok"
+    },
+    {
+     "label": "지표 2",
+     "value": "3",
+     "unit": "건",
+     "target": "목표 0건",
+     "delta": "+1건",
+     "status": "bad"
+    }
+   ],
+   "crumb": "",
+   "notes": "유형: KPI 대시보드 (kpi-dashboard) — 핵심 지표 2~4개를 목표·비교와 함께. 예시 내용을 이 덱의 내용으로 바꾼다."
+  },
+  {
+   "layout": "tier_columns",
+   "title": "선택지 비교",
+   "columns": [
+    {
+     "name": "A안",
+     "value": "3개월",
+     "items": [
+      "빠름",
+      "범위 작음"
+     ]
+    },
+    {
+     "name": "B안",
+     "value": "5개월",
+     "items": [
+      "균형",
+      "위험 낮음"
+     ],
+     "pick": true
+    },
+    {
+     "name": "C안",
+     "value": "9개월",
+     "items": [
+      "전면 개편",
+      "비용 큼"
+     ]
+    }
+   ],
+   "crumb": "",
+   "notes": "유형: 선택지 비교(추천 강조) (options) — 대안 2~4개 중 추천안. 예시 내용을 이 덱의 내용으로 바꾼다."
+  },
+  {
+   "layout": "issue_cards",
+   "title": "이슈와 요청",
+   "issues": [
+    {
+     "title": "이슈 제목",
+     "status": "bad",
+     "situation": "무슨 일인가",
+     "impact": "무엇이 영향을 받나",
+     "ask": "무엇을 결정·지원해 달라",
+     "owner": "담당",
+     "due": "MM-DD"
+    }
+   ],
+   "crumb": "",
+   "notes": "유형: 리스크·이슈와 요청 (risk-issues) — 상황·영향·요청·담당·기한. 예시 내용을 이 덱의 내용으로 바꾼다."
+  },
+  {
+   "layout": "decision_brief",
+   "title": "결론 - 무엇을 하자",
+   "sub": "근거 한 줄",
+   "columns": [
+    {
+     "title": "근거 1",
+     "body": "내용"
+    },
+    {
+     "title": "근거 2",
+     "body": "내용"
+    },
+    {
+     "title": "근거 3",
+     "body": "내용"
+    }
+   ],
+   "ask": "결정할 것",
+   "owner": "결정권자",
+   "due": "MM-DD",
+   "impact": "미결정 시 영향",
+   "crumb": "",
+   "notes": "유형: 결정 요청 (decision-ask) — 무엇을·누가·언제까지 결정. 예시 내용을 이 덱의 내용으로 바꾼다."
+  },
+  {
+   "layout": "qa",
+   "question": "예상 질문?",
+   "answer": "한두 문장 답",
+   "evidence": [
+    "근거 1",
+    "근거 2"
+   ],
+   "crumb": "",
+   "notes": "유형: 예상 질문(부록) (qa) — 질문·답·근거를 미리. 예시 내용을 이 덱의 내용으로 바꾼다."
+  },
+  {
+   "layout": "end",
+   "title": "End of Document",
+   "sub": "이사회·경영 결정 요청",
+   "meta": "문의"
+  }
+ ]
+}

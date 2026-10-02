@@ -1,0 +1,21 @@
+{
+ "label": "강의·교안(이론·이공계) (9장)",
+ "description": "직관→개념→풀이→한계→흔한 실수→과제. 흐름: 장 구분 → 개념 설명 → 구조도 → 단계별 풀이 → 확인 문제 → 코드 설명 → 정리",
+ "template": "swiss",
+ "config": {
+  "partLabels": {
+   "day1": "강의",
+   "day2": "강의",
+   "day3": "강의",
+   "apx": "부록"
+  },
+  "coverBadge": "강의"
+ },
+ "decks": [
+  "lecture"
+ ],
+ "copy": [
+  "content"
+ ],
+ "source": "템플릿 유형 lecture(검토 승인) — docs/research/genspark-skills/05-template-types.md"
+}
