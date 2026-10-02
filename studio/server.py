@@ -33,9 +33,12 @@ API
   GET  /api/check/<id>               레이아웃 검사(check_layout.py) — 겹침·넘침·최소 글자·슬라이드 밖·고정폭 정렬
 시작 페이지(허브) — studio/home.html · hub.py
   GET  /api/home                     기준 폴더·최근 작업·템플릿·시작용 내용·샘플·현재 작업 공간
-  POST /api/project                  {"action": "create"|"open"|"demo"|"forget", ...} → {"url": 그 작업 공간 서버 주소}
+  POST /api/project                  {"action": "create"|"plan"|"open"|"demo"|"forget", ...} → {"url": 그 작업 공간 서버 주소}
+                                     plan = 만들 폴더·포트·init_workspace 명령(PowerShell·bash) — create 는 그 명령을 실행
   POST /api/settings                 {"projectsRoot"?, "samples"?} — 사용자 설정(엔진·작업 공간 밖)
   GET  /api/fs?path=<폴더>           폴더 고르기 — 하위 폴더 목록(git 저장소·작업 공간 표시)
+  GET  /api/preview?template=&starter=  템플릿 × 시작용 내용 미리보기 — 사용자 설정 폴더의 임시 작업 공간에 빌드한 덱·토큰
+  /preview/<템플릿>--<내용>/…        미리보기 덱의 그림(assetRoot)
 
 작업 공간 없이 띄우면(또는 작업 공간에 덱이 없으면) / 는 시작 페이지로 간다. 덱이 있으면 편집기(Studio)로.
 엔진 폴더 안의 작업 공간은 열지 않는다(허브로 뜬다) — 슬라이드 내용은 엔진 밖에 둔다.
@@ -65,6 +68,7 @@ import hub  # noqa: E402
 HISTORY_KEEP = 50
 RENDER_LOCK = threading.Lock()
 WRITE_LOCK = threading.Lock()
+PREVIEW_LOCK = threading.Lock()
 mimetypes.add_type("application/javascript", ".js")
 mimetypes.add_type("application/vnd.openxmlformats-officedocument.presentationml.presentation", ".pptx")
 
@@ -129,6 +133,19 @@ def run(cmd, timeout):
 
 def export(i):
     return run([sys.executable, str(STUDIO / "export_pptx.py"), i], 120)
+
+
+ENGINE_UI = ("index.html", "studio.js", "render.js", "menu.js", "fonts.css")
+
+
+def workspace_stamp():
+    """편집기가 새로 고침·목록 갱신을 알 수 있게 하는 값(2초 폴링에 같이 보냄).
+    deckIds/decksVer = 덱 목록과 그 덱들의 마지막 변경(다른 덱 추가·삭제·수정), config = nexa-slide.json(템플릿·글꼴·로고),
+    engine = 편집기 코드와 템플릿 파일(엔진 업데이트) - config·engine 이 바뀌면 화면을 새로 고쳐야 반영된다."""
+    files = [] if HUB or not DECKS.is_dir() else [f for f in DECKS.glob("*.json") if not f.name.endswith(".requests.json")]
+    eng = [STUDIO / n for n in ENGINE_UI] + [f for f in (STUDIO / "templates").rglob("*.json")]
+    return {"deckIds": sorted(f.stem for f in files), "decksVer": max((ver(f) for f in files), key=int, default="0"),
+            "config": "0" if HUB else ver(WORKSPACE / "nexa-slide.json"), "engine": max((ver(f) for f in eng), key=int, default="0")}
 
 
 def has_decks():
@@ -221,6 +238,8 @@ class H(BaseHTTPRequestHandler):
                 return self.send_json(resolve_tokens(read_config()))
         elif parts and parts[0] == "out":  # 작업 공간 산출물
             root, rel = OUT, "/".join(parts[1:])
+        elif parts and parts[0] == "preview":  # 미리보기 임시 작업 공간의 그림
+            root, rel = hub.PREVIEW_ROOT, "/".join(parts[1:])
         elif HUB:  # 허브: 작업 공간 파일 없음
             return self.err(404, "작업 공간 없음")
         else:  # 덱 그림 경로 기준 폴더
@@ -296,7 +315,7 @@ class H(BaseHTTPRequestHandler):
             self.send_json({"ok": True, "version": ver(p), "updated": deck["updated"]})
 
     def api_get_version(self, i, q):
-        self.send_json({"deck": ver(deck_path(i)), "requests": ver(req_path(i)), "session": session_status()})
+        self.send_json({"deck": ver(deck_path(i)), "requests": ver(req_path(i)), "session": session_status(), **workspace_stamp()})
 
     # ---------- 레이아웃 검사 ----------
     def api_get_check(self, i, q):
@@ -334,6 +353,10 @@ class H(BaseHTTPRequestHandler):
             hub.remember(WORKSPACE, CONFIG.get("title", WORKSPACE.name))
             return self.send_json({"ok": True, "path": str(WORKSPACE), "url": f"http://127.0.0.1:{self.server.server_port}/"})
         self.hub_call(hub.project, b)
+
+    def api_get_preview(self, _, q):
+        with PREVIEW_LOCK:  # 같은 미리보기를 동시에 만들지 않게
+            self.hub_call(hub.preview, (q.get("template") or [None])[0], (q.get("starter") or [None])[0])
 
     def api_post_settings(self, _, q):
         def save(b):
