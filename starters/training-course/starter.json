@@ -1,0 +1,21 @@
+{
+ "label": "직무·자격 교육 (15장)",
+ "description": "현장 사례→규칙→실습→확인→휴대 카드. 기본 구성: 표지 — 제목형 → 진행 순서 → 사례 제시 → [알아야 할 것] → 개념 설명 → 단계 흐름 → 큰 번호 단계·요점 → 장단점·대비 카드 → [해 보기] → 실습 → 확인 문제 → 사례 판단(선택지) → 정리 → 다음 행동·부탁 → 끝",
+ "template": "notice",
+ "config": {
+  "partLabels": {
+   "day1": "교육",
+   "day2": "교육",
+   "day3": "교육",
+   "apx": "부록"
+  },
+  "coverBadge": "교육"
+ },
+ "decks": [
+  "training"
+ ],
+ "copy": [
+  "content"
+ ],
+ "source": "템플릿 유형 training — docs/research/genspark-skills/05-template-types.md (참고 덱 053, 151, 029, 031)"
+}

@@ -1,6 +1,6 @@
 {
- "label": "정기 업무 보고(주간·월간·QBR) (8장)",
- "description": "매 회차 같은 배치 — 결론 KPI·추이·상태·이슈·다음 행동. 흐름: KPI 대시보드 → 추이 — 선 그래프 → 상태 표(신호등) → 막대 비교 → 리스크·이슈와 요청 → 다음 행동·부탁",
+ "label": "정기 업무 보고(주간·월간·QBR) (12장)",
+ "description": "매 회차 같은 배치 — 결론 KPI·추이·상태·이슈·다음 행동. 기본 구성: 표지 — 제목형 → 요약 — 결론 먼저 → KPI 대시보드 → 추이 — 선 그래프 → 막대 비교 → 구성비 → 상태 표(신호등) → 히트맵·코호트 → 리스크·이슈와 요청 → 마일스톤 → 다음 행동·부탁 → 끝",
  "template": "swiss",
  "config": {
   "partLabels": {
@@ -17,5 +17,5 @@
  "copy": [
   "content"
  ],
- "source": "템플릿 유형 periodic-report(검토 승인) — docs/research/genspark-skills/05-template-types.md"
+ "source": "템플릿 유형 periodic-report — docs/research/genspark-skills/05-template-types.md (참고 덱 128, 044, 048, 050)"
 }

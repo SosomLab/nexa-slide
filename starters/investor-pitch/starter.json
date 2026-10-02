@@ -1,0 +1,21 @@
+{
+ "label": "투자 유치 피치 (13장)",
+ "description": "문제→해결→시장→트랙션→팀→요청, 숫자 하나가 장마다. 기본 구성: 표지 — 제목형 → 질문으로 열기 → 숫자 하나 → 핵심 한 문장 → 전후 비교 → 깔때기·시장 규모 → 숫자 + 근거 차트 → 단계 흐름 → 팀·인물 카드 → 가격·패키지 → 로드맵 Now·Next·Later → 결정 요청 → 끝",
+ "template": "keynote",
+ "config": {
+  "partLabels": {
+   "day1": "투자 유치",
+   "day2": "투자 유치",
+   "day3": "투자 유치",
+   "apx": "부록"
+  },
+  "coverBadge": "투자 유치"
+ },
+ "decks": [
+  "pitch"
+ ],
+ "copy": [
+  "content"
+ ],
+ "source": "템플릿 유형 investor-pitch — docs/research/genspark-skills/05-template-types.md (참고 덱 003, 136, 155, 054)"
+}

@@ -1,6 +1,6 @@
 {
- "label": "전략·연례 계획 (9장)",
- "description": "비전·전략·연간 계획을 한 흐름으로 — 목표·로드맵·투자. 흐름: 표지 — 사진 전면 → 핵심 한 문장 → KPI 대시보드 → 이슈·지표 트리 → 선택지 비교(추천 강조) → 로드맵 Now·Next·Later → 마일스톤 → 다음 행동·부탁 → 끝",
+ "label": "전략·연례 계획 (17장)",
+ "description": "비전·전략·연간 계획을 한 흐름으로 — 목표·로드맵·투자. 기본 구성: 표지 — 사진 전면 → 핵심 한 문장 → 진행 순서 → [어디에 있나] → KPI 대시보드 → 추이 — 선 그래프 → 이슈·지표 트리 → [무엇을 고르나] → 선택지 비교(추천 강조) → 사분면 우선순위 → [어떻게 가나] → 로드맵 Now·Next·Later → 마일스톤 → 간트 → 리스크·이슈와 요청 → 다음 행동·부탁 → 끝",
  "template": "proposal",
  "config": {
   "partLabels": {
@@ -17,5 +17,5 @@
  "copy": [
   "content"
  ],
- "source": "템플릿 유형 strategy-plan(검토 승인) — docs/research/genspark-skills/05-template-types.md"
+ "source": "템플릿 유형 strategy-plan — docs/research/genspark-skills/05-template-types.md (참고 덱 033, 060, 012, 041)"
 }

@@ -1,0 +1,178 @@
+{
+ "id": "case",
+ "title": "사례 연구·회고 이야기",
+ "part": "day1",
+ "version": "0.1",
+ "slides": [
+  {
+   "layout": "photo_statement",
+   "text": "숫자 한 줄과 걱정 한 가지",
+   "kicker": "2026 연례 보고",
+   "sub": "발표자 · 날짜",
+   "notes": "유형: 표지 — 사진 전면 (cover-photo) — 장면 하나로 분위기를 먼저. 예시 내용을 이 덱의 내용으로 바꾼다."
+  },
+  {
+   "layout": "statement",
+   "text": "속도보다 멈추지 않는 것이 고객이 원한 것이었다",
+   "kicker": "핵심",
+   "sub": "보조 설명",
+   "crumb": "",
+   "notes": "유형: 핵심 한 문장 (one-sentence) — 덱 전체를 꿰는 문장(축). 예시 내용을 이 덱의 내용으로 바꾼다."
+  },
+  {
+   "layout": "photo_text",
+   "title": "사진과 글",
+   "body": "설명",
+   "items": [
+    "항목"
+   ],
+   "crumb": "",
+   "notes": "유형: 인물·대상 소개(사진+글) (profile) — 한 사람·한 대상을 깊게. 예시 내용을 이 덱의 내용으로 바꾼다."
+  },
+  {
+   "layout": "quote",
+   "text": "주문이 멈추지 않는 것, 그거 하나면 됩니다.",
+   "who": "홍길동",
+   "role": "구매 담당",
+   "context": "2026년 9월 인터뷰",
+   "crumb": "",
+   "notes": "유형: 인용 — 고객·현장의 말 (quote-voice) — 실명 화자의 한마디로 신뢰. 예시 내용을 이 덱의 내용으로 바꾼다."
+  },
+  {
+   "layout": "milestones",
+   "title": "마일스톤",
+   "items": [
+    {
+     "date": "10-01",
+     "title": "착수"
+    },
+    {
+     "date": "11-01",
+     "title": "중간"
+    },
+    {
+     "date": "12-01",
+     "title": "완료"
+    }
+   ],
+   "now": 0.3,
+   "crumb": "",
+   "notes": "유형: 마일스톤 (milestones) — 날짜가 있는 주요 시점. 예시 내용을 이 덱의 내용으로 바꾼다."
+  },
+  {
+   "layout": "photo_plates",
+   "title": "현장 기록",
+   "plates": [
+    {
+     "caption": "설명"
+    },
+    {
+     "caption": "설명"
+    },
+    {
+     "caption": "설명"
+    }
+   ],
+   "crumb": "",
+   "notes": "유형: 사진 도판 (photo-plates) — 현장·결과물 사진 여러 장. 예시 내용을 이 덱의 내용으로 바꾼다."
+  },
+  {
+   "layout": "compare",
+   "title": "전후 비교",
+   "before": {
+    "label": "Before",
+    "title": "이전",
+    "desc": "설명",
+    "result": "결과"
+   },
+   "after": {
+    "label": "After",
+    "title": "이후",
+    "desc": "설명",
+    "result": "결과"
+   },
+   "crumb": "",
+   "notes": "유형: 전후 비교 (before-after) — 바꾸기 전과 후. 예시 내용을 이 덱의 내용으로 바꾼다."
+  },
+  {
+   "layout": "number_chart",
+   "title": "숫자 하나가 결론",
+   "value": "1.8",
+   "unit": "배",
+   "label": "무엇이 몇 배 늘었나",
+   "metrics": [
+    [
+     "기준",
+     "100"
+    ],
+    [
+     "현재",
+     "180"
+    ]
+   ],
+   "categories": [
+    "1분기",
+    "2분기",
+    "3분기",
+    "4분기"
+   ],
+   "values": [
+    100,
+    120,
+    150,
+    180
+   ],
+   "crumb": "",
+   "notes": "유형: 숫자 + 근거 차트 (number-evidence) — 결론 숫자와 그 추이를 한 장에. 예시 내용을 이 덱의 내용으로 바꾼다."
+  },
+  {
+   "layout": "numbered_rows",
+   "title": "세 가지",
+   "rows": [
+    {
+     "title": "첫째 문장",
+     "body": "설명",
+     "meta": "담당 · 기한"
+    },
+    {
+     "title": "둘째 문장",
+     "body": "설명",
+     "meta": "담당 · 기한"
+    },
+    {
+     "title": "셋째 문장",
+     "body": "설명",
+     "meta": "담당 · 기한"
+    }
+   ],
+   "crumb": "",
+   "notes": "유형: 큰 번호 단계·요점 (numbered-steps) — 세 가지 원인·요청·교훈을 번호로. 예시 내용을 이 덱의 내용으로 바꾼다."
+  },
+  {
+   "layout": "statement",
+   "text": "숫자가 좋아질수록 놓친 것이 하나 있었다",
+   "kicker": "그런데",
+   "sub": "보조 설명",
+   "crumb": "",
+   "dark": true,
+   "notes": "유형: 어두운 전환 문장 (dark-statement) — 흐름을 끊고 강조하는 쉼표 장. 예시 내용을 이 덱의 내용으로 바꾼다."
+  },
+  {
+   "layout": "summary",
+   "title": "정리",
+   "items": [
+    "기억할 것 1",
+    "기억할 것 2"
+   ],
+   "crumb": "",
+   "notes": "유형: 정리 (summary) — 기억할 것. 예시 내용을 이 덱의 내용으로 바꾼다."
+  },
+  {
+   "layout": "end",
+   "title": "End of Document",
+   "sub": "사례 연구·회고 이야기",
+   "meta": "문의",
+   "notes": "유형: 끝 (end) — 문서 끝. 예시 내용을 이 덱의 내용으로 바꾼다."
+  }
+ ]
+}

@@ -1,5 +1,10 @@
 # 변경 이력
 
+## 0.13.1 - 2026-10-02 · 템플릿 유형 15개 시작용 기본 구성
+
+- **템플릿 유형 15개 모두 시작용 내용으로**: 목적별로 슬라이드 유형 11~14가지를 섞은 기본 구성(11~17장, 긴 덱은 장 구분 포함). 새로 10개 — `research-report` · `investor-pitch` · `sales-proposal` · `case-story` · `marketing-campaign` · `consulting` · `training-course` · `classroom` · `public-policy` · `talk-story`. 기존 5개(`periodic-report` 등)도 같은 방식으로 늘렸다. 내용은 유형별 예시 — 장을 더하거나 바꾸는 것은 편집기 "유형으로"·"유형 바꾸기".
+- 15개 모두 빌드·레이아웃 검사 ERROR 0. 검토 등록부의 템플릿 유형에 구현 기록(승인 상태는 그대로 — 검토는 계속).
+
 ## 0.13.0 - 2026-10-02 · 템플릿 부품 · 유형 바꾸기 · 덱·슬라이드 글꼴 · 세션 활동 · 이미지 자리 보완
 
 - **템플릿 부품 `parts`**: 레이아웃 코드는 그대로 두고 공통 부품 모양만 템플릿이 고른다 — `labels: "mono"`, `foot: "band" | "titleblock" | "minimal"`, `pageGhost`. `swiss`(고정폭 라벨 + 아래 띠) · `blueprint`(고정폭 라벨 + 도면 테두리·SHEET) · `archive`(큰 옅은 쪽 번호) · `keynote`(쪽 번호만). 장식은 `role: "decor"` 로 검사에서 뺀다.

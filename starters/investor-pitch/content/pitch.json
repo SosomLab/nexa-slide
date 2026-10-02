@@ -1,0 +1,269 @@
+{
+ "id": "pitch",
+ "title": "투자 유치 피치",
+ "part": "day1",
+ "version": "0.1",
+ "slides": [
+  {
+   "layout": "cover",
+   "title": "제목은 결론 한 문장으로",
+   "subtitle": "투자 유치 피치 · 누구에게 · 언제",
+   "days": [
+    [
+     "day1",
+     "Day1 설계"
+    ]
+   ],
+   "meta": "작성 부서\n장 제목\nv0.1",
+   "badge": "투자 유치",
+   "notes": "표지 — 문제→해결→시장→트랙션→팀→요청, 숫자 하나가 장마다"
+  },
+  {
+   "layout": "statement",
+   "text": "왜 같은 투자를 했는데 결과가 두 배 차이 났을까?",
+   "kicker": "질문",
+   "sub": "오늘 30분 동안 이 질문에 답합니다",
+   "crumb": "",
+   "notes": "유형: 질문으로 열기 (hook-question) — 청중이 답을 궁금해하게 만드는 질문 하나. 예시 내용을 이 덱의 내용으로 바꾼다."
+  },
+  {
+   "layout": "big_number",
+   "title": "숫자 하나",
+   "value": "42",
+   "unit": "%",
+   "label": "무엇의 숫자",
+   "context": "의미",
+   "compare": [
+    [
+     "전년",
+     "31%"
+    ]
+   ],
+   "crumb": "",
+   "notes": "유형: 숫자 하나 (big-number) — 결론이 되는 숫자 하나와 맥락. 예시 내용을 이 덱의 내용으로 바꾼다."
+  },
+  {
+   "layout": "statement",
+   "text": "속도보다 멈추지 않는 것이 고객이 원한 것이었다",
+   "kicker": "핵심",
+   "sub": "보조 설명",
+   "crumb": "",
+   "notes": "유형: 핵심 한 문장 (one-sentence) — 덱 전체를 꿰는 문장(축). 예시 내용을 이 덱의 내용으로 바꾼다."
+  },
+  {
+   "layout": "compare",
+   "title": "전후 비교",
+   "before": {
+    "label": "Before",
+    "title": "이전",
+    "desc": "설명",
+    "result": "결과"
+   },
+   "after": {
+    "label": "After",
+    "title": "이후",
+    "desc": "설명",
+    "result": "결과"
+   },
+   "crumb": "",
+   "notes": "유형: 전후 비교 (before-after) — 바꾸기 전과 후. 예시 내용을 이 덱의 내용으로 바꾼다."
+  },
+  {
+   "layout": "funnel",
+   "title": "단계별로 줄어드는 수",
+   "stages": [
+    {
+     "label": "방문",
+     "value": "10,000"
+    },
+    {
+     "label": "가입",
+     "value": "2,400",
+     "note": "24%"
+    },
+    {
+     "label": "사용",
+     "value": "1,100",
+     "note": "46%"
+    },
+    {
+     "label": "결제",
+     "value": "320",
+     "note": "29%"
+    }
+   ],
+   "crumb": "",
+   "notes": "유형: 깔때기·시장 규모 (funnel) — 단계별로 줄어드는 수(전환·TAM). 예시 내용을 이 덱의 내용으로 바꾼다."
+  },
+  {
+   "layout": "number_chart",
+   "title": "숫자 하나가 결론",
+   "value": "1.8",
+   "unit": "배",
+   "label": "무엇이 몇 배 늘었나",
+   "metrics": [
+    [
+     "기준",
+     "100"
+    ],
+    [
+     "현재",
+     "180"
+    ]
+   ],
+   "categories": [
+    "1분기",
+    "2분기",
+    "3분기",
+    "4분기"
+   ],
+   "values": [
+    100,
+    120,
+    150,
+    180
+   ],
+   "crumb": "",
+   "notes": "유형: 숫자 + 근거 차트 (number-evidence) — 결론 숫자와 그 추이를 한 장에. 예시 내용을 이 덱의 내용으로 바꾼다."
+  },
+  {
+   "layout": "flow",
+   "title": "순서 흐름",
+   "steps": [
+    {
+     "title": "단계 1",
+     "desc": "설명"
+    },
+    {
+     "title": "단계 2",
+     "desc": "설명"
+    }
+   ],
+   "crumb": "",
+   "notes": "유형: 단계 흐름 (process-flow) — 화살표로 잇는 순서. 예시 내용을 이 덱의 내용으로 바꾼다."
+  },
+  {
+   "layout": "people_cards",
+   "title": "함께하는 사람",
+   "people": [
+    {
+     "name": "이름",
+     "role": "역할",
+     "line": "한 줄 소개"
+    },
+    {
+     "name": "이름",
+     "role": "역할",
+     "line": "한 줄 소개"
+    },
+    {
+     "name": "이름",
+     "role": "역할",
+     "line": "한 줄 소개"
+    }
+   ],
+   "crumb": "",
+   "notes": "유형: 팀·인물 카드 (team) — 사람 2~4명 소개. 예시 내용을 이 덱의 내용으로 바꾼다."
+  },
+  {
+   "layout": "tier_columns",
+   "title": "세 가지 패키지",
+   "columns": [
+    {
+     "name": "기본",
+     "value": "월 30만",
+     "items": [
+      "사용자 10명",
+      "기본 보고서"
+     ]
+    },
+    {
+     "name": "표준",
+     "value": "월 80만",
+     "items": [
+      "사용자 50명",
+      "맞춤 보고서",
+      "전화 지원"
+     ],
+     "pick": true
+    },
+    {
+     "name": "기업",
+     "value": "협의",
+     "items": [
+      "무제한",
+      "전담 담당자",
+      "SLA"
+     ]
+    }
+   ],
+   "crumb": "",
+   "pickLabel": "가장 많이 선택",
+   "notes": "유형: 가격·패키지 (pricing) — 등급별 값과 포함 항목. 예시 내용을 이 덱의 내용으로 바꾼다."
+  },
+  {
+   "layout": "roadmap",
+   "title": "로드맵",
+   "columns": [
+    {
+     "label": "Now",
+     "items": [
+      {
+       "title": "할 일"
+      }
+     ]
+    },
+    {
+     "label": "Next",
+     "items": [
+      {
+       "title": "할 일"
+      }
+     ]
+    },
+    {
+     "label": "Later",
+     "items": [
+      {
+       "title": "할 일"
+      }
+     ]
+    }
+   ],
+   "crumb": "",
+   "notes": "유형: 로드맵 Now·Next·Later (roadmap) — 시기별 할 일 묶음. 예시 내용을 이 덱의 내용으로 바꾼다."
+  },
+  {
+   "layout": "decision_brief",
+   "title": "결론 - 무엇을 하자",
+   "sub": "근거 한 줄",
+   "columns": [
+    {
+     "title": "근거 1",
+     "body": "내용"
+    },
+    {
+     "title": "근거 2",
+     "body": "내용"
+    },
+    {
+     "title": "근거 3",
+     "body": "내용"
+    }
+   ],
+   "ask": "결정할 것",
+   "owner": "결정권자",
+   "due": "MM-DD",
+   "impact": "미결정 시 영향",
+   "crumb": "",
+   "notes": "유형: 결정 요청 (decision-ask) — 무엇을·누가·언제까지 결정. 예시 내용을 이 덱의 내용으로 바꾼다."
+  },
+  {
+   "layout": "end",
+   "title": "End of Document",
+   "sub": "투자 유치 피치",
+   "meta": "문의",
+   "notes": "유형: 끝 (end) — 문서 끝. 예시 내용을 이 덱의 내용으로 바꾼다."
+  }
+ ]
+}

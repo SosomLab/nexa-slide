@@ -1,0 +1,21 @@
+{
+ "label": "강연·이야기·포트폴리오 (11장)",
+ "description": "한 장 한 문장·사진·큰 숫자의 리듬. 기본 구성: 표지 — 사진 전면 → 질문으로 열기 → 사진 + 한 문장 → 어두운 전환 문장 → 숫자 하나 → 인용 — 고객·현장의 말 → 마일스톤 → 사진 도판 → 핵심 한 문장 → 큰 번호 단계·요점 → 끝",
+ "template": "keynote",
+ "config": {
+  "partLabels": {
+   "day1": "강연",
+   "day2": "강연",
+   "day3": "강연",
+   "apx": "부록"
+  },
+  "coverBadge": "강연"
+ },
+ "decks": [
+  "talk"
+ ],
+ "copy": [
+  "content"
+ ],
+ "source": "템플릿 유형 talk-story — docs/research/genspark-skills/05-template-types.md (참고 덱 008, 065, 092, 093)"
+}

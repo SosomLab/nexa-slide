@@ -1,0 +1,21 @@
+{
+ "label": "수업·학생 발표 (12장)",
+ "description": "목표→훅→시범→함께→혼자→나가기, 발표는 질문→방법→결과. 기본 구성: 표지 — 제목형 → 질문으로 열기 → 진행 순서 → 개념 설명 → 구조도 → 단계별 풀이 → 확인 문제 → 사진 도판 → 장단점·대비 카드 → 정리 → 예상 질문(부록) → 끝",
+ "template": "lecture",
+ "config": {
+  "partLabels": {
+   "day1": "수업",
+   "day2": "수업",
+   "day3": "수업",
+   "apx": "부록"
+  },
+  "coverBadge": "수업"
+ },
+ "decks": [
+  "class"
+ ],
+ "copy": [
+  "content"
+ ],
+ "source": "템플릿 유형 classroom — docs/research/genspark-skills/05-template-types.md (참고 덱 083, 023, 052, 070)"
+}
