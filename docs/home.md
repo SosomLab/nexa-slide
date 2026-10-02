@@ -68,6 +68,7 @@ python3 <작업 공간>/nexa.py start      # 작업 공간 서버 → 덱이 있
 | 데모 | 엔진 예제(`example/`)를 기준 폴더의 `nexa-slide-demo/` 로 처음 한 번 복사해 연다 |
 | 템플릿 | 엔진 `studio/templates/` 목록(색 견본·설명·디자인 기준), 시작용 내용(`starters/`, 있을 때). 카드마다 **미리 보기** |
 | 샘플 둘러보기 | 참고할 사이트를 등록·삭제하고 새 탭으로 연다(사용자 설정 `samples`) |
+| 템플릿 검토 | `/review` — 템플릿·레이아웃 후보와 참고 자료를 미리 보고 검토·승인(등록일·검토일·승인일·이력). [research/review](research/review/README.md) |
 
 ### 미리 보기
 

@@ -3,10 +3,12 @@
 템플릿·레이아웃으로 만들 후보와 참고 자료(조사한 덱·사이트·파일)를 **등록하고, 미리 보며 검토하고, 승인**하는 도구다.
 승인된 대상부터 nexa-slide 템플릿·레이아웃으로 구현해 서비스에 넣는다.
 
+시작 페이지(허브)에 붙어 있다 — 시작 페이지 탭 **템플릿 검토** 또는 기본 메뉴 → **템플릿 검토**.
+
 ```bash
-python3 docs/research/review/review_server.py            # → http://127.0.0.1:5590/
-python3 docs/research/review/review_server.py --port 5591 --genspark D:\Projects\kiros33\_research\genspark-slides
+python3 studio/service.py start                          # → http://127.0.0.1:5599/review (작업 공간 서버에서도 /review)
 python3 docs/research/review/import_genspark.py          # Genspark 조사 결과를 등록부에 (다시 실행해도 상태·날짜는 유지)
+python3 docs/research/review/review_server.py --port 5590  # (선택) 따로 띄우기 → http://127.0.0.1:5590/review
 ```
 
 ## 파일
@@ -14,11 +16,11 @@ python3 docs/research/review/import_genspark.py          # Genspark 조사 결�
 | 파일 | 내용 |
 |---|---|
 | `registry.json` | **등록부**(저장소에 둔다) — 대상마다 종류·제목·출처·태그·메모·상태·등록일·검토일·승인일·이력 |
-| `review_server.py` | 로컬 서버(표준 라이브러리) — 등록부 읽기·쓰기, 미리보기 자료, 조사 폴더 원본 제공 |
+| `review_server.py` | 등록부 읽기·쓰기·미리보기 자료·조사 폴더 원본 제공 — 허브 서버(`studio/server.py`)가 불러 `/review`·`/api/review/…`·`/review/gs/…` 에 붙인다(따로 실행도 가능) |
 | `review.html` | 검토 화면 |
 | `import_genspark.py` | `../genspark-skills/data/`(템플릿 후보·새 레이아웃 유형·참고 덱 156개)를 등록부로 |
 
-원본(조사한 덱의 썸네일·장 HTML·그림)은 **저장소 밖** 조사 폴더에서 미리보기로만 읽는다(기본 `<저장소>/../_research/genspark-slides`, `--genspark` 또는 `NEXA_RESEARCH_GENSPARK`).
+원본(조사한 덱의 썸네일·장 HTML·그림)은 **저장소 밖** 조사 폴더에서 미리보기로만 읽는다(기본 `<저장소>/../_research/genspark-slides`, 환경변수 `NEXA_RESEARCH_GENSPARK` 로 바꿈 — 없으면 미리보기만 빠진다).
 등록부에는 우리가 쓴 제목·메모·날짜·상태만 둔다.
 
 ## 대상

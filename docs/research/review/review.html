@@ -3,7 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>검토 등록부 — nexa-slide</title>
+<title>템플릿 검토 — nexa-slide</title>
+<script src="/studio/menu.js"></script>
 <style>
   :root { --p: #A91F24; --pc: #FFDAD6; --bg: #F4F1F1; --card: #fff; --tone: #F2EFEF; --tone2: #E9E4E4; --ink: #1F1B1B; --ink2: #5A4C4C; --line: #D8C2C0;
     --ok: #146C2E; --okc: #C4EED0; --warn: #7D5700; --warnc: #FFDEA6; --info: #0B4A9E; --infoc: #D6E3FF; --no: #93000A; --noc: #FFDAD6;
@@ -50,7 +51,8 @@
 </head>
 <body>
 <header>
-  <h1>검토 등록부</h1>
+  <button id="menuBtn" type="button"></button>
+  <h1>템플릿 검토</h1>
   <span id="stBar"></span>
   <select id="fKind"><option value="">모든 종류</option><option value="template">템플릿</option><option value="layout">레이아웃</option><option value="reference-deck">참고 덱</option><option value="site">사이트</option><option value="file">파일</option></select>
   <select id="fSort"><option value="reg">최근 등록 순</option><option value="rev">최근 검토 순</option><option value="appr">최근 승인 순</option><option value="title">이름 순</option></select>
@@ -84,7 +86,7 @@
   const api = async (m, u, b) => { const r = await fetch(u, { method: m, headers: b ? { "Content-Type": "application/json" } : {}, body: b ? JSON.stringify(b) : undefined }); return r.json(); };
 
   async function load(keep) {
-    const d = await api("GET", "/api/items"); S.items = d.items; S.counts = d.counts;
+    const d = await api("GET", "/api/review/items"); S.items = d.items; S.counts = d.counts;
     $("#stBar").innerHTML = [["", "전체", S.items.length], ...Object.entries(ST).map(([k, v]) => [k, v, d.counts[k] || 0])]
       .map(([k, v, n]) => `<button class="chip${S.st === k ? " on" : ""}" data-st="${k}">${v}<span class="n">${n}</span></button>`).join(" ");
     renderList(); if (keep && S.cur) showDetail(S.cur);
@@ -117,7 +119,7 @@
       ${Object.keys(det).length ? `<div class="card"><table class="kv">${Object.entries(det).filter(([, v]) => v).map(([k, v]) => `<tr><td>${esc(k)}</td><td>${esc(v)}</td></tr>`).join("")}</table></div>` : ""}
       <div class="card" id="pv"><div class="empty" style="padding:6px">미리보기 불러오는 중…</div></div>
       <div class="card hist"><b style="color:var(--ink)">이력</b>${(x.history || []).slice().reverse().map((h) => `<div>${day(h.at)} · ${esc({ register: "등록", review: "검토 시작", approve: "승인", hold: "보류", reject: "제외", reopen: "다시 등록", note: "메모" }[h.action] || h.action)}${h.note ? ` — ${esc(h.note)}` : ""}</div>`).join("")}</div>`;
-    const p = await api("GET", `/api/preview/${encodeURIComponent(id)}`);
+    const p = await api("GET", `/api/review/preview/${encodeURIComponent(id)}`);
     let h = "";
     if (p.decks) h += p.decks.map((d) => `<div class="deckh"><b>${esc(d.no)} ${esc(d.title)}</b><span class="kd">${d.slides.length}장</span></div>
       <div class="thumbs">${d.slides.map((s, i) => thumb(s)).join("") || `<div class="empty">미리보기 원본이 없습니다(조사 폴더 확인)</div>`}</div>`).join("");
@@ -136,7 +138,7 @@
   }
   async function act(a) {
     const note = $("#note") ? $("#note").value : "";
-    await api("POST", `/api/items/${encodeURIComponent(S.cur)}`, { action: a, note: a === "note" ? note : (note !== (S.items.find((x) => x.id === S.cur) || {}).note ? note : "") });
+    await api("POST", `/api/review/items/${encodeURIComponent(S.cur)}`, { action: a, note: a === "note" ? note : (note !== (S.items.find((x) => x.id === S.cur) || {}).note ? note : "") });
     await load(true);
   }
   document.addEventListener("click", (e) => {
@@ -158,7 +160,7 @@
   $("#aSave").onclick = async () => {
     const kind = $("#aKind").value, ref = $("#aRef").value.trim();
     const source = /^https?:/i.test(ref) ? { type: "site", url: ref } : ref ? { type: "file", path: ref } : {};
-    const r = await api("POST", "/api/items", { kind, title: $("#aTitle").value, source, note: $("#aNote").value, tags: $("#aTags").value.split(",").map((t) => t.trim()).filter(Boolean) });
+    const r = await api("POST", "/api/review/items", { kind, title: $("#aTitle").value, source, note: $("#aNote").value, tags: $("#aTags").value.split(",").map((t) => t.trim()).filter(Boolean) });
     if (r.error) { alert(r.error); return; }
     $("#addDlg").classList.remove("on"); ["#aTitle", "#aRef", "#aTags", "#aNote"].forEach((s) => ($(s).value = ""));
     S.st = ""; $("#fSort").value = "reg"; await load(); showDetail(r.id);
@@ -171,6 +173,7 @@
     if (v && v[0] === "v") openView(+v.slice(1) - 1);
   }
   window.addEventListener("hashchange", fromHash);
+  if (window.NexaMenu) NexaMenu.mount($("#menuBtn"));  // 시작 페이지와 같은 기본 메뉴
   load().then(fromHash);
 })();
 </script>

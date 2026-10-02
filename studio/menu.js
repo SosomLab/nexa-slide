@@ -60,7 +60,7 @@
   .nx-toast { position: fixed; left: 50%; bottom: 28px; transform: translateX(-50%); background: #1F1B1B; color: #fff; padding: 9px 16px; border-radius: 10px; z-index: 1100; font: 13px var(--font, sans-serif); max-width: 80vw; }`;
 
   let root = null, home = null, finding = false;
-  const here = () => location.pathname.endsWith("/home.html") ? (location.hash.slice(1) || "start") : location.pathname.startsWith("/studio") ? "studio" : "";
+  const here = () => location.pathname.endsWith("/home.html") ? (location.hash.slice(1) || "start") : location.pathname.startsWith("/review") ? "review" : location.pathname.startsWith("/studio") ? "studio" : "";
   const color = (s) => { let h = 0; for (const c of s) h = (h * 31 + c.charCodeAt(0)) >>> 0; return `hsl(${h % 360} 45% 45%)`; };
 
   function toast(msg, ms = 3200) {
@@ -96,6 +96,7 @@
       it("demo", "play", "데모", "/studio/home.html#demo"),
       it("templates", "layout", "템플릿", "/studio/home.html#templates"),
       it("samples", "globe", "샘플 둘러보기", "/studio/home.html#samples"),
+      it("review", "search", "템플릿 검토", "/review"),
       '<div class="nx-sep"></div>',
       `<div class="nx-sec"><span>최근 작업</span><button type="button" data-find title="최근 작업 찾기">${icon("search", 15)}</button></div>`,
       `<div class="nx-find${finding ? " on" : ""}"><input type="search" placeholder="이름·경로로 찾기" data-q></div>`,
