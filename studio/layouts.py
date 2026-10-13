@@ -365,12 +365,15 @@ def sequence(b, f):
 def table(b, f):
     b.head(f["title"], f.get("sub"))
     rows = [f["header"]] + f["rows"]
-    rh = f.get("rowH", 46)
-    b.add({"type": "table", "x": 64, "y": 180, "w": 1152, "h": rh * len(rows), "rows": rows,
-           "colW": f.get("colW", [1] * len(f["header"])), "header": True, "headFill": b.dcc, "headColor": b.dco,
-           "size": 16, "rule": "surface-container-high", "colFont": f.get("colFont")})
+    rh = f.get("rowH", 46)  # 숫자 = 모든 행 같은 높이 · 목록 = 행별 높이(px, 머리 행부터)
+    el = {"type": "table", "x": 64, "y": 180, "w": 1152, "h": sum(rh) if isinstance(rh, list) else rh * len(rows), "rows": rows,
+          "colW": f.get("colW", [1] * len(f["header"])), "header": True, "headFill": b.dcc, "headColor": b.dco,
+          "size": 16, "rule": "surface-container-high", "colFont": f.get("colFont")}
+    if isinstance(rh, list):
+        el["rowH"] = rh
+    b.add(el)
     if f.get("footnote"):
-        b.text(64, 180 + rh * len(rows) + 20, 1152, 50, f["footnote"], size=15, color="on-surface-variant", lineHeight=1.6)
+        b.text(64, 180 + el["h"] + 20, 1152, 50, f["footnote"], size=15, color="on-surface-variant", lineHeight=1.6)
     b.foot(f.get("crumb", ""))
 
 
