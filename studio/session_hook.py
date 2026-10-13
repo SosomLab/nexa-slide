@@ -22,6 +22,8 @@ def workspace():
         for q in (p, *p.parents):
             if (q / "nexa-slide.json").is_file():
                 return q
+            if (q / "slides" / "nexa-slide.json").is_file():  # 저장소형 — 세션을 저장소 루트에서 연 경우
+                return q / "slides"
     return None
 
 

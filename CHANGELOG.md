@@ -1,5 +1,20 @@
 # 변경 이력
 
+## 0.14.0 - 2026-10-14 · 저장소형 작업 공간 (지정 폴더 = 저장소 루트, 슬라이드 = slides/)
+
+- **지정한 폴더 = 저장소 관리 기준 폴더**: `init_workspace.py <폴더>` 가 폴더 자체가 아니라 `<폴더>/slides/` 에 작업 공간을 만든다 — 실행은 `python3 <폴더>/slides/nexa.py start`. 루트는 사용자가 기초 자료를 모아 정리하고 관련 소스도 개발하는 곳(구조 자유), 슬라이드는 그 자료를 근거로 `slides/` 에서 만든다.
+- **루트에는 폴더를 만들지 않는다**: 만드는 폴더는 `slides/` 하나. 루트에는 md 만 — `SLIDES.md`(개념·구조·슬라이드 서버 실행 방법), 없을 때만 `CLAUDE.md`(`@slides/CLAUDE.md` 를 불러옴)·`AGENTS.md`. 이미 있는 파일은 건드리지 않고 넣을 한 줄을 알린다. `slides/CLAUDE.md` 에 "저장소 자료를 근거로" 안내를 덧붙인다.
+- `nexa-slide.json` 에 `repo.root`. 폴더 이름이 `slides` 면 그 폴더가 작업 공간(상위 = 루트), 이미 작업 공간이 있는 폴더는 그대로 쓴다. `--flat`(예전 방식) · `--slides-dir`.
+- 작업 공간 찾기(`common.py`)·세션 훅이 저장소 루트에서 `slides/` 를 찾는다 — 루트에서 `studio/service.py status` 도 동작.
+- 시작 페이지: 만들 위치 = 저장소 루트(작업 공간 `slides/` 표시), git 저장소를 고르면 하위 폴더를 비움, 저장소 루트를 열면 `slides/` 를 연다. 미리보기·데모는 예전처럼 폴더 하나.
+- 시작 페이지 **작업 공간 폴더** 칸(저장 위치 아래, 기본 `slides`) — 예: `ppt` 면 `<폴더>/ppt`(`--slides-dir ppt`). 열기는 루트 바로 아래의 작업 공간 폴더도 찾는다.
+- 수정: 0.9.0 에서 빠진 시작 페이지 **열기·데모**(`open_ws`·`demo` 없음 → `NameError`, 최근 작업 열기 실패) 되살림.
+- 시작 페이지 "명령으로 만들기"의 **bash · zsh** 명령은 경로 구분자를 `/` 로(Windows 도 `D:/…`) — PowerShell 명령은 그대로.
+- 수정: 시작 페이지 기준 폴더 설정의 **찾아보기** 창이 설정 창 뒤에 가려지던 문제, **시작용 내용**을 골라도 "빈 시작"으로 돌아가던 문제(템플릿 목록을 다시 그릴 때 선택이 풀림).
+- macOS·Linux: 서버 포트 재사용(`SO_REUSEADDR`)을 Windows 에서만 끔 — POSIX 에서 `restart`·다시 열기가 방금 끈 포트를 30~60초 열지 못하던 문제. 빈 포트 판정도 같은 규칙.
+  세션 훅의 파이썬 이름을 실행할 때 고름(`python3` 없으면 `python`) — 만든 PC 와 여는 PC 의 OS 가 달라도 동작. 글꼴 포함 저장(`embed_fonts`)은 Windows 가 아니면 글꼴 설치 전에 안내하고 끝냄.
+  `service.py stop` 이 이미 끝난 pid 에서 트레이스백 대신 정리. 낡은 `install_fonts.ps1` 안내 → `python3 nexa.py install_fonts`.
+
 ## 0.13.4 - 2026-10-13 · Windows venv 서비스 시작 시 콘솔 창 수정
 
 - Windows 에서 venv 의 Python(`.venv\Scripts\python.exe <작업 공간>\nexa.py start`)으로 서비스를 시작하면 빈 콘솔 창이 뜨고, 그 창을 닫으면 서버가 끝나던 문제 수정. venv 의 `python.exe` 는 기본 Python 을 자식으로 띄우는 런처라 `DETACHED_PROCESS`(콘솔 없음)로 띄우면 자식이 새 콘솔을 연다 - `service.py` 가 `DETACHED_PROCESS` 없이 `CREATE_NO_WINDOW` 의 숨은 콘솔을 물려주도록 바꿨다. 시작한 터미널을 닫아도 서버가 유지되는 동작은 그대로(시스템 Python·venv 모두 start·restart·stop 확인).

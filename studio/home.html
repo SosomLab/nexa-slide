@@ -209,11 +209,14 @@
           <label class="f">저장 위치</label>
           <label class="opt on" data-loc="default"><input type="radio" name="loc" value="default" checked><div><b>기본 위치</b><div class="hint" id="locDefaultHint"></div></div></label>
           <label class="opt" data-loc="custom"><input type="radio" name="loc" value="custom"><div style="flex:1;min-width:0"><b>폴더·저장소 지정</b>
-            <div class="hint">지정한 폴더 아래에 내용(content·decks·assets)과 서버 실행 정보(nexa-slide.json · nexa.py)를 넣습니다.</div>
+            <div class="hint">지정한 폴더를 저장소 관리 기준 폴더(루트)로 씁니다 - 기초 자료 수집·정리와 관련 소스 개발은 여기서 자유롭게 하고, 슬라이드(최종 산출물)는 아래 작업 공간 폴더에 만듭니다. 루트에는 안내 <code>SLIDES.md</code> 만 두고 이미 있는 파일은 건드리지 않습니다.</div>
             <div class="row" style="margin-top:6px"><input type="text" id="fFolder" placeholder="폴더 경로"><button type="button" class="chip sm" id="fBrowse">찾아보기</button></div>
-            <label class="f" for="fSub">하위 폴더 (비우면 그 폴더에 바로)</label>
-            <input type="text" id="fSub" placeholder="예: slides">
+            <label class="f" for="fSub">하위 폴더 (비우면 그 폴더가 저장소 루트)</label>
+            <input type="text" id="fSub" placeholder="예: my-talk">
           </div></label>
+          <label class="f" for="fWs">작업 공간 폴더</label>
+          <div class="row"><input type="text" id="fWs" value="slides" maxlength="60" style="max-width:200px" placeholder="slides">
+            <span class="hint" style="margin:0">저장소 루트 아래 이 이름의 폴더에 슬라이드(작업 공간)를 만듭니다 - 예: <code>ppt</code> 면 <code>&lt;폴더&gt;/ppt</code></span></div>
           <div class="path" id="fPath"></div>
           <label class="f" for="fPort">포트</label>
           <div class="row"><input type="text" id="fPort" inputmode="numeric" maxlength="5" style="max-width:120px" placeholder="자동">
@@ -257,8 +260,9 @@
       <div class="card tstep"><span class="num">1</span><div><h3>작업 공간을 정한다</h3>
         제작 도구(nexa-slide 엔진)는 내용을 자기 폴더에 두지 않습니다. 제작마다 작업 공간 폴더를 하나 만듭니다.
         <ul><li>기본 위치: 문서 폴더 아래 <code>NexaSlide/&lt;제목&gt;</code></li>
-          <li>교재·프로젝트 저장소 안에 두려면 "폴더·저장소 지정"으로 그 저장소를 고르고 하위 폴더(예: <code>slides</code>)를 적습니다. 그러면 내용이 그 저장소의 git 이력으로 관리됩니다.</li>
-          <li>작업 공간 구성: <code>nexa-slide.json</code>(포트·템플릿 선택) · <code>nexa.py</code>(실행기) · <code>content/</code>(내용 원본) · <code>decks/</code>(편집 대상) · <code>assets/</code>(그림) · <code>BRIEF.md</code>(작성 방향)</li></ul></div></div>
+          <li>고른 폴더는 저장소 관리 기준 폴더(루트)입니다: 기초 자료를 모아 정리하고 필요하면 관련 소스도 개발합니다(구조 자유). 슬라이드는 그 자료를 근거로 <code>slides/</code> 에서 만듭니다. 루트에는 폴더를 만들지 않고 <code>SLIDES.md</code>(개념·서버 실행)와, 없을 때만 <code>CLAUDE.md</code>·<code>AGENTS.md</code> 를 둡니다.</li>
+          <li>이미 있는 저장소에 붙이려면 "폴더·저장소 지정"으로 그 저장소를 고르고 하위 폴더는 비웁니다. 내용이 그 저장소의 git 이력으로 관리됩니다.</li>
+          <li>작업 공간(<code>slides/</code>) 구성: <code>nexa-slide.json</code>(포트·템플릿 선택) · <code>nexa.py</code>(실행기 - <code>python3 slides/nexa.py start</code>) · <code>content/</code>(내용 원본) · <code>decks/</code>(편집 대상) · <code>assets/</code>(그림) · <code>BRIEF.md</code>(작성 방향)</li></ul></div></div>
       <div class="card tstep"><span class="num">2</span><div><h3>템플릿을 고르고 방향을 적는다</h3>
         색·글꼴·글자 크기는 엔진의 <b>템플릿</b>에 있고, 작업 공간은 이름만 고릅니다. 목적·대상·작성 방향·참고 자료를 적어 두면 Claude 세션이 초안을 쓸 때 기준으로 씁니다.
         <ul><li>자료에 없는 내용은 지어내지 않고 확인 질문으로 남깁니다.</li></ul></div></div>
@@ -338,7 +342,7 @@
     <div class="hint" id="fsInfo" style="margin:-2px 0 6px"></div>
     <div class="dirs" id="fsDirs"></div>
   </div>
-  <div class="mf"><span class="hint" style="margin-right:auto">저장소(git) 폴더를 고르면 하위 폴더(예: slides)에 만드는 것을 권합니다.</span>
+  <div class="mf"><span class="hint" style="margin-right:auto">고른 폴더가 저장소 루트가 되고 작업 공간은 그 아래 slides/ 에 만듭니다.</span>
     <button type="button" class="chip" data-close>취소</button><button type="button" class="chip primary" id="fsPick">이 폴더 선택</button></div>
 </div></div>
 <!-- 기준 폴더 설정 -->
@@ -413,19 +417,21 @@
       <div class="sw">${t.swatches.map((c) => `<i style="background:${c}"></i>`).join("")}</div><b>${esc(t.label)}</b><small>${esc(t.name)}</small></button>`).join("");
     if (d.starters.length) {
       $("#starterBox").style.display = "";
+      const cur = $("#fStarter").value;  // 템플릿을 다시 그려도 고른 시작용 내용은 그대로(목록을 새로 만들면 첫 항목으로 돌아간다)
       $("#fStarter").innerHTML = '<option value="">빈 시작(표지 · 글머리 · 표 · 정리 · 끝 5장)</option>' +
         d.starters.map((s) => `<option value="${esc(s.name)}">${esc(s.label)}</option>`).join("");
+      $("#fStarter").value = d.starters.some((s) => s.name === cur) ? cur : "";
     }
   }
   $("#fTpls").addEventListener("click", (e) => { const b = e.target.closest("[data-tpl]"); if (!b) return; H.tpl = b.dataset.tpl; renderTpls(); schedulePlan(); });
   $("#fStarter").addEventListener("change", () => { const s = H.home.starters.find((x) => x.name === $("#fStarter").value); if (s && s.template) { H.tpl = s.template; renderTpls(); } schedulePlan(); });
   const loc = () => (document.querySelector("input[name=loc]:checked") || {}).value;
-  // 하위 폴더 자동값 - 폴더·저장소 지정일 때만 제목(저장소를 골랐으면 slides)으로 채운다. 사용자가 직접 고치면 그 뒤로는 건드리지 않는다.
+  // 하위 폴더 자동값 - 폴더·저장소 지정일 때만 제목으로 채운다(저장소를 골랐으면 비움 = 그 저장소가 루트). 사용자가 직접 고치면 그 뒤로는 건드리지 않는다.
   const SUB = { dirty: false, git: false };
   function autoSub() {
     if (loc() !== "custom" || SUB.dirty) return;
     const t = $("#fTitle").value.trim();
-    $("#fSub").value = SUB.git ? "slides" : t ? slug(t) : "";
+    $("#fSub").value = SUB.git ? "" : t ? slug(t) : "";
   }
   function setLoc(v) {
     document.querySelector(`input[name=loc][value=${v}]`).checked = true; $$(".opt").forEach((o) => o.classList.toggle("on", o.dataset.loc === v));
@@ -439,7 +445,13 @@
     if (loc() === "custom") { const f = $("#fFolder").value.trim(); return f ? join(f, $("#fSub").value.trim()) : ""; }
     return join(H.home.projectsRoot, slug(t || "제목"));
   }
-  function updatePath() { if (!H.home) return; autoSub(); const t = target(); $("#fPath").textContent = t ? `만들 위치: ${t}` : "만들 위치: 폴더를 고르세요"; schedulePlan(); }
+  const wsName = () => $("#fWs").value.trim().replace(/^[\\/]+|[\\/]+$/g, "") || "slides";
+  function updatePath() {
+    if (!H.home) return; autoSub(); const t = target();
+    const wn = wsName(), last = t.split(/[\\/]/).filter(Boolean).pop();
+    const ws = !t ? "" : last === wn ? t : join(t, wn);  // init_workspace: 고른 폴더 = 저장소 루트, 작업 공간 = <루트>/<작업 공간 폴더>
+    $("#fPath").textContent = t ? `만들 위치: ${ws === t ? t : `${t} (작업 공간 ${ws})`}` : "만들 위치: 폴더를 고르세요"; schedulePlan();
+  }
 
   // ---------- 명령으로 만들기 ----------
   // 서버의 plan(/api/project action=plan)이 만든 init_workspace 명령을 그대로 보여 준다. "만들고 Studio 열기"도 같은 명령을 실행한다.
@@ -449,7 +461,7 @@
     const custom = loc() === "custom";
     const b = { title: $("#fTitle").value.trim(), template: H.tpl, starter: $("#fStarter").value || null, port: $("#fPort").value.trim(),
       purpose: $("#fPurpose").value, audience: $("#fAudience").value, direction: $("#fDirection").value, materials: $("#fMaterials").value,
-      askDraft: $("#fAsk").checked, loc: loc() };
+      askDraft: $("#fAsk").checked, loc: loc(), slidesDir: wsName() };
     if (custom) { b.folder = $("#fFolder").value.trim(); b.sub = $("#fSub").value.trim(); }
     return b;
   }
@@ -488,7 +500,7 @@
   });
   ["#fPort", "#fPurpose", "#fAudience", "#fDirection", "#fMaterials"].forEach((x) => $(x).addEventListener("input", schedulePlan));
   $("#fAsk").addEventListener("change", schedulePlan);
-  ["#fTitle", "#fFolder", "#fSub"].forEach((s) => $(s).addEventListener("input", updatePath));
+  ["#fTitle", "#fFolder", "#fSub", "#fWs"].forEach((s) => $(s).addEventListener("input", updatePath));
   $("#fFolder").addEventListener("focus", () => setLoc("custom"));
   $("#fBrowse").onclick = () => { setLoc("custom"); pickFolder("저장 위치 고르기", $("#fFolder").value, (p, info) => { $("#fFolder").value = p; SUB.git = !!info.git; updatePath(); }); };
   $("#newForm").addEventListener("submit", async (e) => {
@@ -498,7 +510,7 @@
     if (custom && !$("#fFolder").value.trim()) { toast("저장할 폴더를 고르세요"); return; }
     const body = { action: "create", title: $("#fTitle").value.trim(), template: H.tpl, starter: $("#fStarter").value || null,
       purpose: $("#fPurpose").value, audience: $("#fAudience").value, direction: $("#fDirection").value, materials: $("#fMaterials").value,
-      askDraft: $("#fAsk").checked, port: $("#fPort").value.trim() || (H.plan && H.plan.port) || "", loc: loc() };
+      askDraft: $("#fAsk").checked, port: $("#fPort").value.trim() || (H.plan && H.plan.port) || "", loc: loc(), slidesDir: wsName() };
     if (custom) { body.folder = $("#fFolder").value.trim(); body.sub = $("#fSub").value.trim(); }
     busy(true, "작업 공간을 만들고 서버를 띄우는 중...");
     const r = await post("/api/project", body);
@@ -518,8 +530,8 @@
   }
   function offerInit(d) {
     location.hash = "new";
-    setLoc("custom"); $("#fFolder").value = d.path; $("#fSub").value = d.git ? "slides" : ""; SUB.dirty = true; updatePath();  // 연 폴더 자리에 만든다 - 자동값으로 바꾸지 않음
-    toast(d.git ? "저장소에는 작업 공간이 없습니다 - 하위 폴더(slides)에 새로 만들 수 있습니다" : "이 폴더에 작업 공간이 없습니다 - 여기에 새로 만들 수 있습니다", 5000);
+    setLoc("custom"); $("#fFolder").value = d.path; $("#fSub").value = ""; SUB.dirty = true; updatePath();  // 연 폴더를 저장소 루트로 만든다 - 자동값으로 바꾸지 않음
+    toast(`${d.git ? "저장소" : "이 폴더"}에 작업 공간이 없습니다 - 이 폴더를 저장소 루트로, slides/ 에 새로 만들 수 있습니다`, 5000);
   }
   window.addEventListener("nx-need-init", (e) => offerInit(e.detail));
   $("#oGo").onclick = () => openPath($("#oPath").value.trim());
@@ -701,8 +713,13 @@
   });
 
   // ---------- 폴더 고르기 ----------
-  let fsCb = null, fsCur = null;
-  function closeModals() { $$(".modal-back").forEach((m) => m.classList.remove("on")); }
+  let fsCb = null, fsCur = null, fsBack = null;  // fsBack = 폴더 고르기를 연 창(기준 폴더 설정) - 고르지 않고 닫으면 그 창으로 돌아간다
+  function closeModals() {
+    const back = $("#fsModal").classList.contains("on") ? fsBack : null;
+    fsBack = null;
+    $$(".modal-back").forEach((m) => m.classList.remove("on"));
+    if (back) back.classList.add("on");
+  }
   $$("[data-close]").forEach((b) => (b.onclick = closeModals));
   $$(".modal-back").forEach((m) => m.addEventListener("mousedown", (e) => { if (e.target === m) closeModals(); }));
   document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeModals(); });
@@ -720,13 +737,17 @@
     $("#fsDirs").innerHTML = d.dirs.length ? d.dirs.map((x) => `<div class="dir" data-go="${esc(x.path)}">${icon(x.git ? "repo" : "folder")}<span class="n">${esc(x.name)}</span>
       ${x.workspace ? '<span class="badge ok">작업 공간</span>' : ""}${x.git ? '<span class="badge git">git</span>' : ""}</div>`).join("") : '<div class="empty">하위 폴더가 없습니다</div>';
   }
-  function pickFolder(title, start, cb) { fsCb = cb; $("#fsTitle").textContent = title; $("#fsModal").classList.add("on"); fsLoad(start); }
+  // from = 이 창을 연 모달 - 같은 겹침 순서라 뒤 모달이 폴더 고르기를 가리므로 잠시 숨겼다가 닫을 때 다시 연다
+  function pickFolder(title, start, cb, from) {
+    fsCb = cb; fsBack = from || null; if (from) from.classList.remove("on");
+    $("#fsTitle").textContent = title; $("#fsModal").classList.add("on"); fsLoad(start);
+  }
   $("#fsUp").innerHTML = icon("up");
   $("#fsUp").onclick = () => fsCur && fsCur.parent && fsLoad(fsCur.parent);
   $("#fsGo").onclick = () => fsLoad($("#fsPath").value.trim());
   $("#fsPath").addEventListener("keydown", (e) => { if (e.key === "Enter") fsLoad($("#fsPath").value.trim()); });
   $("#fsModal").addEventListener("click", (e) => { const g = e.target.closest("[data-go]"); if (g) fsLoad(g.dataset.go); });
-  $("#fsPick").onclick = () => { if (!fsCur) return; closeModals(); fsCb && fsCb(fsCur.path, fsCur); };
+  $("#fsPick").onclick = () => { if (!fsCur) return; fsBack = null; closeModals(); fsCb && fsCb(fsCur.path, fsCur); };
 
   // ---------- 기준 폴더 설정 ----------
   function openSettings() {
@@ -736,7 +757,7 @@
       (H.home.projectsRootFromEnv ? "<br>환경변수 NEXA_SLIDE_PROJECTS 가 지정되어 있어 그 값이 먼저 쓰입니다." : "");
     $("#setModal").classList.add("on");
   }
-  $("#setBrowse").onclick = () => pickFolder("기준 폴더 고르기", $("#setRoot").value, (p) => { $("#setRoot").value = p; $("#setModal").classList.add("on"); });
+  $("#setBrowse").onclick = () => pickFolder("기준 폴더 고르기", $("#setRoot").value, (p) => { $("#setRoot").value = p; $("#setModal").classList.add("on"); }, $("#setModal"));
   $("#setReset").onclick = () => ($("#setRoot").value = "");
   $("#setSave").onclick = async () => {
     const v = $("#setRoot").value.trim();

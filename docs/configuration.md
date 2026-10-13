@@ -6,7 +6,7 @@
 
 1. 명령행 `--workspace <경로>` (또는 `-W`, `--workspace=<경로>`) — 어느 위치에 써도 된다
 2. 환경변수 `NEXA_SLIDE_WORKSPACE`
-3. 현재 폴더부터 위로 올라가며 `nexa-slide.json` 이 있는 첫 폴더
+3. 현재 폴더부터 위로 올라가며 `nexa-slide.json` 이 있는 첫 폴더 — 그 폴더의 `slides/` 에 있어도 찾는다(저장소형: 저장소 루트나 그 아래 폴더에서 실행). 작업 공간 폴더 이름을 바꿨으면(`--slides-dir ppt`) 루트에서는 `--workspace ppt` 를 주거나 `ppt/nexa.py` 로 실행한다
 
 못 찾으면 현재 폴더를 작업 공간으로 쓰지 않는다(엔진 폴더에 내용이 생기지 않게).
 서버·`service.py`·`status.py` 는 허브(시작 페이지)로 뜨고, 나머지 도구는 안내를 내고 끝난다.
@@ -38,6 +38,7 @@
 | `coverBadge` | `Presentation` | 표지 배지 기본 문구(content 의 `badge` 가 우선) |
 | `check` | `{}` | 검사에서 뺄 것만 — `ignore`(규칙 id 목록), `ignoreSlides`(덱별 슬라이드 id). 기준값(최소 pt)은 템플릿 |
 | `endNextNote` | `""` | 문서 끝(EoD) "다음 순서" 칩 뒤에 붙일 설명(예: `"  (장 번호가 아니라 교육 순서)"`) |
+| `repo` | 없음 | 저장소형 작업 공간 표시(`init_workspace.py` 가 씀) — `root`(저장소 관리 기준 폴더, 보통 `..`). 시작 페이지가 저장소 루트를 보인다 |
 
 예 — 교재 저장소의 `ppt/` 를 작업 공간으로, 그림 경로는 저장소 루트 기준:
 

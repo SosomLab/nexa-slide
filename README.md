@@ -18,10 +18,10 @@ python3 -m pip install -r requirements.txt
 
 python3 studio/service.py start      # 시작 페이지 → http://127.0.0.1:5599/  (새로 만들기 · 열기 · 튜토리얼 · 데모 · 템플릿 · 샘플)
 
-# 명령으로 작업 공간 만들기 → docs/new-project.md
-python3 studio/init_workspace.py ../my-talk/slides --title "신제품 소개"
+# 명령으로 작업 공간 만들기 → docs/new-project.md  (준 폴더 = 저장소 루트, 작업 공간 = 그 아래 slides/)
+python3 studio/init_workspace.py ../my-talk --title "신제품 소개"
 # 강의 교안이면 시작용 교안으로 → docs/lecture-starter.md
-python3 studio/init_workspace.py ../my-course/slides --title "과정 이름" --starter lecture-course
+python3 studio/init_workspace.py ../my-course --title "과정 이름" --starter lecture-course
 python3 ../my-talk/slides/nexa.py start   # 덱이 있으면 바로 Studio
 ```
 
@@ -69,6 +69,10 @@ nexa-slide/
 
 **작업 공간**은 덱을 만드는 쪽(교재·발표 저장소)의 폴더다. 엔진은 작업 공간의 `nexa-slide.json` 을 읽어
 `content/`·`decks/`·`out/`·브랜드(로고)·토큰을 찾는다. 엔진과 내용이 분리되어 있어 엔진만 업데이트할 수 있다.
+
+새로 만들 때 고른 폴더는 **저장소 관리 기준 폴더(루트)**다 — 기초 자료를 모아 정리하고 필요하면 관련 소스도 개발한다(구조 자유).
+슬라이드는 그 자료를 근거로 그 아래 **`slides/`**(이름은 바꿀 수 있음 — `--slides-dir`)에서 만든다. nexa-slide 가 만드는 폴더는 이것 하나이고,
+루트에는 `SLIDES.md`(개념·서버 실행)와, 없을 때만 `CLAUDE.md`·`AGENTS.md` 를 둔다([docs/new-project.md](docs/new-project.md#2-작업-공간-만들기)).
 
 ## 문서
 

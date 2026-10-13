@@ -26,7 +26,7 @@ def _workspace():
     """작업 공간(덱·내용·산출물이 있는 폴더)을 정한다.
 
     우선순위: 명령행 --workspace <경로> > 환경변수 NEXA_SLIDE_WORKSPACE > 현재 폴더부터 위로 올라가며
-    nexa-slide.json 이 있는 첫 폴더. 못 찾으면 None — 현재 폴더(엔진 폴더일 수 있다)를 작업 공간으로 쓰지 않는다.
+    nexa-slide.json 이 있는 첫 폴더(그 폴더의 slides/ 에 있으면 그것 — 저장소형). 못 찾으면 None — 현재 폴더(엔진 폴더일 수 있다)를 작업 공간으로 쓰지 않는다.
     --workspace 는 여기서 꺼내 지우므로 각 도구의 인자 해석과 겹치지 않는다.
     """
     argv = sys.argv
@@ -46,6 +46,8 @@ def _workspace():
     for d in (cwd, *cwd.parents):
         if (d / CONFIG_NAME).is_file():
             return d
+        if (d / "slides" / CONFIG_NAME).is_file():  # 저장소형 — 저장소 루트(또는 그 아래 폴더)에서 실행
+            return d / "slides"
     return None
 
 

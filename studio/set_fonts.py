@@ -7,7 +7,7 @@
 
 고른 이름은 작업 공간 nexa-slide.json 의 "fontPreset" 에 저장된다(템플릿 파일은 바꾸지 않는다).
 글꼴은 덱 JSON에 들어가지 않고 편집기 표시(render.js)·PPTX 내보내기(export_pptx.py)가 읽는다.
-바꾼 뒤: 편집기는 바로 반영, PPTX 는 다시 내보낸다. 새 글꼴은 install_fonts.ps1 로 먼저 설치.
+바꾼 뒤: 편집기는 바로 반영, PPTX 는 다시 내보낸다. 새 글꼴은 python3 nexa.py install_fonts 로 먼저 설치.
 """
 import json
 import sys
