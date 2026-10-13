@@ -78,9 +78,12 @@
   .chk { display: flex; gap: 8px; align-items: center; font-size: 13px; margin-right: auto; }
   /* 목록 */
   .list { display: grid; gap: 2px; grid-template-columns: minmax(0, 1fr); }
-  .ritem { display: flex; gap: 10px; align-items: center; padding: 8px 10px; border-radius: 10px; }
+  .ritem { display: flex; gap: 10px; align-items: flex-start; padding: 8px 10px; border-radius: 10px; }
   .ritem:hover { background: var(--tone); }
-  .ritem .t { flex: 1; min-width: 0; cursor: pointer; }
+  .ritem .rb { flex: 1; min-width: 0; }  /* 1줄 제목 · 2줄 경로 · 3줄 덱·포트·버튼 */
+  .ritem .t { min-width: 0; cursor: pointer; }
+  .ritem .rm { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 6px; margin-top: 5px; }  /* 3줄은 오른쪽 정렬 */
+  .ritem .rm .ib { height: 24px; min-width: 24px; padding: 0 4px; }
   .ritem .t b { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .ritem .t small { display: block; color: var(--ink2); font-size: 11.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .av { width: 30px; height: 30px; border-radius: 9px; color: #fff; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; flex: none; }
@@ -551,9 +554,9 @@
     const list = H.home.recent.filter((r) => !q || `${r.title} ${r.path}`.toLowerCase().includes(q));
     $("#recent").innerHTML = list.length ? list.map((r) => `<div class="ritem">
       <span class="av" style="background:${color(r.path)}">${esc((r.title || "?").trim().charAt(0).toUpperCase())}</span>
-      <div class="t" data-open="${esc(r.path)}" title="${esc(r.path)}"><b>${esc(r.title || r.path)}</b><small>${esc(r.path)}</small></div>
-      ${!r.exists ? '<span class="badge">폴더 없음</span>' : r.workspace ? `${r.git ? `<span class="badge git">git</span>` : ""}<span class="badge">덱 ${r.decks.length}</span>${svc(r)}` : '<span class="badge">작업 공간 아님</span>'}
-      <button type="button" class="ib" data-forget="${esc(r.path)}" title="목록에서 빼기(폴더는 그대로)">${icon("x", 14)}</button></div>`).join("")
+      <div class="rb"><div class="t" data-open="${esc(r.path)}" title="${esc(r.path)}"><b>${esc(r.title || r.path)}</b><small>${esc(r.path)}</small></div>
+        <div class="rm">${!r.exists ? '<span class="badge">폴더 없음</span>' : r.workspace ? `${r.git ? `<span class="badge git">git</span>` : ""}<span class="badge">덱 ${r.decks.length}</span>${svc(r)}` : '<span class="badge">작업 공간 아님</span>'}
+          <button type="button" class="ib" data-forget="${esc(r.path)}" title="목록에서 빼기(폴더는 그대로)">${icon("x", 14)}</button></div></div></div>`).join("")
       : `<div class="empty">${q ? "찾는 작업이 없습니다" : "아직 연 작업이 없습니다. 새로 만들거나 폴더를 열어 보세요."}</div>`;
   }
   // 실행 상태 - 실행 중이면 쓰는 포트와 중지, 꺼져 있으면 설정 포트와 시작. 이 페이지를 내주는 작업 공간 서버는 끄지 않는다.
