@@ -13,7 +13,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from paths import (ENGINE, default_projects_root, documents_dir, forget, inside_engine, load_settings, projects_root,
+from paths import (ENGINE, default_projects_root, documents_dir, forget, inside_engine, load_settings, load_ws_config, projects_root,
                    remember, save_settings, user_dir)
 
 STUDIO = ENGINE / "studio"
@@ -122,9 +122,9 @@ def find_workspace(p, deep=False):
 def workspace_info(path):
     """작업 공간 요약 - 제목·템플릿·덱 수·실행 중 서버(server.json 기준, 응답은 확인하지 않음)."""
     p = Path(path)
-    cfg = _read_json(p / CONFIG_NAME)
-    if cfg is None:
+    if not (p / CONFIG_NAME).is_file():
         return {"path": str(p), "exists": p.is_dir(), "workspace": False}
+    cfg = load_ws_config(p)  # PC 별 nexa-slide.local.json(포트 등)까지
     decks_dir = p / cfg.get("decks", "decks")
     decks = sorted(f.stem for f in decks_dir.glob("*.json") if not f.name.endswith(".requests.json")) if decks_dir.is_dir() else []
     info = _read_json(p / cfg.get("out", "out") / ".studio" / "server.json") or {}

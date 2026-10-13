@@ -1,5 +1,14 @@
 # 변경 이력
 
+## 0.15.0 - 2026-10-14 · 여러 PC 에서 같은 저장소 — PC 별 설정 주입
+
+- **PC 별 설정 `nexa-slide.local.json`**(작업 공간, git 제외): 공유 `nexa-slide.json` 위에 덮어써 읽는다(dict 는 안쪽 항목만). 엔진 위치·포트 등 PC 마다 다른 값을 커밋하지 않고 넣는다. 편집기·`set_fonts` 의 설정 저장은 공유 파일에만.
+- **`.env` 로 엔진 위치 주입**: 작업 공간 `.env`(git 제외)의 `NEXA_SLIDE_HOME` 이 가장 먼저 쓰인다. 만들 때 샘플 `.env.example`(커밋)과 이 PC 의 `.env`(지금 엔진 위치)를 함께 둔다 — 다른 PC 는 샘플을 복사해 고친다. `.env` 의 다른 값도 엔진 도구에 환경변수로 넘긴다.
+- **엔진 위치 순서**: 실행기(`nexa.py`)가 `.env` > `nexa-slide.local.json` > 셸 환경변수 `NEXA_SLIDE_HOME` > 이 PC 의 사용자 설정 > `nexa-slide.json` 순으로 실제로 엔진이 있는 첫 경로를 쓴다. 엔진을 한 번 실행하면(시작 페이지·`service.py start`·`init_workspace.py`) 그 PC 의 엔진 위치가 사용자 설정에 기록된다 — 엔진을 옮기면 새 위치에서 한 번 실행하면 된다.
+- 실행기 명령 `engine`(엔진 위치 보기 · `engine <폴더>` 로 이 PC 전용 지정 · `--clear`), 엔진을 못 찾으면 찾아본 곳과 지정 방법을 안내.
+- 예전 작업 공간: `python3 <작업 공간>/nexa.py update_launcher`(새 도구 `studio/update_launcher.py`) — 실행기를 바꾸고 `.gitignore` 에 `.env`·`nexa-slide.local.json` 을 더하며, 없으면 `.env.example`·`.env` 를 둔다.
+- 시작 페이지 최근 작업·빈 포트 판정이 PC 별 포트까지 본다. `SLIDES.md` 에 "여러 PC 에서 쓰기".
+
 ## 0.14.0 - 2026-10-14 · 저장소형 작업 공간 (지정 폴더 = 저장소 루트, 슬라이드 = slides/)
 
 - **지정한 폴더 = 저장소 관리 기준 폴더**: `init_workspace.py <폴더>` 가 폴더 자체가 아니라 `<폴더>/slides/` 에 작업 공간을 만든다 — 실행은 `python3 <폴더>/slides/nexa.py start`. 루트는 사용자가 기초 자료를 모아 정리하고 관련 소스도 개발하는 곳(구조 자유), 슬라이드는 그 자료를 근거로 `slides/` 에서 만든다.

@@ -51,7 +51,7 @@ ENGINE = Path(__file__).resolve().parents[1]
 EXAMPLE = ENGINE / "example"
 STARTERS = ENGINE / "starters"
 sys.path.insert(0, str(ENGINE / "studio"))
-from paths import hub_port, load_settings, remember  # noqa: E402
+from paths import hub_port, load_settings, load_ws_config, remember, remember_engine  # noqa: E402
 
 
 def port_busy(p):
@@ -73,10 +73,7 @@ def taken_ports(skip=None):
         p = Path(r.get("path", ""))
         if skip and p.resolve() == Path(skip).resolve():
             continue
-        try:
-            port = json.loads((p / "nexa-slide.json").read_text(encoding="utf-8")).get("port")
-        except (OSError, ValueError):
-            continue
+        port = load_ws_config(p).get("port")  # PC 별 포트(nexa-slide.local.json)까지
         if isinstance(port, int):
             out.setdefault(port, str(p))
     return out
@@ -157,8 +154,16 @@ LAUNCHER = '''# -*- coding: utf-8 -*-
     python3 {ws}/nexa.py layout_samples                             # 레이아웃·필드 예시
     python3 {ws}/nexa.py slide_types [낱말]                         # 슬라이드 유형(목적별) — 내용에 맞는 장 고르기
     python3 {ws}/nexa.py watch_requests --stream --takeover         # Claude 세션 요청 감시(Monitor 로 실행)
+    python3 {ws}/nexa.py engine [<엔진 폴더> | --clear]              # 이 PC 의 엔진 위치 보기 · 정하기(nexa-slide.local.json)
+    python3 {ws}/nexa.py update_launcher                            # 이 실행기를 엔진의 최신 판으로
 
-엔진 위치: 환경변수 NEXA_SLIDE_HOME > nexa-slide.json 의 "engine"(이 폴더 기준 상대 경로).
+엔진 위치(PC 마다 다를 수 있다 — 앞에서부터 실제로 엔진이 있는 첫 경로):
+    1. .env 의 NEXA_SLIDE_HOME              이 PC 전용(git 제외) — 있으면 가장 먼저. 샘플: .env.example 을 .env 로 복사
+    2. nexa-slide.local.json 의 "engine"   이 PC 전용(git 제외) — `engine <폴더>` 로 쓴다
+    3. 환경변수 NEXA_SLIDE_HOME
+    4. 이 PC 의 사용자 설정 "engine"         엔진을 한 번 실행하면(start·시작 페이지·init_workspace) 그 위치가 기록된다
+    5. nexa-slide.json 의 "engine"          저장소에 커밋된 기본값(이 폴더 기준 상대 경로)
+.env 의 다른 값(KEY=VALUE)도 실행하는 엔진 도구에 환경변수로 넘긴다(셸 환경변수보다 우선).
 """
 import json
 import os
@@ -167,22 +172,130 @@ import sys
 from pathlib import Path
 
 WS = Path(__file__).resolve().parent
+LOCAL = WS / "nexa-slide.local.json"
+DOTENV_FILE = WS / ".env"
+
+
+def _dotenv(p):
+    """KEY=VALUE 줄(# 주석 · 빈 줄 · export 접두 · 따옴표 값 허용) → dict. 파일이 없으면 빈 dict."""
+    out = {{}}
+    try:
+        lines = Path(p).read_text(encoding="utf-8-sig").splitlines()
+    except OSError:
+        return out
+    for line in lines:
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
+        if line.startswith("export "):
+            line = line[7:].lstrip()
+        key, sep, val = line.partition("=")
+        key, val = key.strip(), val.strip()
+        if not sep or not key:
+            continue
+        if len(val) >= 2 and val[0] == val[-1] and val[0] in "\\"'":
+            val = val[1:-1]
+        else:
+            val = val.split(" #", 1)[0].strip()  # 따옴표 없는 값 뒤의 주석
+        out[key] = val
+    return out
+
+
+DOTENV = _dotenv(DOTENV_FILE)
+
+
+def _json(p):
+    try:
+        d = json.loads(Path(p).read_text(encoding="utf-8"))
+        return d if isinstance(d, dict) else {{}}
+    except (OSError, ValueError):
+        return {{}}
+
+
+def _user_settings():
+    """엔진 paths.user_dir() 와 같은 위치의 settings.json(엔진을 찾기 전이라 여기서 따로 계산한다)."""
+    env = DOTENV.get("NEXA_SLIDE_USER_DIR") or os.environ.get("NEXA_SLIDE_USER_DIR")
+    if env:
+        d = Path(env).expanduser()
+    elif os.name == "nt":
+        d = Path(os.environ.get("APPDATA") or Path.home() / "AppData/Roaming") / "nexa-slide"
+    elif sys.platform == "darwin":
+        d = Path.home() / "Library/Application Support/nexa-slide"
+    else:
+        d = Path(os.environ.get("XDG_CONFIG_HOME") or Path.home() / ".config") / "nexa-slide"
+    return d / "settings.json"
+
+
+def candidates():
+    """(출처, 경로) — 엔진 위치 후보를 우선순위대로."""
+    out = []
+    if DOTENV.get("NEXA_SLIDE_HOME"):  # .env(git 제외, 이 PC 전용) - 있으면 가장 먼저
+        out.append((".env", WS / Path(DOTENV["NEXA_SLIDE_HOME"]).expanduser()))  # 절대 경로면 그대로, 상대면 이 폴더 기준
+    local = _json(LOCAL).get("engine")  # git 에서 제외되는 이 PC 전용 파일
+    if local:
+        out.append(("nexa-slide.local.json", WS / Path(str(local)).expanduser()))  # 절대 경로면 그대로, 상대면 이 폴더 기준
+    if os.environ.get("NEXA_SLIDE_HOME"):
+        out.append(("환경변수 NEXA_SLIDE_HOME", Path(os.environ["NEXA_SLIDE_HOME"]).expanduser()))
+    pc = _json(_user_settings()).get("engine")
+    if pc:
+        out.append(("이 PC 사용자 설정", Path(str(pc)).expanduser()))
+    out.append(("nexa-slide.json", WS / str(_json(WS / "nexa-slide.json").get("engine") or "../nexa-slide")))
+    return [(label, p.resolve()) for label, p in out]
+
+
+def is_engine(p):
+    return (Path(p) / "studio" / "server.py").is_file()
+
+
+def engine_cmd(args):
+    """engine — 엔진 위치 보기 / engine <폴더> — 이 PC 전용으로 정하기 / engine --clear — 지우기."""
+    if args:
+        cfg = _json(LOCAL)
+        if args[0] == "--clear":
+            cfg.pop("engine", None)
+        else:
+            p = Path(args[0]).expanduser().resolve()
+            if not is_engine(p):
+                sys.exit(f"nexa-slide 엔진이 아니다(studio/server.py 없음): {{p}}")
+            cfg["engine"] = p.as_posix()
+        if cfg:
+            LOCAL.write_text(json.dumps(cfg, ensure_ascii=False, indent=2) + "\\n", encoding="utf-8", newline="\\n")
+        elif LOCAL.exists():
+            LOCAL.unlink()
+        print(f"{{LOCAL.name}}: {{cfg.get('engine', '(engine 없음)')}}")
+        if DOTENV.get("NEXA_SLIDE_HOME"):
+            print(f"알림: .env 의 NEXA_SLIDE_HOME 이 이보다 먼저 쓰인다({{DOTENV['NEXA_SLIDE_HOME']}})")
+    found = False
+    for label, p in candidates():
+        ok = is_engine(p)
+        mark = "  ← 사용" if ok and not found else ("" if ok else "  (엔진 없음)")
+        found = found or ok
+        print(f"  {{label:24s}} {{p}}{{mark}}")
+    return 0 if found else 1
 
 
 def main():
     if len(sys.argv) < 2:
         sys.exit(__doc__)
-    home = os.environ.get("NEXA_SLIDE_HOME") or WS / json.loads((WS / "nexa-slide.json").read_text(encoding="utf-8")).get("engine", "../nexa-slide")
-    studio = Path(home).resolve() / "studio"
-    if not (studio / "server.py").is_file():
-        sys.exit(f"nexa-slide 엔진을 찾지 못했다: {{studio}} — nexa-slide.json 의 engine 또는 NEXA_SLIDE_HOME 을 맞춘다")
     tool, args = sys.argv[1].removesuffix(".py"), sys.argv[2:]
+    if tool == "engine":
+        sys.exit(engine_cmd(args))
+    tried = candidates()
+    home = next((p for _, p in tried if is_engine(p)), None)
+    before = tried[:next((i for i, (_, p) in enumerate(tried) if is_engine(p)), len(tried))]  # 쓰는 엔진보다 앞 순서만
+    bad = [(label, p) for label, p in before if label in (".env", LOCAL.name)]
+    if bad and home is not None:  # 이 PC 전용으로 정한 엔진이 없으면 알리고 다음 순서로
+        print(f"알림: {{bad[0][0]}} 에 정한 엔진이 없다({{bad[0][1]}}) — {{home}} 를 쓴다", file=sys.stderr)
+    if home is None:
+        sys.exit("nexa-slide 엔진을 찾지 못했다 — 찾아본 곳:\\n" + "\\n".join(f"  {{l}}: {{p}}" for l, p in tried)
+                 + "\\n이 PC 의 엔진 위치를 정한다: python3 " + str(Path(__file__)) + " engine <엔진 폴더>")
+    studio = home / "studio"
     if tool in ("start", "stop", "restart", "url"):
         tool, args = "service", [tool, *args]
     script = studio / f"{{tool}}.py"
     if not script.is_file():
         sys.exit(f"없는 도구: {{tool}}")
-    env = {{**os.environ, "NEXA_SLIDE_WORKSPACE": str(WS), "PYTHONIOENCODING": "utf-8"}}
+    env = {{**os.environ, **DOTENV, "NEXA_SLIDE_WORKSPACE": str(WS), "PYTHONIOENCODING": "utf-8"}}  # .env 가 셸 환경변수보다 우선
     sys.exit(subprocess.call([sys.executable, str(script), *args], env=env))
 
 
@@ -274,7 +387,18 @@ python3 {slides}/nexa.py stop
 - Windows 에 `python3` 이 없으면 `python` 또는 `py -3` 으로 바꿔 쓴다.
 - 서버는 백그라운드로 뜬다(터미널을 닫아도 유지). 포트는 `{slides}/nexa-slide.json` 의 `port`.
 - 그 밖: `build_deck <덱> --force`(content → 덱) · `check_layout <덱>`(검사) · `export_pptx <덱>`(→ `{slides}/out/<덱>.pptx`).
-- nexa-slide 엔진 위치는 `{slides}/nexa-slide.json` 의 `engine`(다른 PC 에서는 환경변수 `NEXA_SLIDE_HOME` 으로 덮어쓸 수 있다).
+- 엔진 위치 확인: `python3 {slides}/nexa.py engine`.
+
+## 여러 PC 에서 쓰기
+
+이 저장소를 여러 PC 에서 clone 해 쓸 때, PC 마다 다른 값은 커밋하지 않는 **`{slides}/nexa-slide.local.json`** 에 둔다(`.gitignore` 에 들어 있다).
+이 파일의 값은 공유 설정 `{slides}/nexa-slide.json` 위에 덮어써진다.
+
+- **엔진 위치**: `{slides}/.env.example` 을 `{slides}/.env` 로 복사하고 `NEXA_SLIDE_HOME=<엔진 폴더>` 를 적으면 그 값이 가장 먼저 쓰인다(`.env` 는 git 제외).
+  또는 그 PC 에서 nexa-slide 엔진을 한 번 실행하면(시작 페이지·`service.py start`) 위치가 PC 설정에 기록되어 실행기가 자동으로 찾는다.
+  `python3 {slides}/nexa.py engine <엔진 폴더>` 로도 정한다(→ `nexa-slide.local.json`). 엔진을 옮겼으면 새 위치로 고치면 된다.
+- **포트 등 다른 값**: `nexa-slide.local.json` 에 같은 키로 적는다 — 예: `{{"port": 5610}}`.
+- 찾는 순서: `.env` > `nexa-slide.local.json` > 셸 환경변수 `NEXA_SLIDE_HOME` > PC 설정 > `nexa-slide.json`(실제로 엔진이 있는 첫 경로).
 '''
 
 REPO_CLAUDE_MD = '''# {title}
@@ -326,6 +450,63 @@ FONTS_README = """# 글꼴 (이 작업 공간 전용)
 
 라이선스: 배포가 허용되지 않은 글꼴(회사 전용 서체 등)을 공개 저장소에 커밋하지 않는다 - 필요하면 이 폴더를 `.gitignore` 에 넣는다.
 """
+
+
+GITIGNORE = """# nexa-slide 산출물·자동 백업 — 다시 만들 수 있음
+out/
+decks/.history/
+# PC 별 설정(엔진 위치·포트 등) — 커밋하지 않는다(.env.example 은 커밋)
+.env
+nexa-slide.local.json
+"""
+
+ENV_EXAMPLE = """# nexa-slide 실행기(nexa.py) 환경 설정 샘플 — 이 파일을 .env 로 복사해 이 PC 에 맞게 고친다.
+#   macOS·Linux:  cp .env.example .env        Windows:  copy .env.example .env
+# .env 는 git 에서 제외된다(PC 마다 다르게). .env.example 은 커밋해 두고 함께 쓰는 사람에게 형식을 알린다.
+#
+# 엔진 위치는 앞에서부터 실제로 엔진이 있는 첫 경로를 쓴다:
+#   .env > nexa-slide.local.json > 셸 환경변수 NEXA_SLIDE_HOME > 이 PC 사용자 설정 > nexa-slide.json
+# 확인: python3 nexa.py engine
+
+# nexa-slide 엔진 폴더(studio/ 가 들어 있는 폴더) — 절대 경로 또는 이 폴더 기준 상대 경로. Windows 도 / 로 써도 된다.
+# NEXA_SLIDE_HOME=D:/Projects/nexa-slide
+# NEXA_SLIDE_HOME=~/Projects/nexa-slide
+# NEXA_SLIDE_HOME=../../nexa-slide
+
+# (선택) 사용자 설정 폴더 — 최근 작업 목록·이 PC 의 엔진 기록을 둘 곳을 바꿀 때
+# NEXA_SLIDE_USER_DIR=
+"""
+
+
+def ensure_gitignore(ws):
+    """예전에 만든 작업 공간 .gitignore 에 PC 별 설정 파일(.env · nexa-slide.local.json)을 더한다(있으면 그대로)."""
+    g = ws / ".gitignore"
+    text = g.read_text(encoding="utf-8") if g.is_file() else ""
+    lines = {x.strip() for x in text.splitlines()}
+    need = [x for x in (".env", "nexa-slide.local.json") if x not in lines]
+    if need:
+        g.write_text(text + ("" if not text or text.endswith("\n") else "\n")
+                     + "# PC 별 설정(엔진 위치·포트 등) — 커밋하지 않는다\n" + "".join(x + "\n" for x in need), encoding="utf-8", newline="\n")
+        return True
+    return False
+
+
+def env_for_this_pc():
+    """이 PC 의 .env — 샘플과 같은 설명에 지금 엔진 위치를 채운 줄(NEXA_SLIDE_HOME)을 켠다."""
+    return ENV_EXAMPLE.replace("# nexa-slide 실행기(nexa.py) 환경 설정 샘플 — 이 파일을 .env 로 복사해 이 PC 에 맞게 고친다.",
+                               "# nexa-slide 실행기(nexa.py) 환경 설정 — 이 PC 전용(git 제외). 형식은 .env.example 과 같다.") \
+        .replace("# NEXA_SLIDE_HOME=D:/Projects/nexa-slide\n", f"NEXA_SLIDE_HOME={ENGINE.as_posix()}\n# NEXA_SLIDE_HOME=D:/Projects/nexa-slide\n", 1)
+
+
+def ensure_env_files(ws):
+    """.env 샘플(.env.example, 커밋)과 이 PC 의 .env(git 제외, 지금 엔진 위치)를 둔다 — 이미 있으면 그대로. 만든 이름 목록."""
+    made = []
+    for name, text in ((".env.example", ENV_EXAMPLE), (".env", env_for_this_pc())):
+        f = ws / name
+        if not f.exists():
+            f.write_text(text, encoding="utf-8", newline="\n")
+            made.append(name)
+    return made
 
 
 def resolve_target(folder, flat=False, slides_dir="slides"):
@@ -472,7 +653,10 @@ def main():
     else:
         write(ws / "content" / f"{a.deck}.json", json.dumps(starter(a.deck, cfg.get("title", ws.name)), ensure_ascii=False, indent=1) + "\n")
     write(ws / "fonts" / "README.md", FONTS_README)
-    write(ws / ".gitignore", "# nexa-slide 산출물·자동 백업 — 다시 만들 수 있음\nout/\ndecks/.history/\n")
+    write(ws / ".gitignore", GITIGNORE)
+    ensure_gitignore(ws)
+    write(ws / ".env.example", ENV_EXAMPLE)  # 샘플 — 커밋해 형식을 알린다
+    write(ws / ".env", env_for_this_pc())     # 이 PC 전용(git 제외) — 지금 엔진 위치가 가장 먼저 쓰인다
     write(ws / "CLAUDE.md", CLAUDE_MD.format(engine=rel(ENGINE, ws), template=cfg.get("template"), ws=show, port=cfg.get("port")))
     write(ws / "AGENTS.md", AGENTS_MD.format(engine=rel(ENGINE, ws)))  # Claude 가 아닌 AI 도구(Codex 등)용
     write(ws / ".claude" / "settings.json", json.dumps({"hooks": session_hooks("nexa.py")}, ensure_ascii=False, indent=2) + "\n")
@@ -498,6 +682,7 @@ def main():
     if not a.no_remember:
         try:
             remember(ws, cfg.get("title", ws.name))
+            remember_engine()  # 이 PC 의 엔진 위치 - 다른 PC 에서 만든 저장소의 실행기도 이 엔진을 찾는다
         except OSError:
             pass
     if root:
