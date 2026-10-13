@@ -571,7 +571,7 @@ class H(BaseHTTPRequestHandler):
                 self.end_headers()
                 self.wfile.write(data)
                 return
-        return self.err(404, "글꼴 파일 없음 — ppt/studio/install_fonts.ps1 로 설치")
+        return self.err(404, "글꼴 파일 없음 — python3 nexa.py install_fonts 로 설치")
 
     WEIGHTS = (("thin", 100), ("extralight", 200), ("ultralight", 200), ("light", 300), ("medium", 500), ("semibold", 600),
                ("demibold", 600), ("extrabold", 800), ("ultrabold", 800), ("heavy", 900), ("black", 900), ("bold", 700))
@@ -711,8 +711,10 @@ class H(BaseHTTPRequestHandler):
 
 class Server(ThreadingHTTPServer):
     """포트를 혼자 쓰는 서버. 표준 HTTPServer 는 SO_REUSEADDR 를 켜는데, Windows 에서는 이것 때문에
-    두 프로세스가 같은 포트를 열 수 있다(뒤에 뜬 서버가 요청을 가로챔) → 끄고 Windows 는 배타 사용을 켠다."""
-    allow_reuse_address = False
+    두 프로세스가 같은 포트를 열 수 있다(뒤에 뜬 서버가 요청을 가로챔) → Windows 는 끄고 배타 사용을 켠다.
+    macOS·Linux 는 SO_REUSEADDR 를 켜도 이미 듣고 있는 포트는 열 수 없고, 끄면 방금 끈 서버의 TIME_WAIT 연결 때문에
+    restart 가 30~60초 동안 같은 포트를 열지 못한다 → 켠다."""
+    allow_reuse_address = os.name != "nt"
     daemon_threads = True
 
     def server_bind(self):

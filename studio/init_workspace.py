@@ -7,9 +7,15 @@
 
     # 시작 페이지의 "만들고 Studio 열기"와 같은 결과(시작 페이지가 이 명령을 그대로 보여 주고 실행한다)
     python3 <엔진>/studio/init_workspace.py <폴더> --title "제목" --template report --port 5601 --build --purpose "…" --ask-draft
-    python3 <폴더>/nexa.py start
+    python3 <폴더>/slides/nexa.py start
 
-만드는 것(이미 있는 파일은 건드리지 않음 — --force 면 nexa-slide.json·nexa.py 만 다시 씀)
+저장소형(기본): 준 폴더 = 저장소 관리 기준 폴더(루트), 작업 공간 = <폴더>/slides (--slides-dir 로 이름 변경).
+    루트는 사용자가 기초 자료를 모아 정리하고 관련 소스를 개발하는 곳 — 폴더는 만들지 않고 md 파일만(이미 있으면 그대로) 둔다.
+    SLIDES.md          개념 · 구조 · 슬라이드 서버 실행 방법
+    CLAUDE.md          없을 때만 — @SLIDES.md 개념 + @slides/CLAUDE.md 규칙      AGENTS.md   없을 때만
+    폴더 이름이 slides 면 그 폴더가 작업 공간(상위 = 루트). 이미 작업 공간(nexa-slide.json)이 있는 폴더나 --flat 이면 폴더 자체가 작업 공간.
+
+작업 공간에 만드는 것(이미 있는 파일은 건드리지 않음 — --force 면 nexa-slide.json·nexa.py 만 다시 씀)
     nexa-slide.json    선택만 담은 설정: port · title · engine(이 폴더에서 엔진까지 상대 경로) · template · fontPreset · brand 파일 경로
     nexa.py            실행기 — python3 <폴더>/nexa.py start|stop|status|url|build_deck …
     content/<deck>.json  시작용 내용 원본(표지 · 글머리 · 표 · 정리 · 끝)
@@ -51,6 +57,8 @@ from paths import hub_port, load_settings, remember  # noqa: E402
 def port_busy(p):
     """지금 이 PC 에서 다른 프로그램이 쓰는 포트인가."""
     with socket.socket() as s:
+        if os.name != "nt":  # 서버와 같은 규칙 - 방금 끈 서버의 TIME_WAIT 는 "쓰는 중"이 아니다(server.py Server)
+            s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         try:
             s.bind(("127.0.0.1", p))
             return False
@@ -218,6 +226,96 @@ Gemini CLI 는 기본으로 `GEMINI.md` 를 읽는다 — 이 파일을 `GEMINI.
 - 엔진 문서: {engine}/docs/ai-editing.md (AI 로 고치기) · {engine}/docs/slide-types.md · {engine}/docs/claude-session.md(요청 규약)
 '''
 
+# ---------- 저장소형: 지정한 폴더 = 저장소 관리 기준 폴더(루트), 작업 공간 = <루트>/slides ----------
+# 루트에는 폴더를 만들지 않는다 — 자료 수집·정리·소스 개발은 사용자가 원하는 구조로 한다. 루트에는 md 파일만(없을 때만) 둔다.
+REPO_GUIDE = "SLIDES.md"
+
+REPO_GUIDE_MD = '''# {title} — 슬라이드 (nexa-slide)
+
+## 개념
+
+이 폴더(저장소 루트)는 **저장소 관리 기준 폴더**다.
+
+- 슬라이드에 쓸 기초 자료를 모으고 정리한다 — 문서 · 데이터 · 조사 메모 · 구성안 등.
+- 필요하면 관련 소스도 여기서 개발한다 — 분석 스크립트 · 데모 코드 · 도식 생성 등.
+- 폴더 구조는 정해 두지 않는다. 작업에 맞게 자유롭게 만든다.
+
+슬라이드는 이 저장소의 자료와 소스를 근거로 **`{slides}/`** 에서 만든다. nexa-slide 가 관리하는 폴더는 `{slides}/` 하나뿐이다.
+
+## 구조
+
+```
+<저장소 루트>/            저장소 관리 기준 — 자료 수집·정리, 관련 소스 개발 (구조 자유)
+├─ SLIDES.md             이 안내
+└─ {slides_col}  nexa-slide 작업 공간 = 최종 산출물
+   ├─ nexa-slide.json    설정(포트 · 제목 · 템플릿 · 엔진 위치)
+   ├─ nexa.py            실행기
+   ├─ CLAUDE.md          슬라이드 작업 규칙(AI 세션)
+   ├─ content/           내용 원본 <덱>.json — 저장소 자료를 정리해 여기에 쓴다
+   ├─ decks/             편집 대상 <덱>.json(편집기가 고친다)
+   ├─ assets/            슬라이드 그림 · 로고
+   └─ out/               PPTX · 렌더 (git 제외)
+```
+
+## 흐름
+
+1. 저장소에 자료를 모으고 정리한다(필요하면 소스 개발).
+2. 정리한 내용으로 `{slides}/content/<덱>.json` 을 쓰고 빌드한다.
+3. 편집기에서 다듬고 PPTX 로 내보낸다.
+
+## 슬라이드 서버 실행 (저장소 루트에서)
+
+```
+python3 {slides}/nexa.py start      # 편집기 서버 시작 → http://127.0.0.1:{port}/
+python3 {slides}/nexa.py status     # 실행 상태     (url: 접속 주소 · stop: 종료 · restart: 다시 시작)
+python3 {slides}/nexa.py stop
+```
+
+- Windows 에 `python3` 이 없으면 `python` 또는 `py -3` 으로 바꿔 쓴다.
+- 서버는 백그라운드로 뜬다(터미널을 닫아도 유지). 포트는 `{slides}/nexa-slide.json` 의 `port`.
+- 그 밖: `build_deck <덱> --force`(content → 덱) · `check_layout <덱>`(검사) · `export_pptx <덱>`(→ `{slides}/out/<덱>.pptx`).
+- nexa-slide 엔진 위치는 `{slides}/nexa-slide.json` 의 `engine`(다른 PC 에서는 환경변수 `NEXA_SLIDE_HOME` 으로 덮어쓸 수 있다).
+'''
+
+REPO_CLAUDE_MD = '''# {title}
+
+이 저장소는 저장소 관리 기준 폴더다 — 기초 자료 수집·정리와 관련 소스 개발은 루트에서 자유로운 구조로 하고,
+슬라이드는 그 자료·소스를 근거로 `{slides}/`(nexa-slide 작업 공간)에서 만든다. 개념·구조·서버 실행: `{guide}`.
+
+- 슬라이드 내용의 근거는 저장소의 자료·소스에서만 찾는다. 없는 내용은 지어내지 않고 확인 질문으로 남긴다.
+- nexa-slide 명령은 저장소 루트에서 `python3 {slides}/nexa.py …`.
+- 슬라이드 작업 규칙(요청 감시·처리 규약·빌드·검사):
+
+@{slides}/CLAUDE.md
+'''
+
+REPO_AGENTS_MD = '''# AI 에이전트 안내
+
+이 저장소는 저장소 관리 기준 폴더다 — 기초 자료 수집·정리와 관련 소스 개발은 루트에서, 슬라이드는 그 자료를 근거로 `{slides}/`(nexa-slide 작업 공간)에서 만든다.
+개념·구조·서버 실행은 `{guide}`, 슬라이드 작업 규칙은 `{slides}/AGENTS.md` 를 먼저 읽는다.
+
+- 명령은 저장소 루트에서 `python3 {slides}/nexa.py …` (예: `start` · `build_deck <덱> --force` · `check_layout <덱>` · `watch_requests --label "<도구 이름>"`).
+- 근거는 저장소 자료·소스에서만 — 없는 내용은 지어내지 않는다. 사용자 답변은 한국어.
+'''
+
+WS_REPO_SECTION = '''
+## 저장소 자료 (이 작업 공간은 저장소 `{root}` 안에 있다)
+
+- 저장소 루트(`{root}`)는 저장소 관리 기준 폴더다 — 기초 자료·정리·관련 소스가 사용자가 정한 구조로 있다. 개념·구조: `{root}/{guide}`.
+- 슬라이드 내용은 그 자료·소스를 근거로 쓴다. 저장소에 없는 내용은 지어내지 않고 확인 질문으로 남긴다.
+- 슬라이드 작업 파일(content · decks · assets)만 이 폴더에 둔다 — 자료·소스는 저장소 쪽에 둔다.
+'''
+
+
+def session_hooks(launcher):
+    """Claude Code 훅 설정 — 세션 활동(대화 작업 중·요청 처리 중·대기)을 편집기에 보여 주려고(studio/session_hook.py, docs/ai-editing.md).
+    파이썬 이름은 훅이 돌 때 고른다 — 만든 PC(python 만 있는 Windows)와 여는 PC(python3 만 있는 macOS)가 다를 수 있다."""
+    run = f'P=python3; command -v python3 >/dev/null 2>&1 || P=python; cd "$CLAUDE_PROJECT_DIR" && "$P" {launcher} session_hook'
+    hook = lambda: [{"type": "command", "command": run, "timeout": 10}]  # noqa: E731
+    return {"UserPromptSubmit": [{"hooks": hook()}], "PreToolUse": [{"matcher": "*", "hooks": hook()}],
+            "PostToolUse": [{"matcher": "Monitor", "hooks": hook()}], "Stop": [{"hooks": hook()}]}
+
+
 FONTS_README = """# 글꼴 (이 작업 공간 전용)
 
 이 작업 공간에서 쓰는 글꼴 파일(.ttf · .otf)을 여기에 둔다. **글꼴 파일은 nexa-slide 엔진 폴더에 두지 않는다.**
@@ -228,6 +326,40 @@ FONTS_README = """# 글꼴 (이 작업 공간 전용)
 
 라이선스: 배포가 허용되지 않은 글꼴(회사 전용 서체 등)을 공개 저장소에 커밋하지 않는다 - 필요하면 이 폴더를 `.gitignore` 에 넣는다.
 """
+
+
+def resolve_target(folder, flat=False, slides_dir="slides"):
+    """준 폴더 → (작업 공간, 저장소 루트 또는 None).
+    기본은 저장소형: 폴더 = 저장소 루트, 작업 공간 = <폴더>/<slides_dir>. 다음은 폴더 자체가 작업 공간(루트 없음 = 예전 방식):
+    --flat · 폴더에 이미 작업 공간이 있음. 폴더 이름이 <slides_dir> 이면 그 폴더가 작업 공간이고 상위 폴더가 루트(slides/slides 를 만들지 않는다)."""
+    if flat:
+        return folder, None
+    if folder.name == slides_dir:
+        return folder, folder.parent
+    if (folder / "nexa-slide.json").is_file():
+        return folder, None
+    return folder / slides_dir, folder
+
+
+def scaffold_repo(root, ws, title, port, write, made):
+    """저장소 루트 — 폴더는 만들지 않고 md 파일만 둔다(이미 있으면 건드리지 않는다).
+    SLIDES.md(개념·구조·서버 실행), CLAUDE.md·AGENTS.md 는 없을 때만. 작업 공간 CLAUDE.md 에 저장소 자료 안내를 덧붙인다."""
+    slides = rel(ws, root)
+    names = {"slides": slides, "guide": REPO_GUIDE}
+    notes = []
+    write(root / REPO_GUIDE, REPO_GUIDE_MD.format(title=title, port=port, slides_col=(slides + "/").ljust(20), **names))
+    for fname, text, hint in (("CLAUDE.md", REPO_CLAUDE_MD, f"`{REPO_GUIDE}` 안내와 `@{slides}/CLAUDE.md`"),
+                              ("AGENTS.md", REPO_AGENTS_MD, f"\"`{REPO_GUIDE}` 를 먼저 읽는다\"")):
+        f = root / fname
+        if not f.exists():
+            write(f, text.format(title=title, **names))
+        elif REPO_GUIDE not in f.read_text(encoding="utf-8", errors="replace"):
+            notes.append(f"저장소 {fname} 가 이미 있어 고치지 않았다 — 슬라이드 작업도 안내하려면 {hint} 한 줄을 넣는다")
+    cm = ws / "CLAUDE.md"
+    if cm.is_file() and "## 저장소 자료" not in cm.read_text(encoding="utf-8"):
+        with cm.open("a", encoding="utf-8", newline="\n") as fp:
+            fp.write(WS_REPO_SECTION.format(root=rel(root, ws), guide=REPO_GUIDE))
+    return notes
 
 
 def starter(deck, title):
@@ -262,6 +394,8 @@ def main():
     ap.add_argument("--material", action="append", default=[], help="참고 자료 한 줄(여러 번)")
     ap.add_argument("--ask-draft", action="store_true", help="브리프로 초안 쓰기 요청을 남긴다(--build 포함)")
     ap.add_argument("--no-remember", action="store_true", help="최근 작업에 올리지 않는다(미리보기용 임시 작업 공간)")
+    ap.add_argument("--flat", action="store_true", help="폴더 자체를 작업 공간으로(저장소 구조 없이) — 기본은 폴더 = 저장소 루트, 작업 공간 = <폴더>/slides")
+    ap.add_argument("--slides-dir", default="slides", help="저장소형에서 작업 공간 폴더 이름(기본 slides)")
     a = ap.parse_args()
     port = None
     if a.port and a.port.lower() != "auto":
@@ -277,7 +411,7 @@ def main():
             names = ", ".join(p.name for p in STARTERS.iterdir() if (p / "starter.json").is_file())
             sys.exit(f"없는 시작용 교안: {a.starter} (있는 것: {names})")
         st = json.loads((STARTERS / a.starter / "starter.json").read_text(encoding="utf-8"))
-    ws = Path(a.folder).resolve()
+    ws, root = resolve_target(Path(a.folder).resolve(), a.flat, a.slides_dir)
     if port is not None:
         cur = None
         try:
@@ -296,13 +430,15 @@ def main():
     if not (ENGINE / "studio" / "templates" / a.template / "template.json").is_file():
         sys.exit(f"없는 템플릿: {a.template}")
     made = []
+    top = root or ws  # 만든 파일 목록은 저장소 루트(없으면 작업 공간) 기준으로 보인다
+    name = a.title or top.name  # 저장소형이면 제목 기본값은 저장소 이름(slides 가 아니라)
 
     def write(path, text, overwrite=False):
         if path.exists() and not overwrite:
             return
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(text, encoding="utf-8", newline="\n")
-        made.append(path.relative_to(ws).as_posix())
+        made.append(rel(path, top))
 
     cfg_path = ws / "nexa-slide.json"
     if cfg_path.exists() and not a.force:
@@ -311,45 +447,43 @@ def main():
             cfg["port"] = port
             write(cfg_path, json.dumps(cfg, ensure_ascii=False, indent=2) + "\n", overwrite=True)
     else:
-        cfg = {"port": port or free_port(skip=ws), "title": a.title or ws.name, "engine": rel(ENGINE, ws),
+        cfg = {"port": port or free_port(skip=ws), "title": name, "engine": rel(ENGINE, ws),
                "template": a.template, "fontPreset": "default", "assetRoot": a.asset_root,
-               "brand": {"name": a.title or ws.name, "logo": "assets/brand/logo.png", "wordmark": "assets/brand/wordmark.png",
+               "brand": {"name": name, "logo": "assets/brand/logo.png", "wordmark": "assets/brand/wordmark.png",
                          "favicon": "assets/brand/favicon.png"},
-               "partLabels": {"day1": "1부", "day2": "2부", "day3": "3부", "apx": "부록"}, "coverBadge": a.title or ws.name}
+               "partLabels": {"day1": "1부", "day2": "2부", "day3": "3부", "apx": "부록"}, "coverBadge": name}
+        if root:  # 저장소형 — 저장소 루트와 자료·정리 폴더(작업 공간 기준 상대 경로)
+            cfg["repo"] = {"root": rel(root, ws)}
         if st:
             cfg.update(st.get("config", {}))
         write(cfg_path, json.dumps(cfg, ensure_ascii=False, indent=2) + "\n", overwrite=True)
-    show = rel(ws, Path.cwd())
+    show = rel(ws, root) if root else rel(ws, Path.cwd())  # 저장소형은 저장소 루트에서 실행하는 경로(slides)
     write(ws / "nexa.py", LAUNCHER.format(ws=show), overwrite=a.force)
     if st:  # 시작용 교안: content/ 는 작업 공간에, assets/ 는 assetRoot 아래에 복사(있는 파일은 그대로)
         sdir = STARTERS / a.starter
         for sub in st.get("copy", ["content"]):
-            base = ws if sub == "content" else ws / cfg.get("assetRoot", ".")
+            dest = ws if sub == "content" else ws / cfg.get("assetRoot", ".")
             for src in sorted((sdir / sub).rglob("*")):
-                dst = base / src.relative_to(sdir)
+                dst = dest / src.relative_to(sdir)
                 if src.is_file() and not dst.exists():
                     dst.parent.mkdir(parents=True, exist_ok=True)
                     shutil.copy2(src, dst)
-                    made.append(rel(dst, ws))
+                    made.append(rel(dst, top))
     else:
         write(ws / "content" / f"{a.deck}.json", json.dumps(starter(a.deck, cfg.get("title", ws.name)), ensure_ascii=False, indent=1) + "\n")
     write(ws / "fonts" / "README.md", FONTS_README)
     write(ws / ".gitignore", "# nexa-slide 산출물·자동 백업 — 다시 만들 수 있음\nout/\ndecks/.history/\n")
     write(ws / "CLAUDE.md", CLAUDE_MD.format(engine=rel(ENGINE, ws), template=cfg.get("template"), ws=show, port=cfg.get("port")))
     write(ws / "AGENTS.md", AGENTS_MD.format(engine=rel(ENGINE, ws)))  # Claude 가 아닌 AI 도구(Codex 등)용
-    # Claude Code 훅 — 세션 활동(대화 작업 중·요청 처리 중·대기)을 편집기에 보여 주려고(studio/session_hook.py, docs/ai-editing.md)
-    py = "python3" if shutil.which("python3") else "python"
-    hook = lambda: [{"type": "command", "command": f'cd "$CLAUDE_PROJECT_DIR" && {py} nexa.py session_hook', "timeout": 10}]  # noqa: E731
-    write(ws / ".claude" / "settings.json", json.dumps({"hooks": {
-        "UserPromptSubmit": [{"hooks": hook()}], "PreToolUse": [{"matcher": "*", "hooks": hook()}],
-        "PostToolUse": [{"matcher": "Monitor", "hooks": hook()}], "Stop": [{"hooks": hook()}]}}, ensure_ascii=False, indent=2) + "\n")
+    write(ws / ".claude" / "settings.json", json.dumps({"hooks": session_hooks("nexa.py")}, ensure_ascii=False, indent=2) + "\n")
+    notes = scaffold_repo(root, ws, cfg.get("title", name), cfg.get("port"), write, made) if root else []
     (ws / "decks").mkdir(exist_ok=True)
     for f in ("logo.png", "wordmark.png", "favicon.png"):
         dst = ws / cfg.get("assetRoot", ".") / "assets" / "brand" / f
         if not dst.exists() and (EXAMPLE / "assets" / "brand" / f).is_file():
             dst.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(EXAMPLE / "assets" / "brand" / f, dst)
-            made.append(rel(dst, ws))
+            made.append(rel(dst, top))
     deck_ids = st["decks"] if st else [a.deck]
     fields = {"purpose": a.purpose, "audience": a.audience, "direction": "\n".join(a.direction), "materials": "\n".join(a.material)}
     if any(v.strip() for v in fields.values()) or a.ask_draft:  # 작성 브리프 — Claude 세션이 초안 전에 읽는다
@@ -366,9 +500,13 @@ def main():
             remember(ws, cfg.get("title", ws.name))
         except OSError:
             pass
+    if root:
+        print(f"저장소 루트: {root}  (저장소 관리 기준 폴더 · 안내 {REPO_GUIDE})")
     print(f"작업 공간: {ws}")
     print(f"  포트 {cfg.get('port')} · 템플릿 {cfg.get('template')} · 엔진 {cfg.get('engine')}")
     print("  만든 파일: " + (", ".join(made) or "(없음 — 이미 있음)"))
+    for n in notes:
+        print(f"  알림: {n}")
     if built:
         print("  빌드한 덱: " + ", ".join(built) + (" · 초안 요청을 남김" if a.ask_draft else ""))
     py = "python3" if shutil.which("python3") else "python"

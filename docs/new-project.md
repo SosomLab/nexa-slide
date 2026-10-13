@@ -5,6 +5,8 @@
 
 > 이 문서의 예: 엔진은 `~/Projects/nexa-slide`(Windows `D:\Projects\nexa-slide`), 슬라이드를 만들 저장소는 `~/Projects/my-talk`(Windows `D:\Projects\my-talk`),
 > 그 안의 작업 공간 폴더는 `slides/`. 경로는 자기 환경에 맞게 바꾼다.
+> 지정한 폴더(저장소)는 **저장소 관리 기준 폴더(루트)**다 — 기초 자료를 모아 정리하고 필요하면 관련 소스도 개발한다(구조 자유).
+> 슬라이드는 그 자료·소스를 근거로 `slides/` 에서 만든다. nexa-slide 가 만드는 폴더는 `slides/` 하나뿐이다.
 
 ---
 
@@ -13,8 +15,12 @@
 ```
 ~/Projects/
 ├─ nexa-slide/            엔진 — 한 벌만 clone (실행 코드 + 디자인 템플릿)
-└─ my-talk/               내 저장소 (VS Code·Claude Desktop 에서 이 폴더를 연다)
-   └─ slides/             작업 공간 — init_workspace.py 가 만든다
+└─ my-talk/               내 저장소 = 저장소 관리 기준 폴더 (VS Code·Claude Desktop 에서 이 폴더를 연다)
+   │                      자료 수집·정리 · 관련 소스 개발 — 폴더 구조는 자유(nexa-slide 는 만들지 않는다)
+   ├─ SLIDES.md           개념 · 구조 · 슬라이드 서버 실행 방법
+   ├─ CLAUDE.md           (없을 때만) @slides/CLAUDE.md 를 불러오는 Claude 안내
+   ├─ AGENTS.md           (없을 때만) Claude 가 아닌 AI 도구 안내
+   └─ slides/             작업 공간(최종 산출물) — init_workspace.py 가 만드는 유일한 폴더
       ├─ nexa-slide.json  선택만: 포트 · 제목 · 템플릿 · 글꼴 프리셋 · 엔진 위치 · 로고 파일
       ├─ nexa.py          실행기 (start · stop · status · build_deck · …)
       ├─ CLAUDE.md        이 폴더에서 일하는 Claude 세션 안내
@@ -89,13 +95,16 @@ python3 -c "import pptx, PIL; print('ok')"
 
 ## 2. 작업 공간 만들기
 
-슬라이드를 만들 폴더(저장소)에서 한 줄로 뼈대를 만든다. 포트는 비어 있는 것을 자동으로 고르고(5600~), 이미 있는 파일은 건드리지 않는다.
+슬라이드를 만들 폴더(저장소)에서 한 줄로 뼈대를 만든다. **준 폴더가 저장소 루트**가 되고 작업 공간은 그 아래 `slides/` 에 만든다.
+포트는 비어 있는 것을 자동으로 고르고(5600~), 이미 있는 파일은 건드리지 않는다. 루트에는 폴더를 만들지 않고 md 파일만 둔다 —
+`SLIDES.md`(개념·구조·서버 실행), 그리고 없을 때만 `CLAUDE.md`·`AGENTS.md`. 저장소에 이미 있으면 고치지 않고 넣을 한 줄을 알린다.
+(`init_workspace.py slides` 처럼 폴더 이름이 `slides` 면 그 폴더가 작업 공간, 상위 폴더가 루트 — 같은 결과다.)
 
 **macOS**
 
 ```bash
 cd ~/Projects/my-talk                     # 없으면: mkdir -p ~/Projects/my-talk && cd $_ && git init
-python3 ~/Projects/nexa-slide/studio/init_workspace.py slides --title "신제품 소개" --deck intro
+python3 ~/Projects/nexa-slide/studio/init_workspace.py . --title "신제품 소개" --deck intro
 # 강의 교안: --starter lecture-course (장 2개·공통 표지·목차·EoD 뼈대, docs/lecture-starter.md)
 python3 slides/nexa.py build_deck intro
 python3 slides/nexa.py start              # → http://127.0.0.1:<포트>/
@@ -106,7 +115,7 @@ open "$(python3 slides/nexa.py url)"      # 브라우저로 열기
 
 ```powershell
 Set-Location D:\Projects\my-talk          # 없으면: New-Item -ItemType Directory D:\Projects\my-talk; Set-Location D:\Projects\my-talk; git init
-python3 D:\Projects\nexa-slide\studio\init_workspace.py slides --title "신제품 소개" --deck intro
+python3 D:\Projects\nexa-slide\studio\init_workspace.py . --title "신제품 소개" --deck intro
 REM 강의 교안: --starter lecture-course (docs/lecture-starter.md)
 python3 slides\nexa.py build_deck intro
 python3 slides\nexa.py start
@@ -119,7 +128,9 @@ Start-Process (python3 slides\nexa.py url)
 옵션: `--port 5610`(포트 지정 — 지금 다른 프로그램이 쓰면 거절, `auto` 또는 생략이면 빈 포트 자동. 이미 있는 작업 공간에 주면 포트만 바꾼다)
 · `--build`(만든 뒤 content → 덱 빌드 — 위의 `build_deck` 단계를 대신한다)
 · `--purpose` `--audience` `--direction …`(여러 번) `--material …`(여러 번)(작성 브리프 `BRIEF.md`) · `--ask-draft`(브리프로 초안 쓰기 요청을 남김)
-· `--template lecture-large`(템플릿) · `--asset-root ..`(덱 그림 경로를 저장소 루트 기준으로 — 저장소에 이미 로고·그림이 있을 때) · `--force`(설정·실행기 다시 쓰기).
+· `--template lecture-large`(템플릿) · `--asset-root ..`(덱 그림 경로를 저장소 루트 기준으로 — 저장소에 이미 로고·그림이 있을 때) · `--force`(설정·실행기 다시 쓰기)
+· `--slides-dir deck`(작업 공간 폴더 이름 — 기본 `slides`) · `--flat`(저장소 구조 없이 준 폴더 자체를 작업 공간으로 — 예전 방식).
+이미 작업 공간(`nexa-slide.json`)이 있는 폴더를 주면 그 폴더를 그대로 쓴다(예전에 만든 작업 공간도 그대로 동작).
 
 ### 2.1 만든 뒤 고칠 것 — `slides/nexa-slide.json` (선택만)
 
@@ -144,20 +155,26 @@ Start-Process (python3 slides\nexa.py url)
 
 ### 2.2 git 에 넣기
 
-`slides/.gitignore` 가 `out/`·`decks/.history/` 를 뺀다. 나머지(설정·실행기·CLAUDE.md·content·decks·assets)는 커밋한다.
+`slides/.gitignore` 가 `out/`·`decks/.history/` 를 뺀다. 나머지(설정·실행기·CLAUDE.md·content·decks·assets)와 루트에 만든 md 는 커밋한다.
+크거나 공개하면 안 되는 자료는 저장소 `.gitignore` 에 직접 넣는다(엔진은 저장소 `.gitignore` 를 고치지 않는다).
 
 ```bash
-git add slides && git commit -m "슬라이드 작업 공간 추가 (nexa-slide)"
+git add SLIDES.md slides && git commit -m "슬라이드 작업 공간 추가 (nexa-slide)"     # 새로 만든 CLAUDE.md·AGENTS.md 가 있으면 함께
 ```
 
 ### 2.3 Claude 가 이 폴더를 알게 하기
 
-`slides/CLAUDE.md` 에 세션 안내(요청 감시·처리 규약·명령)가 들어 있다. Claude Code 는 **연 폴더(저장소 루트)의 `CLAUDE.md`** 를 먼저 읽으므로,
-저장소 루트 `CLAUDE.md` 에 한 줄을 넣어 두면 세션마다 확실히 찾는다:
+`slides/CLAUDE.md` 에 세션 안내(요청 감시·처리 규약·명령)와 "저장소 자료를 근거로 쓴다" 는 안내가 들어 있다.
+저장소에 `CLAUDE.md` 가 없으면 `init_workspace.py` 가 만들어 `@slides/CLAUDE.md` 로 불러온다 — 루트에서 연 Claude Code 세션이 바로 안다.
+이미 있으면 고치지 않고 알림만 낸다 — 그 파일에 한 줄을 넣는다:
 
 ```markdown
-- 슬라이드 작업은 `slides/` (nexa-slide 작업 공간) — 먼저 `slides/CLAUDE.md` 를 읽는다.
+- 슬라이드는 `slides/`(nexa-slide 작업 공간)에서 만든다 — 개념·서버 실행은 `SLIDES.md`. 규칙: @slides/CLAUDE.md
 ```
+
+Claude 가 아닌 AI 도구(Codex·Gemini CLI·Cursor)는 루트 `AGENTS.md` 를 읽는다 — 같은 방식(없을 때만 만들고, 있으면 알림).
+세션 활동 훅(`.claude/settings.json`)은 `slides/` 안에만 있다 — 루트에서 연 세션의 활동도 편집기에 보이게 하려면
+`slides/.claude/settings.json` 의 `hooks` 를 루트 `.claude/settings.json` 에 옮기고 명령의 `nexa.py` 를 `slides/nexa.py` 로 바꾼다(선택).
 
 ---
 

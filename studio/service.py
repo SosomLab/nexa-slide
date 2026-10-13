@@ -78,7 +78,13 @@ def stop():
     if os.name == "nt":
         subprocess.run(["taskkill", "/PID", str(pid), "/F"], capture_output=True)
     else:
-        os.kill(pid, signal.SIGTERM)
+        try:
+            os.kill(pid, signal.SIGTERM)
+        except ProcessLookupError:  # 이미 끝남 - 아래 확인에서 정리
+            pass
+        except PermissionError:
+            print(f"pid {pid} 를 끝낼 권한이 없다 — 다른 사용자의 프로세스인지 확인한다")
+            return 1
     for _ in range(20):
         time.sleep(0.25)
         if not running_server():

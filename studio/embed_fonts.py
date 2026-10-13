@@ -9,6 +9,7 @@ PowerPoint 는 설치된 글꼴만 넣을 수 있다. 작업 공간 글꼴이 �
 """
 import argparse
 import json
+import os
 import subprocess
 import sys
 import zipfile
@@ -26,6 +27,8 @@ def main():
     a = ap.parse_args()
     if not safe_id(a.id):
         sys.exit("잘못된 덱 id")
+    if os.name != "nt":  # PowerPoint COM 으로 저장한다 - 글꼴 설치·내보내기 전에 끝낸다
+        sys.exit("글꼴 포함 저장은 Windows + PowerPoint 전용이다 — 이 OS 에서는 일반 PPTX 내보내기(export_pptx)를 쓴다")
     src, dst = OUT / f"{a.id}.pptx", OUT / f"{a.id}-fonts.pptx"
     r = subprocess.run([sys.executable, str(STUDIO / "export_pptx.py"), a.id], capture_output=True, text=True, encoding="utf-8")
     if r.returncode != 0 or not src.exists():

@@ -3,6 +3,7 @@
 
 원칙: 엔진은 슬라이드 내용을 자기 폴더에 두지 않는다. 제작마다 작업 공간 폴더를 따로 두고(기본 = 문서 폴더/NexaSlide/<제목>),
 그 폴더에 내용(content·decks·assets)과 서버를 실행할 정보(nexa-slide.json·nexa.py)를 넣는다. 서버도 작업 공간마다 하나씩 띄운다.
+새로 만들 때 고른 폴더는 저장소 관리 기준 폴더(루트 - 자료·소스는 사용자 구조)이고 작업 공간은 그 아래 slides/ 다(init_workspace.py).
 """
 import json
 import os
@@ -101,6 +102,23 @@ def _supports_starter():
         return False
 
 
+def find_workspace(p, deep=False):
+    """폴더 → 작업 공간 폴더(없으면 None). 그 폴더에 없고 저장소형(<폴더>/slides)에 있으면 그것.
+    deep 이면 바로 아래 폴더도 본다 — 작업 공간 폴더 이름을 바꾼 저장소(예: <폴더>/ppt)를 열 때."""
+    p = Path(p)
+    for d in (p, p / "slides"):
+        if (d / CONFIG_NAME).is_file():
+            return d
+    if deep:
+        try:
+            subs = sorted(d for d in p.iterdir() if d.is_dir() and not d.name.startswith((".", "$")) and (d / CONFIG_NAME).is_file())
+        except OSError:
+            subs = []
+        if subs:
+            return subs[0]
+    return None
+
+
 def workspace_info(path):
     """작업 공간 요약 - 제목·템플릿·덱 수·실행 중 서버(server.json 기준, 응답은 확인하지 않음)."""
     p = Path(path)
@@ -112,7 +130,7 @@ def workspace_info(path):
     info = _read_json(p / cfg.get("out", "out") / ".studio" / "server.json") or {}
     return {"path": str(p), "exists": True, "workspace": True, "title": cfg.get("title", p.name), "template": cfg.get("template", "lecture"),
             "port": cfg.get("port"), "decks": decks, "url": info.get("url"), "git": _git_root(p) is not None,
-            "brief": (p / "BRIEF.md").is_file()}
+            "brief": (p / "BRIEF.md").is_file(), "root": str((p / cfg["repo"]["root"]).resolve()) if isinstance(cfg.get("repo"), dict) else ""}
 
 
 def _git_root(p):
@@ -180,7 +198,7 @@ def list_dir(path=None):
             try:
                 if not d.is_dir() or d.name.startswith((".", "$")) or d.name in ("node_modules", "__pycache__"):
                     continue
-                dirs.append({"name": d.name, "path": str(d), "git": (d / ".git").exists(), "workspace": (d / CONFIG_NAME).is_file()})
+                dirs.append({"name": d.name, "path": str(d), "git": (d / ".git").exists(), "workspace": find_workspace(d) is not None})
             except OSError:
                 continue
     except PermissionError:
@@ -192,7 +210,7 @@ def list_dir(path=None):
     else:
         roots = ["/"]
     return {"path": str(p), "parent": str(p.parent) if p.parent != p else None, "dirs": dirs, "roots": roots,
-            "git": (p / ".git").exists(), "gitRoot": str(_git_root(p) or ""), "workspace": (p / CONFIG_NAME).is_file(),
+            "git": (p / ".git").exists(), "gitRoot": str(_git_root(p) or ""), "workspace": find_workspace(p) is not None,
             "insideEngine": inside_engine(p), "places": {"문서": str(documents_dir()), "제작 기준": str(projects_root()), "홈": str(Path.home())}}
 
 
@@ -232,14 +250,20 @@ def _quote(x, shell):
 
 
 def _cmdline(args, shell):
-    """[프로그램, 인자…] → 붙여 넣을 수 있는 한 줄. 경로·글은 따옴표로 감싼다(프로그램 이름·옵션 이름은 그대로)."""
-    return " ".join(x if i == 0 or re.fullmatch(r"--[a-z-]+", x) else _quote(x, shell) for i, x in enumerate(map(str, args)))
+    """[프로그램, 인자…] → 붙여 넣을 수 있는 한 줄. 경로·글은 따옴표로 감싼다(프로그램 이름·옵션 이름은 그대로).
+    bash 는 경로(Path 인자·프로그램)의 구분자를 / 로 쓴다 - Windows 경로도 D:/… (Git Bash 에서 그대로 동작, bash 형식과 일치).
+    사용자가 적은 글(브리프)은 바꾸지 않는다."""
+    def s(i, x):
+        t = str(x)
+        return t.replace("\\", "/") if shell == "bash" and (isinstance(x, Path) or i == 0) else t
+    return " ".join(x if i == 0 or re.fullmatch(r"--[a-z-]+", x) else _quote(x, shell) for i, x in enumerate(s(i, a) for i, a in enumerate(args)))
 
 
 def plan(b):
     """새로 만들기 계획 - 만들 폴더·포트와 그대로 실행할 init_workspace 명령. 시작 페이지는 이것을 보여 주고, create 는 이것을 실행한다.
-    b = {title, template, starter?, deck?, folder?, sub?, port?, purpose, audience, direction, materials, askDraft}."""
-    from init_workspace import free_port, hub_port, port_busy, taken_ports
+    b = {title, template, starter?, deck?, folder?, sub?, slidesDir?, port?, purpose, audience, direction, materials, askDraft}.
+    folder(+sub) 는 저장소 루트, 작업 공간은 그 아래 slidesDir(기본 slides)."""
+    from init_workspace import free_port, hub_port, port_busy, resolve_target, taken_ports
     warn = []
     title = str(b.get("title") or "").strip()
     template = b.get("template") or "lecture"
@@ -249,20 +273,24 @@ def plan(b):
     if starter and (not _supports_starter() or not (STARTERS / starter / "starter.json").is_file()):
         raise HubError(f"없는 시작용 내용: {starter}")
     name = title or "제목"
-    ws = None
+    slides_dir = str(b.get("slidesDir") or "").strip().strip("/\\") or "slides"
+    if not re.fullmatch(r"[^\\/:*?\"<>|]+", slides_dir) or slides_dir.startswith("."):
+        raise HubError(f"작업 공간 폴더는 폴더 이름 하나로 적는다(/ \\ : * ? \" < > | 없이, . 으로 시작하지 않게): {slides_dir}")
+    ws = target = root = None  # target = init_workspace 에 주는 폴더(저장소 루트), ws = 그 아래 작업 공간
     custom = b.get("loc") == "custom" or bool(str(b.get("folder") or "").strip())
     folder = str(b.get("folder") or "").strip()
     if folder or not custom:  # 폴더 지정인데 아직 비어 있으면 위치 미정
         base = Path(folder).expanduser() if folder else projects_root()
         sub = str(b.get("sub") if b.get("sub") is not None else ("" if folder else slug(name))).strip().strip("/\\")
-        ws = (base / sub) if sub else base
-        _check_target(ws)
-        if not folder and ws.exists() and any(ws.iterdir()):  # 기본 위치에서 이름이 겹치면 -2, -3 …
+        target = (base / sub) if sub else base
+        _check_target(target)
+        if not folder and target.exists() and any(target.iterdir()):  # 기본 위치에서 이름이 겹치면 -2, -3 …
             k = 2
             while (base / f"{sub}-{k}").exists():
                 k += 1
-            warn.append(f"{ws.name} 폴더가 이미 있어 {sub}-{k} 에 만듭니다")
-            ws = base / f"{sub}-{k}"
+            warn.append(f"{target.name} 폴더가 이미 있어 {sub}-{k} 에 만듭니다")
+            target = base / f"{sub}-{k}"
+        ws, root = resolve_target(target.resolve(), slides_dir=slides_dir)
         if (ws / CONFIG_NAME).is_file():
             warn.append("이 폴더에는 이미 작업 공간이 있습니다 - 만들지 않고 열기를 권합니다")
     raw = str(b.get("port") or "").strip()
@@ -282,11 +310,13 @@ def plan(b):
     else:
         port = free_port(skip=ws)
     deck = re.sub(r"[^A-Za-z0-9_-]", "", str(b.get("deck") or "")) or "intro"
-    args = [STUDIO / "init_workspace.py", ws or "<폴더>", "--title", name, "--template", template]
+    args = [STUDIO / "init_workspace.py", target or "<폴더>", "--title", name, "--template", template]
     if deck != "intro":
         args += ["--deck", deck]
     if starter:
         args += ["--starter", starter]
+    if slides_dir != "slides":
+        args += ["--slides-dir", slides_dir]
     args += ["--port", port, "--build"]
     for key in ("purpose", "audience"):
         v = " ".join(str(b.get(key) or "").split())
@@ -298,7 +328,7 @@ def plan(b):
                 args += [opt, line.strip()]
     if b.get("askDraft"):
         args += ["--ask-draft"]
-    start = [(ws or Path("<폴더>")) / "nexa.py", "start"]
+    start = [(ws or Path("<폴더>") / slides_dir) / "nexa.py", "start"]
     py = _py()
     if ws and "&" in str(ws) and os.name == "nt":
         # pyenv-win 등의 python3 은 배치(.bat) 대리 실행기라 인자 경로의 & 에서 명령이 잘린다 → 실제 실행 파일로 안내
@@ -308,7 +338,7 @@ def plan(b):
         warn.append("경로에 & 가 있습니다 - Windows 의 python3(배치 실행기)는 & 에서 명령이 잘려 실제 파이썬 실행 파일 경로로 안내합니다. "
                     "가능하면 폴더 이름에서 & 를 빼세요(예: S&OP → S-OP).")
     cmds = {sh: {"init": _cmdline([py, *args], sh), "start": _cmdline([py, *start], sh)} for sh in ("powershell", "bash")}
-    return {"ok": True, "path": str(ws) if ws else "", "title": title, "port": port, "url": f"http://127.0.0.1:{port}/",
+    return {"ok": True, "path": str(ws) if ws else "", "root": str(root) if root else "", "title": title, "port": port, "url": f"http://127.0.0.1:{port}/",
             "args": [str(x) for x in args], "commands": cmds, "warnings": warn, "ready": bool(title and ws)}
 
 
@@ -345,6 +375,46 @@ def build_all(ws):
     return built
 
 
+def open_ws(path):
+    p = Path(str(path or "").strip()).expanduser()
+    if not p.is_absolute():
+        raise HubError("폴더는 절대 경로로 준다")
+    if not p.is_dir():
+        raise HubError(f"폴더가 없다: {p}")
+    if inside_engine(p):
+        raise HubError("엔진 폴더 안의 작업 공간은 열지 않는다 - 예제는 '데모'로 연다")
+    ws = find_workspace(p, deep=True)
+    if ws is None:
+        raise HubError("이 폴더에는 작업 공간(nexa-slide.json)이 없다 - 이 폴더를 저장소 루트로 새로 만들 수 있다(작업 공간은 slides/)",
+                       needInit=True, path=str(p), git=(p / ".git").exists())
+    cfg = _read_json(ws / CONFIG_NAME) or {}
+    remember(ws, cfg.get("title", ws.name))
+    url, log = start_server(ws)
+    return {"ok": True, "path": str(ws), "url": url, "log": log}
+
+
+def demo():
+    """엔진 예제를 제작 기준 폴더의 nexa-slide-demo 로 복사해(처음 한 번) 연다 - 엔진 폴더에서 직접 열지 않는다."""
+    ws = projects_root() / DEMO_DIR
+    if not (ws / CONFIG_NAME).is_file():
+        for sub in ("content", "decks", "assets"):
+            src = EXAMPLE / sub
+            if src.is_dir():
+                shutil.copytree(src, ws / sub, dirs_exist_ok=True, ignore=shutil.ignore_patterns("*.requests.json", ".history"))
+        ex = _read_json(EXAMPLE / CONFIG_NAME) or {}
+        code, log = _run([STUDIO / "init_workspace.py", ws, "--title", ex.get("title") or "nexa-slide 데모",
+                          "--template", ex.get("template", "lecture"), "--deck", "demo", "--flat"], None, timeout=60)
+        if code != 0:
+            raise HubError("데모를 만들지 못했다", log=log)
+        cfg = _read_json(ws / CONFIG_NAME) or {}
+        keep = {k: cfg[k] for k in ("port", "engine") if k in cfg}
+        cfg = {**cfg, **{k: v for k, v in ex.items() if k not in ("port", "engine")}, **keep}
+        (ws / CONFIG_NAME).write_text(json.dumps(cfg, ensure_ascii=False, indent=2) + "\n", encoding="utf-8", newline="\n")
+    remember(ws, (_read_json(ws / CONFIG_NAME) or {}).get("title", "데모"))
+    url, log = start_server(ws)
+    return {"ok": True, "path": str(ws), "url": url}
+
+
 # ---------- 미리보기 ----------
 def _stamp(template, starter):
     """미리보기를 다시 만들지 정하는 값 - 엔진 코드·템플릿·시작용 내용 중 가장 늦게 바뀐 시각."""
@@ -376,7 +446,7 @@ def preview(template=None, starter=None):
         if ws.exists():
             shutil.rmtree(ws)
         label = (_read_json(TEMPLATES / template / "template.json") or {}).get("label", template)
-        args = [STUDIO / "init_workspace.py", ws, "--title", f"{label} 미리보기", "--template", template, "--deck", "layouts", "--no-remember"]
+        args = [STUDIO / "init_workspace.py", ws, "--title", f"{label} 미리보기", "--template", template, "--deck", "layouts", "--no-remember", "--flat"]
         if starter:
             args += ["--starter", starter]
         code, log = _run(args, None, timeout=60)
