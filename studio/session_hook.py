@@ -14,6 +14,18 @@ import tempfile
 from pathlib import Path
 
 
+def _repo_ws(root):
+    """저장소 루트 표식 .nexa-slide.json 의 workspace, 없으면 slides/ (paths.repo_workspace 와 같은 규칙 - 빨리 끝나야 해서 여기서 따로)."""
+    try:
+        name = json.loads((root / ".nexa-slide.json").read_text(encoding="utf-8")).get("workspace")
+    except (OSError, ValueError, AttributeError):
+        name = None
+    for n in ([str(name)] if name else []) + ["slides"]:
+        if (root / n / "nexa-slide.json").is_file():
+            return root / n
+    return None
+
+
 def workspace():
     for d in (os.environ.get("CLAUDE_PROJECT_DIR"), os.environ.get("NEXA_SLIDE_WORKSPACE"), os.getcwd()):
         if not d:
@@ -22,8 +34,9 @@ def workspace():
         for q in (p, *p.parents):
             if (q / "nexa-slide.json").is_file():
                 return q
-            if (q / "slides" / "nexa-slide.json").is_file():  # 저장소형 — 세션을 저장소 루트에서 연 경우
-                return q / "slides"
+            ws = _repo_ws(q)  # 저장소형 — 세션을 저장소 루트에서 연 경우
+            if ws:
+                return ws
     return None
 
 

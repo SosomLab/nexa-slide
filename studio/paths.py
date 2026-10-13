@@ -100,6 +100,38 @@ def remember_engine():
 
 
 LOCAL_CONFIG = "nexa-slide.local.json"  # PC 별 설정 - 공유 nexa-slide.json 위에 덮어쓴다(git 제외)
+ROOT_MARKER = ".nexa-slide.json"  # 저장소 루트 표식 {"workspace": "<작업 공간 폴더>"} - 커밋한다
+
+
+def repo_workspace(root):
+    """저장소 루트 → 그 저장소의 작업 공간 폴더(없으면 None).
+    루트 표식 .nexa-slide.json 의 "workspace"(slides · ppt · 그 밖의 이름)를 먼저, 없으면 slides/ - 실제로 nexa-slide.json 이 있을 때만."""
+    root = Path(root)
+    try:
+        name = json.loads((root / ROOT_MARKER).read_text(encoding="utf-8")).get("workspace")
+    except (OSError, ValueError, AttributeError):
+        name = None
+    for n in ([str(name)] if name else []) + ["slides"]:
+        d = root / n
+        if (d / "nexa-slide.json").is_file():
+            return d
+    return None
+
+
+def write_root_marker(root, ws) -> bool:
+    """루트 표식을 쓴다 - 없거나, 있어도 가리키는 작업 공간이 없을 때만(다른 작업 공간을 가리키고 있으면 그대로). 썼으면 True."""
+    root, ws = Path(root), Path(ws)
+    f = root / ROOT_MARKER
+    try:
+        cur = json.loads(f.read_text(encoding="utf-8")).get("workspace")
+    except (OSError, ValueError, AttributeError):
+        cur = None
+    if cur and (root / str(cur) / "nexa-slide.json").is_file():
+        return False
+    name = os.path.relpath(ws, root).replace("\\", "/")
+    f.write_text(json.dumps({"workspace": name, "about": "nexa-slide 저장소 표식 — 슬라이드 작업 공간 폴더(SLIDES.md 참고)"},
+                            ensure_ascii=False, indent=2) + "\n", encoding="utf-8", newline="\n")
+    return True
 
 
 def merge_config(base: dict, over: dict) -> dict:

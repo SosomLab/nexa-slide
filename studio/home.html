@@ -87,6 +87,13 @@
   .badge { font-size: 11px; border-radius: 999px; padding: 1px 8px; background: var(--tone2); color: var(--ink2); white-space: nowrap; }
   .badge.ok { background: var(--okc); color: var(--ok); }
   .badge.git { background: var(--infoc); color: var(--info); }
+  .badge.run { background: var(--okc); color: var(--ok); }
+  .badge.off { background: var(--tone2); color: var(--ink2); }
+  .ritem .svc { display: inline-flex; align-items: center; gap: 4px; border: 1px solid var(--line); background: var(--card); color: var(--ink); border-radius: 999px;
+    padding: 2px 9px 2px 6px; font: inherit; font-size: 12px; cursor: pointer; white-space: nowrap; }
+  .ritem .svc:hover { background: var(--tone); }
+  .ritem .svc.stop { color: var(--err); }
+  .ritem .svc:disabled { opacity: .5; cursor: default; }
   .empty { color: var(--ink2); padding: 10px; font-size: 13px; }
   /* 튜토리얼 */
   .tut { display: grid; gap: 12px; }
@@ -545,12 +552,32 @@
     $("#recent").innerHTML = list.length ? list.map((r) => `<div class="ritem">
       <span class="av" style="background:${color(r.path)}">${esc((r.title || "?").trim().charAt(0).toUpperCase())}</span>
       <div class="t" data-open="${esc(r.path)}" title="${esc(r.path)}"><b>${esc(r.title || r.path)}</b><small>${esc(r.path)}</small></div>
-      ${!r.exists ? '<span class="badge">폴더 없음</span>' : r.workspace ? `${r.git ? `<span class="badge git">git</span>` : ""}<span class="badge">덱 ${r.decks.length}</span>` : '<span class="badge">작업 공간 아님</span>'}
+      ${!r.exists ? '<span class="badge">폴더 없음</span>' : r.workspace ? `${r.git ? `<span class="badge git">git</span>` : ""}<span class="badge">덱 ${r.decks.length}</span>${svc(r)}` : '<span class="badge">작업 공간 아님</span>'}
       <button type="button" class="ib" data-forget="${esc(r.path)}" title="목록에서 빼기(폴더는 그대로)">${icon("x", 14)}</button></div>`).join("")
       : `<div class="empty">${q ? "찾는 작업이 없습니다" : "아직 연 작업이 없습니다. 새로 만들거나 폴더를 열어 보세요."}</div>`;
   }
+  // 실행 상태 - 실행 중이면 쓰는 포트와 중지, 꺼져 있으면 설정 포트와 시작. 이 페이지를 내주는 작업 공간 서버는 끄지 않는다.
+  function svc(r) {
+    const port = r.url ? (r.url.match(/:(\d+)/) || [])[1] : "";
+    const self = H.home.current && H.home.current.path === r.path;
+    return r.running
+      ? `<span class="badge run" title="${esc(r.url || "")}">실행 중 · 포트 ${port || r.port || "?"}</span>` +
+        (self ? "" : `<button type="button" class="svc stop" data-svc="stop" data-path="${esc(r.path)}" title="이 작업 공간 서버 끄기">${icon("stop", 14)}중지</button>`)
+      : `<span class="badge off" title="설정 포트(nexa-slide.json · nexa-slide.local.json)">포트 ${r.port || "?"}</span><button type="button" class="svc" data-svc="start" data-path="${esc(r.path)}" title="서버만 띄우기(페이지는 그대로)">${icon("play", 14)}시작</button>`;
+  }
   $("#rFind").addEventListener("input", renderRecent);
   $("#recent").addEventListener("click", async (e) => {
+    const s = e.target.closest("[data-svc]");
+    if (s) {
+      e.stopPropagation();
+      const act = s.dataset.svc;
+      s.disabled = true; s.textContent = act === "start" ? "시작 중..." : "중지 중...";
+      const r = await post("/api/project", { action: act, path: s.dataset.path });
+      if (!r.ok) toast(r.data.error || (act === "start" ? "시작하지 못했습니다" : "중지하지 못했습니다"), 5000);
+      else toast(act === "start" ? `시작했습니다 - ${r.data.url}` : "중지했습니다");
+      await load();
+      return;
+    }
     const f = e.target.closest("[data-forget]"); if (!f) return;
     e.stopPropagation();
     await post("/api/project", { action: "forget", path: f.dataset.forget }); await load();

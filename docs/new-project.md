@@ -18,6 +18,7 @@
 └─ my-talk/               내 저장소 = 저장소 관리 기준 폴더 (VS Code·Claude Desktop 에서 이 폴더를 연다)
    │                      자료 수집·정리 · 관련 소스 개발 — 폴더 구조는 자유(nexa-slide 는 만들지 않는다)
    ├─ SLIDES.md           개념 · 구조 · 슬라이드 서버 실행 방법
+   ├─ .nexa-slide.json    저장소 표식 {"workspace": "slides"} — 작업 공간 폴더 이름(열기·도구가 이것으로 찾는다)
    ├─ CLAUDE.md           (없을 때만) @slides/CLAUDE.md 를 불러오는 Claude 안내
    ├─ AGENTS.md           (없을 때만) Claude 가 아닌 AI 도구 안내
    └─ slides/             작업 공간(최종 산출물) — init_workspace.py 가 만드는 유일한 폴더

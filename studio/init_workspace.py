@@ -51,7 +51,7 @@ ENGINE = Path(__file__).resolve().parents[1]
 EXAMPLE = ENGINE / "example"
 STARTERS = ENGINE / "starters"
 sys.path.insert(0, str(ENGINE / "studio"))
-from paths import hub_port, load_settings, load_ws_config, remember, remember_engine  # noqa: E402
+from paths import ROOT_MARKER, hub_port, load_settings, load_ws_config, remember, remember_engine, repo_workspace, write_root_marker  # noqa: E402
 
 
 def port_busy(p):
@@ -360,6 +360,7 @@ REPO_GUIDE_MD = '''# {title} — 슬라이드 (nexa-slide)
 ```
 <저장소 루트>/            저장소 관리 기준 — 자료 수집·정리, 관련 소스 개발 (구조 자유)
 ├─ SLIDES.md             이 안내
+├─ .nexa-slide.json      저장소 표식 — 작업 공간 폴더 이름({slides}) · 열기·도구가 이것으로 찾는다
 └─ {slides_col}  nexa-slide 작업 공간 = 최종 산출물
    ├─ nexa-slide.json    설정(포트 · 제목 · 템플릿 · 엔진 위치)
    ├─ nexa.py            실행기
@@ -519,6 +520,9 @@ def resolve_target(folder, flat=False, slides_dir="slides"):
         return folder, folder.parent
     if (folder / "nexa-slide.json").is_file():
         return folder, None
+    ws = repo_workspace(folder)  # 이미 저장소형 작업 공간이 있는 루트 - 루트 표식(.nexa-slide.json)이 가리키는 폴더
+    if ws:
+        return ws, folder
     return folder / slides_dir, folder
 
 
@@ -528,6 +532,10 @@ def scaffold_repo(root, ws, title, port, write, made):
     slides = rel(ws, root)
     names = {"slides": slides, "guide": REPO_GUIDE}
     notes = []
+    if write_root_marker(root, ws):  # 루트 표식 — 열기·엔진 도구·세션 훅이 작업 공간 폴더(slides·ppt …)를 안다
+        made.append(ROOT_MARKER)
+    elif repo_workspace(root) != ws:
+        notes.append(f"저장소 표식 {ROOT_MARKER} 가 다른 작업 공간을 가리켜 고치지 않았다 — 이 작업 공간을 기본으로 쓰려면 workspace 를 \"{slides}\" 로 바꾼다")
     write(root / REPO_GUIDE, REPO_GUIDE_MD.format(title=title, port=port, slides_col=(slides + "/").ljust(20), **names))
     for fname, text, hint in (("CLAUDE.md", REPO_CLAUDE_MD, f"`{REPO_GUIDE}` 안내와 `@{slides}/CLAUDE.md`"),
                               ("AGENTS.md", REPO_AGENTS_MD, f"\"`{REPO_GUIDE}` 를 먼저 읽는다\"")):

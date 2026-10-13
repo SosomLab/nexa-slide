@@ -14,7 +14,7 @@ import sys
 from pathlib import Path
 
 from paths import (ENGINE, default_projects_root, documents_dir, forget, inside_engine, load_settings, load_ws_config, projects_root,
-                   remember, save_settings, user_dir)
+                   remember, repo_workspace, save_settings, user_dir)
 
 STUDIO = ENGINE / "studio"
 EXAMPLE = ENGINE / "example"
@@ -103,12 +103,14 @@ def _supports_starter():
 
 
 def find_workspace(p, deep=False):
-    """폴더 → 작업 공간 폴더(없으면 None). 그 폴더에 없고 저장소형(<폴더>/slides)에 있으면 그것.
-    deep 이면 바로 아래 폴더도 본다 — 작업 공간 폴더 이름을 바꾼 저장소(예: <폴더>/ppt)를 열 때."""
+    """폴더 → 작업 공간 폴더(없으면 None). 그 폴더가 작업 공간이면 그것, 저장소 루트면 루트 표식 .nexa-slide.json 이 가리키는 폴더(없으면 slides/).
+    deep 이면 표식이 없는 예전 저장소를 위해 바로 아래 폴더도 본다(예: <폴더>/ppt)."""
     p = Path(p)
-    for d in (p, p / "slides"):
-        if (d / CONFIG_NAME).is_file():
-            return d
+    if (p / CONFIG_NAME).is_file():
+        return p
+    ws = repo_workspace(p)
+    if ws:
+        return ws
     if deep:
         try:
             subs = sorted(d for d in p.iterdir() if d.is_dir() and not d.name.startswith((".", "$")) and (d / CONFIG_NAME).is_file())
@@ -119,17 +121,41 @@ def find_workspace(p, deep=False):
     return None
 
 
-def workspace_info(path):
-    """작업 공간 요약 - 제목·템플릿·덱 수·실행 중 서버(server.json 기준, 응답은 확인하지 않음)."""
+def _serving(ws, url):
+    """url 의 nexa-slide 서버가 ws 작업 공간을 내주고 있는가(/api/config 의 path). 닫힌 포트는 짧게 먼저 두드린다."""
+    import socket
+    import urllib.parse
+    import urllib.request
+    try:
+        u = urllib.parse.urlparse(str(url or ""))
+        socket.create_connection((u.hostname or "127.0.0.1", u.port or 80), timeout=0.3).close()
+        with urllib.request.urlopen(url.rstrip("/") + "/api/config", timeout=1.5) as r:
+            cfg = json.loads(r.read().decode("utf-8"))
+        return bool(cfg.get("path")) and Path(cfg["path"]).resolve() == Path(ws).resolve()
+    except Exception:  # noqa: BLE001 - 응답 없음·다른 서비스
+        return False
+
+
+def server_state(ws, cfg=None):
+    """작업 공간 서버 상태 {running, url, pid} - server.json 의 주소가 실제로 이 작업 공간을 내주는지 확인한다."""
+    cfg = cfg if cfg is not None else load_ws_config(ws)
+    info = _read_json(Path(ws) / cfg.get("out", "out") / ".studio" / "server.json") or {}
+    if info.get("url") and _serving(ws, info["url"]):
+        return {"running": True, "url": info["url"], "pid": info.get("pid")}
+    return {"running": False, "url": None, "pid": None}
+
+
+def workspace_info(path, state=False):
+    """작업 공간 요약 - 제목·템플릿·덱 수. state 면 실행 상태(running·url)까지 확인한다(응답을 두드려 본다)."""
     p = Path(path)
     if not (p / CONFIG_NAME).is_file():
         return {"path": str(p), "exists": p.is_dir(), "workspace": False}
     cfg = load_ws_config(p)  # PC 별 nexa-slide.local.json(포트 등)까지
     decks_dir = p / cfg.get("decks", "decks")
     decks = sorted(f.stem for f in decks_dir.glob("*.json") if not f.name.endswith(".requests.json")) if decks_dir.is_dir() else []
-    info = _read_json(p / cfg.get("out", "out") / ".studio" / "server.json") or {}
+    info = server_state(p, cfg) if state else {"running": None, "url": (_read_json(p / cfg.get("out", "out") / ".studio" / "server.json") or {}).get("url")}
     return {"path": str(p), "exists": True, "workspace": True, "title": cfg.get("title", p.name), "template": cfg.get("template", "lecture"),
-            "port": cfg.get("port"), "decks": decks, "url": info.get("url"), "git": _git_root(p) is not None,
+            "port": cfg.get("port"), "decks": decks, "url": info.get("url"), "running": info.get("running"), "git": _git_root(p) is not None,
             "brief": (p / "BRIEF.md").is_file(), "root": str((p / cfg["repo"]["root"]).resolve()) if isinstance(cfg.get("repo"), dict) else ""}
 
 
@@ -142,10 +168,13 @@ def _git_root(p):
 
 
 def home(current=None, refused=None):
+    from concurrent.futures import ThreadPoolExecutor
     s = load_settings()
+    rows = s.get("recent", [])
+    with ThreadPoolExecutor(max_workers=8) as ex:  # 꺼진 작업 공간마다 연결 시도가 있어 동시에 확인한다
+        infos = list(ex.map(lambda r: workspace_info(r["path"], state=True), rows))
     recent = []
-    for r in s.get("recent", []):
-        i = workspace_info(r["path"])
+    for r, i in zip(rows, infos):
         i["opened"] = r.get("opened", "")
         i.setdefault("title", r.get("title") or Path(r["path"]).name)
         recent.append(i)
@@ -387,10 +416,46 @@ def open_ws(path):
     if ws is None:
         raise HubError("이 폴더에는 작업 공간(nexa-slide.json)이 없다 - 이 폴더를 저장소 루트로 새로 만들 수 있다(작업 공간은 slides/)",
                        needInit=True, path=str(p), git=(p / ".git").exists())
-    cfg = _read_json(ws / CONFIG_NAME) or {}
+    cfg = load_ws_config(ws)
     remember(ws, cfg.get("title", ws.name))
+    st = server_state(ws, cfg)
+    if st["running"]:  # 이미 떠 있으면 띄우지 않고 그 주소로
+        return {"ok": True, "path": str(ws), "url": st["url"], "log": ""}
     url, log = start_server(ws)
     return {"ok": True, "path": str(ws), "url": url, "log": log}
+
+
+def _ws_of(path):
+    p = Path(str(path or "").strip()).expanduser()
+    if not p.is_absolute() or not p.is_dir():
+        raise HubError(f"폴더가 없다: {p}")
+    ws = find_workspace(p, deep=True)
+    if ws is None:
+        raise HubError(f"작업 공간(nexa-slide.json)이 없다: {p}")
+    return ws
+
+
+def start_ws(path):
+    """작업 공간 서버만 띄운다(페이지는 이동하지 않는다) - 이미 떠 있으면 그대로."""
+    ws = _ws_of(path)
+    st = server_state(ws)
+    if st["running"]:
+        return {"ok": True, "path": str(ws), **st}
+    url, log = start_server(ws)
+    return {"ok": True, "path": str(ws), "running": True, "url": url, "log": log}
+
+
+def stop_ws(path):
+    """작업 공간 서버를 끈다(service.py stop). 지금 이 페이지를 내주는 서버 자신은 끄지 않는다."""
+    ws = _ws_of(path)
+    me = os.environ.get("NEXA_SLIDE_WORKSPACE")
+    if me and Path(me).resolve() == ws.resolve():
+        raise HubError("지금 이 페이지를 내주는 작업 공간 서버다 - 여기서는 끄지 않는다(터미널에서 nexa.py stop)")
+    code, log = _run([STUDIO / "service.py", "stop"], ws, timeout=30)
+    st = server_state(ws)
+    if st["running"]:
+        raise HubError("서버를 끄지 못했다", log=log)
+    return {"ok": True, "path": str(ws), "running": False, "log": log}
 
 
 def demo():
@@ -482,9 +547,13 @@ def project(b):
         return plan(b)
     if act == "open":
         return open_ws(b.get("path"))
+    if act == "start":
+        return start_ws(b.get("path"))
+    if act == "stop":
+        return stop_ws(b.get("path"))
     if act == "demo":
         return demo()
     if act == "forget":
         forget(b.get("path", ""))
         return {"ok": True}
-    raise HubError("action = create|plan|open|demo|forget")
+    raise HubError("action = create|plan|open|start|stop|demo|forget")
