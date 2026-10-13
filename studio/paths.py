@@ -10,7 +10,7 @@
        Windows  알려진 폴더 Documents(OneDrive 로 옮긴 경우 그 위치) · macOS ~/Documents · Linux XDG DOCUMENTS
     제작마다 그 아래에 폴더를 하나씩 만든다. 사용자가 폴더·저장소를 지정하면 그 아래에 만든다.
 
-사용자 설정(엔진 밖) - 최근 작업 목록·등록한 샘플 사이트·허브 포트·기준 폴더
+사용자 설정(엔진 밖) - 최근 작업 목록·등록한 샘플 사이트·허브 포트·기준 폴더·이 PC 의 엔진 위치(engine)
     Windows %APPDATA%/nexa-slide · macOS ~/Library/Application Support/nexa-slide · Linux $XDG_CONFIG_HOME/nexa-slide
     (환경변수 NEXA_SLIDE_USER_DIR 로 바꿀 수 있다)
 """
@@ -89,6 +89,37 @@ def save_settings(s: dict):
     with os.fdopen(fd, "w", encoding="utf-8", newline="\n") as f:
         json.dump(s, f, ensure_ascii=False, indent=1)
     os.replace(tmp, SETTINGS)
+
+
+def remember_engine():
+    """이 PC 의 엔진 위치를 사용자 설정 "engine" 에 기록한다(바뀌었을 때만) - 작업 공간 실행기(nexa.py)가 PC 마다 엔진을 찾는 기준."""
+    s = load_settings()
+    if s.get("engine") != ENGINE.as_posix():
+        s["engine"] = ENGINE.as_posix()
+        save_settings(s)
+
+
+LOCAL_CONFIG = "nexa-slide.local.json"  # PC 별 설정 - 공유 nexa-slide.json 위에 덮어쓴다(git 제외)
+
+
+def merge_config(base: dict, over: dict) -> dict:
+    """over 를 base 위에 덮어쓴다 - 둘 다 dict 인 값은 안쪽까지(예: brand 의 한 항목만)."""
+    out = dict(base)
+    for k, v in over.items():
+        out[k] = merge_config(out[k], v) if isinstance(v, dict) and isinstance(out.get(k), dict) else v
+    return out
+
+
+def load_ws_config(ws, local=True) -> dict:
+    """작업 공간 설정 = nexa-slide.json(+ local 이면 nexa-slide.local.json 을 덮어씀). 없거나 깨졌으면 빈 dict."""
+    def read(p):
+        try:
+            d = json.loads(Path(p).read_text(encoding="utf-8"))
+            return d if isinstance(d, dict) else {}
+        except (OSError, ValueError):
+            return {}
+    cfg = read(Path(ws) / "nexa-slide.json")
+    return merge_config(cfg, read(Path(ws) / LOCAL_CONFIG)) if local else cfg
 
 
 def default_projects_root() -> Path:

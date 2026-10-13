@@ -57,7 +57,8 @@ nexa-slide/
 │   ├─ watch_requests.py   요청 감시 → Claude 세션 전달        ├─ render_pptx.ps1          PowerPoint 렌더(Windows)
 │   ├─ compare.py · check_parity.py   일치 검증                └─ install_fonts.ps1        OFL 글꼴 설치(Windows)
 │   ├─ service.py · status.py   서비스 시작·중지·상태(작업 공간별 포트)
-│   ├─ init_workspace.py    새 작업 공간 만들기(설정·실행기·CLAUDE.md·시작 내용·빈 포트)
+│   ├─ init_workspace.py    새 작업 공간 만들기(설정·실행기·CLAUDE.md·시작 내용·빈 포트·.env 샘플)
+│   ├─ update_launcher.py   예전 작업 공간의 실행기(nexa.py)를 최신 판으로(.env·PC 별 설정 지원)
 │   ├─ layout_samples.py    레이아웃 21종과 필드 예시(초안 작성용)
 │   ├─ check_layout.py      레이아웃 검사 — 겹침·넘침·최소 글자(pt)·슬라이드 밖·고정폭 정렬
 │   ├─ templates/          디자인 템플릿 15종 — lecture(기본) · lecture-large · 목적별 4(brief·notice·schedule·proposal) · 검토로 들인 시각 템플릿 9(keynote·archive·blueprint·swiss·editorial·ledger·signal·forest·graphite). tokens.json · template.json · design/
@@ -73,6 +74,10 @@ nexa-slide/
 새로 만들 때 고른 폴더는 **저장소 관리 기준 폴더(루트)**다 — 기초 자료를 모아 정리하고 필요하면 관련 소스도 개발한다(구조 자유).
 슬라이드는 그 자료를 근거로 그 아래 **`slides/`**(이름은 바꿀 수 있음 — `--slides-dir`)에서 만든다. nexa-slide 가 만드는 폴더는 이것 하나이고,
 루트에는 `SLIDES.md`(개념·서버 실행)와, 없을 때만 `CLAUDE.md`·`AGENTS.md` 를 둔다([docs/new-project.md](docs/new-project.md#2-작업-공간-만들기)).
+
+**여러 PC 에서 같은 저장소**를 쓸 때 PC 마다 다른 값은 커밋하지 않는 파일로 주입한다 — `slides/.env` 의 `NEXA_SLIDE_HOME`(엔진 위치, 가장 먼저)과
+`slides/nexa-slide.local.json`(포트 등 설정 덮어쓰기). 만들 때 샘플 `.env.example` 과 이 PC 의 `.env` 가 함께 생기고, 다른 PC 는 샘플을 복사해 고친다.
+예전 작업 공간은 `python3 slides/nexa.py update_launcher`. 자세히는 [docs/configuration.md](docs/configuration.md#여러-pc-에서-쓰기--pc-별-설정-env--nexa-slidelocaljson).
 
 ## 문서
 

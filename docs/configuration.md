@@ -22,7 +22,7 @@
 |---|---|---|
 | `port` | `5600` | 서버 포트. 함께 띄울 작업 공간끼리 다르게 준다(명령행 `--port` 가 우선) |
 | `title` | 폴더 이름 | 편집기 머리줄·브라우저 탭 제목, 통합본(`book`) 덱 제목 |
-| `engine` | — | 실행기(`nexa.py`)가 엔진을 찾는 경로. 엔진 자신은 읽지 않는다 |
+| `engine` | — | 실행기(`nexa.py`)가 엔진을 찾는 기본 경로. PC 마다 다르면 `nexa-slide.local.json` 또는 PC 설정이 우선([아래](#여러-pc-에서-쓰기--pc-별-설정-env--nexa-slidelocaljson)). 엔진 자신은 읽지 않는다 |
 | `assetRoot` | `.` | 덱의 그림 경로(`src`·`img`)의 기준 폴더. 서버가 이 폴더를 `/` 로 내준다 |
 | `content` | `content` | 내용 원본 `<id>.json` · 공통 슬라이드 `_common.json` |
 | `decks` | `decks` | 덱 `<id>.json` · 요청 메모 `<id>.requests.json` · 백업 `.history/` |
@@ -61,6 +61,45 @@
 > 기존 덱의 그림 경로가 저장소 루트 기준이면 `assetRoot` 를 그 루트로 맞춘다. 덱 JSON 은 고치지 않아도 된다.
 
 > **원칙**: 작업 공간은 고르기만 한다 — `tokens.json`·디자인 기준 문서·검사 기준값을 작업 공간에 두지 않는다. 다른 디자인이 필요하면 엔진에 템플릿을 추가한다.
+
+## 여러 PC 에서 쓰기 — PC 별 설정 `.env` · `nexa-slide.local.json`
+
+작업 공간 저장소를 여러 PC 에서 clone 해 고치면, PC 마다 다른 값(엔진 위치·포트 등)이 생긴다. 이것은 공유 설정에 커밋하지 않고
+작업 공간 폴더의 PC 별 파일에 둔다 — 둘 다 `.gitignore` 에 들어 있다.
+
+**`.env`** — 실행기(`nexa.py`) 환경. `NEXA_SLIDE_HOME=<엔진 폴더>` 를 적으면 그 엔진이 **가장 먼저** 쓰인다.
+`init_workspace.py` 가 샘플 **`.env.example`**(커밋)과 이 PC 의 **`.env`**(지금 엔진 위치가 채워짐)를 함께 만든다.
+다른 PC 에서 clone 했으면 `.env.example` 을 `.env` 로 복사해 그 PC 의 엔진 위치를 적는다.
+
+```
+# slides/.env
+NEXA_SLIDE_HOME=D:/Projects/nexa-slide       # 절대 경로 또는 작업 공간 기준 상대 경로, Windows 도 / 가능, ~ 가능
+```
+
+`.env` 의 다른 `KEY=VALUE` 도 실행기가 엔진 도구에 환경변수로 넘긴다(셸 환경변수보다 우선). `#` 주석·`export` 접두·따옴표 값을 읽는다.
+
+**`nexa-slide.local.json`** — 설정 덮어쓰기. 모든 도구가 이 파일의 값을 `nexa-slide.json` 위에 덮어써 읽는다
+(dict 값은 안쪽 항목만 — 예: `{"brand": {"logo": "…"}}`). 편집기·`set_fonts` 가 설정을 저장할 때는 공유 `nexa-slide.json` 에만 쓴다.
+
+```json
+{ "engine": "D:/Tools/nexa-slide", "port": 5610 }
+```
+
+**엔진 위치**는 실행기(`nexa.py`)가 다음 순서로 찾는다 — 실제로 엔진(`studio/server.py`)이 있는 첫 경로:
+
+1. `.env` 의 `NEXA_SLIDE_HOME` — git 에서 제외되는 이 PC 전용 파일, **있으면 가장 먼저**
+2. `nexa-slide.local.json` 의 `engine` — 이 PC 전용. `python3 nexa.py engine <엔진 폴더>` 가 쓴다(`--clear` 로 지움)
+3. 셸 환경변수 `NEXA_SLIDE_HOME`
+4. 이 PC 의 사용자 설정(`settings.json`) `engine` — 엔진을 한 번 실행하면(시작 페이지·`service.py start`·`init_workspace.py`) 그 위치가 기록된다
+5. `nexa-slide.json` 의 `engine` — 저장소에 커밋된 기본값(작업 공간 기준 상대 경로)
+
+앞 순서(`.env`·`nexa-slide.local.json`)에 적은 경로에 엔진이 없으면 알림 한 줄을 내고 다음 순서로 넘어간다.
+
+그래서 PC 마다 엔진을 다른 곳에 두어도, 그 PC 에서 엔진을 한 번 실행하면 저장소의 실행기가 그 엔진을 쓴다. 엔진을 옮겼으면 새 위치에서 다시 실행하거나
+`nexa.py engine <새 위치>` 로 정한다. 지금 어느 엔진을 쓰는지: `python3 nexa.py engine`.
+
+예전에 만든 작업 공간은 실행기를 새 판으로 바꾼다 — `python3 <작업 공간>/nexa.py update_launcher`
+(실행기를 바꾸고, `.gitignore` 에 `.env`·`nexa-slide.local.json` 을 더하고, 없으면 `.env.example`·`.env` 를 둔다. 설정·내용은 그대로).
 
 ## 템플릿 `tokens.json` — 디자인 토큰
 

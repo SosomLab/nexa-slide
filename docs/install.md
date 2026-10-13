@@ -57,21 +57,15 @@ slides/decks/.history/   # 자동 백업
 
 ## 기존 저장소에 붙이기 — 실행기
 
-작업 공간 저장소에 짧은 실행기를 두면 엔진 경로를 매번 적지 않아도 된다. `nexa-slide.json` 에 `"engine": "<엔진 저장소 상대 경로>"` 를 넣고:
+작업 공간 저장소에 실행기 `nexa.py` 를 두면 엔진 경로를 매번 적지 않아도 된다. `init_workspace.py` 가 만들고,
+손으로 만든 작업 공간이면 엔진 도구로 넣는다: `python3 <엔진>/studio/update_launcher.py --workspace <작업 공간>`.
 
-```python
-# <작업 공간>/nexa.py  —  python3 <작업 공간>/nexa.py start|stop|status|url | build_deck ch00 --force | watch_requests --stream
-import json, os, subprocess, sys
-from pathlib import Path
-WS = Path(__file__).resolve().parent
-home = os.environ.get("NEXA_SLIDE_HOME") or WS / json.loads((WS / "nexa-slide.json").read_text(encoding="utf-8")).get("engine", "../nexa-slide")
-tool, args = sys.argv[1].removesuffix(".py"), sys.argv[2:]
-if tool in ("start", "stop", "restart", "url"):
-    tool, args = "service", [tool, *args]
-script = Path(home).resolve() / "studio" / f"{tool}.py"
-sys.exit(subprocess.call([sys.executable, str(script), *args], env={**os.environ, "NEXA_SLIDE_WORKSPACE": str(WS)}))
+```
+python3 <작업 공간>/nexa.py start|stop|status|url | build_deck ch00 --force | watch_requests --stream
+python3 <작업 공간>/nexa.py engine [<엔진 폴더>]     # 이 PC 의 엔진 위치 보기 · 정하기
 ```
 
 서비스 구성은 작업 공간에 둔다 — `nexa-slide.json` 의 `port`(다른 작업 공간과 겹치지 않게)·`title`·`brand`·경로.
 
-엔진 위치 우선순위: 환경변수 `NEXA_SLIDE_HOME` > `nexa-slide.json` 의 `engine`.
+엔진 위치 우선순위: `.env` 의 `NEXA_SLIDE_HOME`(PC 별, git 제외 — 있으면 가장 먼저, 샘플 `.env.example`) > `nexa-slide.local.json` > 셸 환경변수 `NEXA_SLIDE_HOME` > 이 PC 의 사용자 설정(엔진을 실행하면 기록) > `nexa-slide.json` 의 `engine`.
+여러 PC 에서 같은 저장소를 쓰는 방법은 [configuration.md](configuration.md#여러-pc-에서-쓰기--pc-별-설정-env--nexa-slidelocaljson).

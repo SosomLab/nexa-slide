@@ -150,7 +150,9 @@ Start-Process (python3 slides\nexa.py url)
 
 - **로고**: `assets/brand/` 의 자리 표시 이미지를 자기 로고 PNG 로 바꾼다(가로세로 비율은 자동으로 읽는다).
 - **디자인 값(색·글꼴·크기·검사 기준)은 여기에 쓰지 않는다** — 템플릿 이름과 글꼴 프리셋만 고른다([templates.md](templates.md)).
-- 엔진 위치 `engine` 은 이 폴더 기준 상대 경로(다른 드라이브면 절대 경로). 다른 사람과 저장소를 공유하면 각자 `NEXA_SLIDE_HOME` 환경변수로 덮어쓸 수 있다.
+- 엔진 위치 `engine` 은 이 폴더 기준 상대 경로(다른 드라이브면 절대 경로). **여러 PC·여러 사람**이 저장소를 함께 쓰면 PC 마다 엔진 위치가 달라도 된다 —
+  `slides/.env` 의 `NEXA_SLIDE_HOME` 이 가장 먼저 쓰인다 — 만들 때 이 PC 의 엔진 위치로 채워지고(git 제외), 다른 PC 에서는 샘플 `slides/.env.example` 을
+  `.env` 로 복사해 그 PC 의 엔진 위치를 적는다. 그 PC 에서 엔진을 한 번 실행하면(시작 페이지·`service.py start`) 실행기가 자동으로 찾기도 한다. 포트처럼 PC 마다 다른 값도 그 파일에 적는다([configuration.md](configuration.md#여러-pc-에서-쓰기--pc-별-설정-env--nexa-slidelocaljson)).
 - 바꾼 뒤: `python3 slides/nexa.py restart`.
 
 ### 2.2 git 에 넣기
@@ -316,7 +318,7 @@ PPTX 는 이미지가 아니라 PowerPoint 기본 도형이라 받은 뒤에도 
 | “이미 실행 중” | 그 작업 공간 서버가 떠 있음 → `nexa.py url` 로 주소 확인 |
 | 편집기 칩이 “세션 연결 없음” | 세션에서 감시가 꺼짐(세션 종료·Monitor 만료) → Claude 에게 “요청 감시 다시 걸어 줘”. 남긴 요청은 저장돼 있다가 전달된다 |
 | `{"event":"refused"}` | 같은 작업 공간을 다른 세션이 감시 중 → 그 세션을 쓰거나, 넘겨받으려면 `--takeover` |
-| 엔진을 찾지 못함 | `nexa-slide.json` 의 `engine` 경로 확인, 또는 macOS `export NEXA_SLIDE_HOME=~/Projects/nexa-slide` / Windows `$env:NEXA_SLIDE_HOME="D:\Projects\nexa-slide"` |
+| 엔진을 찾지 못함 | `slides/.env.example` 을 `slides/.env` 로 복사해 `NEXA_SLIDE_HOME=<엔진 폴더>`, 또는 `python3 slides/nexa.py engine <엔진 폴더>`, 또는 그 PC 에서 엔진을 한 번 실행(시작 페이지). 찾아본 곳은 `python3 slides/nexa.py engine` |
 | 로고가 안 보임 | `brand.logo` 가 `assetRoot` 기준 경로인지, 파일이 PNG 인지 |
 | 검사에 칩·각주 글자 크기 ERROR 가 많음 | 템플릿 `lecture` 기준(본문 11pt)보다 작은 디자인 요소다. 그대로 두고 장 단위로 검토하거나, 일괄 확대 템플릿 `lecture-large` 를 고른 뒤 다시 빌드 |
 | 백그라운드 서버 프로세스 정리 | `nexa.py stop`. 안 되면 macOS `pkill -f "studio/server.py"` / Windows `Get-CimInstance Win32_Process -Filter "Name like 'python%'" \| ? CommandLine -like '*server.py*' \| % { Stop-Process -Id $_.ProcessId -Force }` |

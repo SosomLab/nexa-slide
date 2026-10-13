@@ -14,7 +14,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from common import CONFIG_NAME, TEMPLATE, WORKSPACE, read_config, resolve_tokens  # noqa: E402
+from common import CONFIG_NAME, LOCAL_NAME, TEMPLATE, WORKSPACE, read_config, resolve_tokens  # noqa: E402
 
 
 def main():
@@ -29,9 +29,12 @@ def main():
     name = sys.argv[1]
     if name not in presets:
         sys.exit(f"없는 프리셋: {name} — {', '.join(presets)}")
-    cfg["fontPreset"] = name
-    (WORKSPACE / CONFIG_NAME).write_text(json.dumps(cfg, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    shared = read_config(shared=True)  # 공유 파일에만 쓴다(PC 별 nexa-slide.local.json 값은 섞지 않는다)
+    shared["fontPreset"] = name
+    (WORKSPACE / CONFIG_NAME).write_text(json.dumps(shared, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     print(f"글꼴 프리셋 → {name} ({WORKSPACE / CONFIG_NAME})")
+    if read_config().get("fontPreset") != name:
+        print(f"알림: 이 PC 의 {LOCAL_NAME} 에 fontPreset 이 있어 이 PC 에서는 그 값이 쓰인다")
 
 
 if __name__ == "__main__":

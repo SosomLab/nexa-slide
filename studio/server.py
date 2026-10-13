@@ -176,7 +176,7 @@ def workspace_stamp():
     files = [] if HUB or not DECKS.is_dir() else [f for f in DECKS.glob("*.json") if not f.name.endswith(".requests.json")]
     eng = [STUDIO / n for n in ENGINE_UI] + [f for f in (STUDIO / "templates").rglob("*.json")]
     return {"deckIds": sorted(f.stem for f in files), "decksVer": max((ver(f) for f in files), key=int, default="0"),
-            "config": "0" if HUB else ver(WORKSPACE / "nexa-slide.json"), "engine": max((ver(f) for f in eng), key=int, default="0")}
+            "config": "0" if HUB else max(ver(WORKSPACE / "nexa-slide.json"), ver(WORKSPACE / "nexa-slide.local.json"), key=int), "engine": max((ver(f) for f in eng), key=int, default="0")}
 
 
 def has_decks():
@@ -643,7 +643,7 @@ class H(BaseHTTPRequestHandler):
                 if k not in ("body", "heading", "mono") or not isinstance(pr[k], dict):
                     return self.err(400, f"모르는 역할: {k} (body·heading·mono)")
             with WRITE_LOCK:
-                cfg = read_config()
+                cfg = read_config(shared=True)  # PC 별 값(nexa-slide.local.json)을 공유 파일에 섞지 않는다
                 cfg.setdefault("fontPresets", {})[name] = pr
                 if body.get("select"):
                     cfg["fontPreset"] = name
@@ -747,6 +747,11 @@ def main():
     ap.add_argument("--port", default=None, help="포트 번호 또는 auto (기본: nexa-slide.json port → 5600)")
     ap.add_argument("--force", action="store_true", help="이 작업 공간의 서버가 이미 떠 있어도 하나 더 띄운다")
     a = ap.parse_args()
+    try:  # 이 PC 의 엔진 위치 기록 - 다른 PC 에서 만든 저장소의 실행기(nexa.py)도 이 엔진을 찾는다
+        from paths import remember_engine
+        remember_engine()
+    except OSError:
+        pass
     run = running_server()
     if run and not a.force:
         sys.exit(f"이 작업 공간의 서버가 이미 실행 중이다: {run['url']} (pid {run['pid']}, {run['started']}) — 그대로 쓰면 된다")

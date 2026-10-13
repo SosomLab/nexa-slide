@@ -68,9 +68,35 @@ if HUB:
     os.environ.pop("NEXA_SLIDE_WORKSPACE", None)
 else:
     os.environ["NEXA_SLIDE_WORKSPACE"] = str(WORKSPACE)  # 하위 프로세스(export·set_fonts 등)도 같은 작업 공간
-CONFIG = {}
-if not HUB and (WORKSPACE / CONFIG_NAME).is_file():
-    CONFIG = json.loads((WORKSPACE / CONFIG_NAME).read_text(encoding="utf-8"))
+LOCAL_NAME = "nexa-slide.local.json"  # PC 별 설정(엔진 위치·포트 등, git 제외) - nexa-slide.json 위에 덮어쓴다
+
+
+def _merge(base, over):
+    out = dict(base)
+    for k, v in over.items():
+        out[k] = _merge(out[k], v) if isinstance(v, dict) and isinstance(out.get(k), dict) else v
+    return out
+
+
+def read_config(shared=False):
+    """작업 공간 설정을 지금 다시 읽는다 = nexa-slide.json + nexa-slide.local.json(PC 별, 덮어씀).
+    shared=True 면 공유 파일만 - 설정을 고쳐 쓸 때(PC 별 값이 공유 파일에 섞이지 않게)."""
+    if HUB:
+        return {}
+    f = WORKSPACE / CONFIG_NAME
+    cfg = json.loads(f.read_text(encoding="utf-8")) if f.is_file() else {}
+    loc = WORKSPACE / LOCAL_NAME
+    if not shared and loc.is_file():
+        try:
+            over = json.loads(loc.read_text(encoding="utf-8"))
+        except ValueError as e:
+            sys.exit(f"{loc} 를 읽지 못했다(JSON 오류): {e}")
+        if isinstance(over, dict):
+            cfg = _merge(cfg, over)
+    return cfg
+
+
+CONFIG = read_config()
 
 
 def _ws_path(key, default):
@@ -241,12 +267,6 @@ def cur_fonts():
     return _font_over or tokens()["fonts"]
 
 
-def read_config():
-    """nexa-slide.json 을 지금 다시 읽는다(서버처럼 오래 도는 프로세스용)."""
-    if HUB:
-        return {}
-    f = WORKSPACE / CONFIG_NAME
-    return json.loads(f.read_text(encoding="utf-8")) if f.is_file() else {}
 BRAND = {"name": "", "logo": "", "wordmark": "", "favicon": "", **CONFIG.get("brand", {})}
 
 _tokens = None
