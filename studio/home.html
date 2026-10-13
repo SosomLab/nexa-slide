@@ -561,7 +561,7 @@
     const port = r.url ? (r.url.match(/:(\d+)/) || [])[1] : "";
     const self = H.home.current && H.home.current.path === r.path;
     return r.running
-      ? `<span class="badge run" title="${esc(r.url || "")}">실행 중 · 포트 ${port || r.port || "?"}</span>` +
+      ? `<span class="badge run" title="${esc(r.url || "")}">포트 ${port || r.port || "?"}</span>` +
         (self ? "" : `<button type="button" class="svc stop" data-svc="stop" data-path="${esc(r.path)}" title="이 작업 공간 서버 끄기">${icon("stop", 14)}중지</button>`)
       : `<span class="badge off" title="설정 포트(nexa-slide.json · nexa-slide.local.json)">포트 ${r.port || "?"}</span><button type="button" class="svc" data-svc="start" data-path="${esc(r.path)}" title="서버만 띄우기(페이지는 그대로)">${icon("play", 14)}시작</button>`;
   }
