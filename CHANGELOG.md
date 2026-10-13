@@ -1,5 +1,9 @@
 # 변경 이력
 
+## 0.13.4 - 2026-10-13 · Windows venv 서비스 시작 시 콘솔 창 수정
+
+- Windows 에서 venv 의 Python(`.venv\Scripts\python.exe <작업 공간>\nexa.py start`)으로 서비스를 시작하면 빈 콘솔 창이 뜨고, 그 창을 닫으면 서버가 끝나던 문제 수정. venv 의 `python.exe` 는 기본 Python 을 자식으로 띄우는 런처라 `DETACHED_PROCESS`(콘솔 없음)로 띄우면 자식이 새 콘솔을 연다 - `service.py` 가 `DETACHED_PROCESS` 없이 `CREATE_NO_WINDOW` 의 숨은 콘솔을 물려주도록 바꿨다. 시작한 터미널을 닫아도 서버가 유지되는 동작은 그대로(시스템 Python·venv 모두 start·restart·stop 확인).
+
 ## 0.13.3 - 2026-10-02 · 시각 템플릿 graphite
 
 - 승인한 참고 덱 101(디자인 시스템 관리자처럼 콘텐츠 덱 정리하기)을 **`graphite`** 템플릿으로: 흰 바탕, 검정 글자, 강조색 없이 회색 단계와 검정 굵기만, 가는 회색 선 구획, 큰 검정 숫자, 모서리 없음, 쪽 번호만(`foot: minimal`). `lecture` 바탕. 등록부에 구현 기록.
