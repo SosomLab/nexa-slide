@@ -102,6 +102,7 @@ pgrep -fl watch_requests
 | 그림이 깨짐(404) | 덱의 `src` 가 `assetRoot` 기준 상대 경로인지 |
 | "포트를 쓸 수 없다" | 다른 작업 공간이 그 포트를 쓰는 중 — `nexa-slide.json` 의 `port` 를 바꾸거나 `--port auto` |
 | "이미 실행 중" | 그 작업 공간 서버가 떠 있다 — `nexa.py url` 로 주소 확인 |
+| `start` 하면 빈 콘솔 창이 뜨고 닫으면 서버가 꺼짐(Windows venv) | 0.13.3 이하 `service.py` 문제 - 0.13.4 이상으로 올린 뒤 `restart` |
 | "세션 연결 없음" | 세션이 감시를 실행 중인지([claude-session.md](claude-session.md)). Monitor 는 최대 30분 — 만료되면 다시 건다 |
 | PPT 렌더 실패 | PowerPoint 설치·`pwsh` 경로, 이전 렌더가 진행 중이면 429 |
 | PPT 와 화면 글자 위치가 다름 | 글꼴을 바꿨다면 `compare.py` 로 다시 재서 `pptTextShift` 수정 |

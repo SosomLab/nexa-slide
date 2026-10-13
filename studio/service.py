@@ -38,7 +38,9 @@ def start(extra):
     log.flush()
     kw = {}
     if os.name == "nt":  # 창 없이, 이 터미널·세션이 끝나도 살아 있게
-        kw["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.DETACHED_PROCESS | subprocess.CREATE_NO_WINDOW
+        # DETACHED_PROCESS 를 쓰지 않는다 - venv 의 python.exe 는 기본 Python 을 자식으로 띄우는 런처라,
+        # 콘솔이 없으면 그 자식이 새 콘솔 창을 연다(창을 닫으면 서버도 끝남). 숨은 콘솔을 주면 자식이 물려받는다.
+        kw["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.CREATE_NO_WINDOW
     else:
         kw["start_new_session"] = True
     env = {**os.environ, "PYTHONIOENCODING": "utf-8", "PYTHONUNBUFFERED": "1"}
