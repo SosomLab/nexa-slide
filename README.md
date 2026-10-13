@@ -16,7 +16,7 @@ git clone git@github.com:SosomLab/nexa-slide.git
 cd nexa-slide
 python3 -m pip install -r requirements.txt
 
-python3 studio/service.py start      # 시작 페이지 → http://127.0.0.1:5599/  (새로 만들기 · 열기 · 튜토리얼 · 데모 · 템플릿 · 샘플)
+python3 studio/service.py start      # 시작 페이지 → http://127.0.0.1:5599/  (새로 만들기 · 열기 · 최근 작업 시작/중지 · 튜토리얼 · 데모 · 템플릿 · 샘플)
 
 # 명령으로 작업 공간 만들기 → docs/new-project.md  (준 폴더 = 저장소 루트, 작업 공간 = 그 아래 slides/)
 python3 studio/init_workspace.py ../my-talk --title "신제품 소개"
@@ -73,7 +73,8 @@ nexa-slide/
 
 새로 만들 때 고른 폴더는 **저장소 관리 기준 폴더(루트)**다 — 기초 자료를 모아 정리하고 필요하면 관련 소스도 개발한다(구조 자유).
 슬라이드는 그 자료를 근거로 그 아래 **`slides/`**(이름은 바꿀 수 있음 — `--slides-dir`)에서 만든다. nexa-slide 가 만드는 폴더는 이것 하나이고,
-루트에는 `SLIDES.md`(개념·서버 실행)와, 없을 때만 `CLAUDE.md`·`AGENTS.md` 를 둔다([docs/new-project.md](docs/new-project.md#2-작업-공간-만들기)).
+루트에는 `SLIDES.md`(개념·서버 실행), 저장소 표식 `.nexa-slide.json`(`{"workspace": "slides"}` — 열기·도구가 작업 공간 폴더를 찾는다)과,
+없을 때만 `CLAUDE.md`·`AGENTS.md` 를 둔다([docs/new-project.md](docs/new-project.md#2-작업-공간-만들기)).
 
 **여러 PC 에서 같은 저장소**를 쓸 때 PC 마다 다른 값은 커밋하지 않는 파일로 주입한다 — `slides/.env` 의 `NEXA_SLIDE_HOME`(엔진 위치, 가장 먼저)과
 `slides/nexa-slide.local.json`(포트 등 설정 덮어쓰기). 만들 때 샘플 `.env.example` 과 이 PC 의 `.env` 가 함께 생기고, 다른 PC 는 샘플을 복사해 고친다.
