@@ -538,6 +538,23 @@ CELL_PADX = 14
 _NUM = re.compile(r"^[\s*+\-]?[\d,.\s%:]*\d[\d,.\s%KMG]*$")
 
 
+def row_heights(el, n):
+    """행 높이(px) - rowH(행별 비율, colW 처럼)를 h 에 맞춰 나눈다. 없으면 고르게, 모자란 행은 준 값의 평균,
+    0 이하·숫자 아님이 있으면 무시(render.js rowHeights 와 같은 규칙)."""
+    N = max(1, n)
+    raw = el.get("rowH")
+    try:
+        r = [float(v) for v in raw] if isinstance(raw, list) else []
+    except (TypeError, ValueError):
+        r = []
+    if not r or any(not v > 0 for v in r):
+        return [el["h"] / N] * n
+    avg = sum(r) / len(r)
+    r = (r + [avg] * n)[:n]
+    tot = sum(r)
+    return [el["h"] * v / tot for v in r]
+
+
 def table_grid(el):
     """반환: {x, y, tw, colW(px), rowH(px), cells[r][c]{text,fill,color,bold,align,font}, rule, callouts[]}"""
     is_plan = el.get("type") == "plan-table"
@@ -558,7 +575,11 @@ def table_grid(el):
     ratios = (list(ratios) + [1] * nc)[:nc]
     tot = sum(ratios) or 1
     colW = [tw * r / tot for r in ratios]
-    rowH = [el["h"] / max(1, n)] * n
+    rowH = row_heights(el, n)
+    even = all(v == rowH[0] for v in rowH)
+
+    def row_top(k):
+        return rowH[0] * k if even else sum(rowH[:k])
     header = el.get("header", True) if not is_plan else True
     head_fill, head_color = el.get("headFill", "surface-container-high"), el.get("headColor", "on-surface")
     fonts = el.get("colFont") or []
@@ -606,8 +627,8 @@ def table_grid(el):
             if role:
                 color = f"on-{fill}" if f"on-{fill}" in tokens()["colors"] else color
             lines = str(r["note"]).count("\n") + 1
-            bh = max(rowH[0] - 8, lines * size * 1.5 + 12)
-            cy = el["y"] + rowH[0] * (i + 1) + rowH[0] / 2
+            bh = max(rowH[i + 1] - 8, lines * size * 1.5 + 12)
+            cy = el["y"] + row_top(i + 1) + rowH[i + 1] / 2
             callouts.append({"row": i + 1, "text": r["note"], "fill": fill, "color": color,
                              "line": HL_ROLE[role][1] if role else "outline-variant",
                              "x": el["x"] + tw + 24, "y": cy - bh / 2, "w": cw, "h": bh, "cy": cy, "tx": el["x"] + tw})

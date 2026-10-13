@@ -820,6 +820,7 @@ ${names}
         ${colorRow("점 색", "dot", el)}${colorRow("글자색", "color", el)}${colorRow("하위 글자색", "subColor", el)}</div>`;
     if (el.type === "table") h += `<div class="sec"><h3>표 — 줄 = 행, 칸은 " | " 로 구분 (첫 행 = 머리)</h3><textarea data-tbl="1" style="min-height:140px">${esc(tableToText(el.rows))}</textarea>
         <div class="row"><label>열 비율</label><input type="text" data-list="colW" value="${esc((el.colW || []).join(", "))}"></div>
+        <div class="row"><label>행 비율</label><input type="text" data-list="rowH" value="${esc((el.rowH || []).join(", "))}" placeholder="비우면 고르게 · 예: 44, 46, 70"></div>
         ${num("크기(px)", "size", el)}${colorRow("머리 면", "headFill", el)}${colorRow("머리 글자", "headColor", el)}</div>`;
     if (el.type === "plan-table") h += `<div class="sec"><h3>실행계획 표</h3><div class="hint">rows[].cells · depth(들여쓰기) · hl({열 번호: "warn"|"ok"}) · note(오른쪽 설명) — 아래 JSON 에서 고친다.</div></div>`;
     h += `<div class="sec"><h3>요소 JSON (고급)</h3><textarea id="elJson" style="min-height:120px">${esc(JSON.stringify(el, null, 1))}</textarea>

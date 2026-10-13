@@ -22,7 +22,7 @@
 | `image` | `src`(`assetRoot` 기준 경로) | 그림 |
 | `line`·`arrow` | `x1`,`y1`,`x2`,`y2`, `color`, `width`, `head`(none/end/start/both), `dash`(solid/dash/dot) | 연결선 + 화살 머리(XML tailEnd/headEnd, lg) |
 | `curve` | `points`(요소 상자 기준 [[x,y],…]), `color`, `width`, `head`(end/none) | 자유형 꺾은선(채우기 없음) + 끝 화살 머리 — 반원 되돌이 화살표 등 |
-| `table` | `rows`(2차원, 첫 행 머리), `colW`(비율), `header`, `headFill`, `headColor`, `size`, `colFont`, `align`, `rule` | 표(스타일 없음, 머리 행 채우기, 본문 행 아래 선) |
+| `table` | `rows`(2차원, 첫 행 머리), `colW`(비율), (선택) `rowH`(행별 비율 - 머리 행부터, `h` 에 맞춰 나눔. 합을 `h` 와 같게 두면 px 그대로. 없으면 고르게), `header`, `headFill`, `headColor`, `size`, `colFont`, `align`, `rule` | 표(스타일 없음, 머리 행 채우기, 본문 행 아래 선) · 행 높이 = `rowH` |
 | `plan` | `text`(DBMS_XPLAN 원문), `size`, `lineHeight`, `fill`, `pad` — `[[값]]` = 경고 강조, `[[ok:값]]` = 개선 강조 | 고정폭 글자, 강조 run = 굵게 + 글자색 + **run 강조색(a:highlight)** |
 | `plan-table` | `columns`, `colW`, `opCol`(들여쓰기 열), `rows[{cells, depth, hl:{열번호: warn/ok}, note}]`, `calloutW` | 표 + 오른쪽 설명 콜아웃(연결선 + 둥근 상자) |
 | `code` | `text`, `lang`(sql/python), `size`, `lineHeight`, `start`, `focus`[줄], `show`[[from,to],…] | 그룹 도형: 줄 번호 여백·코드 면·강조 줄 면·테두리·줄 번호 글상자·코드 글상자(run 단위 색·굵게·기울임) |

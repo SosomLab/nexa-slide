@@ -151,6 +151,16 @@
 
   // ---------- 표 격자 (common.py table_grid 와 같은 규칙) ----------
   const NUM = /^[\s*+\-]?[\d,.\s%:]*\d[\d,.\s%KMG]*$/;
+  /** 행 높이(px) - rowH(행별 비율, colW 처럼)를 h 에 맞춰 나눈다. 없으면 고르게, 모자란 행은 준 값의 평균, 0 이하·숫자 아님이 있으면 무시. */
+  function rowHeights(el, n) {
+    const N = Math.max(1, n);
+    let r = Array.isArray(el.rowH) ? el.rowH.map(Number) : [];
+    if (!r.length || r.some((v) => !(v > 0))) return Array.from({ length: n }, () => el.h / N);
+    const avg = r.reduce((a, b) => a + b, 0) / r.length;
+    r = r.slice(0, n); while (r.length < n) r.push(avg);
+    const tot = r.reduce((a, b) => a + b, 0);
+    return r.map((v) => (el.h * v) / tot);
+  }
   function tableGrid(el) {
     const isPlan = el.type === "plan-table";
     let cols, n, tw, cw = 0, body = [];
@@ -168,7 +178,9 @@
     ratios = ratios.slice(0, nc);
     const tot = ratios.reduce((a, b) => a + b, 0) || 1;
     const colW = ratios.map((r) => (tw * r) / tot);
-    const rowH = Array.from({ length: n }, () => el.h / Math.max(1, n));
+    const rowH = rowHeights(el, n);
+    const even = rowH.every((v) => v === rowH[0]);
+    const rowTop = (k) => (even ? rowH[0] * k : rowH.slice(0, k).reduce((a, b) => a + b, 0));
     const headFill = el.headFill || "surface-container-high", headColor = el.headColor || "on-surface";
     const fonts = el.colFont || [], aligns = el.align || [];
     const cells = [];
@@ -213,8 +225,8 @@
         let [fill, col] = HL_ROLE[role] || ["surface-container", "on-surface-variant"];
         if (role && T && T.colors["on-" + fill]) col = "on-" + fill;
         const lines = String(r.note).split("\n").length;
-        const bh = Math.max(rowH[0] - 8, lines * size * 1.5 + 12);
-        const cy = el.y + rowH[0] * (i + 1) + rowH[0] / 2;
+        const bh = Math.max(rowH[i + 1] - 8, lines * size * 1.5 + 12);
+        const cy = el.y + rowTop(i + 1) + rowH[i + 1] / 2;
         callouts.push({ row: i + 1, text: r.note, fill, color: col, line: role ? HL_ROLE[role][1] : "outline-variant",
           x: el.x + tw + 24, y: cy - bh / 2, w: cw, h: bh, cy, tx: el.x + tw });
       });
