@@ -12,7 +12,8 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from common import WORKSPACE  # noqa: E402
+from common import CONFIG, WORKSPACE  # noqa: E402
+from paths import ROOT_MARKER, write_root_marker  # noqa: E402
 from init_workspace import LAUNCHER, ensure_env_files, ensure_gitignore  # noqa: E402
 
 
@@ -27,6 +28,10 @@ def main():
         print(f"실행기를 바꿨다: {f}")
     if ensure_gitignore(WORKSPACE):
         print(f".gitignore 에 PC 별 설정(.env · nexa-slide.local.json)을 더했다: {WORKSPACE / '.gitignore'}")
+    repo = CONFIG.get("repo") if isinstance(CONFIG.get("repo"), dict) else None
+    root = (WORKSPACE / repo["root"]).resolve() if repo and repo.get("root") else None
+    if root and root != WORKSPACE and write_root_marker(root, WORKSPACE):  # 저장소형 - 루트 표식
+        print(f"저장소 표식을 두었다: {root / ROOT_MARKER} (workspace = {WORKSPACE.name})")
     for name in ensure_env_files(WORKSPACE):
         print(f"{name} 를 두었다: {WORKSPACE / name}" + (" — NEXA_SLIDE_HOME 에 이 엔진 위치(가장 먼저 쓰인다)" if name == ".env" else " — 샘플(커밋)"))
     print(f"엔진 위치 확인: python3 {f} engine")

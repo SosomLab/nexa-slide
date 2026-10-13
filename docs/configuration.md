@@ -6,7 +6,12 @@
 
 1. 명령행 `--workspace <경로>` (또는 `-W`, `--workspace=<경로>`) — 어느 위치에 써도 된다
 2. 환경변수 `NEXA_SLIDE_WORKSPACE`
-3. 현재 폴더부터 위로 올라가며 `nexa-slide.json` 이 있는 첫 폴더 — 그 폴더의 `slides/` 에 있어도 찾는다(저장소형: 저장소 루트나 그 아래 폴더에서 실행). 작업 공간 폴더 이름을 바꿨으면(`--slides-dir ppt`) 루트에서는 `--workspace ppt` 를 주거나 `ppt/nexa.py` 로 실행한다
+3. 현재 폴더부터 위로 올라가며 `nexa-slide.json` 이 있는 첫 폴더 — 저장소 루트면 **루트 표식 `.nexa-slide.json`** 의 `workspace`(예: `slides`·`ppt`)가 가리키는 폴더,
+   표식이 없으면 `slides/`(저장소형: 저장소 루트나 그 아래 폴더에서 실행)
+
+**루트 표식 `.nexa-slide.json`**(저장소 루트, 커밋한다) — `{"workspace": "ppt"}`. 이 저장소의 작업 공간 폴더 이름이다.
+`init_workspace.py` 가 만들고(이미 다른 작업 공간을 가리키면 고치지 않음), 예전 저장소는 `nexa.py update_launcher` 가 더한다.
+시작 페이지 "열기"·엔진 도구·세션 훅이 이것으로 작업 공간을 찾는다 — 작업 공간 폴더 이름을 바꿔도(`--slides-dir`) 루트에서 그대로 동작한다.
 
 못 찾으면 현재 폴더를 작업 공간으로 쓰지 않는다(엔진 폴더에 내용이 생기지 않게).
 서버·`service.py`·`status.py` 는 허브(시작 페이지)로 뜨고, 나머지 도구는 안내를 내고 끝난다.

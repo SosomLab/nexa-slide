@@ -33,7 +33,8 @@ API
   GET  /api/check/<id>               레이아웃 검사(check_layout.py) — 겹침·넘침·최소 글자·슬라이드 밖·고정폭 정렬
 시작 페이지(허브) — studio/home.html · hub.py
   GET  /api/home                     기준 폴더·최근 작업·템플릿·시작용 내용·샘플·현재 작업 공간
-  POST /api/project                  {"action": "create"|"plan"|"open"|"demo"|"forget", ...} → {"url": 그 작업 공간 서버 주소}
+  POST /api/project                  {"action": "create"|"plan"|"open"|"start"|"stop"|"demo"|"forget", ...} → {"url": 그 작업 공간 서버 주소}
+                                     start·stop = 작업 공간 서버만 띄우기·끄기(페이지 이동 없음, 이 페이지의 서버 자신은 끄지 않음)
                                      plan = 만들 폴더·포트·init_workspace 명령(PowerShell·bash) — create 는 그 명령을 실행
   POST /api/settings                 {"projectsRoot"?, "samples"?} — 사용자 설정(엔진·작업 공간 밖)
   GET  /api/fs?path=<폴더>           폴더 고르기 — 하위 폴더 목록(git 저장소·작업 공간 표시)
