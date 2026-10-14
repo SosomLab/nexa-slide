@@ -680,7 +680,8 @@ class H(BaseHTTPRequestHandler):
             return self.send_json(json.loads(p.read_text(encoding="utf-8")))
         out = []
         for p in sorted(h.glob("*.json"), reverse=True) if h.exists() else []:
-            kind = "build" if p.stem.endswith("-build") else "ext" if p.stem.endswith("-ext") else "last-build" if p.name == "last-build.json" else "save"
+            # last-build.json 은 백업이 아니라 마지막 빌드 결과(build_deck 의 편집 보호용) - stem "last-build" 도 "-build" 로 끝나므로 먼저 거른다
+            kind = "last-build" if p.name == "last-build.json" else "build" if p.stem.endswith("-build") else "ext" if p.stem.endswith("-ext") else "save"
             if kind == "last-build":
                 continue
             out.append({"file": p.name, "kind": kind, "size": p.stat().st_size,
