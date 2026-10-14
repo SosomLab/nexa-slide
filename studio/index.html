@@ -156,8 +156,9 @@
   .chg-tx { color: var(--ink2); margin-top: 2px; word-break: break-all; } .chg-tx s { color: #93000A; }
   /* 변경 출처 배지(행위 종류 .k 와 축 분리) - 편집기 초록 · Claude 파랑 · 빌드 호박 · 외부 회색 · 추정은 점선 */
   .org { font-size: 11px; border-radius: 999px; padding: 1px 7px; white-space: nowrap; }
-  .org.editor { background: var(--okc); color: var(--ok); } .org.claude { background: var(--infoc); color: var(--info); }
-  .org.build { background: var(--warnc); color: var(--warn); } .org.external { background: var(--tone2); color: var(--ink2); }
+  /* 클래스는 o- 접두 - "editor" 는 글자 편집 상자(.editor, position:absolute)와 이름이 겹친다 */
+  .org.o-editor { background: var(--okc); color: var(--ok); } .org.o-claude { background: var(--infoc); color: var(--info); }
+  .org.o-build { background: var(--warnc); color: var(--warn); } .org.o-external { background: var(--tone2); color: var(--ink2); }
   .org.inf { outline: 1px dashed currentColor; outline-offset: -1px; }
   .chg-tbl { width: 100%; border-collapse: collapse; font-size: 12px; } .chg-tbl tr { cursor: pointer; } .chg-tbl tr:hover { background: var(--tone); }
   .chg-tbl td { padding: 4px 6px; border-bottom: 1px solid var(--tone2); vertical-align: top; white-space: nowrap; }
