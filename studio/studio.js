@@ -445,6 +445,13 @@
   function renderMarks() {
     const s = slide(), M = $("#marks"), D = $("#draw"); if (!M || !D) return;
     let h = "", svg = "";
+    if (s && S.mode !== "draw") {  // 코드 요소 언어 이름표 - 편집 화면에만(슬라이드·발표·PPTX 에는 없음). 크기는 확대와 무관하게 일정
+      const inv = 1 / scale;
+      for (const e of s.elements) if (e.type === "code") {
+        const k = Render.langOf(e);
+        h += `<div class="langtag" style="left:${e.x + e.w}px;top:${e.y}px;transform:translate(-100%, -100%) scale(${inv});transform-origin:100% 100%" title="코드 언어 - 서식 줄 또는 속성 탭에서 바꾼다${e.lineNo === false ? " · 줄 번호 숨김" : ""}">${esc(langLabel(k))}${e.lineNo === false ? " · 번호 없음" : ""}</div>`;
+      }
+    }
     if (s) {
       const list = S.reqs.filter((r) => r.slide === s.id && r.status !== "done");
       list.forEach((r, k) => {
