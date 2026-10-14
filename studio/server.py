@@ -45,6 +45,9 @@ API
   GET  /api/fs?path=<폴더>           폴더 고르기 — 하위 폴더 목록(git 저장소·작업 공간 표시)
   GET  /api/preview?template=&starter=  템플릿 × 시작용 내용 미리보기 — 사용자 설정 폴더의 임시 작업 공간에 빌드한 덱·토큰
   /preview/<템플릿>--<내용>/…        미리보기 덱의 그림(assetRoot)
+AI 세션(B 단계 - docs/dev/web-session-design.md · studio/agents/)
+  GET  /api/agent[?refresh=1]        어댑터 확인 {agents: {claude, codex}: {installed, loggedIn, version, verified, hint, doc, flags, models}} +
+                                     우선순위(전역 < 작업 공간)로 정한 agent·model·sources·limits·models
 중계(허브 한 포트로 여러 작업 공간 — hub.py ws_id·proxy_target)
   /w/<id>/…                          그 작업 공간 서버(별도 프로세스·포트)로 그대로 넘기고 응답을 돌려준다(Location 은 접두를 다시 붙임).
                                      꺼져 있으면 띄운다(--port auto — 설정 포트가 쓰는 중이면 빈 포트). nexa.py 로 띄운 서버가 있으면 그 서버로.
@@ -924,6 +927,14 @@ class H(BaseHTTPRequestHandler):
             self._event = f"users.{act}:{uid}"
             return self.send_json({"ok": True, "users": [auth.public(u, r) for u, r in sorted(auth.load_users().items())]})
         return self.err(404, "없는 API")
+
+    # ---------- AI 세션 어댑터(B-2) - 설치·로그인 확인과 기본값 ----------
+    def api_get_agent(self, _, q):
+        """{agents: {claude, codex}(probe), agent, model, sources, limits, models} - 작업 공간 서버는 그 설정까지, 허브는 전역만."""
+        import agents
+        refresh = (q.get("refresh") or ["0"])[0] == "1"
+        eff = agents.effective(None if HUB else read_config())
+        self.send_json({"ok": True, "agents": agents.probe_all(refresh=refresh), **eff})
 
     # ---------- 시작 페이지(허브) ----------
     def hub_call(self, fn, *args):

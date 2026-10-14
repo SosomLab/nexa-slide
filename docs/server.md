@@ -70,6 +70,7 @@ python3 studio/service.py start                                                 
 | `GET /api/fonts` · `POST /api/fonts` | 글꼴 프리셋 목록·현재 값 / `{preset}` 으로 전환 |
 | `GET /api/fontfile/<이름>` | 설치된 OFL 글꼴 파일(편집기 `fonts.css` 용) |
 | `GET /api/config` | 작업 공간 이름·경로(`path`)·포트·제목·브랜드(로고·워드마크·파비콘·로고 비율) |
+| `GET /api/agent` | AI 세션 어댑터 확인 — `{agents: {claude, codex: {installed, loggedIn, version, verified, hint, doc, flags, models}}, agent, model, sources, limits}`(전역 < 작업 공간 우선순위, `?refresh=1` 로 다시 확인). [dev/web-session-design.md](dev/web-session-design.md) |
 | `GET /api/session` | Claude 세션 연결 상태 `{connected, label, mode, last_seen, age, open, working}` |
 | `POST /api/flush/<id>` | "지금 보내기" — 감시 스크립트가 대기 없이 열린 요청을 바로 전달 |
 | `GET /api/history/<id>` | 자동 백업 목록 `[{file, kind(save/build/ext), at, size}]` · `?f=<파일>` 이면 그 시점 덱 JSON |
