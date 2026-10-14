@@ -1054,7 +1054,7 @@ ${names}
       <div class="hint">◎ <b>선택</b> 모드에서 요소를 누르거나 ✐ <b>그리기</b> 모드에서 영역을 그려 메모를 단 뒤, 아래 바의 <b>보내기</b>로 한꺼번에 보낸다. 슬라이드 전체 요청은 여기에.</div>
       <textarea id="reqText" data-key="${esc(S.id + "/" + s.id)}" style="min-height:60px;font-family:var(--font);font-size:13px" placeholder="슬라이드 ${S.cur + 1} 전체에 대한 요청 - 예: 이 표를 두 장으로 나눠 줘 (Enter = 남기기, Shift+Enter = 줄바꿈)">${esc(typed(S.id + "/" + s.id))}</textarea>
       <div class="row"><button class="chip sm primary" id="reqAdd">메모 남기기</button>${drafts ? `<button class="chip sm" id="reqSend">초안 ${drafts}개 보내기</button>` : ""}</div>
-      <div class="hint">${S.session && S.session.connected ? "세션 연결됨 - 보낸 요청은 바로 전달된다" : "세션 연결 없음 - 보낸 요청은 저장되고, 세션이 감시를 시작하면 전달된다"}</div></div>
+      <div class="hint">${S.session && S.session.connected ? (S.session.kind === "web" ? (S.session.state === "running" ? `웹 세션이 처리 중(턴 ${S.session.turn || "?"}) - 새로 보낸 요청은 이 턴이 끝난 뒤 바로 처리된다` : "웹 세션 대기 중 - 보낸 요청은 바로 처리된다") : "세션 연결됨 - 보낸 요청은 바로 전달된다") : "세션 연결 없음 - 보낸 요청은 저장되고, 세션이 감시를 시작하면 전달된다"}</div></div>
       <div class="row"><span class="seg" id="reqFilter"><button data-v="1" class="${S.reqOnlySlide ? "on" : ""}">이 슬라이드</button><button data-v="0" class="${S.reqOnlySlide ? "" : "on"}">전체 (${S.reqs.length})</button></span></div>
       ${list.length ? list.slice().reverse().map((r) => `<div class="req ${r.status === "done" ? "done" : ""}" data-rid="${esc(r.id)}">
         <div class="meta"><span class="st ${esc(r.status || "open")}">${ST[r.status] || "대기"}</span>
@@ -1139,8 +1139,9 @@ ${names}
       else if (w.state === "idle") label = st.working ? `세션 처리 중 ${st.working}` : "대기 - 요청 바로 처리";
     }
     if (act && act.othersBusy) label += ` · 다른 세션 ${act.othersBusy}`;
-    if (st.connected && st.kind === "web") label = `웹 세션 · ${st.model || st.agent || ""}${st.user ? ` · ${st.user}` : ""}${st.working ? ` · 처리 중 ${st.working}` : ""}`;
-    c.className = "chip sm " + (st.connected ? (st.working || (w && w.state === "busy") ? "busy" : "on") : "off");
+    const webBusy = st.connected && st.kind === "web" && st.state === "running";  // 하트비트의 state - 턴 실행 중(요청 status 와 무관하게 파랑)
+    if (st.connected && st.kind === "web") label = `웹 세션${webBusy ? ` 처리 중 (턴 ${st.turn || "?"})` : ""} · ${st.model || st.agent || ""}${st.user ? ` · ${st.user}` : ""}${st.working ? ` · 요청 ${st.working}` : ""}`;
+    c.className = "chip sm " + (st.connected ? (st.working || webBusy || (w && w.state === "busy") ? "busy" : "on") : "off");
     c.innerHTML = `<span class="dot"></span>${esc(label)} ▾`;
     if (w && w.state === "busy" && w.source === "chat" && w.prompt) c.dataset.prompt = w.prompt; else delete c.dataset.prompt;
     c.title = st.connected ? `${st.label || "Claude Code"} · 마지막 확인 ${st.last_seen} (${st.age}초 전) · 대기 ${st.open} · 처리 중 ${st.working}${c.dataset.prompt ? `

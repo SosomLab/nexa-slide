@@ -75,6 +75,9 @@ python3 studio/service.py start                                                 
 | `POST /api/wsession` | `{"action": "start", agent?, model?, saveAs?: "local"\|"shared"}` · `{"action": "stop"}` · `{"action": "model", model, saveAs?}`(실행 중이면 턴이 끝난 뒤 적용) · `{"action": "defaults", sessionAgent?, sessionModel?, saveAs?}`. 로그인 사용자 누구나. 수동 감시가 살아 있거나 PC 동시 세션 한도(`sessionMax`)면 400 |
 | `GET /api/wsession/events?since=N` | 진행 이벤트 — `Accept: text/event-stream`(또는 `?sse=1`)이면 **SSE**(`id`=seq, `event`=종류, `data`=JSON, 25초마다 `: keepalive`, `Last-Event-ID` 로 놓친 것부터 재개), 아니면 폴링 JSON. 종류: `state`·`turn.start`·`init`·`text`·`tool`·`tool_result`·`turn.end`·`warn`·`error`·`model`·`idle`. 중계(`/w/<이름>/…`)는 이벤트 스트림을 줄 단위로 바로 흘린다 |
 | `GET /api/wsession/log?turn=N` | 그 턴의 어댑터 출력 원문 |
+| `GET /api/engine` | (허브) 엔진 개발 — `{session, counts, recent, git: {engine, main, branch, head, ahead, worktreeExists}}` |
+| `GET /api/engine/requests?status=` · `POST /api/engine/requests` | 엔진 요청 큐 — `{"action": "add", title, body, …}`(로그인 사용자 누구나) · `{"action": "status", id, status, reply?, commit?, appliedCommit?}`·`priority`·`remove`(관리자). 상태 `triage→open→working→done→applied`·`rejected` |
+| `GET /api/engine/session` · `POST /api/engine/session` · `/events` · `/log` | 엔진 개발 세션(허브, `wsession.EngineProfile`) — `/api/wsession` 과 같은 꼴. start/stop/model 은 **관리자만** |
 | `GET /api/session` | Claude 세션 연결 상태 `{connected, label, mode, last_seen, age, open, working}` |
 | `POST /api/flush/<id>` | "지금 보내기" — 감시 스크립트가 대기 없이 열린 요청을 바로 전달 |
 | `GET /api/history/<id>` | 자동 백업 목록 `[{file, kind(save/build/ext), at, size}]` · `?f=<파일>` 이면 그 시점 덱 JSON |

@@ -21,6 +21,25 @@
       "blockReadsOutsideWorkingDirectories": true
     }
   },
+  "engine": {
+    "_about": "엔진 개발 웹 세션(허브가 엔진 worktree 를 cwd 로 띄움 - docs/dev/engine-request-design.md 6절). web 묶음의 deny 가 더해진다",
+    "permissions": {
+      "allow": [
+        "Read(./**)", "Edit(./**)", "Write(./**)", "Glob", "Grep",
+        "Bash(python3 studio/*)", "Bash(python studio/*)", "Bash(python3 -m py_compile *)", "Bash(python -m py_compile *)",
+        "Bash(python3 .nexa/*)", "Bash(python .nexa/*)",
+        "Bash(git status*)", "Bash(git diff*)", "Bash(git log*)", "Bash(git show *)", "Bash(git branch*)", "Bash(git rev-parse *)",
+        "Bash(git add *)", "Bash(git commit *)"
+      ],
+      "deny": [
+        "Bash(git push*)", "Bash(git merge*)", "Bash(git rebase*)", "Bash(git reset*)", "Bash(git checkout *)", "Bash(git switch *)", "Bash(git worktree *)",
+        "Bash(git clean*)", "Bash(git stash*)",
+        "Bash(python3 studio/service.py *)", "Bash(python studio/service.py *)", "Bash(python3 studio/server.py *)", "Bash(python studio/server.py *)",
+        "Bash(python3 studio/auth.py *)", "Bash(python studio/auth.py *)",
+        "Bash(rm *)", "Bash(del *)", "Bash(rmdir *)"
+      ]
+    }
+  },
   "retired": {
     "allow": ["Read", "Edit", "Write"],
     "deny": ["PowerShell", "WebFetch", "WebSearch", "Bash(curl *)", "Bash(wget *)", "Bash(powershell *)", "Bash(pwsh *)", "Bash(cmd *)"]

@@ -97,6 +97,7 @@ except ImportError:  # 문서 폴더 없이 엔진만 배포한 경우
     review = None
 
 WS = None  # 웹 AI 세션 관리자(작업 공간 서버에서만 - main 에서 만든다)
+WS_ENGINE = None  # 엔진 개발 세션 관리자(허브에서만 - wsession.EngineProfile)
 HISTORY_KEEP = 50
 RENDER_LOCK = threading.Lock()
 WRITE_LOCK = threading.Lock()
@@ -545,6 +546,7 @@ class H(BaseHTTPRequestHandler):
             return self.err(405, "method")
         name = parts[1] if len(parts) > 1 else ""
         arg = parts[2] if len(parts) > 2 else None
+        self._rest = parts[3:]  # /api/engine/session/events 처럼 더 깊은 경로(핸들러가 본다)
         if arg is not None and not safe_id(arg):
             return self.err(400, "잘못된 id")
         try:
@@ -973,20 +975,118 @@ class H(BaseHTTPRequestHandler):
     def api_get_wsession(self, what, q):
         if HUB or WS is None:
             return self.err(404, "허브에는 세션이 없다 - 작업 공간(중계 /w/<이름>/api/wsession)에서")
+        return self._session_get(WS, what, q)
+
+    def _session_get(self, ws, what, q):
+        """세션 조회 공통 - what = None(상태) | events(SSE·폴링) | log(턴 원문). 작업 공간 세션(/api/wsession)과 엔진 세션(/api/engine/session)이 같이 쓴다."""
         if what == "events":  # SSE(Accept: text/event-stream 또는 ?sse=1) · 아니면 폴링 JSON
             since = int((q.get("since") or [self.headers.get("Last-Event-ID") or "0"])[0] or 0)
             if "text/event-stream" in (self.headers.get("Accept") or "") or (q.get("sse") or ["0"])[0] == "1":
-                return self.sse_events(since)
-            return self.send_json({"ok": True, "state": WS.state, "seq": WS.seq, "events": WS.events_since(since)})
+                return self.sse_events(since, ws)
+            return self.send_json({"ok": True, "state": ws.state, "seq": ws.seq, "events": ws.events_since(since)})
         if what == "log":
-            return self.send_json({"ok": True, "turn": (q.get("turn") or ["1"])[0], "lines": WS.turn_log((q.get("turn") or ["1"])[0]).splitlines()})
+            return self.send_json({"ok": True, "turn": (q.get("turn") or ["1"])[0], "lines": ws.turn_log((q.get("turn") or ["1"])[0]).splitlines()})
         if what:
             return self.err(404, "없는 API")
-        self.send_json({"ok": True, **WS.info()})
+        self.send_json({"ok": True, **ws.info()})
 
-    def sse_events(self, since):
+    def _session_post(self, ws, b, who, save_defaults=None):
+        """세션 조작 공통 - {action: start|stop|model}. 작업 공간 세션은 saveAs 로 기본값도 저장한다."""
+        act = b.get("action")
+        if act not in ("start", "stop", "model"):
+            return False  # 여기서 다루지 않는 action - 호출한 쪽이 처리
+        try:
+            if act == "start":
+                info = ws.start(b.get("agent"), b.get("model"), who)
+                self._event = f"{ws.p.kind}.session.start:{info['agent']}:{info['model']}"
+                if save_defaults and b.get("saveAs") in ("local", "shared"):
+                    save_defaults(b.get("saveAs"), {"sessionAgent": info["agent"], "sessionModel": info["model"]})
+                self.send_json({"ok": True, **info})
+            elif act == "stop":
+                was = ws.state != "off"
+                info = ws.stop(str(b.get("reason") or "user")[:40])
+                self._event = f"{ws.p.kind}.session.stop"
+                self.send_json({"ok": True, "stopped": was, **info})
+            else:
+                info = ws.set_model(b.get("model"))
+                self._event = f"{ws.p.kind}.session.model:{b.get('model')}"
+                if save_defaults and b.get("saveAs") in ("local", "shared"):
+                    save_defaults(b.get("saveAs"), {"sessionModel": str(b.get("model"))})
+                self.send_json({"ok": True, **info})
+        except ValueError as e:
+            self._event = f"{ws.p.kind}.session.denied"
+            self.err(400, str(e))
+        return True  # 응답을 보냈다
+
+    # ---------- 엔진 개발 세션 · 엔진 요청 큐(E 단계 - docs/dev/engine-request-design.md) - 허브에서만 ----------
+    def api_get_engine(self, what, q):
+        if not HUB:
+            return self.err(404, "허브(시작 페이지)에서")
+        import engine_requests
+        if what == "requests":
+            st = (q.get("status") or [None])[0]
+            items = [x for x in engine_requests.load() if not st or x.get("status") == st]
+            return self.send_json({"ok": True, "items": items, "counts": engine_requests.counts()})
+        if what == "session":
+            if WS_ENGINE is None:
+                return self.err(503, "엔진 세션 관리자가 없다")
+            return self._session_get(WS_ENGINE, (self._rest or [None])[0], q)
+        if what:
+            return self.err(404, "없는 API")
+        info = WS_ENGINE.info() if WS_ENGINE else {"state": "off"}
+        return self.send_json({"ok": True, "session": info, "counts": engine_requests.counts(),
+                               "recent": sorted(engine_requests.load(), key=lambda x: -x["id"])[:8], "git": info.get("git") or {}})
+
+    def api_post_engine(self, what, q):
+        """requests: {action: add, title, body, …}(로그인 사용자 누구나) · {action: status, id, status, reply?…}·{action: remove, id}·{action: priority, id, priority}(관리자)
+        session: {action: start|stop|model}(관리자)."""
+        if not HUB:
+            return self.err(404, "허브(시작 페이지)에서")
+        import engine_requests
+        b = self.body_json() or {}
+        who = self.user or "local"
+        if what == "requests":
+            act = b.get("action")
+            try:
+                if act == "add":
+                    it = engine_requests.add(b.get("title"), b.get("body") or "", kind="user", user=who, ws=b.get("ws"), ws_id=b.get("wsId"),
+                                             request=b.get("request"), deck=b.get("deck"), slide=b.get("slide"), evidence=b.get("evidence") or [],
+                                             priority=b.get("priority") or 0)
+                    self._event = f"engine.request.add:{it['id']}"
+                    return self.send_json({"ok": True, "item": it, "counts": engine_requests.counts()})
+                if self.role != "admin":
+                    self._event = "engine.request.denied"
+                    return self.err(403, "관리자만")
+                if act == "status":
+                    it = engine_requests.update(b.get("id"), status=b.get("status"), by=who, reply=b.get("reply"), commit=b.get("commit"),
+                                                branch=b.get("branch"), test=b.get("test"), appliedCommit=b.get("appliedCommit"), engineVersion=b.get("engineVersion"))
+                    self._event = f"engine.request.{b.get('status')}:{it['id']}"
+                    return self.send_json({"ok": True, "item": it, "counts": engine_requests.counts()})
+                if act == "priority":
+                    it = engine_requests.update(b.get("id"), by=who, priority=b.get("priority"))
+                    return self.send_json({"ok": True, "item": it})
+                if act == "remove":
+                    engine_requests.remove(b.get("id"))
+                    self._event = f"engine.request.remove:{b.get('id')}"
+                    return self.send_json({"ok": True, "counts": engine_requests.counts()})
+            except ValueError as e:
+                return self.err(400, str(e))
+            return self.err(400, "action = add|status|priority|remove")
+        if what == "session":
+            if self.role != "admin":  # 엔진 커밋 권한이 있는 세션 - 관리자만
+                self._event = "engine.session.denied"
+                return self.err(403, "엔진 개발 세션은 관리자만 시작·중지할 수 있다")
+            if WS_ENGINE is None:
+                return self.err(503, "엔진 세션 관리자가 없다")
+            if self._session_post(WS_ENGINE, b, who):
+                return
+            return self.err(400, "action = start|stop|model")
+        return self.err(404, "없는 API")
+
+    def sse_events(self, since, ws=None):
         """진행 이벤트를 SSE 로 밀어 준다 - id = seq, event = 종류, data = JSON. 25초마다 `: keepalive`(Cloudflare 무료 100초 응답 한계).
-        클라이언트가 끊으면(쓰기 오류) 끝난다. 중계(허브)는 text/event-stream 응답을 줄 단위로 흘린다(H.proxy)."""
+        클라이언트가 끊으면(소켓 EOF 감시) 끝난다. 중계(허브)는 text/event-stream 응답을 줄 단위로 흘린다(H.proxy)."""
+        ws = ws or WS
         self.send_response(200)
         self.send_header("Content-Type", "text/event-stream; charset=utf-8")
         self.send_header("Cache-Control", "no-cache")
@@ -1000,9 +1100,9 @@ class H(BaseHTTPRequestHandler):
             self.wfile.flush()
         try:
             send("retry: 3000\n\n")
-            send(f"event: state\ndata: {json.dumps({'state': WS.state, 'seq': WS.seq, 'agent': WS.agent, 'model': WS.model}, ensure_ascii=False)}\n\n")
+            send(f"event: state\ndata: {json.dumps({'state': ws.state, 'seq': ws.seq, 'agent': ws.agent, 'model': ws.model}, ensure_ascii=False)}\n\n")
             while not closed.is_set():
-                evs = WS.events_since(last)
+                evs = ws.events_since(last)
                 for e in evs:
                     last = e["seq"]
                     send(f"id: {e['seq']}\nevent: {e['type']}\ndata: {json.dumps(e, ensure_ascii=False)}\n\n")
@@ -1043,24 +1143,9 @@ class H(BaseHTTPRequestHandler):
         b = self.body_json() or {}
         act = b.get("action")
         who = self.user or "local"
+        if self._session_post(WS, b, who, save_defaults=self._save_session_defaults):
+            return  # start·stop·model 은 공통 처리에서 응답까지 끝냈다
         try:
-            if act == "start":
-                info = WS.start(b.get("agent"), b.get("model"), who)
-                self._event = f"session.start:{info['agent']}:{info['model']}"
-                if b.get("saveAs") in ("local", "shared"):
-                    self._save_session_defaults(b.get("saveAs"), {"sessionAgent": info["agent"], "sessionModel": info["model"]})
-                return self.send_json({"ok": True, **info})
-            if act == "stop":
-                was = WS.state != "off"
-                info = WS.stop(str(b.get("reason") or "user")[:40])
-                self._event = "session.stop"
-                return self.send_json({"ok": True, "stopped": was, **info})
-            if act == "model":
-                info = WS.set_model(b.get("model"))
-                self._event = f"session.model:{b.get('model')}"
-                if b.get("saveAs") in ("local", "shared"):
-                    self._save_session_defaults(b.get("saveAs"), {"sessionModel": str(b.get("model"))})
-                return self.send_json({"ok": True, **info})
             if act == "defaults":  # 세션 없이 작업 공간 기본(에이전트·모델)만 저장
                 vals = {k: str(b[k]) for k in ("sessionAgent", "sessionModel") if b.get(k)}
                 self._save_session_defaults(b.get("saveAs") or "local", vals)
@@ -1475,12 +1560,14 @@ def main():
         sys.exit(f"이 작업 공간의 서버가 이미 실행 중이다: {run['url']} (pid {run['pid']}, {run['started']}) — 그대로 쓰면 된다")
     auto = str(a.port).lower() == "auto"
     port = DEFAULT_PORT if a.port is None or auto else int(a.port)
-    global WS, SERVER_NAME
+    global WS, WS_ENGINE, SERVER_NAME
+    import wsession
     if not HUB:
         DECKS.mkdir(parents=True, exist_ok=True)
-        import wsession
         WS = wsession.WebSession()
         SERVER_NAME = hub.ws_id(WORKSPACE)
+    else:  # 허브 - 엔진 개발 세션(엔진 요청 큐를 엔진 worktree 에서 처리, 관리자가 켠다)
+        WS_ENGINE = wsession.WebSession(wsession.EngineProfile())
     srv = _bind(port, auto)
     port = srv.server_port
     url = f"http://127.0.0.1:{port}/"
@@ -1499,6 +1586,11 @@ def main():
     except KeyboardInterrupt:
         pass
     finally:
+        if WS_ENGINE is not None:
+            try:
+                WS_ENGINE.stop("server-stop")
+            except Exception:  # noqa: BLE001
+                pass
         if WS is not None:
             try:
                 WS.stop("server-stop")  # 실행 중 턴의 프로세스 트리까지 끝낸다

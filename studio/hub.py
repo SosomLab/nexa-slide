@@ -194,6 +194,7 @@ def session_summary(ws, cfg=None):
     connected = bool(hb) and not hb.get("stopped") and age <= float(hb.get("interval", 1)) * 4 + 2
     out = {"kind": (hb.get("kind") or "manual") if connected else "none", "connected": connected, "label": hb.get("label", ""),
            "agent": hb.get("agent"), "model": hb.get("model"), "user": hb.get("user"), "started": hb.get("started", ""), "lastSeen": hb.get("last_seen", ""),
+           "state": hb.get("state"), "turn": hb.get("turn"),  # 웹 세션의 하트비트가 적는 상태(running = 턴 실행 중)
            "open": 0, "working": 0, "defaults": {"agent": cfg.get("sessionAgent"), "model": cfg.get("sessionModel")}}
     decks_dir = ws / cfg.get("decks", "decks")
     for f in (decks_dir.glob("*.requests.json") if decks_dir.is_dir() else []):

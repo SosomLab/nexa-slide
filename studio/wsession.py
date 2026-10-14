@@ -1,15 +1,13 @@
 # -*- coding: utf-8 -*-
-"""웹 AI 세션 관리자 - 작업 공간 서버 프로세스 안에서 돈다(docs/dev/web-session-design.md 2·3·9절). server.py 의 /api/wsession 이 쓴다.
+"""웹 AI 세션 관리자 - 서버 프로세스 안에서 돈다(docs/dev/web-session-design.md 2·3·9절). 프로필 둘:
+  WorkspaceProfile  작업 공간 서버 안 - 편집기 요청(requests.json)을 묶어 claude 를 턴마다 실행(server.py /api/wsession)
+  EngineProfile     허브 안 - 엔진 요청 큐(engine_requests)를 하나씩 꺼내 엔진 worktree 에서 실행(server.py /api/engine/session, docs/dev/engine-request-design.md 6절)
 
-작업 공간 하나 = 세션 하나. 시작은 사용자가 [세션 시작] 으로(자동 시작 없음).
-  상태  off → ready(대기: 하트비트·요청 판정) → running(턴 실행 중) → ready | error(마지막 턴 실패 - 다음 묶음에 재시도) → off([끊기]·유휴 초과·서버 종료)
-  턴    요청 묶음(requests_core.RequestTracker - watch_requests 와 같은 규칙) 하나 = 어댑터 한 번 실행(cwd = 작업 공간, 프롬프트는 stdin).
-        첫 턴의 세션 id 로 다음 턴을 이어 간다(--resume / exec resume). 턴 시간 한도(sessionTurnMinutes)를 넘으면 프로세스 트리 종료 → error.
-  하트비트 out/.studio/session.json 에 kind=web·agent·model·user 를 더해 쓴다 → 편집기 칩·status.py 가 그대로 본다.
-        수동 감시(watch_requests)가 살아 있으면 시작을 거절하고, 웹 세션이 살아 있으면 watch_requests 도 거절한다(--takeover 로도 서버를 죽이지 않는다).
-  동시 수 사용자 설정 폴더 hub/.studio/wsessions/<작업 공간 id>.json 에 살아 있는 세션을 등록 - PC 단위 sessionMax.
-  로그  out/.studio/sessions/<시작 시각>/turn-N.jsonl(어댑터 출력 원문) · session.log. 토큰·키는 환경 변수로만.
-  권한  웹 세션은 agents.web_settings()(permissions.json 의 workspace+web)를 --settings 로 넘긴다(claude). 금지 옵션은 어댑터가 넣지 않는다.
+상태  off → ready(대기: 하트비트·요청 판정) → running(턴 실행 중) → ready | error(마지막 턴 실패 - 다음 묶음에 재시도) → off([중지]·유휴 초과·서버 종료)
+턴    묶음 하나 = 어댑터 한 번 실행(cwd = 프로필의 폴더, 프롬프트는 stdin). 첫 턴의 세션 id 로 다음 턴을 이어 간다. 턴 시간 한도를 넘으면 프로세스 트리 종료 → error.
+하트비트  프로필의 session.json 에 kind·agent·model·user 를 더해 쓴다 → 편집기 칩·status.py·허브가 본다.
+동시 수   사용자 설정 폴더 hub/.studio/wsessions/<키>.json 에 살아 있는 세션을 등록 - PC 단위 sessionMax(엔진 세션도 센다).
+로그      <state>/sessions/<시작 시각>/turn-N.jsonl(어댑터 출력 원문) · session.log. 토큰·키는 환경 변수로만.
 """
 import collections
 import datetime as dt
@@ -24,14 +22,11 @@ from pathlib import Path
 
 STUDIO = Path(__file__).resolve().parent
 sys.path.insert(0, str(STUDIO))
-from common import STATE, WORKSPACE, read_config  # noqa: E402
-from paths import user_dir  # noqa: E402
+from common import HUB, STATE, WORKSPACE, read_config  # noqa: E402
+from paths import ENGINE, user_dir  # noqa: E402
 import agents  # noqa: E402
 import requests_core as rc  # noqa: E402
 
-PROMPT_FILE = STUDIO / "agents" / "turn_prompt.md"
-SESS_FILE = STATE / "wsession.json"           # 마지막 세션 정보(서버 재시작 뒤에도 "마지막" 표시용)
-LOG_ROOT = STATE / "sessions"
 REGISTRY = user_dir() / "hub" / ".studio" / "wsessions"
 INTERVAL = 1.0
 
@@ -40,21 +35,16 @@ def _now():
     return dt.datetime.now().isoformat(timespec="seconds")
 
 
-def _ws_id():
-    from hub import ws_id
-    return ws_id(WORKSPACE)
-
-
 def live_sessions():
-    """PC 전체에서 살아 있는 웹 세션 [{ws, user, agent, model, started}] - 등록 파일의 하트비트가 신선한 것만(죽은 등록은 지운다)."""
+    """PC 전체에서 살아 있는 웹 세션 [{key, kind, ws, user, agent, model, started}] - 등록 파일의 하트비트가 신선한 것만(죽은 등록은 지운다)."""
     out = []
     if not REGISTRY.is_dir():
         return out
     for f in REGISTRY.glob("*.json"):
         try:
             r = json.loads(f.read_text(encoding="utf-8"))
-            hb = json.loads(Path(r["heartbeat"]).read_text(encoding="utf-8"))
-            fresh = hb.get("kind") == "web" and not hb.get("stopped") and time.time() - float(hb.get("ts", 0)) <= float(hb.get("interval", 1)) * rc.STALE_FACTOR + 2
+            st = rc.heartbeat_status(r["heartbeat"])
+            fresh = st["connected"] and st.get("kind") in ("web", "engine")
         except (OSError, ValueError, KeyError):
             fresh = False
         if fresh:
@@ -64,8 +54,214 @@ def live_sessions():
     return out
 
 
-class WebSession:
+# ---------- 프로필 ----------
+class WorkspaceProfile:
+    """작업 공간 서버 - 편집기 요청 묶음(requests_core.RequestTracker, watch_requests 와 같은 규칙)."""
+    kind = "web"
+
     def __init__(self):
+        if HUB:
+            raise RuntimeError("작업 공간 프로필은 작업 공간 서버에서만")
+        self.cwd = WORKSPACE
+        self.state_dir = STATE
+        self.heartbeat_path = rc.SESSION
+        self.registry_key = None  # hub.ws_id 로 늦게 정한다
+        self.name = WORKSPACE.name
+        self.prompt_file = STUDIO / "agents" / "turn_prompt.md"
+
+    def key(self):
+        if not self.registry_key:
+            from hub import ws_id
+            self.registry_key = ws_id(WORKSPACE)
+        return self.registry_key
+
+    def config(self):
+        return read_config()
+
+    def check_start(self):
+        st = rc.session_status()
+        if st.get("connected") and st.get("kind") != "web" and rc.pid_alive(st.get("pid")):  # 끝난 감시의 "끝남" 표시가 파일 경합으로 안 써졌을 수 있다 → pid 로 확인
+            raise ValueError(f"수동 감시({st.get('label') or '?'}, pid {st.get('pid')})가 이 작업 공간을 맡고 있다 - 그 세션의 감시를 끝낸 뒤 시작한다")
+
+    def source(self):
+        return rc.RequestTracker(quiet=8.0)
+
+    def ids(self, batch):
+        return [r["id"] for r in batch]
+
+    def prompt(self, batch, reason, sess, ag):
+        tpl = self.prompt_file.read_text(encoding="utf-8")
+        return tpl.replace("{guide}", ag.guide_file).replace("{reason}", str(reason)).replace("{batch}", json.dumps([rc.brief(r) for r in batch], ensure_ascii=False, indent=1))
+
+    def settings_json(self):
+        """웹 세션 권한 JSON - 템플릿(workspace+web)에 이 작업 공간 실행기의 절대 경로 변형을 더한다.
+        안내 파일(CLAUDE.md)이 `python3 <절대 경로>/nexa.py …` 로 적힌 작업 공간(허브가 만든 것)에서도 그 명령이 허용되게 - 다른 폴더의 nexa.py 는 여전히 거절."""
+        s = agents.web_settings()
+        allow = list(s["permissions"].get("allow", []))
+        launcher = (WORKSPACE / "nexa.py")
+        for py in ("python3", "python"):
+            for f in sorted({launcher.as_posix(), str(launcher)}):
+                for rule in (f"Bash({py} {f} *)", f'Bash({py} "{f}" *)'):
+                    if rule not in allow:
+                        allow.append(rule)
+        s["permissions"]["allow"] = allow
+        return s
+
+    def env(self, sess):
+        return {"NEXA_SLIDE_WORKSPACE": str(WORKSPACE), "NEXA_SLIDE_SESSION": f"web:{sess.agent}", "NEXA_SLIDE_USER": sess.started_by or "local"}
+
+    def extra_info(self):
+        st = rc.session_status()
+        manual = None
+        if st.get("connected") and st.get("kind") != "web":
+            manual = {"label": st.get("label"), "pid": st.get("pid"), "mode": st.get("mode"), "last_seen": st.get("last_seen")}
+        return {"open": st.get("open", 0), "working": st.get("working", 0), "manual": manual}
+
+    def reconcile(self, batch, result, rc_code, emit):
+        """침묵 실패 막기 - 턴이 끝났는데 묶음의 요청이 아직 working 이거나 open 에 빈 reply 면 서버가 reply 에 사유를 적고 open 으로 되돌린다."""
+        ids = {r["id"] for r in batch}
+        note = ((result or {}).get("text") or "").strip().splitlines()
+        note = (note[0] if note else (f"턴이 비정상 종료(코드 {rc_code})" if rc_code else "세션이 답 없이 끝남"))[:200]
+        unhandled = []
+        for deck in {r["deck"] for r in batch}:
+            p = rc.DECKS / f"{deck}.requests.json"
+            try:
+                rs = json.loads(p.read_text(encoding="utf-8"))
+            except (OSError, ValueError):
+                continue
+            changed = False
+            for q in rs:
+                if q.get("id") in ids and (q.get("status") == "working" or (q.get("status") == "open" and not (q.get("reply") or "").strip())):
+                    q["status"], q["reply"] = "open", f"세션이 처리하지 못했습니다: {note}"
+                    unhandled.append(q["id"])
+                    changed = True
+            if changed:
+                rc.write_json(p, rs)
+        if unhandled:
+            emit("warn", message=f"처리되지 않은 요청 {len(unhandled)}건 - reply 에 사유를 적고 open 으로 두었다", ids=unhandled)
+        return unhandled
+
+
+class EngineQueueSource:
+    """엔진 요청 큐 - 한 번에 하나. working 이 남아 있으면(이전 턴이 끝내지 못함) 그것부터."""
+
+    def __init__(self):
+        import engine_requests
+        self.q = engine_requests
+
+    def poll(self):
+        x = self.q.next_open()
+        if not x:
+            return None, None
+        if x["status"] == "open":
+            x = self.q.update(x["id"], status="working", by="engine-session")
+        return [x], "queue"
+
+
+class EngineProfile:
+    """허브 - 엔진 요청 큐를 엔진 worktree(<엔진>/.claude/worktrees/engine-dev, 브랜치 engine-dev)에서 처리한다. 운영 트리(main)는 건드리지 않는다."""
+    kind = "engine"
+    BRANCH = "engine-dev"
+
+    def __init__(self):
+        self.engine = ENGINE
+        self.cwd = ENGINE / ".claude" / "worktrees" / "engine-dev"
+        self.state_dir = user_dir() / "hub" / "engine" / ".studio"
+        self.heartbeat_path = self.state_dir / "session.json"
+        self.name = "engine"
+        self.prompt_file = STUDIO / "agents" / "engine_turn_prompt.md"
+
+    def key(self):
+        return "engine"
+
+    def config(self):
+        return {}
+
+    def _git(self, *args, cwd=None, timeout=60):
+        return subprocess.run(["git", *args], cwd=str(cwd or self.engine), capture_output=True, timeout=timeout, text=True, encoding="utf-8", errors="replace")
+
+    def ensure_worktree(self):
+        """엔진 worktree 가 없으면 main 에서 engine-dev 브랜치로 만든다(있으면 그대로 - 지난 요청의 커밋이 쌓인다). 큐 CLI 실행 파일(.nexa/)도 둔다."""
+        if not (self.cwd / ".git").exists():
+            self.cwd.parent.mkdir(parents=True, exist_ok=True)
+            r = self._git("rev-parse", "--verify", "--quiet", self.BRANCH)
+            args = ["worktree", "add", str(self.cwd)] + ([self.BRANCH] if r.returncode == 0 else ["-b", self.BRANCH, "main"])
+            r = self._git(*args)
+            if r.returncode != 0:
+                raise ValueError(f"엔진 worktree 를 만들지 못했다: {(r.stderr or r.stdout).strip()[-300:]}")
+        # --restricted 세션은 Bash 명령에 cwd 밖 경로가 있으면 거부한다 → 허브 엔진의 큐 CLI 를 worktree 안의 얇은 실행 파일로 부른다(git 제외)
+        shim = self.cwd / ".nexa"
+        shim.mkdir(exist_ok=True)
+        (shim / ".gitignore").write_text("*\n", encoding="utf-8", newline="\n")
+        target = (STUDIO / "engine_request.py").as_posix()
+        (shim / "engine_request.py").write_text(
+            "# -*- coding: utf-8 -*-\n# 허브 엔진의 큐 CLI 를 이 worktree 안에서 부르기 위한 실행 파일(세션 시작 때 wsession 이 만든다, git 제외)\n"
+            f"import runpy, sys\nsys.argv[0] = {target!r}\nrunpy.run_path({target!r}, run_name='__main__')\n", encoding="utf-8", newline="\n")
+
+    def git_info(self):
+        exists = (self.cwd / ".git").exists()
+        head = self._git("rev-parse", "--short", "HEAD", cwd=self.cwd if exists else self.engine)
+        main = self._git("rev-parse", "--short", "main")
+        ahead = self._git("rev-list", "--count", f"main..{self.BRANCH}") if exists else None
+        return {"engine": str(self.engine), "worktree": str(self.cwd), "worktreeExists": exists, "branch": self.BRANCH,
+                "head": head.stdout.strip(), "main": main.stdout.strip(), "ahead": int(ahead.stdout.strip() or 0) if ahead and ahead.returncode == 0 else 0}
+
+    def check_start(self):
+        st = rc.heartbeat_status(self.heartbeat_path)
+        if st.get("connected") and st.get("kind") != "engine" and rc.pid_alive(st.get("pid")):
+            raise ValueError(f"수동 엔진 개발 세션({st.get('label') or '?'}, pid {st.get('pid')})이 맡고 있다")
+        self.ensure_worktree()
+
+    def source(self):
+        return EngineQueueSource()
+
+    def ids(self, batch):
+        return [x["id"] for x in batch]
+
+    def req_cli(self):
+        """큐 CLI - worktree 안의 실행 파일(.nexa/engine_request.py → 허브 엔진의 studio/engine_request.py). cwd 밖 경로는 --restricted 가 거부하고,
+        worktree 브랜치(옛 main)에는 그 파일이 없을 수 있어서."""
+        return ".nexa/engine_request.py"
+
+    def prompt(self, batch, reason, sess, ag):
+        x = batch[0]
+        tpl = self.prompt_file.read_text(encoding="utf-8")
+        show = {k: x.get(k) for k in ("id", "title", "body", "from", "evidence", "priority", "created", "history")}
+        return (tpl.replace("{id}", str(x["id"])).replace("{branch}", self.BRANCH).replace("{req_cli}", self.req_cli())
+                .replace("{request}", json.dumps(show, ensure_ascii=False, indent=1)))
+
+    def settings_json(self):
+        tpl = json.loads((STUDIO / "agents" / "permissions.json").read_text(encoding="utf-8"))
+        eng, web = tpl["engine"]["permissions"], tpl["web"]["permissions"]
+        perms = {"allow": list(eng.get("allow", [])), "deny": list(eng.get("deny", [])) + [x for x in web.get("deny", []) if x not in eng.get("deny", [])]}
+        for k, v in web.items():
+            if k not in ("allow", "deny"):
+                perms[k] = v
+        return {"permissions": perms}
+
+    def env(self, sess):
+        return {"NEXA_SLIDE_SESSION": f"engine:{sess.agent}", "NEXA_SLIDE_USER": sess.started_by or "local"}
+
+    def extra_info(self):
+        import engine_requests
+        return {"queue": engine_requests.counts(), "git": self.git_info()}
+
+    def reconcile(self, batch, result, rc_code, emit):
+        import engine_requests
+        x = engine_requests.get(batch[0]["id"])
+        if x and x["status"] == "working":
+            note = ((result or {}).get("text") or "").strip().splitlines()
+            note = (note[0] if note else f"턴이 끝났지만 요청을 마무리하지 못함(코드 {rc_code})")[:300]
+            engine_requests.update(x["id"], status="open", by="engine-session", reply=(x.get("reply") or "") + f"\n[세션이 끝내지 못함] {note}")
+            emit("warn", message=f"엔진 요청 #{x['id']} 를 끝내지 못해 open 으로 되돌렸다", ids=[x["id"]])
+            return [x["id"]]
+        return []
+
+
+# ---------- 세션 ----------
+class WebSession:
+    def __init__(self, profile=None):
+        self.p = profile or WorkspaceProfile()
         self.lock = threading.RLock()
         self.state = "off"
         self.agent = self.model = self.model_actual = self.session_id = None
@@ -80,11 +276,14 @@ class WebSession:
         self._thread = None
         self._stop = threading.Event()
         self._proc = None
-        self._tracker = None
+        self._source = None
         self._hb = None
         self._log_dir = None
         self._turn_log = None
-        self.last = self._read_json(SESS_FILE)
+        self._settings_path = None
+        self.sess_file = self.p.state_dir / "wsession.json"  # 마지막 세션 정보(서버 재시작 뒤에도 "마지막" 표시용)
+        self.log_root = self.p.state_dir / "sessions"
+        self.last = self._read_json(self.sess_file)
 
     # ---------- 정보 ----------
     @staticmethod
@@ -97,15 +296,14 @@ class WebSession:
 
     def info(self):
         with self.lock:
-            st = rc.session_status()
-            manual = None
-            if st.get("connected") and st.get("kind") != "web":
-                manual = {"label": st.get("label"), "pid": st.get("pid"), "mode": st.get("mode"), "last_seen": st.get("last_seen")}
-            d = {"state": self.state, "agent": self.agent, "model": self.model, "modelActual": self.model_actual, "pendingModel": self.pending_model,
+            d = {"kind": self.p.kind, "state": self.state, "agent": self.agent, "model": self.model, "modelActual": self.model_actual, "pendingModel": self.pending_model,
                  "sessionId": self.session_id, "startedBy": self.started_by, "startedAt": self.started_at, "turns": self.turns,
                  "lastError": self.last_error, "lastActivity": dt.datetime.fromtimestamp(self.last_activity).isoformat(timespec="seconds") if self.last_activity else None,
-                 "open": st.get("open", 0), "working": st.get("working", 0), "manual": manual, "limits": self.limits, "seq": self.seq,
-                 "logDir": str(self._log_dir) if self._log_dir else None}
+                 "limits": self.limits, "seq": self.seq, "logDir": str(self._log_dir) if self._log_dir else None}
+            try:
+                d.update(self.p.extra_info())
+            except Exception as e:  # noqa: BLE001
+                d["extraError"] = str(e)
             if self.state == "off":
                 d["last"] = self.last or None
             return d
@@ -113,7 +311,7 @@ class WebSession:
     def _save(self, **extra):
         self.last = {"agent": self.agent, "model": self.model, "modelActual": self.model_actual, "sessionId": self.session_id, "startedBy": self.started_by,
                      "startedAt": self.started_at, "turns": self.turns, "lastError": self.last_error, "logDir": str(self._log_dir) if self._log_dir else None, **extra}
-        rc.write_json(SESS_FILE, self.last)
+        rc.write_json(self.sess_file, self.last)
 
     def emit(self, kind, **kw):
         with self.lock:
@@ -132,26 +330,24 @@ class WebSession:
         with self.lock:
             return [e for e in self.events if e["seq"] > since]
 
-    # ---------- 시작 · 끊기 · 모델 ----------
+    # ---------- 시작 · 중지 · 모델 ----------
     def start(self, agent=None, model=None, user=None):
         with self.lock:
             if self.state != "off":
-                raise ValueError(f"이미 세션이 있다({self.state}) - 먼저 끊는다")
-            st = rc.session_status()
-            if st.get("connected") and st.get("kind") != "web" and rc.pid_alive(st.get("pid")):  # 끝난 감시의 "끝남" 표시가 파일 경합으로 안 써졌을 수 있다 → pid 로 확인
-                raise ValueError(f"수동 감시({st.get('label') or '?'}, pid {st.get('pid')})가 이 작업 공간을 맡고 있다 - 그 세션의 감시를 끝낸 뒤 시작한다")
-            eff = agents.effective(read_config())
+                raise ValueError(f"이미 세션이 있다({self.state}) - 먼저 중지한다")
+            self.p.check_start()
+            eff = agents.effective(self.p.config())
             agent = (agent or eff["agent"]).lower()
             model = str(model or eff["model"]).strip()
             if agent not in agents.AGENTS:
                 raise ValueError(f"모르는 에이전트: {agent}")
             if not model:
                 raise ValueError("모델을 준다")
-            others = [s for s in live_sessions() if s.get("ws") != str(WORKSPACE)]
+            others = [s for s in live_sessions() if s.get("key") != self.p.key()]
             smax = eff["limits"].get("sessionMax")
             smax = 3 if smax is None else int(smax)  # 0 도 뜻이 있다(웹 세션 금지)
             if len(others) >= smax:
-                raise ValueError(f"이 PC 의 동시 세션 한도({smax})에 닿았다 - 다른 작업 공간의 세션을 먼저 끊는다: " + ", ".join(Path(s['ws']).name for s in others))
+                raise ValueError(f"이 PC 의 동시 세션 한도({smax})에 닿았다 - 다른 세션을 먼저 중지한다: " + ", ".join(Path(s.get('ws') or s.get('key') or '?').name for s in others))
             ag = agents.get(agent)
             p = ag.probe()
             if not p["installed"]:
@@ -162,41 +358,37 @@ class WebSession:
             self.model_actual = self.session_id = self.last_error = self.pending_model = None
             self.started_by, self.started_at, self.turns = user or "local", _now(), 0
             self.last_activity = time.time()
-            self._log_dir = LOG_ROOT / self.started_at.replace(":", "").replace("-", "")
+            self._log_dir = self.log_root / self.started_at.replace(":", "").replace("-", "")
             self._log_dir.mkdir(parents=True, exist_ok=True)
-            self._settings_path = LOG_ROOT / "claude-settings.json"
-            self._settings_path.parent.mkdir(parents=True, exist_ok=True)
-            self._settings_path.write_text(json.dumps(self._web_settings(), ensure_ascii=False, indent=1), encoding="utf-8")
-            self._hb = {"pid": os.getpid(), "label": f"web:{agent}", "mode": "web", "interval": INTERVAL, "started": self.started_at,
-                        "kind": "web", "agent": agent, "model": model, "user": self.started_by}
+            self._settings_path = self.log_root / "claude-settings.json"
+            self._settings_path.write_text(json.dumps(self.p.settings_json(), ensure_ascii=False, indent=1), encoding="utf-8")
+            self._hb = {"pid": os.getpid(), "label": f"{self.p.kind}:{agent}", "mode": "web", "interval": INTERVAL, "started": self.started_at,
+                        "kind": self.p.kind, "agent": agent, "model": model, "user": self.started_by}
             REGISTRY.mkdir(parents=True, exist_ok=True)
-            rc.write_json(REGISTRY / f"{_ws_id()}.json", {"ws": str(WORKSPACE), "heartbeat": str(rc.SESSION), "user": self.started_by, "agent": agent,
-                                                          "model": model, "started": self.started_at, "pid": os.getpid()})
+            rc.write_json(REGISTRY / f"{self.p.key()}.json", {"key": self.p.key(), "kind": self.p.kind, "ws": str(self.p.cwd), "heartbeat": str(self.p.heartbeat_path),
+                                                                "user": self.started_by, "agent": agent, "model": model, "started": self.started_at, "pid": os.getpid()})
             self.state = "ready"
             self._stop.clear()
-            self._tracker = rc.RequestTracker(quiet=8.0)
-            rc.heartbeat(self._hb)
+            self._source = self.p.source()
+            self._beat()
             self._save()
             self.emit("state", state="ready", agent=agent, model=model, user=self.started_by)
-            self._thread = threading.Thread(target=self._loop, name="wsession", daemon=True)
+            self._thread = threading.Thread(target=self._loop, name=f"wsession-{self.p.kind}", daemon=True)
             self._thread.start()
+            # 하트비트는 별도 스레드 - 턴이 도는 동안 _loop 가 막혀도 매초 쓴다(안 그러면 편집기 칩이 "연결 없음"으로 바뀐다)
+            threading.Thread(target=self._beat_loop, name=f"wsession-beat-{self.p.kind}", daemon=True).start()
             return self.info()
 
-    @staticmethod
-    def _web_settings():
-        """웹 세션 권한 JSON - 템플릿(workspace+web)에 이 작업 공간 실행기의 절대 경로 변형을 더한다.
-        안내 파일(CLAUDE.md)이 `python3 <절대 경로>/nexa.py …` 로 적힌 작업 공간(허브가 만든 것)에서도 그 명령이 허용되게 - 다른 폴더의 nexa.py 는 여전히 거절."""
-        s = agents.web_settings()
-        allow = list(s["permissions"].get("allow", []))
-        launcher = (WORKSPACE / "nexa.py")
-        forms = {launcher.as_posix(), str(launcher)}
-        for py in ("python3", "python"):
-            for f in sorted(forms):
-                for rule in (f"Bash({py} {f} *)", f'Bash({py} "{f}" *)'):
-                    if rule not in allow:
-                        allow.append(rule)
-        s["permissions"]["allow"] = allow
-        return s
+    def _beat(self, stopped=False):
+        if self._hb:
+            rc.heartbeat({**self._hb, "state": self.state, "turn": self.turns, "model": self.model}, stopped=stopped, path=self.p.heartbeat_path)
+
+    def _beat_loop(self):
+        while not self._stop.wait(INTERVAL):
+            try:
+                self._beat()
+            except OSError:
+                pass
 
     def stop(self, reason="user"):
         with self.lock:
@@ -209,12 +401,11 @@ class WebSession:
             th.join(timeout=8)
         with self.lock:
             self.state = "off"
-            if self._hb:
-                rc.heartbeat(self._hb, stopped=True)
-            (REGISTRY / f"{_ws_id()}.json").unlink(missing_ok=True)
+            self._beat(stopped=True)
+            (REGISTRY / f"{self.p.key()}.json").unlink(missing_ok=True)
             self._save(stoppedAt=_now(), reason=reason)
             self.emit("state", state="off", reason=reason)
-            self._thread = self._tracker = self._hb = None
+            self._thread = self._source = self._hb = None
             return self.info()
 
     def set_model(self, model):
@@ -240,13 +431,12 @@ class WebSession:
         try:
             while not self._stop.is_set():
                 try:
-                    rc.heartbeat(self._hb)
                     idle = float(self.limits.get("sessionIdleMinutes") or 60) * 60
                     if self.state in ("ready", "error") and time.time() - self.last_activity > idle:
                         self.emit("idle", minutes=idle / 60)
                         threading.Thread(target=self.stop, args=("idle",), daemon=True).start()
                         return
-                    batch, reason = self._tracker.poll()
+                    batch, reason = self._source.poll()
                     if batch and not self._stop.is_set():
                         self._turn(batch, reason)
                 except Exception as e:  # noqa: BLE001 - 한 주기의 오류로 루프를 멈추지 않는다
@@ -256,14 +446,8 @@ class WebSession:
                     self.emit("error", message=self.last_error)
                 self._stop.wait(INTERVAL)
         finally:
-            if self._hb:
-                rc.heartbeat(self._hb, stopped=True)
-
-    def _prompt(self, batch, reason):
-        ag = agents.get(self.agent)
-        tpl = PROMPT_FILE.read_text(encoding="utf-8")
-        items = [rc.brief(r) for r in batch]
-        return tpl.replace("{guide}", ag.guide_file).replace("{reason}", str(reason)).replace("{batch}", json.dumps(items, ensure_ascii=False, indent=1))
+            if self._stop.is_set():
+                self._beat(stopped=True)
 
     def _turn(self, batch, reason):
         ag = agents.get(self.agent)
@@ -278,9 +462,8 @@ class WebSession:
             cmd = ag.turn_cmd(self.model, self.session_id, self._settings_path if self.agent == "claude" else None,
                               max_turns=self.limits.get("sessionMaxTurns"), budget_usd=self.limits.get("sessionBudgetUsd"), flags=self.flags)
             self._turn_log = self._log_dir / f"turn-{n}.jsonl"
-        self.emit("turn.start", turn=n, count=len(batch), reason=reason, ids=[r["id"] for r in batch], model=self.model)
-        env = {**os.environ, **ag.env(), "NEXA_SLIDE_WORKSPACE": str(WORKSPACE), "NEXA_SLIDE_SESSION": f"web:{self.agent}",
-               "NEXA_SLIDE_USER": self.started_by or "local"}
+        self.emit("turn.start", turn=n, count=len(batch), reason=reason, ids=self.p.ids(batch), model=self.model)
+        env = {**os.environ, **ag.env(), **self.p.env(self)}
         kw = {}
         if os.name == "nt":
             kw["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.CREATE_NO_WINDOW
@@ -288,12 +471,12 @@ class WebSession:
             kw["start_new_session"] = True
         result, stderr_tail, rc_code = None, [], None
         try:
-            proc = subprocess.Popen([str(c) for c in cmd], cwd=str(WORKSPACE), env=env, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+            proc = subprocess.Popen([str(c) for c in cmd], cwd=str(self.p.cwd), env=env, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                                     stderr=subprocess.PIPE, **kw)
             with self.lock:
                 self._proc = proc
             try:
-                proc.stdin.write(self._prompt(batch, reason).encode("utf-8"))
+                proc.stdin.write(self.p.prompt(batch, reason, self, ag).encode("utf-8"))
                 proc.stdin.close()
             except OSError:
                 pass
@@ -344,51 +527,19 @@ class WebSession:
         finally:
             with self.lock:
                 self._proc = None
-        unhandled = self._reconcile(batch, result, rc_code)
+        unhandled = self.p.reconcile(batch, result, rc_code, self.emit)
         with self.lock:
             ok = rc_code == 0 and (result is None or result.get("ok", True))
             if ok:
                 self.state, self.last_error = "ready", None
             else:
                 self.state = "error" if not self._stop.is_set() else self.state
-                self.last_error = (result or {}).get("text") or "\n".join(stderr_tail[-5:]) or f"종료 코드 {rc_code}"
-                self.last_error = self.last_error[:500]
+                self.last_error = ((result or {}).get("text") or "\n".join(stderr_tail[-5:]) or f"종료 코드 {rc_code}")[:500]
             self.last_activity = time.time()
             self._save()
         self.emit("turn.end", turn=n, ok=ok, code=rc_code, sessionId=self.session_id, model=self.model_actual,
                   costUsd=(result or {}).get("costUsd"), usage=(result or {}).get("usage"), error=None if ok else self.last_error,
                   unhandled=unhandled)
-
-    def _reconcile(self, batch, result, rc_code):
-        """침묵 실패 막기 - 턴이 끝났는데 묶음의 요청이 아직 working(세션이 끝내지 못함)이거나 open 에 빈 reply 면,
-        서버가 reply 에 "세션이 처리하지 못했습니다: <결과 첫 줄>" 을 적고 working 은 open 으로 되돌린다(사용자가 편집기에서 본다). 그런 요청 id 목록을 돌려준다."""
-        ids = {r["id"] for r in batch}
-        note = ((result or {}).get("text") or "").strip().splitlines()
-        note = (note[0] if note else (f"턴이 비정상 종료(코드 {rc_code})" if rc_code else "세션이 답 없이 끝남"))[:200]
-        unhandled = []
-        by_deck = {}
-        for r in batch:
-            by_deck.setdefault(r["deck"], None)
-        for deck in by_deck:
-            p = rc.DECKS / f"{deck}.requests.json"
-            try:
-                rs = json.loads(p.read_text(encoding="utf-8"))
-            except (OSError, ValueError):
-                continue
-            changed = False
-            for q in rs:
-                if q.get("id") not in ids:
-                    continue
-                if q.get("status") == "working" or (q.get("status") == "open" and not (q.get("reply") or "").strip()):
-                    q["status"] = "open"
-                    q["reply"] = f"세션이 처리하지 못했습니다: {note}"
-                    unhandled.append(q["id"])
-                    changed = True
-            if changed:
-                rc.write_json(p, rs)
-        if unhandled:
-            self.emit("warn", message=f"처리되지 않은 요청 {len(unhandled)}건 - reply 에 사유를 적고 open 으로 두었다", ids=unhandled)
-        return unhandled
 
     def _kill(self):
         proc = self._proc

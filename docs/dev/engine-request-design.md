@@ -129,6 +129,24 @@
 5. **확정** — 작업 공간 세션의 `engine_request` 허용: 턴당 1건·중복 금지·`triage`.
 - 구현 순서: B-4(SSE) → B-5(화면) → E-1 → E-2 → E-3(선택) → E-4.
 
+## 12. 구현 메모 (E-1·E-2·E-3 — 2026-10-14)
+
+사용자 요청("최근 작업 위에 서버 작업 카드 + nexa-slide 자체 개발 세션 [세션 시작]")으로 E-1~E-3 을 한 번에 구현했다(결정 1 "수동부터"는 유지 — 수동 세션용 `watch_engine_requests` 는 후속, 웹 모드가 먼저 들어갔다).
+
+| 것 | 구현 |
+|---|---|
+| 큐 | `studio/engine_requests.py`(모듈: add·update·next_open·counts·remove, 상태 전이 표, 잠금 `filelock.FileLock` + 원자적 쓰기) · `studio/engine_request.py`(CLI: add·list·show·status) · `studio/filelock.py` |
+| 세션이 넘기기 | `agents/turn_prompt.md`: 엔진 변경이 필요하면 `python3 nexa.py engine_request add …`(턴당 1건) → `triage`. 작업 공간 안에서 실행하면 `from.kind=session`·`wsId`, 같은 원 요청은 덧붙임 |
+| 엔진 개발 세션 | `wsession.py` 를 **프로필**로 일반화 — `WorkspaceProfile`(기존 동작) / `EngineProfile`(허브 안, cwd = `<엔진>/.claude/worktrees/engine-dev`(브랜치 `engine-dev`, main 에서 생성), 큐에서 한 번에 하나(`EngineQueueSource`), 프롬프트 `agents/engine_turn_prompt.md`, 권한 템플릿 `engine`+`web` 묶음, 하트비트 `hub/engine/.studio/session.json`, 로그 `hub/engine/.studio/sessions/`). 허브 `server.py` 가 `WS_ENGINE` 으로 띄운다 |
+| 큐 CLI 호출 | **`--restricted` 세션은 Bash 명령에 cwd 밖 경로가 있으면 거부**한다(allow 규칙이 있어도) → 세션 시작 때 worktree 에 `.nexa/engine_request.py`(허브 엔진의 CLI 를 `runpy` 로 실행, `.nexa/.gitignore` 로 git 제외)를 두고 프롬프트·권한은 `python3 .nexa/engine_request.py …` 를 쓴다. worktree 브랜치(옛 main)에 CLI 가 없어도 상태를 바꿀 수 있다 |
+| API | 허브 `GET /api/engine`(세션·큐 수·최근 8·git) · `GET/POST /api/engine/requests`(add 는 로그인 사용자 누구나, status/priority/remove 는 관리자) · `GET/POST /api/engine/session`(+`/events` SSE·`/log`, start/stop/model 은 **관리자만**) |
+| 화면 | 시작 페이지 "서버 작업" 카드(최근 작업 위): 엔진·main·작업 브랜치·앞선 커밋 수, 세션 줄 + [세션 시작](관리자, 에이전트·모델 창)/[세션 중지]/[진행](SSE 모달), 요청 목록(승인·거절·적용됨·삭제 — 관리자), [요청 추가] 양식 |
+| 보정 | 턴이 끝났는데 요청이 `working` 이면 `open` 으로 되돌리고 reply 에 `[세션이 끝내지 못함] …` |
+| 하트비트 | 세션의 하트비트를 **별도 스레드**로(턴 중에도 매초, `state`·`turn` 포함) — 턴 동안 편집기 칩이 "연결 없음"으로 바뀌던 결함(협업 세션 발견) 수정. 칩·허브 세션 줄·요청 탭 안내가 "처리 중(턴 n)" 을 보인다 |
+| 검증 | 격리 환경 28건: CLI(open/triage/덧붙임/전이 거절)·허브 API 권한(일반 사용자 추가 가능·상태 변경 403·세션 시작 403)·관리자 승인/거절/삭제·**실제 sonnet 턴**(worktree 생성 → 스모크 파일 커밋 `engine-request #1` → 큐 done+reply+commit, main 불변, 턴 중 하트비트 공백 < 4초)·SSE·중지·applied. 작업 공간 쪽 회귀 27·11·18·23 + 인증 104·중계 20 |
+
+남은 것(E 후속): 수동 엔진 세션용 `watch_engine_requests`, Studio 요청 탭의 "엔진 요청 #N" 배지와 적용 뒤 원 요청 자동 재개(E-2 일부), 전체 작업 공간 PPTX XML 회귀(검증 ④)를 세션 규약에 자동화, `server-admin.md` 적용 절차(병합+재시작 한 묶음), `mechanism.md` 그림.
+
 ## 11. 검토 기록
 
 - 2026-10-14 협업 세션(nexa-slide-f4): 프롬프트 인젝션 연쇄(→ `triage`) · 적용 중 버전 섞임(→ 병합+재시작 한 묶음, drain) · 회귀 범위(→ 모든 작업 공간 PPTX XML 검증, 사본에서) · 웹 모드 권한(`--add-dir` 는 편집 권한까지 → worktree 를 엔진 안 `.claude/worktrees/` 에, 사본 폴더에 deny) · 큐 파일 잠금 · 추적 필드(`appliedCommit` 등) · 협업 세션도 같은 CLI 로 요청 — 모두 반영.

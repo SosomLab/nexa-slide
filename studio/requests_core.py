@@ -68,9 +68,20 @@ def write_json(path, obj):
         tmp.unlink(missing_ok=True)
 
 
-def heartbeat(hb, stopped=False):
-    """하트비트 한 번 - hb 는 {pid, label, mode, interval, started, …}. stopped 면 끝났다는 표시(연결 없음으로 바로 바뀐다)."""
-    write_json(SESSION, {**hb, "ts": time.time(), "last_seen": now(), **({"stopped": True} if stopped else {})})
+def heartbeat(hb, stopped=False, path=None):
+    """하트비트 한 번 - hb 는 {pid, label, mode, interval, started, …}. stopped 면 끝났다는 표시(연결 없음으로 바로 바뀐다). path 로 다른 파일에(엔진 세션)."""
+    write_json(Path(path) if path else SESSION, {**hb, "ts": time.time(), "last_seen": now(), **({"stopped": True} if stopped else {})})
+
+
+def heartbeat_status(path):
+    """하트비트 파일 하나의 연결 여부 {connected, kind, label, agent, model, user, pid, last_seen, age} - 작업 공간 밖(엔진 세션)용."""
+    try:
+        hb = json.loads(Path(path).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {"connected": False}
+    age = time.time() - float(hb.get("ts", 0))
+    return {"connected": not hb.get("stopped") and age <= float(hb.get("interval", 1)) * STALE_FACTOR + 2, "age": round(age, 1),
+            **{k: hb.get(k) for k in ("kind", "label", "agent", "model", "user", "pid", "last_seen", "started")}}
 
 
 def pid_alive(pid):
@@ -114,7 +125,7 @@ def session_status():
     age = time.time() - float(hb.get("ts", 0))
     st.update(pid=hb.get("pid"), label=hb.get("label", ""), mode=hb.get("mode", ""), last_seen=hb.get("last_seen", ""), age=round(age, 1),
               connected=not hb.get("stopped") and age <= float(hb.get("interval", 1)) * STALE_FACTOR + 2)
-    for k in ("kind", "agent", "model", "user"):  # 웹 세션이 더 적는 값(없으면 빠진다)
+    for k in ("kind", "agent", "model", "user", "state", "turn"):  # 웹 세션이 더 적는 값(없으면 빠진다) - state=running 이면 턴 실행 중
         if hb.get(k) is not None:
             st[k] = hb[k]
     return st
