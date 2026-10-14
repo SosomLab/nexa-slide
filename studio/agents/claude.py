@@ -15,7 +15,7 @@ from .base import Agent, run
 
 TOOLS = "Read,Edit,Write,Glob,Grep,Bash"
 DISALLOW_OLD = "mcp__*,PowerShell,WebFetch,WebSearch"
-WANT_FLAGS = ("--restricted", "--permission-prompts", "--setting-sources", "--strict-mcp-config", "--max-budget-usd", "--tools", "--settings", "--resume", "--add-dir")  # --max-turns 는 --help 에 없어도 있다
+WANT_FLAGS = ("--restricted", "--permission-prompts", "--setting-sources", "--strict-mcp-config", "--max-budget-usd", "--tools", "--settings", "--resume", "--add-dir", "--session-id", "--name")  # --max-turns 는 --help 에 없어도 있다
 
 
 class ClaudeAgent(Agent):
@@ -46,7 +46,9 @@ class ClaudeAgent(Agent):
         elif not out["flags"].get("--restricted"):
             out["hint"] = f"구 판({out['version']}) - --restricted 가 없어 --setting-sources project,local 로 대신한다. 2.1.248 이상을 권한다"
 
-    def turn_cmd(self, model, resume_id=None, settings_path=None, max_turns=None, budget_usd=None, flags=None, allow_web=False, add_dirs=None):
+    def turn_cmd(self, model, resume_id=None, settings_path=None, max_turns=None, budget_usd=None, flags=None, allow_web=False, add_dirs=None,
+                 new_session_id=None, name=None):
+        """resume_id = 이어 갈 세션, new_session_id = 첫 턴에 쓸 세션 ID(미리 정해 화면에 바로 보이게 - `claude --resume <ID>` 로 확인), name = /resume 목록 표시 이름."""
         flags = flags or {}
         tools = TOOLS + (",WebFetch,WebSearch" if allow_web else "")  # 웹 검색 허용 세션 - --settings 의 allow 와 함께
         disallow = ",".join(x for x in DISALLOW_OLD.split(",") if not (allow_web and x in ("WebFetch", "WebSearch")))
@@ -70,6 +72,10 @@ class ClaudeAgent(Agent):
             cmd += ["--max-budget-usd", str(budget_usd)]
         if resume_id:
             cmd += ["--resume", str(resume_id)]
+        elif new_session_id and flags.get("--session-id", True):
+            cmd += ["--session-id", str(new_session_id)]
+        if name and flags.get("--name", False):
+            cmd += ["--name", str(name)]
         return cmd
 
     def parse(self, line):

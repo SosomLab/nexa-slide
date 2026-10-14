@@ -1257,7 +1257,7 @@ ${names}
     c.className = "chip sm " + (st.connected ? (st.working || webBusy || (w && w.state === "busy") ? "busy" : "on") : "off");
     c.innerHTML = `<span class="dot"></span>${esc(label)} ▾`;
     if (w && w.state === "busy" && w.source === "chat" && w.prompt) c.dataset.prompt = w.prompt; else delete c.dataset.prompt;
-    c.title = st.connected ? `${st.label || "Claude Code"} · 마지막 확인 ${st.last_seen} (${st.age}초 전) · 대기 ${st.open} · 처리 중 ${st.working}${c.dataset.prompt ? `
+    c.title = st.connected ? `${st.sessionId ? `claude 세션 ID ${st.sessionId}\n` : ""}${st.label || "Claude Code"} · 마지막 확인 ${st.last_seen} (${st.age}초 전) · 대기 ${st.open} · 처리 중 ${st.working}${c.dataset.prompt ? `
 대화 입력: ${c.dataset.prompt}` : ""}`
       : `세션 연결 없음${st.last_seen ? ` - 마지막 확인 ${st.last_seen}` : ""}${sessOffNote()}. 눌러서 웹 세션을 시작하거나, 터미널 세션에서 watch_requests.py --stream 을 Monitor 로 실행하면 연결된다`;
   }
@@ -1270,6 +1270,7 @@ ${names}
     const web = st.connected && st.kind === "web";
     const items = web
       ? [{ h: `웹 세션 · ${st.agent || ""} · ${st.model || ""}${st.user ? ` · ${st.user}` : ""}${st.allowWeb ? " · 웹 허용" : ""}${(st.grants || []).map((g) => " · " + g).join("")}` },
+         ...(st.sessionId ? [{ icon: "#", label: `세션 ID ${st.sessionId.slice(0, 8)} - 확인 명령 복사`, act: () => sidCopy(st) }] : []),
          { icon: "▶", label: "진행 보기", act: sessProgress }, { icon: "⟳", label: "모델 바꾸기…", act: sessModelDlg },
          { icon: "📄", label: "턴 로그…", act: () => sessLog(1) }, "-",
          { icon: "■", label: "세션 중지", act: sessStop }]
@@ -1277,6 +1278,10 @@ ${names}
         ? [{ h: `수동 세션 · ${st.label || ""}` }, { html: `<div class="hint" style="padding:4px 10px;max-width:280px">터미널의 Claude Code 세션이 요청 감시(watch_requests)로 맡고 있습니다. 웹 세션으로 바꾸려면 그 감시를 끝내세요.</div>` }]
         : [...(sessOffNote() ? [{ h: sessOffNote().replace(/^ · /, "") }] : []), { icon: "▶", label: "웹 세션 시작…", act: sessStartDlg }, { html: `<div class="hint" style="padding:4px 10px;max-width:280px">서버가 AI(claude·codex)를 띄워 편집기 요청을 처리합니다. 터미널 세션(Monitor)과 함께 쓸 수 없습니다.</div>` }];
     openMenu(btn, items, { right: false });
+  }
+  async function sidCopy(st) {  // 세션 식별자 확인 명령 - 그 폴더에서 claude --resume <ID>(보기만; 웹 세션이 도는 중에 이어 쓰면 대화가 섞인다)
+    const cmd = (st.cwd ? `cd "${st.cwd}"; ` : "") + `claude --resume ${st.sessionId}`;
+    try { await navigator.clipboard.writeText(cmd); toast("확인 명령을 복사했습니다 - " + cmd, 5000); } catch (e) { prompt("확인 명령", cmd); }
   }
   function sessBox(html) { $("#sessDlg .box").innerHTML = html; $("#sessDlg").classList.add("show"); }
   function sessClose() { $("#sessDlg").classList.remove("show"); if (WSS.src) { WSS.src.close(); WSS.src = null; } }

@@ -20,6 +20,7 @@ import subprocess
 import sys
 import threading
 import time
+import uuid
 from pathlib import Path
 
 STUDIO = Path(__file__).resolve().parent
@@ -368,7 +369,7 @@ class WebSession:
     def info(self):
         with self.lock:
             d = {"kind": self.p.kind, "state": self.state, "agent": self.agent, "model": self.model, "modelActual": self.model_actual, "pendingModel": self.pending_model,
-                 "sessionId": self.session_id, "startedBy": self.started_by, "startedAt": self.started_at, "turns": self.turns,
+                 "sessionId": self.session_id, "cwd": str(self.p.cwd), "startedBy": self.started_by, "startedAt": self.started_at, "turns": self.turns,
                  "lastError": self.last_error, "lastActivity": dt.datetime.fromtimestamp(self.last_activity).isoformat(timespec="seconds") if self.last_activity else None,
                  "allowWeb": self.allow_web, "grants": self.grants, "repoRoot": str(self.repo_root) if self.repo_root else None, "limits": self.limits, "seq": self.seq, "logDir": str(self._log_dir) if self._log_dir else None}
             try:
@@ -444,6 +445,10 @@ class WebSession:
             self.agent, self.model, self.flags, self.limits, self.allow_web = agent, model, p.get("flags") or {}, eff["limits"], allow_web
             self.grants, self.repo_root = grants, repo_root
             self.model_actual = self.session_id = self.last_error = self.pending_model = None
+            # claude 세션 ID 를 미리 정한다 - 첫 턴은 --session-id 로 만들고 이후 --resume. 화면이 턴 0 부터 식별자를 보이고 `claude --resume <ID>` 로 확인한다
+            self._sid_made = False
+            if agent == "claude" and (p.get("flags") or {}).get("--session-id", True):
+                self.session_id = str(uuid.uuid4())
             self.started_by, self.started_at, self.turns = user or "local", _now(), 0
             self.last_activity = time.time()
             self._log_dir = self.log_root / self.started_at.replace(":", "").replace("-", "")
@@ -451,7 +456,8 @@ class WebSession:
             self._settings_path = self.log_root / "claude-settings.json"
             self._settings_path.write_text(json.dumps(self.p.settings_json(allow_web, grants, repo_root), ensure_ascii=False, indent=1), encoding="utf-8")
             self._hb = {"pid": os.getpid(), "label": f"{self.p.kind}:{agent}", "mode": "web", "interval": INTERVAL, "started": self.started_at,
-                        "kind": self.p.kind, "agent": agent, "model": model, "user": self.started_by, "allowWeb": allow_web, "grants": grants}
+                        "kind": self.p.kind, "agent": agent, "model": model, "user": self.started_by, "allowWeb": allow_web, "grants": grants,
+                        "sessionId": self.session_id, "cwd": str(self.p.cwd)}
             REGISTRY.mkdir(parents=True, exist_ok=True)
             rc.write_json(REGISTRY / f"{self.p.key()}.json", {"key": self.p.key(), "kind": self.p.kind, "ws": str(self.p.cwd), "heartbeat": str(self.p.heartbeat_path),
                                                                 "user": self.started_by, "agent": agent, "model": model, "started": self.started_at, "pid": os.getpid(), "allowWeb": allow_web})
@@ -547,9 +553,11 @@ class WebSession:
             self.state = "running"
             self.turns += 1
             n = self.turns
-            cmd = ag.turn_cmd(self.model, self.session_id, self._settings_path if self.agent == "claude" else None,
+            made = getattr(self, "_sid_made", True)
+            cmd = ag.turn_cmd(self.model, self.session_id if made else None, self._settings_path if self.agent == "claude" else None,
                               max_turns=self.limits.get("sessionMaxTurns"), budget_usd=self.limits.get("sessionBudgetUsd"), flags=self.flags, allow_web=self.allow_web,
-                              add_dirs=[self.repo_root] if self.repo_root and self.agent == "claude" else None)
+                              add_dirs=[self.repo_root] if self.repo_root and self.agent == "claude" else None,
+                              new_session_id=None if made else self.session_id, name=f"nexa-slide {self.p.kind}: {self.p.cwd.name}")
             self._turn_log = self._log_dir / f"turn-{n}.jsonl"
         self.emit("turn.start", turn=n, count=len(batch), reason=reason, ids=self.p.ids(batch), model=self.model)
         env = {**os.environ, **ag.env(), **self.p.env(self)}
@@ -588,6 +596,9 @@ class WebSession:
                             if kind == "init":
                                 with self.lock:
                                     self.session_id = e.get("sessionId") or self.session_id
+                                    self._sid_made = True  # 대화가 만들어졌다 - 다음 턴부터 --resume
+                                    if self._hb:
+                                        self._hb["sessionId"] = self.session_id
                                     self.model_actual = e.get("model") or self.model_actual
                             elif kind == "result":
                                 result = e

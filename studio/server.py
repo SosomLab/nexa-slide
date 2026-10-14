@@ -356,7 +356,7 @@ def render_list(i):
 
 MUTATING = {"POST", "PUT", "DELETE", "PATCH"}
 AUTH_FREE = {"/login", "/setup", "/api/auth/state", "/api/auth/login", "/api/auth/setup", "/studio/i18n.js"}  # 허브에서 로그인 없이 닿는 전부(페이지는 CSS·JS 내장 + 표시 언어 사전)
-POLL_RX = re.compile(r"(^|/w/[^/]+)/api/(version/[^/?]+|session)$")  # 2초 폴링 - /api/version/<덱> · /api/session (/api/wsession 은 아님)
+POLL_RX = re.compile(r"(^|/w/[^/]+)/api/(version/[^/?]+|session|engine/notice|home/live)$")  # 주기 폴링 - /api/version/<덱> · /api/session · 알림·시작 페이지 갱신 (/api/wsession 은 아님)
 SERVER_NAME = "hub" if HUB else None  # 접근 로그 server 필드 - 작업 공간은 중계 이름(ws id, 저장소형은 모두 slides/ 라 폴더 이름으로는 구분이 안 된다)
 
 
@@ -1042,6 +1042,12 @@ class H(BaseHTTPRequestHandler):
             if WS_ENGINE is None:
                 return self.err(503, "엔진 세션 관리자가 없다")
             return self._session_get(WS_ENGINE, (self._rest or [None])[0], q)
+        if what == "notice":  # 알림(메뉴 단추 배지·토스트) - 몇 초마다 부르므로 큐 파일만 읽는다
+            c = engine_requests.counts()
+            on = bool(WS_ENGINE and WS_ENGINE.state != "off")
+            return self.send_json({"ok": True, "admin": self.role == "admin", "triage": c.get("triage", 0), "open": c.get("open", 0), "working": c.get("working", 0),
+                                   "done": c.get("done", 0), "sessionOff": not on, "startRequest": engine_requests.start_request(),
+                                   "titles": [f"#{x['id']} {x['title']}" for x in engine_requests.load() if x.get("status") == "triage"][:5]})
         if what == "attach":  # /api/engine/attach/<id>/<파일> - 올린 첨부 보기(로그인 사용자)
             rest = self._rest or []
             if len(rest) != 2 or not re.fullmatch(r"\d+|_new", rest[0]):
@@ -1244,13 +1250,22 @@ class H(BaseHTTPRequestHandler):
         except hub.HubError as e:
             self.send_json({"ok": False, "error": str(e), **e.extra}, 400)
 
-    def api_get_home(self, _, q):
+    def api_get_home(self, what, q):
+        if what == "live":  # 시작 페이지 주기 갱신 - 최근 작업의 실행·세션 상태와 서버 작업 요약만(템플릿·시작 내용 목록은 빼서 가볍게)
+            d = hub.home(None if HUB else WORKSPACE, REFUSED)
+            out = {"ok": True, "recent": d.get("recent", []), "current": d.get("current")}
+            if HUB:
+                import engine_requests
+                c = engine_requests.counts()
+                out["engineWork"] = {"pending": c.get("open", 0) + c.get("triage", 0), "triage": c.get("triage", 0), "sessionOff": not (WS_ENGINE and WS_ENGINE.state != "off"),
+                                     "startRequest": engine_requests.start_request()}
+            return self.send_json(out)
         d = hub.home(None if HUB else WORKSPACE, REFUSED)
         d.update({"mode": "hub" if HUB else "workspace", "port": self.server.server_port, "user": self.me()})
         if HUB:  # 서버 작업 주의 표시(메뉴 배지) - 처리·승인 대기가 있는데 엔진 세션이 꺼져 있으면
             import engine_requests
             c = engine_requests.counts()
-            d["engineWork"] = {"pending": c.get("open", 0) + c.get("triage", 0), "sessionOff": not (WS_ENGINE and WS_ENGINE.state != "off"), "startRequest": engine_requests.start_request()}  # home.engine 은 엔진 경로(문자열)
+            d["engineWork"] = {"pending": c.get("open", 0) + c.get("triage", 0), "triage": c.get("triage", 0), "sessionOff": not (WS_ENGINE and WS_ENGINE.state != "off"), "startRequest": engine_requests.start_request()}  # home.engine 은 엔진 경로(문자열)
         self.send_json(d)
 
     def api_post_project(self, _, q):

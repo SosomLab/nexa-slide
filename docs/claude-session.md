@@ -58,6 +58,7 @@ Monitor
 **첨부**가 있으면 `attachments: [{path, name, type, size}]` 가 붙는다 — 편집기에서 클립보드 그림(Ctrl+V)·끌어다 놓기·📎 로 올린 파일로, 작업 공간 안 `out/attach/<덱>/…` 에 있다(git 제외).
 세션은 **먼저 Read 로 열어 본다**(그림은 내용을 보고, 글 파일은 읽어서) — 참고 디자인·캡처·손그림·자료. 그림을 슬라이드에 넣는 요청이면 `image` 요소의 `src` 에 그 경로를 그대로 쓴다.
 PPTX 첨부는 Read 로 열리지 않으므로 `nexa.py import_pptx <파일>` 로 꺼낸다 — `out/import/<이름>/slides.md`(슬라이드별 제목·본문·표·차트 값·발표자 노트, 도형 위치 1280×720 기준)·`slides.json`·`images/`(그림, `src` 에 그대로). 덱으로 자동 변환하지는 않고 세션이 읽어 알맞은 장(`slide_types`)으로 옮긴다.
+Word(.docx)·Excel(.xlsx/.xlsm)·PDF 첨부는 `nexa.py import_doc <파일>` — `out/import/<이름>/content.md`(Word: 제목 수준·문단(굵게)·목록 수준·표·각주·그림 / Excel: 시트별 표(날짜 변환, 계산값이 없으면 수식)·병합·숨긴 시트·차트 계열 값 / PDF: 책갈피·쪽별 글·표·그림)·`content.json`·`images/`. Word·Excel 은 추가 설치 없이, PDF 는 PyMuPDF(`pip install pymupdf`)가 있으면 글·표·그림, pypdf 만 있으면 글만. 옛 형식(.doc·.xls·.ppt)은 새 형식으로 저장해 다시 올린다. 입력·출력은 작업 공간 안만(저장소 루트 접근 세션이면 그 루트까지).
 테마를 바꿔 달라는 요청은 `nexa.py set_template [<이름>]`(목록·선택, [templates.md](templates.md)) — 반영에는 서버 재시작이 필요하므로 웹 세션은 `reply` 에 안내만 한다.
 
 ## 3. 처리 규약 (세션이 지킬 것)
@@ -104,6 +105,7 @@ PPTX 첨부는 Read 로 열리지 않으므로 `nexa.py import_pptx <파일>` �
 | 끝 | 세션 종료·Monitor 만료 | [세션 중지]·유휴 `sessionIdleMinutes`(60분)·서버 종료 — 실행 중 턴의 프로세스 트리까지 끝낸다. 턴 한도 `sessionTurnMinutes`(20분) |
 | 함께 쓰기 | 웹 세션이 살아 있으면 `watch_requests` 는 `{"event":"refused","reason":"web-session"}` (`--takeover` 로도 서버를 끊지 않는다) | 수동 감시가 살아 있으면 시작을 거절한다 |
 
+- **세션 식별자**: 웹 세션은 시작할 때 claude 세션 ID(UUID)를 정해 첫 턴을 `--session-id` 로 만들고 이후 `--resume` 한다(표시 이름 `nexa-slide workspace: <폴더>`). 시작 페이지 세션 줄·서버 작업 카드·Studio 세션 칩 메뉴에 `ID 1a2b3c4d`(앞 8자리)가 보이고, 누르면 확인 명령 `cd "<폴더>"; claude --resume <ID>` 를 복사한다(첫 턴이 끝나야 열린다 · 웹 세션이 도는 중에 이어 쓰면 대화가 섞이니 보기만, 또는 세션 중지 뒤에). `/api/session`·`/api/wsession` 의 `sessionId`·`cwd`.
 - 처리하지 못한 요청은 서버가 `open` 으로 두고 `reply` 에 "세션이 처리하지 못했습니다: <사유>" 를 적는다(침묵 실패 없음).
 - 로그: `out/.studio/sessions/<시작 시각>/turn-N.jsonl`(CLI 출력 원문)·`session.log`, 접근 로그 `event=session.*`. 이 PC 의 동시 웹 세션 수는 `sessionMax`(3).
 - 서비스 유형 `codex` 는 [openai-codex.md](openai-codex.md) 5절(미확인). 설치·로그인은 [claude-install.md](claude-install.md).

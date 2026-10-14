@@ -60,6 +60,9 @@
   .nx-av { width: 20px; height: 20px; border-radius: 50%; flex: none; display: inline-flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; color: #fff; }
   .nx-rt { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .nx-empty { padding: 6px 10px; color: var(--ink2, #534343); font-size: 12px; }
+  .nx-menubtn { position: relative; }
+  .nx-dot { position: absolute; top: -5px; right: -5px; min-width: 16px; height: 16px; border-radius: 999px; background: var(--p, #A91F24); color: #fff; font: 700 10px/16px var(--font, sans-serif); padding: 0 4px; box-sizing: border-box; text-align: center; pointer-events: none; }
+  .nx-toast a { color: #fff; text-decoration: underline; margin-left: 8px; }
   .nx-badge { background: var(--p, #A91F24) !important; color: #fff !important; border-radius: 999px; padding: 0 7px; font-weight: 700; line-height: 18px; }
   .nx-lang { display: none; margin: 0 0 4px 0; padding: 4px 0 4px 22px; }
   .nx-lang.on { display: block; }
@@ -133,8 +136,9 @@
       '<div data-recent></div>',
       '<div class="nx-sep"></div>',
       it("settings", "gear", "기준 폴더 설정", "/studio/home.html#settings"),
-      ...(home && home.engineWork ? [it("engine", "git", "서버 작업", "/studio/home.html#start",  // 허브 - 엔진 요청 큐. 대기가 있는데 세션이 꺼져 있으면 배지
-        home.engineWork.pending && home.engineWork.sessionOff ? `<small class="nx-badge" title="처리 대기 ${home.engineWork.pending}건 · 엔진 세션 꺼짐${home.engineWork.startRequest ? " · 시작 요청됨" : ""}">${home.engineWork.pending}</small>` : "")] : []),
+      ...(home && home.engineWork ? [it("engine", "git", "서버 작업", "/studio/home.html#start",  // 허브 - 엔진 요청 큐. 승인 대기(관리자) 또는 세션이 꺼진 채 대기가 있으면 배지
+        (NOTICE.admin && NOTICE.triage) ? `<small class="nx-badge" title="승인 대기 ${NOTICE.triage}건">${NOTICE.triage}</small>`
+          : home.engineWork.pending && home.engineWork.sessionOff ? `<small class="nx-badge" title="처리 대기 ${home.engineWork.pending}건 · 엔진 세션 꺼짐${home.engineWork.startRequest ? " · 시작 요청됨" : ""}">${home.engineWork.pending}</small>` : "")] : []),
       langItems(),
       ...(home && home.user ? [  // 허브 로그인 사용자 - 계정(비밀번호 · 관리자면 사용자 관리) · 로그아웃
         it("account", "user", home.user.role === "admin" ? "계정 · 사용자 관리" : "계정", "/account", `<small>${esc(home.user.id)}</small>`),
@@ -190,9 +194,49 @@
     root.classList.remove("nx-open");
     setTimeout(() => { if (!root.classList.contains("nx-open")) root.style.display = "none"; }, 200);
   }
+  // ---------- 승인 대기 알림 - 허브 관리자에게(작업 공간 세션이 넘긴 엔진 요청은 승인해야 처리된다) ----------
+  const NOTICE = { admin: false, triage: 0, n: 0, btn: null, title: document.title };
+  async function notice() {
+    if (document.hidden) return;
+    let d; try { const r = await fetch("/api/engine/notice", { cache: "no-store" }); if (!r.ok) return; d = await r.json(); } catch (e) { return; }  // 작업 공간 서버로 바로 열었으면 없음 - 조용히
+    if (!d.ok) return;
+    NOTICE.admin = !!d.admin;
+    const n = d.admin ? d.triage + (d.startRequest && d.sessionOff ? 1 : 0) : 0;
+    let seen = 0; try { seen = +(sessionStorage.getItem("nexa-notice-seen") || 0); } catch (e) { /* 저장소 없음 */ }
+    if (d.admin && d.triage > seen) {  // 새로 생겼다 - 페이지마다 한 번만(탭 안에서 기억)
+      const t = d.titles && d.titles.length ? ` - ${d.titles[0]}${d.titles.length > 1 ? ` 외 ${d.titles.length - 1}건` : ""}` : "";
+      noticeToast(`승인 대기 엔진 요청 ${d.triage}건${t}`);
+      try { if (window.Notification && Notification.permission === "granted") new Notification("nexa-slide - 승인 대기", { body: `엔진 요청 ${d.triage}건${t}`, tag: "nexa-triage" }); } catch (e) { /* 알림 불가 */ }
+    }
+    try { sessionStorage.setItem("nexa-notice-seen", String(d.admin ? d.triage : 0)); } catch (e) { /* 무시 */ }
+    NOTICE.triage = d.triage;
+    if (NOTICE.btn) {
+      let dot = NOTICE.btn.querySelector(".nx-dot");
+      if (n && !dot) { dot = document.createElement("span"); dot.className = "nx-dot"; NOTICE.btn.appendChild(dot); }
+      if (dot) { if (n) { dot.textContent = n; } else dot.remove(); }
+      NOTICE.btn.title = n ? `기본 메뉴 - 승인 대기 ${d.triage}건${d.startRequest && d.sessionOff ? " · 엔진 세션 시작 요청됨" : ""}` : "기본 메뉴 - 홈 · 새로 만들기 · 튜토리얼 · 데모 · 템플릿 · 샘플 · 최근 작업";
+    }
+    NOTICE.n = n;
+    noticeTitle();
+  }
+  function noticeTitle() {  // 탭 제목 앞 (n) - 표시 언어(i18n.js)가 번역한 제목 위에 붙인다
+    const base = window.I18N ? I18N.t(NOTICE.title) : NOTICE.title;
+    document.title = NOTICE.n ? `(${NOTICE.n}) ${base}` : base;
+  }
+  document.addEventListener("nexa-lang", () => noticeTitle());
+  function noticeToast(msg) {
+    const t = document.createElement("div"); t.className = "nx-toast"; t.textContent = msg;
+    const a = document.createElement("a"); a.href = "/studio/home.html#start"; a.textContent = "서버 작업 보기"; t.appendChild(a);
+    if (window.Notification && Notification.permission === "default") {  // 데스크톱 알림 - 사용자가 눌러야 권한을 물을 수 있다
+      const b = document.createElement("a"); b.href = "#"; b.textContent = "데스크톱 알림 켜기"; b.onclick = (e) => { e.preventDefault(); Notification.requestPermission(); t.remove(); }; t.appendChild(b);
+    }
+    document.body.appendChild(t); setTimeout(() => t.remove(), 12000);
+  }
   function mount(btn) {
     btn.classList.add("nx-menubtn");
     btn.innerHTML = icon("menu", 18);
+    NOTICE.btn = btn; NOTICE.title = document.title;
+    if (!mount.started) { mount.started = true; setTimeout(notice, 1500); setInterval(notice, 10000); document.addEventListener("visibilitychange", () => { if (!document.hidden) notice(); }); }
     btn.setAttribute("aria-label", "기본 메뉴 열기");
     btn.title = "기본 메뉴 - 홈 · 새로 만들기 · 튜토리얼 · 데모 · 템플릿 · 샘플 · 최근 작업";
     btn.addEventListener("click", open);

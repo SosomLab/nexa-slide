@@ -92,6 +92,8 @@
   .badge.git { background: var(--infoc); color: var(--info); }
   .badge.run { background: var(--okc); color: var(--ok); }
   .badge.off { background: var(--tone2); color: var(--ink2); }
+  .badge.sid { border: 1px solid var(--line); background: var(--card); font: 11px ui-monospace, Consolas, monospace; cursor: copy; }
+  .badge.sid:hover { background: var(--tone); }
   .ritem .svc { display: inline-flex; align-items: center; gap: 4px; border: 1px solid var(--line); background: var(--card); color: var(--ink); border-radius: 999px;
     padding: 2px 9px 2px 6px; font: inherit; font-size: 12px; cursor: pointer; white-space: nowrap; }
   .ritem .svc:hover { background: var(--tone); }
@@ -661,7 +663,7 @@
       + (["triage", "open", "working", "done", "rejected", "applied"].filter((k) => c[k]).map((k) => `<span class="badge ${k === "working" ? "run" : k === "done" ? "ok" : ""}">${ST_KO[k]} ${c[k]}</span>`).join("") || `<span class="badge">처리할 요청 없음</span>`);
     // 4줄 세션 상태 + 마지막 요약 + 오른쪽 끝 버튼(최근 작업과 같은 .svc)
     let line, btn = "";
-    if (on) line = `<span class="badge run">엔진 세션 ${esc(s.state)}</span> ${esc(s.agent || "")} · ${esc(s.model || "")}${s.startedBy ? ` · ${esc(s.startedBy)}` : ""} · 턴 ${s.turns || 0}${s.lastError ? ` · <span style="color:var(--err)">${esc(s.lastError.slice(0, 80))}</span>` : ""}`;
+    if (on) line = `<span class="badge run">엔진 세션 ${esc(s.state)}</span> ${esc(s.agent || "")} · ${esc(s.model || "")}${s.startedBy ? ` · ${esc(s.startedBy)}` : ""} · 턴 ${s.turns || 0} ${sidBadge(s.sessionId, s.cwd, s.turns)}${s.lastError ? ` · <span style="color:var(--err)">${esc(s.lastError.slice(0, 80))}</span>` : ""}`;
     else line = `<span class="badge">세션 없음</span>${s.last && s.last.startedAt ? ` <span class="hint">· 마지막 · ${esc(s.last.agent || "")} ${esc(s.last.model || "")} · ${fmtT(s.last.stoppedAt || s.last.startedAt)}${s.last.reason ? ` · ${reasonKo(s.last.reason)}` : ""}</span>` : ""}`;
     if (admin) btn = on
       ? `<button type="button" class="chip sm" data-eng="progress">진행</button><button type="button" class="svc stop" data-eng="stop">${icon("stop", 14)}세션 중지</button>`
@@ -782,11 +784,19 @@
   }
   $("#engpModal").addEventListener("click", (e) => { if (e.target.closest("[data-close]") || e.target === $("#engpModal")) { if (engSrc) { engSrc.close(); engSrc = null; } } });
 
+  // 세션 식별자 - claude 세션 ID 앞 8자리 배지, 누르면 확인 명령(그 폴더에서 claude --resume <ID>)을 복사
+  const sidBadge = (id, cwd, turns) => id ? `<button type="button" class="badge sid" data-sid="${esc(id)}" data-cwd="${esc(cwd || "")}" title="claude 세션 ID ${esc(id)}${cwd ? `\n폴더 ${esc(cwd)}` : ""}\n누르면 확인 명령 복사: claude --resume ${esc(id)}${turns === 0 ? "\n(첫 턴이 끝나야 claude 에서 열린다)" : ""}\n웹 세션이 도는 중에 이어 쓰면 대화가 섞인다 - 보기만, 또는 세션 중지 뒤에">ID ${esc(id.slice(0, 8))}</button>` : "";
+  document.addEventListener("click", async (e) => {
+    const b = e.target.closest("[data-sid]"); if (!b) return;
+    e.preventDefault(); e.stopPropagation();
+    const cmd = (b.dataset.cwd ? `cd "${b.dataset.cwd}"; ` : "") + `claude --resume ${b.dataset.sid}`;
+    try { await navigator.clipboard.writeText(cmd); toast("확인 명령을 복사했습니다 - " + cmd, 5000); } catch (err) { prompt("확인 명령", cmd); }
+  }, true);
   // AI 세션 줄(4줄) - 웹 세션(유형·모델·시작 사용자·대기/처리 중) 또는 수동 세션 또는 없음. [세션 시작] 은 꺼진 서버도 먼저 띄운다(결정 5)
   function sessLine(r) {
     const s = r.session || {}; const self = H.home.current && H.home.current.path === r.path;
     let info;
-    if (s.kind === "web") info = `<span class="badge run" title="시작 ${esc(s.started || "")} · 마지막 확인 ${esc(s.lastSeen || "")}">웹 세션${s.state === "running" ? ` 처리 중(턴 ${s.turn || "?"})` : ""}</span> ${esc(s.agent || "")} · ${esc(s.model || "")}${s.user ? ` · ${esc(s.user)}` : ""}${s.allowWeb ? ` · <span class="badge" title="이 세션은 웹 검색(WebSearch·WebFetch)을 쓸 수 있다">웹 허용</span>` : ""}${(s.grants || []).map((g) => ` <span class="badge git" title="이 세션에 열린 권한">${esc(g)}</span>`).join("")}${s.working ? ` · <b>처리 중 ${s.working}</b>` : s.open ? ` · 대기 ${s.open}` : ""}`;
+    if (s.kind === "web") info = `<span class="badge run" title="시작 ${esc(s.started || "")} · 마지막 확인 ${esc(s.lastSeen || "")}">웹 세션${s.state === "running" ? ` 처리 중(턴 ${s.turn || "?"})` : ""}</span> ${esc(s.agent || "")} · ${esc(s.model || "")}${s.user ? ` · ${esc(s.user)}` : ""}${s.allowWeb ? ` · <span class="badge" title="이 세션은 웹 검색(WebSearch·WebFetch)을 쓸 수 있다">웹 허용</span>` : ""} ${sidBadge(s.sessionId, s.cwd || r.path, s.turn)}${(s.grants || []).map((g) => ` <span class="badge git" title="이 세션에 열린 권한">${esc(g)}</span>`).join("")}${s.working ? ` · <b>처리 중 ${s.working}</b>` : s.open ? ` · 대기 ${s.open}` : ""}`;
     else if (s.kind === "manual") info = `<span class="badge run">수동 세션</span> ${esc(s.label || "")}${s.working ? ` · 처리 중 ${s.working}` : s.open ? ` · 대기 ${s.open}` : ""}`;
     else info = `<span class="badge">세션 없음</span>${s.open ? ` 대기 요청 ${s.open}` : ""}${s.last && s.last.startedAt ? ` <span class="hint">· 마지막 · ${esc(s.last.agent || "")} ${esc(s.last.model || "")} · ${fmtT(s.last.stoppedAt || s.last.startedAt)}${s.last.reason ? ` · ${reasonKo(s.last.reason)}` : ""}</span>` : ""}`;
     const btn = s.kind === "web" ? `<button type="button" class="svc stop" data-sess="stop" data-path="${esc(r.path)}" title="이 작업 공간의 웹 세션 중지(실행 중 턴도 끝낸다)">${icon("stop", 14)}세션 중지</button>`
@@ -1105,6 +1115,26 @@
     if (!r.ok) { toast(r.data.error || "저장하지 못했습니다", 4000); return; }
     closeModals(); await load(); toast("설정을 저장했습니다");
   };
+
+  // ---------- 주기 갱신 - 세션 상태(웹 세션 처리 중·턴·세션 ID)와 서버 작업 큐를 새로 고침 없이 따라간다 ----------
+  const LIVE_MS = 5000;
+  let liveBusy = false;
+  async function live() {
+    if (liveBusy || document.hidden || !H.home || $(".modal-back.on") || $("#busy.on")) return;  // 창이 열려 있거나 작업 중이면 다음 차례에
+    liveBusy = true;
+    try {
+      const r = await fetch("/api/home/live", { cache: "no-store" }); const d = await r.json();
+      if (NexaMenu.auth401(r, d)) return;
+      if (d.ok) {
+        const before = JSON.stringify(H.home.recent);
+        Object.assign(H.home, { recent: d.recent, current: d.current, engineWork: d.engineWork });
+        if (JSON.stringify(d.recent) !== before && !(document.activeElement && document.activeElement.closest && document.activeElement.closest("#recent"))) renderRecent();
+      }
+      if ($("#engineCard") && !($("#engForm").style.display === "" && $("#engForm").contains(document.activeElement))) await loadEngine();
+    } catch (e) { /* 다음 차례에 */ } finally { liveBusy = false; }
+  }
+  setInterval(live, LIVE_MS);
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) live(); });  // 탭으로 돌아오면 바로
 
   // ---------- 시작 ----------
   NexaMenu.mount($("#menuBtn"));

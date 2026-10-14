@@ -3,3 +3,5 @@
 python-pptx>=1.0
 # 선택: 글자 폭 정밀 측정(칩·코드 폭) · compare.py 이미지 비교
 Pillow>=10.0
+# 선택: PDF 첨부 내용 추출(import_doc - 글·표·그림). 없으면 pypdf(글만), 둘 다 없으면 세션이 Read 로 연다
+# pymupdf>=1.23
