@@ -445,7 +445,7 @@
   function renderMarks() {
     const s = slide(), M = $("#marks"), D = $("#draw"); if (!M || !D) return;
     let h = "", svg = "";
-    if (s && S.mode !== "draw") {  // 코드 요소 언어 이름표 - 편집 화면에만(슬라이드·발표·PPTX 에는 없음). 크기는 확대와 무관하게 일정
+    if (s && S.mode !== "draw" && LS.get("langTag", "1") === "1") {  // 코드 요소 언어 이름표(⋯ 더보기에서 끄고 켬, 기본 켜짐) - 편집 화면에만(슬라이드·발표·PPTX 에는 없음). 크기는 확대와 무관하게 일정
       const inv = 1 / scale;
       for (const e of s.elements) if (e.type === "code") {
         const k = Render.langOf(e);
@@ -1638,8 +1638,9 @@ ${names}
       ...(f.presets.some((p) => p.source === "workspace") ? [{ h: "글꼴 세트 - 작업 공간 지정(nexa-slide.json)" }, ...f.presets.filter((p) => p.source === "workspace").map((p) => ({ label: `${p.name} - ${p.label}`, on: p.name === f.current, act: () => setFonts(p.name) }))] : []),
       { label: "글꼴 설정 보기·수정…", act: showFonts }, "-",
       { h: `템플릿: ${S.template ? S.template.label : "-"}` },
+      { label: "코드 언어 이름표 표시", on: LS.get("langTag", "1") === "1", act: () => { LS.set("langTag", LS.get("langTag", "1") === "1" ? "0" : "1"); renderMarks(); } },
       { label: "단축키 보기", key: "?", act: showHelp },
-      { label: "편집기 화면 배치 초기화", act: () => { ["mode", "btab", "bfold", "noright", "railW", "rightW", "bottomH", "maxi"].forEach((k) => LS.set(k, "")); location.reload(); } },
+      { label: "편집기 화면 배치 초기화", act: () => { ["mode", "btab", "bfold", "noright", "railW", "rightW", "bottomH", "maxi", "langTag"].forEach((k) => LS.set(k, "")); location.reload(); } },
     ], { right: true });
   }
   async function loadConfig() {
