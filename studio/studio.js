@@ -1253,7 +1253,7 @@ ${names}
     }
     if (act && act.othersBusy) label += ` · 다른 세션 ${act.othersBusy}`;
     const webBusy = st.connected && st.kind === "web" && st.state === "running";  // 하트비트의 state - 턴 실행 중(요청 status 와 무관하게 파랑)
-    if (st.connected && st.kind === "web") label = `웹 세션${webBusy ? ` 처리 중 (턴 ${st.turn || "?"})` : ""} · ${st.model || st.agent || ""}${st.user ? ` · ${st.user}` : ""}${st.allowWeb ? " · 웹 허용" : ""}${st.working ? ` · 요청 ${st.working}` : ""}`;
+    if (st.connected && st.kind === "web") label = `웹 세션${webBusy ? ` 처리 중 (턴 ${st.turn || "?"})` : ""} · ${st.model || st.agent || ""}${st.user ? ` · ${st.user}` : ""}${st.allowWeb ? " · 웹 허용" : ""}${(st.grants || []).map((g) => " · " + g).join("")}${st.working ? ` · 요청 ${st.working}` : ""}`;
     c.className = "chip sm " + (st.connected ? (st.working || webBusy || (w && w.state === "busy") ? "busy" : "on") : "off");
     c.innerHTML = `<span class="dot"></span>${esc(label)} ▾`;
     if (w && w.state === "busy" && w.source === "chat" && w.prompt) c.dataset.prompt = w.prompt; else delete c.dataset.prompt;
@@ -1264,11 +1264,12 @@ ${names}
 
   // ---------------------------------------------------------------- 웹 AI 세션(B-5) - 세션 칩 메뉴 · 시작 창 · 진행 패널(SSE) · 턴 로그
   const WSS = { src: null, events: [], agent: null };
+  const GRANTS = [["git", "git 기록", "add·commit·branch·switch·merge·stash·tag"], ["push", "push", "git push·pull·fetch - 원격으로 보냄"], ["root", "저장소 루트 접근", "작업 공간을 품은 저장소 루트의 문서(작업일지·README·docs) 읽기·쓰기"]];
   function sessMenu(btn) {
     const st = S.session || {};
     const web = st.connected && st.kind === "web";
     const items = web
-      ? [{ h: `웹 세션 · ${st.agent || ""} · ${st.model || ""}${st.user ? ` · ${st.user}` : ""}${st.allowWeb ? " · 웹 허용" : ""}` },
+      ? [{ h: `웹 세션 · ${st.agent || ""} · ${st.model || ""}${st.user ? ` · ${st.user}` : ""}${st.allowWeb ? " · 웹 허용" : ""}${(st.grants || []).map((g) => " · " + g).join("")}` },
          { icon: "▶", label: "진행 보기", act: sessProgress }, { icon: "⟳", label: "모델 바꾸기…", act: sessModelDlg },
          { icon: "📄", label: "턴 로그…", act: () => sessLog(1) }, "-",
          { icon: "■", label: "세션 중지", act: sessStop }]
@@ -1300,6 +1301,9 @@ ${names}
       <div class="row" style="justify-content:flex-end;gap:8px"><button class="chip sm" data-sd="close">취소</button><button class="chip sm primary" data-sd="start">시작</button></div>`);
     $("#sdAgent").onchange = () => { const n = $("#sdAgent").value; $("#sdModel").innerHTML = models(n); $("#sdHint").textContent = (ag[n].hint || "") + (ag[n].hint && ag[n].doc ? ` (엔진 ${ag[n].doc})` : ""); };
     if ($("#sdWeb")) $("#sdWeb").onchange = () => { $("#sdWebWarn").style.display = $("#sdWeb").checked ? "" : "none"; };
+    const av = GRANTS.filter(([k]) => (r.data.grants || {})[k]);  // git·push·저장소 루트 - 전역이 켜진 것만(관리자만 체크)
+    if (av.length) $("#sessDlg [data-sd=start]").parentElement.insertAdjacentHTML("beforebegin", `<div id="sdGrants">${av.map(([k, l, h]) => `<label class="f" style="display:flex;align-items:center;gap:8px;font-weight:400"><input type="checkbox" data-grant="${k}" ${r.data.canGrant ? "" : "disabled"}> 이 세션에 ${l} 허용 <span class="hint">- ${h}${r.data.canGrant ? "" : " · 관리자만"}</span></label>`).join("")}</div>`);
+    $$("#sdGrants [data-grant]").forEach((c) => (c.onchange = () => { if (c.dataset.grant === "push" && c.checked) { const g = $("#sdGrants [data-grant=git]"); if (g) g.checked = true; } }));
     $("#sdModel").onchange = () => { $("#sdModelText").style.display = $("#sdModel").value === "__custom" ? "" : "none"; };
   }
   async function sessStart() {
@@ -1307,9 +1311,10 @@ ${names}
     if (!model) { toast("모델을 고르거나 입력하세요"); return; }
     const body = { action: "start", agent, model }; if ($("#sdSave").checked) body.saveAs = $("#sdSaveAs").value;
     if ($("#sdWeb") && $("#sdWeb").checked) body.allowWeb = true;
+    const gr = $$("#sdGrants [data-grant]").filter((c) => c.checked).map((c) => c.dataset.grant); if (gr.length) body.grants = gr;
     const r = await api("POST", "/api/wsession", body);
     if (!r.ok) { toast("시작 실패: " + ((r.data && r.data.error) || r.status), 6000); return; }
-    toast(`웹 세션 시작 - ${agent} · ${model}${r.data.allowWeb ? " · 웹 허용" : ""}`); renderSession({ ...(S.session || {}), connected: true, kind: "web", agent, model, user: r.data.startedBy, allowWeb: !!r.data.allowWeb, label: `web:${agent}`, open: r.data.open, working: r.data.working, last_seen: "", age: 0 });
+    toast(`웹 세션 시작 - ${agent} · ${model}${r.data.allowWeb ? " · 웹 허용" : ""}${(r.data.grants || []).map((g) => " · " + g).join("")}`); renderSession({ ...(S.session || {}), connected: true, kind: "web", agent, model, user: r.data.startedBy, allowWeb: !!r.data.allowWeb, grants: r.data.grants || [], label: `web:${agent}`, open: r.data.open, working: r.data.working, last_seen: "", age: 0 });
     sessProgress();
   }
   async function sessStop() {

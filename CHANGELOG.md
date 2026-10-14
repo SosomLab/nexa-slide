@@ -1,5 +1,13 @@
 # 변경 이력
 
+## 0.20.0 - 2026-10-14 · 웹 세션 git·push·저장소 루트 권한
+
+- 관리자 "AI 세션 전역 기본"에 **git 기록 허용 · push 허용 · 저장소 루트 접근**(사용자 설정 `sessionAllowGit`·`sessionAllowPush`·`sessionRepoRoot`, 기본 끔, 경고문). 세션 시작 창(허브·Studio)에 전역이 켜진 항목만 "이 세션에 … 허용" 체크(관리자만, 기본 해제, push 를 고르면 git 기록도). 작업 공간 설정에 `false` 로 끌 수 있다.
+- 권한: git 기록 = `add`·`commit`·`switch`/`checkout`·`merge`·`branch`·`stash`·`tag`(+조회), push = `push`·`pull`·`fetch`, 저장소 루트 = `--add-dir <루트>` + 루트 아래 Read/Edit/Write(`.git/` 직접 수정 금지). 강제 push·`reset --hard`·`clean`·`rebase`·`config`·`remote`·`git -C`·`restore` 등은 켜도 거절. git 이 대화형으로 묻지 않게(`GIT_TERMINAL_PROMPT=0`·`GCM_INTERACTIVE=never`·`GIT_MERGE_AUTOEDIT=no`).
+- 턴 프롬프트(허용 세션만): 저장소 규칙을 따른 커밋 메시지 + `Requested-by: <사용자>` 트레일러, 요청대로 브랜치→병합, push 전 확인·실패는 reply 에.
+- 칩·세션 줄·시작 토스트에 `git`·`push`·`root` 배지, 접근 로그 `settings.sessionAllow…:on|off`·`session.start:…:git:push:root`.
+- 검증: 임시 저장소(루트 작업일지 + `slides/` 작업 공간 + bare 원격)에서 **실제 sonnet 턴**으로 루트 문서 수정 → commit(트레일러) → push 확인, 거절 경로(전역 꺼짐·codex·권한 JSON) · 권한 강제 확인(`claude -p` 로 강제 push·reset --hard·config·`git -C` 가 DENIED, `git status` 는 ALLOWED, 저장소 변화 없음).
+
 ## 0.19.1 - 2026-10-14 · 후속 요청(대화)
 
 - 요청 탭 카드의 **[후속 요청]** — 앞선 요청에 이어 묻거나 답한다(인라인 입력칸, 앞선 답 접어서 인용, ＋ 첨부·Ctrl+V, Enter 보내기). 새 요청에 `parent`·`thread` 가 붙고 대상(슬라이드·요소·영역)은 물려받으며, 원 요청은 그대로 둔다. 세션에는 같은 대화의 앞선 요청·답이 `context`(최근 6개)로 함께 간다.

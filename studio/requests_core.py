@@ -153,7 +153,7 @@ def session_status():
     age = time.time() - float(hb.get("ts", 0))
     st.update(pid=hb.get("pid"), label=hb.get("label", ""), mode=hb.get("mode", ""), last_seen=hb.get("last_seen", ""), age=round(age, 1),
               connected=not hb.get("stopped") and age <= float(hb.get("interval", 1)) * STALE_FACTOR + 2)
-    for k in ("kind", "agent", "model", "user", "state", "turn", "allowWeb"):  # 웹 세션이 더 적는 값(없으면 빠진다) - state=running 이면 턴 실행 중
+    for k in ("kind", "agent", "model", "user", "state", "turn", "allowWeb", "grants"):  # 웹 세션이 더 적는 값(없으면 빠진다) - state=running 이면 턴 실행 중
         if hb.get(k) is not None:
             st[k] = hb[k]
     if not st["connected"]:  # 마지막 웹 세션이 왜 끝났는지(서버 재시작·유휴·사용자) - 편집기가 "세션 종료됨" 안내에 쓴다

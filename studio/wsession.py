@@ -95,16 +95,50 @@ class WorkspaceProfile:
                 "수집 자료를 별도 문서로 보관하라는 요청이면 작업 공간 **루트**의 `research/<주제>.md` 에 정리한다(`content/` 안이 아님 - 거기는 덱 원본 폴더. Write 범위). "
                 "검색어·요청 URL 에 덱 내용·사내 이름·개인 정보를 넣지 않는다.\n")
 
+    def git_note(self, sess):
+        """git·push·저장소 루트 허용 세션에만 덧붙이는 규칙."""
+        g = set(sess.grants)
+        if not g & {"git", "push", "root"}:
+            return ""
+        out = ["\n이 세션에 관리자가 연 권한:"]
+        if "root" in g and sess.repo_root:
+            out.append(f"- **저장소 루트 접근**: `{Path(sess.repo_root).as_posix()}` 아래 파일을 Read/Edit/Write 할 수 있다(작업일지 등 작업 공간 밖 문서). `.git/` 안은 직접 고치지 않는다. 그 밖의 폴더는 여전히 막혀 있다.")
+        if g & {"git", "push"}:
+            out.append("- **git 기록**: `git status`·`diff`·`log`·`add`·`commit`·`switch`/`checkout <브랜치>`·`merge`·`branch`·`stash`·`tag` 를 cwd 에서 그대로 실행한다(`git -C` 로 다른 경로 지정 금지 - 거절된다). "
+                       "커밋 메시지는 저장소 규칙(저장소 루트의 `CLAUDE.md`·`AGENTS.md`, 없으면 `git log` 의 기존 형식)을 따르고, 끝에 빈 줄 뒤 `Requested-by: " + (sess.started_by or "local") + "` 트레일러를 붙인다. "
+                       "요청이 브랜치→병합을 말하면 그대로, 아니면 지금 브랜치에 커밋한다. 이력 재작성(rebase·reset --hard·강제 push)·원격/설정 변경은 하지 않는다.")
+        if "push" in g:
+            out.append("- **push**: `git push`·`pull`·`fetch` 가능. push 전에 `git status` 와 `git log origin/<브랜치>..` 로 올라갈 커밋을 확인하고, 자격 증명 오류·거절이 나면 다시 시도하지 말고 출력 그대로 `reply` 에 적는다(대화형 로그인은 뜨지 않게 막혀 있다).")
+        elif "git" in g:
+            out.append("- push 는 허용되지 않았다 - 요청이 push 를 말하면 커밋까지 하고 `reply` 에 \"push 는 이 세션에 허용되지 않아 하지 않았습니다\" 라고 적는다.")
+        return "\n".join(out) + "\n"
+
     def prompt(self, batch, reason, sess, ag):
         tpl = self.prompt_file.read_text(encoding="utf-8")
-        return (tpl.replace("{guide}", ag.guide_file).replace("{reason}", str(reason)).replace("{web}", self.WEB_NOTE if sess.allow_web else "")
+        return (tpl.replace("{guide}", ag.guide_file).replace("{reason}", str(reason)).replace("{web}", (self.WEB_NOTE if sess.allow_web else "") + self.git_note(sess))
                 .replace("{batch}", json.dumps([rc.brief(r) for r in batch], ensure_ascii=False, indent=1)))
 
-    def settings_json(self, allow_web=False):
+    def repo_root(self):
+        """작업 공간을 품은 git 저장소 루트 - 작업 공간 자신이 루트이거나 저장소가 아니면 None. 엔진 폴더면 거절."""
+        r = subprocess.run(["git", "rev-parse", "--show-toplevel"], cwd=str(WORKSPACE), capture_output=True, text=True, encoding="utf-8", errors="replace")
+        if r.returncode != 0 or not r.stdout.strip():
+            return None
+        root = Path(r.stdout.strip()).resolve()
+        from hub import inside_engine
+        if inside_engine(root):
+            raise ValueError("저장소 루트가 엔진 폴더다 - 저장소 루트 접근을 열 수 없다")
+        return None if root == WORKSPACE.resolve() else root
+
+    def is_repo(self):
+        r = subprocess.run(["git", "rev-parse", "--is-inside-work-tree"], cwd=str(WORKSPACE), capture_output=True, text=True)
+        return r.returncode == 0 and r.stdout.strip() == "true"
+
+    def settings_json(self, allow_web=False, grants=(), repo_root=None):
         """웹 세션 권한 JSON - 템플릿(workspace+web)에 이 작업 공간 실행기의 절대 경로 변형을 더한다.
         안내 파일(CLAUDE.md)이 `python3 <절대 경로>/nexa.py …` 로 적힌 작업 공간(허브가 만든 것)에서도 그 명령이 허용되게 - 다른 폴더의 nexa.py 는 여전히 거절.
-        allow_web 면 WebFetch·WebSearch 가 열린다(agents.web_settings)."""
+        allow_web 면 WebFetch·WebSearch 가 열린다(agents.web_settings). grants(git·push·root)는 agents.git_grants."""
         s = agents.web_settings(allow_web)
+        agents.git_grants(s["permissions"], set(grants), repo_root)
         allow = list(s["permissions"].get("allow", []))
         launcher = (WORKSPACE / "nexa.py")
         for py in ("python3", "python"):
@@ -116,7 +150,9 @@ class WorkspaceProfile:
         return s
 
     def env(self, sess):
-        return {"NEXA_SLIDE_WORKSPACE": str(WORKSPACE), "NEXA_SLIDE_SESSION": f"web:{sess.agent}", "NEXA_SLIDE_USER": sess.started_by or "local"}
+        # git 이 대화형으로 묻지 않게(자격 증명 창·편집기) - 답할 사람이 없으니 바로 실패하게 한다
+        return {"NEXA_SLIDE_WORKSPACE": str(WORKSPACE), "NEXA_SLIDE_SESSION": f"web:{sess.agent}", "NEXA_SLIDE_USER": sess.started_by or "local",
+                "GIT_TERMINAL_PROMPT": "0", "GCM_INTERACTIVE": "never", "GIT_MERGE_AUTOEDIT": "no", "GIT_EDITOR": "true"}
 
     def extra_info(self):
         st = rc.session_status()
@@ -262,7 +298,7 @@ class EngineProfile:
         return (tpl.replace("{id}", str(x["id"])).replace("{branch}", self.BRANCH).replace("{req_cli}", self.req_cli())
                 .replace("{request}", json.dumps(show, ensure_ascii=False, indent=1)))
 
-    def settings_json(self, allow_web=False):  # 엔진 세션은 웹을 열지 않는다(allow_web 무시)
+    def settings_json(self, allow_web=False, grants=(), repo_root=None):  # 엔진 세션은 웹·grants 를 열지 않는다(무시 - 엔진 권한 묶음이 따로 있다)
         tpl = json.loads((STUDIO / "agents" / "permissions.json").read_text(encoding="utf-8"))
         eng, web = tpl["engine"]["permissions"], tpl["web"]["permissions"]
         perms = {"allow": list(eng.get("allow", [])), "deny": list(eng.get("deny", [])) + [x for x in web.get("deny", []) if x not in eng.get("deny", [])]}
@@ -303,6 +339,7 @@ class WebSession:
         self.last_activity = 0.0
         self.pending_model = None
         self.allow_web = False  # 이 세션에 웹 검색(WebSearch·WebFetch) 허용 - 전역 sessionAllowWeb 이 켜진 상태에서 관리자가 시작 때 고른다
+        self.grants, self.repo_root = [], None  # git·push·root - 같은 틀(전역 + 세션 단위). repo_root = 저장소 루트 접근 때 --add-dir 할 폴더
         self.limits, self.flags = {}, {}
         self.events = collections.deque(maxlen=1000)
         self.seq = 0
@@ -332,7 +369,7 @@ class WebSession:
             d = {"kind": self.p.kind, "state": self.state, "agent": self.agent, "model": self.model, "modelActual": self.model_actual, "pendingModel": self.pending_model,
                  "sessionId": self.session_id, "startedBy": self.started_by, "startedAt": self.started_at, "turns": self.turns,
                  "lastError": self.last_error, "lastActivity": dt.datetime.fromtimestamp(self.last_activity).isoformat(timespec="seconds") if self.last_activity else None,
-                 "allowWeb": self.allow_web, "limits": self.limits, "seq": self.seq, "logDir": str(self._log_dir) if self._log_dir else None}
+                 "allowWeb": self.allow_web, "grants": self.grants, "repoRoot": str(self.repo_root) if self.repo_root else None, "limits": self.limits, "seq": self.seq, "logDir": str(self._log_dir) if self._log_dir else None}
             try:
                 d.update(self.p.extra_info())
             except Exception as e:  # noqa: BLE001
@@ -343,7 +380,7 @@ class WebSession:
 
     def _save(self, **extra):
         self.last = {"agent": self.agent, "model": self.model, "modelActual": self.model_actual, "sessionId": self.session_id, "startedBy": self.started_by,
-                     "startedAt": self.started_at, "allowWeb": self.allow_web, "turns": self.turns, "lastError": self.last_error, "logDir": str(self._log_dir) if self._log_dir else None, **extra}
+                     "startedAt": self.started_at, "allowWeb": self.allow_web, "grants": self.grants, "turns": self.turns, "lastError": self.last_error, "logDir": str(self._log_dir) if self._log_dir else None, **extra}
         rc.write_json(self.sess_file, self.last)
 
     def emit(self, kind, **kw):
@@ -364,7 +401,7 @@ class WebSession:
             return [e for e in self.events if e["seq"] > since]
 
     # ---------- 시작 · 중지 · 모델 ----------
-    def start(self, agent=None, model=None, user=None, allow_web=False):
+    def start(self, agent=None, model=None, user=None, allow_web=False, grants=None):
         with self.lock:
             if self.state != "off":
                 raise ValueError(f"이미 세션이 있다({self.state}) - 먼저 중지한다")
@@ -379,6 +416,17 @@ class WebSession:
                 raise ValueError("웹 검색은 관리자가 전역 설정(AI 세션 전역 기본 → 웹 검색 허용)을 켜야 고를 수 있다")
             if allow_web and agent != "claude":
                 raise ValueError(f"{agent} 는 웹 검색 도구를 지원하지 않는다(미확인) - claude 로 시작한다")
+            grants = [g for g in ("git", "push", "root") if g in (grants or [])] if self.p.kind != "engine" else []
+            if "push" in grants and "git" not in grants:
+                grants.insert(0, "git")  # push 는 git 기록을 전제로 한다
+            for g in grants:
+                if not eff.get("grants", {}).get(g):
+                    raise ValueError({"git": "git 기록", "push": "push", "root": "저장소 루트 접근"}[g] + " 은 관리자가 전역 설정(AI 세션 전역 기본)을 켜야 고를 수 있다(작업 공간 설정에서 꺼져 있을 수도 있다)")
+            if grants and agent != "claude":
+                raise ValueError(f"{agent} 는 git·저장소 루트 권한을 지원하지 않는다(미확인) - claude 로 시작한다")
+            if grants and not self.p.is_repo():
+                raise ValueError("이 작업 공간은 git 저장소 안이 아니다 - git·저장소 루트 권한을 열 수 없다")
+            repo_root = self.p.repo_root() if "root" in grants else None
             if not model:
                 raise ValueError("모델을 준다")
             others = [s for s in live_sessions() if s.get("key") != self.p.key()]
@@ -393,15 +441,16 @@ class WebSession:
             if not p["loggedIn"]:
                 raise ValueError(p["hint"] or f"{ag.label} 에 로그인되어 있지 않다")
             self.agent, self.model, self.flags, self.limits, self.allow_web = agent, model, p.get("flags") or {}, eff["limits"], allow_web
+            self.grants, self.repo_root = grants, repo_root
             self.model_actual = self.session_id = self.last_error = self.pending_model = None
             self.started_by, self.started_at, self.turns = user or "local", _now(), 0
             self.last_activity = time.time()
             self._log_dir = self.log_root / self.started_at.replace(":", "").replace("-", "")
             self._log_dir.mkdir(parents=True, exist_ok=True)
             self._settings_path = self.log_root / "claude-settings.json"
-            self._settings_path.write_text(json.dumps(self.p.settings_json(allow_web), ensure_ascii=False, indent=1), encoding="utf-8")
+            self._settings_path.write_text(json.dumps(self.p.settings_json(allow_web, grants, repo_root), ensure_ascii=False, indent=1), encoding="utf-8")
             self._hb = {"pid": os.getpid(), "label": f"{self.p.kind}:{agent}", "mode": "web", "interval": INTERVAL, "started": self.started_at,
-                        "kind": self.p.kind, "agent": agent, "model": model, "user": self.started_by, "allowWeb": allow_web}
+                        "kind": self.p.kind, "agent": agent, "model": model, "user": self.started_by, "allowWeb": allow_web, "grants": grants}
             REGISTRY.mkdir(parents=True, exist_ok=True)
             rc.write_json(REGISTRY / f"{self.p.key()}.json", {"key": self.p.key(), "kind": self.p.kind, "ws": str(self.p.cwd), "heartbeat": str(self.p.heartbeat_path),
                                                                 "user": self.started_by, "agent": agent, "model": model, "started": self.started_at, "pid": os.getpid(), "allowWeb": allow_web})
@@ -410,7 +459,7 @@ class WebSession:
             self._source = self.p.source()
             self._beat()
             self._save()
-            self.emit("state", state="ready", agent=agent, model=model, user=self.started_by, allowWeb=allow_web)
+            self.emit("state", state="ready", agent=agent, model=model, user=self.started_by, allowWeb=allow_web, grants=grants, repoRoot=str(repo_root) if repo_root else None)
             self._thread = threading.Thread(target=self._loop, name=f"wsession-{self.p.kind}", daemon=True)
             self._thread.start()
             # 하트비트는 별도 스레드 - 턴이 도는 동안 _loop 가 막혀도 매초 쓴다(안 그러면 편집기 칩이 "연결 없음"으로 바뀐다)
@@ -498,7 +547,8 @@ class WebSession:
             self.turns += 1
             n = self.turns
             cmd = ag.turn_cmd(self.model, self.session_id, self._settings_path if self.agent == "claude" else None,
-                              max_turns=self.limits.get("sessionMaxTurns"), budget_usd=self.limits.get("sessionBudgetUsd"), flags=self.flags, allow_web=self.allow_web)
+                              max_turns=self.limits.get("sessionMaxTurns"), budget_usd=self.limits.get("sessionBudgetUsd"), flags=self.flags, allow_web=self.allow_web,
+                              add_dirs=[self.repo_root] if self.repo_root and self.agent == "claude" else None)
             self._turn_log = self._log_dir / f"turn-{n}.jsonl"
         self.emit("turn.start", turn=n, count=len(batch), reason=reason, ids=self.p.ids(batch), model=self.model)
         env = {**os.environ, **ag.env(), **self.p.env(self)}
