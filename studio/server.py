@@ -52,7 +52,9 @@ AI 세션(B 단계 - docs/dev/web-session-design.md · studio/agents/ · wsessio
                                      open, working, manual(살아 있는 수동 감시), limits, seq, last(끊긴 마지막 세션)} - 작업 공간 서버에서만(허브 404)
   POST /api/wsession                 {"action": "start", agent?, model?, saveAs?: local|shared} · {"action": "stop"} · {"action": "model", model, saveAs?}
                                      · {"action": "defaults", sessionAgent?, sessionModel?, saveAs?} - 로그인 사용자 누구나(로컬 직접 접속은 local)
-  GET  /api/wsession/events?since=N  진행 이벤트(폴링) {state, seq, events: [{seq, t, type: state|turn.start|init|text|tool|tool_result|turn.end|error|model|idle, …}]}
+  GET  /api/wsession/events?since=N  진행 이벤트 - Accept: text/event-stream(또는 ?sse=1)이면 SSE(id=seq, event=종류, data=JSON, 25초마다 keepalive, Last-Event-ID 로 재개),
+                                     아니면 폴링 JSON {state, seq, events: [{seq, t, type: state|turn.start|init|text|tool|tool_result|turn.end|warn|error|model|idle, …}]}.
+                                     허브 중계는 text/event-stream 응답을 줄 단위로 바로 흘린다
   GET  /api/wsession/log?turn=N      그 턴의 어댑터 출력 원문(줄 목록)
 중계(허브 한 포트로 여러 작업 공간 — hub.py ws_id·proxy_target)
   /w/<id>/…                          그 작업 공간 서버(별도 프로세스·포트)로 그대로 넘기고 응답을 돌려준다(Location 은 접두를 다시 붙임).
@@ -581,6 +583,8 @@ class H(BaseHTTPRequestHandler):
             try:
                 conn.request(method, path, body=body or None, headers={**hdrs, "Host": f"127.0.0.1:{port}"})
                 resp = conn.getresponse()
+                if (resp.getheader("Content-Type") or "").startswith("text/event-stream"):  # SSE - 다 읽지 않고 줄 단위로 흘린다(keepalive 가 25초마다 온다)
+                    return self._stream_through(resp, prefix)
                 data = resp.read()
                 break
             except (OSError, http.client.HTTPException) as e:  # 연결 거부·끊김 - 서버가 꺼졌거나 포트가 바뀜
@@ -605,6 +609,28 @@ class H(BaseHTTPRequestHandler):
         self.end_headers()
         if method != "HEAD" and data:
             self.wfile.write(data)
+
+    def _stream_through(self, resp, prefix):
+        """중계 - text/event-stream 응답을 받는 대로 브라우저에 쓴다. 어느 쪽이든 끊기면 끝(연결은 finally 에서 닫힌다)."""
+        self.send_response(resp.status, resp.reason)
+        for k, v in resp.getheaders():
+            kl = k.lower()
+            if kl in HOP_HEADERS or kl in ("content-length", "content-encoding"):
+                continue
+            if kl == "location" and v.startswith("/"):
+                v = prefix + v
+            self.send_header(k, v)
+        self.end_headers()
+        try:
+            while True:
+                line = resp.readline()
+                if not line:
+                    break
+                self.wfile.write(line)
+                if line in (b"\n", b"\r\n"):  # 이벤트 하나가 끝날 때(빈 줄)마다 흘린다
+                    self.wfile.flush()
+        except (OSError, ValueError, http.client.HTTPException):
+            pass
 
     def do_OPTIONS(self):
         self.route("OPTIONS")
@@ -941,14 +967,46 @@ class H(BaseHTTPRequestHandler):
     def api_get_wsession(self, what, q):
         if HUB or WS is None:
             return self.err(404, "허브에는 세션이 없다 - 작업 공간(중계 /w/<이름>/api/wsession)에서")
-        if what == "events":  # 폴링(B-4 에서 SSE 를 더한다)
-            since = int((q.get("since") or ["0"])[0])
+        if what == "events":  # SSE(Accept: text/event-stream 또는 ?sse=1) · 아니면 폴링 JSON
+            since = int((q.get("since") or [self.headers.get("Last-Event-ID") or "0"])[0] or 0)
+            if "text/event-stream" in (self.headers.get("Accept") or "") or (q.get("sse") or ["0"])[0] == "1":
+                return self.sse_events(since)
             return self.send_json({"ok": True, "state": WS.state, "seq": WS.seq, "events": WS.events_since(since)})
         if what == "log":
             return self.send_json({"ok": True, "turn": (q.get("turn") or ["1"])[0], "lines": WS.turn_log((q.get("turn") or ["1"])[0]).splitlines()})
         if what:
             return self.err(404, "없는 API")
         self.send_json({"ok": True, **WS.info()})
+
+    def sse_events(self, since):
+        """진행 이벤트를 SSE 로 밀어 준다 - id = seq, event = 종류, data = JSON. 25초마다 `: keepalive`(Cloudflare 무료 100초 응답 한계).
+        클라이언트가 끊으면(쓰기 오류) 끝난다. 중계(허브)는 text/event-stream 응답을 줄 단위로 흘린다(H.proxy)."""
+        self.send_response(200)
+        self.send_header("Content-Type", "text/event-stream; charset=utf-8")
+        self.send_header("Cache-Control", "no-cache")
+        self.send_header("X-Accel-Buffering", "no")
+        self.end_headers()
+        last, idle = since, 0.0
+
+        def send(text):
+            self.wfile.write(text.encode("utf-8"))
+            self.wfile.flush()
+        try:
+            send("retry: 3000\n\n")
+            send(f"event: state\ndata: {json.dumps({'state': WS.state, 'seq': WS.seq, 'agent': WS.agent, 'model': WS.model}, ensure_ascii=False)}\n\n")
+            while True:
+                evs = WS.events_since(last)
+                for e in evs:
+                    last = e["seq"]
+                    send(f"id: {e['seq']}\nevent: {e['type']}\ndata: {json.dumps(e, ensure_ascii=False)}\n\n")
+                    idle = 0.0
+                time.sleep(0.5)
+                idle += 0.5
+                if idle >= 25:
+                    send(": keepalive\n\n")
+                    idle = 0.0
+        except (OSError, ValueError):  # 연결 끊김
+            return
 
     def api_post_wsession(self, what, q):
         """{action: start, agent?, model?, saveAs?: local|shared} · {action: stop} · {action: model, model, saveAs?}. 로그인 사용자 누구나(로컬 직접 접속은 local)."""

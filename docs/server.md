@@ -73,7 +73,7 @@ python3 studio/service.py start                                                 
 | `GET /api/agent` | AI 세션 어댑터 확인 — `{agents: {claude, codex: {installed, loggedIn, version, verified, hint, doc, flags, models}}, agent, model, sources, limits}`(전역 < 작업 공간 우선순위, `?refresh=1` 로 다시 확인). [dev/web-session-design.md](dev/web-session-design.md) |
 | `GET /api/wsession` | 웹 AI 세션 상태 — `{state: off\|ready\|running\|error, agent, model, modelActual, sessionId, startedBy, startedAt, turns, lastError, open, working, manual, limits, seq, last}`. 작업 공간 서버에서만(허브는 404 — 중계 `/w/<이름>/api/wsession`) |
 | `POST /api/wsession` | `{"action": "start", agent?, model?, saveAs?: "local"\|"shared"}` · `{"action": "stop"}` · `{"action": "model", model, saveAs?}`(실행 중이면 턴이 끝난 뒤 적용) · `{"action": "defaults", sessionAgent?, sessionModel?, saveAs?}`. 로그인 사용자 누구나. 수동 감시가 살아 있거나 PC 동시 세션 한도(`sessionMax`)면 400 |
-| `GET /api/wsession/events?since=N` | 진행 이벤트(폴링) — `turn.start`·`init`·`text`·`tool`·`tool_result`·`turn.end`·`error`·`model`·`idle`·`state` |
+| `GET /api/wsession/events?since=N` | 진행 이벤트 — `Accept: text/event-stream`(또는 `?sse=1`)이면 **SSE**(`id`=seq, `event`=종류, `data`=JSON, 25초마다 `: keepalive`, `Last-Event-ID` 로 놓친 것부터 재개), 아니면 폴링 JSON. 종류: `state`·`turn.start`·`init`·`text`·`tool`·`tool_result`·`turn.end`·`warn`·`error`·`model`·`idle`. 중계(`/w/<이름>/…`)는 이벤트 스트림을 줄 단위로 바로 흘린다 |
 | `GET /api/wsession/log?turn=N` | 그 턴의 어댑터 출력 원문 |
 | `GET /api/session` | Claude 세션 연결 상태 `{connected, label, mode, last_seen, age, open, working}` |
 | `POST /api/flush/<id>` | "지금 보내기" — 감시 스크립트가 대기 없이 열린 요청을 바로 전달 |

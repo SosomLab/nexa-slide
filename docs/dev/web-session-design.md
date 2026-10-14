@@ -213,6 +213,9 @@ B-1·B-2 는 기존 동작을 바꾸지 않는다. B-3 부터 새 기능. 각 �
   - `sessionMax: 0` 은 "웹 세션 금지"로 뜻이 있다(0 을 기본값으로 바꾸지 않는다).
   - 검증(격리 환경, 실제 sonnet 턴): 수동 감시 중 시작 거절 · 한도 · codex 미설치 안내 · 시작(startedBy=허브 사용자) · 하트비트 kind=web · `watch_requests --takeover` 거절(서버 생존) · 요청 1건 → working → save_deck → done+reply · 원장 claude(exact)+actor.user · 이벤트·턴 로그 · 모델 변경 · 끊기 · 등록 삭제 · `service.py stop` 선종료 — 27건.
 
+- B-3 보완 `f312e09`: `draft_deck`·`help`(큰 덱을 통째로 옮기지 않게), `_reconcile`(침묵 실패 보정), 접근 로그 잠금, `--max-turns` 항상, 계정 메일 제거.
+- B-4: `/api/wsession/events` SSE(`H.sse_events` — id/event/data, 25초 keepalive, `Last-Event-ID`) + 중계 스트리밍 통과(`H._stream_through` — `text/event-stream` 이면 줄 단위로 바로 흘림, 빈 줄마다 flush). 폴링 JSON 은 그대로. 검증 17건(중계·직접 SSE, 실시간 도착, keepalive, 재개, 끊은 뒤 서버 정상).
+
 ## 15. 검토 기록
 
 - 2026-10-14 협업 세션(nexa-slide-f4) 공식 문서 대조: codex `-c approval_policy="never"`·`--ignore-user-config`·stdin `-`·`thread.started.thread_id` / claude deny 우선 규칙·`dontAsk`+`--permission-prompts none`·`--restricted`·`blockReadsOutsideWorkingDirectories`·PowerShell 도구·`--strict-mcp-config`·`--max-turns`/`--max-budget-usd`·`claude auth status` / 원장 `actor.user`=시작 사용자·사용량 표시·stdin UTF-8·SSE 머리·probe 안내 링크·hooks 와 SSE — 모두 §4~§11 에 반영.
