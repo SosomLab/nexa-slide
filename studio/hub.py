@@ -194,7 +194,7 @@ def session_summary(ws, cfg=None):
     connected = bool(hb) and not hb.get("stopped") and age <= float(hb.get("interval", 1)) * 4 + 2
     out = {"kind": (hb.get("kind") or "manual") if connected else "none", "connected": connected, "label": hb.get("label", ""),
            "agent": hb.get("agent"), "model": hb.get("model"), "user": hb.get("user"), "started": hb.get("started", ""), "lastSeen": hb.get("last_seen", ""),
-           "state": hb.get("state"), "turn": hb.get("turn"), "allowWeb": bool(hb.get("allowWeb")), "grants": hb.get("grants") or [],  # 웹 세션의 하트비트가 적는 상태(running = 턴 실행 중)
+           "state": hb.get("state"), "turn": hb.get("turn"), "allowWeb": bool(hb.get("allowWeb")), "grants": hb.get("grants") or [], "sessionId": hb.get("sessionId"), "cwd": hb.get("cwd"),  # 웹 세션의 하트비트가 적는 상태(running = 턴 실행 중)
            "open": 0, "working": 0, "defaults": {"agent": cfg.get("sessionAgent"), "model": cfg.get("sessionModel")}}
     decks_dir = ws / cfg.get("decks", "decks")
     for f in (decks_dir.glob("*.requests.json") if decks_dir.is_dir() else []):
@@ -206,7 +206,7 @@ def session_summary(ws, cfg=None):
         out["working"] += sum(1 for r in rs if r.get("status") == "working")
     last = _read_json(st_dir / "wsession.json")
     if last:
-        out["last"] = {k: last.get(k) for k in ("agent", "model", "startedBy", "startedAt", "stoppedAt", "reason", "turns", "lastError", "allowWeb")}
+        out["last"] = {k: last.get(k) for k in ("agent", "model", "startedBy", "startedAt", "stoppedAt", "reason", "turns", "lastError", "allowWeb", "sessionId")}
     return out
 
 

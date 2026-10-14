@@ -58,7 +58,7 @@
     "기본(claude)": "default (claude)", "기본(opus)": "default (opus)", "AI 세션 전역 기본": "AI session global defaults", "claude 모델 목록(쉼표)": "claude model list (comma-separated)", "codex 모델 목록(쉼표)": "codex model list (comma-separated)",
     "유휴 (분)": "Idle (min)", "턴 (분)": "Turn (min)", "동시 세션 (개)": "Concurrent sessions", "턴당 도구 반복": "Tool calls per turn", "예산 ($)": "Budget ($)", "웹 검색 허용(WebSearch·WebFetch) - 세션 시작 창에서 세션마다 켠다": "Allow web search (WebSearch · WebFetch) - enabled per session in the start dialog",
     "켜면 그 세션이 외부 웹을 검색·열람합니다. 슬라이드·요청 내용이 검색어·요청 URL 로 외부에 전달될 수 있습니다. 턴 로그에 요청한 URL 이 남습니다.": "When on, that session searches and reads the external web. Slide and request content may be sent outside as search terms or request URLs. Requested URLs are kept in the turn log.",
-    "이 세션에 웹 검색 허용(WebSearch·WebFetch)": "Allow web search in this session (WebSearch · WebFetch)", "- 관리자만": "- admin only", "웹 허용": "web allowed", "git 기록 허용(add·commit·branch·switch·merge·stash·tag)": "Allow git commits (add · commit · branch · switch · merge · stash · tag)", "push 허용(git push·pull·fetch - git 기록을 함께 켬)": "Allow push (git push · pull · fetch - also enables git commits)",
+    "이 세션에 웹 검색 허용(WebSearch·WebFetch)": "Allow web search in this session (WebSearch · WebFetch)", "- 관리자만": "- admin only", "웹 허용": "web allowed", "서버 작업 보기": "Open server work", "데스크톱 알림 켜기": "Enable desktop notifications", "확인 명령": "Command to check", "git 기록 허용(add·commit·branch·switch·merge·stash·tag)": "Allow git commits (add · commit · branch · switch · merge · stash · tag)", "push 허용(git push·pull·fetch - git 기록을 함께 켬)": "Allow push (git push · pull · fetch - also enables git commits)",
     "저장소 루트 접근(작업 공간을 품은 저장소의 문서 읽기·쓰기)": "Repository root access (read/write docs in the repo containing the workspace)", "이 세션에 열린 권한": "Permissions granted to this session", "이 세션은 웹 검색(WebSearch·WebFetch)을 쓸 수 있다": "This session can use web search (WebSearch · WebFetch)",
     "이 세션이 외부 웹을 검색·열람합니다 - 슬라이드·요청 내용이 검색어·URL 로 외부에 전달될 수 있습니다(claude 만, 실행 중 세션은 다시 시작해야 바뀜).": "This session searches and reads the external web - slide and request content may be sent outside as search terms or URLs (claude only; a running session must be restarted to change this).",
     "이 세션이 외부 웹을 검색·열람합니다 - 슬라이드·요청 내용이 검색어·URL 로 외부에 전달될 수 있습니다(claude 만).": "This session searches and reads the external web - slide and request content may be sent outside as search terms or URLs (claude only).", "에이전트 상태 확인 중…": "Checking agents…",
@@ -235,6 +235,8 @@
     [/^시작했습니다 - (.*)$/, "Started - $1"], [/^웹 세션 시작 - (.*)$/, "Web session started - $1"], [/^엔진 개발 세션 시작 - (.*)$/, "Engine session started - $1"], [/^엔진 요청 #(\d+) 을 넣었습니다$/, "Engine request #$1 added"],
     [/^모델을 (.+) 로 바꿨습니다$/, "Model changed to $1"], [/^턴이 끝난 뒤 (.+) 로 바뀝니다$/, "Changes to $1 after this turn"], [/^마지막 · (.*)$/, "last · $1"], [/^상태 (\w+)(.*)$/, "state $1$2"], [/^유형 바꾸기 - 슬라이드 (\d+)$/, "Change type - slide $1"],
     [/^이 세션에 (git 기록|push|저장소 루트 접근) 허용$/, (m, a) => "Allow " + ({ "git 기록": "git commits", push: "push", "저장소 루트 접근": "repo root access" })[a] + " in this session"],
+    [/^세션 ID (\w+) - 확인 명령 복사$/, "Session ID $1 - copy command"], [/^확인 명령을 복사했습니다 - (.*)$/, "Copied the command - $1"],
+    [/^승인 대기 엔진 요청 (\d+)건(.*)$/, "$1 engine requests awaiting approval$2"], [/^기본 메뉴 - 승인 대기 (\d+)건(.*)$/, "Main menu - $1 awaiting approval$2"], [/^승인 대기 (\d+)건$/, "$1 awaiting approval"],
     [/^처리 대기 (\d+)건 · 세션 꺼짐(.*)$/, "$1 waiting · session off$2"], [/^(.+) 님이 (.+) 에 시작을 요청(.*)$/, "$1 asked to start at $2$3"], [/^엔진 요청 #(\d+) 을 넣었습니다 — (.*)$/, "Engine request #$1 added — $2"],
     [/^엔진 개발 세션이 꺼져 있어 관리자가 시작해야 처리됩니다(.*)$/, "The engine session is off; an admin must start it before this is handled$1"],
     [/^세션이 꺼져 있어 대기 요청 (\d+)건이 처리되지 않습니다 - $/, "The session is off, so $1 waiting requests are not being handled - "], [/^(서버 재시작으로 세션 종료됨|유휴로 세션 종료됨|사용자가 세션 중지|오류로 세션 종료됨)\((.+)\)$/, (m, a, b) => EN[a] + "(" + b + ")"], [/^기록 - (.+)$/, "History - $1"], [/^변경 - (.+)$/, "Changes - $1"], [/^이 서버의 작업 공간 (.*)$/, "This server's workspace $1"], [/^작업 공간 ([A-Za-z]:\.+|\/.+)$/, "Workspace $1"], [/^(\d+)개$/, "$1"], [/^#(\d+) 를 거절할까요\?$/, "Reject #$1?"],
@@ -296,7 +298,7 @@
   let applying = false;
   function applyAll() {
     applying = true;
-    try { walk(document.body); document.documentElement.lang = effective(); if (document.title) { if (!document.__i18n_title) document.__i18n_title = document.title; document.title = tr1(document.__i18n_title); } }
+    try { walk(document.body); document.documentElement.lang = effective(); if (document.title) { const pre = (/^\(\d+\) /.exec(document.title) || [""])[0]; if (!document.__i18n_title) document.__i18n_title = document.title.slice(pre.length); document.title = pre + tr1(document.__i18n_title); } }
     finally { applying = false; }
   }
   // 변경 기록은 비동기로 오므로 "우리가 바꾼 것"은 값이 번역 결과와 같은지로 가려낸다(원문을 영어로 덮어쓰지 않게)

@@ -7,6 +7,7 @@
 | Python 3.10 이상 | 필수 | 서버·빌드·내보내기 전부 |
 | `python-pptx` | 필수 | PPTX 내보내기 |
 | `Pillow` | 권장 | 글자 폭 정밀 측정(칩·코드 폭 자동 맞춤), `compare.py` |
+| `pymupdf` | 선택 | PDF 첨부 내용 추출(`import_doc` - 글·표·그림). Word·Excel 추출은 추가 설치 없음 |
 | Node.js 18 이상 | 선택 | `check_parity.py`(render.js 를 Node 로 실행), `render_mermaid.py`(npx mermaid-cli) |
 | Chrome 또는 Edge | 선택 | `compare.py` 헤드리스 캡처 |
 | PowerPoint + PowerShell (Windows) | 선택 | 편집기 "PPT 렌더 미리보기", `render_pptx.ps1` |

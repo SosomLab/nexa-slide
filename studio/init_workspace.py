@@ -156,6 +156,7 @@ LAUNCHER = '''# -*- coding: utf-8 -*-
     python3 {ws}/nexa.py slide_types [낱말]                         # 슬라이드 유형(목적별) — 내용에 맞는 장 고르기
     python3 {ws}/nexa.py set_template [<이름>]                      # 템플릿(디자인) 목록·고르기 (바꾼 뒤 restart → build_deck --force)
     python3 {ws}/nexa.py import_pptx <파일.pptx>                    # PPTX 의 글·표·차트·노트·그림 꺼내기 → out/import/<이름>/
+    python3 {ws}/nexa.py import_doc <파일>                          # Word·Excel·PDF 의 글·표·시트·그림 꺼내기 → out/import/<이름>/
     python3 {ws}/nexa.py watch_requests --stream --takeover         # Claude 세션 요청 감시(Monitor 로 실행)
     python3 {ws}/nexa.py engine [<엔진 폴더> | --clear]              # 이 PC 의 엔진 위치 보기 · 정하기(nexa-slide.local.json)
     python3 {ws}/nexa.py update_launcher                            # 이 실행기를 엔진의 최신 판으로
