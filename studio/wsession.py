@@ -344,6 +344,7 @@ class WebSession:
         finally:
             with self.lock:
                 self._proc = None
+        unhandled = self._reconcile(batch, result, rc_code)
         with self.lock:
             ok = rc_code == 0 and (result is None or result.get("ok", True))
             if ok:
@@ -355,7 +356,39 @@ class WebSession:
             self.last_activity = time.time()
             self._save()
         self.emit("turn.end", turn=n, ok=ok, code=rc_code, sessionId=self.session_id, model=self.model_actual,
-                  costUsd=(result or {}).get("costUsd"), usage=(result or {}).get("usage"), error=None if ok else self.last_error)
+                  costUsd=(result or {}).get("costUsd"), usage=(result or {}).get("usage"), error=None if ok else self.last_error,
+                  unhandled=unhandled)
+
+    def _reconcile(self, batch, result, rc_code):
+        """침묵 실패 막기 - 턴이 끝났는데 묶음의 요청이 아직 working(세션이 끝내지 못함)이거나 open 에 빈 reply 면,
+        서버가 reply 에 "세션이 처리하지 못했습니다: <결과 첫 줄>" 을 적고 working 은 open 으로 되돌린다(사용자가 편집기에서 본다). 그런 요청 id 목록을 돌려준다."""
+        ids = {r["id"] for r in batch}
+        note = ((result or {}).get("text") or "").strip().splitlines()
+        note = (note[0] if note else (f"턴이 비정상 종료(코드 {rc_code})" if rc_code else "세션이 답 없이 끝남"))[:200]
+        unhandled = []
+        by_deck = {}
+        for r in batch:
+            by_deck.setdefault(r["deck"], None)
+        for deck in by_deck:
+            p = rc.DECKS / f"{deck}.requests.json"
+            try:
+                rs = json.loads(p.read_text(encoding="utf-8"))
+            except (OSError, ValueError):
+                continue
+            changed = False
+            for q in rs:
+                if q.get("id") not in ids:
+                    continue
+                if q.get("status") == "working" or (q.get("status") == "open" and not (q.get("reply") or "").strip()):
+                    q["status"] = "open"
+                    q["reply"] = f"세션이 처리하지 못했습니다: {note}"
+                    unhandled.append(q["id"])
+                    changed = True
+            if changed:
+                rc.write_json(p, rs)
+        if unhandled:
+            self.emit("warn", message=f"처리되지 않은 요청 {len(unhandled)}건 - reply 에 사유를 적고 open 으로 두었다", ids=unhandled)
+        return unhandled
 
     def _kill(self):
         proc = self._proc

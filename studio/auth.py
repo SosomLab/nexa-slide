@@ -342,14 +342,56 @@ def key_ok(v) -> bool:
 _PRUNED = None
 
 
+class _log_lock:
+    """프로세스 사이 잠금(hub/logs/access.lock) - Windows msvcrt.locking, 그 밖 fcntl.flock. 최대 약 3초 기다리고 못 얻으면 그냥 쓴다(로그보다 서비스)."""
+
+    def __enter__(self):
+        self.fd = None
+        try:
+            self.fd = os.open(str(LOGS / "access.lock"), os.O_WRONLY | os.O_CREAT, 0o644)
+            if os.name == "nt":
+                import msvcrt
+                for _ in range(30):
+                    try:
+                        msvcrt.locking(self.fd, msvcrt.LK_NBLCK, 1)
+                        return self
+                    except OSError:
+                        time.sleep(0.1)
+            else:
+                import fcntl
+                fcntl.flock(self.fd, fcntl.LOCK_EX)
+        except OSError:
+            pass
+        return self
+
+    def __exit__(self, *a):
+        if self.fd is None:
+            return
+        try:
+            if os.name == "nt":
+                import msvcrt
+                msvcrt.locking(self.fd, msvcrt.LK_UNLCK, 1)
+            else:
+                import fcntl
+                fcntl.flock(self.fd, fcntl.LOCK_UN)
+        except OSError:
+            pass
+        os.close(self.fd)
+
+
 def log_access(rec: dict):
     """한 줄 JSON 을 오늘 파일에 붙인다(열고-쓰고-닫기: 허브·작업 공간 서버 여러 프로세스가 같은 파일에 쓴다). 하루 한 번 오래된 파일을 지운다."""
     global _PRUNED
     try:
         LOGS.mkdir(parents=True, exist_ok=True)
         day = dt.date.today()
-        with open(LOGS / f"access-{day.isoformat()}.log", "a", encoding="utf-8", newline="\n") as f:
-            f.write(json.dumps(rec, ensure_ascii=False, separators=(",", ":")) + "\n")
+        line = (json.dumps(rec, ensure_ascii=False, separators=(",", ":")) + "\n").encode("utf-8")
+        with _log_lock():  # 허브·작업 공간 서버 여러 프로세스가 같은 파일에 덧붙인다 - Windows 는 O_APPEND 만으로는 줄이 유실·섞여 잠금 파일로 직렬화
+            fd = os.open(str(LOGS / f"access-{day.isoformat()}.log"), os.O_WRONLY | os.O_APPEND | os.O_CREAT | getattr(os, "O_BINARY", 0), 0o644)
+            try:
+                os.write(fd, line)
+            finally:
+                os.close(fd)
         if _PRUNED != day:
             _PRUNED = day
             keep = int(setting("accessLogDays", 30))

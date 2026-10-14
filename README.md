@@ -100,6 +100,8 @@ nexa-slide/
 | [docs/server.md](docs/server.md) | 서버 실행 옵션, URL 구성, API 전체, 보안 범위, 동시 편집 처리 |
 | [docs/auth.md](docs/auth.md) | 허브 로그인·계정(최초 관리자, 역할, 비밀번호 초기화) · 허브↔작업 공간 서버 공유 비밀 · 접근 로그 · 밖에 열 때 권장 |
 | [docs/server-admin.md](docs/server-admin.md) | 운영자용 절차 — 처음 띄우기, 인증 판으로 올리기, 매일 운영, 사용자 관리, 복구, 자동 시작, 백업, 점검표 |
+| [docs/mechanism.md](docs/mechanism.md) | 동작 원리(그림) — 구성도, 로그인·중계·수동 세션·웹 세션 시퀀스, 웹 세션 상태도, 상태 파일 위치, 알려진 한계 |
+| [docs/dev/web-session-design.md](docs/dev/web-session-design.md) | 웹 AI 세션 설계(B 단계) — 턴 실행 모델, 어댑터, 권한, 설정, API, 수명, 결정 기록 |
 | **[docs/change-ledger.md](docs/change-ledger.md)** | **변경 원장 - 편집기·Claude·빌드·외부의 모든 변경을 덱당 1,000건 보존, 출처 배지·최근 수정 대상·되돌리기, `save_deck`** |
 | [docs/operation.md](docs/operation.md) | 일상 운영 — 빌드·내보내기·렌더·비교, 백업·복원, 포트·프로세스 점검, 문제 해결 |
 | **[docs/ai-editing.md](docs/ai-editing.md)** | **새로 만든 작업 공간에서 AI 로 고치기 — Claude Code(터미널·VS Code·Desktop)·그 밖의 AI(Codex·Gemini CLI·Cursor) 연결, 요청·초안·마무리 과정** |

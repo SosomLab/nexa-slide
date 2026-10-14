@@ -15,7 +15,7 @@ from .base import Agent, run
 
 TOOLS = "Read,Edit,Write,Glob,Grep,Bash"
 DISALLOW_OLD = "mcp__*,PowerShell,WebFetch,WebSearch"
-WANT_FLAGS = ("--restricted", "--permission-prompts", "--setting-sources", "--strict-mcp-config", "--max-budget-usd", "--tools", "--settings", "--resume", "--max-turns")
+WANT_FLAGS = ("--restricted", "--permission-prompts", "--setting-sources", "--strict-mcp-config", "--max-budget-usd", "--tools", "--settings", "--resume")  # --max-turns 는 --help 에 없어도 있다
 
 
 class ClaudeAgent(Agent):
@@ -37,8 +37,8 @@ class ClaudeAgent(Agent):
         except ValueError:
             st = {}
         out["loggedIn"] = bool(st.get("loggedIn")) if st else code == 0
-        if st:
-            out["account"] = {k: st.get(k) for k in ("authMethod", "subscriptionType", "email") if st.get(k)}
+        if st:  # 계정 메일은 내지 않는다(일반 사용자도 보는 응답)
+            out["account"] = {k: st.get(k) for k in ("authMethod", "subscriptionType") if st.get(k)}
         code, so, se = run([exe, "--help"], timeout=20)
         out["flags"] = {f: (f in so) for f in WANT_FLAGS}
         if not out["loggedIn"]:
@@ -60,7 +60,7 @@ class ClaudeAgent(Agent):
             cmd += ["--settings", str(settings_path)]
         if flags.get("--strict-mcp-config", True):
             cmd += ["--strict-mcp-config"]
-        if max_turns:
+        if max_turns:  # --help 에 안 나오는 판이 있어 무조건 넣는다(오래된 옵션)
             cmd += ["--max-turns", str(int(max_turns))]
         if budget_usd and flags.get("--max-budget-usd", True):
             cmd += ["--max-budget-usd", str(budget_usd)]

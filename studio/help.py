@@ -1,0 +1,32 @@
+# -*- coding: utf-8 -*-
+"""실행기 하위 명령 목록 - python3 nexa.py help. AI 세션(엔진 문서를 읽지 못하는 웹 세션 포함)이 쓸 수 있는 명령을 한눈에."""
+import sys
+
+COMMANDS = [
+    ("start | stop | restart | status | url", "편집기 서버 시작·중지·상태·주소"),
+    ("draft_deck <덱> [--element <id>] [--slide <id>]", "덱 사본(out/.studio/draft-<덱>.json)을 만들고 경로·줄 번호를 알려 준다 → 사본을 Edit 로 고친다"),
+    ("save_deck <덱> --from <사본> --request <요청 id> --note \"…\"", "사본을 덱으로 저장(변경 원장에 Claude 로, 백업·충돌 검사). 덱 파일을 직접 덮어쓰지 않는다"),
+    ("layout_samples [--json]", "레이아웃 21종과 필드 예시(새 슬라이드를 만들 때 구조 참고)"),
+    ("slide_types [낱말]", "내용 성격에 맞는 슬라이드 유형 고르기(레이아웃·필드 구조)"),
+    ("build_deck <덱> --force", "content/<덱>.json → decks/<덱>.json 빌드"),
+    ("check_layout <덱>", "레이아웃 검사(겹침·넘침·최소 글자·슬라이드 밖) - ERROR 0 목표"),
+    ("export_pptx <덱>", "PPTX 내보내기 → out/<덱>.pptx"),
+    ("set_fonts <세트>", "글꼴 세트 고르기"),
+    ("watch_requests --stream", "수동 세션용 요청 감시(웹 세션 중에는 거절된다)"),
+    ("help", "이 목록"),
+]
+
+
+def main():
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:  # noqa: BLE001
+        pass
+    print("python3 nexa.py <명령> …   (작업 공간 폴더에서, cwd 기준)")
+    for cmd, desc in COMMANDS:
+        print(f"  {cmd:62s} {desc}")
+    print("요청 처리 규약: requests.json status working → draft_deck → Edit 사본 → save_deck --from --request → content 반영 → status done + reply")
+
+
+if __name__ == "__main__":
+    main()
