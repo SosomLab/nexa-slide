@@ -321,6 +321,8 @@ def group(entries, gap=GROUP_GAP):
             _merge_item(g, it)
     for g in groups:
         g.pop("_idx", None)
+        for it in g["items"]:
+            it.pop("_els", None)
         g["summary"] = deckdiff.summary(g["items"])
     return groups
 
@@ -351,18 +353,19 @@ def _merge_item(g, it):
             e = {**el, "kinds": list(el.get("kinds") or [])}
             cur["_els"][el["id"]] = e
             cur["els"].append(e)
+            continue
+        for kd in el.get("kinds") or []:
+            if kd not in e["kinds"]:
+                e["kinds"].append(kd)
+        if el.get("after") or el.get("gone"):
+            e["after"] = el.get("after", "")
+        # 사라짐은 마지막 상태를 따른다 - 추가 → 삭제 → 다시 추가(복제 후 지웠다 다시 복제 등)면 지금은 있는 요소다
+        if el.get("gone"):
+            e["gone"] = True
         else:
-            for kd in el.get("kinds") or []:
-                if kd not in e["kinds"]:
-                    e["kinds"].append(kd)
-            if el.get("after") or el.get("gone"):
-                e["after"] = el.get("after", "")
-            if el.get("gone"):
-                e["gone"] = True
-    if "_els" in cur and cur is g["_idx"].get(k):
-        pass
-    for v in g["_idx"].values():
-        v.pop("_els", None) if False else None
+            e.pop("gone", None)
+            if "삭제" in e["kinds"]:
+                e["kinds"].remove("삭제")
 
 
 def recent(entries, deck_obj=None):
