@@ -355,7 +355,7 @@ def render_list(i):
 
 
 MUTATING = {"POST", "PUT", "DELETE", "PATCH"}
-AUTH_FREE = {"/login", "/setup", "/api/auth/state", "/api/auth/login", "/api/auth/setup"}  # 허브에서 로그인 없이 닿는 전부(페이지는 CSS·JS 내장)
+AUTH_FREE = {"/login", "/setup", "/api/auth/state", "/api/auth/login", "/api/auth/setup", "/studio/i18n.js"}  # 허브에서 로그인 없이 닿는 전부(페이지는 CSS·JS 내장 + 표시 언어 사전)
 POLL_RX = re.compile(r"(^|/w/[^/]+)/api/(version/[^/?]+|session)$")  # 2초 폴링 - /api/version/<덱> · /api/session (/api/wsession 은 아님)
 SERVER_NAME = "hub" if HUB else None  # 접근 로그 server 필드 - 작업 공간은 중계 이름(ws id, 저장소형은 모두 slides/ 라 폴더 이름으로는 구분이 안 된다)
 
@@ -991,6 +991,10 @@ class H(BaseHTTPRequestHandler):
             return self.err(404, "없는 API")
         self.send_json({"ok": True, **ws.info()})
 
+    def _can_allow_web(self):
+        """세션에 웹 검색을 열 수 있는 사람 - 허브 관리자(중계 머리글 X-Nexa-Role). 작업 공간 서버 로컬 직접 접속은 로그인이 없으므로 그 PC 사용자 = 운영자로 본다."""
+        return self.role == "admin" or (not HUB and not self.via_hub)
+
     def _session_post(self, ws, b, who, save_defaults=None):
         """세션 조작 공통 - {action: start|stop|model}. 작업 공간 세션은 saveAs 로 기본값도 저장한다."""
         act = b.get("action")
@@ -998,8 +1002,13 @@ class H(BaseHTTPRequestHandler):
             return False  # 여기서 다루지 않는 action - 호출한 쪽이 처리
         try:
             if act == "start":
-                info = ws.start(b.get("agent"), b.get("model"), who)
-                self._event = f"{ws.p.kind}.session.start:{info['agent']}:{info['model']}"
+                allow_web = bool(b.get("allowWeb"))
+                if allow_web and not self._can_allow_web():
+                    self._event = f"{ws.p.kind}.session.denied"
+                    self.err(403, "웹 검색 허용은 관리자만 고를 수 있다")
+                    return True
+                info = ws.start(b.get("agent"), b.get("model"), who, allow_web=allow_web)
+                self._event = f"{ws.p.kind}.session.start:{info['agent']}:{info['model']}" + (":web" if info.get("allowWeb") else "")
                 if save_defaults and b.get("saveAs") in ("local", "shared"):
                     save_defaults(b.get("saveAs"), {"sessionAgent": info["agent"], "sessionModel": info["model"]})
                 self.send_json({"ok": True, **info})
@@ -1032,11 +1041,30 @@ class H(BaseHTTPRequestHandler):
             if WS_ENGINE is None:
                 return self.err(503, "엔진 세션 관리자가 없다")
             return self._session_get(WS_ENGINE, (self._rest or [None])[0], q)
+        if what == "attach":  # /api/engine/attach/<id>/<파일> - 올린 첨부 보기(로그인 사용자)
+            rest = self._rest or []
+            if len(rest) != 2 or not re.fullmatch(r"\d+|_new", rest[0]):
+                return self.err(404, "없는 첨부")
+            p = engine_requests.ATTACH_DIR / rest[0] / Path(unquote(rest[1])).name
+            if not p.is_file():
+                return self.err(404, "없는 첨부")
+            data = p.read_bytes()
+            self.send_response(200)
+            self.send_header("Content-Type", mimetypes.guess_type(str(p))[0] or "application/octet-stream")
+            self.send_header("Content-Length", str(len(data)))
+            self.send_header("Cache-Control", "no-store")
+            self.end_headers()
+            return self.wfile.write(data)
         if what:
             return self.err(404, "없는 API")
         info = WS_ENGINE.info() if WS_ENGINE else {"state": "off"}
-        return self.send_json({"ok": True, "session": info, "counts": engine_requests.counts(),
-                               "recent": sorted(engine_requests.load(), key=lambda x: -x["id"])[:8], "git": info.get("git") or {}})
+        recent = sorted(engine_requests.load(), key=lambda x: -x["id"])[:8]
+        for x in recent:  # 첨부 - 화면의 축소판·링크용(허브 /api/engine/attach/<id>/<파일> 로 본다)
+            att = engine_requests.attach_files(x["id"])
+            if att:
+                x["attachments"] = [{"name": a["name"], "size": a["size"], "url": f"/api/engine/attach/{x['id']}/{a['name']}"} for a in att]
+        return self.send_json({"ok": True, "session": info, "counts": engine_requests.counts(), "recent": recent, "git": info.get("git") or {},
+                               "startRequest": engine_requests.start_request(), "sessionOff": info.get("state", "off") == "off"})
 
     def api_post_engine(self, what, q):
         """requests: {action: add, title, body, …}(로그인 사용자 누구나) · {action: status, id, status, reply?…}·{action: remove, id}·{action: priority, id, priority}(관리자)
@@ -1053,8 +1081,16 @@ class H(BaseHTTPRequestHandler):
                     it = engine_requests.add(b.get("title"), b.get("body") or "", kind="user", user=who, ws=b.get("ws"), ws_id=b.get("wsId"),
                                              request=b.get("request"), deck=b.get("deck"), slide=b.get("slide"), evidence=b.get("evidence") or [],
                                              priority=b.get("priority") or 0)
+                    att = engine_requests.claim_attachments(it["id"], b.get("attachments") or [])  # _new/ 에 올려 둔 파일을 이 요청 폴더로
+                    if att:
+                        it = engine_requests.update(it["id"], by=who, evidence=list(it.get("evidence") or []) + att)
                     self._event = f"engine.request.add:{it['id']}"
-                    return self.send_json({"ok": True, "item": it, "counts": engine_requests.counts()})
+                    return self.send_json({"ok": True, "item": it, "counts": engine_requests.counts(), "note": engine_requests.pending_note(it["status"]),
+                                           "sessionOff": not engine_requests.session_state().get("connected")})
+                if act == "startRequest":  # 일반 사용자가 관리자에게 엔진 세션 시작을 요청 - 묶어서 기록, 접근 로그에 남김
+                    d = engine_requests.request_start(who)
+                    self._event = "engine.start_requested"
+                    return self.send_json({"ok": True, "startRequest": d})
                 if self.role != "admin":
                     self._event = "engine.request.denied"
                     return self.err(403, "관리자만")
@@ -1080,8 +1116,30 @@ class H(BaseHTTPRequestHandler):
             if WS_ENGINE is None:
                 return self.err(503, "엔진 세션 관리자가 없다")
             if self._session_post(WS_ENGINE, b, who):
+                if b.get("action") == "start" and WS_ENGINE.state != "off":
+                    engine_requests.clear_start_request()  # 시작했으니 "관리자에게 시작 요청" 은 끝
                 return
             return self.err(400, "action = start|stop|model")
+        if what == "attach":  # {name, type, data(base64)} → hub/engine/attach/_new/<파일> (요청 add 때 attachments 로 넘기면 그 요청 폴더로 옮긴다)
+            import base64
+            ctype = str(b.get("type") or "").split(";")[0].strip().lower()
+            name = str(b.get("name") or "")[:120]
+            ext = self.ATTACH_TYPES.get(ctype) or (Path(name).suffix.lower() if Path(name).suffix.lower() in self.ATTACH_TYPES.values() else None)
+            if not ext:
+                return self.err(400, f"지원하지 않는 형식: {ctype or name or '?'} (그림·PDF·글·pptx/docx/xlsx)")
+            try:
+                data = base64.b64decode(str(b.get("data") or ""), validate=True)
+            except (ValueError, TypeError):
+                return self.err(400, "data 는 base64")
+            if not data or len(data) > self.ATTACH_MAX:
+                return self.err(413 if data else 400, "내용 없음" if not data else f"너무 크다({len(data) // 1024 // 1024}MB > {self.ATTACH_MAX // 1024 // 1024}MB)")
+            d = engine_requests.ATTACH_DIR / "_new"
+            d.mkdir(parents=True, exist_ok=True)
+            fid = dt.datetime.now().strftime("%Y%m%d-%H%M%S-%f")[:22]
+            p = d / f"{fid}{ext}"
+            p.write_bytes(data)
+            self._event = "engine.attach"
+            return self.send_json({"ok": True, "name": p.name, "orig": name or p.name, "type": ctype or mimetypes.guess_type(str(p))[0], "size": len(data), "url": f"/api/engine/attach/_new/{p.name}"})
         return self.err(404, "없는 API")
 
     def sse_events(self, since, ws=None):
@@ -1175,7 +1233,7 @@ class H(BaseHTTPRequestHandler):
         import agents
         refresh = (q.get("refresh") or ["0"])[0] == "1"
         eff = agents.effective(None if HUB else read_config())
-        self.send_json({"ok": True, "agents": agents.probe_all(refresh=refresh), **eff})
+        self.send_json({"ok": True, "agents": agents.probe_all(refresh=refresh), **eff, "canAllowWeb": bool(eff.get("allowWeb")) and self._can_allow_web()})
 
     # ---------- 시작 페이지(허브) ----------
     def hub_call(self, fn, *args):
@@ -1187,13 +1245,17 @@ class H(BaseHTTPRequestHandler):
     def api_get_home(self, _, q):
         d = hub.home(None if HUB else WORKSPACE, REFUSED)
         d.update({"mode": "hub" if HUB else "workspace", "port": self.server.server_port, "user": self.me()})
+        if HUB:  # 서버 작업 주의 표시(메뉴 배지) - 처리·승인 대기가 있는데 엔진 세션이 꺼져 있으면
+            import engine_requests
+            c = engine_requests.counts()
+            d["engineWork"] = {"pending": c.get("open", 0) + c.get("triage", 0), "sessionOff": not (WS_ENGINE and WS_ENGINE.state != "off"), "startRequest": engine_requests.start_request()}  # home.engine 은 엔진 경로(문자열)
         self.send_json(d)
 
     def api_post_project(self, _, q):
         b = self.body_json() or {}
         if b.get("action") == "session":  # 허브에서 작업 공간 세션 켜기·끄기·모델(꺼진 서버면 먼저 띄운다) - 로그인 사용자 누구나
-            self._event = f"session.{b.get('op')}:{Path(str(b.get('path') or '')).name}"
-            return self.hub_call(hub.session_ws, b.get("path"), b.get("op"), b.get("agent"), b.get("model"), self.user, self.role, b.get("saveAs"))
+            self._event = f"session.{b.get('op')}:{Path(str(b.get('path') or '')).name}" + (":web" if b.get("allowWeb") else "")
+            return self.hub_call(hub.session_ws, b.get("path"), b.get("op"), b.get("agent"), b.get("model"), self.user, self.role, b.get("saveAs"), bool(b.get("allowWeb")))
         if b.get("action") == "open" and not HUB and b.get("path") and Path(b["path"]).resolve() == WORKSPACE:
             hub.remember(WORKSPACE, CONFIG.get("title", WORKSPACE.name))
             return self.send_json({"ok": True, "path": str(WORKSPACE), "url": f"http://127.0.0.1:{self.server.server_port}/"})
@@ -1208,6 +1270,8 @@ class H(BaseHTTPRequestHandler):
         if any(k in b for k in hub.SESSION_KEYS) and self.role != "admin":  # AI 세션 전역 기본은 관리자만(결정 1)
             self._event = "settings.denied"
             return self.err(403, "AI 세션 전역 설정은 관리자만 바꿀 수 있다")
+        if "sessionAllowWeb" in b:  # 보안에 닿는 설정은 접근 로그에 남긴다
+            self._event = f"settings.sessionAllowWeb:{'on' if b.get('sessionAllowWeb') else 'off'}"
 
         def save(body):
             hub.update_settings(body)
@@ -1642,6 +1706,15 @@ def main():
         WS_ENGINE = wsession.WebSession(wsession.EngineProfile())
     srv = _bind(port, auto)
     port = srv.server_port
+    if not a.force:  # 포트를 연 사이 같은 작업 공간의 다른 서버가 먼저 server.json 을 썼으면 물러난다(작업 공간당 서버 하나)
+        try:
+            other = json.loads(SERVER_INFO.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            other = {}
+        from common import _serves_here
+        if other.get("port") and int(other["port"]) != port and _serves_here(other["port"]):
+            srv.server_close()
+            sys.exit(f"이 작업 공간의 서버가 방금 먼저 떴다: {other.get('url')} (pid {other.get('pid')}) — 그 서버를 쓴다")
     url = f"http://127.0.0.1:{port}/"
     STATE.mkdir(parents=True, exist_ok=True)
     atomic_write(SERVER_INFO, dumps({"port": port, "url": url, "pid": os.getpid(), "workspace": "" if HUB else str(WORKSPACE),

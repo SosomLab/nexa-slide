@@ -24,7 +24,7 @@ python3 studio/service.py start                                                 
 중계의 동작·설정(`hubProxy`)은 [home.md](home.md#한-주소로-중계--허브-포트-하나로-여러-studio).
 
 - 포트: `--port` > `nexa-slide.json` 의 `port` > 5600. 쓰는 중인 포트면 알리고 끝낸다(`--port auto` = 그 포트부터 빈 포트 50개 탐색).
-- **작업 공간당 서버 하나**: 이 작업 공간 서버가 이미 살아 있으면(`out/.studio/server.json` 의 포트·설정 포트에 실제로 물어 확인) 시작을 거부하고 주소를 알려 준다(`--force` 로 무시).
+- **작업 공간당 서버 하나**: 이 작업 공간 서버가 이미 살아 있으면(`out/.studio/server.json` 의 포트·설정 포트에 실제로 물어 확인) 시작을 거부하고 주소를 알려 준다(`--force` 로 무시). 같은 순간에 `start` 가 둘 들어와도(허브 중계의 자동 기동 + `nexa.py restart`) `service.py` 가 작업 공간 잠금 `out/.studio/start.lock` 으로 줄을 세우고, 서버는 포트를 연 뒤 `server.json` 을 쓰기 직전에 다른 살아 있는 서버가 먼저 떴으면 스스로 물러난다.
 - 포트는 배타적으로 연다 — Windows 의 `SO_REUSEADDR` 때문에 두 프로세스가 같은 포트를 여는 문제를 막으려고 `SO_EXCLUSIVEADDRUSE` 를 켠다.
 - 실행 정보 `out/.studio/server.json` `{port, url, pid, workspace, title, started}`, 백그라운드 로그 `out/.studio/server.log`.
 - `127.0.0.1` 에만 연다(같은 PC 에서만 접속). 다른 PC 에 열지 않는다 — 인증이 없다.

@@ -87,6 +87,7 @@ python3 <작업 공간>/nexa.py start      # 작업 공간 서버 → 덱이 있
 | `sessionAgent` · `sessionModel` · `sessionModels` · `sessionIdleMinutes` · `sessionTurnMinutes` · `sessionMax` · `sessionMaxTurns` · `sessionBudgetUsd` · `agentPaths` | AI 웹 세션 전역 기본(에이전트 `claude`/`codex` · 모델 · 모델 목록 `{claude: […], codex: […]}` · 유휴 60분 · 턴 20분 · 동시 3 · 턴당 도구 반복 40 · 예산 · 실행 파일 경로). **관리자만** — 시작 페이지 메뉴 "기준 폴더 설정" 아래 "AI 세션 전역 기본". 작업 공간 설정 `sessionAgent`·`sessionModel`(`nexa-slide.local.json`/`nexa-slide.json`)과 세션 시작 창의 선택이 이보다 우선 |
 
 계정(`users.json`)·세션·접근 로그도 이 폴더에 있다. 허브는 로컬이어도 로그인이 필요하다 — [auth.md](auth.md).
+| `sessionAllowWeb` | **웹 세션에 웹 검색 허용 스위치**(기본 꺼짐, 관리자만). 켜면 세션 시작 창에 "이 세션에 웹 검색 허용" 체크가 생기고(관리자만 체크 가능, claude 만) 그 세션의 권한에서 `WebSearch`·`WebFetch` 가 열린다 - 다른 외부 접근(curl·wget·powershell·mcp)은 여전히 막힌다. 보안 주의는 [server-admin.md](server-admin.md) |
 | `recent` | 최근 작업 `[{path, title, opened}]` - 최대 30개 |
 | `samples` | 등록한 샘플 사이트 `[{name, url, note}]` |
 
@@ -105,11 +106,13 @@ python3 <작업 공간>/nexa.py start      # 작업 공간 서버 → 덱이 있
 
 작업 공간 세션이 할 수 없는 **엔진 변경**(새 레이아웃·유형·렌더 버그·명령 추가)을 요청으로 모아 **엔진 개발 세션 하나**가 순서대로 처리한다([dev/engine-request-design.md](dev/engine-request-design.md)).
 
-- 카드: 엔진 경로 · `main` · 작업 브랜치 `engine-dev`(앞선 커밋 수) · 요청 수(승인 대기·대기·처리 중·완료) · 세션 줄(상태·에이전트·모델·시작 사용자·턴) · 최근 요청 8건.
-- **[요청 추가]**: 로그인 사용자 누구나(제목·내용). 작업 공간 세션이 넘긴 요청(`python3 nexa.py engine_request add …`)은 **승인 대기(triage)** 로 들어와 관리자가 승인해야 처리된다(프롬프트 인젝션 연쇄 차단).
+- 카드(최근 작업 항목과 같은 4줄 틀): 1줄 제목 · 2줄 엔진 경로 · 3줄 배지(`main` 해시 · 작업 브랜치 `engine-dev` 해시(+앞선 커밋 수) · 상태별 요청 수, 없으면 "처리할 요청 없음") · 4줄 세션 상태 배지 + 마지막 세션 요약 + 오른쪽 끝 [세션 시작]/[세션 중지](최근 작업과 같은 알약 버튼) · 그 아래 최근 요청 8건(첨부 축소판 포함) · 맨 아래 **[요청 추가]**.
+- **세션 꺼짐 배너**: 처리·승인 대기가 있는데 엔진 세션이 꺼져 있으면 카드 위에 "처리 대기 n건 · 세션 꺼짐" 경고 — 관리자에게는 [세션 시작], 일반 사용자에게는 **[관리자에게 시작 요청]**(누르면 `hub/engine/start-request.json` 에 사용자·시각이 묶여 기록되고 접근 로그 `event=engine.start_requested`, 관리자 화면 배너에 "kiros33 님이 10/14 14:10 에 시작을 요청"). 기본 메뉴(☰)의 "서버 작업" 항목에도 대기 건수 배지. 세션을 시작하면 시작 요청은 지워진다. 자동 시작은 두지 않는다(결정 유지).
+- 요청을 넣을 때 세션이 꺼져 있으면 응답(`note`)·토스트·CLI 출력(`안내: …`)에 "엔진 개발 세션이 꺼져 있어 관리자가 시작해야 처리됩니다" — 작업 공간 세션은 그 문장을 원 요청 `reply` 에 그대로 옮겨 적는다(`turn_prompt.md`).
+- **[요청 추가]**: 로그인 사용자 누구나(제목·내용). 내용 칸에 클립보드 그림 Ctrl+V·끌어다 놓기·[＋ 첨부]로 파일을 붙일 수 있다 — `POST /api/engine/attach` 로 `hub/engine/attach/_new/` 에 올라가고 큐에 넣을 때 `attach/<요청 id>/` 로 옮겨져 `evidence` 에 경로가 붙는다(`GET /api/engine/attach/<id>/<파일>` 로 본다). 엔진 개발 세션은 `--restricted` 라 cwd 밖을 읽지 못하므로 턴마다 worktree 의 `.nexa/attach/<id>/` 로 복사해 `attachments` 로 보여 준다. 작업 공간 세션이 넘긴 요청(`python3 nexa.py engine_request add …`)은 **승인 대기(triage)** 로 들어와 관리자가 승인해야 처리된다(프롬프트 인젝션 연쇄 차단).
 - **[세션 시작]**(관리자): 에이전트·모델을 고르면 허브가 `<엔진>/.claude/worktrees/engine-dev`(브랜치 `engine-dev`)를 만들고 큐의 요청을 하나씩 턴으로 처리 — 구현 → 검증 → 커밋(`engine-request #N`) → `done` + reply(커밋·검증). 운영 트리(main)는 건드리지 않는다. [진행]은 SSE 모달, [세션 중지]는 실행 중 턴까지 끝낸다.
 - 관리자 조작: 승인(`triage`→`open`) · 거절 · **적용됨**(`engine-dev` 를 main 에 병합하고 허브·작업 공간 서버를 재시작한 **뒤**에 표시 — 병합과 재시작은 사람이, [server-admin.md](server-admin.md)) · 삭제.
-- 큐·세션 상태·로그는 사용자 설정 폴더 `hub/engine/`(저장소 밖). API: `GET /api/engine`, `GET/POST /api/engine/requests`, `GET/POST /api/engine/session`(+`/events`·`/log`).
+- 큐·세션 상태·로그는 사용자 설정 폴더 `hub/engine/`(저장소 밖). API: `GET /api/engine`(+`startRequest`·`sessionOff`·첨부), `GET/POST /api/engine/requests`(`add`·`status`·`priority`·`remove`·`startRequest`), `GET/POST /api/engine/session`(+`/events`·`/log`), `POST /api/engine/attach` · `GET /api/engine/attach/<id>/<파일>`.
 
 ### 미리 보기
 
@@ -173,8 +176,21 @@ Studio 와 시작 페이지 머리줄 **왼쪽 위 메뉴 단추(☰)** 로 왼�
 - 튜토리얼 · 데모 · 템플릿 · 샘플 둘러보기
 - 최근 작업(🔍 로 이름·경로 찾기, 누르면 그 작업 공간 서버를 띄워 이동)
 - 기준 폴더 설정
+- **표시 언어** — 누르면 목록(`System (한국어)` · `English` · `한국어`)이 펼쳐지고 ✓ 가 지금 값. 고르면 **새로 고침 없이 즉시** 바뀐다
+- 계정 · 로그아웃(허브 로그인 사용자)
 
 Esc·바깥·닫기 단추로 닫는다. 주소에 `?menu=open` 을 붙이면 메뉴를 연 채로 연다.
+
+### 표시 언어(i18n)
+
+한국어가 원문이고 영어는 `studio/i18n.js` 의 **사전**으로 바꾼다 — 화면 파일(HTML·JS)의 글은 그대로 두고, 페이지가 뜬 뒤 DOM 의 글(텍스트·`placeholder`·`title`·`aria-label`·`<title>`)을 사전으로 바꾸며, `MutationObserver` 가 뒤에 생기는 글(동적 화면·토스트)도 바꾼다. `confirm`·`prompt`·`alert` 의 글도 거친다.
+
+- **시스템 기본**(`system`, 기본값): 브라우저 언어(`navigator.language`)가 한국어면 한국어, 아니면 영어. 메뉴에는 `System (한국어)` 처럼 지금 결정된 언어가 같이 보인다.
+- 저장: 브라우저 `localStorage` `nexa-lang`(이 PC·이 브라우저). 주소에 `?lang=en|ko|system` 을 붙이면 그 값으로 바꿔 저장한다.
+- `<html lang>` 이 실제 언어로 바뀐다(글꼴·맞춤법 검사 기준).
+- 변수가 든 문구(`슬라이드 3`, `요청 2개 보내기`, `10/14 16:39 · 사용자 중지`)는 정규식 패턴과 ` · ` 조각 단위 번역으로 처리한다. 사전에 없는 글은 한국어 그대로 남는다 — **템플릿·시작 내용·글꼴 목록의 설명문과 슬라이드 내용(데이터)은 번역하지 않는다**.
+- 새 UI 글을 넣을 때: 화면 코드는 한국어로 쓰고, `i18n.js` 의 `EN` 사전에 같은 글을 키로 영어를 더한다(` · ` 로 이어진 글은 조각마다). 코드에서 직접 번역한 글이 필요하면 `I18N.t("…")`.
+- 로그인 페이지(`/login`)도 `/studio/i18n.js` 를 로그인 없이 읽는다(`AUTH_FREE`).
 
 ## API
 

@@ -98,6 +98,17 @@
   .ritem .svc.stop { color: var(--err); }
   .ritem .svc:disabled { opacity: .5; cursor: default; }
   .empty { color: var(--ink2); padding: 10px; font-size: 13px; }
+  /* 요청 첨부 축소판 칩·＋ 첨부 버튼 - 편집기(index.html)와 같은 모양 */
+  .att { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0; } .att:empty { display: none; }
+  .att .a { position: relative; display: inline-flex; align-items: center; gap: 4px; max-width: 160px; border: 1px solid var(--line); border-radius: 8px; padding: 2px 4px; background: var(--card); font-size: 11px; color: var(--ink2); text-decoration: none; }
+  .att .a img { width: 56px; height: 40px; object-fit: cover; border-radius: 5px; display: block; }
+  .att .a .n { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 92px; }
+  .att .a .x { border: 0; background: var(--tone2); border-radius: 50%; width: 16px; height: 16px; font-size: 10px; line-height: 16px; padding: 0; cursor: pointer; }
+  .att.ro .a { cursor: zoom-in; }
+  .att-btn { display: inline-flex; align-items: center; gap: 4px; border: 1px solid var(--line); background: var(--card); border-radius: 999px; padding: 3px 10px; font: inherit; font-size: 12px; color: var(--ink2); cursor: pointer; white-space: nowrap; }
+  .att-btn:hover { background: var(--tone); color: var(--ink); }
+  .dropping { outline: 2px dashed var(--p); outline-offset: -2px; }
+  #engineCard .ritem:hover { background: none; }
   /* 튜토리얼 */
   .tut { display: grid; gap: 12px; }
   .tstep { display: grid; grid-template-columns: 40px 1fr; gap: 12px; }
@@ -160,7 +171,9 @@
   .warn { color: var(--warn); background: var(--warnc); border-radius: 8px; padding: 6px 10px; font-size: 12.5px; margin-top: 8px; }
   pre.log { white-space: pre-wrap; font: 12px Consolas, monospace; background: var(--tone); padding: 8px; border-radius: 8px; max-height: 160px; overflow: auto; }
 </style>
+<script src="i18n.js"></script>
 <script src="menu.js"></script>
+<script src="lightbox.js"></script>
 <script src="render.js"></script>
 <link rel="stylesheet" href="fonts.css">
 <style id="rs-css"></style>
@@ -253,17 +266,23 @@
           <p class="hint" style="margin-top:0">이미 만든 작업 공간(nexa-slide.json 이 있는 폴더)을 엽니다. 작업 공간이 없는 폴더면 그 자리에 새로 만들 수 있습니다.</p>
           <div class="row"><input type="text" id="oPath" placeholder="폴더 경로"><button type="button" class="chip sm" id="oBrowse">찾아보기</button><button type="button" class="chip sm primary" id="oGo">열기</button></div>
         </div>
-        <div class="card" id="engineCard"><!-- 서버 작업 - nexa-slide 자체 개발(엔진 요청 큐 + 엔진 개발 세션, docs/dev/engine-request-design.md) -->
-          <div style="display:flex;align-items:center;gap:8px"><h3 style="flex:1;margin:0">서버 작업 <span class="hint" style="font-weight:400">nexa-slide 엔진 개발</span></h3><button type="button" class="chip sm" id="engReqNew">요청 추가</button></div>
-          <div class="hint" id="engGit" style="margin-top:4px"></div>
-          <div class="rm" id="engSess" style="justify-content:flex-start;margin-top:6px;font-size:12px"></div>
-          <div class="list" id="engList" style="margin-top:8px"></div>
+        <div class="card" id="engineCard"><!-- 서버 작업 - nexa-slide 자체 개발(엔진 요청 큐 + 엔진 개발 세션, docs/dev/engine-request-design.md). 최근 작업 항목과 같은 4줄 틀 -->
+          <h3>서버 작업 <span class="hint" style="font-weight:400">nexa-slide 엔진 개발</span></h3>
+          <div class="ritem" style="padding:6px 0"><span class="av" style="background:var(--p)">E</span>
+            <div class="rb"><div class="t"><b>nexa-slide 엔진 개발</b><small id="engPath"></small></div>
+              <div class="rm" id="engGit"></div>
+              <div class="rm" id="engSess" style="margin-top:3px;font-size:12px"></div></div></div>
+          <div id="engBanner"></div>
+          <div class="list" id="engList" style="margin-top:6px"></div>
           <form id="engForm" style="display:none;margin-top:8px;border-top:1px solid var(--line);padding-top:8px">
             <label class="f" for="erTitle">요청 제목</label><input type="text" id="erTitle" required maxlength="200" placeholder="예: 표 레이아웃에 각주 칸 추가">
-            <label class="f" for="erBody">내용(무엇이 왜 필요한지 · 재현 방법)</label><textarea id="erBody" rows="3" style="width:100%;font:inherit;border:1px solid var(--line);border-radius:8px;padding:6px 9px"></textarea>
-            <div class="row" style="justify-content:flex-end;gap:6px;margin-top:6px"><button type="button" class="chip sm" id="engReqCancel">취소</button><button type="submit" class="chip sm primary">큐에 넣기</button></div>
+            <label class="f" for="erBody">내용(무엇이 왜 필요한지 · 재현 방법) <span class="hint">- 그림은 Ctrl+V 로 붙여 넣기, 파일은 끌어다 놓기</span></label><textarea id="erBody" rows="3" style="width:100%;font:inherit;border:1px solid var(--line);border-radius:8px;padding:6px 9px"></textarea>
+            <div class="att" id="erAtt"></div>
+            <div class="row" style="justify-content:flex-end;gap:6px;margin-top:6px"><button type="button" class="att-btn" id="erAttach" title="그림 붙여넣기(Ctrl+V) · 끌어다 놓기 · 파일 고르기"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 11.5l-8.5 8.5a5 5 0 0 1-7-7l9-9a3.3 3.3 0 0 1 4.7 4.7l-9 9a1.6 1.6 0 0 1-2.3-2.3l8-8"/></svg>＋ 첨부</button><span style="flex:1"></span><button type="button" class="chip sm" id="engReqCancel">취소</button><button type="submit" class="chip sm primary">큐에 넣기</button></div>
+            <input type="file" id="erFile" multiple accept="image/*,.pdf,.txt,.md,.csv,.json,.pptx,.docx,.xlsx" style="display:none">
             <div id="engErr"></div>
           </form>
+          <div class="row" id="engFoot" style="justify-content:flex-end;margin-top:8px"><button type="button" class="chip sm" id="engReqNew">요청 추가</button></div>
         </div>
         <div class="card">
           <h3>최근 작업</h3>
@@ -395,6 +414,8 @@
         <div><label class="f" for="sgMaxTurns">턴당 도구 반복</label><input type="text" id="sgMaxTurns" placeholder="40"></div>
         <div><label class="f" for="sgBudget">예산 ($)</label><input type="text" id="sgBudget" placeholder="없음"></div>
       </div>
+      <label class="f" style="display:flex;align-items:center;gap:8px;font-weight:400;margin-top:10px"><input type="checkbox" id="sgAllowWeb" style="margin:0"> 웹 검색 허용(WebSearch·WebFetch) - 세션 시작 창에서 세션마다 켠다</label>
+      <div class="warn" id="sgAllowWebWarn" style="display:none;font-size:12px">켜면 그 세션이 외부 웹을 검색·열람합니다. 슬라이드·요청 내용이 검색어·요청 URL 로 외부에 전달될 수 있습니다. 턴 로그에 요청한 URL 이 남습니다.</div>
       <div class="hint" id="sgProbe" style="margin-top:8px"></div>
     </div>
   </div>
@@ -629,16 +650,28 @@
     if (!d || !d.ok) { $("#engGit").textContent = "엔진 상태를 읽지 못했습니다"; return; }
     H.engine = d;
     const admin = H.home && H.home.user && H.home.user.role === "admin", s = d.session || {}, g = d.git || {}, c = d.counts || {};
-    $("#engGit").innerHTML = `엔진 <code>${esc(g.engine || "")}</code> · main <code>${esc(g.main || "")}</code>${g.worktreeExists ? ` · 작업 브랜치 <code>${esc(g.branch)}</code> <code>${esc(g.head || "")}</code>${g.ahead ? ` (main 보다 ${g.ahead} 커밋 앞)` : ""}` : ""}
-      · 요청 ${["triage", "open", "working", "done"].filter((k) => c[k]).map((k) => `${ST_KO[k]} ${c[k]}`).join(" · ") || "없음"}`;
+    const on = s.state && s.state !== "off", pending = (c.open || 0) + (c.triage || 0);
+    // 2줄 경로 · 3줄 배지(main · 작업 브랜치 · 상태별 요청 수)
+    $("#engPath").textContent = g.engine || ""; $("#engPath").title = g.worktree || "";
+    $("#engGit").innerHTML = `<span class="badge git" title="운영 트리(main)">main ${esc(g.main || "")}</span>${g.worktreeExists ? `<span class="badge git" title="엔진 worktree ${esc(g.worktree || "")}">${esc(g.branch)} ${esc(g.head || "")}${g.ahead ? ` (+${g.ahead})` : ""}</span>` : ""}`
+      + (["triage", "open", "working", "done", "rejected", "applied"].filter((k) => c[k]).map((k) => `<span class="badge ${k === "working" ? "run" : k === "done" ? "ok" : ""}">${ST_KO[k]} ${c[k]}</span>`).join("") || `<span class="badge">처리할 요청 없음</span>`);
+    // 4줄 세션 상태 + 마지막 요약 + 오른쪽 끝 버튼(최근 작업과 같은 .svc)
     let line, btn = "";
-    if (s.state && s.state !== "off") line = `<span class="badge run">엔진 세션 ${esc(s.state)}</span> ${esc(s.agent || "")} · ${esc(s.model || "")}${s.startedBy ? ` · ${esc(s.startedBy)}` : ""} · 턴 ${s.turns || 0}${s.lastError ? ` · <span style="color:var(--err)">${esc(s.lastError.slice(0, 80))}</span>` : ""}`;
+    if (on) line = `<span class="badge run">엔진 세션 ${esc(s.state)}</span> ${esc(s.agent || "")} · ${esc(s.model || "")}${s.startedBy ? ` · ${esc(s.startedBy)}` : ""} · 턴 ${s.turns || 0}${s.lastError ? ` · <span style="color:var(--err)">${esc(s.lastError.slice(0, 80))}</span>` : ""}`;
     else line = `<span class="badge">세션 없음</span>${s.last && s.last.startedAt ? ` <span class="hint">· 마지막 · ${esc(s.last.agent || "")} ${esc(s.last.model || "")} · ${fmtT(s.last.stoppedAt || s.last.startedAt)}${s.last.reason ? ` · ${reasonKo(s.last.reason)}` : ""}</span>` : ""}`;
-    if (admin) btn = s.state && s.state !== "off"
+    if (admin) btn = on
       ? `<button type="button" class="chip sm" data-eng="progress">진행</button><button type="button" class="svc stop" data-eng="stop">${icon("stop", 14)}세션 중지</button>`
       : `<button type="button" class="svc" data-eng="start" title="엔진 요청 큐를 처리하는 개발 세션을 띄웁니다(엔진 worktree, 관리자)">${icon("play", 14)}세션 시작</button>`;
-    else if (s.state && s.state !== "off") btn = `<button type="button" class="chip sm" data-eng="progress">진행</button>`;
-    $("#engSess").innerHTML = `${line}<span style="flex:1"></span>${btn}`;
+    else if (on) btn = `<button type="button" class="chip sm" data-eng="progress">진행</button>`;
+    $("#engSess").innerHTML = `<span style="flex:1;min-width:0">${line}</span>${btn}`;
+    // 배너 - 처리·승인 대기가 있는데 세션이 꺼져 있으면(관리자: 시작 버튼 · 일반: 관리자에게 시작 요청)
+    const sr = d.startRequest;
+    const srLine = sr ? `${esc((sr.by || []).join(", ") || "사용자")} 님이 ${fmtT(sr.at)} 에 시작을 요청${sr.count > 1 ? ` (${sr.count}회)` : ""}` : "";
+    $("#engBanner").innerHTML = !on && (pending || sr)
+      ? `<div class="warn" style="display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px"><span style="flex:1;min-width:0">처리 대기 ${pending}건 · 세션 꺼짐${srLine ? ` — ${srLine}` : ""}</span>${admin
+        ? `<button type="button" class="svc" data-eng="start" style="flex:none">${icon("play", 14)}세션 시작</button>`
+        : sr ? `<span class="badge">관리자에게 시작 요청됨</span>` : `<button type="button" class="svc" data-eng="askstart" style="flex:none">관리자에게 시작 요청</button>`}</div>`
+      : "";
     const items = d.recent || [];
     $("#engList").innerHTML = items.length ? items.map((x) => {
       const f = x.from || {};
@@ -646,19 +679,54 @@
         x.status === "done" ? `<button type="button" class="chip sm" data-er="applied" data-id="${x.id}" title="main 에 병합·재시작한 뒤">적용됨</button>` : "",
         ["triage", "open", "done"].includes(x.status) ? `<button type="button" class="chip sm" data-er="rejected" data-id="${x.id}">거절</button>` : "",
         ["rejected", "applied"].includes(x.status) ? `<button type="button" class="ib" data-er="remove" data-id="${x.id}" title="목록에서 지우기">${icon("x", 13)}</button>` : ""].join("") : "";
-      return `<div class="ritem" style="padding:6px 8px"><div class="rb"><div style="display:flex;align-items:center;gap:6px"><span class="badge ${x.status === "working" ? "run" : x.status === "done" ? "ok" : ""}">${ST_KO[x.status] || x.status}</span><b style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(x.body || "")}">#${x.id} ${esc(x.title)}</b>${acts}</div>
-        <small class="hint" style="display:block">${esc(f.kind === "session" ? "세션" : f.kind || "")}${f.user ? ` · ${esc(f.user)}` : ""}${f.wsId ? ` · ${esc(f.wsId)}` : ""}${x.commit ? ` · ${esc(x.commit)}` : ""} · ${fmtT(x.updated)}${x.reply ? ` — ${esc(x.reply.slice(0, 120))}` : ""}</small></div></div>`;
+      const att = (x.attachments || []).map((a, i) => `<a class="a" href="${esc(a.url)}" data-lb="${x.id}:${i}" title="${esc(a.name)}">${/\.(png|jpe?g|gif|webp|svg)$/i.test(a.name) ? `<img src="${esc(a.url)}" alt="" loading="lazy">` : "📄"}<span class="n">${esc(a.name)}</span></a>`).join("");
+      return `<div class="ritem" style="padding:6px 8px"><div class="rb"><div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap"><span class="badge ${x.status === "working" ? "run" : x.status === "done" ? "ok" : ""}">${ST_KO[x.status] || x.status}</span><b style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(x.body || "")}">#${x.id} ${esc(x.title)}</b><span style="display:flex;gap:4px;flex:none">${acts}</span></div>
+        <small class="hint" style="display:block">${esc(f.kind === "session" ? "세션" : f.kind || "")}${f.user ? ` · ${esc(f.user)}` : ""}${f.wsId ? ` · ${esc(f.wsId)}` : ""}${x.commit ? ` · ${esc(x.commit)}` : ""} · ${fmtT(x.updated)}${x.reply ? ` — ${esc(x.reply.slice(0, 120))}` : ""}</small>${att ? `<div class="att ro">${att}</div>` : ""}</div></div>`;
     }).join("") : `<div class="empty">엔진 변경 요청이 없습니다. 작업 공간 세션이 엔진 한계를 만나면 여기로 넘기고, 직접 적을 수도 있습니다.</div>`;
   }
-  $("#engReqNew").onclick = () => { $("#engForm").style.display = ""; $("#erTitle").focus(); };
-  $("#engReqCancel").onclick = () => { $("#engForm").style.display = "none"; };
+  // 요청 양식 첨부 - 클립보드 그림(Ctrl+V)·끌어다 놓기·＋ 첨부 → /api/engine/attach(_new/) → 큐에 넣을 때 그 요청 폴더로
+  const ER = { att: [], busy: 0 };
+  function erRender() {
+    $("#erAtt").innerHTML = ER.att.map((a, i) => `<span class="a" title="${esc(a.orig)} · ${Math.round((a.size || 0) / 1024)}KB" data-erv="${i}">${/^image\//.test(a.type || "") ? `<img src="${esc(a.url)}" alt="">` : "📄"}<span class="n">${esc(a.orig)}</span><button type="button" class="x" data-erx="${i}" title="빼기">✕</button></span>`).join("")
+      + (ER.busy ? `<span class="a"><span class="n">올리는 중…</span></span>` : "");
+  }
+  function erUpload(files) {
+    [...files].filter((f) => f && f.size).forEach((f) => {
+      const rd = new FileReader(); ER.busy++; erRender();
+      rd.onload = async () => {
+        const name = f.name && f.name !== "image.png" ? f.name : `clip-${new Date().toISOString().slice(11, 19).replace(/:/g, "")}.${(f.type.split("/")[1] || "png").replace("jpeg", "jpg")}`;
+        const r = await post("/api/engine/attach", { name, type: f.type, data: String(rd.result).split(",")[1] || "" });
+        ER.busy--;
+        if (!r.ok) { toast("첨부하지 못했습니다: " + (r.data.error || r.status), 5000); erRender(); return; }
+        ER.att.push({ ...r.data, type: f.type, orig: name }); erRender();
+      };
+      rd.onerror = () => { ER.busy--; erRender(); toast("파일을 읽지 못했습니다"); };
+      rd.readAsDataURL(f);
+    });
+  }
+  $("#erBody").addEventListener("paste", (e) => { const fs = [...((e.clipboardData && e.clipboardData.items) || [])].filter((it) => it.kind === "file").map((it) => it.getAsFile()).filter(Boolean); if (fs.length) { e.preventDefault(); e.stopPropagation(); erUpload(fs); } });
+  $("#erBody").addEventListener("dragover", (e) => { if ([...e.dataTransfer.types].includes("Files")) { e.preventDefault(); $("#erBody").classList.add("dropping"); } });
+  $("#erBody").addEventListener("dragleave", () => $("#erBody").classList.remove("dropping"));
+  $("#erBody").addEventListener("drop", (e) => { if (e.dataTransfer.files.length) { e.preventDefault(); e.stopPropagation(); $("#erBody").classList.remove("dropping"); erUpload(e.dataTransfer.files); } });
+  $("#erAttach").onclick = () => { const f = $("#erFile"); f.onchange = () => { erUpload(f.files); f.value = ""; }; f.click(); };
+  $("#erAtt").addEventListener("click", (e) => { const b = e.target.closest("[data-erx]"); if (b) { ER.att.splice(+b.dataset.erx, 1); erRender(); } });
+  $("#engReqNew").onclick = () => { $("#engForm").style.display = ""; $("#engFoot").style.display = "none"; $("#erTitle").focus(); };
+  $("#engReqCancel").onclick = () => { $("#engForm").style.display = "none"; $("#engFoot").style.display = ""; };
   $("#engForm").addEventListener("submit", async (e) => {
     e.preventDefault(); $("#engErr").innerHTML = "";
-    const r = await post("/api/engine/requests", { action: "add", title: $("#erTitle").value.trim(), body: $("#erBody").value });
+    if (ER.busy) { toast("첨부를 올리는 중입니다"); return; }
+    const r = await post("/api/engine/requests", { action: "add", title: $("#erTitle").value.trim(), body: $("#erBody").value, attachments: ER.att.map((a) => a.name) });
     if (!r.ok) { $("#engErr").innerHTML = `<div class="warn">${esc(r.data.error || "넣지 못했습니다")}</div>`; return; }
-    $("#engForm").reset(); $("#engForm").style.display = "none"; toast(`엔진 요청 #${r.data.item.id} 을 넣었습니다`); loadEngine();
+    $("#engForm").reset(); ER.att = []; erRender(); $("#engForm").style.display = "none"; $("#engFoot").style.display = "";
+    toast(`엔진 요청 #${r.data.item.id} 을 넣었습니다${r.data.note ? ` — ${r.data.note}` : ""}`, r.data.note ? 7000 : 3200); loadEngine();
   });
   $("#engineCard").addEventListener("click", async (e) => {
+    const lb = e.target.closest("[data-lb]");
+    if (lb) {  // 요청 첨부 미리보기(라이트박스) - 그 요청의 첨부
+      e.preventDefault(); const [id, i] = lb.dataset.lb.split(":"); const x = (H.engine.recent || []).find((r) => String(r.id) === id);
+      if (x) NexaLightbox.open(x.attachments.map((a) => ({ url: a.url, name: a.name, size: a.size })), +i, { title: `#${x.id} ${x.title}` }); return;
+    }
+    const erv = e.target.closest("[data-erv]"); if (erv) { NexaLightbox.open(ER.att.map((a) => ({ url: a.url, name: a.orig, size: a.size, type: a.type })), +erv.dataset.erv); return; }
     const er = e.target.closest("[data-er]");
     if (er) {
       const act = er.dataset.er, id = +er.dataset.id;
@@ -670,6 +738,11 @@
     const b = e.target.closest("[data-eng]"); if (!b) return;
     if (b.dataset.eng === "start") { openSessModal({ engine: true }, "nexa-slide 엔진 개발"); return; }
     if (b.dataset.eng === "progress") { openEngProgress(); return; }
+    if (b.dataset.eng === "askstart") {  // 일반 사용자 → 관리자에게 엔진 세션 시작 요청(묶어서 기록)
+      const r = await post("/api/engine/requests", { action: "startRequest" });
+      if (!r.ok) toast(r.data.error || "요청하지 못했습니다", 5000); else toast("관리자에게 세션 시작을 요청했습니다");
+      loadEngine(); return;
+    }
     if (b.dataset.eng === "stop") {
       if (!confirm("엔진 개발 세션을 중지할까요? 실행 중인 턴이 있으면 바로 종료됩니다.")) return;
       const r = await post("/api/engine/session", { action: "stop" });
@@ -709,7 +782,7 @@
   function sessLine(r) {
     const s = r.session || {}; const self = H.home.current && H.home.current.path === r.path;
     let info;
-    if (s.kind === "web") info = `<span class="badge run" title="시작 ${esc(s.started || "")} · 마지막 확인 ${esc(s.lastSeen || "")}">웹 세션${s.state === "running" ? ` 처리 중(턴 ${s.turn || "?"})` : ""}</span> ${esc(s.agent || "")} · ${esc(s.model || "")}${s.user ? ` · ${esc(s.user)}` : ""}${s.working ? ` · <b>처리 중 ${s.working}</b>` : s.open ? ` · 대기 ${s.open}` : ""}`;
+    if (s.kind === "web") info = `<span class="badge run" title="시작 ${esc(s.started || "")} · 마지막 확인 ${esc(s.lastSeen || "")}">웹 세션${s.state === "running" ? ` 처리 중(턴 ${s.turn || "?"})` : ""}</span> ${esc(s.agent || "")} · ${esc(s.model || "")}${s.user ? ` · ${esc(s.user)}` : ""}${s.allowWeb ? ` · <span class="badge" title="이 세션은 웹 검색(WebSearch·WebFetch)을 쓸 수 있다">웹 허용</span>` : ""}${s.working ? ` · <b>처리 중 ${s.working}</b>` : s.open ? ` · 대기 ${s.open}` : ""}`;
     else if (s.kind === "manual") info = `<span class="badge run">수동 세션</span> ${esc(s.label || "")}${s.working ? ` · 처리 중 ${s.working}` : s.open ? ` · 대기 ${s.open}` : ""}`;
     else info = `<span class="badge">세션 없음</span>${s.open ? ` 대기 요청 ${s.open}` : ""}${s.last && s.last.startedAt ? ` <span class="hint">· 마지막 · ${esc(s.last.agent || "")} ${esc(s.last.model || "")} · ${fmtT(s.last.stoppedAt || s.last.startedAt)}${s.last.reason ? ` · ${reasonKo(s.last.reason)}` : ""}</span>` : ""}`;
     const btn = s.kind === "web" ? `<button type="button" class="svc stop" data-sess="stop" data-path="${esc(r.path)}" title="이 작업 공간의 웹 세션 중지(실행 중 턴도 끝낸다)">${icon("stop", 14)}세션 중지</button>`
@@ -733,7 +806,10 @@
       <label class="f">모델 <span class="hint">(기본 ${esc(model)}${modelDef ? " — 작업 공간" : ` — ${esc(d.sources.model)}`})</span></label>
       <div class="row"><select id="smModel">${models(cur)}</select><input type="text" id="smModelText" placeholder="모델 ID 직접 입력" style="display:none"></div>
       <label class="f" id="sessSaveRow" style="display:flex;align-items:center;gap:8px;font-weight:400;margin-top:10px"><input type="checkbox" id="smSave" style="margin:0"> 이 작업 공간 기본으로 저장 <select id="smSaveAs" style="font-size:12px"><option value="local">이 PC 만</option><option value="shared">공유(nexa-slide.json)</option></select></label>
+      ${d.allowWeb && !(path && path.engine) ? `<label class="f" style="display:flex;align-items:center;gap:8px;font-weight:400;margin-top:6px"><input type="checkbox" id="smWeb" style="margin:0" ${d.canAllowWeb ? "" : "disabled"}> 이 세션에 웹 검색 허용(WebSearch·WebFetch) ${d.canAllowWeb ? "" : '<span class="hint">- 관리자만</span>'}</label>
+      <div class="warn" id="smWebWarn" style="display:none;font-size:12px">이 세션이 외부 웹을 검색·열람합니다 - 슬라이드·요청 내용이 검색어·URL 로 외부에 전달될 수 있습니다(claude 만, 실행 중 세션은 다시 시작해야 바뀜).</div>` : ""}
       <div class="hint">한도: 유휴 ${esc(String(d.limits.sessionIdleMinutes))}분 · 턴 ${esc(String(d.limits.sessionTurnMinutes))}분 · 동시 ${esc(String(d.limits.sessionMax))}. 서버가 꺼져 있으면 먼저 띄웁니다.</div>`;
+    if ($("#smWeb")) $("#smWeb").onchange = () => { $("#smWebWarn").style.display = $("#smWeb").checked ? "" : "none"; };
     $("#sessSaveRow").style.display = path && path.engine ? "none" : "";  // 엔진 세션은 작업 공간 기본 저장이 없다(sessBody 를 그린 뒤에 있어야 한다 - 그 전엔 null)
     $("#smAgent").onchange = () => { const n = $("#smAgent").value; $("#smModel").innerHTML = models(n); $("#smHint").textContent = d.agents[n].hint || ""; };
     $("#smModel").onchange = () => { $("#smModelText").style.display = $("#smModel").value === "__custom" ? "" : "none"; };
@@ -746,6 +822,7 @@
     const body = engine ? { action: "start", agent: $("#smAgent").value, model }
       : { action: "session", op: "start", path: sessTarget, agent: $("#smAgent").value, model };
     if (!engine && $("#smSave").checked) body.saveAs = $("#smSaveAs").value;
+    if ($("#smWeb") && $("#smWeb").checked) body.allowWeb = true;
     $("#sessErr").innerHTML = ""; $("#sessGo").disabled = true; $("#sessGo").textContent = "시작 중...";
     busy(true, engine ? "엔진 worktree 를 확인하고 세션을 시작하는 중..." : "서버를 확인하고 세션을 시작하는 중...");
     const r = await post(engine ? "/api/engine/session" : "/api/project", body);
@@ -755,7 +832,7 @@
       $("#sessErr").innerHTML = `<div class="warn" style="margin-top:10px">${esc(msg)}${/action = /.test(msg) ? "<br>허브 서버가 옛 판입니다 - 운영자가 <code>service.py restart</code> 로 새 판을 올려야 합니다." : ""}${r.data.log ? `<pre class="log">${esc(r.data.log)}</pre>` : ""}</div>`;
       return;
     }
-    closeModals(); toast(`${engine ? "엔진 개발 세션" : "웹 세션"} 시작 - ${body.agent} · ${model}`); await load();
+    closeModals(); toast(`${engine ? "엔진 개발 세션" : "웹 세션"} 시작 - ${body.agent} · ${model}${body.allowWeb ? " · 웹 허용" : ""}`); await load();
   };
   $("#rFind").addEventListener("input", renderRecent);
   $("#recent").addEventListener("click", async (e) => {
@@ -992,6 +1069,8 @@
       $("#sgAgent").value = g.sessionAgent || ""; $("#sgModel").value = g.sessionModel || "";
       $("#sgModelsClaude").value = ((g.sessionModels || {}).claude || []).join(", "); $("#sgModelsCodex").value = ((g.sessionModels || {}).codex || []).join(", ");
       $("#sgIdle").value = g.sessionIdleMinutes ?? ""; $("#sgTurn").value = g.sessionTurnMinutes ?? ""; $("#sgMax").value = g.sessionMax ?? ""; $("#sgMaxTurns").value = g.sessionMaxTurns ?? ""; $("#sgBudget").value = g.sessionBudgetUsd ?? "";
+      $("#sgAllowWeb").checked = !!g.sessionAllowWeb; $("#sgAllowWebWarn").style.display = g.sessionAllowWeb ? "" : "none";
+      $("#sgAllowWeb").onchange = () => { $("#sgAllowWebWarn").style.display = $("#sgAllowWeb").checked ? "" : "none"; };
       $("#sgProbe").textContent = "에이전트 상태 확인 중…";
       fetch("/api/agent", { cache: "no-store" }).then((r) => r.json()).then((d) => { if (!d.ok) return; $("#sgProbe").innerHTML = ["claude", "codex"].map((n) => { const a = d.agents[n]; return `${esc(a.label)}: ${a.installed ? (a.loggedIn ? `설치됨 · 로그인됨 ${esc(a.version)}` : `설치됨 · 로그인 안 됨`) : "미설치"}${a.verified ? "" : " (미확인)"}`; }).join(" · "); }).catch(() => { $("#sgProbe").textContent = ""; });
     }
@@ -1005,7 +1084,8 @@
     if (H.home.user && H.home.user.role === "admin") {  // AI 세션 전역 기본(관리자만 - 서버도 확인)
       const list = (s) => s.split(",").map((x) => x.trim()).filter(Boolean);
       Object.assign(body, { sessionAgent: $("#sgAgent").value, sessionModel: $("#sgModel").value.trim(), sessionModels: { claude: list($("#sgModelsClaude").value), codex: list($("#sgModelsCodex").value) },
-        sessionIdleMinutes: $("#sgIdle").value.trim(), sessionTurnMinutes: $("#sgTurn").value.trim(), sessionMax: $("#sgMax").value.trim(), sessionMaxTurns: $("#sgMaxTurns").value.trim(), sessionBudgetUsd: $("#sgBudget").value.trim() });
+        sessionIdleMinutes: $("#sgIdle").value.trim(), sessionTurnMinutes: $("#sgTurn").value.trim(), sessionMax: $("#sgMax").value.trim(), sessionMaxTurns: $("#sgMaxTurns").value.trim(), sessionBudgetUsd: $("#sgBudget").value.trim(),
+        sessionAllowWeb: $("#sgAllowWeb").checked });
     }
     const r = await post("/api/settings", body);
     if (!r.ok) { toast(r.data.error || "저장하지 못했습니다", 4000); return; }

@@ -7,7 +7,9 @@
 <link rel="icon" id="favicon" href="data:,">
 <link rel="stylesheet" href="fonts.css">
 <link rel="stylesheet" href="../api/fontcss"><!-- 작업 공간 fonts/ 의 글꼴 - 상대 경로: 허브 중계(/w/<id>/studio/)로 열려도 그 작업 공간 서버로 간다 -->
+<script src="i18n.js"></script>
 <script src="menu.js"></script>
+<script src="lightbox.js"></script>
 <style id="rs-css"></style>
 <style>
   :root {
@@ -241,7 +243,9 @@
   .att .a .x { border: 0; background: var(--tone2); border-radius: 50%; width: 16px; height: 16px; font-size: 10px; line-height: 16px; padding: 0; cursor: pointer; }
   .att.ro .a { cursor: zoom-in; }
   .dropping { outline: 2px dashed var(--p); outline-offset: -2px; }
-  .ib.att-btn { padding: 0 6px; }
+  .att-btn { display: inline-flex; align-items: center; gap: 4px; border: 1px solid var(--line); background: #fff; border-radius: 999px; padding: 3px 10px; font: inherit; font-size: 12px; color: var(--ink2); cursor: pointer; white-space: nowrap; }
+  .att-btn:hover { background: var(--tone); color: var(--ink); }
+  .att-btn svg { width: 14px; height: 14px; }
   /* 보낼 요청 바 */
   #markbar { position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); z-index: 15; display: none; align-items: center; gap: 10px; background: var(--ink); color: #fff; border-radius: 999px; padding: 6px 8px 6px 16px; box-shadow: var(--sh2); }
   #markbar.show { display: flex; }
@@ -461,7 +465,7 @@
           <textarea id="memoTa" maxlength="2000" placeholder="무엇을 바꿀까요? (Enter = 추가, Shift+Enter = 줄바꿈 · 그림은 Ctrl+V 로 붙여 넣기)"></textarea>
           <div class="att" id="memoAtt"></div>
           <div class="quick" id="memoQuick"></div>
-          <div class="acts"><span class="mcnt" id="memoCnt">0 / 2000</span><button class="ib att-btn" data-attach="memo" title="그림·파일 붙이기(클립보드 그림은 Ctrl+V, 끌어다 놓기도 됨)">📎</button><button class="chip sm" id="memoCancel">취소</button><button class="chip sm primary" id="memoOk" disabled>추가</button></div></div>
+          <div class="acts"><span class="mcnt" id="memoCnt">0 / 2000</span><button class="att-btn" data-attach="memo" title="그림 붙여넣기(Ctrl+V) · 끌어다 놓기 · 파일 고르기"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 11.5l-8.5 8.5a5 5 0 0 1-7-7l9-9a3.3 3.3 0 0 1 4.7 4.7l-9 9a1.6 1.6 0 0 1-2.3-2.3l8-8"/></svg>＋ 첨부</button><button class="chip sm" id="memoCancel">취소</button><button class="chip sm primary" id="memoOk" disabled>추가</button></div></div>
         <input type="file" id="attFile" multiple accept="image/*,.pdf,.txt,.md,.csv,.json,.pptx,.docx,.xlsx" style="display:none">
         <div id="markbar"><span id="markMsg">보낼 요청</span><button class="chip sm" id="markDiscard" title="이 슬라이드에 메모가 있으면 그 슬라이드만, 없으면 전체를 지운다">취소</button><button class="chip sm primary" id="markSend">보내기</button></div>
       </div>

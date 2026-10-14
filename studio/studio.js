@@ -560,7 +560,7 @@
   const attIsImg = (a) => /^image\//.test(a.type || "");
   function attRender(which) {
     const box = $(which === "memo" ? "#memoAtt" : "#reqAtt"); if (!box) return;
-    box.innerHTML = ATT[which].map((a, i) => `<span class="a" title="${esc(a.name)} · ${Math.round((a.size || 0) / 1024)}KB">${attIsImg(a) ? `<img src="${esc(BASE + a.url)}" alt="">` : `<span>📄</span>`}<span class="n">${esc(a.name)}</span><button class="x" data-attx="${which}:${i}" title="빼기">✕</button></span>`).join("")
+    box.innerHTML = ATT[which].map((a, i) => `<span class="a" title="${esc(a.name)} · ${Math.round((a.size || 0) / 1024)}KB" data-attv="${which}:${i}">${attIsImg(a) ? `<img src="${esc(BASE + a.url)}" alt="">` : `<span>📄</span>`}<span class="n">${esc(a.name)}</span><button class="x" data-attx="${which}:${i}" title="빼기">✕</button></span>`).join("")
       + (ATT.busy ? `<span class="a"><span class="spin"></span><span class="n">올리는 중…</span></span>` : "");
     if (which === "memo") memoInput();
   }
@@ -586,19 +586,26 @@
     const files = [];
     for (const it of (e.clipboardData && e.clipboardData.items) || []) if (it.kind === "file") { const f = it.getAsFile(); if (f) files.push(f); }
     if (!files.length) return false;
-    e.preventDefault(); attUpload(which, files); return true;
+    e.preventDefault(); e.stopPropagation(); attUpload(which, files); return true;  // 같은 이벤트가 바깥(팝오버)의 핸들러에도 닿아 두 번 올라가지 않게
   }
   function attWire(el, which) {  // 붙여넣기·끌어다 놓기
     if (!el || el.dataset.attWired) return; el.dataset.attWired = "1";
     el.addEventListener("paste", (e) => attFromClipboard(which, e));
     el.addEventListener("dragover", (e) => { if ([...e.dataTransfer.types].includes("Files")) { e.preventDefault(); el.classList.add("dropping"); } });
     el.addEventListener("dragleave", () => el.classList.remove("dropping"));
-    el.addEventListener("drop", (e) => { if (e.dataTransfer.files.length) { e.preventDefault(); el.classList.remove("dropping"); attUpload(which, e.dataTransfer.files); } });
+    el.addEventListener("drop", (e) => { if (e.dataTransfer.files.length) { e.preventDefault(); e.stopPropagation(); el.classList.remove("dropping"); attUpload(which, e.dataTransfer.files); } });
   }
   function attPick(which) { const f = $("#attFile"); f.onchange = () => { attUpload(which, f.files); f.value = ""; }; f.click(); }
-  function attListHtml(list) {  // 요청 목록의 축소판(읽기 전용) - 누르면 새 탭
+  const attUrl = (a) => BASE + (a.url || "/" + a.path);  // 중계(/w/<id>/)면 접두를 붙인 주소
+  function attListHtml(list, rid) {  // 요청 목록의 축소판(읽기 전용) - 누르면 라이트박스(새 창 없음)
     if (!list || !list.length) return "";
-    return `<div class="att ro">${list.map((a) => `<a class="a" href="${esc(BASE + "/" + a.path)}" target="_blank" rel="noopener" title="${esc(a.name)}">${attIsImg(a) ? `<img src="${esc(BASE + "/" + a.path)}" alt="">` : "📄"}<span class="n">${esc(a.name)}</span></a>`).join("")}</div>`;
+    return `<div class="att ro">${list.map((a, i) => `<a class="a" href="${esc(attUrl(a))}" data-lb="${esc(rid || "")}:${i}" title="${esc(a.name)}">${attIsImg(a) ? `<img src="${esc(attUrl(a))}" alt="" loading="lazy">` : "📄"}<span class="n">${esc(a.name)}</span></a>`).join("")}</div>`;
+  }
+  const lbItems = (list) => (list || []).map((a) => ({ url: attUrl(a), name: a.name, size: a.size, type: a.type }));
+  function attLightbox(rid, i) {  // 그 요청의 첨부부터, 토글로 이 슬라이드의 모든 요청 첨부
+    const r = S.reqs.find((x) => x.id === rid); if (!r) return;
+    const all = S.reqs.filter((x) => x.slide === r.slide && x.attachments && x.attachments.length).flatMap((x) => lbItems(x.attachments));
+    NexaLightbox.open(lbItems(r.attachments), i, { title: `슬라이드 ${S.deck.slides.findIndex((s) => s.id === r.slide) + 1}`, alt: { label: "이 슬라이드의 모든 요청 첨부", items: all } });
   }
   async function sendDrafts() {
     const n = S.reqs.filter((r) => r.status === "draft").length; if (!n) return;
@@ -1098,22 +1105,25 @@ ${names}
     const list = S.reqs.filter((r) => !S.reqOnlySlide || r.slide === s.id);
     const idx = (sid) => S.deck.slides.findIndex((x) => x.id === sid) + 1;
     const drafts = S.reqs.filter((r) => r.status === "draft").length;
-    R.innerHTML = `<div class="sec"><h3>Claude 에게 요청</h3>
+    R.innerHTML = `<div class="sec"><h3>${agentName()} 에게 요청</h3>
       <div class="hint">◎ <b>선택</b> 모드에서 요소를 누르거나 ✐ <b>그리기</b> 모드에서 영역을 그려 메모를 단 뒤, 아래 바의 <b>보내기</b>로 한꺼번에 보낸다. 슬라이드 전체 요청은 여기에.</div>
       <textarea id="reqText" data-key="${esc(S.id + "/" + s.id)}" style="min-height:60px;font-family:var(--font);font-size:13px" placeholder="슬라이드 ${S.cur + 1} 전체에 대한 요청 - 예: 이 표를 두 장으로 나눠 줘 (Enter = 남기기, Shift+Enter = 줄바꿈)">${esc(typed(S.id + "/" + s.id))}</textarea>
       <div class="att" id="reqAtt"></div>
-      <div class="row"><button class="chip sm primary" id="reqAdd">메모 남기기</button><button class="ib att-btn" data-attach="tab" title="그림·파일 붙이기(클립보드 그림은 Ctrl+V, 끌어다 놓기도 됨)">📎</button>${drafts ? `<button class="chip sm" id="reqSend">초안 ${drafts}개 보내기</button>` : ""}</div>
-      <div class="hint">${S.session && S.session.connected ? (S.session.kind === "web" ? (S.session.state === "running" ? `웹 세션이 처리 중(턴 ${S.session.turn || "?"}) - 새로 보낸 요청은 이 턴이 끝난 뒤 바로 처리된다` : "웹 세션 대기 중 - 보낸 요청은 바로 처리된다") : "세션 연결됨 - 보낸 요청은 바로 전달된다") : "세션 연결 없음 - 보낸 요청은 저장되고, 세션이 감시를 시작하면 전달된다"}</div></div>
+      <div class="row"><button class="chip sm primary" id="reqAdd">메모 남기기</button><button class="att-btn" data-attach="tab" title="그림 붙여넣기(Ctrl+V) · 끌어다 놓기 · 파일 고르기"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 11.5l-8.5 8.5a5 5 0 0 1-7-7l9-9a3.3 3.3 0 0 1 4.7 4.7l-9 9a1.6 1.6 0 0 1-2.3-2.3l8-8"/></svg>＋ 첨부</button>${drafts ? `<button class="chip sm" id="reqSend">초안 ${drafts}개 보내기</button>` : ""}</div>
+      <div class="hint">${S.session && S.session.connected ? (S.session.kind === "web" ? (S.session.state === "running" ? `웹 세션이 처리 중(턴 ${S.session.turn || "?"}) - 새로 보낸 요청은 이 턴이 끝난 뒤 바로 처리된다` : "웹 세션 대기 중 - 보낸 요청은 바로 처리된다") : "세션 연결됨 - 보낸 요청은 바로 전달된다") : `세션 연결 없음 - 보낸 요청은 저장되고, 세션이 감시를 시작하면 전달된다${sessOffNote()}`}</div>
+      ${!(S.session && S.session.connected) && S.reqs.some((r) => r.status === "open") ? `<div class="warn" style="font-size:12px;margin-top:6px">세션이 꺼져 있어 대기 요청 ${S.reqs.filter((r) => r.status === "open").length}건이 처리되지 않습니다 - <a href="#" data-sess-start>웹 세션 시작…</a></div>` : ""}</div>
       <div class="row"><span class="seg" id="reqFilter"><button data-v="1" class="${S.reqOnlySlide ? "on" : ""}">이 슬라이드</button><button data-v="0" class="${S.reqOnlySlide ? "" : "on"}">전체 (${S.reqs.length})</button></span></div>
       ${list.length ? list.slice().reverse().map((r) => `<div class="req ${r.status === "done" ? "done" : ""}" data-rid="${esc(r.id)}">
         <div class="meta"><span class="st ${esc(r.status || "open")}">${ST[r.status] || "대기"}</span>
           <a href="#" data-goto="${esc(r.slide)}" data-el="${esc(r.element || "")}">슬라이드 ${idx(r.slide) || "?"}${r.element ? " · " + esc(r.element) : ""}${r.region ? " · 영역" : ""}</a><span>${esc((r.created || "").replace("T", " "))}</span></div>
-        <div class="txt">${esc(r.text)}</div>${attListHtml(r.attachments)}${r.reply ? `<div class="reply"><b>Claude</b> ${esc(r.reply)}</div>` : ""}
+        <div class="txt">${esc(r.text)}</div>${attListHtml(r.attachments, r.id)}${r.reply ? `<div class="reply"><b>${agentName()}</b> ${esc(r.reply)}</div>` : ""}
         <div class="acts">${r.status === "draft" ? "" : `<button class="chip sm" data-rs="${r.status === "done" ? "open" : "done"}">${r.status === "done" ? "다시 열기" : "완료로 표시"}</button>`}<button class="chip sm" data-rdel="1">삭제</button></div></div>`).join("") : `<div class="hint">요청이 없다.</div>`}`;
     attRender("tab"); attWire($("#reqText"), "tab");
   }
   async function onReqClick(e) {
     const b = e.target.closest("button, a"); if (!b) return;
+    if (b.dataset.sessStart !== undefined) { e.preventDefault(); sessStartDlg(); return; }
+    if (b.dataset.lb !== undefined) { e.preventDefault(); const [rid, i] = b.dataset.lb.split(":"); attLightbox(rid, +i); return; }
     if (b.id === "reqAdd") {
       const t = $("#reqText").value.trim(); if (!t && !ATT.tab.length) return;
       const body = { action: "add", status: "draft", slide: slide().id, element: null, text: t || "(첨부 참고)" };
@@ -1124,6 +1134,7 @@ ${names}
     }
     if (b.dataset.attach) { attPick(b.dataset.attach); return; }
     if (b.dataset.attx) { const [w, i] = b.dataset.attx.split(":"); ATT[w].splice(+i, 1); attRender(w); return; }
+    const v = e.target.closest("[data-attv]"); if (v) { const [w, i] = v.dataset.attv.split(":"); NexaLightbox.open(lbItems(ATT[w]), +i); return; }
     if (b.id === "reqSend") { await sendDrafts(); return; }
     if (b.closest("#reqFilter")) { S.reqOnlySlide = b.dataset.v === "1"; renderReqs(); return; }
     const card = b.closest(".req"); if (!card) return;
@@ -1181,8 +1192,23 @@ ${names}
   }
 
   // ---------------------------------------------------------------- 세션 연결(요청 감시)
+  // 요청 상대 이름 - 연결된 세션의 에이전트(웹: agent · 수동: label 의 "claude"/"codex")에 따라, 연결 없으면 "AI"
+  function agentName() {
+    const st = S.session || {};
+    if (!st.connected) return "AI";
+    const a = (st.agent || st.label || "").toLowerCase();
+    return /codex/.test(a) ? "Codex" : /claude/.test(a) ? "Claude" : "AI";
+  }
+  // 세션이 없을 때 마지막 웹 세션이 왜 끝났는지(서버 재시작·유휴·사용자 중지) - /api/session 의 last
+  function sessOffNote() {
+    const l = (S.session || {}).last; if (!l || !l.reason) return "";
+    const why = { "server-stop": "서버 재시작으로 세션 종료됨", idle: "유휴로 세션 종료됨", user: "사용자가 세션 중지", error: "오류로 세션 종료됨" }[l.reason] || `세션 종료됨(${l.reason})`;
+    const m = /^\d{4}-(\d\d)-(\d\d)T(\d\d:\d\d)/.exec(l.stoppedAt || ""); return ` · ${why}${m ? `(${+m[1]}/${+m[2]} ${m[3]})` : ""}`;
+  }
   function renderSession(st, act) {
+    const before = S.session && (S.session.connected + "/" + (S.session.agent || S.session.label || "")) ;
     S.session = st;
+    if (before !== (st.connected + "/" + (st.agent || st.label || "")) && $("#tab-reqs") && $("#tab-reqs").classList.contains("on")) renderReqs();
     const c = $("#sessChip"); if (!c) return;
     // 활동(Claude Code 훅 - 작업 공간 .claude/settings.json): 감시 담당 세션이 대화 입력을 처리 중인지·요청 처리 중인지·대기인지
     const w = act && act.watcher;
@@ -1194,13 +1220,13 @@ ${names}
     }
     if (act && act.othersBusy) label += ` · 다른 세션 ${act.othersBusy}`;
     const webBusy = st.connected && st.kind === "web" && st.state === "running";  // 하트비트의 state - 턴 실행 중(요청 status 와 무관하게 파랑)
-    if (st.connected && st.kind === "web") label = `웹 세션${webBusy ? ` 처리 중 (턴 ${st.turn || "?"})` : ""} · ${st.model || st.agent || ""}${st.user ? ` · ${st.user}` : ""}${st.working ? ` · 요청 ${st.working}` : ""}`;
+    if (st.connected && st.kind === "web") label = `웹 세션${webBusy ? ` 처리 중 (턴 ${st.turn || "?"})` : ""} · ${st.model || st.agent || ""}${st.user ? ` · ${st.user}` : ""}${st.allowWeb ? " · 웹 허용" : ""}${st.working ? ` · 요청 ${st.working}` : ""}`;
     c.className = "chip sm " + (st.connected ? (st.working || webBusy || (w && w.state === "busy") ? "busy" : "on") : "off");
     c.innerHTML = `<span class="dot"></span>${esc(label)} ▾`;
     if (w && w.state === "busy" && w.source === "chat" && w.prompt) c.dataset.prompt = w.prompt; else delete c.dataset.prompt;
     c.title = st.connected ? `${st.label || "Claude Code"} · 마지막 확인 ${st.last_seen} (${st.age}초 전) · 대기 ${st.open} · 처리 중 ${st.working}${c.dataset.prompt ? `
 대화 입력: ${c.dataset.prompt}` : ""}`
-      : `세션 연결 없음${st.last_seen ? ` - 마지막 확인 ${st.last_seen}` : ""}. 눌러서 웹 세션을 시작하거나, 터미널 세션에서 watch_requests.py --stream 을 Monitor 로 실행하면 연결된다`;
+      : `세션 연결 없음${st.last_seen ? ` - 마지막 확인 ${st.last_seen}` : ""}${sessOffNote()}. 눌러서 웹 세션을 시작하거나, 터미널 세션에서 watch_requests.py --stream 을 Monitor 로 실행하면 연결된다`;
   }
 
   // ---------------------------------------------------------------- 웹 AI 세션(B-5) - 세션 칩 메뉴 · 시작 창 · 진행 패널(SSE) · 턴 로그
@@ -1209,13 +1235,13 @@ ${names}
     const st = S.session || {};
     const web = st.connected && st.kind === "web";
     const items = web
-      ? [{ h: `웹 세션 · ${st.agent || ""} · ${st.model || ""}${st.user ? ` · ${st.user}` : ""}` },
+      ? [{ h: `웹 세션 · ${st.agent || ""} · ${st.model || ""}${st.user ? ` · ${st.user}` : ""}${st.allowWeb ? " · 웹 허용" : ""}` },
          { icon: "▶", label: "진행 보기", act: sessProgress }, { icon: "⟳", label: "모델 바꾸기…", act: sessModelDlg },
          { icon: "📄", label: "턴 로그…", act: () => sessLog(1) }, "-",
          { icon: "■", label: "세션 중지", act: sessStop }]
       : st.connected
         ? [{ h: `수동 세션 · ${st.label || ""}` }, { html: `<div class="hint" style="padding:4px 10px;max-width:280px">터미널의 Claude Code 세션이 요청 감시(watch_requests)로 맡고 있습니다. 웹 세션으로 바꾸려면 그 감시를 끝내세요.</div>` }]
-        : [{ icon: "▶", label: "웹 세션 시작…", act: sessStartDlg }, { html: `<div class="hint" style="padding:4px 10px;max-width:280px">서버가 Claude 를 띄워 편집기 요청을 처리합니다. 터미널 세션(Monitor)과 함께 쓸 수 없습니다.</div>` }];
+        : [...(sessOffNote() ? [{ h: sessOffNote().replace(/^ · /, "") }] : []), { icon: "▶", label: "웹 세션 시작…", act: sessStartDlg }, { html: `<div class="hint" style="padding:4px 10px;max-width:280px">서버가 AI(claude·codex)를 띄워 편집기 요청을 처리합니다. 터미널 세션(Monitor)과 함께 쓸 수 없습니다.</div>` }];
     openMenu(btn, items, { right: false });
   }
   function sessBox(html) { $("#sessDlg .box").innerHTML = html; $("#sessDlg").classList.add("show"); }
@@ -1235,18 +1261,22 @@ ${names}
       <label class="f">모델 <span class="hint">(기본: ${esc(model)} — ${esc(r.data.sources.model)})</span></label>
       <div class="row" style="gap:6px"><select id="sdModel">${models(cur)}</select><input type="text" id="sdModelText" placeholder="모델 ID 직접 입력" style="display:none;flex:1"></div>
       <label class="f" style="display:flex;align-items:center;gap:8px;font-weight:400"><input type="checkbox" id="sdSave"> 이 작업 공간 기본으로 저장 <select id="sdSaveAs" style="font-size:12px"><option value="local">이 PC 만(nexa-slide.local.json)</option><option value="shared">공유(nexa-slide.json)</option></select></label>
+      ${r.data.allowWeb ? `<label class="f" style="display:flex;align-items:center;gap:8px;font-weight:400"><input type="checkbox" id="sdWeb" ${r.data.canAllowWeb ? "" : "disabled"}> 이 세션에 웹 검색 허용(WebSearch·WebFetch) ${r.data.canAllowWeb ? "" : '<span class="hint">- 관리자만</span>'}</label>
+      <div class="hint" id="sdWebWarn" style="display:none;color:var(--err)">이 세션이 외부 웹을 검색·열람합니다 - 슬라이드·요청 내용이 검색어·URL 로 외부에 전달될 수 있습니다(claude 만).</div>` : ""}
       <div class="hint">한도: 유휴 ${esc(String(r.data.limits.sessionIdleMinutes))}분 · 턴 ${esc(String(r.data.limits.sessionTurnMinutes))}분 · 동시 ${esc(String(r.data.limits.sessionMax))}</div>
       <div class="row" style="justify-content:flex-end;gap:8px"><button class="chip sm" data-sd="close">취소</button><button class="chip sm primary" data-sd="start">시작</button></div>`);
     $("#sdAgent").onchange = () => { const n = $("#sdAgent").value; $("#sdModel").innerHTML = models(n); $("#sdHint").textContent = (ag[n].hint || "") + (ag[n].hint && ag[n].doc ? ` (엔진 ${ag[n].doc})` : ""); };
+    if ($("#sdWeb")) $("#sdWeb").onchange = () => { $("#sdWebWarn").style.display = $("#sdWeb").checked ? "" : "none"; };
     $("#sdModel").onchange = () => { $("#sdModelText").style.display = $("#sdModel").value === "__custom" ? "" : "none"; };
   }
   async function sessStart() {
     const agent = $("#sdAgent").value, model = $("#sdModel").value === "__custom" ? $("#sdModelText").value.trim() : $("#sdModel").value;
     if (!model) { toast("모델을 고르거나 입력하세요"); return; }
     const body = { action: "start", agent, model }; if ($("#sdSave").checked) body.saveAs = $("#sdSaveAs").value;
+    if ($("#sdWeb") && $("#sdWeb").checked) body.allowWeb = true;
     const r = await api("POST", "/api/wsession", body);
     if (!r.ok) { toast("시작 실패: " + ((r.data && r.data.error) || r.status), 6000); return; }
-    toast(`웹 세션 시작 - ${agent} · ${model}`); renderSession({ ...(S.session || {}), connected: true, kind: "web", agent, model, user: r.data.startedBy, label: `web:${agent}`, open: r.data.open, working: r.data.working, last_seen: "", age: 0 });
+    toast(`웹 세션 시작 - ${agent} · ${model}${r.data.allowWeb ? " · 웹 허용" : ""}`); renderSession({ ...(S.session || {}), connected: true, kind: "web", agent, model, user: r.data.startedBy, allowWeb: !!r.data.allowWeb, label: `web:${agent}`, open: r.data.open, working: r.data.working, last_seen: "", age: 0 });
     sessProgress();
   }
   async function sessStop() {
@@ -1903,7 +1933,8 @@ ${names}
     $("#memoTa").addEventListener("input", memoInput);
     attWire($("#memoTa"), "memo"); attWire($("#memo"), "memo");
     $("#memo").addEventListener("click", (e) => {
-      const b = e.target.closest("[data-attach],[data-attx]"); if (!b) return;
+      const b = e.target.closest("[data-attach],[data-attx]");
+      if (!b) { const v = e.target.closest("[data-attv]"); if (v) { const [w, i] = v.dataset.attv.split(":"); NexaLightbox.open(lbItems(ATT[w]), +i); } return; }
       if (b.dataset.attach) attPick("memo"); else { const [w, i] = b.dataset.attx.split(":"); ATT[w].splice(+i, 1); attRender(w); }
     });
     $("#memoTa").addEventListener("keydown", (e) => {

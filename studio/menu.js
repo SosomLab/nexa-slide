@@ -43,7 +43,7 @@
   .nx-dh a { display: inline-flex; border-radius: 9px; }
   .nx-close { width: 32px; height: 32px; border: 1px solid var(--line, #D8C2C0); background: none; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; color: var(--ink2, #534343); cursor: pointer; position: relative; }
   .nx-close:hover { background: var(--tone, #F2EFEF); }
-  .nx-close:hover::after { content: "메뉴 닫기"; position: absolute; top: 38px; right: 0; background: #1F1B1B; color: #fff; font-size: 12px; padding: 4px 8px; border-radius: 6px; white-space: nowrap; }
+  .nx-close:hover::after { content: attr(aria-label); position: absolute; top: 38px; right: 0; background: #1F1B1B; color: #fff; font-size: 12px; padding: 4px 8px; border-radius: 6px; white-space: nowrap; }
   .nx-body { overflow-y: auto; padding: 4px 8px 16px; flex: 1; }
   .nx-item { display: flex; align-items: center; gap: 10px; padding: 7px 10px; border-radius: 8px; color: inherit; text-decoration: none; cursor: pointer; border: 0; background: none; width: 100%; text-align: left; font: inherit; }
   .nx-item:hover { background: var(--tone, #F2EFEF); }
@@ -60,9 +60,15 @@
   .nx-av { width: 20px; height: 20px; border-radius: 50%; flex: none; display: inline-flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; color: #fff; }
   .nx-rt { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .nx-empty { padding: 6px 10px; color: var(--ink2, #534343); font-size: 12px; }
+  .nx-badge { background: var(--p, #A91F24) !important; color: #fff !important; border-radius: 999px; padding: 0 7px; font-weight: 700; line-height: 18px; }
+  .nx-lang { display: none; margin: 0 0 4px 0; padding: 4px 0 4px 22px; }
+  .nx-lang.on { display: block; }
+  .nx-lang .nx-item { padding: 5px 10px; gap: 6px; }
+  .nx-lang .nx-ck { width: 16px; text-align: center; color: var(--p, #A91F24); font-weight: 700; flex: none; }
+  .nx-lang .nx-item.sel { font-weight: 700; }
   .nx-toast { position: fixed; left: 50%; bottom: 28px; transform: translateX(-50%); background: #1F1B1B; color: #fff; padding: 9px 16px; border-radius: 10px; z-index: 1100; font: 13px var(--font, sans-serif); max-width: 80vw; }`;
 
-  let root = null, home = null, finding = false;
+  let root = null, home = null, finding = false, langOpen = false;
   // 허브 중계(/w/<id>/…)로 열린 Studio 면 그 접두 - 이 작업 공간의 것(Studio·/api/home)에만 붙인다. 홈·새로 만들기·열기는 허브(접두 없음)로 간다.
   const BASE = (location.pathname.match(/^\/w\/[^/]+/) || [""])[0];
   const here = () => { const p = location.pathname.slice(BASE.length); return p.endsWith("/home.html") ? (location.hash.slice(1) || "start") : p.startsWith("/review/slides") ? "review-slides" : p.startsWith("/review") ? "review" : p.startsWith("/studio") ? "studio" : ""; };
@@ -98,6 +104,13 @@
     return r;
   }
 
+  // 표시 언어(i18n.js) - 누르면 아래에 목록(시스템 기본 · English · 한국어)이 펼쳐지고 고르면 즉시 바뀐다
+  function langItems() {
+    const I = window.I18N; if (!I) return "";
+    const cur = I.lang(), opts = I.options(), now = opts.find((o) => o.value === cur) || opts[0];
+    return `<button type="button" class="nx-item" data-langbtn aria-expanded="${langOpen}">${icon("globe")}<span>표시 언어</span><small>${esc(now.label)}</small></button>
+      <div class="nx-lang${langOpen ? " on" : ""}" role="listbox">${opts.map((o) => `<button type="button" class="nx-item${o.value === cur ? " sel" : ""}" role="option" aria-selected="${o.value === cur}" data-lang="${o.value}"><span class="nx-ck">${o.value === cur ? "✓" : ""}</span><span>${esc(o.label)}</span></button>`).join("")}</div>`;
+  }
   function items() {
     const cur = here();
     const it = (id, ic, label, href, extra = "") => `<a class="nx-item${cur === id ? " on" : ""}" href="${href}">${icon(ic)}<span>${label}</span>${extra}</a>`;
@@ -120,6 +133,9 @@
       '<div data-recent></div>',
       '<div class="nx-sep"></div>',
       it("settings", "gear", "기준 폴더 설정", "/studio/home.html#settings"),
+      ...(home && home.engineWork ? [it("engine", "git", "서버 작업", "/studio/home.html#start",  // 허브 - 엔진 요청 큐. 대기가 있는데 세션이 꺼져 있으면 배지
+        home.engineWork.pending && home.engineWork.sessionOff ? `<small class="nx-badge" title="처리 대기 ${home.engineWork.pending}건 · 엔진 세션 꺼짐${home.engineWork.startRequest ? " · 시작 요청됨" : ""}">${home.engineWork.pending}</small>` : "")] : []),
+      langItems(),
       ...(home && home.user ? [  // 허브 로그인 사용자 - 계정(비밀번호 · 관리자면 사용자 관리) · 로그아웃
         it("account", "user", home.user.role === "admin" ? "계정 · 사용자 관리" : "계정", "/account", `<small>${esc(home.user.id)}</small>`),
         `<button type="button" class="nx-item" data-logout>${icon("out")}<span>로그아웃</span></button>`] : []),
@@ -154,6 +170,9 @@
       const r = e.target.closest("[data-path]");
       if (r) { close(); go(r.dataset.path); return; }
       if (e.target.closest("[data-logout]")) { close(); logout(); return; }
+      if (e.target.closest("[data-langbtn]")) { langOpen = !langOpen; root.querySelector(".nx-body").innerHTML = items(); renderRecent(); return; }
+      const lg = e.target.closest("[data-lang]");
+      if (lg) { langOpen = false; window.I18N.set(lg.dataset.lang); root.querySelector(".nx-body").innerHTML = items(); renderRecent(); return; }
       if (e.target.closest("a.nx-item")) setTimeout(close, 0);
     });
     root.addEventListener("input", (e) => { if (e.target.matches("[data-q]")) renderRecent(e.target.value); });
@@ -179,5 +198,7 @@
     btn.addEventListener("click", open);
     if (/[?&]menu=open(&|$)/.test(location.search)) setTimeout(open, 0);  // 메뉴를 연 채로 보여 주는 링크
   }
+  // 언어가 바뀌면(다른 곳에서 I18N.set) 서랍이 열려 있을 때 선택 표시를 맞춘다
+  document.addEventListener("nexa-lang", () => { if (root && root.classList.contains("nx-open")) { root.querySelector(".nx-body").innerHTML = items(); renderRecent(); } });
   window.NexaMenu = { mount, open, close, icon, mark, go, toast, post, esc, auth401, logout };
 })();

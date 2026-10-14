@@ -145,6 +145,19 @@
 | 하트비트 | 세션의 하트비트를 **별도 스레드**로(턴 중에도 매초, `state`·`turn` 포함) — 턴 동안 편집기 칩이 "연결 없음"으로 바뀌던 결함(협업 세션 발견) 수정. 칩·허브 세션 줄·요청 탭 안내가 "처리 중(턴 n)" 을 보인다 |
 | 검증 | 격리 환경 28건: CLI(open/triage/덧붙임/전이 거절)·허브 API 권한(일반 사용자 추가 가능·상태 변경 403·세션 시작 403)·관리자 승인/거절/삭제·**실제 sonnet 턴**(worktree 생성 → 스모크 파일 커밋 `engine-request #1` → 큐 done+reply+commit, main 불변, 턴 중 하트비트 공백 < 4초)·SSE·중지·applied. 작업 공간 쪽 회귀 27·11·18·23 + 인증 104·중계 20 |
 
+### 12.1 E-4 (2026-10-14 저녁) — 카드 개편 · 첨부 · 세션 꺼짐 알림
+
+사용자 요청(협업 세션 전달): 카드 4줄 틀·버튼 통일·[요청 추가] 하단·상태별 집계, 요청 양식 첨부, "서버 작업 세션이 시작되지 않았으면 … 관리자에게 시작을 요청해야 한다".
+
+| 것 | 구현 |
+|---|---|
+| 세션 꺼짐 알림 | `engine_requests.session_state()`(하트비트, 작업 공간 없이도) · `pending_note()` → `add` API 응답 `note`·`sessionOff`, CLI `안내:` 줄(작업 공간 세션은 원 요청 reply 에 옮겨 적음 — `turn_prompt.md`) · 카드 배너 "처리 대기 n건 · 세션 꺼짐" (관리자 [세션 시작] / 일반 [관리자에게 시작 요청]) · 메뉴 "서버 작업" 배지(`/api/home.engineWork`) |
+| 시작 요청 | `hub/engine/start-request.json` {at, by[], count, last} — `request_start()` 로 묶음, 세션 시작 성공 때 `clear_start_request()`, 접근 로그 `engine.start_requested` |
+| 첨부 | `POST /api/engine/attach` → `hub/engine/attach/_new/` → `add` 의 `attachments`(파일 이름) 로 `attach/<id>/` 에 옮기고 `evidence` 에 경로(`update(evidence=…)`). `GET /api/engine/attach/<id>/<파일>`. 엔진 턴은 `EngineProfile._copy_attachments` 로 worktree `.nexa/attach/<id>/` 에 복사해 `attachments` 로 보여 줌(`--restricted` 가 cwd 밖 읽기를 막으므로) |
+| 검증 | `e2_test.py` 16건(첨부 올리기·경로 탈출 거절·evidence·보기·404·시작 요청 묶음·/api/home 배지·CLI 안내·프롬프트 사본) + 헤드리스 클릭 스모크(관리자·일반 사용자, 콘솔 오류 0) |
+
+결정 유지: 자동 시작 없음(관리자 수동). "승인한 요청이 있으면 자동 시작" 토글은 나중 선택지.
+
 남은 것(E 후속): 수동 엔진 세션용 `watch_engine_requests`, Studio 요청 탭의 "엔진 요청 #N" 배지와 적용 뒤 원 요청 자동 재개(E-2 일부), 전체 작업 공간 PPTX XML 회귀(검증 ④)를 세션 규약에 자동화, `server-admin.md` 적용 절차(병합+재시작 한 묶음), `mechanism.md` 그림.
 
 ## 11. 검토 기록

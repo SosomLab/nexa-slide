@@ -23,11 +23,19 @@ from pathlib import Path
 STUDIO = Path(__file__).resolve().parent
 sys.path.insert(0, str(STUDIO))
 from common import DEFAULT_PORT, HUB, SERVER_INFO, STATE, WORKSPACE, running_server  # noqa: E402
+from filelock import FileLock  # noqa: E402
 
 LOG = STATE / "server.log"
+START_LOCK = STATE / "start.lock"  # 시작 잠금 - 같은 작업 공간의 start 가 동시에 들어와도(허브 중계 자동 기동 + nexa.py restart) 하나만 띄운다
 
 
 def start(extra):
+    STATE.mkdir(parents=True, exist_ok=True)
+    with FileLock(START_LOCK, wait=25):  # 먼저 잡은 쪽이 서버를 띄우고 server.json 을 쓸 때까지 기다린다 - 뒤의 쪽은 "이미 실행 중" 을 본다
+        return _start(extra)
+
+
+def _start(extra):
     run = running_server()
     if run:
         print(f"이미 실행 중: {run['url']} (pid {run['pid']})")
