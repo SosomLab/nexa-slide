@@ -22,7 +22,7 @@
 {web}
 요청 1건마다 (덱 전체를 새로 쓰지 않는다 — 수천 줄이다)
 1. `decks/<deck>.requests.json` 에서 그 `id` 의 `status` 를 `"working"` 으로 바꾼다(Edit).
-2. `python3 nexa.py draft_deck <deck> --element <element>`(요소가 없으면 `--slide <slide>`) → 사본 `out/.studio/draft-<deck>.json` 이 만들어지고 고칠 줄 번호가 나온다.
+2. `python3 nexa.py draft_deck <deck> --element <element>`(요소가 없으면 `--slide <slide>`; `elements` 가 있으면 그 요소 **모두**가 대상 — `--element e03,e05` 처럼 쉼표로) → 사본 `out/.studio/draft-<deck>.json` 이 만들어지고 고칠 줄 번호가 나온다.
 3. 사본에서 **필요한 줄만** Edit 도구로 고친다 — 요소 `id` 유지, 대상은 `slide`·`element` 로 찾는다(`region` 이 있으면 그 좌표와 겹치는 요소들). 큰 수정도 사본 안에서 Edit 를 여러 번.
 4. `python3 nexa.py save_deck <deck> --from out/.studio/draft-<deck>.json --request <id> --note "무엇을 했는지 한 줄"` 로 저장한다. 종료 코드 2(충돌)면 2 번부터 다시.
 5. 같은 변경을 `content/<deck>.json` 에도 Edit 로 옮긴다(파일이 있고 그 내용이 거기서 왔을 때).

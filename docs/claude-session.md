@@ -51,6 +51,7 @@ Monitor
 한 번 보낸 요청은 내용이 바뀌거나 다시 열릴(done → open) 때까지 다시 보내지 않는다.
 
 요청 상태는 `draft`(편집기 초안 — 감시가 보내지 않음) → `open`(보냄) → `working` → `done`. 편집기 "요청 N개 보내기"가 초안을 open 으로 바꾸고 즉시 전달한다.
+요소를 **여러 개** 고른 채(Shift/Ctrl+클릭·범위 선택) 남긴 메모에는 `elements: ["e03", "e05", …]` 가 붙고 `element` 는 그 첫 요소다 — 세션은 `elements` 모두를 대상으로 처리한다(`draft_deck --element e03,e05`).
 그리기 모드 요청에는 `region` 이 붙는다 — 슬라이드 좌표(1280×720): `{"kind": "rect", "box": [x, y, w, h]}` · `{"kind": "pen", "points": [[x, y], …], "box": [...]}` · `{"kind": "pin", "points": [[x, y]]}`.
 영역 요청은 그 좌표와 겹치는 요소들을 대상으로 처리한다(`element` 는 null).
 **후속 요청**(편집기 [후속 요청])이면 `parent`(바로 앞 요청 id)·`thread`(대화의 뿌리 요청 id)와 `context: [{id, status, text, reply, attachments?}…]` 가 붙는다 — 같은 대화의 앞선 요청·답이 오래된 순(최근 6개, 항목당 800자, 첨부는 경로만)이고 이번 요청은 항목 자신의 `text` 다. 대상(`slide`·`element`·`region`)은 따로 주지 않으면 원 요청에서 물려받는다. 앞선 요청의 상태는 바꾸지 않는다.

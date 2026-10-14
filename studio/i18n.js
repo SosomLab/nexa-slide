@@ -239,6 +239,7 @@
     [/^이 세션에 (git 기록|push|저장소 루트 접근) 허용$/, (m, a) => "Allow " + ({ "git 기록": "git commits", push: "push", "저장소 루트 접근": "repo root access" })[a] + " in this session"],
     [/^덱 (\S+) 을 만들었습니다\(표지 1장\)$/, "Deck $1 created (1 cover slide)"], [/^(\S+) → (\S+) 으로 바꿨습니다$/, "Renamed $1 → $2"], [/^(\S+) 을 휴지통으로 옮겼습니다\((.*)\)$/, "Moved $1 to trash ($2)"],
     [/^덱 (\S+) 을 지울까요\? (.*)$/, "Delete deck $1? It moves to decks/.trash/ together with its requests, history, attachments and content."], [/^덱 관리 실패: (.*)$/, "Deck management failed: $1"],
+    [/^이 요소 (\d+)개에 요청 메모(\(세션에 보냄\))?$/, "Request memo on these $1 elements$2"], [/^이 요소 (\d+)개에서 무엇을 바꿀까요\?$/, "What should change in these $1 elements?"], [/^요소 (\d+)개 \((.*)\)$/, "$1 elements ($2)"], [/^(\S+) 외 (\d+)$/, "$1 +$2"],
     [/^세션 ID (\w+) 복사$/, "Copy session ID $1"], [/^확인 명령을 복사했습니다 - (.*)$/, "Copied the command - $1"], [/^세션 ID 를 복사했습니다 - (.*)$/, "Copied the session ID - $1"],
     [/^승인 대기 엔진 요청 (\d+)건(.*)$/, "$1 engine requests awaiting approval$2"], [/^기본 메뉴 - 승인 대기 (\d+)건(.*)$/, "Main menu - $1 awaiting approval$2"], [/^승인 대기 (\d+)건$/, "$1 awaiting approval"],
     [/^처리 대기 (\d+)건 · 세션 꺼짐(.*)$/, "$1 waiting · session off$2"], [/^(.+) 님이 (.+) 에 시작을 요청(.*)$/, "$1 asked to start at $2$3"], [/^엔진 요청 #(\d+) 을 넣었습니다 — (.*)$/, "Engine request #$1 added — $2"],

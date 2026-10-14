@@ -1,5 +1,9 @@
 # 변경 이력
 
+## 0.21.3 - 2026-10-15 · 여러 요소에 한 요청 메모
+
+- 요소를 여러 개 고른 채(Shift/Ctrl+클릭·범위 선택) 오른쪽 클릭 "이 요소 n개에 요청 메모" 또는 서식 줄 💬 — 팝오버에 "요소 n개 (글자 e03, 원 e05 …)", 요청에 `elements` 목록(`element` 는 첫 요소), 캔버스에 요소마다 테두리, 요청 카드에 "e03 외 2". 세션에는 `elements` 가 전달되고 `draft_deck --element e03,e05`(쉼표)로 줄 번호를 본다. 전에는 여러 개를 골라도 첫 요소 하나만 담겼다.
+
 ## 0.21.2 - 2026-10-15 · 글자 크기 일괄 확대 scale_fonts · content fontScale (engine-request #5)
 
 - **`scale_fonts <덱> --ratio 1.2 [--role body,title] [--slides …] [--dry-run] [--keep-ratio] [--no-fit]`**(`studio/scale_fonts.py`): 덱 전체 글자 크기를 비율로 키우고(바닥 부품·잠긴 요소는 `--role` 로 고르지 않으면 그대로) 글이 상자보다 커지면 상자 높이(칩은 폭, 표는 `rowH`)를 늘려 아래 요소를 내린다. 바닥을 넘치면 그 장만 비율을 0.02 씩 낮춘다. 저장은 `save_deck` 과 같은 경로(변경 원장·백업·충돌 검사).

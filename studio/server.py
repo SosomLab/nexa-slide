@@ -1367,6 +1367,10 @@ class H(BaseHTTPRequestHandler):
                         "created": dt.datetime.now().isoformat(timespec="seconds")}
                 if isinstance(b.get("region"), dict):  # 그리기 모드 영역 {kind: rect|pen|pin, box:[x,y,w,h], points:[[x,y]…]}
                     item["region"] = b["region"]
+                els = [str(x)[:40] for x in (b.get("elements") or []) if isinstance(x, (str, int))][:50]  # 여러 요소를 고른 메모 - element 는 첫 것
+                if len(els) > 1:
+                    item["elements"] = els
+                    item["element"] = item.get("element") or els[0]
                 if par:  # 후속 요청 - 앞선 요청에 이어 묻는다. 대상(slide·element·region)은 따로 주지 않으면 물려받고, 원 요청은 그대로 둔다
                     item["parent"], item["thread"] = par["id"], par.get("thread") or par["id"]
                     for k in ("slide", "element", "region"):

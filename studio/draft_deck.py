@@ -24,7 +24,7 @@ def main():
             pass
     ap = argparse.ArgumentParser(description="덱 사본(out/.studio/draft-<덱>.json) 만들기 - 고친 뒤 save_deck --from 으로 저장")
     ap.add_argument("deck")
-    ap.add_argument("--element", help="이 요소 id 가 있는 줄 번호를 알려 준다")
+    ap.add_argument("--element", help="이 요소 id 가 있는 줄 번호를 알려 준다(쉼표로 여러 개: e03,e05)")
     ap.add_argument("--slide", help="이 슬라이드 id 가 있는 줄 번호를 알려 준다")
     a = ap.parse_args()
     if not safe_id(a.deck):
@@ -44,7 +44,7 @@ def main():
         shown = out.as_posix()
     out = Path(shown)
     print(f"사본: {out.as_posix()}  ({len(lines)}줄 · 슬라이드 {len(deck.get('slides', []))}장)")
-    for kind, sid in (("슬라이드", a.slide), ("요소", a.element)):
+    for kind, sid in [("슬라이드", a.slide)] + [("요소", e.strip()) for e in (a.element or "").split(",") if e.strip()]:
         if sid:
             n = next((i + 1 for i, l in enumerate(lines) if l.strip().startswith(f'"id": "{sid}"')), None)
             print(f"{kind} {sid}: " + (f"{n}번째 줄부터" if n else "없음"))
