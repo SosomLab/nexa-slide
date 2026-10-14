@@ -25,7 +25,7 @@
 | `table` | `rows`(2차원, 첫 행 머리), `colW`(비율), (선택) `rowH`(행별 비율 - 머리 행부터, `h` 에 맞춰 나눔. 합을 `h` 와 같게 두면 px 그대로. 없으면 고르게), `header`, `headFill`, `headColor`, `size`, `colFont`, `align`, `rule` | 표(스타일 없음, 머리 행 채우기, 본문 행 아래 선) · 행 높이 = `rowH` |
 | `plan` | `text`(DBMS_XPLAN 원문), `size`, `lineHeight`, `fill`, `pad` — `[[값]]` = 경고 강조, `[[ok:값]]` = 개선 강조 | 고정폭 글자, 강조 run = 굵게 + 글자색 + **run 강조색(a:highlight)** |
 | `plan-table` | `columns`, `colW`, `opCol`(들여쓰기 열), `rows[{cells, depth, hl:{열번호: warn/ok}, note}]`, `calloutW` | 표 + 오른쪽 설명 콜아웃(연결선 + 둥근 상자) |
-| `code` | `text`, `lang`(sql/python), `size`, `lineHeight`, `start`, `focus`[줄], `show`[[from,to],…] | 그룹 도형: 줄 번호 여백·코드 면·강조 줄 면·테두리·줄 번호 글상자·코드 글상자(run 단위 색·굵게·기울임) |
+| `code` | `text`, `lang`(언어 35종 - 아래), `lineNo`(false = 줄 번호 숨김), `size`, `lineHeight`, `start`, `focus`[줄], `show`[[from,to],…] | 그룹 도형: 줄 번호 여백·코드 면·강조 줄 면·테두리·줄 번호 글상자·코드 글상자(run 단위 색·굵게·기울임) |
 | `bullets` | `items`(문자열 또는 `{text, sub:[…]}`), `size`, `subSize`, `lineHeight`, `gap`, `subGap`, `dot`, `color`, `subColor` | 단락 글머리(●/–, 글머리 색) |
 
 **인라인 강조**(text·pill·rect·ellipse·table 셀·bullets): `**굵게**`, `==강조==`(CI 적색 굵게), `[[토큰|색 글자]]`, `{page}`(쪽 번호).
@@ -54,3 +54,11 @@
 앞부분 공통(표지·전체 목차·통합 개정 이력 — 장 열 추가) + 장 블록들(목차 순서, 장마다 자기 부 색) + EoD 하나.
 `--chapters` 를 생략하면 목차 순서에서 내용 파일이 있는 장을 모두 넣는다.
 공통 머리(부 칩·제목·부제·로고)와 바닥(경로·워드마크·쪽 번호 `{page}`)은 `B.head()`·`B.foot()`.
+
+### 코드 언어 (`lang`)
+
+`studio/code_langs.json` 에 정의(화면 `render.js` 와 PPTX `common.py` 가 같은 파일·같은 알고리즘 - `check_parity` 가 언어별 예제로 동일성 검사). 없으면 `sql`(예전 기본), 모르는 이름은 `plain`(색 없음). 이름·별칭은 대소문자 무시(예: `sh`·`shell` → `bash`, `cs`·`c#` → `csharp`, `js` → `javascript`, `py` → `python`, `rs` → `rust`, `html` → `xml`, `ini` → `toml`, `mssql`·`oracle` → `sql`).
+
+`plain` · `sql` · `bash` · `powershell` · `c` · `cpp` · `csharp` · `java` · `kotlin` · `scala` · `javascript` · `typescript` · `json` · `yaml` · `toml` · `xml` · `css` · `scss` · `markdown` · `diff` · `python` · `ruby` · `perl` · `php` · `go` · `rust` · `swift` · `dart` · `objectivec` · `vbnet` · `lua` · `r` · `graphql` · `makefile` · `dockerfile`
+
+역할(색은 템플릿 `codeStyle`): 예약어 `k` · 타입·키·태그 `tb` · 함수·속성 `ca` · 문자열 `st` · 숫자·리터럴 `nu` · 주석 `co` · 변수·전처리·장식자 `bi`. SQL 은 전용 규칙(테이블·별칭 `tb`/`al`, 결과 컬럼 별칭 `ca`, 바인드 `bi`).

@@ -11,7 +11,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from common import DECKS, STUDIO, code_lines, resolve_tokens, plan_runs, runs, table_grid  # noqa: E402
+from common import DECKS, LANGS, STUDIO, code_lines, resolve_tokens, plan_runs, runs, table_grid  # noqa: E402
 
 SAMPLES = [
     {"type": "code", "lang": "python", "text": "def f(x):\n    # 주석\n    return x * 2 + 'a'  # 끝\n"},
@@ -21,7 +21,7 @@ SAMPLES = [
 JS = r"""
 const R = require(process.argv[1]);
 const inp = JSON.parse(require('fs').readFileSync(0, 'utf8'));
-R.setTokens(inp.tokens);
+R.setTokens(inp.tokens); R.setLangs(inp.langs);
 const out = {code: inp.code.map(e => R.codeLines(e).map(l => ({n: l.n, focus: l.focus, gap: l.gap, runs: l.runs}))),
   runs: inp.texts.map(t => R.runs(t, 3).map(([t2, st]) => [t2, {bold: st.bold, color: st.color}])),
   plan: inp.plans.map(p => R.planRuns(p)),
@@ -45,7 +45,9 @@ def first_diff(a, b, path):
 
 def main():
     ids = sys.argv[1:] or [p.stem for p in DECKS.glob("*.json") if not p.name.endswith(".requests.json")]
-    code, texts, plans, tables = list(SAMPLES), [], [], []
+    # 언어별 하이라이트 예제(tests/fixtures/code_samples.json - 35개 언어·별칭·줄 번호 끔·이모지)
+    extra = STUDIO.parent / "tests" / "fixtures" / "code_samples.json"
+    code, texts, plans, tables = list(SAMPLES) + (json.loads(extra.read_text(encoding="utf-8")) if extra.is_file() else []), [], [], []
     for i in ids:
         for s in json.loads((DECKS / f"{i}.json").read_text(encoding="utf-8"))["slides"]:
             for e in s["elements"]:
@@ -60,7 +62,7 @@ def main():
                 if e["type"] == "table":
                     texts += [c for r in e["rows"] for c in r]
     tokens = resolve_tokens()
-    inp = json.dumps({"tokens": tokens, "code": code, "texts": texts, "plans": plans, "tables": tables}, ensure_ascii=False)
+    inp = json.dumps({"tokens": tokens, "langs": LANGS, "code": code, "texts": texts, "plans": plans, "tables": tables}, ensure_ascii=False)
     r = subprocess.run(["node", "-e", JS, str(STUDIO / "render.js")], input=inp.encode("utf-8"), capture_output=True)
     if r.returncode:
         sys.exit(r.stderr.decode("utf-8", "replace"))

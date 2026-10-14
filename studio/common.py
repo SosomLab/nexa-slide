@@ -423,11 +423,168 @@ def hl_python(src):
     return out
 
 
+# ---------- 여러 언어 하이라이트 - 언어 정의는 code_langs.json(render.js 와 같은 파일·같은 알고리즘) ----------
+LANGS = json.loads((STUDIO / "code_langs.json").read_text(encoding="utf-8"))
+_LANG_SETS = {}
+
+
+def lang_of(el):
+    """el["lang"] → 정의 이름(별칭 포함, 대소문자 무시). 없으면 sql(예전 기본), 모르면 plain"""
+    lw = str(el.get("lang") or "sql").lower()
+    if lw in LANGS and not lw.startswith("_"):
+        return lw
+    for k, v in LANGS.items():
+        if not k.startswith("_") and lw in (v.get("alias") or []):
+            return k
+    return "plain"
+
+
+def _isa(c):
+    return ("A" <= c <= "Z") or ("a" <= c <= "z") or c == "_"
+
+
+def _isd(c):
+    return "0" <= c <= "9"
+
+
+def hl_generic(src, name):
+    sp, n, out = LANGS[name], len(src), []
+    if name not in _LANG_SETS:
+        low = (lambda w: w.lower()) if sp.get("ci") else (lambda w: w)
+        _LANG_SETS[name] = [set(low(w) for w in (sp.get(k) or [])) for k in ("kw", "types", "lits", "fn")]
+    KW, TY, LI, FN = _LANG_SETS[name]
+    idx = sp.get("idx") or ""
+    id0 = lambda c: _isa(c) or (c != "" and c in idx)  # noqa: E731
+    id1 = lambda c: _isa(c) or _isd(c) or (c != "" and c in idx)  # noqa: E731
+    at = lambda j: src[j] if 0 <= j < n else ""  # noqa: E731
+
+    def push(v, r):
+        if out and out[-1][1] is None and r is None:
+            out[-1][0] += v
+        else:
+            out.append([v, r])
+
+    def eol(i):
+        e = src.find("\n", i)
+        return n if e < 0 else e
+
+    def skip_sp(j):
+        while j < n and src[j] in (" ", "\t"):
+            j += 1
+        return j
+
+    i = 0
+    while i < n:
+        c, prev, nx = src[i], (src[i - 1] if i else "\n"), at(i + 1)
+        k = i - 1
+        while k >= 0 and src[k] in (" ", "\t"):
+            k -= 1
+        at_line = k < 0 or src[k] == "\n"
+        j, role = -1, None
+        if sp.get("diff") and (i == 0 or prev == "\n"):
+            j = eol(i)
+            role = "st" if c == "+" else "bi" if c == "-" else "co" if c == "@" else None
+        if j < 0 and sp.get("md") and at_line and c == "#":
+            j, role = eol(i), "k"
+        if j < 0:
+            for a, b in sp.get("block") or []:
+                if src.startswith(a, i):
+                    e = src.find(b, i + len(a))
+                    j, role = (n if e < 0 else e + len(b)), "co"
+                    break
+        if j < 0 and sp.get("vars") and c == "$" and nx:
+            if nx in ("{", "("):
+                e = src.find("}" if nx == "{" else ")", i)
+                j = n if e < 0 else e + 1
+            elif id0(nx) or _isd(nx):
+                j = i + 2
+                while j < n and id1(src[j]):
+                    j += 1
+            elif nx in "@#?*!$-":
+                j = i + 2
+            if j >= 0:
+                role = "bi"
+        if j < 0:
+            for a in sp.get("line") or []:
+                if src.startswith(a, i) and not (sp.get("hashWs") and a == "#" and not prev.isspace()):
+                    j, role = eol(i), "co"
+                    break
+        if j < 0 and sp.get("pre") and c == "#" and at_line:
+            j, role = eol(i), "bi"
+        if j < 0:
+            for s in sp.get("str") or []:
+                a, b, raw = s[0], s[1], (len(s) > 2 and bool(s[2]))
+                if not src.startswith(a, i):
+                    continue
+                m = i + len(a)
+                while m < n:
+                    if not raw and sp.get("esc") and src[m] == "\\":
+                        m += 2
+                        continue
+                    if src.startswith(b, m):
+                        if raw and len(b) == 1 and at(m + 1) == b:
+                            m += 2
+                            continue
+                        m += len(b)
+                        break
+                    if len(b) == 1 and not sp.get("ml") and not raw and src[m] == "\n":
+                        break
+                    m += 1
+                j, role = min(m, n), "st"
+                if sp.get("keys") and at(skip_sp(j)) == sp["keys"]:
+                    role = "tb"
+                break
+        if j < 0 and sp.get("tags") and c == "<" and (_isa(nx) or nx in ("/", "!", "?")):
+            j = i + 1
+            while j < n and (id1(src[j]) or src[j] in "/!?:-."):
+                j += 1
+            role = "tb"
+        if j < 0 and sp.get("deco") and c == "@" and _isa(nx):
+            j = i + 1
+            while j < n and (id1(src[j]) or src[j] == "."):
+                j += 1
+            role = "bi"
+        if j < 0 and (_isd(c) or (c == "." and _isd(nx))) and not (i > 0 and id1(prev)):
+            j = i + 1
+            while j < n and (_isa(src[j]) or _isd(src[j]) or src[j] == "."):
+                j += 1
+            role = "nu"
+        if j < 0 and (id0(c) or ((KW or LI) and c in "@!$~" and id0(nx))):
+            j = i + 1
+            while j < n and id1(src[j]):
+                j += 1
+            w = src[i:j]
+            lw = w.lower() if sp.get("ci") else w
+            role = "k" if lw in KW else "tb" if lw in TY else "nu" if lw in LI else "ca" if lw in FN else None
+            if role is None and sp.get("keys"):
+                t = skip_sp(j)
+                if at(t) == sp["keys"] and at(t + 1) != sp["keys"]:
+                    role = "tb"
+            if role is None and sp.get("attrs") and at(skip_sp(j)) == "=":
+                role = "ca"
+            if role is None and sp.get("calls", True) is not False and at(skip_sp(j)) == "(":
+                role = "ca"
+            if role is None and not id0(c):
+                j = i + 1
+        if j < 0:
+            j, role = i + 1, None
+        push(src[i:j], role)
+        i = j
+    return [tuple(t) for t in out]
+
+
+def highlight(src, el):
+    name = lang_of(el)
+    if name == "sql":
+        return hl_sql(src)
+    return [(src, None)] if name == "plain" else hl_generic(src, name)
+
+
 def code_lines(el):
     """code 요소 → 표시 줄 [{n: 줄 번호 글자, focus, gap(생략 줄), runs:[(글자, 역할)]}]
     start(시작 번호) · focus(강조 줄 번호) · show([[from,to],…] 구간만, 사이는 ⋮ 한 줄)"""
     src = str(el.get("text", ""))
-    toks = hl_python(src) if el.get("lang") == "python" else hl_sql(src)
+    toks = highlight(src, el)
     lines = [[]]
     for v, role in toks:
         for i, part in enumerate(v.split("\n")):
