@@ -55,6 +55,8 @@ def brief(r):
     out = {k: r.get(k) for k in ("deck", "id", "slide", "element", "text")}
     if r.get("region"):
         out["region"] = r["region"]
+    if r.get("attachments"):  # 첨부(클립보드 그림·파일) - 작업 공간 안 경로(out/attach/<덱>/…), 세션이 Read 로 본다
+        out["attachments"] = [{k: a.get(k) for k in ("path", "name", "type", "size")} for a in r["attachments"] if isinstance(a, dict)]
     return out
 
 

@@ -527,7 +527,7 @@
     memoInput(); $("#memo").classList.add("show"); placeMemo(); ta.focus();
   }
   function closeMemo() { S.memo = null; $("#memo").classList.remove("show"); if (S.drawing) { S.drawing = null; renderMarks(); } }
-  function memoInput() { if (S.memo && S.memo.key) keep(S.memo.key, $("#memoTa").value); const n = $("#memoTa").value.length; $("#memoCnt").textContent = `${n} / 2000`; $("#memoOk").disabled = !$("#memoTa").value.trim(); }
+  function memoInput() { if (S.memo && S.memo.key) keep(S.memo.key, $("#memoTa").value); const n = $("#memoTa").value.length; $("#memoCnt").textContent = `${n} / 2000`; $("#memoOk").disabled = !$("#memoTa").value.trim() && !(typeof ATT !== "undefined" && ATT.memo.length); }
   function placeMemo() {
     if (!S.memo) return;
     const m = $("#memo"), pane = $("#editPane").getBoundingClientRect(), st = $("#stage").getBoundingClientRect();
@@ -543,14 +543,62 @@
     m.style.left = x + "px"; m.style.top = y + "px";
   }
   async function memoOk() {
-    const t = $("#memoTa").value.trim(); if (!t || !S.memo) return;
-    const body = { action: "add", status: "draft", slide: slide().id, element: S.memo.element || null, text: t };
+    const t = $("#memoTa").value.trim(); if ((!t && !ATT.memo.length) || !S.memo) return;
+    const body = { action: "add", status: "draft", slide: slide().id, element: S.memo.element || null, text: t || "(첨부 참고)" };
     if (S.memo.region) body.region = S.memo.region;
+    if (ATT.memo.length) body.attachments = ATT.memo;
     const r = await api("POST", `/api/requests/${S.id}`, body);
     if (!r.ok) { toast("메모를 저장하지 못했습니다"); return; }
     if (S.memo.key) keep(S.memo.key, "");
+    ATT.memo = []; attRender("memo");
     S.reqs = r.data; S.drawing = null; closeMemo(); afterReqs();
     toast("메모를 남겼습니다 - 아래 바에서 한꺼번에 보내기");
+  }
+
+  // ---------------------------------------------------------------- 요청 첨부 - 클립보드 그림(Ctrl+V)·끌어다 놓기·📎. 올리면 out/attach/<덱>/ 에 저장되고 요청의 attachments 로 담긴다
+  const ATT = { memo: [], tab: [], busy: 0 };
+  const attIsImg = (a) => /^image\//.test(a.type || "");
+  function attRender(which) {
+    const box = $(which === "memo" ? "#memoAtt" : "#reqAtt"); if (!box) return;
+    box.innerHTML = ATT[which].map((a, i) => `<span class="a" title="${esc(a.name)} · ${Math.round((a.size || 0) / 1024)}KB">${attIsImg(a) ? `<img src="${esc(BASE + a.url)}" alt="">` : `<span>📄</span>`}<span class="n">${esc(a.name)}</span><button class="x" data-attx="${which}:${i}" title="빼기">✕</button></span>`).join("")
+      + (ATT.busy ? `<span class="a"><span class="spin"></span><span class="n">올리는 중…</span></span>` : "");
+    if (which === "memo") memoInput();
+  }
+  function attUpload(which, files) {
+    const list = [...files].filter((f) => f && f.size);
+    if (!list.length) return;
+    list.forEach((f) => {
+      const rd = new FileReader();
+      ATT.busy++; attRender(which);
+      rd.onload = async () => {
+        const data = String(rd.result).split(",")[1] || "";
+        const name = f.name && f.name !== "image.png" ? f.name : `clip-${new Date().toISOString().slice(11, 19).replace(/:/g, "")}.${(f.type.split("/")[1] || "png").replace("jpeg", "jpg")}`;
+        const r = await api("POST", `/api/attach/${S.id}`, { name, type: f.type, data });
+        ATT.busy--;
+        if (!r.ok) { toast("첨부하지 못했습니다: " + ((r.data && r.data.error) || r.status), 5000); attRender(which); return; }
+        ATT[which].push(r.data); attRender(which);
+      };
+      rd.onerror = () => { ATT.busy--; attRender(which); toast("파일을 읽지 못했습니다"); };
+      rd.readAsDataURL(f);
+    });
+  }
+  function attFromClipboard(which, e) {
+    const files = [];
+    for (const it of (e.clipboardData && e.clipboardData.items) || []) if (it.kind === "file") { const f = it.getAsFile(); if (f) files.push(f); }
+    if (!files.length) return false;
+    e.preventDefault(); attUpload(which, files); return true;
+  }
+  function attWire(el, which) {  // 붙여넣기·끌어다 놓기
+    if (!el || el.dataset.attWired) return; el.dataset.attWired = "1";
+    el.addEventListener("paste", (e) => attFromClipboard(which, e));
+    el.addEventListener("dragover", (e) => { if ([...e.dataTransfer.types].includes("Files")) { e.preventDefault(); el.classList.add("dropping"); } });
+    el.addEventListener("dragleave", () => el.classList.remove("dropping"));
+    el.addEventListener("drop", (e) => { if (e.dataTransfer.files.length) { e.preventDefault(); el.classList.remove("dropping"); attUpload(which, e.dataTransfer.files); } });
+  }
+  function attPick(which) { const f = $("#attFile"); f.onchange = () => { attUpload(which, f.files); f.value = ""; }; f.click(); }
+  function attListHtml(list) {  // 요청 목록의 축소판(읽기 전용) - 누르면 새 탭
+    if (!list || !list.length) return "";
+    return `<div class="att ro">${list.map((a) => `<a class="a" href="${esc(BASE + "/" + a.path)}" target="_blank" rel="noopener" title="${esc(a.name)}">${attIsImg(a) ? `<img src="${esc(BASE + "/" + a.path)}" alt="">` : "📄"}<span class="n">${esc(a.name)}</span></a>`).join("")}</div>`;
   }
   async function sendDrafts() {
     const n = S.reqs.filter((r) => r.status === "draft").length; if (!n) return;
@@ -1053,23 +1101,29 @@ ${names}
     R.innerHTML = `<div class="sec"><h3>Claude 에게 요청</h3>
       <div class="hint">◎ <b>선택</b> 모드에서 요소를 누르거나 ✐ <b>그리기</b> 모드에서 영역을 그려 메모를 단 뒤, 아래 바의 <b>보내기</b>로 한꺼번에 보낸다. 슬라이드 전체 요청은 여기에.</div>
       <textarea id="reqText" data-key="${esc(S.id + "/" + s.id)}" style="min-height:60px;font-family:var(--font);font-size:13px" placeholder="슬라이드 ${S.cur + 1} 전체에 대한 요청 - 예: 이 표를 두 장으로 나눠 줘 (Enter = 남기기, Shift+Enter = 줄바꿈)">${esc(typed(S.id + "/" + s.id))}</textarea>
-      <div class="row"><button class="chip sm primary" id="reqAdd">메모 남기기</button>${drafts ? `<button class="chip sm" id="reqSend">초안 ${drafts}개 보내기</button>` : ""}</div>
+      <div class="att" id="reqAtt"></div>
+      <div class="row"><button class="chip sm primary" id="reqAdd">메모 남기기</button><button class="ib att-btn" data-attach="tab" title="그림·파일 붙이기(클립보드 그림은 Ctrl+V, 끌어다 놓기도 됨)">📎</button>${drafts ? `<button class="chip sm" id="reqSend">초안 ${drafts}개 보내기</button>` : ""}</div>
       <div class="hint">${S.session && S.session.connected ? (S.session.kind === "web" ? (S.session.state === "running" ? `웹 세션이 처리 중(턴 ${S.session.turn || "?"}) - 새로 보낸 요청은 이 턴이 끝난 뒤 바로 처리된다` : "웹 세션 대기 중 - 보낸 요청은 바로 처리된다") : "세션 연결됨 - 보낸 요청은 바로 전달된다") : "세션 연결 없음 - 보낸 요청은 저장되고, 세션이 감시를 시작하면 전달된다"}</div></div>
       <div class="row"><span class="seg" id="reqFilter"><button data-v="1" class="${S.reqOnlySlide ? "on" : ""}">이 슬라이드</button><button data-v="0" class="${S.reqOnlySlide ? "" : "on"}">전체 (${S.reqs.length})</button></span></div>
       ${list.length ? list.slice().reverse().map((r) => `<div class="req ${r.status === "done" ? "done" : ""}" data-rid="${esc(r.id)}">
         <div class="meta"><span class="st ${esc(r.status || "open")}">${ST[r.status] || "대기"}</span>
           <a href="#" data-goto="${esc(r.slide)}" data-el="${esc(r.element || "")}">슬라이드 ${idx(r.slide) || "?"}${r.element ? " · " + esc(r.element) : ""}${r.region ? " · 영역" : ""}</a><span>${esc((r.created || "").replace("T", " "))}</span></div>
-        <div class="txt">${esc(r.text)}</div>${r.reply ? `<div class="reply"><b>Claude</b> ${esc(r.reply)}</div>` : ""}
+        <div class="txt">${esc(r.text)}</div>${attListHtml(r.attachments)}${r.reply ? `<div class="reply"><b>Claude</b> ${esc(r.reply)}</div>` : ""}
         <div class="acts">${r.status === "draft" ? "" : `<button class="chip sm" data-rs="${r.status === "done" ? "open" : "done"}">${r.status === "done" ? "다시 열기" : "완료로 표시"}</button>`}<button class="chip sm" data-rdel="1">삭제</button></div></div>`).join("") : `<div class="hint">요청이 없다.</div>`}`;
+    attRender("tab"); attWire($("#reqText"), "tab");
   }
   async function onReqClick(e) {
     const b = e.target.closest("button, a"); if (!b) return;
     if (b.id === "reqAdd") {
-      const t = $("#reqText").value.trim(); if (!t) return;
-      const r = await api("POST", `/api/requests/${S.id}`, { action: "add", status: "draft", slide: slide().id, element: null, text: t });
-      if (r.ok) { keep(S.id + "/" + slide().id, ""); S.reqs = r.data; afterReqs(); toast("메모를 남겼습니다 - 아래 바에서 보내기"); }
+      const t = $("#reqText").value.trim(); if (!t && !ATT.tab.length) return;
+      const body = { action: "add", status: "draft", slide: slide().id, element: null, text: t || "(첨부 참고)" };
+      if (ATT.tab.length) body.attachments = ATT.tab;
+      const r = await api("POST", `/api/requests/${S.id}`, body);
+      if (r.ok) { keep(S.id + "/" + slide().id, ""); ATT.tab = []; S.reqs = r.data; afterReqs(); toast("메모를 남겼습니다 - 아래 바에서 보내기"); }
       return;
     }
+    if (b.dataset.attach) { attPick(b.dataset.attach); return; }
+    if (b.dataset.attx) { const [w, i] = b.dataset.attx.split(":"); ATT[w].splice(+i, 1); attRender(w); return; }
     if (b.id === "reqSend") { await sendDrafts(); return; }
     if (b.closest("#reqFilter")) { S.reqOnlySlide = b.dataset.v === "1"; renderReqs(); return; }
     const card = b.closest(".req"); if (!card) return;
@@ -1847,6 +1901,11 @@ ${names}
     $("#ftb").addEventListener("click", onFtb); $("#ftb").addEventListener("change", onFtb);
     // 메모 팝오버 · 보낼 요청 바
     $("#memoTa").addEventListener("input", memoInput);
+    attWire($("#memoTa"), "memo"); attWire($("#memo"), "memo");
+    $("#memo").addEventListener("click", (e) => {
+      const b = e.target.closest("[data-attach],[data-attx]"); if (!b) return;
+      if (b.dataset.attach) attPick("memo"); else { const [w, i] = b.dataset.attx.split(":"); ATT[w].splice(+i, 1); attRender(w); }
+    });
     $("#memoTa").addEventListener("keydown", (e) => {
       e.stopPropagation();
       if (e.key === "Escape") { closeMemo(); select(null); }

@@ -232,6 +232,16 @@
   #memo .quick button:hover { background: var(--tone); }
   #memo .acts { display: flex; gap: 6px; justify-content: flex-end; align-items: center; }
   #memo .acts .mcnt { margin-right: auto; color: var(--ink2); font-size: 11px; }
+  /* 요청 첨부(클립보드 그림·파일) - 올린 파일의 축소판 칩. 메모 팝오버·요청 탭·요청 목록이 같이 쓴다 */
+  .att { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0; }
+  .att:empty { display: none; }
+  .att .a { position: relative; display: inline-flex; align-items: center; gap: 4px; max-width: 160px; border: 1px solid var(--line); border-radius: 8px; padding: 2px 4px; background: #fff; font-size: 11px; color: var(--ink2); }
+  .att .a img { width: 56px; height: 40px; object-fit: cover; border-radius: 5px; display: block; }
+  .att .a .n { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 92px; }
+  .att .a .x { border: 0; background: var(--tone2); border-radius: 50%; width: 16px; height: 16px; font-size: 10px; line-height: 16px; padding: 0; cursor: pointer; }
+  .att.ro .a { cursor: zoom-in; }
+  .dropping { outline: 2px dashed var(--p); outline-offset: -2px; }
+  .ib.att-btn { padding: 0 6px; }
   /* 보낼 요청 바 */
   #markbar { position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); z-index: 15; display: none; align-items: center; gap: 10px; background: var(--ink); color: #fff; border-radius: 999px; padding: 6px 8px 6px 16px; box-shadow: var(--sh2); }
   #markbar.show { display: flex; }
@@ -448,9 +458,11 @@
           <div id="stageWrap"><div id="stage"><div id="host"></div><div id="marks"></div><svg id="draw" viewBox="0 0 1280 720"></svg><div id="ov"></div></div></div>
         </div>
         <div id="memo"><div class="tt"><b id="memoTitle">요청</b><span id="memoTarget"></span></div>
-          <textarea id="memoTa" maxlength="2000" placeholder="무엇을 바꿀까요? (Enter = 추가, Shift+Enter = 줄바꿈)"></textarea>
+          <textarea id="memoTa" maxlength="2000" placeholder="무엇을 바꿀까요? (Enter = 추가, Shift+Enter = 줄바꿈 · 그림은 Ctrl+V 로 붙여 넣기)"></textarea>
+          <div class="att" id="memoAtt"></div>
           <div class="quick" id="memoQuick"></div>
-          <div class="acts"><span class="mcnt" id="memoCnt">0 / 2000</span><button class="chip sm" id="memoCancel">취소</button><button class="chip sm primary" id="memoOk" disabled>추가</button></div></div>
+          <div class="acts"><span class="mcnt" id="memoCnt">0 / 2000</span><button class="ib att-btn" data-attach="memo" title="그림·파일 붙이기(클립보드 그림은 Ctrl+V, 끌어다 놓기도 됨)">📎</button><button class="chip sm" id="memoCancel">취소</button><button class="chip sm primary" id="memoOk" disabled>추가</button></div></div>
+        <input type="file" id="attFile" multiple accept="image/*,.pdf,.txt,.md,.csv,.json,.pptx,.docx,.xlsx" style="display:none">
         <div id="markbar"><span id="markMsg">보낼 요청</span><button class="chip sm" id="markDiscard" title="이 슬라이드에 메모가 있으면 그 슬라이드만, 없으면 전체를 지운다">취소</button><button class="chip sm primary" id="markSend">보내기</button></div>
       </div>
       <div class="pane" id="pngPane"><div class="cap">PowerPoint 렌더 <span id="pngInfo"></span><button class="chip sm" id="renderBtn">다시 렌더</button></div>

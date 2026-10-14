@@ -16,7 +16,8 @@ API
   PUT  /api/deck/<id>?base=<ver>     덱 저장(원자적 쓰기, .history 백업 50개). base 가 현재와 다르면 409 (force=1 이면 무시)
   GET  /api/version/<id>             {"deck": ver, "requests": ver}
   GET  /api/requests/<id>            요청 메모 목록
-  POST /api/requests/<id>            {"action": "add"|"update"|"delete"|"send"|"discard", ...} — add 는 status draft(초안)·region(영역) 가능
+  POST /api/requests/<id>            {"action": "add"|"update"|"delete"|"send"|"discard", ...} — add 는 status draft(초안)·region(영역)·attachments 가능
+  POST /api/attach/<id>              요청 첨부 올리기 {name, type, data(base64)} → {path, name, type, size, url} — out/attach/<덱>/ (그림·PDF·글·오피스, 12MB)
   GET  /api/history/<id>             저장 전 자동 백업 목록 · ?f=<파일> 이면 그 시점 덱 JSON
   POST /api/export/<id>              PPTX 생성 → {"url": "/out/<id>.pptx"}
   GET  /api/render/<id>              마지막 PowerPoint 렌더 PNG 목록
@@ -1251,6 +1252,9 @@ class H(BaseHTTPRequestHandler):
                         "created": dt.datetime.now().isoformat(timespec="seconds")}
                 if isinstance(b.get("region"), dict):  # 그리기 모드 영역 {kind: rect|pen|pin, box:[x,y,w,h], points:[[x,y]…]}
                     item["region"] = b["region"]
+                att = self._valid_attachments(i, b.get("attachments"))
+                if att:
+                    item["attachments"] = att
                 items.append(item)
             elif act == "send":  # 초안(draft) → 대기(open) — "요청 N개 보내기"
                 for r in items:
@@ -1259,6 +1263,9 @@ class H(BaseHTTPRequestHandler):
             elif act == "discard":  # 초안 지우기(현재 슬라이드 또는 전체)
                 items = [r for r in items if not (r.get("status") == "draft" and (not b.get("slide") or r.get("slide") == b.get("slide")))]
             elif act == "delete":
+                for r in items:
+                    if r.get("id") == b.get("id"):
+                        self._drop_attachments(i, r)
                 items = [r for r in items if r.get("id") != b.get("id")]
             elif act == "update":
                 for r in items:
@@ -1266,10 +1273,75 @@ class H(BaseHTTPRequestHandler):
                         for k in ("status", "reply", "text"):
                             if k in b:
                                 r[k] = b[k]
+                        if "attachments" in b:
+                            r["attachments"] = self._valid_attachments(i, b.get("attachments"))
             else:
                 return self.err(400, "action = add|update|delete|send|discard")
             atomic_write(req_path(i), dumps(items))
         self.send_json(items)
+
+    # ---------- 요청 첨부(클립보드 그림·파일) - out/attach/<덱>/<id>.<확장자>, 편집기는 /out/attach/… 로 보고 세션은 작업 공간 안 경로로 Read ----------
+    ATTACH_TYPES = {"image/png": ".png", "image/jpeg": ".jpg", "image/gif": ".gif", "image/webp": ".webp", "image/svg+xml": ".svg", "application/pdf": ".pdf",
+                    "text/plain": ".txt", "text/markdown": ".md", "text/csv": ".csv", "application/json": ".json",
+                    "application/vnd.openxmlformats-officedocument.presentationml.presentation": ".pptx",
+                    "application/vnd.openxmlformats-officedocument.wordprocessingml.document": ".docx",
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": ".xlsx"}
+    ATTACH_MAX = 12 * 1024 * 1024
+
+    def _attach_dir(self, i):
+        return OUT / "attach" / i
+
+    def _valid_attachments(self, i, lst):
+        """클라이언트가 보낸 첨부 목록 중 실제로 올려진 파일만(경로는 out/attach/<덱>/ 아래) - 다른 경로는 버린다."""
+        out = []
+        base = self._attach_dir(i).resolve()
+        for a in (lst or [])[:10]:
+            if not isinstance(a, dict) or not a.get("path"):
+                continue
+            p = (WORKSPACE / str(a["path"])).resolve()
+            if base in p.parents and p.is_file():
+                out.append({"path": p.relative_to(WORKSPACE.resolve()).as_posix(), "name": str(a.get("name") or p.name)[:120],
+                            "type": str(a.get("type") or mimetypes.guess_type(str(p))[0] or "application/octet-stream")[:80], "size": p.stat().st_size})
+        return out
+
+    def _drop_attachments(self, i, r):
+        for a in r.get("attachments") or []:
+            try:
+                p = (WORKSPACE / str(a.get("path") or "")).resolve()
+                if self._attach_dir(i).resolve() in p.parents:
+                    p.unlink(missing_ok=True)
+            except OSError:
+                pass
+
+    def api_post_attach(self, i, q):
+        """{name, type, data(base64)} → 파일로 저장하고 {path, name, type, size, url} 을 돌려준다. 요청을 add 할 때 attachments 로 넘긴다."""
+        import base64
+        if HUB:
+            return self.err(404, "작업 공간 서버에서")
+        if not deck_path(i).exists():
+            return self.err(404, "덱 없음")
+        b = self.body_json() or {}
+        ctype = str(b.get("type") or "").split(";")[0].strip().lower()
+        name = str(b.get("name") or "")[:120]
+        ext = self.ATTACH_TYPES.get(ctype) or (Path(name).suffix.lower() if Path(name).suffix.lower() in self.ATTACH_TYPES.values() else None)
+        if not ext:
+            return self.err(400, f"지원하지 않는 형식: {ctype or name or '?'} (그림·PDF·글·pptx/docx/xlsx)")
+        try:
+            data = base64.b64decode(str(b.get("data") or ""), validate=True)
+        except (ValueError, TypeError):
+            return self.err(400, "data 는 base64")
+        if not data:
+            return self.err(400, "내용 없음")
+        if len(data) > self.ATTACH_MAX:
+            return self.err(413, f"너무 크다({len(data) // 1024 // 1024}MB > {self.ATTACH_MAX // 1024 // 1024}MB)")
+        d = self._attach_dir(i)
+        d.mkdir(parents=True, exist_ok=True)
+        fid = dt.datetime.now().strftime("%Y%m%d-%H%M%S-%f")[:22]
+        p = d / f"{fid}{ext}"
+        p.write_bytes(data)
+        rel = p.resolve().relative_to(WORKSPACE.resolve()).as_posix()
+        self._event = f"attach:{i}"
+        self.send_json({"ok": True, "path": rel, "name": name or p.name, "type": ctype or mimetypes.guess_type(str(p))[0], "size": len(data), "url": f"/out/attach/{i}/{p.name}"})
 
     # ---------- 기록(자동 백업) ----------
     def api_get_history(self, i, q):
