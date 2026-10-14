@@ -47,12 +47,44 @@ def effective(ws_cfg=None):
     if ws_cfg.get("sessionModel"):
         model, m_src = str(ws_cfg["sessionModel"]), "작업 공간"
     limits = {k: (ws_cfg.get(k) if ws_cfg.get(k) is not None else s.get(k, v)) for k, v in LIMITS.items()}
+    # 세션 단위로 고를 수 있는 권한 - 전역(관리자)이 켜야 하고, 작업 공간 설정에 false 로 두면 그 작업 공간에서는 꺼진다(켜는 것은 못 함)
+    grants = {g: bool(s.get(k)) and ws_cfg.get(k) is not False for g, k in GRANT_KEYS.items()}
     return {"agent": agent, "model": model, "sources": {"agent": a_src, "model": m_src}, "limits": limits,
-            "models": {n: get(n).models() for n in AGENTS},
-            "allowWeb": bool(s.get("sessionAllowWeb"))}  # 전역(관리자)이 켜야 세션 단위로 웹 검색을 고를 수 있다 - 작업 공간 설정으로는 못 켠다
+            "models": {n: get(n).models() for n in AGENTS}, "allowWeb": grants["web"], "grants": grants}
 
 
 WEB_TOOLS = ("WebFetch", "WebSearch")  # 세션 단위 웹 검색 허용 때만 열리는 도구(curl·wget·powershell 은 여전히 막는다)
+GRANT_KEYS = {"web": "sessionAllowWeb", "git": "sessionAllowGit", "push": "sessionAllowPush", "root": "sessionRepoRoot"}
+# git 기록 허용 - 로컬 기록만(조회는 원래 허용). push 허용은 외부 전송이라 따로
+GIT_ALLOW = ["Bash(git status*)", "Bash(git diff*)", "Bash(git log*)", "Bash(git show*)", "Bash(git rev-parse *)", "Bash(git add *)", "Bash(git commit *)",
+             "Bash(git switch *)", "Bash(git checkout *)", "Bash(git merge *)", "Bash(git branch*)", "Bash(git stash*)", "Bash(git tag*)"]
+PUSH_ALLOW = ["Bash(git push*)", "Bash(git pull*)", "Bash(git fetch*)"]
+# git 을 열어도 막는 것 - 이력 재작성·강제 push·원격/설정 변경·다른 경로 지정·작업 내용 버리기
+GIT_DENY = ["Bash(git push --force*)", "Bash(git push -f*)", "Bash(git push * --force*)", "Bash(git push * -f*)", "Bash(git push --mirror*)", "Bash(git push * --mirror*)",
+            "Bash(git push --delete*)", "Bash(git push * --delete*)", "Bash(git push * :*)", "Bash(git reset --hard*)", "Bash(git clean*)", "Bash(git config*)",
+            "Bash(git remote*)", "Bash(git filter-*)", "Bash(git rebase*)", "Bash(git -C *)", "Bash(git worktree*)", "Bash(git submodule*)", "Bash(git update-ref*)",
+            "Bash(git reflog*)", "Bash(git gc*)", "Bash(git restore*)", "Bash(git checkout -- *)", "Bash(git checkout .*)", "Bash(git stash drop*)", "Bash(git stash clear*)",
+            "Bash(git branch -D*)", "Bash(git branch * -D*)", "Bash(git tag -d*)", "Bash(git tag * -d*)"]
+
+
+def claude_path(p):
+    """권한 규칙의 절대 경로 표기 - `//d/Projects/x`(드라이브 문자 소문자, POSIX 구분자)."""
+    s = Path(p).resolve().as_posix()
+    if len(s) > 1 and s[1] == ":":
+        s = "/" + s[0].lower() + s[2:]
+    return "/" + s
+
+
+def git_grants(perms, grants, repo_root=None):
+    """git·push·저장소 루트 허용을 권한에 더한다(제자리). repo_root 는 작업 공간을 품은 저장소 루트(작업 공간 자신이면 None)."""
+    if "git" in grants or "push" in grants:
+        perms["allow"] += [x for x in GIT_ALLOW + (PUSH_ALLOW if "push" in grants else []) if x not in perms["allow"]]
+        perms["deny"] += [x for x in GIT_DENY if x not in perms["deny"]]
+    if "root" in grants and repo_root:
+        r = claude_path(repo_root)
+        perms["allow"] += [f"Read({r}/**)", f"Edit({r}/**)", f"Write({r}/**)"]
+        perms["deny"] += [f"Edit({r}/.git/**)", f"Write({r}/.git/**)"]  # 저장소 내부 파일은 git 명령으로만
+    return perms
 
 
 def web_settings(allow_web=False):

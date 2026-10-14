@@ -44,6 +44,7 @@
 | `check` | `{}` | 검사에서 뺄 것만 — `ignore`(규칙 id 목록), `ignoreSlides`(덱별 슬라이드 id). 기준값(최소 pt)은 템플릿 |
 | `endNextNote` | `""` | 문서 끝(EoD) "다음 순서" 칩 뒤에 붙일 설명(예: `"  (장 번호가 아니라 교육 순서)"`) |
 | `repo` | 없음 | 저장소형 작업 공간 표시(`init_workspace.py` 가 씀) — `root`(저장소 관리 기준 폴더, 보통 `..`). 시작 페이지가 저장소 루트를 보인다 |
+| `sessionAllowGit` · `sessionAllowPush` · `sessionRepoRoot` · `sessionAllowWeb` | 없음 | `false` 로 두면 이 작업 공간에서 웹 세션의 git 기록·push·저장소 루트 접근·웹 검색을 끈다(켜는 것은 사용자 설정 전역 스위치만 — [home.md](home.md) 사용자 설정). `nexa-slide.local.json` 에 두면 이 PC 만 |
 
 예 — 교재 저장소의 `ppt/` 를 작업 공간으로, 그림 경로는 저장소 루트 기준:
 

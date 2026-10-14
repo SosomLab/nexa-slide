@@ -83,6 +83,17 @@ grep -E '"result":"(deny|error)"' ~/.config/nexa-slide/hub/logs/access-$(date +%
 - 흔적: 접근 로그 `event=settings.sessionAllowWeb:on|off`(설정 변경)·`session.start:<에이전트>:<모델>:web`(허용 세션 시작), 세션 턴 로그(`out/.studio/sessions/<시작 시각>/turn-N.jsonl`)에 WebFetch 대상 URL·WebSearch 검색어가 그대로 남는다 — 점검 때 본다.
 - 수집 자료는 세션이 작업 공간 안 `research/<주제>.md` 에 정리하도록 프롬프트에 적혀 있다(덱 안 각주에 출처 URL).
 
+### 웹 세션의 git·push·저장소 루트 허용 — 보안 주의
+
+웹 검색과 같은 틀이다: 관리자가 "AI 세션 전역 기본"에서 **git 기록 허용 · push 허용 · 저장소 루트 접근**을 켠 뒤, 세션을 시작할 때마다 관리자가 체크해야 열린다(claude 만, 실행 중 세션은 다시 시작해야 바뀜). 작업 공간 설정에 같은 키를 `false` 로 두면 그 작업 공간은 끌 수 있다.
+
+- 열리는 것: git 기록 = `git add`·`commit`·`switch`/`checkout`·`merge`·`branch`·`stash`·`tag`(+`status`·`diff`·`log`·`show`) · push = `git push`·`pull`·`fetch` · 저장소 루트 = 작업 공간을 품은 저장소 루트 아래 Read/Edit/Write(`--add-dir`).
+- 켜도 막히는 것(권한 deny, 실제 실행으로 확인): 강제 push(`--force`·`-f`·`--mirror`·`--delete`·`:브랜치`) · `reset --hard` · `clean` · `rebase` · `filter-*` · `config` · `remote` · `git -C` · `worktree` · `submodule` · `restore`·`checkout -- …`(작업 내용 버리기) · `branch -D` · `tag -d` · `reflog`·`gc`, `.git/` 파일 직접 수정, 저장소 루트 밖 파일.
+- **자격 증명**: push 는 서버(작업 공간 서버) 프로세스를 띄운 이 PC 사용자의 git 자격 증명(Windows 자격 증명 관리자·ssh-agent)을 그대로 쓴다 — 허브·작업 공간 서버를 그 사용자로 띄운다. 대화형 로그인 창이 뜨지 않게 `GIT_TERMINAL_PROMPT=0`·`GCM_INTERACTIVE=never` 로 실행하므로 자격 증명이 없으면 push 는 실패하고 세션은 그 출력을 reply 에 적는다.
+- 커밋 작성자는 이 PC 의 `git config user.name/email`, 웹 사용자는 커밋 메시지 끝 `Requested-by: <아이디>` 트레일러로 남는다.
+- 흔적: 접근 로그 `event=settings.sessionAllowGit:on|off`…·`session.start:<에이전트>:<모델>:git:push:root`, 턴 로그(`out/.studio/sessions/<시작 시각>/turn-N.jsonl`)에 git 명령 원문.
+- 저장소 루트가 엔진 폴더면 열지 않는다. 작업 공간이 git 저장소 안이 아니면 git·저장소 루트 권한을 고를 수 없다.
+
 ## 4. 사용자·관리자 관리
 
 웹: 로그인 → 왼쪽 위 메뉴(☰) → "계정"(관리자는 "계정 · 사용자 관리") → `/account`. 누구나 **내 비밀번호 변경**, 관리자는 **사용자 관리**(추가·삭제·비밀번호 초기화·관리자 지정/해제).

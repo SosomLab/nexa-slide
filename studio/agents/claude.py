@@ -15,7 +15,7 @@ from .base import Agent, run
 
 TOOLS = "Read,Edit,Write,Glob,Grep,Bash"
 DISALLOW_OLD = "mcp__*,PowerShell,WebFetch,WebSearch"
-WANT_FLAGS = ("--restricted", "--permission-prompts", "--setting-sources", "--strict-mcp-config", "--max-budget-usd", "--tools", "--settings", "--resume")  # --max-turns 는 --help 에 없어도 있다
+WANT_FLAGS = ("--restricted", "--permission-prompts", "--setting-sources", "--strict-mcp-config", "--max-budget-usd", "--tools", "--settings", "--resume", "--add-dir")  # --max-turns 는 --help 에 없어도 있다
 
 
 class ClaudeAgent(Agent):
@@ -46,7 +46,7 @@ class ClaudeAgent(Agent):
         elif not out["flags"].get("--restricted"):
             out["hint"] = f"구 판({out['version']}) - --restricted 가 없어 --setting-sources project,local 로 대신한다. 2.1.248 이상을 권한다"
 
-    def turn_cmd(self, model, resume_id=None, settings_path=None, max_turns=None, budget_usd=None, flags=None, allow_web=False):
+    def turn_cmd(self, model, resume_id=None, settings_path=None, max_turns=None, budget_usd=None, flags=None, allow_web=False, add_dirs=None):
         flags = flags or {}
         tools = TOOLS + (",WebFetch,WebSearch" if allow_web else "")  # 웹 검색 허용 세션 - --settings 의 allow 와 함께
         disallow = ",".join(x for x in DISALLOW_OLD.split(",") if not (allow_web and x in ("WebFetch", "WebSearch")))
@@ -62,6 +62,8 @@ class ClaudeAgent(Agent):
             cmd += ["--settings", str(settings_path)]
         if flags.get("--strict-mcp-config", True):
             cmd += ["--strict-mcp-config"]
+        for d in add_dirs or []:  # 저장소 루트 허용 - 파일 도구가 그 폴더까지(--restricted 는 작업 디렉터리 + --add-dir 로 제한)
+            cmd += ["--add-dir", str(d)]
         if max_turns:  # --help 에 안 나오는 판이 있어 무조건 넣는다(오래된 옵션)
             cmd += ["--max-turns", str(int(max_turns))]
         if budget_usd and flags.get("--max-budget-usd", True):

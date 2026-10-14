@@ -88,6 +88,7 @@ python3 <작업 공간>/nexa.py start      # 작업 공간 서버 → 덱이 있
 
 계정(`users.json`)·세션·접근 로그도 이 폴더에 있다. 허브는 로컬이어도 로그인이 필요하다 — [auth.md](auth.md).
 | `sessionAllowWeb` | **웹 세션에 웹 검색 허용 스위치**(기본 꺼짐, 관리자만). 켜면 세션 시작 창에 "이 세션에 웹 검색 허용" 체크가 생기고(관리자만 체크 가능, claude 만) 그 세션의 권한에서 `WebSearch`·`WebFetch` 가 열린다 - 다른 외부 접근(curl·wget·powershell·mcp)은 여전히 막힌다. 보안 주의는 [server-admin.md](server-admin.md) |
+| `sessionAllowGit` · `sessionAllowPush` · `sessionRepoRoot` | **웹 세션 git·저장소 권한 스위치**(기본 꺼짐, 관리자만, claude 만). 켜면 세션 시작 창에 "이 세션에 git 기록 / push / 저장소 루트 접근 허용" 체크가 생긴다(관리자만 체크). git 기록 = `add`·`commit`·`branch`·`switch`/`checkout`·`merge`·`stash`·`tag`(+조회), push = `push`·`pull`·`fetch`(git 기록을 함께 켬), 저장소 루트 = 작업 공간을 품은 저장소 루트 아래 파일 읽기·쓰기(`--add-dir`, `.git/` 직접 수정 금지). 작업 공간 설정에 같은 키를 `false` 로 두면 그 작업 공간에서는 꺼진다(켜는 것은 전역만). 보안 주의는 [server-admin.md](server-admin.md) |
 | `recent` | 최근 작업 `[{path, title, opened}]` - 최대 30개 |
 | `samples` | 등록한 샘플 사이트 `[{name, url, note}]` |
 
