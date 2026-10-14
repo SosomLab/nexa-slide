@@ -50,6 +50,8 @@
   let toastT = 0;
   function toast(msg, ms = 2200) {
     const t = $("#toast"); t.textContent = msg; t.classList.add("show");
+    const mb = $("#markbar");  // "보낼 요청" 바가 떠 있으면 그 바로 위에(겹치지 않게), 아니면 기본 자리
+    t.style.bottom = mb && mb.classList.contains("show") ? `${Math.max(70, window.innerHeight - mb.getBoundingClientRect().top + 10)}px` : "";
     clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove("show"), ms);
   }
   const slide = () => (S.deck && S.deck.slides[S.cur]) || null;
