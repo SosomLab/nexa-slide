@@ -1009,7 +1009,7 @@ ${names}
     const P = $("#tab-props"), s = slide();
     if (!s) { P.innerHTML = ""; return; }
     const el = selEl();
-    const list = `<div class="sec"><h3>요소 (${s.elements.length}) - 가려진 요소도 여기서 선택</h3><div class="ellist">${s.elements.map((e) => `<div data-sel="${esc(e.id)}" class="${selIds().includes(e.id) ? "on" : ""}" title="Shift/Ctrl+클릭 = 여러 개 고르기">${esc(elLabel(e))}${e.locked ? " 🔒" : ""}</div>`).join("")}</div></div>`;
+    const list = `<div class="sec"><h3>요소 (${s.elements.length}) - 가려진 요소도 여기서 선택</h3><div class="ellist">${s.elements.map((e) => `<div data-sel="${esc(e.id)}" class="${selIds().includes(e.id) ? "on" : ""}" title="클릭 = 선택 · Ctrl+클릭 = 더하거나 빼기 · Shift+클릭 = 범위 선택">${esc(elLabel(e))}${e.locked ? " 🔒" : ""}</div>`).join("")}</div></div>`;
     if (!el) {
       P.innerHTML = `<div class="sec"><h3>슬라이드 ${S.cur + 1} · ${esc(s.id)} · 레이아웃 ${esc(s.layout || "-")}</h3>
         <div class="row"><label>배경</label><select class="colorSel" data-slide="bg">${colorOptions(s.bg || "surface")}</select></div>
@@ -1118,7 +1118,16 @@ ${names}
   function onPropClick(e) {
     const b = e.target.closest("button, [data-sel]"); if (!b) return;
     const el = selEl(), s = slide();
-    if (b.dataset.sel) { if (e.shiftKey || e.ctrlKey || e.metaKey) toggleSel(b.dataset.sel); else select(b.dataset.sel); return; }
+    if (b.dataset.sel) {  // 요소 목록: 클릭 = 선택(기준점) · Ctrl/⌘+클릭 = 더하거나 빼기 · Shift+클릭 = 기준점부터 이 요소까지 범위
+      const id = b.dataset.sel, order = s.elements.map((x) => x.id);
+      if (e.shiftKey && (S.selAnchor || S.sel) && order.includes(S.selAnchor || S.sel)) {
+        const a = order.indexOf(S.selAnchor || S.sel), c = order.indexOf(id), range = order.slice(Math.min(a, c), Math.max(a, c) + 1);
+        setSelection([S.selAnchor || S.sel, ...range.filter((x) => x !== (S.selAnchor || S.sel))]);
+      } else if (e.ctrlKey || e.metaKey) { toggleSel(id); if (!S.selAnchor) S.selAnchor = id; }
+      else { select(id); S.selAnchor = id; }
+      const row = $(`#tab-props [data-sel="${CSS.escape(id)}"]`); if (row && row.scrollIntoView) row.scrollIntoView({ block: "nearest" });
+      return;
+    }
     if (b.dataset.lineno && el) { const on = b.dataset.lineno === "1"; mutate((x) => { if (on) delete x.lineNo; else x.lineNo = false; }, (x) => x.type === "code"); return; }
     if (b.dataset.copy === "code" && el) { copyText(el.text || ""); return; }
     const sg = b.closest(".seg");
@@ -2087,7 +2096,8 @@ ${names}
     $("#zoomPct").onclick = () => setZoom(100); $("#zoomFit").onclick = () => setZoom(null);
     // 오른쪽 패널
     $$(".tabs .chip").forEach((b) => (b.onclick = () => switchTab(b.dataset.tab)));
-    const P = $("#tab-props"); P.addEventListener("change", onPropChange); P.addEventListener("search", (e) => { if (e.target.dataset.lang && !e.target.value) onPropChange(e); });  // ✕ 로 지우면 바로 반영 P.addEventListener("click", onPropClick);
+    const P = $("#tab-props"); P.addEventListener("change", onPropChange); P.addEventListener("search", (e) => { if (e.target.dataset.lang && !e.target.value) onPropChange(e); });  // ✕ 로 지우면 바로 반영
+    P.addEventListener("click", onPropClick);  // 속성 패널의 단추·요소 목록(주석 뒤에 묻혀 있어 눌러도 안 되던 회귀)
     $("#tab-reqs").addEventListener("click", onReqClick);
     $("#tab-reqs").addEventListener("input", (e) => { if (e.target.id === "reqText") keep(e.target.dataset.key, e.target.value); });
     $("#tab-reqs").addEventListener("keydown", (e) => { // 슬라이드 요청 칸도 메모 팝오버처럼: Enter = 메모 남기기(초안), Shift+Enter = 줄바꿈
