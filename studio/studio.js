@@ -497,9 +497,11 @@
           if (g.kind === "pin" && g.points) { const [x, y] = g.points[0]; svg += `<circle class="pin" cx="${x}" cy="${y}" r="${7 * inv}"></circle>`; bx = [x, y, 0, 0]; }
           else if (g.kind === "pen" && g.points) { svg += `<path class="${st}" d="M${g.points.map((p) => p.join(" ")).join(" L")}"></path>`; bx = regionBox(g); }
           else if (g.box) { svg += `<rect class="dr ${st}" x="${g.box[0]}" y="${g.box[1]}" width="${g.box[2]}" height="${g.box[3]}" rx="4"></rect>`; bx = g.box; }
-        } else if (r.element) {
-          const el = elById(r.element, s);
-          if (el) { const b = boxOf(el); bx = [b.x, b.y, b.w, b.h]; h += `<div class="mk ${st}" style="left:${b.x - 3}px;top:${b.y - 3}px;width:${b.w + 6}px;height:${b.h + 6}px;border-width:${2 * inv}px"></div>`; }
+        } else if (r.element || (r.elements && r.elements.length)) {
+          for (const id of (r.elements && r.elements.length ? r.elements : [r.element])) {  // 여러 요소면 모두 테두리, 번호는 첫 요소에
+            const el = elById(id, s);
+            if (el) { const b = boxOf(el); if (!bx) bx = [b.x, b.y, b.w, b.h]; h += `<div class="mk ${st}" style="left:${b.x - 3}px;top:${b.y - 3}px;width:${b.w + 6}px;height:${b.h + 6}px;border-width:${2 * inv}px"></div>`; }
+          }
         }
         if (!bx) bx = [16 + k * 30, 16, 0, 0];
         h += `<div class="mkn ${st}" title="${esc(r.text)}" style="left:${bx[0]}px;top:${bx[1]}px;transform:translate(-50%,-50%) scale(${inv})">${n}</div>`;
@@ -544,11 +546,14 @@
   };
   function openMemo(target) {
     S.memo = target;
-    target.key = target.region ? null : S.id + "/" + slide().id + (target.element ? "/" + target.element : "");
+    const many = (target.elements || []).filter((id) => elById(id));  // 여러 요소를 고른 채 - Shift/Ctrl+클릭·범위 선택
+    if (many.length > 1) { target.elements = many; target.element = many[0]; } else delete target.elements;
+    target.key = target.region ? null : S.id + "/" + slide().id + (target.elements ? "/" + target.elements.join("+") : target.element ? "/" + target.element : "");
     const el = target.element ? elById(target.element) : null;
     $("#memoTitle").textContent = target.region ? "영역 요청" : "요청";
-    $("#memoTarget").textContent = `슬라이드 ${S.cur + 1}` + (el ? ` · ${TYPE_KO[el.type] || el.type} ${el.id}` : target.region ? ` · ${{ rect: "박스", pen: "펜", pin: "핀" }[target.region.kind]}` : "");
-    const ta = $("#memoTa"); ta.value = target.key ? typed(target.key) : ""; ta.placeholder = target.region ? (target.region.kind === "pin" ? "이 지점에서 무엇을 바꿀까요?" : "이 영역에서 무엇을 바꿀까요?") : `이 ${el ? TYPE_KO[el.type] || "요소" : "슬라이드"}에서 무엇을 바꿀까요?`;
+    const label = (id) => { const x = elById(id); return x ? `${TYPE_KO[x.type] || x.type} ${x.id}` : id; };
+    $("#memoTarget").textContent = `슬라이드 ${S.cur + 1}` + (target.elements ? ` · 요소 ${target.elements.length}개 (${target.elements.map(label).join(", ")})` : el ? ` · ${label(el.id)}` : target.region ? ` · ${{ rect: "박스", pen: "펜", pin: "핀" }[target.region.kind]}` : "");
+    const ta = $("#memoTa"); ta.value = target.key ? typed(target.key) : ""; ta.placeholder = target.region ? (target.region.kind === "pin" ? "이 지점에서 무엇을 바꿀까요?" : "이 영역에서 무엇을 바꿀까요?") : target.elements ? `이 요소 ${target.elements.length}개에서 무엇을 바꿀까요?` : `이 ${el ? TYPE_KO[el.type] || "요소" : "슬라이드"}에서 무엇을 바꿀까요?`;
     let q = (target.region ? QUICK.region : (el && QUICK[el.type]) || []).slice();
     const issues = S.check ? S.check.issues.filter((x) => x.slide === slide().id && (!el || (x.elements || []).includes(el.id))) : [];
     if (issues.length) q.unshift("검사 결과 고치기");
@@ -575,6 +580,7 @@
     const t = $("#memoTa").value.trim(); if ((!t && !ATT.memo.length) || !S.memo) return;
     const body = { action: "add", status: "draft", slide: slide().id, element: S.memo.element || null, text: t || "(첨부 참고)" };
     if (S.memo.region) body.region = S.memo.region;
+    if (S.memo.elements) body.elements = S.memo.elements;  // 여러 요소 - 첫 요소는 element 에도(옛 세션·표시 호환)
     if (ATT.memo.length) body.attachments = ATT.memo;
     const r = await api("POST", `/api/requests/${S.id}`, body);
     if (!r.ok) { toast("메모를 저장하지 못했습니다"); return; }
@@ -734,7 +740,7 @@
       <button class="ib" data-f="del" title="삭제 (Delete)" ${lk ? "disabled" : ""}>🗑</button>
       <button class="ib${lk ? " on" : ""}" data-f="lock" title="잠금 - 끌기·삭제 막기">🔒</button>
       <button class="ib" data-f="pos" title="위치 조정 - 정렬·순서·크기·좌표">✥ ▾</button>
-      <span class="vsep"></span><button class="ib" data-f="memo" title="이 요소에 요청 메모(세션에 보냄)">💬</button>`;
+      <span class="vsep"></span><button class="ib" data-f="memo" title="${isMulti() ? `이 요소 ${selIds().length}개에 요청 메모(세션에 보냄)` : "이 요소에 요청 메모(세션에 보냄)"}">💬</button>`;
     if (isMulti()) h = `<span class="multi-n" title="Shift/Ctrl+클릭으로 더하거나 빼기 · 빈 곳을 끌어 범위 선택 · Esc 해제. 서식은 그 속성이 있는 요소에만 적용">${selIds().length}개 선택</span><span class="vsep"></span>` + h;
     F.innerHTML = h; F.classList.add("show");
   }
@@ -871,7 +877,7 @@
     if (f === "del") delEl();
     if (f === "lock") { const on = !el.locked; mutate((x) => { if (on) x.locked = true; else delete x.locked; }); }
     if (f === "pos") posMenu(t);
-    if (f === "memo") openMemo({ element: el.id });
+    if (f === "memo") openMemo({ element: el.id, elements: selIds() });
   }
 
   // ---------------------------------------------------------------- 오른쪽 클릭 메뉴
@@ -889,7 +895,7 @@
       { label: "앞으로 가져오기", key: "Ctrl+]", act: () => zorder("fwd") }, { label: "뒤로 보내기", key: "Ctrl+[", act: () => zorder("bwd") },
       { label: "맨 앞으로", key: "Alt+Ctrl+]", act: () => zorder("front") }, { label: "맨 뒤로", key: "Alt+Ctrl+[", act: () => zorder("back") }, "-",
       { label: "글자 편집", key: "Enter", act: () => startEdit(el) },
-      { label: "이 요소에 요청 메모", act: () => openMemo({ element: el.id }) },
+      { label: isMulti() ? `이 요소 ${selIds().length}개에 요청 메모` : "이 요소에 요청 메모", act: () => openMemo({ element: el.id, elements: selIds() }) },
     ]);
   }
 
@@ -1168,7 +1174,7 @@ ${names}
       ${list.length ? threadsOf(list).map((g) => `<div class="thread${g.length > 1 ? " multi" : ""}">${g.map((r, k) => {
         const last = k === g.length - 1;
         return `<div class="req ${r.status === "done" ? "done" : ""}${k ? " fu" : ""}" data-rid="${esc(r.id)}">
-        <div class="meta"><span class="st ${esc(r.status || "open")}">${ST[r.status] || "대기"}</span>${k ? `<span class="fu-tag">후속</span>` : `<a href="#" data-goto="${esc(r.slide)}" data-el="${esc(r.element || "")}">슬라이드 ${idx(r.slide) || "?"}${r.element ? " · " + esc(r.element) : ""}${r.region ? " · 영역" : ""}</a>`}<span>${esc((r.created || "").replace("T", " "))}</span></div>
+        <div class="meta"><span class="st ${esc(r.status || "open")}">${ST[r.status] || "대기"}</span>${k ? `<span class="fu-tag">후속</span>` : `<a href="#" data-goto="${esc(r.slide)}" data-el="${esc(r.element || "")}">슬라이드 ${idx(r.slide) || "?"}${r.elements && r.elements.length > 1 ? ` · ${esc(r.elements[0])} 외 ${r.elements.length - 1}` : r.element ? " · " + esc(r.element) : ""}${r.region ? " · 영역" : ""}</a>`}<span>${esc((r.created || "").replace("T", " "))}</span></div>
         <div class="txt">${esc(r.text)}</div>${attListHtml(r.attachments, r.id)}${r.reply ? `<div class="reply${r.status !== "done" ? " ask" : ""}"><b>${agentName()}</b> ${esc(r.reply)}</div>` : ""}
         <div class="acts">${r.status === "draft" ? "" : `<button class="chip sm" data-rs="${r.status === "done" ? "open" : "done"}" ${r.status === "done" ? 'title="같은 요청을 세션에 다시 보냅니다(답을 달려면 후속 요청)"' : ""}>${r.status === "done" ? "다시 열기" : "완료로 표시"}</button>`}${last && r.status !== "draft" ? `<button class="chip sm primary" data-fu="1" title="이 요청에 이어서 묻거나 답합니다 - 앞선 요청과 답이 함께 세션에 전달됩니다">후속 요청</button>` : ""}<button class="chip sm" data-rdel="1">삭제</button></div>
         ${last && S.fu === r.id ? fuFormHtml(r) : ""}</div>`;

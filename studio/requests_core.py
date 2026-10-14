@@ -46,7 +46,7 @@ def open_requests():
 
 def request_key(r):
     """보낸 내용의 지문 - 이것이 바뀌면 다시 보낸다."""
-    return hashlib.sha1(json.dumps([r.get("deck"), r.get("id"), r.get("text"), r.get("slide"), r.get("element")],
+    return hashlib.sha1(json.dumps([r.get("deck"), r.get("id"), r.get("text"), r.get("slide"), r.get("element"), r.get("elements")],
                                    ensure_ascii=False).encode("utf-8")).hexdigest()
 
 
@@ -76,6 +76,8 @@ def thread_context(r):
 def brief(r):
     """세션에 넘기는 요약 - deck·id·slide·element·text(·region·attachments). 후속 요청이면 parent·thread 와 앞선 대화 context."""
     out = {k: r.get(k) for k in ("deck", "id", "slide", "element", "text")}
+    if r.get("elements"):  # 여러 요소를 고른 메모 - 모두가 대상(element 는 첫 것)
+        out["elements"] = list(r["elements"])
     if r.get("thread"):
         out["parent"], out["thread"] = r.get("parent"), r["thread"]
         out["context"] = thread_context(r)
