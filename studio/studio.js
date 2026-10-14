@@ -179,7 +179,7 @@
     if (g.evidence) out.push("근거: " + JSON.stringify(g.evidence));
     return out.filter(Boolean).join(" · ");
   }
-  const orgBadge = (g) => `<span class="org ${esc(g.origin)}${g.confidence === "inferred" ? " inf" : ""}" title="${esc(orgTitle(g))}">${esc(ORG[g.origin] || g.origin)}${g.confidence === "inferred" ? " 추정" : ""}${isMine(g) ? " · 나" : ""}</span>`;
+  const orgBadge = (g) => `<span class="org o-${esc(g.origin)}${g.confidence === "inferred" ? " inf" : ""}" title="${esc(orgTitle(g))}">${esc(ORG[g.origin] || g.origin)}${g.confidence === "inferred" ? " 추정" : ""}${isMine(g) ? " · 나" : ""}</span>`;
   const chgSummary = (sum) => ["수정", "추가", "삭제", "이동"].filter((k) => sum && sum[k]).map((k) => `${sum[k]}장 ${k}`).join(" · ");
   const inFilter = (g, f) => f === "all" || (f === "mine" ? isMine(g) : f === "editor" ? (g.origin === "editor" && !isMine(g)) : g.origin === f);
   function rebuildMarks() {
