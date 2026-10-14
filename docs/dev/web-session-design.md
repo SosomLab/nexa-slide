@@ -224,6 +224,19 @@ B-1·B-2 는 기존 동작을 바꾸지 않는다. B-3 부터 새 기능. 각 �
 - B-6 보완(2026-10-14 저녁) `50992ef`: **웹 검색 허용** — 전역 `sessionAllowWeb`(관리자, `SESSION_KEYS`) + 세션 시작 때 세션 단위 `allowWeb`(허브 관리자 또는 작업 공간 서버 로컬 직접 접속만, claude 만, 엔진 세션 제외). `agents.web_settings(allow_web)` 이 deny 에서 `WebFetch`·`WebSearch` 만 빼고 allow 에, `claude.turn_cmd(allow_web)` 이 `--tools` 에 더함. 하트비트·registry·`wsession.json`·`info()` 에 `allowWeb`, 턴 프롬프트 `{web}`(출처 URL·`research/<주제>.md`·검색어에 내부 정보 금지). 결정: 자동으로 켜지 않는다(전역 켬 + 세션마다 체크), 실행 중 세션은 바뀌지 않는다(다시 시작).
 - 편집기 보완 `01f9231`: `/api/session` 이 세션이 없을 때 마지막 웹 세션의 종료 사유(`last.reason`·`stoppedAt`)를 주고 칩·요청 탭이 "서버 재시작으로 세션 종료됨(10/14 17:43)" 을 보인다. 요청 탭 제목은 세션 에이전트에 따라 Claude/Codex/AI.
 - 기동 잠금 `e677ff0`: `service.py start` 에 `out/.studio/start.lock`(FileLock), 서버는 bind 뒤 `server.json` 의 다른 살아 있는 서버를 보면 물러남 — 허브 중계 자동 기동과 `nexa.py restart` 의 경합.
+- 후속 요청 `148b8a7`(0.19.1): 완료된 요청에 사용자가 답할 길이 없던 문제(세션이 질문하며 `done`, "다시 열기"는 같은 text 를 다시 보낼 뿐). 요청에 `parent`·`thread`(뿌리 id)를 두고 대상은 물려받으며 원 요청은 그대로, `requests_core.brief()` 가 같은 thread 의 앞선 요청·답을 `context`(최근 6개·항목당 800자·첨부 경로)로 붙인다. `turn_prompt.md` 에 context 규칙과 "묻는 reply 면 done 금지", `WorkspaceProfile.reconcile` 이 질문으로 끝나는 reply 인데 `done` 이면 `warn` 이벤트(상태는 바꾸지 않음, `QUESTION_RX`). 결정: 선택지 자동 버튼은 두지 않는다(단순하게).
+
+### 14.1 진행 현황 (2026-10-14 밤)
+
+| 단계 | 상태 |
+|---|---|
+| B-1 ~ B-6 웹 세션(시작·턴·SSE·화면·문서) | 완료, 운영 중 |
+| 웹 검색 허용(`sessionAllowWeb`) | 완료(0.19.0). **운영 실제 시험 전** — 새 요청으로 관리자 설정 켬 → 시작 창 체크 → 진행 패널에서 WebSearch/WebFetch 확인 → `research/` 문서 |
+| 요청 첨부·미리보기(C-1) · 표시 언어(C-2) | 완료(0.19.0) |
+| 후속 요청(대화) | 완료(0.19.1). 운영에서 SQL 교재 s12 로 사용자 시험 예정 |
+| codex 어댑터 | 미확인(설치·로그인 환경 없음, `openai-codex.md` 5절) |
+
+운영(허브 5599·SQL 교재 5600)은 `cb9dac4` 로 재시작됨 — 재시작으로 웹 세션·엔진 개발 세션은 꺼졌고 필요할 때 다시 시작한다.
 
 ## 15. 검토 기록
 
