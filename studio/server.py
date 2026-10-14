@@ -1706,6 +1706,15 @@ def main():
         WS_ENGINE = wsession.WebSession(wsession.EngineProfile())
     srv = _bind(port, auto)
     port = srv.server_port
+    if not a.force:  # 포트를 연 사이 같은 작업 공간의 다른 서버가 먼저 server.json 을 썼으면 물러난다(작업 공간당 서버 하나)
+        try:
+            other = json.loads(SERVER_INFO.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            other = {}
+        from common import _serves_here
+        if other.get("port") and int(other["port"]) != port and _serves_here(other["port"]):
+            srv.server_close()
+            sys.exit(f"이 작업 공간의 서버가 방금 먼저 떴다: {other.get('url')} (pid {other.get('pid')}) — 그 서버를 쓴다")
     url = f"http://127.0.0.1:{port}/"
     STATE.mkdir(parents=True, exist_ok=True)
     atomic_write(SERVER_INFO, dumps({"port": port, "url": url, "pid": os.getpid(), "workspace": "" if HUB else str(WORKSPACE),
