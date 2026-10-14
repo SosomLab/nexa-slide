@@ -1,23 +1,28 @@
 {
-  "_about": "AI 세션의 권한 템플릿(한 벌). workspace = 작업 공간 .claude/settings.json 에 합쳐 두는 것(수동 Claude 세션용, init_workspace·update_launcher). web = 웹 세션(claude -p --restricted --settings …)에만 더하는 것. 규칙 평가는 deny → ask → allow 순(첫 일치). docs/dev/web-session-design.md 5절",
+  "_about": "AI 세션의 권한 템플릿(한 벌). workspace = 작업 공간 .claude/settings.json 에 합쳐 두는 것(수동 Claude 세션용 - 사람이 승인 창에서 판단할 수 있으므로 쓰기 범위만 이 폴더로 좁히고 파괴적 명령만 막는다). web = 웹 세션(claude -p --restricted --settings …)에만 더하는 것(답할 사람이 없으므로 넓게 막는다). retired = 예전 템플릿이 넣었다가 물린 항목 - 합칠 때 작업 공간 파일에서 뺀다. 규칙 평가는 deny → ask → allow 순(첫 일치). 경로 패턴은 cwd(작업 공간) 기준. docs/dev/web-session-design.md 5절",
   "workspace": {
     "permissions": {
       "allow": [
-        "Read", "Edit", "Write", "Glob", "Grep",
+        "Read(./**)", "Edit(./**)", "Write(./**)", "Glob", "Grep",
         "Bash(python3 nexa.py *)", "Bash(python nexa.py *)",
         "Bash(git status*)", "Bash(git diff*)", "Bash(git log*)"
       ],
       "deny": [
-        "PowerShell", "WebFetch", "WebSearch",
-        "Bash(rm *)", "Bash(del *)", "Bash(rmdir *)", "Bash(curl *)", "Bash(wget *)",
-        "Bash(powershell *)", "Bash(pwsh *)", "Bash(cmd *)"
+        "Bash(rm *)", "Bash(del *)", "Bash(rmdir *)"
       ]
     }
   },
   "web": {
     "permissions": {
-      "deny": ["mcp__*"],
+      "deny": [
+        "mcp__*", "PowerShell", "WebFetch", "WebSearch",
+        "Bash(curl *)", "Bash(wget *)", "Bash(powershell *)", "Bash(pwsh *)", "Bash(cmd *)"
+      ],
       "blockReadsOutsideWorkingDirectories": true
     }
+  },
+  "retired": {
+    "allow": ["Read", "Edit", "Write"],
+    "deny": ["PowerShell", "WebFetch", "WebSearch", "Bash(curl *)", "Bash(wget *)", "Bash(powershell *)", "Bash(pwsh *)", "Bash(cmd *)"]
   }
 }

@@ -449,16 +449,17 @@ PERMISSIONS_FILE = ENGINE / "studio" / "agents" / "permissions.json"  # AI 세�
 
 
 def permissions_template(which="workspace"):
-    """권한 템플릿의 permissions - which = "workspace"(작업 공간 settings.json 용) | "web"(웹 세션에 더하는 것)."""
+    """권한 템플릿 - which = "workspace"(작업 공간 settings.json 용 permissions) | "web"(웹 세션에 더하는 permissions) | "retired"(물린 항목)."""
     try:
-        return dict(json.loads(PERMISSIONS_FILE.read_text(encoding="utf-8"))[which]["permissions"])
+        d = json.loads(PERMISSIONS_FILE.read_text(encoding="utf-8"))[which]
+        return dict(d.get("permissions", d))
     except (OSError, ValueError, KeyError):
         return {}
 
 
 def ensure_claude_settings(ws, launcher="nexa.py"):
     """작업 공간 .claude/settings.json 에 hooks(활동 표시)와 permissions(쓰기 범위 = 이 폴더, nexa.py 명령만)를 둔다.
-    있는 파일은 합친다 - 없는 키만 더하고 사용자가 고친 값은 그대로(allow·deny 는 빠진 항목만 덧붙임). 바꿨으면 True."""
+    있는 파일은 합친다 - 없는 키만 더하고 사용자가 고친 값은 그대로(allow·deny 는 빠진 항목만 덧붙이고, 예전 템플릿이 넣었다가 물린 항목(retired)은 뺀다). 바꿨으면 True."""
     f = ws / ".claude" / "settings.json"
     try:
         cur = json.loads(f.read_text(encoding="utf-8")) if f.is_file() else {}
@@ -468,13 +469,14 @@ def ensure_claude_settings(ws, launcher="nexa.py"):
     new, changed = dict(cur), False
     if "hooks" not in new:
         new["hooks"], changed = session_hooks(launcher), True
-    want = permissions_template("workspace")
+    want, retired = permissions_template("workspace"), permissions_template("retired")
     perms = dict(new.get("permissions") or {}) if isinstance(new.get("permissions"), dict) else {}
     for key in ("allow", "deny"):
         have = list(perms.get(key) or [])
-        add = [x for x in want.get(key, []) if x not in have]
-        if add:
-            perms[key], changed = have + add, True
+        kept = [x for x in have if x not in retired.get(key, [])]
+        add = [x for x in want.get(key, []) if x not in kept]
+        if kept != have or add:
+            perms[key], changed = kept + add, True
     if changed:
         new["permissions"] = perms
         f.parent.mkdir(parents=True, exist_ok=True)

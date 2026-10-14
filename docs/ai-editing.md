@@ -108,8 +108,9 @@ Monitor 로 python3 "<작업 공간>/nexa.py" watch_requests --stream --takeover
 | 파랑 **세션 처리 중 n** | AI 가 요청 n건을 처리하는 중(`working`) |
 | 회색 **세션 연결 없음** | 감시가 없다 — 요청은 저장되고, 감시를 시작하면 전달된다 |
 
-새 작업 공간의 `.claude/settings.json` 에는 **권한**(`permissions` — 쓰기 범위는 이 폴더, 셸 명령은 `python3 nexa.py …` 만 허용, PowerShell·WebFetch·삭제 명령 거절 — 엔진 `studio/agents/permissions.json` 한 벌)도 들어 있다.
-예전 작업 공간은 `python3 <작업 공간>/nexa.py update_launcher` 가 없는 키만 더한다(사용자가 고친 값은 그대로).
+새 작업 공간의 `.claude/settings.json` 에는 **권한**(`permissions` — 읽기·편집·쓰기는 이 폴더 안(`./**`), 셸 명령은 `python3 nexa.py …` 와 git 조회만 묻지 않고 허용, 삭제 명령(rm·del·rmdir)은 거절 — 엔진 `studio/agents/permissions.json` 의 `workspace` 묶음)도 들어 있다.
+그 밖(작업 공간 밖 편집·다른 명령·웹 검색)은 평소처럼 승인 창에서 사람이 판단한다. 웹 세션(답할 사람이 없음)에는 `web` 묶음이 더해져 더 넓게 막는다.
+예전 작업 공간은 `python3 <작업 공간>/nexa.py update_launcher` 가 없는 키만 더하고 물린 항목만 뺀다(사용자가 고친 값은 그대로).
 Claude Code 를 쓰면 칩에 **세션 활동**도 보인다 — 새 작업 공간의 `.claude/settings.json` 훅(`UserPromptSubmit`·`PreToolUse`·`PostToolUse(Monitor)`·`Stop`)이
 `python3 nexa.py session_hook` 을 불러 `out/.studio/activity.json` 에 세션별 상태를 남긴다(엔진 `studio/session_hook.py`, 빨리 끝나고 실패해도 세션을 막지 않는다).
 

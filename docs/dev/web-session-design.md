@@ -91,15 +91,16 @@
 
 "서비스에서 폴더를 지정해 작업 공간을 만들면 그 폴더가 세션의 쓰기 범위"가 되게 `init_workspace.py`(새로 만들 때)와 `update_launcher.py`(예전 작업 공간)가 권한 파일을 둔다. **이미 있는 파일은 합치고 덮어쓰지 않는다**(`hooks` 를 둔 지금 방식과 같음).
 
-권한 템플릿은 엔진에 한 벌(`studio/agents/permissions.json`)만 두고, 두 곳에 쓴다 — ① 작업 공간 `.claude/settings.json` 의 `permissions`(수동 세션용, `hooks` 에 더함 — 템플릿의 `workspace`) ② 웹 세션 실행 때 `--settings` 로 넘기는 JSON(`workspace` + `web` 을 합친 것 — `mcp__*` deny 와 `blockReadsOutsideWorkingDirectories` 는 웹에만: 수동 세션에서는 사람이 있고 엔진 `docs/` 를 읽을 수 있어야 한다):
+권한 템플릿은 엔진에 한 벌(`studio/agents/permissions.json`)만 두고, 두 곳에 쓴다 — ① 작업 공간 `.claude/settings.json` 의 `permissions`(수동 세션용, `hooks` 에 더함 — 템플릿의 `workspace`) ② 웹 세션 실행 때 `--settings` 로 넘기는 JSON(`workspace` + `web` 을 합친 것).
+수동 세션은 **사람이 승인 창에서 판단**하므로 쓰기 범위만 이 폴더(`./**`)로 좁히고 파괴적 명령만 막는다(deny 는 로컬 설정으로 풀 수 없으니 넓게 두면 자료 조사·PowerShell 까지 막힌다). 웹 세션은 답할 사람이 없으므로 `web` 묶음으로 넓게 막는다. 예전 템플릿이 넣었다가 물린 항목은 `retired` 로 적어 두어 합칠 때 작업 공간 파일에서 뺀다.
 ```json
-"permissions": {
-  "allow": ["Read", "Edit", "Write", "Glob", "Grep",
+"workspace": {"permissions": {
+  "allow": ["Read(./**)", "Edit(./**)", "Write(./**)", "Glob", "Grep",
             "Bash(python3 nexa.py *)", "Bash(python nexa.py *)", "Bash(git status*)", "Bash(git diff*)", "Bash(git log*)"],
-  "deny":  ["PowerShell", "WebFetch", "WebSearch", "mcp__*",
-            "Bash(rm *)", "Bash(del *)", "Bash(curl *)", "Bash(powershell *)", "Bash(pwsh *)", "Bash(cmd *)"],
-  "blockReadsOutsideWorkingDirectories": true
-}
+  "deny":  ["Bash(rm *)", "Bash(del *)", "Bash(rmdir *)"]}},
+"web": {"permissions": {
+  "deny":  ["mcp__*", "PowerShell", "WebFetch", "WebSearch", "Bash(curl *)", "Bash(wget *)", "Bash(powershell *)", "Bash(pwsh *)", "Bash(cmd *)"],
+  "blockReadsOutsideWorkingDirectories": true}}
 ```
 - 규칙 평가는 **deny → ask → allow 순, 첫 일치가 결정**(출처와 무관) — deny 가 늘 이긴다. 작업 공간 밖 읽기는 `blockReadsOutsideWorkingDirectories`(경로 패턴 `Read(../**)` 보다 확실), 밖 쓰기는 `--restricted` 가 작업 디렉터리로 묶는다.
 - 권한 모드는 **`dontAsk`**(승인을 물을 일은 모두 거절 — allow 목록과 작업 디렉터리 안 읽기만 실행) + `--permission-prompts none`. 편집은 allow 의 Edit/Write 로 충분하다. `acceptEdits` 는 쓰지 않는다(답할 사람이 없는 세션에서 "물음"이 남는 모드).
