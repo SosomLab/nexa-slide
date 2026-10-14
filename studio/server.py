@@ -76,6 +76,7 @@ STUDIO = Path(__file__).resolve().parent
 sys.path.insert(0, str(STUDIO))
 from common import ASSET_ROOT, BRAND, CONFIG, DECKS, DEFAULT_PORT, HUB, OUT, REFUSED, SERVER_INFO, STATE, TEMPLATE, WORKSPACE, fonts_dir, list_templates, read_config, resolve_tokens, running_server, safe_id  # noqa: E402
 from watch_requests import session_status  # noqa: E402
+import auth  # noqa: E402
 import ledger  # noqa: E402
 import hub  # noqa: E402
 sys.path.insert(0, str(STUDIO.parent / "docs" / "research" / "review"))
@@ -339,13 +340,26 @@ def render_list(i):
     return [f"/out/{i}/{f.name}?v={f.stat().st_mtime_ns}" for f in files]
 
 
+MUTATING = {"POST", "PUT", "DELETE", "PATCH"}
+AUTH_FREE = {"/login", "/setup", "/api/auth/state", "/api/auth/login", "/api/auth/setup"}  # 허브에서 로그인 없이 닿는 전부(페이지는 CSS·JS 내장)
+POLL = ("/api/version/", "/api/session")
+
+
 class H(BaseHTTPRequestHandler):
     server_version = "nexa-slide/0.2"
+    # 요청마다 - 인증 결과·로그용
+    user = role = None
+    via_hub = False      # 허브 중계를 거쳐 왔다(X-Nexa-Hub-Key 확인됨) - 작업 공간 서버에서
+    _status = _err = _event = None
 
     def log_message(self, fmt, *args):
-        if any(k in (self.path or "") for k in ("/api/version/", "/api/session")):
+        if any(k in (self.path or "") for k in POLL):
             return  # 2초 폴링은 기록하지 않는다
         sys.stderr.write("%s %s\n" % (self.log_date_time_string(), fmt % args))
+
+    def send_response(self, code, message=None):
+        self._status = code
+        super().send_response(code, message)
 
     # ---------- 응답 도우미 ----------
     def send_json(self, obj, status=200, headers=None):
@@ -360,6 +374,8 @@ class H(BaseHTTPRequestHandler):
         self.wfile.write(b)
 
     def err(self, status, msg):
+        if status >= 400:
+            self._err = msg
         self.send_json({"ok": False, "error": msg}, status)
 
     def body_json(self):
@@ -367,8 +383,125 @@ class H(BaseHTTPRequestHandler):
         raw = self.rfile.read(n) if n else b""
         return json.loads(raw.decode("utf-8") or "null")
 
-    # ---------- 라우팅 ----------
+    # ---------- 인증 · 접근 로그 (요청 하나의 바깥 틀) ----------
     def route(self, method):
+        """Host 검사 → (허브) 로그인·Origin 검사 → 라우팅. 어떻게 끝나든 접근 로그 한 줄."""
+        t0 = time.monotonic()
+        self.user = self.role = None
+        self.via_hub = False
+        self._status = self._err = self._event = None
+        try:
+            self.dispatch(method)
+        except Exception as e:  # noqa: BLE001 - 라우팅 밖에서 난 예외(핸들러 안의 예외는 _route 가 500 으로 답한다)
+            self._err = f"{type(e).__name__}: {e}"
+            try:
+                self.err(500, self._err)
+            except Exception:  # noqa: BLE001 - 이미 응답을 보냈거나 연결이 끊김
+                pass
+        finally:
+            self.access_log(method, t0)
+
+    def dispatch(self, method):
+        path = urlparse(self.path).path
+        if not self.host_ok():  # DNS 리바인딩 - 루프백·publicHosts·Cloudflare 경유가 아닌 Host 는 거절
+            return self.err(400, "허용되지 않은 Host")
+        key = self.headers.get("X-Nexa-Hub-Key")
+        if key is not None:
+            if HUB or not auth.key_ok(key):  # 허브는 이 헤더를 받지 않는다(밖에서 위조한 것) · 작업 공간 서버는 비밀이 맞아야
+                return self.err(403, "hub key")
+            self.via_hub = True
+            self.user = self.headers.get("X-Nexa-User") or None
+            self.role = self.headers.get("X-Nexa-Role") or None
+        if HUB:
+            if not self.authenticate(method, path):
+                return
+        elif not self.via_hub and method in MUTATING and not self.origin_ok(strict=False):
+            # 작업 공간 서버 로컬 직접 접속 - 로그인은 없지만 다른 사이트에서 보낸 상태 변경(CSRF)은 막는다. CLI(Origin 없음)는 그대로
+            return self.err(403, "다른 출처의 요청")
+        self._route(method)
+
+    def authenticate(self, method, path):
+        """허브: 로컬이어도 모든 요청에 로그인이 필요하다(터널이 127.0.0.1 로 들어와 안팎을 가를 수 없다). 예외는 AUTH_FREE 만."""
+        if path in AUTH_FREE:
+            if method in MUTATING and not self.origin_ok(strict=True):
+                self.err(403, "다른 출처의 요청")
+                return False
+            return True
+        sess = auth.get_session(auth.parse_cookies(self.headers.get("Cookie")).get(auth.COOKIE))
+        rec = auth.user_rec(sess["user"]) if sess else None
+        if not rec:  # 세션 없음·만료·사용자가 지워짐
+            self.deny_login(method, path)
+            return False
+        if method in MUTATING and not self.origin_ok(strict=True):
+            self.err(403, "다른 출처의 요청")
+            return False
+        self.user, self.role = sess["user"], rec.get("role", "user")
+        return True
+
+    def deny_login(self, method, path):
+        """미인증 - API·중계 API·JSON 요청은 401, 페이지(GET)는 로그인으로 302. 본문에 내용은 없다."""
+        self._err = "login"
+        wants_json = re.match(r"^(/w/[^/]+)?/api/", path) or "application/json" in (self.headers.get("Accept") or "") or self.headers.get("X-Nexa-Tab")
+        if method == "GET" and not wants_json and (path.endswith("/") or path.endswith(".html") or "." not in path.rsplit("/", 1)[-1]):
+            self.send_response(302)  # 관리자가 아직 없으면 어떤 경로로 들어와도 최초 설정으로
+            self.send_header("Location", "/setup" if not auth.has_users() else "/login?next=" + quote(self.path, safe=""))
+            self.send_header("Cache-Control", "no-store")
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+            return
+        self.send_json({"ok": False, "error": "login", "login": "/login"}, 401)
+
+    def host_ok(self):
+        host = (self.headers.get("Host") or "").strip().lower()
+        name = host[:host.rfind(":")] if host.count(":") == 1 or host.startswith("[") and "]:" in host else host
+        if name in ("127.0.0.1", "localhost", "[::1]", "::1"):
+            return True
+        if self.headers.get("Cf-Ray"):  # Cloudflare 터널을 거쳐 왔다 - 브라우저(리바인딩 공격)는 이 헤더를 붙일 수 없다
+            return True
+        allow = {str(h).strip().lower() for h in (auth.setting("publicHosts", []) or [])}
+        return host in allow or name in allow
+
+    def origin_ok(self, strict):
+        """상태 변경 요청의 출처 - Origin(없으면 Referer)의 호스트가 Host 와 같아야. strict(허브)면 둘 다 없는 요청도 거절한다."""
+        src = self.headers.get("Origin") or ""
+        if not src or src == "null":
+            src = self.headers.get("Referer") or ""
+        if not src:
+            return not strict
+        return urlparse(src).netloc.lower() == (self.headers.get("Host") or "").strip().lower()
+
+    def is_secure(self):
+        return (self.headers.get("X-Forwarded-Proto") or "").lower() == "https" or '"https"' in (self.headers.get("Cf-Visitor") or "")
+
+    def client_ip(self):
+        if HUB or self.via_hub:
+            cf = self.headers.get("Cf-Connecting-IP")
+            if cf:
+                return cf
+        return self.client_address[0] if self.client_address else ""
+
+    def access_log(self, method, t0):
+        u = urlparse(self.path or "")
+        st = self._status or 0
+        result = "deny" if st in (401, 403) or (st == 400 and self._err == "허용되지 않은 Host") else "error" if st >= 400 or not st else "allow"
+        static = not re.match(r"^(/w/[^/]+)?/api/", u.path) or any(k in u.path for k in POLL)
+        if result == "allow" and static and not self._event and not auth.setting("accessLogStatic", False):
+            return  # 정적 파일·2초 폴링의 승인 줄은 설정으로만(부피)
+        m = re.match(r"^/w/([^/]+)", u.path)
+        rec = {"t": dt.datetime.now().astimezone().isoformat(timespec="milliseconds"), "result": result, "status": st, "method": method,
+               "path": u.path, "user": self.user, "ip": self.client_ip(), "via": "cloudflare" if self.headers.get("Cf-Ray") else "hub" if self.via_hub else "local",
+               "ua": (self.headers.get("User-Agent") or "")[:160], "ms": int((time.monotonic() - t0) * 1000),
+               "server": "hub" if HUB else WORKSPACE.name}
+        if m:
+            rec["ws"] = unquote(m.group(1))
+        if self._err:
+            rec["error"] = str(self._err)[:200]
+        if self._event:
+            rec["event"] = self._event
+        auth.log_access(rec)
+
+    # ---------- 라우팅 ----------
+    def _route(self, method):
         u = urlparse(self.path)
         m = re.match(r"^/w/([^/]+)(/.*)?$", u.path)
         if m:  # 중계 - /w/<id>/… 를 그 작업 공간 서버로
@@ -390,6 +523,8 @@ class H(BaseHTTPRequestHandler):
         if not parts or parts[0] != "api":
             if method == "GET" or method == "HEAD":
                 return self.static(u.path, head=method == "HEAD")
+            return self.err(405, "method")
+        if method not in ("GET", "HEAD", "POST", "PUT"):
             return self.err(405, "method")
         name = parts[1] if len(parts) > 1 else ""
         arg = parts[2] if len(parts) > 2 else None
@@ -419,12 +554,17 @@ class H(BaseHTTPRequestHandler):
             ws, port = proxy_target(wid)
         except hub.HubError as e:
             return self.send_json({"ok": False, "error": str(e), **e.extra}, 404)
-        if not HUB and ws == WORKSPACE:  # 자기 작업 공간 - 중계하지 않고 접두만 뗀다
+        if not HUB and ws == WORKSPACE:  # 자기 작업 공간 - 중계하지 않고 접두만 뗀다(인증·로그는 이미 바깥 틀에서)
             self.path, self.rfile = path, io.BytesIO(body)
-            return self.route(method)
-        hdrs = {k: v for k, v in self.headers.items() if k.lower() not in HOP_HEADERS}
+            return self._route(method)
+        # 밖에서 들어온 X-Nexa-* 는 버리고(위조 방지) 허브가 확인한 사용자와 공유 비밀을 붙인다 - 작업 공간 서버는 비밀이 맞을 때만 사용자를 믿는다
+        hdrs = {k: v for k, v in self.headers.items() if k.lower() not in HOP_HEADERS and not k.lower().startswith("x-nexa-") or k.lower() == "x-nexa-tab"}
         hdrs["X-Forwarded-Prefix"] = prefix
         hdrs["X-Forwarded-Host"] = self.headers.get("Host", "")
+        hdrs["X-Nexa-Hub-Key"] = auth.hub_key()
+        if self.user:
+            hdrs["X-Nexa-User"] = self.user
+            hdrs["X-Nexa-Role"] = self.role or "user"
         resp = data = None
         for attempt in (1, 2):
             conn = http.client.HTTPConnection("127.0.0.1", port, timeout=600)  # PPTX 내보내기·PowerPoint 렌더는 오래 걸릴 수 있다
@@ -455,6 +595,16 @@ class H(BaseHTTPRequestHandler):
         self.end_headers()
         if method != "HEAD" and data:
             self.wfile.write(data)
+
+    def do_OPTIONS(self):
+        self.route("OPTIONS")
+
+    def do_DELETE(self):  # 쓰지 않는 메서드도 인증 틀·접근 로그를 거쳐 405 로(기본 501 은 로그에 남지 않는다)
+        self.route("DELETE")
+
+    def do_PATCH(self):
+        self.route("PATCH")
+
     def do_GET(self):
         self.route("GET")
 
@@ -474,6 +624,22 @@ class H(BaseHTTPRequestHandler):
             self.send_header("Location", "/studio/" if has_decks() else "/studio/home.html")
             self.end_headers()
             return
+        if path in ("/login", "/setup", "/account"):  # 인증 페이지(CSS·JS 내장 - 다른 정적 파일 없이 뜬다). 허브에서만 뜻이 있다
+            if not HUB:
+                return self.err(404, "작업 공간 서버에는 로그인이 없다 - 허브(시작 페이지)에서")
+            if path == "/setup" and auth.has_users():  # 관리자가 있으면 최초 설정은 다시 쓸 수 없다
+                self.send_response(302)
+                self.send_header("Location", "/login")
+                self.send_header("Content-Length", "0")
+                self.end_headers()
+                return
+            if path != "/setup" and not auth.has_users():
+                self.send_response(302)
+                self.send_header("Location", "/setup")
+                self.send_header("Content-Length", "0")
+                self.end_headers()
+                return
+            path = "/studio/" + ("account.html" if path == "/account" else "auth.html")
         rel = unquote(path).lstrip("/")
         parts = Path(rel).parts
         if any(p.startswith(".") for p in parts):
@@ -561,6 +727,8 @@ class H(BaseHTTPRequestHandler):
             return self.err(400, "action = save | restore")
         actor = {"label": (q.get("label") or [""])[0][:80], "tab": (self.headers.get("X-Nexa-Tab") or None),
                  "request": (q.get("request") or [None])[0], "note": ((q.get("note") or [""])[0][:200] or None)}
+        if self.user:  # 허브 로그인 사용자(중계로 들어온 저장) - 원장에 누가 저장했는지
+            actor["user"] = self.user
         with WRITE_LOCK:
             p = deck_path(i)
             track(i)
@@ -654,15 +822,108 @@ class H(BaseHTTPRequestHandler):
         self.send_json(check_layout.check_deck(i))
 
     # ---------- 작업 공간·세션 ----------
+    def me(self):
+        return {"id": self.user, "role": self.role} if self.user else None
+
     def api_get_config(self, _, q):
         if HUB:
             return self.send_json({"mode": "hub", "workspace": "", "path": "", "port": self.server.server_port, "title": "nexa-slide",
-                                   "template": None, "brand": {}, "refused": str(REFUSED) if REFUSED else None})
+                                   "template": None, "brand": {}, "refused": str(REFUSED) if REFUSED else None, "user": self.me()})
         from layouts import LOGO, LOGO_RATIO, WORDMARK
         self.send_json({"mode": "workspace", "workspace": WORKSPACE.name, "path": str(WORKSPACE), "port": self.server.server_port,
                         "template": {"name": TEMPLATE["name"], "label": TEMPLATE.get("label", TEMPLATE["name"])},
-                        "title": CONFIG.get("title", WORKSPACE.name),
+                        "title": CONFIG.get("title", WORKSPACE.name), "user": self.me(),
                         "brand": {**BRAND, "logo": LOGO, "wordmark": WORDMARK, "logoRatio": LOGO_RATIO}})
+
+    # ---------- 인증(허브) - auth.py ----------
+    def set_cookie(self, tok):
+        return {"Set-Cookie": auth.cookie_header(tok, self.is_secure())}
+
+    def api_get_auth(self, what, q):
+        if not HUB:
+            return self.err(404, "작업 공간 서버에는 로그인이 없다")
+        if what == "state":  # 로그인 페이지용 - 관리자가 있는지만. mode 는 service.py·status.py 의 생존 확인용(common._serves_here)
+            return self.send_json({"ok": True, "mode": "hub", "setup": not auth.has_users(), "user": self.me()})
+        if what == "me":
+            return self.send_json({"ok": True, "user": {**self.me(), "mustChange": bool((auth.user_rec(self.user) or {}).get("mustChange"))}})
+        if what == "users":
+            if self.role != "admin":
+                return self.err(403, "관리자만")
+            return self.send_json({"ok": True, "users": [auth.public(u, r) for u, r in sorted(auth.load_users().items())]})
+        return self.err(404, "없는 API")
+
+    def api_post_auth(self, what, q):
+        if not HUB:
+            return self.err(404, "작업 공간 서버에는 로그인이 없다")
+        b = self.body_json() or {}
+        uid, pw = str(b.get("id") or "").strip(), b.get("password") or ""
+        ip = self.client_ip()
+        if what == "setup":  # 최초 관리자 - 사용자가 하나도 없을 때만
+            if auth.has_users():
+                self._event = "setup.denied"
+                return self.err(403, "이미 관리자가 있다 - 로그인으로")
+            try:
+                auth.add_user(uid, pw, "admin")
+            except ValueError as e:
+                return self.err(400, str(e))
+            self.user, self.role, self._event = uid, "admin", "setup"
+            return self.send_json({"ok": True, "user": self.me()}, headers=self.set_cookie(auth.new_session(uid, self.headers.get("User-Agent"))))
+        if what == "login":
+            # 잠금 키: 클라이언트 주소는 늘, 아이디는 밖(Cloudflare 경유)에서 온 로그인만 - 밖에서 비밀번호를 5번 틀려 관리자를 잠가 두는 일을 막고,
+            # 같은 PC(로컬)에서는 아이디 잠금 없이 들어갈 수 있게 한다(ip 잠금은 그대로)
+            keys = (f"u:{uid}", f"ip:{ip}") if self.headers.get("Cf-Ray") else (f"ip:{ip}",)
+            left = max(auth.locked_for(k) for k in keys)
+            if left:
+                self._event = "login.locked"
+                return self.err(429, f"로그인 실패가 잦아 잠겼다 - {left // 60 + 1}분 뒤에")
+            rec = auth.user_rec(uid)
+            if not rec or not auth.check_password(pw, rec):
+                auth.note_failure(*keys)
+                self._event = "login.fail"
+                self.user = uid or None
+                return self.err(401, "아이디 또는 비밀번호가 맞지 않다")
+            auth.clear_failures(*keys)
+            self.user, self.role, self._event = uid, rec.get("role", "user"), "login"
+            return self.send_json({"ok": True, "user": self.me(), "mustChange": bool(rec.get("mustChange"))},
+                                  headers=self.set_cookie(auth.new_session(uid, self.headers.get("User-Agent"))))
+        if what == "logout":
+            auth.drop_session(auth.parse_cookies(self.headers.get("Cookie")).get(auth.COOKIE))
+            self._event = "logout"
+            return self.send_json({"ok": True}, headers={"Set-Cookie": auth.cookie_header(None, self.is_secure())})
+        if what == "password":  # 내 비밀번호 - 현재 비밀번호 확인
+            rec = auth.user_rec(self.user)
+            if not rec or not auth.check_password(b.get("current") or "", rec):
+                self._event = "password.fail"
+                return self.err(401, "현재 비밀번호가 맞지 않다")
+            try:
+                auth.set_password(self.user, b.get("new") or "")
+            except ValueError as e:
+                return self.err(400, str(e))
+            self._event = "password.change"
+            return self.send_json({"ok": True}, headers=self.set_cookie(auth.new_session(self.user, self.headers.get("User-Agent"))))  # 다른 기기는 끊고 이 기기는 다시 발급
+        if what == "users":  # 관리자 - 추가·삭제·비밀번호 초기화·역할
+            if self.role != "admin":
+                self._event = "users.denied"
+                return self.err(403, "관리자만")
+            act = b.get("action")
+            try:
+                if act == "add":
+                    auth.add_user(uid, pw, b.get("role") or "user", must_change=True)
+                elif act == "delete":
+                    if uid == self.user:
+                        return self.err(400, "자기 계정은 지울 수 없다")
+                    auth.delete_user(uid)
+                elif act == "reset":
+                    auth.set_password(uid, pw, must_change=True)
+                elif act == "role":  # 관리자 지정·해제는 관리자만(여기) - 마지막 관리자는 내릴 수 없다(auth.set_role)
+                    auth.set_role(uid, b.get("role") or "user")
+                else:
+                    return self.err(400, "action = add|delete|reset|role")
+            except ValueError as e:
+                return self.err(400, str(e))
+            self._event = f"users.{act}:{uid}"
+            return self.send_json({"ok": True, "users": [auth.public(u, r) for u, r in sorted(auth.load_users().items())]})
+        return self.err(404, "없는 API")
 
     # ---------- 시작 페이지(허브) ----------
     def hub_call(self, fn, *args):
@@ -673,7 +934,7 @@ class H(BaseHTTPRequestHandler):
 
     def api_get_home(self, _, q):
         d = hub.home(None if HUB else WORKSPACE, REFUSED)
-        d.update({"mode": "hub" if HUB else "workspace", "port": self.server.server_port})
+        d.update({"mode": "hub" if HUB else "workspace", "port": self.server.server_port, "user": self.me()})
         self.send_json(d)
 
     def api_post_project(self, _, q):

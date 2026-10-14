@@ -17,6 +17,7 @@ cd nexa-slide
 python3 -m pip install -r requirements.txt
 
 python3 studio/service.py start      # 시작 페이지 → http://127.0.0.1:5599/  (새로 만들기 · 열기 · 최근 작업 시작/중지 · 튜토리얼 · 데모 · 템플릿 · 샘플)
+                                     # 처음 접속하면 관리자 계정을 만든다(로컬이어도 로그인 필수 - docs/auth.md). 계정은 이 PC 의 사용자 설정 폴더에만, 저장소에는 없다
                                      # 여기서 연 작업 공간은 같은 포트의 /w/<이름>/ 으로 쓴다 - 포트 하나로 여러 Studio (docs/home.md "한 주소로 중계")
 
 # 명령으로 작업 공간 만들기 → docs/new-project.md  (준 폴더 = 저장소 루트, 작업 공간 = 그 아래 slides/)
@@ -97,6 +98,7 @@ nexa-slide/
 | [docs/templates.md](docs/templates.md) | 디자인 템플릿 — 제공 템플릿, 폴더 구성, 작업 공간이 고르는 것, 바꾸기·새로 만들기 |
 | [docs/configuration.md](docs/configuration.md) | `nexa-slide.json` 전 항목·기본값, 작업 공간 찾기 순서, `tokens.json`·글꼴 프리셋 |
 | [docs/server.md](docs/server.md) | 서버 실행 옵션, URL 구성, API 전체, 보안 범위, 동시 편집 처리 |
+| [docs/auth.md](docs/auth.md) | 허브 로그인·계정(최초 관리자, 역할, 비밀번호 초기화) · 허브↔작업 공간 서버 공유 비밀 · 접근 로그 · 밖에 열 때 권장 |
 | **[docs/change-ledger.md](docs/change-ledger.md)** | **변경 원장 - 편집기·Claude·빌드·외부의 모든 변경을 덱당 1,000건 보존, 출처 배지·최근 수정 대상·되돌리기, `save_deck`** |
 | [docs/operation.md](docs/operation.md) | 일상 운영 — 빌드·내보내기·렌더·비교, 백업·복원, 포트·프로세스 점검, 문제 해결 |
 | **[docs/ai-editing.md](docs/ai-editing.md)** | **새로 만든 작업 공간에서 AI 로 고치기 — Claude Code(터미널·VS Code·Desktop)·그 밖의 AI(Codex·Gemini CLI·Cursor) 연결, 요청·초안·마무리 과정** |

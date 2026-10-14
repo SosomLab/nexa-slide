@@ -405,7 +405,8 @@
     window.scrollTo(0, 0);
   }
   async function load() {
-    H.home = await (await fetch("/api/home", { cache: "no-store" })).json();
+    const hr = await fetch("/api/home", { cache: "no-store" }); H.home = await hr.json();
+    if (NexaMenu.auth401(hr, H.home)) return;  // 허브 로그인 필요
     const d = H.home;
     $("#where").textContent = (d.mode === "hub" ? `시작 페이지 · 포트 ${d.port}` : `작업 공간 서버 · 포트 ${d.port}`) + (d.proxy ? " · 한 주소로 중계" : "");
     if (d.refused) { $("#refused").style.display = ""; $("#refused").innerHTML = `엔진 폴더 안의 작업 공간은 열지 않습니다: <code>${esc(d.refused)}</code> - 슬라이드 내용은 엔진과 다른 폴더·저장소에 둡니다. 예제는 <a href="#demo">데모</a>로 엽니다.`; }

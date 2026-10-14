@@ -83,6 +83,9 @@ python3 <작업 공간>/nexa.py start      # 작업 공간 서버 → 덱이 있
 | `projectsRoot` | 기준 폴더(없으면 문서 폴더/NexaSlide) |
 | `hubPort` | 허브 포트(기본 5599) |
 | `hubProxy` | 열기·만들기를 중계 주소 `/w/<이름>/` 로(기본 `true`). `false` 면 작업 공간 서버 포트로 바로 이동 |
+| `sessionDays` · `publicHosts` · `accessLogDays` · `accessLogStatic` | 로그인 유지 일수(7) · 허용 공개 호스트 · 접근 로그 보관 일수(30) · 정적 승인 줄 기록 — [auth.md](auth.md) |
+
+계정(`users.json`)·세션·접근 로그도 이 폴더에 있다. 허브는 로컬이어도 로그인이 필요하다 — [auth.md](auth.md).
 | `recent` | 최근 작업 `[{path, title, opened}]` - 최대 30개 |
 | `samples` | 등록한 샘플 사이트 `[{name, url, note}]` |
 
@@ -163,6 +166,8 @@ Esc·바깥·닫기 단추로 닫는다. 주소에 `?menu=open` 을 붙이면 �
 |---|---|
 | `GET /api/home` | `{mode, documents, projectsRoot, projectsRootDefault, current, refused, recent, templates, starters, samples, demo}` |
 | `POST /api/project` | `{"action": "create", title, template, starter?, folder?, sub?, port?, purpose, audience, direction, materials, askDraft}` · `{"action": "plan", …create 와 같음}` → `{path, port, url, args, commands: {powershell, bash: {init, start}}, warnings}` · `{"action": "open", path}` · `{"action": "demo"}` · `{"action": "forget", path}` → `{ok, path, url, direct, id, hubUrl}` (`url` = `hubProxy` 가 켜져 있으면 `/w/<이름>/`, 아니면 `direct`). 실패하면 400 `{error, needInit?, existing?, log?}` |
+| `/w/<이름>/…` | 중계 — 그 작업 공간 서버의 `/…` 로 넘긴다(위 "한 주소로 중계"). 모르는 이름은 404, 서버를 띄우지 못하면 502 |
+| `/api/auth/…` · `/login` · `/setup` · `/account` | 로그인·계정 — [auth.md](auth.md). 위의 모든 API 는 로그인 뒤에 있다(미인증 401) |
 | `GET /api/preview?template=&starter=` | 미리 보기 - 템플릿 × 시작용 내용(없으면 레이아웃 견본)을 사용자 설정 폴더의 임시 작업 공간에 빌드 → `{template, starter, tokens, base, decks}` |
 | `POST /api/settings` | `{projectsRoot?, samples?, hubProxy?}` - `projectsRoot` 를 빈 값으로 주면 기본으로 |
 | `GET /api/fs?path=<폴더>` | 폴더 고르기 - 하위 폴더 `[{name, path, git, workspace}]`, 드라이브 목록, 바로 가기(문서·기준·홈) |

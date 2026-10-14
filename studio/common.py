@@ -129,8 +129,8 @@ def _serves_here(port):
         socket.create_connection(("127.0.0.1", int(port)), timeout=0.3).close()
     except OSError:
         return False
-    try:
-        with urllib.request.urlopen(f"http://127.0.0.1:{int(port)}/api/config", timeout=1.5) as r:
+    try:  # 허브는 로그인 없이 닿는 /api/auth/state 로(모든 API 가 인증 뒤에 있다), 작업 공간 서버는 /api/config(로컬 직접 접속은 인증 없음)
+        with urllib.request.urlopen(f"http://127.0.0.1:{int(port)}/api/{'auth/state' if HUB else 'config'}", timeout=1.5) as r:
             cfg = json.loads(r.read().decode("utf-8"))
         if HUB:
             return cfg.get("mode") == "hub"

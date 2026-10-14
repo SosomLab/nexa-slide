@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>nexa-slide 로그인</title>
+<link rel="icon" href="data:,">
+<!-- 로그인 · 최초 관리자 설정 - 허브(/login · /setup)가 내준다. 로그인 없이 닿는 유일한 페이지라 CSS·JS 를 모두 안에 둔다(다른 정적 파일 불필요). -->
+<style>
+  :root { --p: #A91F24; --pc: #FFDAD6; --bg: #F4F1F1; --card: #fff; --ink: #1F1B1B; --ink2: #534343; --line: #D8C2C0; --err: #BA1A1A; --tone: #F2EFEF; --font: "Malgun Gothic", "맑은 고딕", sans-serif; }
+  * { box-sizing: border-box; }
+  body { margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center; background: var(--bg); color: var(--ink); font: 14px/1.5 var(--font); }
+  .card { width: min(420px, 92vw); background: var(--card); border-radius: 16px; box-shadow: 0 6px 24px rgba(0,0,0,.12); padding: 28px 28px 24px; }
+  .mark { display: flex; align-items: center; gap: 10px; margin-bottom: 18px; }
+  .mark b { font-size: 17px; }
+  h1 { font-size: 16px; margin: 0 0 6px; }
+  p.hint { color: var(--ink2); font-size: 12.5px; margin: 0 0 16px; }
+  label { display: block; font-weight: 700; font-size: 12.5px; margin: 12px 0 4px; }
+  input { width: 100%; font: inherit; padding: 9px 11px; border: 1px solid var(--line); border-radius: 9px; background: #fff; color: inherit; }
+  input:focus { outline: 2px solid var(--pc); border-color: var(--p); }
+  button { margin-top: 18px; width: 100%; font: inherit; font-weight: 700; padding: 10px; border: 0; border-radius: 999px; background: var(--p); color: #fff; cursor: pointer; }
+  button:disabled { opacity: .6; cursor: default; }
+  .err { color: var(--err); font-size: 12.5px; margin-top: 10px; min-height: 1.2em; }
+  .foot { margin-top: 16px; font-size: 11.5px; color: var(--ink2); border-top: 1px solid var(--line); padding-top: 10px; }
+  code { background: var(--tone); padding: 0 4px; border-radius: 4px; }
+</style>
+</head>
+<body>
+<form class="card" id="f" autocomplete="on">
+  <div class="mark"><svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="9" fill="#A91F24"/><path d="M10 23V9l12 14V9" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg><b>nexa-slide</b></div>
+  <h1 id="title">로그인</h1>
+  <p class="hint" id="hint">시작 페이지와 작업 공간은 로그인한 사용자만 쓸 수 있습니다.</p>
+  <label for="id">아이디</label><input id="id" name="username" autocomplete="username" required autofocus>
+  <label for="pw" id="pwLabel">비밀번호</label><input id="pw" name="password" type="password" autocomplete="current-password" required>
+  <div id="pw2Box" style="display:none"><label for="pw2">비밀번호 다시</label><input id="pw2" type="password" autocomplete="new-password"></div>
+  <button type="submit" id="go">로그인</button>
+  <div class="err" id="err"></div>
+  <div class="foot" id="foot">비밀번호를 잊었으면 이 PC 에서 <code>python3 studio/auth.py reset-password &lt;아이디&gt;</code> — 원격에서 초기화할 길은 없습니다.</div>
+</form>
+<script>
+(async () => {
+  const $ = (s) => document.querySelector(s);
+  const setup = location.pathname === "/setup";
+  const next = (() => { const n = new URLSearchParams(location.search).get("next") || "/"; return /^\/(?!\/)/.test(n) && !/[\\\u0000-\u001f]/.test(n) ? n : "/"; })();
+  let st = null;
+  try { st = await (await fetch("/api/auth/state", { cache: "no-store" })).json(); } catch (e) { st = null; }
+  if (st && st.user) { location.replace(next); return; }           // 이미 로그인됨
+  if (st && st.setup && !setup) { location.replace("/setup"); return; }  // 관리자가 없으면 최초 설정으로
+  if (st && !st.setup && setup) { location.replace("/login" + location.search); return; }
+  if (setup) {
+    document.title = "nexa-slide 최초 설정";
+    $("#title").textContent = "최초 관리자 설정";
+    $("#hint").innerHTML = "아직 사용자가 없습니다. 지금 만드는 계정이 <b>관리자</b>가 됩니다 — 사용자 추가와 관리자 지정은 관리자만 할 수 있습니다.<br>계정은 이 PC 의 사용자 설정 폴더에만 저장되고 저장소(git)에는 들어가지 않습니다.";
+    $("#pwLabel").textContent = "비밀번호 (8자 이상)"; $("#pw").autocomplete = "new-password";
+    $("#pw2Box").style.display = ""; $("#go").textContent = "관리자 만들기"; $("#foot").style.display = "none";
+  }
+  $("#f").addEventListener("submit", async (e) => {
+    e.preventDefault(); $("#err").textContent = "";
+    const id = $("#id").value.trim(), pw = $("#pw").value;
+    if (setup && pw !== $("#pw2").value) { $("#err").textContent = "두 비밀번호가 다릅니다"; return; }
+    $("#go").disabled = true;
+    try {
+      const r = await fetch(setup ? "/api/auth/setup" : "/api/auth/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, password: pw }) });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok || !d.ok) { $("#err").textContent = d.error || `실패 (${r.status})`; $("#go").disabled = false; return; }
+      location.replace(d.mustChange ? "/account?change=1&next=" + encodeURIComponent(next) : next);
+    } catch (err) { $("#err").textContent = "서버에 연결할 수 없습니다"; $("#go").disabled = false; }
+  });
+})();
+</script>
+</body>
+</html>

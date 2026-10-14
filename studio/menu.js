@@ -24,6 +24,8 @@
     ext: '<path d="M14 4h6v6M20 4l-9 9"/><path d="M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/>',
     eye: '<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
     trash: '<path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/>',
+    user: '<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7"/>',
+    out: '<path d="M10 4H5a1 1 0 0 0-1 1v14a1 1 0 0 0 1 1h5"/><path d="M14 8l5 4-5 4M19 12H9"/>',
   };
   const icon = (n, s = 16) => `<svg class="nx-i" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${P[n] || ""}</svg>`;
   const mark = (s = 32) => `<svg width="${s}" height="${s}" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="9" fill="var(--p, #A91F24)"/><path d="M10 23V9l12 14V9" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
@@ -70,10 +72,21 @@
     const t = document.createElement("div"); t.className = "nx-toast"; t.textContent = msg; document.body.appendChild(t);
     setTimeout(() => t.remove(), ms);
   }
+  /** 허브 로그인이 없거나 끊겼으면(401 {"error":"login"}) 로그인 페이지로 - 돌아올 주소를 next 에 담는다. 보냈으면 true. */
+  function auth401(r, d) {
+    if (r.status !== 401 || !d || d.error !== "login") return false;
+    location.href = (d.login || "/login") + "?next=" + encodeURIComponent(location.pathname + location.search + location.hash);
+    return true;
+  }
   async function post(url, body) {
     const r = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
     let d = null; try { d = await r.json(); } catch (_) { /* 응답 없음 */ }
+    auth401(r, d);
     return { ok: r.ok && d && d.ok !== false, data: d || {} };
+  }
+  async function logout() {
+    await post("/api/auth/logout", {});
+    location.href = "/login";
   }
   /** 작업 공간 열기 - 그 작업 공간 서버(포트가 다를 수 있다)를 띄우고 그 주소로 간다. */
   async function go(path) {
@@ -107,6 +120,9 @@
       '<div data-recent></div>',
       '<div class="nx-sep"></div>',
       it("settings", "gear", "기준 폴더 설정", "/studio/home.html#settings"),
+      ...(home && home.user ? [  // 허브 로그인 사용자 - 계정(비밀번호 · 관리자면 사용자 관리) · 로그아웃
+        it("account", "user", home.user.role === "admin" ? "계정 · 사용자 관리" : "계정", "/account", `<small>${esc(home.user.id)}</small>`),
+        `<button type="button" class="nx-item" data-logout>${icon("out")}<span>로그아웃</span></button>`] : []),
     ].join("");
   }
   function renderRecent(q = "") {
@@ -118,7 +134,7 @@
       : `<div class="nx-empty">${q ? "찾는 작업이 없습니다" : "아직 연 작업이 없습니다"}</div>`;
   }
   async function load() {
-    try { home = await (await fetch(BASE + "/api/home", { cache: "no-store" })).json(); } catch (_) { home = null; }
+    try { const r = await fetch(BASE + "/api/home", { cache: "no-store" }); home = await r.json(); if (auth401(r, home)) return; } catch (_) { home = null; }
     if (root) { root.querySelector(".nx-body").innerHTML = items(); renderRecent(); }
   }
   function build() {
@@ -137,6 +153,7 @@
       if (f) { finding = !finding; root.querySelector(".nx-find").classList.toggle("on", finding); if (finding) root.querySelector("[data-q]").focus(); return; }
       const r = e.target.closest("[data-path]");
       if (r) { close(); go(r.dataset.path); return; }
+      if (e.target.closest("[data-logout]")) { close(); logout(); return; }
       if (e.target.closest("a.nx-item")) setTimeout(close, 0);
     });
     root.addEventListener("input", (e) => { if (e.target.matches("[data-q]")) renderRecent(e.target.value); });
@@ -162,5 +179,5 @@
     btn.addEventListener("click", open);
     if (/[?&]menu=open(&|$)/.test(location.search)) setTimeout(open, 0);  // 메뉴를 연 채로 보여 주는 링크
   }
-  window.NexaMenu = { mount, open, close, icon, mark, go, toast, post, esc };
+  window.NexaMenu = { mount, open, close, icon, mark, go, toast, post, esc, auth401, logout };
 })();

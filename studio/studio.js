@@ -44,6 +44,7 @@
     const r = await fetch(BASE + url, { method, headers, body: body !== undefined ? JSON.stringify(body) : undefined });
     let data = null;
     try { data = await r.json(); } catch (e) { /* 빈 응답 */ }
+    NexaMenu.auth401(r, data);  // 허브 로그인이 끊겼으면 로그인 페이지로(허브 중계로 열었을 때)
     return { ok: r.ok, status: r.status, data, headers: r.headers };
   }
   let toastT = 0;
@@ -128,6 +129,8 @@
 
   // ---------------------------------------------------------------- 불러오기·외부 변경 감지
   async function loadDeck(id, keep) {
+    const r = await fetch(`${BASE}/api/deck/${id}`, { cache: "no-store" });
+    if (r.status === 401) { NexaMenu.auth401(r, await r.json().catch(() => null)); return false; }
     if (!r.ok) { toast("덱을 불러오지 못했습니다"); return false; }
     const deck = await r.json();
     if (keep && S.deck && S.id === id) snapshot(); else { S.undo = []; S.redo = []; }

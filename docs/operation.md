@@ -82,6 +82,25 @@ python3 studio/service.py stop         # 허브만 끈다 - 작업 공간 서버
 | 작업 공간당 요청 감시 하나 | 살아 있는 감시가 있으면 새 감시는 `{"event":"refused"}` 한 줄을 내고 끝난다 |
 | Claude 세션은 그 작업 공간의 저장소에서 연다 | 세션의 작업 폴더·규칙(CLAUDE.md)·git 이 그 저장소이므로 요청 처리·커밋이 그 저장소에 남는다 |
 
+## 인증 · 계정 (허브)
+
+허브는 로컬이어도 로그인이 필요하다. 자세한 규칙·저장 위치·API 는 [auth.md](auth.md).
+
+```bash
+# 처음 — 허브에 접속하면 최초 관리자 설정 페이지. 이미 밖에 열어 둔 허브를 새 판으로 올릴 때는 재시작 "전에" 터미널에서 관리자를 만든다
+python3 studio/auth.py add <아이디> --admin
+python3 studio/service.py restart
+# 운영
+python3 studio/auth.py list                      # 사용자·역할
+python3 studio/auth.py reset-password <아이디>    # 비밀번호 초기화(이 PC 에서만 - 원격 불가). 그 사용자의 로그인은 모두 끊긴다
+python3 studio/auth.py role <아이디> admin        # 관리자 지정(웹 /account 에서도)
+```
+
+- 계정 `users.json`·세션·공유 비밀·접근 로그는 **사용자 설정 폴더**에만 있다(`%APPDATA%\nexa-slide` 등). 저장소에 들어가지 않으므로 clone 한 PC 마다 따로 만든다.
+- 관리자를 모두 잃었으면 `users.json` 을 지우고(터널은 먼저 끊거나 `add --admin` 으로 바로 만든다) 다시 접속한다.
+- 접근 로그 `hub/logs/access-YYYY-MM-DD.log` — `deny` 줄(`login.fail`·`login.locked`·위조 헤더·Host 변조)을 가끔 본다. 보관 `accessLogDays`(30일).
+- 밖에 열 때는 **허브 포트만** 터널에 연결한다. 작업 공간 서버 포트(5600~)에는 로그인이 없다.
+
 ## 백업 · 복원
 
 | 대상 | 위치 | 보존 |
@@ -125,6 +144,10 @@ pgrep -fl watch_requests
 | "포트를 쓸 수 없다" | 다른 작업 공간이 그 포트를 쓰는 중 — `nexa-slide.json` 의 `port` 를 바꾸거나 `--port auto`(허브 중계로 열면 자동) |
 | "이미 실행 중" | 그 작업 공간 서버가 떠 있다 — `nexa.py url` 로 주소 확인 |
 | `/w/<이름>/` 이 404 "모르는 작업 공간" | 최근 작업에 없는 작업 공간 — 시작 페이지에서 "폴더·저장소 열기"로 한 번 열면 목록에 올라 중계된다. 폴더를 옮겼으면 이름(해시)이 바뀐다 |
+| 허브가 401 또는 로그인 페이지만 보여 줌 | 정상 — 허브는 로그인 필수. 비밀번호를 잊었으면 `python3 studio/auth.py reset-password <아이디>`([auth.md](auth.md)) |
+| 로그인이 429 "잠겼다" | 5회 실패 → 15분 잠금. 허브 재시작으로도 풀린다(`service.py restart`) |
+| 허브가 400 "허용되지 않은 Host" | 루프백·Cloudflare 경유가 아닌 호스트로 들어왔다 — 사용자 설정 `publicHosts` 에 그 호스트를 적는다 |
+| 허브 `service.py start` 가 "응답이 없다"로 끝남 | 구 판 `common.py`(`/api/config` 로 확인)와 새 서버가 섞였다 — 엔진을 같은 판으로 맞춘다(새 판은 `/api/auth/state` 로 확인) |
 | `/w/<이름>/` 이 502 "연결할 수 없다" | 허브가 그 서버를 띄우지 못했다 — 그 작업 공간에서 `nexa.py start` 로 직접 띄워 오류를 본다(`out/.studio/server.log`) |
 | 중계로 연 Studio 에서 그림·글꼴이 404 | 편집기 코드가 옛 판(접두 미지원)일 수 있다 — 브라우저 강제 새로 고침(Ctrl+F5) 후에도 그러면 엔진을 최신으로 |
 | 시작 페이지의 포트 배지와 `nexa-slide.json` 의 `port` 가 다름 | 설정 포트가 쓰는 중이어서 허브가 빈 포트로 띄웠다(정상). 배지의 포트가 실제 포트, `server.json` 과 같다 |
