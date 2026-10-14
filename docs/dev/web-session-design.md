@@ -221,6 +221,10 @@ B-1·B-2 는 기존 동작을 바꾸지 않는다. B-3 부터 새 기능. 각 �
   관리자 전역 설정(설정 모달 "AI 세션 전역 기본" — `SESSION_KEYS`, 서버가 역할 확인 403). 접근 로그 `server` = ws id, 폴링 제외 패턴을 정규식으로(`/api/wsession` 이 빠지던 문제).
   검증(서버 쪽) 20건: 꺼진 서버 기동+세션 시작(startedBy)·상태·끊기·중복 400·전역 설정 저장/검증/403·일반 사용자 시작 가능·로그 필드. 화면은 협업 세션 브라우저 확인.
 
+- B-6 보완(2026-10-14 저녁) `50992ef`: **웹 검색 허용** — 전역 `sessionAllowWeb`(관리자, `SESSION_KEYS`) + 세션 시작 때 세션 단위 `allowWeb`(허브 관리자 또는 작업 공간 서버 로컬 직접 접속만, claude 만, 엔진 세션 제외). `agents.web_settings(allow_web)` 이 deny 에서 `WebFetch`·`WebSearch` 만 빼고 allow 에, `claude.turn_cmd(allow_web)` 이 `--tools` 에 더함. 하트비트·registry·`wsession.json`·`info()` 에 `allowWeb`, 턴 프롬프트 `{web}`(출처 URL·`research/<주제>.md`·검색어에 내부 정보 금지). 결정: 자동으로 켜지 않는다(전역 켬 + 세션마다 체크), 실행 중 세션은 바뀌지 않는다(다시 시작).
+- 편집기 보완 `01f9231`: `/api/session` 이 세션이 없을 때 마지막 웹 세션의 종료 사유(`last.reason`·`stoppedAt`)를 주고 칩·요청 탭이 "서버 재시작으로 세션 종료됨(10/14 17:43)" 을 보인다. 요청 탭 제목은 세션 에이전트에 따라 Claude/Codex/AI.
+- 기동 잠금 `e677ff0`: `service.py start` 에 `out/.studio/start.lock`(FileLock), 서버는 bind 뒤 `server.json` 의 다른 살아 있는 서버를 보면 물러남 — 허브 중계 자동 기동과 `nexa.py restart` 의 경합.
+
 ## 15. 검토 기록
 
 - 2026-10-14 협업 세션(nexa-slide-f4) 공식 문서 대조: codex `-c approval_policy="never"`·`--ignore-user-config`·stdin `-`·`thread.started.thread_id` / claude deny 우선 규칙·`dontAsk`+`--permission-prompts none`·`--restricted`·`blockReadsOutsideWorkingDirectories`·PowerShell 도구·`--strict-mcp-config`·`--max-turns`/`--max-budget-usd`·`claude auth status` / 원장 `actor.user`=시작 사용자·사용량 표시·stdin UTF-8·SSE 머리·probe 안내 링크·hooks 와 SSE — 모두 §4~§11 에 반영.
