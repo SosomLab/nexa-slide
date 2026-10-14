@@ -267,7 +267,9 @@
   body.maxi #rDock .tabs2 button.on { background: var(--card); color: var(--ink); font-weight: 700; box-shadow: var(--sh1); }
   body.maxi #rDock #bottom { margin: 0 10px; }
   body.maxi #rDock .bpanel { height: var(--bottomH, 160px); }
-  body.maxi #rDock #bottomSplit { top: -14px; left: 0; right: 0; }
+  /* 최대화 배치에서는 스플리터를 오른쪽 아래 영역 맨 위(노트 탭 위)에 - #bottom 대신 #rDock 기준으로 놓는다 */
+  body.maxi #rDock { position: relative; } body.maxi #rDock #bottom { position: static; }
+  body.maxi #rDock #bottomSplit { top: -4px; left: 0; right: 0; height: 8px; }
   #slideCounter { min-width: 64px; text-align: center; font-variant-numeric: tabular-nums; }
   #zoomSlider { width: 120px; }
   #zoomPct { min-width: 48px; }
