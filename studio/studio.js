@@ -29,7 +29,7 @@
     cur: 0, sel: null, undo: [], redo: [], dirty: false, saving: false, conflict: false,
     reqs: [], reqOnlySlide: true, layouts: [], preview: false, pngs: [], renderAt: 0, editing: null, clip: null,
     tab: "props", brand: {}, session: null, check: null, chkOnlySlide: true, chkBox: null, template: null,
-    changes: [], chgRecent: [], chgMark: {}, chgVersion: "0", chgLatest: 0, chgHidden: new Set(), chgShown: new Set(), chgFilter: LS.get("chgFilter", "all"), chgMore: false,
+    changes: [], chgRecent: [], chgMark: {}, chgVersion: "0", chgLatest: 0, chgHidden: new Set(), chgShown: new Set(), chgOff: LS.get("chgOff", "0") === "1", chgFilter: LS.get("chgFilter", "all"), chgMore: false,
     mode: LS.get("mode", "edit"), tool: "rect", zoom: null, btab: LS.get("btab", "notes"), memo: null, drawing: null, pan: null,
   };
 
@@ -184,7 +184,8 @@
   const inFilter = (g, f) => f === "all" || (f === "mine" ? isMine(g) : f === "editor" ? (g.origin === "editor" && !isMine(g)) : g.origin === f);
   // 표시 여부 - 직접 켠 묶음(chgShown)은 내 편집·확인한 것이라도 표시, 직접 끈 묶음(chgHidden)은 표시 안 함,
   // 그 밖에는 "표시 지우기" 이후의 내 편집이 아닌 묶음만
-  const isMarked = (g, seen = +LS.get(seenKey(), 0)) => S.chgShown.has(g.seq) || (!S.chgHidden.has(g.seq) && !isMine(g) && g.last > seen);
+  const isMarked = (g, seen = +LS.get(seenKey(), 0)) => !S.chgOff && isOn(g, seen);
+  const isOn = (g, seen = +LS.get(seenKey(), 0)) => S.chgShown.has(g.seq) || (!S.chgHidden.has(g.seq) && !isMine(g) && g.last > seen);
   function rebuildMarks() {
     S.chgMark = {}; if (!S.id) return;
     const seen = +LS.get(seenKey(), 0), mark = (S.chgMark[S.id] = {});
@@ -205,8 +206,12 @@
     S.chgMore = !!r.data.more;
     redrawMarks();
   }
+  // 확인함 - 지금까지(최근 변경까지)를 확인한 것으로: 모든 묶음을 미표시로. 이후 묶음마다 "표시"로 다시 볼 수 있다
   function markSeen() { LS.set(seenKey(), S.chgLatest); S.chgShown.clear(); S.chgHidden.clear(); redrawMarks(); }
-  function unmarkSeen() { LS.set(seenKey(), 0); S.chgHidden.clear(); redrawMarks(); }  // 모두 다시 표시 - 내 편집이 아닌 변경 전부
+  // 최근 3개 표시 - 가장 최근 묶음 3개의 "표시"를 대신 눌러 준다(내 편집 포함)
+  function showRecent(n = 3) { S.changes.slice(0, n).forEach((g) => { S.chgHidden.delete(g.seq); S.chgShown.add(g.seq); }); redrawMarks(); }
+  // 표시 끄기/켜기 - 변경 기록을 보지 않고 작업할 때. 묶음별 표시 상태는 그대로 두고 화면 표시만 모두 끈다(브라우저에 기억)
+  function toggleOff() { S.chgOff = !S.chgOff; LS.set("chgOff", S.chgOff ? "1" : "0"); redrawMarks(); }
   async function reloadExternal(msg) {
     await loadDeck(S.id, true);  // loadDeck 가 원장도 다시 불러온다
     const g = S.changes.find((x) => !isMine(x));
@@ -221,16 +226,19 @@
     const cnt = (k) => S.changes.filter((g) => inFilter(g, k)).length;
     const list = S.changes.filter((g) => inFilter(g, S.chgFilter));
     const recent = S.chgRecent.filter((r) => r.exists).slice(0, 8);
-    P.innerHTML = `<div class="sec"><h3>변경 - ${esc(S.id || "")}</h3><div class="hint">편집기·Claude·빌드·외부에서 덱이 바뀔 때마다 서버가 원장(덱당 최근 ${S.chgKeep || 1000}건)에 남깁니다. 항목을 누르면 그 장·요소로 갑니다. 내 편집이 아닌 변경은 썸네일 배지와 캔버스 파란 점선으로 표시하고, "표시 지우기"로 확인한 것으로 칩니다("모두 다시 표시"로 되돌림). 내 편집은 묶음의 "표시"로 켭니다. 장기 보관을 대신하지 않습니다 - 되돌리기는 백업(최근 50개)이 남아 있을 때만.</div>
+    P.innerHTML = `<div class="sec"><h3>변경 - ${esc(S.id || "")}</h3><div class="hint">편집기·Claude·빌드·외부에서 덱이 바뀔 때마다 서버가 원장(덱당 최근 ${S.chgKeep || 1000}건)에 남깁니다. 항목을 누르면 그 장·요소로 갑니다. 내 편집이 아닌 변경은 썸네일 배지와 캔버스 파란 점선으로 표시하고, "확인함"은 지금까지를 미표시로, "최근 3개 표시"는 최근 묶음 3개를 표시, "표시 끄기"는 기록을 보지 않고 작업할 때 모든 표시를 감춥니다. 묶음마다 "표시/숨기기". 장기 보관을 대신하지 않습니다 - 되돌리기는 백업(최근 50개)이 남아 있을 때만.</div>
       <div class="row" style="gap:6px;margin-top:6px;flex-wrap:wrap"><span class="seg" id="chgFilter">${F.map(([k, l]) => `<button data-chgf="${k}" class="${S.chgFilter === k ? "on" : ""}">${l}${cnt(k) ? ` ${cnt(k)}` : ""}</button>`).join("")}</span>
-      ${n ? `<button class="chip sm" data-chg-seen="1" title="지금까지의 변경을 확인한 것으로 - 배지·점선을 지운다">표시 지우기</button>` : ""}
-      ${S.changes.some((g) => !isMine(g) && !isMarked(g)) ? `<button class="chip sm" data-chg-unseen="1" title="표시 지우기·숨기기 한 것을 되돌려 내 편집이 아닌 변경을 다시 표시한다(내 편집은 묶음마다 표시)">모두 다시 표시</button>` : ""}</div></div>
+</div>
+      <div class="row" style="gap:6px;margin-top:6px;flex-wrap:wrap">
+      <button class="chip sm" data-chg-seen="1" title="최근 변경까지 확인한 것으로 - 모든 묶음을 미표시로 바꾼다(묶음마다 '표시'로 다시 볼 수 있다)">확인함</button>
+      <button class="chip sm" data-chg-recent="1" title="가장 최근 변경 묶음 3개를 표시한다(내 편집 포함) - 묶음마다 '표시'를 누르는 것과 같다">최근 3개 표시</button>
+      <button class="chip sm${S.chgOff ? " on" : ""}" data-chg-off="1" title="${S.chgOff ? "변경 표시를 다시 켠다(묶음별 표시 상태는 그대로)" : "변경 기록을 보지 않고 작업 - 배지·점선을 모두 감춘다(묶음별 표시 상태는 그대로)"}">${S.chgOff ? "표시 켜기" : "표시 끄기"}</button></div></div>
       ${recent.length ? `<div class="sec"><h3>최근 수정 대상</h3><table class="chg-tbl">${recent.map((r) => `<tr data-csid="${esc(r.sid)}"><td class="n">${r.idx + 1}</td><td class="t" title="${esc(r.title || "")}">${esc(r.title || "")}</td><td>${orgBadge(r)}</td><td class="hint" title="${esc(r.ts || "")}">${esc(ago(r.ts))}</td><td class="hint">${esc([r.kind === "수정" ? "" : r.kind, ...(r.kinds || []), ...(r.extra || [])].filter(Boolean).join("·"))}</td></tr>`).join("")}</table></div>` : ""}
       ${list.length ? list.map(groupHtml).join("") + (S.chgMore ? `<div class="row" style="justify-content:center;margin:8px 0"><button class="chip sm" data-chg-more="1">더 보기</button></div>` : `<div class="hint" style="text-align:center;margin:8px 0">원장의 시작</div>`)
         : `<div class="hint">${S.changes.length ? "이 필터에 해당하는 변경이 없습니다." : "아직 기록된 변경이 없습니다."}</div>`}`;
   }
   function groupHtml(g) {
-    const on = isMarked(g), mine = isMine(g);
+    const on = isOn(g), mine = isMine(g);
     const tag = g.action === "restore" ? " · 되돌리기" : g.action === "startup" ? " · 서버 꺼진 사이" : g.action === "build" ? "" : "";
     return `<div class="chg-rec${on ? " on" : ""}"><div class="chg-h"><b title="${esc(g.ts || "")}${g.count > 1 ? ` ~ ${esc(g.ts_end || "")}` : ""}">${esc(dayText(g.ts))} ${esc(hhmm(g.ts))}</b>${orgBadge(g)}<span class="hint" style="margin:0">${g.actor && g.actor.label ? esc(g.actor.label) + " · " : ""}${esc(chgSummary(g.summary))}${g.fields && g.fields.length ? ` · 덱 ${esc(g.fields.join("·"))}` : ""}${g.count > 1 ? ` · 저장 ${g.count}회${g.approx ? "(요약)" : ""}` : ""}${tag}</span>
       ${g.backupExists ? `<button class="chip sm" data-chg-restore="${esc(g.backup)}" data-chg-at="${esc((g.ts || "").replace("T", " ").slice(0, 16))}" title="이 변경 직전 상태로 되돌린다(지금 상태도 기록에 남는다)">직전으로</button>` : `<button class="chip sm" disabled title="백업이 50개 상한으로 지워져 되돌릴 수 없습니다">직전으로</button>`}
@@ -249,14 +257,15 @@
   async function onChangesClick(e) {
     const f = e.target.closest("[data-chgf]"); if (f) { S.chgFilter = f.dataset.chgf; LS.set("chgFilter", S.chgFilter); renderChanges(); return; }
     if (e.target.closest("[data-chg-seen]")) { markSeen(); return; }
-    if (e.target.closest("[data-chg-unseen]")) { unmarkSeen(); return; }
+    if (e.target.closest("[data-chg-recent]")) { showRecent(3); return; }
+    if (e.target.closest("[data-chg-off]")) { toggleOff(); return; }
     if (e.target.closest("[data-chg-more]")) { await loadChanges(true); return; }
     const rs = e.target.closest("[data-chg-restore]");
     if (rs) { if (await restoreFrom(rs.dataset.chgRestore, rs.dataset.chgAt)) { await loadChanges(); if (S.tab === "hist") loadHist(); } return; }
     const tg = e.target.closest("[data-chg-tg]");
     if (tg) {
       const k = +tg.dataset.chgTg, g = S.changes.find((x) => x.seq === k); if (!g) return;
-      if (isMarked(g)) { S.chgShown.delete(k); S.chgHidden.add(k); } else { S.chgHidden.delete(k); S.chgShown.add(k); }
+      if (isOn(g)) { S.chgShown.delete(k); S.chgHidden.add(k); } else { S.chgHidden.delete(k); S.chgShown.add(k); }
       redrawMarks(); return;
     }
     const it = e.target.closest("[data-csid]"); if (!it) return;
