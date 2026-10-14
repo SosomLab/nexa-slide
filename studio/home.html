@@ -396,6 +396,8 @@
         <div><label class="f" for="sgMaxTurns">턴당 도구 반복</label><input type="text" id="sgMaxTurns" placeholder="40"></div>
         <div><label class="f" for="sgBudget">예산 ($)</label><input type="text" id="sgBudget" placeholder="없음"></div>
       </div>
+      <label class="f" style="display:flex;align-items:center;gap:8px;font-weight:400;margin-top:10px"><input type="checkbox" id="sgAllowWeb" style="margin:0"> 웹 검색 허용(WebSearch·WebFetch) - 세션 시작 창에서 세션마다 켠다</label>
+      <div class="warn" id="sgAllowWebWarn" style="display:none;font-size:12px">켜면 그 세션이 외부 웹을 검색·열람합니다. 슬라이드·요청 내용이 검색어·요청 URL 로 외부에 전달될 수 있습니다. 턴 로그에 요청한 URL 이 남습니다.</div>
       <div class="hint" id="sgProbe" style="margin-top:8px"></div>
     </div>
   </div>
@@ -710,7 +712,7 @@
   function sessLine(r) {
     const s = r.session || {}; const self = H.home.current && H.home.current.path === r.path;
     let info;
-    if (s.kind === "web") info = `<span class="badge run" title="시작 ${esc(s.started || "")} · 마지막 확인 ${esc(s.lastSeen || "")}">웹 세션${s.state === "running" ? ` 처리 중(턴 ${s.turn || "?"})` : ""}</span> ${esc(s.agent || "")} · ${esc(s.model || "")}${s.user ? ` · ${esc(s.user)}` : ""}${s.working ? ` · <b>처리 중 ${s.working}</b>` : s.open ? ` · 대기 ${s.open}` : ""}`;
+    if (s.kind === "web") info = `<span class="badge run" title="시작 ${esc(s.started || "")} · 마지막 확인 ${esc(s.lastSeen || "")}">웹 세션${s.state === "running" ? ` 처리 중(턴 ${s.turn || "?"})` : ""}</span> ${esc(s.agent || "")} · ${esc(s.model || "")}${s.user ? ` · ${esc(s.user)}` : ""}${s.allowWeb ? ` · <span class="badge" title="이 세션은 웹 검색(WebSearch·WebFetch)을 쓸 수 있다">웹 허용</span>` : ""}${s.working ? ` · <b>처리 중 ${s.working}</b>` : s.open ? ` · 대기 ${s.open}` : ""}`;
     else if (s.kind === "manual") info = `<span class="badge run">수동 세션</span> ${esc(s.label || "")}${s.working ? ` · 처리 중 ${s.working}` : s.open ? ` · 대기 ${s.open}` : ""}`;
     else info = `<span class="badge">세션 없음</span>${s.open ? ` 대기 요청 ${s.open}` : ""}${s.last && s.last.startedAt ? ` <span class="hint">· 마지막 · ${esc(s.last.agent || "")} ${esc(s.last.model || "")} · ${fmtT(s.last.stoppedAt || s.last.startedAt)}${s.last.reason ? ` · ${reasonKo(s.last.reason)}` : ""}</span>` : ""}`;
     const btn = s.kind === "web" ? `<button type="button" class="svc stop" data-sess="stop" data-path="${esc(r.path)}" title="이 작업 공간의 웹 세션 중지(실행 중 턴도 끝낸다)">${icon("stop", 14)}세션 중지</button>`
@@ -734,7 +736,10 @@
       <label class="f">모델 <span class="hint">(기본 ${esc(model)}${modelDef ? " — 작업 공간" : ` — ${esc(d.sources.model)}`})</span></label>
       <div class="row"><select id="smModel">${models(cur)}</select><input type="text" id="smModelText" placeholder="모델 ID 직접 입력" style="display:none"></div>
       <label class="f" id="sessSaveRow" style="display:flex;align-items:center;gap:8px;font-weight:400;margin-top:10px"><input type="checkbox" id="smSave" style="margin:0"> 이 작업 공간 기본으로 저장 <select id="smSaveAs" style="font-size:12px"><option value="local">이 PC 만</option><option value="shared">공유(nexa-slide.json)</option></select></label>
+      ${d.allowWeb && !(path && path.engine) ? `<label class="f" style="display:flex;align-items:center;gap:8px;font-weight:400;margin-top:6px"><input type="checkbox" id="smWeb" style="margin:0" ${d.canAllowWeb ? "" : "disabled"}> 이 세션에 웹 검색 허용(WebSearch·WebFetch) ${d.canAllowWeb ? "" : '<span class="hint">- 관리자만</span>'}</label>
+      <div class="warn" id="smWebWarn" style="display:none;font-size:12px">이 세션이 외부 웹을 검색·열람합니다 - 슬라이드·요청 내용이 검색어·URL 로 외부에 전달될 수 있습니다(claude 만, 실행 중 세션은 다시 시작해야 바뀜).</div>` : ""}
       <div class="hint">한도: 유휴 ${esc(String(d.limits.sessionIdleMinutes))}분 · 턴 ${esc(String(d.limits.sessionTurnMinutes))}분 · 동시 ${esc(String(d.limits.sessionMax))}. 서버가 꺼져 있으면 먼저 띄웁니다.</div>`;
+    if ($("#smWeb")) $("#smWeb").onchange = () => { $("#smWebWarn").style.display = $("#smWeb").checked ? "" : "none"; };
     $("#sessSaveRow").style.display = path && path.engine ? "none" : "";  // 엔진 세션은 작업 공간 기본 저장이 없다(sessBody 를 그린 뒤에 있어야 한다 - 그 전엔 null)
     $("#smAgent").onchange = () => { const n = $("#smAgent").value; $("#smModel").innerHTML = models(n); $("#smHint").textContent = d.agents[n].hint || ""; };
     $("#smModel").onchange = () => { $("#smModelText").style.display = $("#smModel").value === "__custom" ? "" : "none"; };
@@ -747,6 +752,7 @@
     const body = engine ? { action: "start", agent: $("#smAgent").value, model }
       : { action: "session", op: "start", path: sessTarget, agent: $("#smAgent").value, model };
     if (!engine && $("#smSave").checked) body.saveAs = $("#smSaveAs").value;
+    if ($("#smWeb") && $("#smWeb").checked) body.allowWeb = true;
     $("#sessErr").innerHTML = ""; $("#sessGo").disabled = true; $("#sessGo").textContent = "시작 중...";
     busy(true, engine ? "엔진 worktree 를 확인하고 세션을 시작하는 중..." : "서버를 확인하고 세션을 시작하는 중...");
     const r = await post(engine ? "/api/engine/session" : "/api/project", body);
@@ -756,7 +762,7 @@
       $("#sessErr").innerHTML = `<div class="warn" style="margin-top:10px">${esc(msg)}${/action = /.test(msg) ? "<br>허브 서버가 옛 판입니다 - 운영자가 <code>service.py restart</code> 로 새 판을 올려야 합니다." : ""}${r.data.log ? `<pre class="log">${esc(r.data.log)}</pre>` : ""}</div>`;
       return;
     }
-    closeModals(); toast(`${engine ? "엔진 개발 세션" : "웹 세션"} 시작 - ${body.agent} · ${model}`); await load();
+    closeModals(); toast(`${engine ? "엔진 개발 세션" : "웹 세션"} 시작 - ${body.agent} · ${model}${body.allowWeb ? " · 웹 허용" : ""}`); await load();
   };
   $("#rFind").addEventListener("input", renderRecent);
   $("#recent").addEventListener("click", async (e) => {
@@ -993,6 +999,8 @@
       $("#sgAgent").value = g.sessionAgent || ""; $("#sgModel").value = g.sessionModel || "";
       $("#sgModelsClaude").value = ((g.sessionModels || {}).claude || []).join(", "); $("#sgModelsCodex").value = ((g.sessionModels || {}).codex || []).join(", ");
       $("#sgIdle").value = g.sessionIdleMinutes ?? ""; $("#sgTurn").value = g.sessionTurnMinutes ?? ""; $("#sgMax").value = g.sessionMax ?? ""; $("#sgMaxTurns").value = g.sessionMaxTurns ?? ""; $("#sgBudget").value = g.sessionBudgetUsd ?? "";
+      $("#sgAllowWeb").checked = !!g.sessionAllowWeb; $("#sgAllowWebWarn").style.display = g.sessionAllowWeb ? "" : "none";
+      $("#sgAllowWeb").onchange = () => { $("#sgAllowWebWarn").style.display = $("#sgAllowWeb").checked ? "" : "none"; };
       $("#sgProbe").textContent = "에이전트 상태 확인 중…";
       fetch("/api/agent", { cache: "no-store" }).then((r) => r.json()).then((d) => { if (!d.ok) return; $("#sgProbe").innerHTML = ["claude", "codex"].map((n) => { const a = d.agents[n]; return `${esc(a.label)}: ${a.installed ? (a.loggedIn ? `설치됨 · 로그인됨 ${esc(a.version)}` : `설치됨 · 로그인 안 됨`) : "미설치"}${a.verified ? "" : " (미확인)"}`; }).join(" · "); }).catch(() => { $("#sgProbe").textContent = ""; });
     }
@@ -1006,7 +1014,8 @@
     if (H.home.user && H.home.user.role === "admin") {  // AI 세션 전역 기본(관리자만 - 서버도 확인)
       const list = (s) => s.split(",").map((x) => x.trim()).filter(Boolean);
       Object.assign(body, { sessionAgent: $("#sgAgent").value, sessionModel: $("#sgModel").value.trim(), sessionModels: { claude: list($("#sgModelsClaude").value), codex: list($("#sgModelsCodex").value) },
-        sessionIdleMinutes: $("#sgIdle").value.trim(), sessionTurnMinutes: $("#sgTurn").value.trim(), sessionMax: $("#sgMax").value.trim(), sessionMaxTurns: $("#sgMaxTurns").value.trim(), sessionBudgetUsd: $("#sgBudget").value.trim() });
+        sessionIdleMinutes: $("#sgIdle").value.trim(), sessionTurnMinutes: $("#sgTurn").value.trim(), sessionMax: $("#sgMax").value.trim(), sessionMaxTurns: $("#sgMaxTurns").value.trim(), sessionBudgetUsd: $("#sgBudget").value.trim(),
+        sessionAllowWeb: $("#sgAllowWeb").checked });
     }
     const r = await post("/api/settings", body);
     if (!r.ok) { toast(r.data.error || "저장하지 못했습니다", 4000); return; }

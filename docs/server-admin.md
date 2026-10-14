@@ -74,6 +74,15 @@ grep -E '"result":"(deny|error)"' ~/.config/nexa-slide/hub/logs/access-$(date +%
 
 `login.fail`·`login.locked` 가 같은 IP·같은 아이디로 몰리면 그 계정 비밀번호를 바꾸고, 필요하면 Cloudflare 쪽에서 그 IP 를 막는다. 필드 설명은 [auth.md](auth.md#접근-로그).
 
+### 웹 세션의 웹 검색 허용 — 보안 주의
+
+기본은 막혀 있다. 관리자가 시작 페이지 "기준 폴더 설정 → AI 세션 전역 기본 → 웹 검색 허용"을 켜면, 그 뒤 **세션을 시작할 때마다** 관리자가 "이 세션에 웹 검색 허용"을 골라야 열린다(전역만 켜고 체크하지 않으면 그대로 막힘, 실행 중 세션은 다시 시작해야 바뀜, claude 만).
+
+- 열리는 것: `WebSearch`·`WebFetch` 도구뿐. `curl`·`wget`·`powershell`·`mcp__*` 는 계속 거절된다.
+- 위험: 세션이 슬라이드·요청 내용의 일부를 검색어나 요청 URL 에 넣어 외부로 보낼 수 있다. 사내 자료 덱에서는 켜지 않거나, 요청에 "외부에 보내도 되는 범위"를 적어 둔다.
+- 흔적: 접근 로그 `event=settings.sessionAllowWeb:on|off`(설정 변경)·`session.start:<에이전트>:<모델>:web`(허용 세션 시작), 세션 턴 로그(`out/.studio/sessions/<시작 시각>/turn-N.jsonl`)에 WebFetch 대상 URL·WebSearch 검색어가 그대로 남는다 — 점검 때 본다.
+- 수집 자료는 세션이 작업 공간 안 `research/<주제>.md` 에 정리하도록 프롬프트에 적혀 있다(덱 안 각주에 출처 URL).
+
 ## 4. 사용자·관리자 관리
 
 웹: 로그인 → 왼쪽 위 메뉴(☰) → "계정"(관리자는 "계정 · 사용자 관리") → `/account`. 누구나 **내 비밀번호 변경**, 관리자는 **사용자 관리**(추가·삭제·비밀번호 초기화·관리자 지정/해제).

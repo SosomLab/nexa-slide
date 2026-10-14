@@ -1194,7 +1194,7 @@ ${names}
     }
     if (act && act.othersBusy) label += ` · 다른 세션 ${act.othersBusy}`;
     const webBusy = st.connected && st.kind === "web" && st.state === "running";  // 하트비트의 state - 턴 실행 중(요청 status 와 무관하게 파랑)
-    if (st.connected && st.kind === "web") label = `웹 세션${webBusy ? ` 처리 중 (턴 ${st.turn || "?"})` : ""} · ${st.model || st.agent || ""}${st.user ? ` · ${st.user}` : ""}${st.working ? ` · 요청 ${st.working}` : ""}`;
+    if (st.connected && st.kind === "web") label = `웹 세션${webBusy ? ` 처리 중 (턴 ${st.turn || "?"})` : ""} · ${st.model || st.agent || ""}${st.user ? ` · ${st.user}` : ""}${st.allowWeb ? " · 웹 허용" : ""}${st.working ? ` · 요청 ${st.working}` : ""}`;
     c.className = "chip sm " + (st.connected ? (st.working || webBusy || (w && w.state === "busy") ? "busy" : "on") : "off");
     c.innerHTML = `<span class="dot"></span>${esc(label)} ▾`;
     if (w && w.state === "busy" && w.source === "chat" && w.prompt) c.dataset.prompt = w.prompt; else delete c.dataset.prompt;
@@ -1209,7 +1209,7 @@ ${names}
     const st = S.session || {};
     const web = st.connected && st.kind === "web";
     const items = web
-      ? [{ h: `웹 세션 · ${st.agent || ""} · ${st.model || ""}${st.user ? ` · ${st.user}` : ""}` },
+      ? [{ h: `웹 세션 · ${st.agent || ""} · ${st.model || ""}${st.user ? ` · ${st.user}` : ""}${st.allowWeb ? " · 웹 허용" : ""}` },
          { icon: "▶", label: "진행 보기", act: sessProgress }, { icon: "⟳", label: "모델 바꾸기…", act: sessModelDlg },
          { icon: "📄", label: "턴 로그…", act: () => sessLog(1) }, "-",
          { icon: "■", label: "세션 중지", act: sessStop }]
@@ -1235,18 +1235,22 @@ ${names}
       <label class="f">모델 <span class="hint">(기본: ${esc(model)} — ${esc(r.data.sources.model)})</span></label>
       <div class="row" style="gap:6px"><select id="sdModel">${models(cur)}</select><input type="text" id="sdModelText" placeholder="모델 ID 직접 입력" style="display:none;flex:1"></div>
       <label class="f" style="display:flex;align-items:center;gap:8px;font-weight:400"><input type="checkbox" id="sdSave"> 이 작업 공간 기본으로 저장 <select id="sdSaveAs" style="font-size:12px"><option value="local">이 PC 만(nexa-slide.local.json)</option><option value="shared">공유(nexa-slide.json)</option></select></label>
+      ${r.data.allowWeb ? `<label class="f" style="display:flex;align-items:center;gap:8px;font-weight:400"><input type="checkbox" id="sdWeb" ${r.data.canAllowWeb ? "" : "disabled"}> 이 세션에 웹 검색 허용(WebSearch·WebFetch) ${r.data.canAllowWeb ? "" : '<span class="hint">- 관리자만</span>'}</label>
+      <div class="hint" id="sdWebWarn" style="display:none;color:var(--err)">이 세션이 외부 웹을 검색·열람합니다 - 슬라이드·요청 내용이 검색어·URL 로 외부에 전달될 수 있습니다(claude 만).</div>` : ""}
       <div class="hint">한도: 유휴 ${esc(String(r.data.limits.sessionIdleMinutes))}분 · 턴 ${esc(String(r.data.limits.sessionTurnMinutes))}분 · 동시 ${esc(String(r.data.limits.sessionMax))}</div>
       <div class="row" style="justify-content:flex-end;gap:8px"><button class="chip sm" data-sd="close">취소</button><button class="chip sm primary" data-sd="start">시작</button></div>`);
     $("#sdAgent").onchange = () => { const n = $("#sdAgent").value; $("#sdModel").innerHTML = models(n); $("#sdHint").textContent = (ag[n].hint || "") + (ag[n].hint && ag[n].doc ? ` (엔진 ${ag[n].doc})` : ""); };
+    if ($("#sdWeb")) $("#sdWeb").onchange = () => { $("#sdWebWarn").style.display = $("#sdWeb").checked ? "" : "none"; };
     $("#sdModel").onchange = () => { $("#sdModelText").style.display = $("#sdModel").value === "__custom" ? "" : "none"; };
   }
   async function sessStart() {
     const agent = $("#sdAgent").value, model = $("#sdModel").value === "__custom" ? $("#sdModelText").value.trim() : $("#sdModel").value;
     if (!model) { toast("모델을 고르거나 입력하세요"); return; }
     const body = { action: "start", agent, model }; if ($("#sdSave").checked) body.saveAs = $("#sdSaveAs").value;
+    if ($("#sdWeb") && $("#sdWeb").checked) body.allowWeb = true;
     const r = await api("POST", "/api/wsession", body);
     if (!r.ok) { toast("시작 실패: " + ((r.data && r.data.error) || r.status), 6000); return; }
-    toast(`웹 세션 시작 - ${agent} · ${model}`); renderSession({ ...(S.session || {}), connected: true, kind: "web", agent, model, user: r.data.startedBy, label: `web:${agent}`, open: r.data.open, working: r.data.working, last_seen: "", age: 0 });
+    toast(`웹 세션 시작 - ${agent} · ${model}${r.data.allowWeb ? " · 웹 허용" : ""}`); renderSession({ ...(S.session || {}), connected: true, kind: "web", agent, model, user: r.data.startedBy, allowWeb: !!r.data.allowWeb, label: `web:${agent}`, open: r.data.open, working: r.data.working, last_seen: "", age: 0 });
     sessProgress();
   }
   async function sessStop() {

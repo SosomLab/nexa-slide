@@ -94,7 +94,7 @@ Monitor
 |---|---|---|
 | 시작 | 터미널에서 Claude Code 를 열고 Monitor 로 `watch_requests --stream` | 허브 최근 작업 [세션 시작] / Studio 세션 칩 ▾ → "웹 세션 시작…"(에이전트·모델 선택, 서버가 꺼져 있으면 허브가 먼저 띄움) |
 | 요청 전달 | Monitor 알림 → 세션이 처리 | 서버가 같은 판정(`requests_core`)으로 묶음을 만들어 `claude -p`(stdin 프롬프트 = `studio/agents/turn_prompt.md` + 요청 JSON)를 실행 |
-| 권한 | 작업 공간 `.claude/settings.json`(사람이 승인 창에서 판단) | 엔진 권한 템플릿(`agents/permissions.json` workspace+web)을 `--settings` 로, `--restricted --permission-mode dontAsk` — 작업 공간 안 Read/Edit/Write 와 `python3 nexa.py …` 만. 물음은 모두 거절 |
+| 권한 | 작업 공간 `.claude/settings.json`(사람이 승인 창에서 판단) | 엔진 권한 템플릿(`agents/permissions.json` workspace+web)을 `--settings` 로, `--restricted --permission-mode dontAsk` — 작업 공간 안 Read/Edit/Write 와 `python3 nexa.py …` 만. 물음은 모두 거절. **웹 검색**은 기본 막힘 — 관리자가 전역 `sessionAllowWeb` 을 켜고 시작 창에서 "이 세션에 웹 검색 허용"을 고른 세션(claude 만)에서만 `WebSearch`·`WebFetch` 가 열린다(칩·세션 줄에 "웹 허용", 접근 로그 `session.start:…:web`, 턴 로그에 요청 URL). 그 세션의 턴 프롬프트에는 출처 URL 기록·`research/<주제>.md` 보관·검색어에 내부 정보 금지 규칙이 덧붙는다 |
 | 저장 | `save_deck` | 같다 — `draft_deck`(사본+줄 번호) → Edit → `save_deck --from`. 원장 `actor.user` = 세션을 시작한 사용자 |
 | 표시 | 칩 "세션 연결됨" | 칩 "웹 세션 · 모델 · 사용자", 칩 메뉴의 진행 패널(SSE: 턴 시작·도구·글·턴 끝·경고), 턴 로그, 모델 바꾸기(실행 중이면 턴이 끝난 뒤), 세션 중지 |
 | 끝 | 세션 종료·Monitor 만료 | [세션 중지]·유휴 `sessionIdleMinutes`(60분)·서버 종료 — 실행 중 턴의 프로세스 트리까지 끝낸다. 턴 한도 `sessionTurnMinutes`(20분) |

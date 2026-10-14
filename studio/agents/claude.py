@@ -46,16 +46,18 @@ class ClaudeAgent(Agent):
         elif not out["flags"].get("--restricted"):
             out["hint"] = f"구 판({out['version']}) - --restricted 가 없어 --setting-sources project,local 로 대신한다. 2.1.248 이상을 권한다"
 
-    def turn_cmd(self, model, resume_id=None, settings_path=None, max_turns=None, budget_usd=None, flags=None):
+    def turn_cmd(self, model, resume_id=None, settings_path=None, max_turns=None, budget_usd=None, flags=None, allow_web=False):
         flags = flags or {}
+        tools = TOOLS + (",WebFetch,WebSearch" if allow_web else "")  # 웹 검색 허용 세션 - --settings 의 allow 와 함께
+        disallow = ",".join(x for x in DISALLOW_OLD.split(",") if not (allow_web and x in ("WebFetch", "WebSearch")))
         cmd = [self.executable() or "claude", "-p", "--output-format", "stream-json", "--verbose", "--model", str(model),
                "--permission-mode", "dontAsk"]
         if flags.get("--permission-prompts", True):
             cmd += ["--permission-prompts", "none"]
         if flags.get("--restricted", True):
-            cmd += ["--restricted", "--tools", TOOLS]
+            cmd += ["--restricted", "--tools", tools]
         else:
-            cmd += ["--setting-sources", "project,local", "--disallowedTools", DISALLOW_OLD, "--allowedTools", TOOLS]
+            cmd += ["--setting-sources", "project,local", "--disallowedTools", disallow, "--allowedTools", tools]
         if settings_path:
             cmd += ["--settings", str(settings_path)]
         if flags.get("--strict-mcp-config", True):

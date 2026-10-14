@@ -194,7 +194,7 @@ def session_summary(ws, cfg=None):
     connected = bool(hb) and not hb.get("stopped") and age <= float(hb.get("interval", 1)) * 4 + 2
     out = {"kind": (hb.get("kind") or "manual") if connected else "none", "connected": connected, "label": hb.get("label", ""),
            "agent": hb.get("agent"), "model": hb.get("model"), "user": hb.get("user"), "started": hb.get("started", ""), "lastSeen": hb.get("last_seen", ""),
-           "state": hb.get("state"), "turn": hb.get("turn"),  # 웹 세션의 하트비트가 적는 상태(running = 턴 실행 중)
+           "state": hb.get("state"), "turn": hb.get("turn"), "allowWeb": bool(hb.get("allowWeb")),  # 웹 세션의 하트비트가 적는 상태(running = 턴 실행 중)
            "open": 0, "working": 0, "defaults": {"agent": cfg.get("sessionAgent"), "model": cfg.get("sessionModel")}}
     decks_dir = ws / cfg.get("decks", "decks")
     for f in (decks_dir.glob("*.requests.json") if decks_dir.is_dir() else []):
@@ -206,7 +206,7 @@ def session_summary(ws, cfg=None):
         out["working"] += sum(1 for r in rs if r.get("status") == "working")
     last = _read_json(st_dir / "wsession.json")
     if last:
-        out["last"] = {k: last.get(k) for k in ("agent", "model", "startedBy", "startedAt", "stoppedAt", "reason", "turns", "lastError")}
+        out["last"] = {k: last.get(k) for k in ("agent", "model", "startedBy", "startedAt", "stoppedAt", "reason", "turns", "lastError", "allowWeb")}
     return out
 
 
@@ -225,10 +225,11 @@ def workspace_info(path, state=False):
             "session": session_summary(p, cfg)}
 
 
-SESSION_KEYS = ("sessionAgent", "sessionModel", "sessionModels", "sessionIdleMinutes", "sessionTurnMinutes", "sessionMax", "sessionMaxTurns", "sessionBudgetUsd", "agentPaths")
+SESSION_KEYS = ("sessionAgent", "sessionModel", "sessionModels", "sessionIdleMinutes", "sessionTurnMinutes", "sessionMax", "sessionMaxTurns", "sessionBudgetUsd", "agentPaths",
+                "sessionAllowWeb")  # sessionAllowWeb: 웹 세션에 웹 검색(WebSearch·WebFetch)을 세션 단위로 열 수 있게 하는 전역 스위치(기본 끔)
 
 
-def session_ws(path, op, agent=None, model=None, user=None, role=None, save_as=None):
+def session_ws(path, op, agent=None, model=None, user=None, role=None, save_as=None, allow_web=False):
     """허브에서 작업 공간의 웹 세션을 켜고 끈다 - 서버가 꺼져 있으면 먼저 띄우고(--port auto) 그 서버의 /api/wsession 을 공유 비밀·사용자 머리로 부른다(결정 5)."""
     import urllib.error
     import urllib.request
@@ -254,6 +255,8 @@ def session_ws(path, op, agent=None, model=None, user=None, role=None, save_as=N
             body["model"] = model
         if save_as in ("local", "shared"):
             body["saveAs"] = save_as
+        if allow_web:  # 세션 단위 웹 검색 허용 - 작업 공간 서버가 역할(X-Nexa-Role)과 전역 설정을 확인한다
+            body["allowWeb"] = True
         req = urllib.request.Request(url + "api/wsession", data=json.dumps(body).encode("utf-8"), method="POST", headers=headers)
     try:
         with urllib.request.urlopen(req, timeout=90) as r:
@@ -354,6 +357,11 @@ def update_settings(b):
                 s[k] = n
             else:
                 s.pop(k, None)
+    if "sessionAllowWeb" in b:
+        if b["sessionAllowWeb"]:
+            s["sessionAllowWeb"] = True
+        else:
+            s.pop("sessionAllowWeb", None)
     if "sessionBudgetUsd" in b:
         v = str(b["sessionBudgetUsd"] if b["sessionBudgetUsd"] is not None else "").strip()
         if v:

@@ -89,14 +89,20 @@ class WorkspaceProfile:
     def ids(self, batch):
         return [r["id"] for r in batch]
 
+    WEB_NOTE = ("\n웹 검색 허용 세션(관리자가 켬) - WebSearch·WebFetch 를 쓸 수 있다. 웹에서 얻은 내용은 **출처 URL** 을 적고(슬라이드 각주 또는 reply), "
+                "수집 자료를 별도 문서로 보관하라는 요청이면 작업 공간 안 `research/<주제>.md` 에 정리한다(Write 범위). "
+                "검색어·요청 URL 에 덱 내용·사내 이름·개인 정보를 넣지 않는다.\n")
+
     def prompt(self, batch, reason, sess, ag):
         tpl = self.prompt_file.read_text(encoding="utf-8")
-        return tpl.replace("{guide}", ag.guide_file).replace("{reason}", str(reason)).replace("{batch}", json.dumps([rc.brief(r) for r in batch], ensure_ascii=False, indent=1))
+        return (tpl.replace("{guide}", ag.guide_file).replace("{reason}", str(reason)).replace("{web}", self.WEB_NOTE if sess.allow_web else "")
+                .replace("{batch}", json.dumps([rc.brief(r) for r in batch], ensure_ascii=False, indent=1)))
 
-    def settings_json(self):
+    def settings_json(self, allow_web=False):
         """웹 세션 권한 JSON - 템플릿(workspace+web)에 이 작업 공간 실행기의 절대 경로 변형을 더한다.
-        안내 파일(CLAUDE.md)이 `python3 <절대 경로>/nexa.py …` 로 적힌 작업 공간(허브가 만든 것)에서도 그 명령이 허용되게 - 다른 폴더의 nexa.py 는 여전히 거절."""
-        s = agents.web_settings()
+        안내 파일(CLAUDE.md)이 `python3 <절대 경로>/nexa.py …` 로 적힌 작업 공간(허브가 만든 것)에서도 그 명령이 허용되게 - 다른 폴더의 nexa.py 는 여전히 거절.
+        allow_web 면 WebFetch·WebSearch 가 열린다(agents.web_settings)."""
+        s = agents.web_settings(allow_web)
         allow = list(s["permissions"].get("allow", []))
         launcher = (WORKSPACE / "nexa.py")
         for py in ("python3", "python"):
@@ -230,7 +236,7 @@ class EngineProfile:
         return (tpl.replace("{id}", str(x["id"])).replace("{branch}", self.BRANCH).replace("{req_cli}", self.req_cli())
                 .replace("{request}", json.dumps(show, ensure_ascii=False, indent=1)))
 
-    def settings_json(self):
+    def settings_json(self, allow_web=False):  # 엔진 세션은 웹을 열지 않는다(allow_web 무시)
         tpl = json.loads((STUDIO / "agents" / "permissions.json").read_text(encoding="utf-8"))
         eng, web = tpl["engine"]["permissions"], tpl["web"]["permissions"]
         perms = {"allow": list(eng.get("allow", [])), "deny": list(eng.get("deny", [])) + [x for x in web.get("deny", []) if x not in eng.get("deny", [])]}
@@ -270,6 +276,7 @@ class WebSession:
         self.last_error = None
         self.last_activity = 0.0
         self.pending_model = None
+        self.allow_web = False  # 이 세션에 웹 검색(WebSearch·WebFetch) 허용 - 전역 sessionAllowWeb 이 켜진 상태에서 관리자가 시작 때 고른다
         self.limits, self.flags = {}, {}
         self.events = collections.deque(maxlen=1000)
         self.seq = 0
@@ -299,7 +306,7 @@ class WebSession:
             d = {"kind": self.p.kind, "state": self.state, "agent": self.agent, "model": self.model, "modelActual": self.model_actual, "pendingModel": self.pending_model,
                  "sessionId": self.session_id, "startedBy": self.started_by, "startedAt": self.started_at, "turns": self.turns,
                  "lastError": self.last_error, "lastActivity": dt.datetime.fromtimestamp(self.last_activity).isoformat(timespec="seconds") if self.last_activity else None,
-                 "limits": self.limits, "seq": self.seq, "logDir": str(self._log_dir) if self._log_dir else None}
+                 "allowWeb": self.allow_web, "limits": self.limits, "seq": self.seq, "logDir": str(self._log_dir) if self._log_dir else None}
             try:
                 d.update(self.p.extra_info())
             except Exception as e:  # noqa: BLE001
@@ -310,7 +317,7 @@ class WebSession:
 
     def _save(self, **extra):
         self.last = {"agent": self.agent, "model": self.model, "modelActual": self.model_actual, "sessionId": self.session_id, "startedBy": self.started_by,
-                     "startedAt": self.started_at, "turns": self.turns, "lastError": self.last_error, "logDir": str(self._log_dir) if self._log_dir else None, **extra}
+                     "startedAt": self.started_at, "allowWeb": self.allow_web, "turns": self.turns, "lastError": self.last_error, "logDir": str(self._log_dir) if self._log_dir else None, **extra}
         rc.write_json(self.sess_file, self.last)
 
     def emit(self, kind, **kw):
@@ -331,7 +338,7 @@ class WebSession:
             return [e for e in self.events if e["seq"] > since]
 
     # ---------- 시작 · 중지 · 모델 ----------
-    def start(self, agent=None, model=None, user=None):
+    def start(self, agent=None, model=None, user=None, allow_web=False):
         with self.lock:
             if self.state != "off":
                 raise ValueError(f"이미 세션이 있다({self.state}) - 먼저 중지한다")
@@ -341,6 +348,11 @@ class WebSession:
             model = str(model or eff["model"]).strip()
             if agent not in agents.AGENTS:
                 raise ValueError(f"모르는 에이전트: {agent}")
+            allow_web = bool(allow_web) and self.p.kind != "engine"
+            if allow_web and not eff.get("allowWeb"):
+                raise ValueError("웹 검색은 관리자가 전역 설정(AI 세션 전역 기본 → 웹 검색 허용)을 켜야 고를 수 있다")
+            if allow_web and agent != "claude":
+                raise ValueError(f"{agent} 는 웹 검색 도구를 지원하지 않는다(미확인) - claude 로 시작한다")
             if not model:
                 raise ValueError("모델을 준다")
             others = [s for s in live_sessions() if s.get("key") != self.p.key()]
@@ -354,25 +366,25 @@ class WebSession:
                 raise ValueError(p["hint"] or f"{ag.label} 가 설치되어 있지 않다")
             if not p["loggedIn"]:
                 raise ValueError(p["hint"] or f"{ag.label} 에 로그인되어 있지 않다")
-            self.agent, self.model, self.flags, self.limits = agent, model, p.get("flags") or {}, eff["limits"]
+            self.agent, self.model, self.flags, self.limits, self.allow_web = agent, model, p.get("flags") or {}, eff["limits"], allow_web
             self.model_actual = self.session_id = self.last_error = self.pending_model = None
             self.started_by, self.started_at, self.turns = user or "local", _now(), 0
             self.last_activity = time.time()
             self._log_dir = self.log_root / self.started_at.replace(":", "").replace("-", "")
             self._log_dir.mkdir(parents=True, exist_ok=True)
             self._settings_path = self.log_root / "claude-settings.json"
-            self._settings_path.write_text(json.dumps(self.p.settings_json(), ensure_ascii=False, indent=1), encoding="utf-8")
+            self._settings_path.write_text(json.dumps(self.p.settings_json(allow_web), ensure_ascii=False, indent=1), encoding="utf-8")
             self._hb = {"pid": os.getpid(), "label": f"{self.p.kind}:{agent}", "mode": "web", "interval": INTERVAL, "started": self.started_at,
-                        "kind": self.p.kind, "agent": agent, "model": model, "user": self.started_by}
+                        "kind": self.p.kind, "agent": agent, "model": model, "user": self.started_by, "allowWeb": allow_web}
             REGISTRY.mkdir(parents=True, exist_ok=True)
             rc.write_json(REGISTRY / f"{self.p.key()}.json", {"key": self.p.key(), "kind": self.p.kind, "ws": str(self.p.cwd), "heartbeat": str(self.p.heartbeat_path),
-                                                                "user": self.started_by, "agent": agent, "model": model, "started": self.started_at, "pid": os.getpid()})
+                                                                "user": self.started_by, "agent": agent, "model": model, "started": self.started_at, "pid": os.getpid(), "allowWeb": allow_web})
             self.state = "ready"
             self._stop.clear()
             self._source = self.p.source()
             self._beat()
             self._save()
-            self.emit("state", state="ready", agent=agent, model=model, user=self.started_by)
+            self.emit("state", state="ready", agent=agent, model=model, user=self.started_by, allowWeb=allow_web)
             self._thread = threading.Thread(target=self._loop, name=f"wsession-{self.p.kind}", daemon=True)
             self._thread.start()
             # 하트비트는 별도 스레드 - 턴이 도는 동안 _loop 가 막혀도 매초 쓴다(안 그러면 편집기 칩이 "연결 없음"으로 바뀐다)
@@ -460,7 +472,7 @@ class WebSession:
             self.turns += 1
             n = self.turns
             cmd = ag.turn_cmd(self.model, self.session_id, self._settings_path if self.agent == "claude" else None,
-                              max_turns=self.limits.get("sessionMaxTurns"), budget_usd=self.limits.get("sessionBudgetUsd"), flags=self.flags)
+                              max_turns=self.limits.get("sessionMaxTurns"), budget_usd=self.limits.get("sessionBudgetUsd"), flags=self.flags, allow_web=self.allow_web)
             self._turn_log = self._log_dir / f"turn-{n}.jsonl"
         self.emit("turn.start", turn=n, count=len(batch), reason=reason, ids=self.p.ids(batch), model=self.model)
         env = {**os.environ, **ag.env(), **self.p.env(self)}

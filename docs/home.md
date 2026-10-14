@@ -87,6 +87,7 @@ python3 <작업 공간>/nexa.py start      # 작업 공간 서버 → 덱이 있
 | `sessionAgent` · `sessionModel` · `sessionModels` · `sessionIdleMinutes` · `sessionTurnMinutes` · `sessionMax` · `sessionMaxTurns` · `sessionBudgetUsd` · `agentPaths` | AI 웹 세션 전역 기본(에이전트 `claude`/`codex` · 모델 · 모델 목록 `{claude: […], codex: […]}` · 유휴 60분 · 턴 20분 · 동시 3 · 턴당 도구 반복 40 · 예산 · 실행 파일 경로). **관리자만** — 시작 페이지 메뉴 "기준 폴더 설정" 아래 "AI 세션 전역 기본". 작업 공간 설정 `sessionAgent`·`sessionModel`(`nexa-slide.local.json`/`nexa-slide.json`)과 세션 시작 창의 선택이 이보다 우선 |
 
 계정(`users.json`)·세션·접근 로그도 이 폴더에 있다. 허브는 로컬이어도 로그인이 필요하다 — [auth.md](auth.md).
+| `sessionAllowWeb` | **웹 세션에 웹 검색 허용 스위치**(기본 꺼짐, 관리자만). 켜면 세션 시작 창에 "이 세션에 웹 검색 허용" 체크가 생기고(관리자만 체크 가능, claude 만) 그 세션의 권한에서 `WebSearch`·`WebFetch` 가 열린다 - 다른 외부 접근(curl·wget·powershell·mcp)은 여전히 막힌다. 보안 주의는 [server-admin.md](server-admin.md) |
 | `recent` | 최근 작업 `[{path, title, opened}]` - 최대 30개 |
 | `samples` | 등록한 샘플 사이트 `[{name, url, note}]` |
 

@@ -991,6 +991,10 @@ class H(BaseHTTPRequestHandler):
             return self.err(404, "없는 API")
         self.send_json({"ok": True, **ws.info()})
 
+    def _can_allow_web(self):
+        """세션에 웹 검색을 열 수 있는 사람 - 허브 관리자(중계 머리글 X-Nexa-Role). 작업 공간 서버 로컬 직접 접속은 로그인이 없으므로 그 PC 사용자 = 운영자로 본다."""
+        return self.role == "admin" or (not HUB and not self.via_hub)
+
     def _session_post(self, ws, b, who, save_defaults=None):
         """세션 조작 공통 - {action: start|stop|model}. 작업 공간 세션은 saveAs 로 기본값도 저장한다."""
         act = b.get("action")
@@ -998,8 +1002,13 @@ class H(BaseHTTPRequestHandler):
             return False  # 여기서 다루지 않는 action - 호출한 쪽이 처리
         try:
             if act == "start":
-                info = ws.start(b.get("agent"), b.get("model"), who)
-                self._event = f"{ws.p.kind}.session.start:{info['agent']}:{info['model']}"
+                allow_web = bool(b.get("allowWeb"))
+                if allow_web and not self._can_allow_web():
+                    self._event = f"{ws.p.kind}.session.denied"
+                    self.err(403, "웹 검색 허용은 관리자만 고를 수 있다")
+                    return True
+                info = ws.start(b.get("agent"), b.get("model"), who, allow_web=allow_web)
+                self._event = f"{ws.p.kind}.session.start:{info['agent']}:{info['model']}" + (":web" if info.get("allowWeb") else "")
                 if save_defaults and b.get("saveAs") in ("local", "shared"):
                     save_defaults(b.get("saveAs"), {"sessionAgent": info["agent"], "sessionModel": info["model"]})
                 self.send_json({"ok": True, **info})
@@ -1175,7 +1184,7 @@ class H(BaseHTTPRequestHandler):
         import agents
         refresh = (q.get("refresh") or ["0"])[0] == "1"
         eff = agents.effective(None if HUB else read_config())
-        self.send_json({"ok": True, "agents": agents.probe_all(refresh=refresh), **eff})
+        self.send_json({"ok": True, "agents": agents.probe_all(refresh=refresh), **eff, "canAllowWeb": bool(eff.get("allowWeb")) and self._can_allow_web()})
 
     # ---------- 시작 페이지(허브) ----------
     def hub_call(self, fn, *args):
@@ -1192,8 +1201,8 @@ class H(BaseHTTPRequestHandler):
     def api_post_project(self, _, q):
         b = self.body_json() or {}
         if b.get("action") == "session":  # 허브에서 작업 공간 세션 켜기·끄기·모델(꺼진 서버면 먼저 띄운다) - 로그인 사용자 누구나
-            self._event = f"session.{b.get('op')}:{Path(str(b.get('path') or '')).name}"
-            return self.hub_call(hub.session_ws, b.get("path"), b.get("op"), b.get("agent"), b.get("model"), self.user, self.role, b.get("saveAs"))
+            self._event = f"session.{b.get('op')}:{Path(str(b.get('path') or '')).name}" + (":web" if b.get("allowWeb") else "")
+            return self.hub_call(hub.session_ws, b.get("path"), b.get("op"), b.get("agent"), b.get("model"), self.user, self.role, b.get("saveAs"), bool(b.get("allowWeb")))
         if b.get("action") == "open" and not HUB and b.get("path") and Path(b["path"]).resolve() == WORKSPACE:
             hub.remember(WORKSPACE, CONFIG.get("title", WORKSPACE.name))
             return self.send_json({"ok": True, "path": str(WORKSPACE), "url": f"http://127.0.0.1:{self.server.server_port}/"})
@@ -1208,6 +1217,8 @@ class H(BaseHTTPRequestHandler):
         if any(k in b for k in hub.SESSION_KEYS) and self.role != "admin":  # AI 세션 전역 기본은 관리자만(결정 1)
             self._event = "settings.denied"
             return self.err(403, "AI 세션 전역 설정은 관리자만 바꿀 수 있다")
+        if "sessionAllowWeb" in b:  # 보안에 닿는 설정은 접근 로그에 남긴다
+            self._event = f"settings.sessionAllowWeb:{'on' if b.get('sessionAllowWeb') else 'off'}"
 
         def save(body):
             hub.update_settings(body)

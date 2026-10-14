@@ -4,7 +4,7 @@
     get(name)                 어댑터 인스턴스
     probe_all(refresh)        {이름: probe 결과}
     effective(ws_cfg)         우선순위를 적용한 기본값 {agent, model, sources} - 전역(사용자 설정 sessionAgent·sessionModel) < 작업 공간 설정(같은 키)
-    web_settings()            웹 세션에 --settings 로 넘길 권한 JSON(dict) - permissions.json 의 workspace + web
+    web_settings(allow_web)   웹 세션에 --settings 로 넘길 권한 JSON(dict) - permissions.json 의 workspace + web. allow_web 면 WebFetch·WebSearch 를 deny 에서 빼고 allow 에
 """
 import json
 import sys
@@ -48,14 +48,22 @@ def effective(ws_cfg=None):
         model, m_src = str(ws_cfg["sessionModel"]), "작업 공간"
     limits = {k: (ws_cfg.get(k) if ws_cfg.get(k) is not None else s.get(k, v)) for k, v in LIMITS.items()}
     return {"agent": agent, "model": model, "sources": {"agent": a_src, "model": m_src}, "limits": limits,
-            "models": {n: get(n).models() for n in AGENTS}}
+            "models": {n: get(n).models() for n in AGENTS},
+            "allowWeb": bool(s.get("sessionAllowWeb"))}  # 전역(관리자)이 켜야 세션 단위로 웹 검색을 고를 수 있다 - 작업 공간 설정으로는 못 켠다
 
 
-def web_settings():
-    """웹 세션(claude -p --settings)에 넘길 설정 - 권한 템플릿의 workspace + web 을 합친 것(hooks 없음)."""
+WEB_TOOLS = ("WebFetch", "WebSearch")  # 세션 단위 웹 검색 허용 때만 열리는 도구(curl·wget·powershell 은 여전히 막는다)
+
+
+def web_settings(allow_web=False):
+    """웹 세션(claude -p --settings)에 넘길 설정 - 권한 템플릿의 workspace + web 을 합친 것(hooks 없음).
+    allow_web 면 WebFetch·WebSearch 만 deny 에서 빼고 allow 에 넣는다(관리자가 전역을 켜고 세션 시작 때 고른 경우)."""
     tpl = json.loads((STUDIO / "agents" / "permissions.json").read_text(encoding="utf-8"))
     ws, web = tpl["workspace"]["permissions"], tpl["web"]["permissions"]
     perms = {"allow": list(ws.get("allow", [])), "deny": list(ws.get("deny", [])) + [x for x in web.get("deny", []) if x not in ws.get("deny", [])]}
+    if allow_web:
+        perms["deny"] = [x for x in perms["deny"] if x not in WEB_TOOLS]
+        perms["allow"] += [x for x in WEB_TOOLS if x not in perms["allow"]]
     for k, v in web.items():
         if k not in ("allow", "deny"):
             perms[k] = v

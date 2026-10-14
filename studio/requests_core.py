@@ -127,7 +127,7 @@ def session_status():
     age = time.time() - float(hb.get("ts", 0))
     st.update(pid=hb.get("pid"), label=hb.get("label", ""), mode=hb.get("mode", ""), last_seen=hb.get("last_seen", ""), age=round(age, 1),
               connected=not hb.get("stopped") and age <= float(hb.get("interval", 1)) * STALE_FACTOR + 2)
-    for k in ("kind", "agent", "model", "user", "state", "turn"):  # 웹 세션이 더 적는 값(없으면 빠진다) - state=running 이면 턴 실행 중
+    for k in ("kind", "agent", "model", "user", "state", "turn", "allowWeb"):  # 웹 세션이 더 적는 값(없으면 빠진다) - state=running 이면 턴 실행 중
         if hb.get(k) is not None:
             st[k] = hb[k]
     return st
