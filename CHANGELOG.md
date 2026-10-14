@@ -2,6 +2,7 @@
 
 ## 0.21.3 - 2026-10-15 · 여러 요소에 한 요청 메모
 
+- 서버 작업 카드 [적용됨]이 병합 커밋 해시(기본값 = 지금 main HEAD)를 물어 `appliedCommit` 으로 기록한다. 협업 세션: `docs/server-admin.md` 9절 "엔진 요청 적용 절차", `docs/mechanism.md` 엔진 요청 큐·개발 세션 흐름과 0.19~0.21 API, i18n 사전에 템플릿·시작 내용 설명문 46개.
 - 요소를 여러 개 고른 채(Shift/Ctrl+클릭·범위 선택) 오른쪽 클릭 "이 요소 n개에 요청 메모" 또는 서식 줄 💬 — 팝오버에 "요소 n개 (글자 e03, 원 e05 …)", 요청에 `elements` 목록(`element` 는 첫 요소), 캔버스에 요소마다 테두리, 요청 카드에 "e03 외 2". 세션에는 `elements` 가 전달되고 `draft_deck --element e03,e05`(쉼표)로 줄 번호를 본다. 전에는 여러 개를 골라도 첫 요소 하나만 담겼다.
 
 ## 0.21.2 - 2026-10-15 · 글자 크기 일괄 확대 scale_fonts · content fontScale (engine-request #5)

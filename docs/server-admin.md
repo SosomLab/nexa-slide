@@ -160,3 +160,64 @@ Register-ScheduledTask -TaskName 'nexa-slide hub' -Action $act -Trigger (New-Sch
 - [ ] 허브는 사람이 쓰는 그 사용자 계정으로 뜬다(자동 시작 포함)
 - [ ] 접근 로그에 `deny` 가 몰리지 않는다
 - [ ] (선택) Cloudflare Access 같은 앞단 인증을 한 겹 더 둔다
+- [ ] 서버 작업 카드에 오래된 "완료(적용 대기)" 가 쌓여 있지 않다 — 9절 순서로 적용하거나 거절한다
+
+## 9. 엔진 요청 적용 절차
+
+엔진 개발 세션(시작 페이지 "서버 작업" 카드)은 요청을 **엔진 worktree 의 `engine-dev` 브랜치**에만 커밋하고 큐 항목을 **완료(적용 대기)** 로 둔다.
+운영 트리(main)는 허브·작업 공간 서버가 실행 중인 코드이므로, 병합·배포·재시작은 운영자가 아래 순서로 한다. 흐름 그림은 [mechanism.md](mechanism.md#8-엔진-요청-큐--엔진-개발-세션-e-단계-019021).
+
+| 위치 | 경로 |
+|---|---|
+| 엔진 worktree | `<엔진>/.claude/worktrees/engine-dev`(브랜치 `engine-dev`) |
+| 큐 | 사용자 설정 폴더 `hub/engine/requests.json`(CLI: `python3 studio/engine_request.py list` · `show <번호>`) |
+
+### 순서
+
+1. **확인** — 카드에서 완료(적용 대기) 항목의 reply·commit·test 를 본다. 터미널에서:
+   ```bash
+   python3 studio/engine_request.py show <번호>              # commit · branch · test · reply
+   git log --oneline main..engine-dev                         # 들어올 커밋
+   git diff main...engine-dev --stat                          # 바뀐 파일
+   ```
+   렌더 규칙(`render.js` ↔ `common.py`·`export_pptx.py`)을 건드렸으면 `python3 studio/check_parity.py -W example`, 등록된 작업 공간의 덱은 병합 전·후 `export_pptx.py --out` 결과 슬라이드 XML 이 같아야 한다(기능 추가가 아니라면).
+2. **병합** — 운영 트리(엔진 폴더, `main`)에서 병합 커밋을 남긴다. 변경 이력(`CHANGELOG`)의 판 번호를 맞춘다.
+   ```bash
+   git switch main
+   git merge --no-ff engine-dev -m "merge: engine-dev (engine-request #<번호> - <요약>)"
+   git push
+   ```
+   병합 순간 정적 파일(`studio/*.js`·`*.html`)은 바로 새 판이 나가고 파이썬은 재시작 전까지 옛 판이다 — 병합과 재시작을 붙여서 한다.
+3. **재시작** — 처리 중인 턴이 없는지 본 뒤(시작 페이지 세션 줄·서버 작업 카드가 "처리 중"이 아님) 허브와 작업 공간 서버를 다시 띄운다. 돌고 있던 웹·엔진 세션은 끝나므로 필요하면 다시 시작한다.
+   ```bash
+   python3 studio/service.py restart                         # 허브
+   python3 <작업 공간>/nexa.py restart                        # 떠 있는 작업 공간마다
+   ```
+4. **[적용됨] 표시** — 카드의 [적용됨]을 누른다(확인 창: "main 에 병합하고 서버를 재시작했나요?"). 지금 화면 버튼은 상태만 바꾸고 병합 커밋(`appliedCommit`)은 적지 않는다.
+   병합 커밋까지 남기려면 관리자로 로그인한 상태에서 허브 API 를 부른다:
+   ```text
+   POST /api/engine/requests
+   {"action": "status", "id": <번호>, "status": "applied", "appliedCommit": "<병합 커밋>"}
+   ```
+5. **engine-dev 동기화** — 다음 엔진 세션이 최신 main 에서 시작하도록 worktree 브랜치를 main 으로 맞춘다(병합 뒤라 fast-forward 다).
+   ```bash
+   git -C .claude/worktrees/engine-dev merge --ff-only main
+   ```
+6. **원 요청 재개** — 엔진 요청을 넘긴 작업 공간의 원 요청은 자동으로 다시 열리지 않는다. 그 작업 공간 Studio 요청 탭에서 [후속 요청]("엔진에 반영됐으니 진행해 줘")으로 이어 간다.
+
+### 사례 — 엔진 요청 #4 · #5 (2026-10-15, 0.21.1 · 0.21.2)
+
+| 요청 | engine-dev 커밋 | main 병합(appliedCommit) | 판 |
+|---|---|---|---|
+| #4 content 에서 요소 좌표·앞뒤 순서·추가 요소 + 글머리/행 균등 간격(`place`·`extra`·`spread`·`rowH`) | `4f473a8` | `ee05917`(engine-dev 병합) → `7e5a819`(main) | 0.21.1 |
+| #5 덱 전체 글자 크기 비율 확대(`scale_fonts` · content `fontScale`) | `4c2231c` | `52868f7`(engine-dev 병합) → `0707d1e`(main) | 0.21.2 |
+
+두 건 모두 가정형호스피스 작업 공간 세션이 넘긴 요청(triage → 관리자 승인 → 엔진 세션 처리 → done)이고, 위 1~5 순서로 병합·재시작·[적용됨]·engine-dev 동기화를 했다.
+이 사례에서는 engine-dev 를 먼저 개발 브랜치(`dev/engine-requests`)에 병합해 다른 변경과 함께 시험한 뒤 main 에 병합했다 — 개발 브랜치가 따로 돌고 있으면 그 방식이, 없으면 2단계처럼 main 에 바로 `--no-ff` 병합이 단순하다.
+검증은 `check_parity`·회귀 시험과 `scale_fonts ×1.2` 뒤 `check_layout` ERROR 0.
+
+### 주의
+
+- 엔진 세션이 main 이나 운영 트리를 직접 고치지 않게 되어 있다(권한 · cwd = worktree). main 에 직접 커밋된 흔적이 있으면 원인을 먼저 본다.
+- 세션이 넘긴 요청(triage)은 **사람이 내용을 읽고 승인**한다 — 작업 공간 요청 글이 엔진 변경 지시로 번질 수 있다(프롬프트 인젝션).
+- 여러 요청을 한 번에 병합해도 되지만 [적용됨]은 요청마다 누른다.
