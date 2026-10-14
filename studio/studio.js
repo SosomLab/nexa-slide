@@ -29,6 +29,7 @@
     cur: 0, sel: null, undo: [], redo: [], dirty: false, saving: false, conflict: false,
     reqs: [], reqOnlySlide: true, layouts: [], preview: false, pngs: [], renderAt: 0, editing: null, clip: null,
     tab: "props", brand: {}, session: null, check: null, chkOnlySlide: true, chkBox: null, template: null,
+    multi: [], multiSlide: null,
     changes: [], chgRecent: [], chgMark: {}, chgVersion: "0", chgLatest: 0, chgHidden: new Set(), chgShown: new Set(), chgOff: LS.get("chgOff", "0") === "1", chgFilter: LS.get("chgFilter", "all"), chgMore: false,
     mode: LS.get("mode", "edit"), tool: "rect", zoom: null, btab: LS.get("btab", "notes"), memo: null, drawing: null, pan: null,
   };
@@ -49,6 +50,10 @@
   const slide = () => (S.deck && S.deck.slides[S.cur]) || null;
   const elById = (id, s = slide()) => (s ? s.elements.find((e) => e.id === id) : null);
   const selEl = () => (S.sel ? elById(S.sel) : null);
+  // 다중 선택 - 주 선택(S.sel) + 함께 고른 요소(S.multi, 그 슬라이드에서만 유효). Shift/Ctrl+클릭 · 빈 곳 끌어 범위 선택
+  const selIds = () => { const s = slide(); if (!S.sel || !s) return []; const extra = S.multiSlide === s.id ? S.multi.filter((id) => id !== S.sel && elById(id)) : []; return elById(S.sel) ? [S.sel, ...extra] : []; };
+  const selEls = () => selIds().map((id) => elById(id)).filter(Boolean);
+  const isMulti = () => selIds().length > 1;
   const isLine = (e) => e && (e.type === "line" || e.type === "arrow");
   const snap = (v, free) => (free ? Math.round(v) : Math.round(v / GRID) * GRID);
   const clone = (o) => JSON.parse(JSON.stringify(o));
@@ -404,7 +409,14 @@
   function boxOf(el) { return isLine(el) ? Render.lineBox(el) : el; }
   function drawSel() {
     const ov = $("#ov"); const el = selEl();
-    if (!el || S.editing || S.mode === "draw") { ov.innerHTML = ""; drawChkBox(); return; }
+    if (!el || S.editing || S.mode === "draw") { ov.innerHTML = drag && drag.mode === "marquee" ? marqueeHtml() : ""; drawChkBox(); return; }
+    if (isMulti()) {  // 다중 선택 - 요소마다 얇은 상자 + 전체 묶음 상자(크기 조절 손잡이 없음)
+      const els = selEls(), bw = 2 / scale, bs = els.map(boxOf);
+      const x1 = Math.min(...bs.map((b) => b.x)), y1 = Math.min(...bs.map((b) => b.y)), x2 = Math.max(...bs.map((b) => b.x + b.w)), y2 = Math.max(...bs.map((b) => b.y + b.h));
+      ov.innerHTML = bs.map((b, i) => `<div class="selbox multi${els[i].locked ? " locked" : ""}" style="left:${b.x - bw}px;top:${b.y - bw}px;width:${b.w + 2 * bw}px;height:${b.h + 2 * bw}px;border-width:${bw}px"></div>`).join("")
+        + `<div class="selbox group" style="left:${x1 - 3 * bw}px;top:${y1 - 3 * bw}px;width:${x2 - x1 + 6 * bw}px;height:${y2 - y1 + 6 * bw}px;border-width:${bw}px"></div>` + (drag && drag.mode === "marquee" ? marqueeHtml() : "");
+      drawChkBox(); return;
+    }
     const b = boxOf(el), hs = 11 / scale, bw = 2 / scale;
     let h = `<div class="selbox${el.locked ? " locked" : ""}${S.mode === "pick" ? " pick" : ""}" style="left:${b.x - bw}px;top:${b.y - bw}px;width:${b.w + 2 * bw}px;height:${b.h + 2 * bw}px;border-width:${bw * (S.mode === "pick" ? 1.5 : 1)}px"></div>`;
     if (!el.locked && S.mode === "edit") {
@@ -413,7 +425,11 @@
            ["se", b.x + b.w, b.y + b.h], ["s", b.x + b.w / 2, b.y + b.h], ["sw", b.x, b.y + b.h], ["w", b.x, b.y + b.h / 2]];
       h += pts.map(([d, x, y]) => `<div class="hd" data-h="${d}" style="left:${x - hs / 2}px;top:${y - hs / 2}px;width:${hs}px;height:${hs}px;border-width:${bw}px;cursor:${d.length === 2 && d[0] !== "p" ? d + "-resize" : d === "n" || d === "s" ? "ns-resize" : d === "e" || d === "w" ? "ew-resize" : "move"}"></div>`).join("");
     }
-    ov.innerHTML = h; drawChkBox();
+    ov.innerHTML = h + (drag && drag.mode === "marquee" ? marqueeHtml() : ""); drawChkBox();
+  }
+  function marqueeHtml() {
+    const m = drag.box, bw = 1 / scale;
+    return `<div class="marquee" style="left:${m.x}px;top:${m.y}px;width:${m.w}px;height:${m.h}px;border-width:${bw}px"></div>`;
   }
 
   // ---------------------------------------------------------------- 요청 표시(초안·대기·처리 중) — 번호 배지 + 영역
@@ -621,9 +637,17 @@
       <button class="ib${lk ? " on" : ""}" data-f="lock" title="잠금 — 끌기·삭제 막기">🔒</button>
       <button class="ib" data-f="pos" title="위치 조정 — 정렬·순서·크기·좌표">✥ ▾</button>
       <span class="vsep"></span><button class="ib" data-f="memo" title="이 요소에 요청 메모(세션에 보냄)">💬</button>`;
+    if (isMulti()) h = `<span class="multi-n" title="Shift/Ctrl+클릭으로 더하거나 빼기 · 빈 곳을 끌어 범위 선택 · Esc 해제. 서식은 그 속성이 있는 요소에만 적용">${selIds().length}개 선택</span><span class="vsep"></span>` + h;
     F.innerHTML = h; F.classList.add("show");
   }
-  function mutate(fn) { const el = selEl(); if (!el) return; snapshot(); fn(el); if (isLine(el)) Object.assign(el, Render.lineBox(el)); afterChange(); }
+  // 선택한 요소 모두에 같은 변경 - ok(요소)가 거짓인 요소는 건너뛴다(그 속성이 없는 종류). 서식 줄·위치 조정·속성 탭이 쓴다
+  function mutate(fn, ok) {
+    const els = selEls().filter((x) => !ok || ok(x)); if (!els.length) return;
+    snapshot(); for (const el of els) { fn(el); if (isLine(el)) Object.assign(el, Render.lineBox(el)); } afterChange();
+  }
+  const hasFill = (x) => ["rect", "ellipse", "pill", "text", "plan"].includes(x.type);
+  const hasStroke = (x) => ["rect", "ellipse", "pill", "text"].includes(x.type);
+  const hasColor = (x) => TEXTY.has(x.type) || x.type === "bullets" || isLine(x);
   function palette(anchor, cur, allowNone, apply) {
     const T = S.tokens, groups = Object.entries(T.groups || {});
     const items = [];
@@ -637,6 +661,7 @@
   }
   function posMenu(anchor) {
     const el = selEl(); if (!el) return;
+    if (isMulti()) return multiPosMenu(anchor);
     const b = boxOf(el);
     const al = (k) => mutate((e) => {
       if (isLine(e)) return;
@@ -656,40 +681,78 @@
         bind: (node) => node.addEventListener("change", (e) => { const k = e.target.dataset.p; if (k) mutate((x) => { x[k] = Math.round(+e.target.value); }); }) },
     ]);
   }
+  // 다중 선택 위치 조정 - 고른 요소 묶음 기준 정렬, 가로·세로 같은 간격 분배, 같은 크기
+  function multiPosMenu(anchor) {
+    const els = selEls().filter((x) => !x.locked && !isLine(x)); const bs = els.map(boxOf);
+    if (els.length < 2) { toast("잠기지 않은 상자 요소를 2개 이상 고르세요"); return; }
+    const X1 = Math.min(...bs.map((b) => b.x)), Y1 = Math.min(...bs.map((b) => b.y)), X2 = Math.max(...bs.map((b) => b.x + b.w)), Y2 = Math.max(...bs.map((b) => b.y + b.h));
+    const run = (fn) => { snapshot(); fn(); afterChange(); };
+    const al = (k) => run(() => els.forEach((e) => {
+      if (k === "l") e.x = X1; if (k === "c") e.x = Math.round((X1 + X2) / 2 - e.w / 2); if (k === "r") e.x = X2 - e.w;
+      if (k === "t") e.y = Y1; if (k === "m") e.y = Math.round((Y1 + Y2) / 2 - e.h / 2); if (k === "b") e.y = Y2 - e.h;
+    }));
+    const dist = (ax) => run(() => {  // 양 끝은 그대로, 사이 간격을 같게
+      const p = ax === "x" ? "x" : "y", d = ax === "x" ? "w" : "h", ord = [...els].sort((a, b) => a[p] - b[p]);
+      const span = ord[ord.length - 1][p] + ord[ord.length - 1][d] - ord[0][p], sum = ord.reduce((t, e) => t + e[d], 0), gap = (span - sum) / (ord.length - 1);
+      let cur = ord[0][p]; ord.forEach((e) => { e[p] = Math.round(cur); cur += e[d] + gap; });
+    });
+    const same = (k) => run(() => els.forEach((e) => { if (k !== "h") e.w = el.w; if (k !== "w") e.h = el.h; }));
+    const el = selEl();
+    openMenu(anchor, [
+      { h: `선택한 ${els.length}개 기준 정렬` },
+      { icon: "⇤", label: "왼쪽 맞춤", act: () => al("l") }, { icon: "↔", label: "가로 가운데", act: () => al("c") }, { icon: "⇥", label: "오른쪽 맞춤", act: () => al("r") }, "-",
+      { icon: "⤒", label: "위쪽 맞춤", act: () => al("t") }, { icon: "↕", label: "세로 가운데", act: () => al("m") }, { icon: "⤓", label: "아래쪽 맞춤", act: () => al("b") }, "-",
+      { h: "분배 (3개 이상)" },
+      { icon: "⇹", label: "가로 같은 간격", disabled: els.length < 3, act: () => dist("x") }, { icon: "⇳", label: "세로 같은 간격", disabled: els.length < 3, act: () => dist("y") }, "-",
+      { h: "크기 맞추기 (주 선택 기준)" },
+      { label: "같은 너비", act: () => same("w") }, { label: "같은 높이", act: () => same("h") }, { label: "같은 크기", act: () => same("wh") }, "-",
+      { icon: "⏫", label: "맨 앞으로 가져오기", act: () => zorder("front") }, { icon: "⏬", label: "맨 뒤로 보내기", act: () => zorder("back") },
+    ]);
+  }
   function zorder(k) {
-    const s = slide(), el = selEl(); if (!el) return;
-    snapshot(); const i = s.elements.indexOf(el); s.elements.splice(i, 1); delete el.z;
-    const j = k === "front" ? s.elements.length : k === "back" ? 0 : k === "fwd" ? Math.min(s.elements.length, i + 1) : Math.max(0, i - 1);
-    s.elements.splice(j, 0, el); afterChange();
+    const s = slide(), els = selEls(); if (!els.length) return;
+    snapshot();
+    const order = (k === "fwd" || k === "back") ? [...els].sort((a, b) => s.elements.indexOf(b) - s.elements.indexOf(a)) : [...els].sort((a, b) => s.elements.indexOf(a) - s.elements.indexOf(b));
+    if (k === "front" || k === "back") {  // 고른 요소들의 상대 순서를 지키며 맨 앞/뒤로
+      const keep = s.elements.filter((x) => !els.includes(x)); els.forEach((x) => delete x.z);
+      const sorted = [...els].sort((a, b) => s.elements.indexOf(a) - s.elements.indexOf(b));
+      s.elements.splice(0, s.elements.length, ...(k === "front" ? [...keep, ...sorted] : [...sorted, ...keep]));
+    } else {
+      for (const el of order) {
+        const i = s.elements.indexOf(el); s.elements.splice(i, 1); delete el.z;
+        s.elements.splice(k === "fwd" ? Math.min(s.elements.length, i + 1) : Math.max(0, i - 1), 0, el);
+      }
+    }
+    afterChange();
   }
   function onFtb(e) {
     const t = e.target.closest("[data-f]"); if (!t) return;
     const f = t.dataset.f, el = selEl(); if (!el) return;
     if (e.type === "change") {
-      if (f === "size") mutate((x) => { x.size = Math.max(6, Math.min(400, +t.value || defSize(x))); });
-      if (f === "width") mutate((x) => { x.width = +t.value || 2; });
-      if (f === "font") mutate((x) => { if (t.value === "body") delete x.font; else x.font = t.value; });
+      if (f === "size") mutate((x) => { x.size = Math.max(6, Math.min(400, +t.value || defSize(x))); }, (x) => SIZED.has(x.type));
+      if (f === "width") mutate((x) => { x.width = +t.value || 2; }, isLine);
+      if (f === "font") mutate((x) => { if (t.value === "body") delete x.font; else x.font = t.value; }, (x) => TEXTY.has(x.type));
       return;
     }
     if (t.tagName === "INPUT" || t.tagName === "SELECT") return;
-    if (f === "sizePreset") openMenu(t, SIZE_PRESETS.map((v) => ({ label: `${v}px · ${+(v * 0.75).toFixed(2)}pt`, on: (el.size || defSize(el)) === v, act: () => mutate((x) => { x.size = v; }) })));
-    if (f === "color") palette(t, el.color, false, (c) => mutate((x) => { x.color = c; }));
-    if (f === "fill") palette(t, el.fill, true, (c) => mutate((x) => { if (c) x.fill = c; else delete x.fill; }));
-    if (f === "stroke") palette(t, el.stroke, true, (c) => mutate((x) => { if (c) x.stroke = c; else delete x.stroke; }));
-    if (f === "bold") mutate((x) => { const cur = x.bold === undefined ? x.type === "pill" : !!x.bold; x.bold = !cur; });
-    if (f === "align") mutate((x) => { x.align = t.dataset.v; });
+    if (f === "sizePreset") openMenu(t, SIZE_PRESETS.map((v) => ({ label: `${v}px · ${+(v * 0.75).toFixed(2)}pt`, on: (el.size || defSize(el)) === v, act: () => mutate((x) => { x.size = v; }, (x) => SIZED.has(x.type)) })));
+    if (f === "color") palette(t, el.color, false, (c) => mutate((x) => { x.color = c; }, hasColor));
+    if (f === "fill") palette(t, el.fill, true, (c) => mutate((x) => { if (c) x.fill = c; else delete x.fill; }, hasFill));
+    if (f === "stroke") palette(t, el.stroke, true, (c) => mutate((x) => { if (c) x.stroke = c; else delete x.stroke; }, hasStroke));
+    if (f === "bold") { const on = !(el.bold === undefined ? el.type === "pill" : !!el.bold); mutate((x) => { x.bold = on; }, (x) => TEXTY.has(x.type)); }  // 주 선택 기준으로 모두 같은 값
+    if (f === "align") mutate((x) => { x.align = t.dataset.v; }, (x) => TEXTY.has(x.type));
     if (f === "spacing") {
       const lh = el.lineHeight || (el.type === "text" ? 1.4 : 1.2), va = el.valign || (el.type === "text" ? "top" : "middle");
       openMenu(t, [
-        { h: `줄 간격 (지금 ${lh})` }, ...[1.0, 1.2, 1.4, 1.5, 1.6, 1.8, 2.0].map((v) => ({ label: String(v), on: Math.abs(lh - v) < 0.001, act: () => mutate((x) => { x.lineHeight = v; }) })), "-",
-        { h: "세로 정렬" }, ...[["top", "위"], ["middle", "가운데"], ["bottom", "아래"]].map(([k, l]) => ({ label: l, on: va === k, act: () => mutate((x) => { x.valign = k; }) })),
+        { h: `줄 간격 (지금 ${lh})` }, ...[1.0, 1.2, 1.4, 1.5, 1.6, 1.8, 2.0].map((v) => ({ label: String(v), on: Math.abs(lh - v) < 0.001, act: () => mutate((x) => { x.lineHeight = v; }, (x) => TEXTY.has(x.type)) })), "-",
+        { h: "세로 정렬" }, ...[["top", "위"], ["middle", "가운데"], ["bottom", "아래"]].map(([k, l]) => ({ label: l, on: va === k, act: () => mutate((x) => { x.valign = k; }, (x) => TEXTY.has(x.type)) })),
       ]);
     }
-    if (f === "head") mutate((x) => { const o = ["none", "end", "start", "both"]; x.head = o[(o.indexOf(x.head || (x.type === "arrow" ? "end" : "none")) + 1) % 4]; });
-    if (f === "dash") mutate((x) => { const o = ["solid", "dash", "dot"]; x.dash = o[(o.indexOf(x.dash || "solid") + 1) % 3]; });
+    if (f === "head") { const o = ["none", "end", "start", "both"], v = o[(o.indexOf(el.head || (el.type === "arrow" ? "end" : "none")) + 1) % 4]; mutate((x) => { x.head = v; }, isLine); }
+    if (f === "dash") { const o = ["solid", "dash", "dot"], v = o[(o.indexOf(el.dash || "solid") + 1) % 3]; mutate((x) => { x.dash = v; }, isLine); }
     if (f === "dup") dupEl();
     if (f === "del") delEl();
-    if (f === "lock") mutate((x) => { if (x.locked) delete x.locked; else x.locked = true; });
+    if (f === "lock") { const on = !el.locked; mutate((x) => { if (on) x.locked = true; else delete x.locked; }); }
     if (f === "pos") posMenu(t);
     if (f === "memo") openMemo({ element: el.id });
   }
@@ -698,11 +761,11 @@
   function ctxMenu(e) {
     if (S.mode !== "edit") return;
     const node = e.target.closest("#host .rs-el"); if (!node) return;
-    e.preventDefault(); select(node.dataset.id);
-    const el = selEl(), lk = el && el.locked;
+    e.preventDefault(); if (!selIds().includes(node.dataset.id)) select(node.dataset.id);
+    const el = selEl(), lk = selEls().every((x) => x.locked);
     openMenu({ x: e.clientX, y: e.clientY }, [
-      { label: "복사", key: "Ctrl+C", act: () => { S.clip = clone(el); toast("요소 복사"); } },
-      { label: "잘라내기", key: "Ctrl+X", disabled: lk, act: () => { S.clip = clone(el); delEl(); } },
+      { label: isMulti() ? `복사 (${selIds().length}개)` : "복사", key: "Ctrl+C", act: () => { S.clip = selEls().map(clone); toast(`요소 ${S.clip.length}개 복사`); } },
+      { label: "잘라내기", key: "Ctrl+X", disabled: lk, act: () => { S.clip = selEls().filter((x) => !x.locked).map(clone); delEl(); } },
       { label: "붙여넣기", key: "Ctrl+V", disabled: !S.clip, act: () => dupEl(S.clip) },
       { label: "복제", key: "Ctrl+D", act: () => dupEl() },
       { label: "삭제", key: "Delete", disabled: lk, act: () => delEl() }, "-",
@@ -806,7 +869,7 @@ ${names}
     const P = $("#tab-props"), s = slide();
     if (!s) { P.innerHTML = ""; return; }
     const el = selEl();
-    const list = `<div class="sec"><h3>요소 (${s.elements.length}) — 가려진 요소도 여기서 선택</h3><div class="ellist">${s.elements.map((e) => `<div data-sel="${esc(e.id)}" class="${e.id === S.sel ? "on" : ""}">${esc(elLabel(e))}${e.locked ? " 🔒" : ""}</div>`).join("")}</div></div>`;
+    const list = `<div class="sec"><h3>요소 (${s.elements.length}) — 가려진 요소도 여기서 선택</h3><div class="ellist">${s.elements.map((e) => `<div data-sel="${esc(e.id)}" class="${selIds().includes(e.id) ? "on" : ""}" title="Shift/Ctrl+클릭 = 여러 개 고르기">${esc(elLabel(e))}${e.locked ? " 🔒" : ""}</div>`).join("")}</div></div>`;
     if (!el) {
       P.innerHTML = `<div class="sec"><h3>슬라이드 ${S.cur + 1} · ${esc(s.id)} · 레이아웃 ${esc(s.layout || "-")}</h3>
         <div class="row"><label>배경</label><select class="colorSel" data-slide="bg">${colorOptions(s.bg || "surface")}</select></div>
@@ -816,6 +879,8 @@ ${names}
       return;
     }
     let h = `<div class="sec"><h3>${esc(TYPE_KO[el.type] || el.type)} · ${esc(el.id)}</h3>`;
+    if (isMulti()) { const n = selIds().length, same = selEls().filter((x) => x.type === el.type).length;
+      h += `<div class="hint multi-hint"><b>${n}개 선택</b> - 아래 값은 주 선택(${esc(el.id)}) 기준. 고치면 같은 종류 ${same}개에 함께 적용(위치·크기는 선이 아닌 모든 요소, 잠금은 전체, 글자 내용은 주 선택만).</div>`; }
     if (isLine(el)) h += `<div class="row">${["x1", "y1", "x2", "y2"].map((k) => `<label style="width:auto">${k}</label><input type="number" data-k="${k}" value="${el[k]}">`).join("")}</div>`;
     else h += `<div class="row"><label style="width:auto">x</label><input type="number" data-k="x" value="${el.x}"><label style="width:auto">y</label><input type="number" data-k="y" value="${el.y}"></div>
       <div class="row"><label style="width:auto">w</label><input type="number" data-k="w" value="${el.w}"><label style="width:auto">h</label><input type="number" data-k="h" value="${el.h}"></div>`;
@@ -875,7 +940,12 @@ ${names}
     if (t.dataset.deckfont) { snapshot(); if (t.value) S.deck.fontPreset = t.value; else delete S.deck.fontPreset; Render.setDeckFonts(S.deck.fontPreset); afterChange(true); return; }  // 덱 전체
     if (!el || t.id === "elJson") return;
     snapshot();
-    if (t.dataset.k) setProp(el, t.dataset.k, t.type === "checkbox" ? t.checked : t.value);
+    if (t.dataset.k) {  // 다중 선택이면 공통 속성으로 - 같은 종류 요소 모두(위치·크기·잠금은 선이 아닌 모든 요소). 글자 내용은 주 선택만
+      const k = t.dataset.k, v = t.type === "checkbox" ? t.checked : t.value;
+      const geo = ["x", "y", "w", "h"].includes(k), all = k === "locked";
+      const targets = k === "text" ? [el] : selEls().filter((x) => x === el || all || (geo ? !isLine(x) && !isLine(el) : x.type === el.type));
+      targets.forEach((x) => setProp(x, k, v));
+    }
     else if (t.dataset.list) {
       if (t.dataset.list === "show") { const sh = textToShow(t.value); if (sh.length) el.show = sh; else delete el.show; }
       else { const a = t.value.split(/[,\s]+/).filter(Boolean).map(Number).filter((x) => !isNaN(x)); if (a.length) el[t.dataset.list] = a; else delete el[t.dataset.list]; }
@@ -886,9 +956,9 @@ ${names}
   function onPropClick(e) {
     const b = e.target.closest("button, [data-sel]"); if (!b) return;
     const el = selEl(), s = slide();
-    if (b.dataset.sel) { select(b.dataset.sel); return; }
+    if (b.dataset.sel) { if (e.shiftKey || e.ctrlKey || e.metaKey) toggleSel(b.dataset.sel); else select(b.dataset.sel); return; }
     const sg = b.closest(".seg");
-    if (sg && el) { snapshot(); setProp(el, sg.dataset.k, b.dataset.v); afterChange(); return; }
+    if (sg && el) { snapshot(); selEls().filter((x) => x === el || x.type === el.type).forEach((x) => setProp(x, sg.dataset.k, b.dataset.v)); afterChange(); return; }
     if (b.dataset.z && el) { zorder(b.dataset.z); return; }
     if (b.dataset.fit === "code" && el) { snapshot(); el.h = Math.round(24 + Render.codeLines(el).length * (el.size || 15) * (el.lineHeight || 1.6)); afterChange(); return; }
     if (b.id === "applyJson" && el) {
@@ -1099,7 +1169,16 @@ ${names}
   }
 
   // ---------------------------------------------------------------- 선택·끌기·크기 조절
-  function select(id) { S.sel = id; drawSel(); renderProps(); renderFtb(); }
+  function select(id) { S.sel = id; S.multi = []; S.multiSlide = null; drawSel(); renderProps(); renderFtb(); }
+  function setSelection(ids) {  // 여러 요소를 한 번에 고른다(첫 요소가 주 선택)
+    ids = ids.filter((id) => elById(id));
+    S.sel = ids[0] || null; S.multi = ids.slice(1); S.multiSlide = slide() ? slide().id : null;
+    drawSel(); renderProps(); renderFtb();
+  }
+  function toggleSel(id) {  // Shift/Ctrl+클릭 - 더하거나 뺀다
+    const ids = selIds();
+    setSelection(ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id]);
+  }
   function toSlide(e) { const r = $("#stage").getBoundingClientRect(); return { x: (e.clientX - r.left) / scale, y: (e.clientY - r.top) / scale }; }
   let drag = null;
   function onDown(e) {
@@ -1114,12 +1193,17 @@ ${names}
       if (!node) { select(null); closeMemo(); return; }
       select(node.dataset.id); openMemo({ element: node.dataset.id }); e.preventDefault(); return;
     }
-    if (hd) { const el = selEl(); if (!el) return; drag = { mode: "resize", h: hd.dataset.h, el, orig: clone(el), p0: p, moved: false, before: deckJson() }; e.preventDefault(); return; }
-    const node = e.target.closest("#host .rs-el");
-    if (!node) { select(null); return; }
-    const id = node.dataset.id; if (S.sel !== id) select(id);
-    const el = selEl(); if (!el || el.locked) return;
-    drag = { mode: "move", el, orig: clone(el), p0: p, moved: false, before: deckJson() };
+    if (hd && !isMulti()) { const el = selEl(); if (!el) return; drag = { mode: "resize", h: hd.dataset.h, el, orig: clone(el), p0: p, moved: false, before: deckJson() }; e.preventDefault(); return; }
+    const node = e.target.closest("#host .rs-el"), add = e.shiftKey || e.ctrlKey || e.metaKey;
+    if (!node) {  // 빈 곳 - 끌면 범위 선택(Shift/Ctrl 이면 더하기), 그냥 누르면 선택 해제
+      drag = { mode: "marquee", p0: p, box: { x: p.x, y: p.y, w: 0, h: 0 }, base: add ? selIds() : [], moved: false };
+      e.preventDefault(); return;
+    }
+    const id = node.dataset.id;
+    if (add) { toggleSel(id); e.preventDefault(); return; }
+    if (!selIds().includes(id)) select(id);
+    const els = selEls().filter((x) => !x.locked); if (!els.length) return;
+    drag = { mode: "move", el: elById(id), els, origs: els.map(clone), orig: clone(elById(id)), p0: p, moved: false, before: deckJson() };
     e.preventDefault();
   }
   function onMove(e) {
@@ -1129,9 +1213,18 @@ ${names}
     const p = toSlide(e), dx = p.x - drag.p0.x, dy = p.y - drag.p0.y, free = e.shiftKey, el = drag.el, o = drag.orig;
     if (!drag.moved && Math.hypot(dx, dy) * scale < 3) return;
     drag.moved = true;
-    if (drag.mode === "move") {
-      const b0 = boxOf(o), nx = snap(b0.x + dx, free), ny = snap(b0.y + dy, free), mx = nx - b0.x, my = ny - b0.y;
-      if (isLine(el)) { el.x1 = o.x1 + mx; el.x2 = o.x2 + mx; el.y1 = o.y1 + my; el.y2 = o.y2 + my; Object.assign(el, Render.lineBox(el)); } else { el.x = nx; el.y = ny; }
+    if (drag.mode === "marquee") {
+      drag.box = { x: Math.min(drag.p0.x, p.x), y: Math.min(drag.p0.y, p.y), w: Math.abs(dx), h: Math.abs(dy) };
+      drawSel(); return;
+    }
+    if (drag.mode === "move") {  // 잡은 요소 기준으로 격자에 맞춘 이동량을 고른 요소 모두에
+      const b0 = boxOf(o), mx = snap(b0.x + dx, free) - b0.x, my = snap(b0.y + dy, free) - b0.y;
+      drag.els.forEach((x, i) => {
+        const q = drag.origs[i];
+        if (isLine(x)) { x.x1 = q.x1 + mx; x.x2 = q.x2 + mx; x.y1 = q.y1 + my; x.y2 = q.y2 + my; Object.assign(x, Render.lineBox(x)); } else { x.x = q.x + mx; x.y = q.y + my; }
+        renderElementDom(x);
+      });
+      drawSel(); renderMarks(); return;
     } else if (drag.h === "p1" || drag.h === "p2") {
       const k = drag.h === "p1" ? ["x1", "y1"] : ["x2", "y2"];
       el[k[0]] = snap(o[k[0]] + dx, free); el[k[1]] = snap(o[k[1]] + dy, free); Object.assign(el, Render.lineBox(el));
@@ -1149,6 +1242,14 @@ ${names}
     if (S.drawing && S.drawing.p0) { drawUp(); return; }
     if (!drag) return;
     const d = drag; drag = null;
+    if (d.mode === "marquee") {
+      if (!d.moved) { if (!d.base.length) select(null); else drawSel(); return; }
+      const m = d.box, s = slide();  // 상자 안에 완전히 들어간 요소(잠긴 요소 포함 - 이동은 안 됨)
+      const inside = s.elements.filter((x) => { const b = boxOf(x); return b.x >= m.x && b.y >= m.y && b.x + b.w <= m.x + m.w && b.y + b.h <= m.y + m.h; }).map((x) => x.id);
+      setSelection([...d.base, ...inside.filter((id) => !d.base.includes(id))]);
+      if (inside.length) toast(`${selIds().length}개 선택 - 끌어서 함께 이동, 서식 줄은 고른 요소 모두에 적용`);
+      return;
+    }
     if (d.moved) { S.undo.push(d.before); S.redo = []; afterChange(); }
   }
 
@@ -1198,12 +1299,20 @@ ${names}
   // ---------------------------------------------------------------- 요소·슬라이드 조작
   function newElId(s) { let n = s.elements.length + 1; while (s.elements.some((e) => e.id === "e" + String(n).padStart(2, "0"))) n++; return "e" + String(n).padStart(2, "0"); }
   function newSlideId() { let n = S.deck.slides.length + 1; while (S.deck.slides.some((s) => s.id === "s" + String(n).padStart(2, "0"))) n++; return "s" + String(n).padStart(2, "0"); }
-  function delEl() { const s = slide(), el = selEl(); if (!el || el.locked) return; snapshot(); s.elements.splice(s.elements.indexOf(el), 1); S.sel = null; afterChange(); }
-  function dupEl(src) {
-    const s = slide(), el = src || selEl(); if (!el) return;
-    snapshot(); const c = clone(el); c.id = newElId(s); delete c.locked;
-    if (isLine(c)) { c.x1 += 16; c.x2 += 16; c.y1 += 16; c.y2 += 16; Object.assign(c, Render.lineBox(c)); } else { c.x += 16; c.y += 16; }
-    s.elements.push(c); S.sel = c.id; afterChange();
+  function delEl() {
+    const s = slide(), els = selEls().filter((x) => !x.locked); if (!els.length) return;
+    snapshot(); for (const el of els) s.elements.splice(s.elements.indexOf(el), 1); S.sel = null; S.multi = []; afterChange();
+    if (els.length > 1) toast(`요소 ${els.length}개 삭제 (Ctrl+Z 로 되돌리기)`);
+  }
+  function dupEl(src) {  // src = 붙여넣기(복사한 요소 하나 또는 여러 개), 없으면 지금 선택
+    const s = slide(), list = src ? (Array.isArray(src) ? src : [src]) : selEls(); if (!s || !list.length) return;
+    snapshot(); const ids = [];
+    for (const el of list) {
+      const c = clone(el); c.id = newElId(s); delete c.locked;
+      if (isLine(c)) { c.x1 += 16; c.x2 += 16; c.y1 += 16; c.y2 += 16; Object.assign(c, Render.lineBox(c)); } else { c.x += 16; c.y += 16; }
+      s.elements.push(c); ids.push(c.id);
+    }
+    S.sel = ids[0]; S.multi = ids.slice(1); S.multiSlide = s.id; afterChange();
   }
   function addEl(kind) {
     const s = slide(); if (!s) return;
@@ -1348,6 +1457,8 @@ ${names}
   function toggleRight() { const n = !document.body.classList.contains("noright"); document.body.classList.toggle("noright", n); LS.set("noright", n ? "1" : "0"); setTimeout(() => { fitStage(); fitThumbs(); }, 0); }
   const HELP = [
     ["모드", "<kbd>E</kbd> 편집 · <kbd>M</kbd> 선택(요청 메모) · <kbd>D</kbd> 그리기(영역 메모)"],
+    ["여러 요소", "<kbd>Shift</kbd>/<kbd>Ctrl</kbd>+클릭 더하기·빼기 · 빈 곳을 끌어 범위 선택 · <kbd>Ctrl</kbd>+<kbd>A</kbd> 이 장 전체 · 끌기·방향키로 함께 이동 · 서식 줄·속성은 공통 적용 · ✥ = 맞춤·분배·같은 크기"],
+    ["패널 크기", "왼쪽·아래·오른쪽 경계를 끌어 조절 · 두 번 클릭 = 처음 크기 · 슬라이드는 새 영역에 자동 맞춤"],
     ["슬라이드 이동", "<kbd>PageUp</kbd> <kbd>PageDown</kbd> · 선택이 없을 때 방향키 · <kbd>Home</kbd> <kbd>End</kbd>"],
     ["확대", "<kbd>Ctrl</kbd>+휠 · <kbd>Ctrl</kbd>+<kbd>=</kbd>/<kbd>-</kbd> · <kbd>Ctrl</kbd>+<kbd>0</kbd> 화면 맞춤 · <kbd>Ctrl</kbd>+<kbd>1</kbd> 100%"],
     ["화면 이동", "<kbd>Space</kbd>+끌기 · 가운데 버튼 끌기 · 휠"],
@@ -1379,9 +1490,10 @@ ${names}
     if (!ctrl && !e.altKey) { if (kl === "e") return setMode("edit"); if (kl === "m") return setMode("pick"); if (kl === "d") return setMode("draw"); }
     if (ctrl && kl === "z" && !e.shiftKey) { e.preventDefault(); undo(); return; }
     if (ctrl && (kl === "y" || (kl === "z" && e.shiftKey))) { e.preventDefault(); redo(); return; }
+    if (ctrl && kl === "a" && S.mode === "edit" && slide()) { e.preventDefault(); setSelection(slide().elements.filter((x) => !x.locked).map((x) => x.id)); return; }
     if (ctrl && kl === "d") { e.preventDefault(); dupEl(); return; }
-    if (ctrl && kl === "c" && selEl()) { S.clip = clone(selEl()); toast("요소 복사"); return; }
-    if (ctrl && kl === "x" && selEl() && !selEl().locked) { S.clip = clone(selEl()); delEl(); return; }
+    if (ctrl && kl === "c" && selEl()) { S.clip = selEls().map(clone); toast(`요소 ${S.clip.length}개 복사`); return; }
+    if (ctrl && kl === "x" && selEl() && selEls().some((x) => !x.locked)) { S.clip = selEls().filter((x) => !x.locked).map(clone); delEl(); return; }
     if (ctrl && kl === "v" && S.clip) { e.preventDefault(); dupEl(S.clip); return; }
     if (ctrl && kl === "b" && selEl() && TEXTY.has(selEl().type)) { e.preventDefault(); mutate((x) => { const cur = x.bold === undefined ? x.type === "pill" : !!x.bold; x.bold = !cur; }); return; }
     if (ctrl && (k === "]" || k === "[")) { e.preventDefault(); zorder(e.altKey ? (k === "]" ? "front" : "back") : (k === "]" ? "fwd" : "bwd")); return; }
@@ -1392,11 +1504,12 @@ ${names}
     if (!el) { if (k === "ArrowDown" || k === "ArrowRight") { goSlide(S.cur + 1); e.preventDefault(); } else if (k === "ArrowUp" || k === "ArrowLeft") { goSlide(S.cur - 1); e.preventDefault(); } return; }
     if (S.mode !== "edit") return;
     if (k === "Delete" || k === "Backspace") { e.preventDefault(); delEl(); return; }
-    if (k === "Enter" || k === "F2") { e.preventDefault(); startEdit(el); return; }
+    if ((k === "Enter" || k === "F2") && !isMulti()) { e.preventDefault(); startEdit(el); return; }
     const d = e.shiftKey ? GRID : 1, mv = { ArrowLeft: [-d, 0], ArrowRight: [d, 0], ArrowUp: [0, -d], ArrowDown: [0, d] }[k];
-    if (mv && !el.locked) {
+    const movable = selEls().filter((x) => !x.locked);
+    if (mv && movable.length) {
       e.preventDefault(); snapshot();
-      if (isLine(el)) { el.x1 += mv[0]; el.x2 += mv[0]; el.y1 += mv[1]; el.y2 += mv[1]; Object.assign(el, Render.lineBox(el)); } else { el.x += mv[0]; el.y += mv[1]; }
+      for (const x of movable) { if (isLine(x)) { x.x1 += mv[0]; x.x2 += mv[0]; x.y1 += mv[1]; x.y2 += mv[1]; Object.assign(x, Render.lineBox(x)); } else { x.x += mv[0]; x.y += mv[1]; } }
       afterChange();
     }
   }
@@ -1466,7 +1579,7 @@ ${names}
       { label: "글꼴 설정 보기·수정…", act: showFonts }, "-",
       { h: `템플릿: ${S.template ? S.template.label : "-"}` },
       { label: "단축키 보기", key: "?", act: showHelp },
-      { label: "편집기 화면 배치 초기화", act: () => { ["mode", "btab", "bfold", "noright", "railW"].forEach((k) => LS.set(k, "")); location.reload(); } },
+      { label: "편집기 화면 배치 초기화", act: () => { ["mode", "btab", "bfold", "noright", "railW", "rightW", "bottomH"].forEach((k) => LS.set(k, "")); location.reload(); } },
     ], { right: true });
   }
   async function loadConfig() {
@@ -1488,7 +1601,7 @@ ${names}
     await loadFonts();
     const r = await api("GET", "/api/decks"); S.decks = r.ok ? r.data : [];
     if (LS.get("noright", "0") === "1") document.body.classList.add("noright");
-    const rw = +LS.get("railW", 0); if (rw) document.documentElement.style.setProperty("--railW", rw + "px");
+    for (const [k, v] of [["railW", "--railW"], ["rightW", "--rightW"], ["bottomH", "--bottomH"]]) { const n = +LS.get(k, 0); if (n) document.documentElement.style.setProperty(v, n + "px"); }
     setMode(["edit", "pick", "draw"].includes(S.mode) ? S.mode : "edit"); setTool("rect");
     setBtab(S.btab); if (LS.get("bfold", "0") === "1") toggleBottom();
     if (!S.decks.length) { location.replace("/studio/home.html"); return; }  // 작업할 덱이 없으면 시작 페이지
@@ -1558,14 +1671,24 @@ ${names}
     left.addEventListener("contextmenu", (e) => { const t = e.target.closest(".thumb"); if (t) thumbMenu(e, +t.dataset.i); });
     left.addEventListener("dragstart", onThumbDragStart); left.addEventListener("dragover", onThumbDragOver); left.addEventListener("drop", onThumbDrop);
     left.addEventListener("dragend", () => { dragFrom = -1; $$(".thumb").forEach((x) => x.classList.remove("drop-before", "drop-after")); });
-    const split = $("#railSplit");
-    split.addEventListener("pointerdown", (e) => {
-      e.preventDefault(); const x0 = e.clientX, w0 = left.getBoundingClientRect().width;
-      const mv = (ev) => { const w = Math.max(140, Math.min(420, w0 + ev.clientX - x0)); document.documentElement.style.setProperty("--railW", w + "px"); fitThumbs(); fitStage(); };
-      const up = () => { window.removeEventListener("pointermove", mv); window.removeEventListener("pointerup", up); LS.set("railW", Math.round(left.getBoundingClientRect().width)); };
-      window.addEventListener("pointermove", mv); window.addEventListener("pointerup", up);
-    });
-    split.addEventListener("dblclick", () => { document.documentElement.style.removeProperty("--railW"); LS.set("railW", ""); setTimeout(() => { fitThumbs(); fitStage(); }, 0); });
+    // 스플리터 셋 - 왼쪽 레일 폭 · 아래 패널 높이 · 오른쪽 패널 폭. 끌면 바로 반영, 두 번 누르면 처음 크기, 값은 브라우저에 기억.
+    // 크기가 바뀌면 슬라이드를 새 영역에 맞춰(확대를 "맞춤"으로) 다시 그리고 썸네일도 새 폭에 맞춘다.
+    const relayout = () => { if (S.zoom) S.zoom = null; fitThumbs(); fitStage(); };
+    const splitter = (node, cssVar, lsKey, axis, sign, min, max, measure) => {
+      node.addEventListener("pointerdown", (e) => {
+        e.preventDefault(); const p0 = axis === "x" ? e.clientX : e.clientY, v0 = measure();
+        document.body.classList.add("splitting");
+        const mv = (ev) => { const v = Math.max(min(), Math.min(max(), v0 + sign * ((axis === "x" ? ev.clientX : ev.clientY) - p0))); document.documentElement.style.setProperty(cssVar, Math.round(v) + "px"); relayout(); };
+        const up = () => { window.removeEventListener("pointermove", mv); window.removeEventListener("pointerup", up); document.body.classList.remove("splitting"); LS.set(lsKey, Math.round(measure())); relayout(); };
+        window.addEventListener("pointermove", mv); window.addEventListener("pointerup", up);
+      });
+      node.addEventListener("dblclick", () => { document.documentElement.style.removeProperty(cssVar); LS.set(lsKey, ""); setTimeout(relayout, 0); });
+    };
+    splitter($("#railSplit"), "--railW", "railW", "x", 1, () => 120, () => Math.min(480, innerWidth * 0.35), () => left.getBoundingClientRect().width);
+    splitter($("#rightSplit"), "--rightW", "rightW", "x", -1, () => 240, () => Math.min(720, innerWidth * 0.5), () => $("#right").getBoundingClientRect().width);
+    splitter($("#bottomSplit"), "--bottomH", "bottomH", "y", -1, () => 48, () => Math.max(120, innerHeight * 0.55), () => $("#bottom .bpanel.on") ? $("#bottom .bpanel.on").getBoundingClientRect().height : 98);
+    // 그 밖의 크기 변화(창 크기·패널 접기·오른쪽 패널 숨기기)도 같은 방식으로 다시 맞춘다
+    if (window.ResizeObserver) { let rT = 0; new ResizeObserver(() => { clearTimeout(rT); rT = setTimeout(() => { fitThumbs(); fitStage(); }, 30); }).observe($("#vpEdit")); }
     // 캔버스
     const stage = $("#stage"), vp = $("#vpEdit");
     stage.addEventListener("pointerdown", onDown);
