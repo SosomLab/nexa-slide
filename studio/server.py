@@ -1041,11 +1041,30 @@ class H(BaseHTTPRequestHandler):
             if WS_ENGINE is None:
                 return self.err(503, "엔진 세션 관리자가 없다")
             return self._session_get(WS_ENGINE, (self._rest or [None])[0], q)
+        if what == "attach":  # /api/engine/attach/<id>/<파일> - 올린 첨부 보기(로그인 사용자)
+            rest = self._rest or []
+            if len(rest) != 2 or not re.fullmatch(r"\d+|_new", rest[0]):
+                return self.err(404, "없는 첨부")
+            p = engine_requests.ATTACH_DIR / rest[0] / Path(unquote(rest[1])).name
+            if not p.is_file():
+                return self.err(404, "없는 첨부")
+            data = p.read_bytes()
+            self.send_response(200)
+            self.send_header("Content-Type", mimetypes.guess_type(str(p))[0] or "application/octet-stream")
+            self.send_header("Content-Length", str(len(data)))
+            self.send_header("Cache-Control", "no-store")
+            self.end_headers()
+            return self.wfile.write(data)
         if what:
             return self.err(404, "없는 API")
         info = WS_ENGINE.info() if WS_ENGINE else {"state": "off"}
-        return self.send_json({"ok": True, "session": info, "counts": engine_requests.counts(),
-                               "recent": sorted(engine_requests.load(), key=lambda x: -x["id"])[:8], "git": info.get("git") or {}})
+        recent = sorted(engine_requests.load(), key=lambda x: -x["id"])[:8]
+        for x in recent:  # 첨부 - 화면의 축소판·링크용(허브 /api/engine/attach/<id>/<파일> 로 본다)
+            att = engine_requests.attach_files(x["id"])
+            if att:
+                x["attachments"] = [{"name": a["name"], "size": a["size"], "url": f"/api/engine/attach/{x['id']}/{a['name']}"} for a in att]
+        return self.send_json({"ok": True, "session": info, "counts": engine_requests.counts(), "recent": recent, "git": info.get("git") or {},
+                               "startRequest": engine_requests.start_request(), "sessionOff": info.get("state", "off") == "off"})
 
     def api_post_engine(self, what, q):
         """requests: {action: add, title, body, …}(로그인 사용자 누구나) · {action: status, id, status, reply?…}·{action: remove, id}·{action: priority, id, priority}(관리자)
@@ -1062,8 +1081,16 @@ class H(BaseHTTPRequestHandler):
                     it = engine_requests.add(b.get("title"), b.get("body") or "", kind="user", user=who, ws=b.get("ws"), ws_id=b.get("wsId"),
                                              request=b.get("request"), deck=b.get("deck"), slide=b.get("slide"), evidence=b.get("evidence") or [],
                                              priority=b.get("priority") or 0)
+                    att = engine_requests.claim_attachments(it["id"], b.get("attachments") or [])  # _new/ 에 올려 둔 파일을 이 요청 폴더로
+                    if att:
+                        it = engine_requests.update(it["id"], by=who, evidence=list(it.get("evidence") or []) + att)
                     self._event = f"engine.request.add:{it['id']}"
-                    return self.send_json({"ok": True, "item": it, "counts": engine_requests.counts()})
+                    return self.send_json({"ok": True, "item": it, "counts": engine_requests.counts(), "note": engine_requests.pending_note(it["status"]),
+                                           "sessionOff": not engine_requests.session_state().get("connected")})
+                if act == "startRequest":  # 일반 사용자가 관리자에게 엔진 세션 시작을 요청 - 묶어서 기록, 접근 로그에 남김
+                    d = engine_requests.request_start(who)
+                    self._event = "engine.start_requested"
+                    return self.send_json({"ok": True, "startRequest": d})
                 if self.role != "admin":
                     self._event = "engine.request.denied"
                     return self.err(403, "관리자만")
@@ -1089,8 +1116,30 @@ class H(BaseHTTPRequestHandler):
             if WS_ENGINE is None:
                 return self.err(503, "엔진 세션 관리자가 없다")
             if self._session_post(WS_ENGINE, b, who):
+                if b.get("action") == "start" and WS_ENGINE.state != "off":
+                    engine_requests.clear_start_request()  # 시작했으니 "관리자에게 시작 요청" 은 끝
                 return
             return self.err(400, "action = start|stop|model")
+        if what == "attach":  # {name, type, data(base64)} → hub/engine/attach/_new/<파일> (요청 add 때 attachments 로 넘기면 그 요청 폴더로 옮긴다)
+            import base64
+            ctype = str(b.get("type") or "").split(";")[0].strip().lower()
+            name = str(b.get("name") or "")[:120]
+            ext = self.ATTACH_TYPES.get(ctype) or (Path(name).suffix.lower() if Path(name).suffix.lower() in self.ATTACH_TYPES.values() else None)
+            if not ext:
+                return self.err(400, f"지원하지 않는 형식: {ctype or name or '?'} (그림·PDF·글·pptx/docx/xlsx)")
+            try:
+                data = base64.b64decode(str(b.get("data") or ""), validate=True)
+            except (ValueError, TypeError):
+                return self.err(400, "data 는 base64")
+            if not data or len(data) > self.ATTACH_MAX:
+                return self.err(413 if data else 400, "내용 없음" if not data else f"너무 크다({len(data) // 1024 // 1024}MB > {self.ATTACH_MAX // 1024 // 1024}MB)")
+            d = engine_requests.ATTACH_DIR / "_new"
+            d.mkdir(parents=True, exist_ok=True)
+            fid = dt.datetime.now().strftime("%Y%m%d-%H%M%S-%f")[:22]
+            p = d / f"{fid}{ext}"
+            p.write_bytes(data)
+            self._event = "engine.attach"
+            return self.send_json({"ok": True, "name": p.name, "orig": name or p.name, "type": ctype or mimetypes.guess_type(str(p))[0], "size": len(data), "url": f"/api/engine/attach/_new/{p.name}"})
         return self.err(404, "없는 API")
 
     def sse_events(self, since, ws=None):
@@ -1196,6 +1245,10 @@ class H(BaseHTTPRequestHandler):
     def api_get_home(self, _, q):
         d = hub.home(None if HUB else WORKSPACE, REFUSED)
         d.update({"mode": "hub" if HUB else "workspace", "port": self.server.server_port, "user": self.me()})
+        if HUB:  # 서버 작업 주의 표시(메뉴 배지) - 처리·승인 대기가 있는데 엔진 세션이 꺼져 있으면
+            import engine_requests
+            c = engine_requests.counts()
+            d["engineWork"] = {"pending": c.get("open", 0) + c.get("triage", 0), "sessionOff": not (WS_ENGINE and WS_ENGINE.state != "off"), "startRequest": engine_requests.start_request()}  # home.engine 은 엔진 경로(문자열)
         self.send_json(d)
 
     def api_post_project(self, _, q):

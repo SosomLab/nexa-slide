@@ -60,6 +60,7 @@
   .nx-av { width: 20px; height: 20px; border-radius: 50%; flex: none; display: inline-flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; color: #fff; }
   .nx-rt { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .nx-empty { padding: 6px 10px; color: var(--ink2, #534343); font-size: 12px; }
+  .nx-badge { background: var(--p, #A91F24) !important; color: #fff !important; border-radius: 999px; padding: 0 7px; font-weight: 700; line-height: 18px; }
   .nx-lang { display: none; margin: 0 0 4px 0; padding: 4px 0 4px 22px; }
   .nx-lang.on { display: block; }
   .nx-lang .nx-item { padding: 5px 10px; gap: 6px; }
@@ -132,6 +133,8 @@
       '<div data-recent></div>',
       '<div class="nx-sep"></div>',
       it("settings", "gear", "기준 폴더 설정", "/studio/home.html#settings"),
+      ...(home && home.engineWork ? [it("engine", "git", "서버 작업", "/studio/home.html#start",  // 허브 - 엔진 요청 큐. 대기가 있는데 세션이 꺼져 있으면 배지
+        home.engineWork.pending && home.engineWork.sessionOff ? `<small class="nx-badge" title="처리 대기 ${home.engineWork.pending}건 · 엔진 세션 꺼짐${home.engineWork.startRequest ? " · 시작 요청됨" : ""}">${home.engineWork.pending}</small>` : "")] : []),
       langItems(),
       ...(home && home.user ? [  // 허브 로그인 사용자 - 계정(비밀번호 · 관리자면 사용자 관리) · 로그아웃
         it("account", "user", home.user.role === "admin" ? "계정 · 사용자 관리" : "계정", "/account", `<small>${esc(home.user.id)}</small>`),

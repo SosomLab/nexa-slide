@@ -25,6 +25,9 @@ STATUSES = ("triage", "open", "working", "done", "rejected", "applied")
 TRANSITIONS = {"triage": ("open", "rejected"), "open": ("working", "rejected", "triage"), "working": ("done", "rejected", "open"),
                "done": ("applied", "open", "rejected"), "rejected": ("open",), "applied": ()}
 MAX_BODY = 4000
+ATTACH_DIR = ENGINE_DIR / "attach"  # 요청 첨부(허브 화면에서 올린 그림·파일) - <요청 id>/<파일>, 올리는 중에는 _new/<파일>
+START_REQ = ENGINE_DIR / "start-request.json"  # 일반 사용자가 관리자에게 엔진 세션 시작을 요청한 기록 {at, by: [이름…], count}
+HEARTBEAT = ENGINE_DIR / ".studio" / "session.json"  # 엔진 개발 세션(웹·수동)의 하트비트
 
 
 def _now():
@@ -47,6 +50,80 @@ def _write(d):
     with os.fdopen(fd, "w", encoding="utf-8", newline="\n") as f:
         json.dump(d, f, ensure_ascii=False, indent=1)
     os.replace(tmp, QUEUE)
+
+
+def session_state():
+    """엔진 개발 세션이 살아 있는가 - 하트비트 파일로 본다(허브 프로세스 밖의 CLI 도 쓴다). {connected, kind, label, agent, model}
+    requests_core.heartbeat_status 와 같은 판정이지만 그 모듈은 작업 공간(common)을 요구해 여기서 다시 적는다."""
+    import time
+    try:
+        hb = json.loads(HEARTBEAT.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {"connected": False}
+    age = time.time() - float(hb.get("ts", 0))
+    return {"connected": not hb.get("stopped") and age <= float(hb.get("interval", 1)) * 4 + 2, "age": round(age, 1),
+            **{k: hb.get(k) for k in ("kind", "label", "agent", "model", "user", "pid")}}
+
+
+def pending_note(status="open"):
+    """요청을 넣은 쪽에 돌려줄 안내 - 세션이 꺼져 있으면 처리되지 않는다는 말(넣는 것 자체는 세션이 없어도 된다)."""
+    st = session_state()
+    if st.get("connected"):
+        return ""
+    return "엔진 개발 세션이 꺼져 있어 관리자가 시작해야 처리됩니다" + (" (관리자 승인도 필요)" if status == "triage" else "")
+
+
+def start_request():
+    """관리자에게 보낸 세션 시작 요청(없으면 None)."""
+    try:
+        d = json.loads(START_REQ.read_text(encoding="utf-8"))
+        return d if isinstance(d, dict) and d.get("at") else None
+    except (OSError, ValueError):
+        return None
+
+
+def request_start(user):
+    """일반 사용자가 [관리자에게 시작 요청] - 같은 요청은 묶는다(처음 시각 유지, 사용자 목록·횟수 누적)."""
+    with FileLock(LOCK):
+        d = start_request() or {"at": _now(), "by": [], "count": 0}
+        if user and user not in d["by"]:
+            d["by"].append(str(user)[:40])
+        d["count"] = int(d.get("count") or 0) + 1
+        d["last"] = _now()
+        ENGINE_DIR.mkdir(parents=True, exist_ok=True)
+        START_REQ.write_text(json.dumps(d, ensure_ascii=False), encoding="utf-8")
+        return d
+
+
+def clear_start_request():
+    try:
+        START_REQ.unlink()
+    except OSError:
+        pass
+
+
+def attach_files(rid):
+    """요청의 첨부 파일 목록 [{path(절대), name, size}]."""
+    d = ATTACH_DIR / str(rid)
+    if not d.is_dir():
+        return []
+    return [{"path": str(p), "name": p.name, "size": p.stat().st_size} for p in sorted(d.iterdir()) if p.is_file()]
+
+
+def claim_attachments(rid, names):
+    """_new/ 에 올려 둔 파일을 요청 폴더로 옮기고 evidence 에 쓸 경로(사용자 설정 폴더 기준 상대) 목록을 돌려준다."""
+    out = []
+    src = ATTACH_DIR / "_new"
+    dst = ATTACH_DIR / str(rid)
+    for n in names or []:
+        n = Path(str(n)).name
+        p = src / n
+        if not n or not p.is_file():
+            continue
+        dst.mkdir(parents=True, exist_ok=True)
+        os.replace(p, dst / n)
+        out.append(f"attach/{rid}/{n}")
+    return out
 
 
 def load():
@@ -115,6 +192,8 @@ def update(rid, status=None, by=None, **fields):
                 x[k] = str(v)[:MAX_BODY if k == "body" else 500]
             elif k == "priority" and v is not None:
                 x["priority"] = int(v)
+            elif k == "evidence" and v is not None:  # 첨부를 요청 폴더로 옮긴 뒤 경로를 덧붙일 때
+                x["evidence"] = [str(e) for e in v][:20]
         x["updated"] = _now()
         _write(d)
         return x

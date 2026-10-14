@@ -14,6 +14,7 @@ import datetime as dt
 import json
 import os
 import signal
+import shutil
 import subprocess
 import sys
 import threading
@@ -229,10 +230,28 @@ class EngineProfile:
         worktree 브랜치(옛 main)에는 그 파일이 없을 수 있어서."""
         return ".nexa/engine_request.py"
 
+    def _copy_attachments(self, x):
+        """허브 화면에서 올린 첨부(사용자 설정 폴더 hub/engine/attach/<id>/)를 worktree 의 .nexa/attach/<id>/ 로 복사하고 그 상대 경로를 돌려준다 - --restricted 세션은 cwd 밖을 읽지 못한다."""
+        import engine_requests
+        out = []
+        for a in engine_requests.attach_files(x["id"]):
+            dst = self.cwd / ".nexa" / "attach" / str(x["id"]) / a["name"]
+            try:
+                dst.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copyfile(a["path"], dst)
+                out.append(dst.relative_to(self.cwd).as_posix())
+            except OSError:
+                pass
+        return out
+
     def prompt(self, batch, reason, sess, ag):
         x = batch[0]
         tpl = self.prompt_file.read_text(encoding="utf-8")
         show = {k: x.get(k) for k in ("id", "title", "body", "from", "evidence", "priority", "created", "history")}
+        att = self._copy_attachments(x)
+        if att:  # 큐의 evidence 는 사용자 설정 폴더 기준 경로 - 세션에는 cwd 안 사본 경로로 보여 준다
+            show["evidence"] = [e for e in (show.get("evidence") or []) if not str(e).startswith("attach/")] + att
+            show["attachments"] = att
         return (tpl.replace("{id}", str(x["id"])).replace("{branch}", self.BRANCH).replace("{req_cli}", self.req_cli())
                 .replace("{request}", json.dumps(show, ensure_ascii=False, indent=1)))
 

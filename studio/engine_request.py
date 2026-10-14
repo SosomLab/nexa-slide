@@ -71,10 +71,13 @@ def main():
                     ws_id = None
             it = q.add(args.title, args.body, kind=kind, user=args.user, ws=ws, ws_id=ws_id, request=args.request, deck=args.deck,
                        slide=args.slide, evidence=args.evidence, priority=args.priority)
+            note = q.pending_note(it["status"])
             if args.json:
-                print(json.dumps(it, ensure_ascii=False))
+                print(json.dumps({**it, "note": note}, ensure_ascii=False))
             else:
                 print(f"엔진 요청 #{it['id']} ({it['status']}) - {it['title']}" + (" · 관리자 승인 뒤 처리된다" if it["status"] == "triage" else ""))
+                if note:
+                    print(f"안내: {note} - 원 요청의 reply 에 이 문장을 그대로 적는다")
             return
         if args.cmd == "list":
             items = [x for x in q.load() if not args.status or x.get("status") == args.status]
