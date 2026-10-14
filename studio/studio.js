@@ -708,7 +708,8 @@
   const TYPE_KO = { text: "글자", pill: "칩", rect: "상자", ellipse: "원", image: "그림", line: "선", arrow: "화살표", table: "표", "plan-table": "실행계획 표", code: "코드", plan: "실행계획", bullets: "글머리", curve: "곡선" };
   const SIZE_PRESETS = [10, 11, 12, 13, 14, 15, 16, 17, 18, 20, 22, 24, 28, 32, 36, 40, 48, 60, 72];
   function defSize(el) { return { pill: 14, code: 15, plan: 14, "plan-table": 15, table: 16 }[el.type] || 20; }
-  function swatch(v) { return v ? Render.color(v) : "transparent"; }
+  function swatch(v) { return v ? Render.fillCss(v) : "transparent"; }  // 토큰·#hex(투명도)·그라데이션 객체 모두
+  const fillLabel = (v) => !v ? "없음" : typeof v === "object" ? "그라데이션·투명도 (요소 JSON 에서 고침)" : v;
   function renderFtb() {
     const F = $("#ftb"), el = selEl();
     if (S.mode !== "edit" || !el || S.editing) { F.classList.remove("show"); F.innerHTML = ""; return; }
@@ -727,7 +728,7 @@
         h += `<button class="ib" data-f="spacing" title="줄 간격·세로 정렬">↕ ▾</button>`;
       }
     }
-    if (["rect", "ellipse", "pill", "text", "plan"].includes(el.type)) h += `<span class="vsep"></span><button class="ib" data-f="fill" title="채우기 - ${esc(el.fill || "없음")}">🪣<span class="sw" style="background:${swatch(el.fill)}"></span></button>`;
+    if (["rect", "ellipse", "pill", "text", "plan"].includes(el.type)) h += `<span class="vsep"></span><button class="ib" data-f="fill" title="채우기 - ${esc(fillLabel(el.fill))}">🪣<span class="sw" style="background:${swatch(el.fill)}"></span></button>`;
     if (["rect", "ellipse", "pill", "text"].includes(el.type)) h += `<button class="ib" data-f="stroke" title="테두리 - ${esc(el.stroke || "없음")}">▢<span class="sw" style="background:${swatch(el.stroke)}"></span></button>`;
     if (isLine(el)) {
       h += `<button class="ib" data-f="color" title="선 색">━<span class="sw" style="background:${swatch(el.color || "on-surface")}"></span></button>
@@ -960,8 +961,8 @@ ${names}
     return h;
   }
   function colorRow(label, key, el, allowNone) {
-    const v = el[key] || "";
-    return `<div class="row"><label>${label}</label><span class="sw" style="background:${v ? Render.color(v) : "transparent"}"></span><select class="colorSel" data-k="${key}" data-kind="color">${colorOptions(v, allowNone)}</select></div>`;
+    const v = el[key] || "", obj = typeof v === "object";  // 객체 = 그라데이션·투명도(요소 JSON 에서 고침) - 고르면 단색으로 바뀜
+    return `<div class="row"><label>${label}</label><span class="sw" style="background:${swatch(v)}"></span><select class="colorSel" data-k="${key}" data-kind="color">${obj ? `<option value="" selected disabled>${esc(fillLabel(v))}</option>` : ""}${colorOptions(obj ? "" : v, allowNone)}</select></div>`;
   }
   const num = (label, key, el, step = 1) => `<div class="row"><label>${label}</label><input type="number" step="${step}" data-k="${key}" value="${el[key] == null ? "" : el[key]}"></div>`;
   function seg(label, key, el, opts, dflt) {

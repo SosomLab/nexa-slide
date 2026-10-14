@@ -1,5 +1,11 @@
 # 변경 이력
 
+## 0.21.4 - 2026-10-15 · 도형 채우기 투명도·선형 그라데이션 (engine-request #6)
+
+- rect·ellipse·pill·text·plan 의 `fill` 에 **투명도·선형 그라데이션**: `"#RRGGBBAA"`(끝 두 자리 = 불투명도) · `{"color": "primary", "alpha": 0.5}` · `{"gradient": {"angle": 0, "stops": [[0, "#002F7B00"], [1, "#002F7B"]]}}`(angle 0 = 왼→오, 90 = 위→아래, 시계 방향 = PPT `a:lin`; 정지점 `[위치, 색, (불투명도)]` 또는 색 나열 = 고른 간격). 편집기는 CSS `rgba`·`linear-gradient`, PPTX 는 `a:alpha`·`a:gradFill`(gsLst + lin, scaled=0) — `common.fill_spec` ↔ `render.fillSpec` 같은 규칙, `check_parity` 가 예제 20개 + 덱의 모든 fill 을 비교. `docs/deck-format.md`.
+- 편집기 서식 줄·속성 탭: 그라데이션 채우기는 견본에 그대로 보이고 이름은 "그라데이션·투명도 (요소 JSON 에서 고침)" — 토큰을 고르면 단색으로 바뀐다. 입력은 "요소 JSON (고급)" 에서.
+- `export_pptx --selftest [--out x.pptx]`: 채우기 견본 6개를 내보내 슬라이드 XML(gradFill 위치·정지점·각도·alpha·단색 불변) 8항목 점검. 단색 채우기의 XML 은 전과 같다(solidFill 경로 불변).
+
 ## 0.21.3 - 2026-10-15 · 여러 요소에 한 요청 메모
 
 - 요소를 여러 개 고른 채(Shift/Ctrl+클릭·범위 선택) 오른쪽 클릭 "이 요소 n개에 요청 메모" 또는 서식 줄 💬 — 팝오버에 "요소 n개 (글자 e03, 원 e05 …)", 요청에 `elements` 목록(`element` 는 첫 요소), 캔버스에 요소마다 테두리, 요청 카드에 "e03 외 2". 세션에는 `elements` 가 전달되고 `draft_deck --element e03,e05`(쉼표)로 줄 번호를 본다. 전에는 여러 개를 골라도 첫 요소 하나만 담겼다.

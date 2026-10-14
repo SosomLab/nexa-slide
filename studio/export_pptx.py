@@ -3,16 +3,18 @@
 
     python3 studio/export_pptx.py ch00            # → out/ch00.pptx
     python3 studio/export_pptx.py ch00 --out x.pptx
+    python3 studio/export_pptx.py --selftest [--out x.pptx]   # 채우기(단색·투명도·그라데이션) 견본을 내보내 XML 점검
 
 단위: 요소 좌표 px(1280×720) → EMU = px × 9525, 글자 size(px) → pt = px × 0.75.
 줄 간격은 "정확히(pt)" = size × lineHeight × 0.75 로 넣어 브라우저 line-height 와 같게 한다.
 """
 import argparse
+import re
 import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from common import (cur_fonts, use_fonts, CODE_GUTTER_W, CODE_PAD_Y, OUT, REPO, HL_ROLE, bullet_rows, code_lines, code_style, color, load_deck,  # noqa: E402
+from common import (cur_fonts, use_fonts, CODE_GUTTER_W, CODE_PAD_Y, OUT, REPO, HL_ROLE, bullet_rows, code_lines, code_style, color, fill_spec, load_deck,  # noqa: E402
                     pad_of, plan_runs, radius, runs, safe_id, table_grid, tokens)
 
 from lxml import etree  # noqa: E402  (python-pptx 의존성)
@@ -132,11 +134,32 @@ def strip_style(shape):
         shape._element.remove(st)
 
 
+def alpha_el(clr, alpha):
+    """srgbClr 에 불투명도(a:alpha, 1/1000 %) - 1 이면 안 쓴다"""
+    if alpha < 1:
+        etree.SubElement(clr, qn("a:alpha")).set("val", str(int(round(alpha * 100000))))
+
+
 def shape_fill_line(shape, el):
-    f = el.get("fill")
+    f = fill_spec(el.get("fill"))  # 단색(+투명도) · 선형 그라데이션 - render.fillCss 와 같은 규칙
     if f:
         shape.fill.solid()
-        shape.fill.fore_color.rgb = RGBColor.from_string(color(f)[1:])
+        shape.fill.fore_color.rgb = RGBColor.from_string(f["color"][1:] if f["kind"] == "solid" else f["stops"][0][1][1:])
+        sf = shape._element.spPr.find(qn("a:solidFill"))
+        if f["kind"] == "solid":
+            alpha_el(sf.find(qn("a:srgbClr")), f["alpha"])
+        else:  # solidFill 자리에 gradFill(gsLst + lin). ang = 1/60000 도, 0 = 왼→오, 시계 방향. scaled=0 = CSS linear-gradient 와 같은 기하
+            gf = etree.Element(qn("a:gradFill"))
+            gf.set("rotWithShape", "1")
+            gs = etree.SubElement(gf, qn("a:gsLst"))
+            for pos, hexv, alpha in f["stops"]:
+                g = etree.SubElement(gs, qn("a:gs"))
+                g.set("pos", str(int(round(pos * 100000))))
+                alpha_el(rgb_el(g, hexv), alpha)
+            lin = etree.SubElement(gf, qn("a:lin"))
+            lin.set("ang", str(int(round(f["angle"] * 60000))))
+            lin.set("scaled", "0")
+            sf.getparent().replace(sf, gf)
     else:
         shape.fill.background()
     if el.get("stroke"):
@@ -451,11 +474,56 @@ def export(deck, out):
     return counts
 
 
+def selftest(out):
+    """채우기 견본(단색 · #hexAA · 색+alpha · 그라데이션 각도/정지점/고른 간격 · 글상자)을 내보내 슬라이드 XML 을 점검한다(개발·설치 점검용)."""
+    import zipfile
+    deck = {"id": "selftest", "slides": [{"id": "s01", "elements": [
+        {"id": "e01", "type": "pill", "x": 80, "y": 200, "w": 400, "h": 80, "text": "01", "color": "white", "size": 32,
+         "fill": {"gradient": {"angle": 0, "stops": [[0, "#002F7B00"], [1, "#002F7B"]]}}},
+        {"id": "e02", "type": "rect", "x": 80, "y": 320, "w": 400, "h": 80, "fill": "#002F7B80", "radius": "r-m"},
+        {"id": "e03", "type": "ellipse", "x": 560, "y": 200, "w": 120, "h": 120, "fill": {"color": "primary", "alpha": 0.5}},
+        {"id": "e04", "type": "rect", "x": 560, "y": 340, "w": 400, "h": 60, "fill": {"gradient": {"angle": 90, "stops": ["#DCE3F0", "#B4C4E2", "#7F98C9", "#3F62A2"]}}},
+        {"id": "e05", "type": "text", "x": 80, "y": 440, "w": 400, "h": 60, "text": "글", "fill": {"gradient": {"angle": 45, "stops": [[0, "primary", 0.2], [1, "primary"]]}, "alpha": 0.9}},
+        {"id": "e06", "type": "pill", "x": 560, "y": 440, "w": 200, "h": 40, "text": "단색", "fill": "primary", "color": "white"},
+    ]}]}
+    out = Path(out)
+    export(deck, out)
+    with zipfile.ZipFile(out) as z:
+        xml = z.read("ppt/slides/slide1.xml").decode("utf-8")
+    sp = {}  # 요소 id → spPr XML
+    for m in re.finditer(r"<p:sp>.*?</p:sp>", xml, re.S):
+        nm, pr = re.search(r'name="(e\d\d) ', m.group(0)), re.search(r"<p:spPr>.*?</p:spPr>", m.group(0), re.S)
+        if nm and pr:
+            sp[nm.group(1)] = pr.group(0)
+    prim = color("primary")[1:]
+    solid = re.compile(r'<a:solidFill><a:srgbClr val="[0-9A-F]{6}"/></a:solidFill>')
+    checks = [
+        ("도형 6개", len(sp) == 6),
+        ("그라데이션 투명→진한", '<a:gradFill rotWithShape="1"><a:gsLst><a:gs pos="0"><a:srgbClr val="002F7B"><a:alpha val="0"/></a:srgbClr></a:gs>'
+         '<a:gs pos="100000"><a:srgbClr val="002F7B"/></a:gs></a:gsLst><a:lin ang="0" scaled="0"/></a:gradFill>' in sp.get("e01", "")),
+        ("gradFill 이 ln 앞", all("<a:gradFill" in sp[k] and sp[k].index("<a:gradFill") < sp[k].index("<a:ln") for k in ("e01", "e04", "e05") if k in sp)),
+        ("#hexAA 투명도", '<a:solidFill><a:srgbClr val="002F7B"><a:alpha val="50200"/></a:srgbClr></a:solidFill>' in sp.get("e02", "")),
+        ("토큰+alpha", f'<a:solidFill><a:srgbClr val="{prim}"><a:alpha val="50000"/></a:srgbClr></a:solidFill>' in sp.get("e03", "")),
+        ("고른 간격·위→아래", re.findall(r'<a:gs pos="(\d+)">', sp.get("e04", "")) == ["0", "33330", "66670", "100000"] and '<a:lin ang="5400000" scaled="0"/>' in sp.get("e04", "")),
+        ("정지점 불투명도 × 전체 alpha", f'<a:gs pos="0"><a:srgbClr val="{prim}"><a:alpha val="18000"/></a:srgbClr></a:gs><a:gs pos="100000"><a:srgbClr val="{prim}"><a:alpha val="90000"/>' in sp.get("e05", "")
+         and '<a:lin ang="2700000" scaled="0"/>' in sp.get("e05", "")),
+        ("단색 그대로", bool(solid.search(sp.get("e06", ""))) and "<a:alpha" not in sp.get("e06", "") and "<a:gradFill" not in sp.get("e06", "")),
+    ]
+    bad = [n for n, ok in checks if not ok]
+    print("selftest: " + ("모두 통과 " + str([n for n, _ in checks]) if not bad else "실패 " + str(bad)))
+    return 0 if not bad else 1
+
+
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("id")
+    ap.add_argument("id", nargs="?")
     ap.add_argument("--out")
+    ap.add_argument("--selftest", action="store_true", help="채우기 견본을 내보내 슬라이드 XML 을 점검")
     a = ap.parse_args()
+    if a.selftest:
+        sys.exit(selftest(a.out or OUT / ".studio" / "export-selftest.pptx"))
+    if not a.id:
+        ap.error("덱 id 를 준다")
     if not safe_id(a.id):
         sys.exit("잘못된 덱 id")
     out = Path(a.out) if a.out else OUT / f"{a.id}.pptx"

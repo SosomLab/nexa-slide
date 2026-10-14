@@ -297,6 +297,80 @@ def color(value, default="#000000"):
     return default
 
 
+def color_alpha(value, default="#000000"):
+    """토큰명 또는 #RRGGBB·#RRGGBBAA → ('#RRGGBB', 불투명도 0~1). 모르면 (default, 1). render.colorAlpha 와 같은 규칙."""
+    if not value:
+        return None
+    cs = tokens()["colors"]
+    v = value
+    for _ in range(5):
+        if not isinstance(v, str):
+            return default, 1.0
+        if v.startswith("#"):
+            if len(v) == 7:
+                return v.upper(), 1.0
+            if len(v) == 9 and re.fullmatch(r"[0-9A-Fa-f]{2}", v[7:9]):
+                return v[:7].upper(), round(int(v[7:9], 16) / 255, 3)
+            return default, 1.0
+        if v in cs:
+            v = cs[v]
+        else:
+            return default, 1.0
+    return default, 1.0
+
+
+def _clamp01(v, dflt):
+    try:
+        return max(0.0, min(1.0, float(v)))
+    except (TypeError, ValueError):
+        return dflt
+
+
+def fill_spec(value):
+    """도형 채우기(fill) 값을 정규화한다(render.fillSpec 와 같은 규칙). 없으면 None.
+    - 토큰·"#RRGGBB"·"#RRGGBBAA"(끝 두 자리 = 불투명도) → {"kind": "solid", "color": "#RRGGBB", "alpha": 0~1}
+    - {"color": …, "alpha": 0~1} → 단색 + 투명도
+    - {"gradient": {"angle": 도, "stops": [[위치 0~1, 색, (불투명도)], …] 또는 [색, 색, …](고른 간격)}, "alpha": …}
+      → {"kind": "gradient", "angle": 0~360(0 = 왼→오, 90 = 위→아래, 시계 방향 - PPT a:lin 과 같음), "stops": [[위치, "#RRGGBB", 불투명도], …]}
+    정지점이 하나면 단색, 없으면 None."""
+    if not value:
+        return None
+    if isinstance(value, str):
+        ca = color_alpha(value)
+        return {"kind": "solid", "color": ca[0], "alpha": ca[1]} if ca else None
+    if not isinstance(value, dict):
+        return None
+    base_a = _clamp01(value.get("alpha", 1), 1.0)
+    g = value.get("gradient")
+    if not isinstance(g, dict):
+        ca = color_alpha(value.get("color"))
+        return {"kind": "solid", "color": ca[0], "alpha": round(ca[1] * base_a, 3)} if ca else None
+    raw = g.get("stops") or []
+    n = len(raw)
+    stops = []
+    for i, st in enumerate(raw):
+        if isinstance(st, str):  # 색만 → 고른 간격
+            pos, col, a = (i / (n - 1) if n > 1 else 0.0), st, 1.0
+        elif isinstance(st, (list, tuple)) and len(st) >= 2:
+            pos, col, a = st[0], st[1], (st[2] if len(st) > 2 else 1.0)
+        else:
+            continue
+        ca = color_alpha(col)
+        if not ca:
+            continue
+        stops.append([round(_clamp01(pos, 0.0), 4), ca[0], round(ca[1] * _clamp01(a, 1.0) * base_a, 3)])
+    stops.sort(key=lambda s: s[0])
+    if not stops:
+        return None
+    if len(stops) == 1:
+        return {"kind": "solid", "color": stops[0][1], "alpha": stops[0][2]}
+    try:
+        ang = float(g.get("angle", 0)) % 360
+    except (TypeError, ValueError):
+        ang = 0.0
+    return {"kind": "gradient", "angle": round(ang, 2), "stops": stops}
+
+
 def radius(value, w, h):
     """radius(px 숫자 또는 토큰 r-s/r-m/r-l/r-full) → px (짧은 변의 절반을 넘지 않음)."""
     if value in (None, 0, "0", ""):
