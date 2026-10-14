@@ -10,7 +10,7 @@
                       Monitor 가 만료되면 셸만 끝나고 python 이 남아 하트비트만 쓰는 "가짜 연결"을 막는다. 0 = 끝없이)
 
 작업 공간 하나 = 감시 하나 = 세션 하나. 작업 공간(폴더·저장소)마다 그곳에서 연 Claude 세션이 자기 감시를 띄운다.
-같은 작업 공간에 살아 있는 감시가 있으면 시작을 거부한다(같은 요청이 두 세션에 가지 않게).
+같은 작업 공간에 살아 있는 감시가 있으면 시작을 거부한다(같은 요청이 두 세션에 가지 않게) — 서버 안의 웹 세션도 같은 하트비트를 쓰므로 함께 거부된다.
 
 출력(--stream): 요청 묶음마다 JSON 한 줄 — 표준 출력 한 줄 = Monitor 알림 하나.
     {"event": "requests", "reason": "quiet|flush", "count": 2, "items": [{"deck", "id", "slide", "element", "text"}]}
@@ -22,11 +22,9 @@
 편집기 머리줄에 "세션 연결됨 / 처리 중 n / 연결 없음"을 표시한다. 감시가 멈추면(세션 종료·Monitor 만료)
 하트비트가 끊겨 몇 초 안에 "연결 없음"으로 바뀐다.
 
-세션 쪽 처리 순서(요청 1건): status=working → 덱 JSON 수정 → status=done, reply 작성 (docs/claude-session.md).
+판정 규칙·하트비트는 requests_core.py 에 있다(웹 세션 관리자와 공유). 세션 쪽 처리 순서(요청 1건): status=working → 덱 JSON 수정 → status=done, reply 작성 (docs/claude-session.md).
 """
 import argparse
-import datetime as dt
-import hashlib
 import json
 import os
 import sys
@@ -34,69 +32,8 @@ import time
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from common import DECKS, STATE  # noqa: E402
-
-SESSION = STATE / "session.json"
-FLUSH = STATE / "flush.json"
-STALE_FACTOR = 4  # 하트비트가 interval × 4 (+2초) 넘게 끊기면 연결 없음
-
-
-def _now():
-    return dt.datetime.now().isoformat(timespec="seconds")
-
-
-def all_requests():
-    out = []
-    for p in sorted(DECKS.glob("*.requests.json")):
-        try:
-            rs = json.loads(p.read_text(encoding="utf-8"))
-        except (OSError, ValueError):
-            continue  # 저장 중인 파일은 다음 확인 때 다시 읽는다
-        deck = p.name.split(".")[0]
-        out += [{"deck": deck, **r} for r in rs]
-    return out
-
-
-def open_requests():
-    return [r for r in all_requests() if r.get("status") == "open"]
-
-
-def _key(r):
-    return hashlib.sha1(json.dumps([r.get("deck"), r.get("id"), r.get("text"), r.get("slide"), r.get("element")],
-                                   ensure_ascii=False).encode("utf-8")).hexdigest()
-
-
-def _brief(r):
-    out = {k: r.get(k) for k in ("deck", "id", "slide", "element", "text")}
-    if r.get("region"):
-        out["region"] = r["region"]
-    return out
-
-
-def _write_json(path, obj):
-    path.parent.mkdir(parents=True, exist_ok=True)
-    tmp = path.with_name(path.name + f".{os.getpid()}.tmp")
-    tmp.write_text(json.dumps(obj, ensure_ascii=False), encoding="utf-8")
-    try:
-        os.replace(tmp, path)
-    except OSError:  # Windows 에서 서버가 읽는 순간과 겹치면 다음 주기에 다시 쓴다
-        tmp.unlink(missing_ok=True)
-
-
-def session_status():
-    """서버·편집기용 — 감시 하트비트와 요청 상태를 묶어 돌려준다."""
-    reqs = all_requests()
-    st = {"connected": False, "label": "", "mode": "", "last_seen": "", "age": None, "pid": None,
-          "open": sum(r.get("status") == "open" for r in reqs),
-          "working": sum(r.get("status") == "working" for r in reqs)}
-    try:
-        hb = json.loads(SESSION.read_text(encoding="utf-8"))
-    except (OSError, ValueError):
-        return st
-    age = time.time() - float(hb.get("ts", 0))
-    st.update(pid=hb.get("pid"), label=hb.get("label", ""), mode=hb.get("mode", ""), last_seen=hb.get("last_seen", ""), age=round(age, 1),
-              connected=not hb.get("stopped") and age <= float(hb.get("interval", 1)) * STALE_FACTOR + 2)
-    return st
+from common import DECKS  # noqa: E402
+from requests_core import FLUSH, SESSION, STALE_FACTOR, RequestTracker, all_requests, brief, heartbeat, now, open_requests, session_status  # noqa: E402,F401 - 예전처럼 여기서도 가져다 쓴다(server·status·save_deck)
 
 
 def _kill(pid):
@@ -136,45 +73,18 @@ def main():
         sys.exit(2)
 
     hb = {"pid": os.getpid(), "label": a.label, "mode": "stream" if a.stream else "once",
-          "interval": a.interval, "started": _now()}
+          "interval": a.interval, "started": now()}
     ttl = a.ttl if a.ttl is not None else (1780 if a.stream else 0)
     t_end = time.time() + ttl if ttl else None
-    emitted = {}  # 요청 id → 내보낸 내용 키
-    last_key, since = None, None
-    flush_seen = FLUSH.stat().st_mtime_ns if FLUSH.exists() else 0
+    tracker = RequestTracker(quiet=a.quiet)
     try:
         while True:
-            _write_json(SESSION, {**hb, "ts": time.time(), "last_seen": _now()})
-            cur = open_requests()
-            ids = {r["id"] for r in cur}
-            for rid in list(emitted):  # 처리됐거나 지워진 요청은 잊는다 → 다시 열리면 다시 내보낸다
-                if rid not in ids:
-                    del emitted[rid]
-            pending = [r for r in cur if emitted.get(r["id"]) != _key(r)]
-
-            fm = FLUSH.stat().st_mtime_ns if FLUSH.exists() else 0
-            flush = fm > flush_seen
-            flush_seen = max(flush_seen, fm)
-
-            batch, reason = None, None
-            if flush and (pending or cur):
-                batch, reason = (pending or cur), "flush"
-            elif pending:
-                key = json.dumps(sorted(_key(r) for r in pending))
-                if key != last_key:
-                    last_key, since = key, time.time()
-                elif time.time() - since >= a.quiet:
-                    batch, reason = pending, "quiet"
-            else:
-                last_key, since = None, None
-
+            heartbeat(hb)
+            batch, reason = tracker.poll()
             if batch:
-                for r in batch:
-                    emitted[r["id"]] = _key(r)
-                last_key, since = None, None
                 if a.stream:
                     print(json.dumps({"event": "requests", "reason": reason, "count": len(batch),
-                                      "items": [_brief(r) for r in batch]}, ensure_ascii=False), flush=True)
+                                      "items": [brief(r) for r in batch]}, ensure_ascii=False), flush=True)
                 else:
                     print(json.dumps(batch, ensure_ascii=False, indent=1), flush=True)
                     return
@@ -186,7 +96,7 @@ def main():
     except KeyboardInterrupt:
         pass
     finally:
-        _write_json(SESSION, {**hb, "ts": time.time(), "last_seen": _now(), "stopped": True})
+        heartbeat(hb, stopped=True)
 
 
 if __name__ == "__main__":

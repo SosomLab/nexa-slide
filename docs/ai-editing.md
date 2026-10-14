@@ -90,7 +90,8 @@ Monitor 로 python3 "<작업 공간>/nexa.py" watch_requests --stream --takeover
 편집기에서 오는 요청을 이렇게 처리해 줘.
 1) python3 nexa.py watch_requests --label "<도구 이름>" 을 실행해. 요청이 생길 때까지 기다렸다가 JSON 으로 요청 목록을 출력하고 끝난다.
 2) 요청마다: decks/<덱>.requests.json 에서 그 요청 status 를 "working" 으로 →
-   decks/<덱>.json 을 고친다(요소 id 유지, 임시 파일에 쓴 뒤 교체) → 같은 변경을 content/<덱>.json 에도 →
+   덱을 고쳐 새 파일에 쓰고(요소 id 유지) python3 nexa.py save_deck <덱> --from <새 덱 파일> --request <요청 id> 로 저장해
+   (decks/<덱>.json 을 직접 덮어쓰지 않아 — 변경 원장·백업·충돌 검사를 서버가 해) → 같은 변경을 content/<덱>.json 에도 →
    status 를 "done", reply 에 한두 문장. 모르면 status 는 "open" 그대로 두고 reply 에 질문.
 3) 끝나면 1) 을 다시 실행해 다음 요청을 기다려. 내가 멈추라고 할 때까지 반복해.
 ```
@@ -107,6 +108,8 @@ Monitor 로 python3 "<작업 공간>/nexa.py" watch_requests --stream --takeover
 | 파랑 **세션 처리 중 n** | AI 가 요청 n건을 처리하는 중(`working`) |
 | 회색 **세션 연결 없음** | 감시가 없다 — 요청은 저장되고, 감시를 시작하면 전달된다 |
 
+새 작업 공간의 `.claude/settings.json` 에는 **권한**(`permissions` — 쓰기 범위는 이 폴더, 셸 명령은 `python3 nexa.py …` 만 허용, PowerShell·WebFetch·삭제 명령 거절 — 엔진 `studio/agents/permissions.json` 한 벌)도 들어 있다.
+예전 작업 공간은 `python3 <작업 공간>/nexa.py update_launcher` 가 없는 키만 더한다(사용자가 고친 값은 그대로).
 Claude Code 를 쓰면 칩에 **세션 활동**도 보인다 — 새 작업 공간의 `.claude/settings.json` 훅(`UserPromptSubmit`·`PreToolUse`·`PostToolUse(Monitor)`·`Stop`)이
 `python3 nexa.py session_hook` 을 불러 `out/.studio/activity.json` 에 세션별 상태를 남긴다(엔진 `studio/session_hook.py`, 빨리 끝나고 실패해도 세션을 막지 않는다).
 

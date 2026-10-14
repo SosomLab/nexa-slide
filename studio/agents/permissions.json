@@ -1,0 +1,23 @@
+{
+  "_about": "AI 세션의 권한 템플릿(한 벌). workspace = 작업 공간 .claude/settings.json 에 합쳐 두는 것(수동 Claude 세션용, init_workspace·update_launcher). web = 웹 세션(claude -p --restricted --settings …)에만 더하는 것. 규칙 평가는 deny → ask → allow 순(첫 일치). docs/dev/web-session-design.md 5절",
+  "workspace": {
+    "permissions": {
+      "allow": [
+        "Read", "Edit", "Write", "Glob", "Grep",
+        "Bash(python3 nexa.py *)", "Bash(python nexa.py *)",
+        "Bash(git status*)", "Bash(git diff*)", "Bash(git log*)"
+      ],
+      "deny": [
+        "PowerShell", "WebFetch", "WebSearch",
+        "Bash(rm *)", "Bash(del *)", "Bash(rmdir *)", "Bash(curl *)", "Bash(wget *)",
+        "Bash(powershell *)", "Bash(pwsh *)", "Bash(cmd *)"
+      ]
+    }
+  },
+  "web": {
+    "permissions": {
+      "deny": ["mcp__*"],
+      "blockReadsOutsideWorkingDirectories": true
+    }
+  }
+}
