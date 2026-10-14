@@ -91,7 +91,7 @@ class WorkspaceProfile:
         return [r["id"] for r in batch]
 
     WEB_NOTE = ("\n웹 검색 허용 세션(관리자가 켬) - WebSearch·WebFetch 를 쓸 수 있다. 웹에서 얻은 내용은 **출처 URL** 을 적고(슬라이드 각주 또는 reply), "
-                "수집 자료를 별도 문서로 보관하라는 요청이면 작업 공간 안 `research/<주제>.md` 에 정리한다(Write 범위). "
+                "수집 자료를 별도 문서로 보관하라는 요청이면 작업 공간 **루트**의 `research/<주제>.md` 에 정리한다(`content/` 안이 아님 - 거기는 덱 원본 폴더. Write 범위). "
                 "검색어·요청 URL 에 덱 내용·사내 이름·개인 정보를 넣지 않는다.\n")
 
     def prompt(self, batch, reason, sess, ag):
