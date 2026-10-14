@@ -1328,6 +1328,7 @@ ${names}
     const text = cmd ? (st.cwd ? `cd "${st.cwd}"; ` : "") + `claude --resume ${st.sessionId}` : st.sessionId, what = cmd ? "확인 명령을" : "세션 ID 를";
     try { await navigator.clipboard.writeText(text); toast(`${what} 복사했습니다 - ${text}`, 5000); }
     catch (e) { const ta = document.createElement("textarea"); ta.value = text; ta.style.position = "fixed"; ta.style.opacity = "0"; document.body.appendChild(ta); ta.select(); const ok = document.execCommand && document.execCommand("copy"); ta.remove(); if (ok) toast(`${what} 복사했습니다 - ${text}`, 5000); else prompt(what, text); }
+    if (!(st.turn > 0)) setTimeout(() => toast("이 세션은 아직 첫 턴 전이라 claude --resume 로 열리지 않습니다 - 요청을 하나 처리한 뒤에 다시 시도", 6000), 600);
   }
   function sessBox(html) { $("#sessDlg .box").innerHTML = html; $("#sessDlg").classList.add("show"); }
   function sessClose() { $("#sessDlg").classList.remove("show"); if (WSS.src) { WSS.src.close(); WSS.src = null; } }
