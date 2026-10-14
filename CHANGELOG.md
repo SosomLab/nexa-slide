@@ -1,5 +1,11 @@
 # 변경 이력
 
+## 0.19.1 - 2026-10-14 · PPTX 내용 추출 · 템플릿 고르기 명령 (engine-request #3)
+
+- **`import_pptx <파일.pptx> [--out <폴더>]`**(`studio/import_pptx.py`): AI 세션이 Read 로 열 수 없는 PPTX 첨부에서 슬라이드별 제목·본문(수준·굵게 `**…**`·가장 큰 글자 pt)·표(행×열)·차트(종류·제목·범주·계열 값)·SmartArt 글·발표자 노트·숨긴 슬라이드를 `out/import/<이름>/slides.md`·`slides.json`(도형마다 kind·role·box 1280×720 기준) 으로, 그림을 `images/`(같은 그림은 한 번, emf·wmf·bmp 는 Pillow 로 PNG) 로 꺼낸다. 그룹 안 도형 좌표는 슬라이드 기준으로 환산, 제목 자리가 없는 덱은 위쪽 1/3 의 가장 큰 글을 제목으로 추정(`title?`). `--out` 은 작업 공간 안만. `--selftest` 로 견본 PPTX(제목·노트·굵게·수준·표·차트·그림·그룹) 추출 점검.
+- **`set_template [<이름>] [--json]`**(`studio/set_template.py`): 고를 수 있는 템플릿 목록(이름·라벨·설명, 숨긴 것 제외)과 현재 선택을 보이고, 이름을 주면 `nexa-slide.json` 의 `template` 을 바꾼다(`set_fonts` 와 같은 방식 - 공유 파일에만, PC 별 덮어쓰기 알림). 숨긴 템플릿은 `replacedBy` 를 안내. 반영에는 서버 재시작·`build_deck --force` 가 필요하다고 출력.
+- `help`·실행기 설명·웹 세션 턴 프롬프트(PPTX 첨부는 `import_pptx` 로, 테마 변경은 `set_template` 로 하되 웹 세션 안에서는 재시작하지 않고 안내)·`docs/claude-session.md`·`docs/templates.md`·`docs/editor.md`.
+
 ## 0.19.0 - 2026-10-14 · 표시 언어(영어) · 웹 세션 웹 검색 허용 · 첨부 미리보기 · 서버 작업 카드 개편 · 기동 잠금
 
 - **표시 언어**: 기본 메뉴(☰) "표시 언어" — `System (한국어)` · `English` · `한국어`(✓ 표시). 고르면 새로 고침 없이 즉시 바뀐다. `studio/i18n.js` 사전(약 920개 + 변수 문구 패턴)으로 DOM 글·placeholder·title·`<title>`·confirm/prompt 를 바꾸며, 동적 화면도 `MutationObserver` 로 반영. 시스템 기본 = 브라우저 언어. 저장 `localStorage nexa-lang`, 주소 `?lang=en|ko|system`. 템플릿·시작 내용·글꼴 목록 설명과 슬라이드 내용(데이터)은 번역하지 않는다. `docs/home.md` 표시 언어 절.
