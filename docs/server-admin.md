@@ -41,6 +41,9 @@ python3 studio/auth.py add <아이디> --admin         # ① 재시작 "전에" 
 python3 studio/service.py restart                   # ② 허브 재시작
 ```
 
+- **처음 한 번만**: 인증 이전 판 허브는 새 판의 생존 확인(`/api/auth/state`)에 답하지 않아 `service.py restart`·`stop` 이 그 허브를 찾지 못한다.
+  이때는 5599 를 쓰는 프로세스를 직접 끝낸 뒤 `service.py start` 한다 — Windows `Stop-Process -Id (Get-NetTCPConnection -LocalPort 5599 -State Listen).OwningProcess`,
+  macOS·Linux `kill $(lsof -t -iTCP:5599 -sTCP:LISTEN)`. 한 번 새 판으로 바뀐 뒤에는 `restart` 로 된다.
 - 확인: 밖의 주소(예 `https://slides.example.com/api/home`)를 로그인 없이 열면 401, 페이지는 로그인 화면이어야 한다.
 - 떠 있는 작업 공간 서버들도 새 판으로 바꾼다 — 각 작업 공간에서 `python3 <작업 공간>/nexa.py restart`(또는 시작 페이지 최근 작업에서 중지 → 시작).
   허브만 새 판이고 작업 공간 서버가 옛 판이면 중계 사용자 기록 등이 빠진다.
@@ -73,7 +76,7 @@ grep -E '"result":"(deny|error)"' ~/.config/nexa-slide/hub/logs/access-$(date +%
 
 ## 4. 사용자·관리자 관리
 
-웹: 로그인 → 오른쪽 위 계정 메뉴 → `/account`. 누구나 **내 비밀번호 변경**, 관리자는 **사용자 관리**(추가·삭제·비밀번호 초기화·관리자 지정/해제).
+웹: 로그인 → 왼쪽 위 메뉴(☰) → "계정"(관리자는 "계정 · 사용자 관리") → `/account`. 누구나 **내 비밀번호 변경**, 관리자는 **사용자 관리**(추가·삭제·비밀번호 초기화·관리자 지정/해제).
 
 | 할 일 | 웹(관리자) | 이 PC 터미널 |
 |---|---|---|
