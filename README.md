@@ -17,6 +17,7 @@ cd nexa-slide
 python3 -m pip install -r requirements.txt
 
 python3 studio/service.py start      # 시작 페이지 → http://127.0.0.1:5599/  (새로 만들기 · 열기 · 최근 작업 시작/중지 · 튜토리얼 · 데모 · 템플릿 · 샘플)
+                                     # 여기서 연 작업 공간은 같은 포트의 /w/<이름>/ 으로 쓴다 - 포트 하나로 여러 Studio (docs/home.md "한 주소로 중계")
 
 # 명령으로 작업 공간 만들기 → docs/new-project.md  (준 폴더 = 저장소 루트, 작업 공간 = 그 아래 slides/)
 python3 studio/init_workspace.py ../my-talk --title "신제품 소개"
@@ -42,13 +43,15 @@ D:\Projects\
 - 작업 공간마다 포트가 다르면 서버를 함께 띄울 수 있다. 같은 포트·같은 작업 공간의 두 번째 서버는 거부한다(`--port auto` 는 빈 포트를 찾는다).
 - **작업 공간 하나 = 서버 하나 = 요청 감시 하나 = Claude 세션 하나.** 상태 파일(`out/.studio/`)이 작업 공간마다 따로라 서로 섞이지 않는다.
 - `python3 <작업 공간>/nexa.py start | stop | restart | status | url` — [docs/operation.md](docs/operation.md#여러-작업-공간)
+- **포트 하나로**: 시작 페이지(허브, 5599)에서 열면 `http://127.0.0.1:5599/w/<이름>/` 로 그 작업 공간의 Studio 를 쓴다 — 허브가 각 서버로 넘겨 주고, 꺼져 있으면 띄운다(설정 포트가 겹치면 빈 포트로).
+  `nexa.py start` 로 띄운 서버가 있으면 그 서버를 그대로 쓴다 — [docs/operation.md](docs/operation.md#허브-중계--포트-하나5599로-여러-studio)
 
 ## 구조
 
 ```
 nexa-slide/
 ├─ studio/                 엔진 — 이 폴더만 있으면 어디서든 동작(작업 공간은 --workspace 로 지정)
-│   ├─ server.py           로컬 서버(정적 파일 + API)          ├─ index.html · studio.js   편집기
+│   ├─ server.py           로컬 서버(정적 파일 + API + /w/<이름>/ 중계) ├─ index.html · studio.js   편집기
 │   ├─ hub.py · paths.py   시작 페이지 동작 · 기준 폴더·사용자 설정 ├─ home.html · menu.js     시작 페이지 · 기본 메뉴
 │   ├─ common.py           작업 공간·설정 해석, 공용 규칙      ├─ render.js                요소 → HTML 렌더러
 │   ├─ layouts.py          레이아웃 빌더 21종                  ├─ slide.html               검증용 1:1 슬라이드

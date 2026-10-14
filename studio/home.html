@@ -363,6 +363,9 @@
     <label class="f" for="setRoot">제작 기준 폴더</label>
     <div class="row"><input type="text" id="setRoot"><button type="button" class="chip sm" id="setBrowse">찾아보기</button></div>
     <div class="hint" id="setInfo"></div>
+    <label class="f" style="display:flex;align-items:center;gap:8px;margin-top:16px"><input type="checkbox" id="setProxy" style="margin:0"> 작업 공간을 이 주소로 열기 - <code>/w/&lt;이름&gt;/</code> 중계</label>
+    <div class="hint">켜면 여러 작업 공간을 포트 하나(이 페이지의 포트)로 함께 씁니다. 작업 공간 서버는 뒤에서 따로 돌고(설정 포트가 쓰는 중이면 빈 포트로), 이 서버가 요청을 넘깁니다.
+      끄면 예전처럼 그 작업 공간 서버의 포트로 바로 이동합니다. <code>nexa.py start</code> 로 직접 띄우는 방식은 둘 다 그대로입니다.</div>
   </div>
   <div class="mf"><button type="button" class="chip" id="setReset">기본으로</button><button type="button" class="chip" data-close>취소</button><button type="button" class="chip primary" id="setSave">저장</button></div>
 </div></div>
@@ -404,7 +407,7 @@
   async function load() {
     H.home = await (await fetch("/api/home", { cache: "no-store" })).json();
     const d = H.home;
-    $("#where").textContent = d.mode === "hub" ? `시작 페이지 · 포트 ${d.port}` : `작업 공간 서버 · 포트 ${d.port}`;
+    $("#where").textContent = (d.mode === "hub" ? `시작 페이지 · 포트 ${d.port}` : `작업 공간 서버 · 포트 ${d.port}`) + (d.proxy ? " · 한 주소로 중계" : "");
     if (d.refused) { $("#refused").style.display = ""; $("#refused").innerHTML = `엔진 폴더 안의 작업 공간은 열지 않습니다: <code>${esc(d.refused)}</code> - 슬라이드 내용은 엔진과 다른 폴더·저장소에 둡니다. 예제는 <a href="#demo">데모</a>로 엽니다.`; }
     const cur = d.current && d.current.workspace ? d.current : null;
     if (cur) {
@@ -560,11 +563,13 @@
       : `<div class="empty">${q ? "찾는 작업이 없습니다" : "아직 연 작업이 없습니다. 새로 만들거나 폴더를 열어 보세요."}</div>`;
   }
   // 실행 상태 - 실행 중이면 쓰는 포트와 중지, 꺼져 있으면 설정 포트와 시작. 이 페이지를 내주는 작업 공간 서버는 끄지 않는다.
+  // 중계가 켜져 있으면 제목을 눌러 /w/<이름>/ 으로 가고, 포트 배지는 그 서버로 바로 가는 링크(새 탭)다.
   function svc(r) {
     const port = r.url ? (r.url.match(/:(\d+)/) || [])[1] : "";
     const self = H.home.current && H.home.current.path === r.path;
     return r.running
-      ? `<span class="badge run" title="${esc(r.url || "")}">포트 ${port || r.port || "?"}</span>` +
+      ? (H.home.proxy && r.url ? `<a class="badge run" href="${esc(r.url)}" target="_blank" rel="noopener" style="text-decoration:none" title="작업 공간 서버로 바로 열기(새 탭) - ${esc(r.url)}">포트 ${port || r.port || "?"} ↗</a>`
+                                : `<span class="badge run" title="${esc(r.url || "")}">포트 ${port || r.port || "?"}</span>`) +
         (self ? "" : `<button type="button" class="svc stop" data-svc="stop" data-path="${esc(r.path)}" title="이 작업 공간 서버 끄기">${icon("stop", 14)}중지</button>`)
       : `<span class="badge off" title="설정 포트(nexa-slide.json · nexa-slide.local.json)">포트 ${r.port || "?"}</span><button type="button" class="svc" data-svc="start" data-path="${esc(r.path)}" title="서버만 띄우기(페이지는 그대로)">${icon("play", 14)}시작</button>`;
   }
@@ -783,6 +788,7 @@
   function openSettings() {
     if (!H.home) { setTimeout(openSettings, 200); return; }
     $("#setRoot").value = H.home.projectsRoot;
+    $("#setProxy").checked = !!H.home.proxy;
     $("#setInfo").innerHTML = `문서 폴더: <code>${esc(H.home.documents)}</code> · 기본: <code>${esc(H.home.projectsRootDefault)}</code>` +
       (H.home.projectsRootFromEnv ? "<br>환경변수 NEXA_SLIDE_PROJECTS 가 지정되어 있어 그 값이 먼저 쓰입니다." : "");
     $("#setModal").classList.add("on");
@@ -791,9 +797,9 @@
   $("#setReset").onclick = () => ($("#setRoot").value = "");
   $("#setSave").onclick = async () => {
     const v = $("#setRoot").value.trim();
-    const r = await post("/api/settings", { projectsRoot: v === H.home.projectsRootDefault ? "" : v });
+    const r = await post("/api/settings", { projectsRoot: v === H.home.projectsRootDefault ? "" : v, hubProxy: $("#setProxy").checked });
     if (!r.ok) { toast(r.data.error || "저장하지 못했습니다", 4000); return; }
-    closeModals(); await load(); toast("기준 폴더를 저장했습니다");
+    closeModals(); await load(); toast("설정을 저장했습니다");
   };
 
   // ---------- 시작 ----------

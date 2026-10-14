@@ -45,15 +45,22 @@ API
   GET  /api/fs?path=<폴더>           폴더 고르기 — 하위 폴더 목록(git 저장소·작업 공간 표시)
   GET  /api/preview?template=&starter=  템플릿 × 시작용 내용 미리보기 — 사용자 설정 폴더의 임시 작업 공간에 빌드한 덱·토큰
   /preview/<템플릿>--<내용>/…        미리보기 덱의 그림(assetRoot)
+중계(허브 한 포트로 여러 작업 공간 — hub.py ws_id·proxy_target)
+  /w/<id>/…                          그 작업 공간 서버(별도 프로세스·포트)로 그대로 넘기고 응답을 돌려준다(Location 은 접두를 다시 붙임).
+                                     꺼져 있으면 띄운다(--port auto — 설정 포트가 쓰는 중이면 빈 포트). nexa.py 로 띄운 서버가 있으면 그 서버로.
+                                     편집기(studio.js·menu.js·slide.html)는 주소의 /w/<id> 접두를 보고 /api·/out·그림 경로 앞에 붙인다.
 
 작업 공간 없이 띄우면(또는 작업 공간에 덱이 없으면) / 는 시작 페이지로 간다. 덱이 있으면 편집기(Studio)로.
 엔진 폴더 안의 작업 공간은 열지 않는다(허브로 뜬다) — 슬라이드 내용은 엔진 밖에 둔다.
 """
 import argparse
 import datetime as dt
+import http.client
+import io
 import json
 import mimetypes
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -304,6 +311,28 @@ def has_decks():
     return not HUB and DECKS.is_dir() and any(not f.name.endswith(".requests.json") for f in DECKS.glob("*.json"))
 
 
+# ---------- 중계 대상 기억 - 매 요청(2초 폴링)마다 server.json·/api/config 를 묻지 않게 잠시 기억한다. 연결이 안 되면 잊고 다시 찾는다 ----------
+PROXY = {}  # 중계 이름 → {"ws", "port", "at"}
+PROXY_LOCK = threading.Lock()
+PROXY_TTL = 60
+HOP_HEADERS = {"connection", "keep-alive", "transfer-encoding", "te", "trailer", "upgrade", "proxy-connection", "host"}
+
+
+def proxy_target(wid):
+    with PROXY_LOCK:
+        c = PROXY.get(wid)
+        if c and time.time() - c["at"] < PROXY_TTL:
+            return c["ws"], c["port"]
+        ws, port = hub.proxy_target(wid)  # 떠 있으면 그 서버, 꺼져 있으면 띄운다(최대 10초)
+        PROXY[wid] = {"ws": ws, "port": port, "at": time.time()}
+        return ws, port
+
+
+def forget_target(wid):
+    with PROXY_LOCK:
+        PROXY.pop(wid, None)
+
+
 def render_list(i):
     d = OUT / i
     files = sorted(d.glob("slide-*.png")) if d.exists() else []
@@ -341,6 +370,9 @@ class H(BaseHTTPRequestHandler):
     # ---------- 라우팅 ----------
     def route(self, method):
         u = urlparse(self.path)
+        m = re.match(r"^/w/([^/]+)(/.*)?$", u.path)
+        if m:  # 중계 - /w/<id>/… 를 그 작업 공간 서버로
+            return self.proxy(method, m.group(1), (m.group(2) or "/") + (f"?{u.query}" if u.query else ""))
         parts = [unquote(p) for p in u.path.split("/") if p]
         q = parse_qs(u.query)
         if review and (parts[:1] == ["review"] or parts[:2] == ["api", "review"]):
@@ -373,6 +405,56 @@ class H(BaseHTTPRequestHandler):
         except Exception as e:  # noqa: BLE001
             return self.err(500, f"{type(e).__name__}: {e}")
 
+    # ---------- 중계(허브 한 포트로 여러 작업 공간) ----------
+    def proxy(self, method, raw_id, path):
+        """/w/<id>/<경로> → 그 작업 공간 서버의 /<경로>. 요청 머리·본문을 그대로 넘기고 응답을 그대로 돌려준다.
+        응답의 Location 이 / 로 시작하면(예: / → /studio/) 접두 /w/<id> 를 다시 붙인다. 이 서버 자신의 작업 공간이면 접두만 떼고 여기서 처리한다.
+        대상이 응답하지 않으면 기억을 지우고 한 번 더 찾는다(꺼졌으면 다시 띄운다).
+        raw_id 는 주소에 적힌 대로(한글은 퍼센트 부호화) - HTTP 머리(X-Forwarded-Prefix·Location)에는 이 형태를 쓰고, 작업 공간을 찾을 때만 푼다."""
+        wid = unquote(raw_id)
+        prefix = f"/w/{raw_id}"
+        n = int(self.headers.get("Content-Length") or 0)
+        body = self.rfile.read(n) if n else b""
+        try:
+            ws, port = proxy_target(wid)
+        except hub.HubError as e:
+            return self.send_json({"ok": False, "error": str(e), **e.extra}, 404)
+        if not HUB and ws == WORKSPACE:  # 자기 작업 공간 - 중계하지 않고 접두만 뗀다
+            self.path, self.rfile = path, io.BytesIO(body)
+            return self.route(method)
+        hdrs = {k: v for k, v in self.headers.items() if k.lower() not in HOP_HEADERS}
+        hdrs["X-Forwarded-Prefix"] = prefix
+        hdrs["X-Forwarded-Host"] = self.headers.get("Host", "")
+        resp = data = None
+        for attempt in (1, 2):
+            conn = http.client.HTTPConnection("127.0.0.1", port, timeout=600)  # PPTX 내보내기·PowerPoint 렌더는 오래 걸릴 수 있다
+            try:
+                conn.request(method, path, body=body or None, headers={**hdrs, "Host": f"127.0.0.1:{port}"})
+                resp = conn.getresponse()
+                data = resp.read()
+                break
+            except (OSError, http.client.HTTPException) as e:  # 연결 거부·끊김 - 서버가 꺼졌거나 포트가 바뀜
+                forget_target(wid)
+                if attempt == 2:
+                    return self.err(502, f"작업 공간 서버(포트 {port})에 연결할 수 없다: {e}")
+                try:
+                    ws, port = proxy_target(wid)
+                except hub.HubError as e2:
+                    return self.send_json({"ok": False, "error": str(e2), **e2.extra}, 502)
+            finally:
+                conn.close()
+        self.send_response(resp.status, resp.reason)
+        for k, v in resp.getheaders():
+            kl = k.lower()
+            if kl in HOP_HEADERS or kl == "content-length":
+                continue
+            if kl == "location" and v.startswith("/"):
+                v = prefix + v
+            self.send_header(k, v)
+        self.send_header("Content-Length", (resp.getheader("Content-Length") or "0") if method == "HEAD" else str(len(data)))
+        self.end_headers()
+        if method != "HEAD" and data:
+            self.wfile.write(data)
     def do_GET(self):
         self.route("GET")
 

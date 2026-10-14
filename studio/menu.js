@@ -61,7 +61,9 @@
   .nx-toast { position: fixed; left: 50%; bottom: 28px; transform: translateX(-50%); background: #1F1B1B; color: #fff; padding: 9px 16px; border-radius: 10px; z-index: 1100; font: 13px var(--font, sans-serif); max-width: 80vw; }`;
 
   let root = null, home = null, finding = false;
-  const here = () => location.pathname.endsWith("/home.html") ? (location.hash.slice(1) || "start") : location.pathname.startsWith("/review/slides") ? "review-slides" : location.pathname.startsWith("/review") ? "review" : location.pathname.startsWith("/studio") ? "studio" : "";
+  // 허브 중계(/w/<id>/…)로 열린 Studio 면 그 접두 - 이 작업 공간의 것(Studio·/api/home)에만 붙인다. 홈·새로 만들기·열기는 허브(접두 없음)로 간다.
+  const BASE = (location.pathname.match(/^\/w\/[^/]+/) || [""])[0];
+  const here = () => { const p = location.pathname.slice(BASE.length); return p.endsWith("/home.html") ? (location.hash.slice(1) || "start") : p.startsWith("/review/slides") ? "review-slides" : p.startsWith("/review") ? "review" : p.startsWith("/studio") ? "studio" : ""; };
   const color = (s) => { let h = 0; for (const c of s) h = (h * 31 + c.charCodeAt(0)) >>> 0; return `hsl(${h % 360} 45% 45%)`; };
 
   function toast(msg, ms = 3200) {
@@ -91,7 +93,7 @@
       it("start", "home", "홈", "/studio/home.html#start"),
       it("new", "plus", "새 슬라이드 만들기", "/studio/home.html#new"),
       it("open", "folder", "폴더·저장소 열기", "/studio/home.html#open"),
-      ws ? it("studio", "pen", "Studio", "/studio/", `<small>${esc(ws.title)}</small>`) : "",
+      ws ? it("studio", "pen", "Studio", `${BASE}/studio/`, `<small>${esc(ws.title)}</small>`) : "",
       '<div class="nx-sep"></div>',
       it("tutorial", "book", "튜토리얼", "/studio/home.html#tutorial"),
       it("demo", "play", "데모", "/studio/home.html#demo"),
@@ -116,7 +118,7 @@
       : `<div class="nx-empty">${q ? "찾는 작업이 없습니다" : "아직 연 작업이 없습니다"}</div>`;
   }
   async function load() {
-    try { home = await (await fetch("/api/home", { cache: "no-store" })).json(); } catch (_) { home = null; }
+    try { home = await (await fetch(BASE + "/api/home", { cache: "no-store" })).json(); } catch (_) { home = null; }
     if (root) { root.querySelector(".nx-body").innerHTML = items(); renderRecent(); }
   }
   function build() {

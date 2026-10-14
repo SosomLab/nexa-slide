@@ -4,7 +4,11 @@
 원칙: 엔진은 슬라이드 내용을 자기 폴더에 두지 않는다. 제작마다 작업 공간 폴더를 따로 두고(기본 = 문서 폴더/NexaSlide/<제목>),
 그 폴더에 내용(content·decks·assets)과 서버를 실행할 정보(nexa-slide.json·nexa.py)를 넣는다. 서버도 작업 공간마다 하나씩 띄운다.
 새로 만들 때 고른 폴더는 저장소 관리 기준 폴더(루트 - 자료·소스는 사용자 구조)이고 작업 공간은 그 아래 slides/ 다(init_workspace.py).
+
+중계(허브 한 포트) - 허브는 /w/<id>/… 를 그 작업 공간 서버로 넘긴다(server.py H.proxy). id = ws_id(경로), 대상은 proxy_target 이 정한다
+(떠 있으면 그 서버, 꺼져 있으면 --port auto 로 띄움). 사용자 설정 hubProxy(기본 켬)가 켜져 있으면 열기·만들기가 중계 주소로 간다.
 """
+import hashlib
 import json
 import os
 import re
@@ -53,6 +57,40 @@ def slug(title):
     s = re.sub(r'[<>:"/\\|?*\x00-\x1f]+', "-", title.strip())
     s = re.sub(r"\s+", "-", s).strip(".- ")
     return s[:60] or "slides"
+
+
+# ---------- 중계(허브 한 포트로 여러 작업 공간) ----------
+def ws_id(path):
+    """작업 공간 → 중계 주소의 이름 /w/<id>/ - 폴더 이름(읽기용) + 경로 해시 6자(같은 이름 구분). 경로가 같으면 늘 같은 값."""
+    p = Path(path).resolve()
+    key = str(p).lower() if os.name == "nt" else str(p)
+    h = hashlib.sha1(key.encode("utf-8")).hexdigest()[:6]
+    name = p.name if p.name not in ("slides", "ppt", "") or p.parent == p else f"{p.parent.name}-{p.name}"  # slides/ 는 저장소 이름을 붙여 알아보기 쉽게
+    name = re.sub(r"[#%?&+;=\s]+", "-", slug(name))  # 주소에 그대로 쓰는 글자만(한글은 그대로 - 브라우저가 알아서 부호화)
+    return f"{name[:24].strip('-') or 'ws'}-{h}"
+
+
+def ws_by_id(wid):
+    """중계 이름 → 작업 공간 폴더(최근 작업 목록에서 찾는다 - 열기·만들기를 거친 작업 공간만). 없으면 None."""
+    for r in load_settings().get("recent", []):
+        try:
+            if ws_id(r["path"]) == wid and (Path(r["path"]) / CONFIG_NAME).is_file():
+                return Path(r["path"]).resolve()
+        except (KeyError, OSError):
+            continue
+    return None
+
+
+def proxy_on():
+    """허브에서 열기·만들기가 중계 주소(/w/<id>/)로 가는가 - 사용자 설정 hubProxy(기본 켬). 끄면 그 작업 공간 서버의 포트로 바로 간다."""
+    return bool(load_settings().get("hubProxy", True))
+
+
+def nav(ws, direct):
+    """열기·만들기 응답의 이동 주소 - url(이동할 곳) · direct(그 작업 공간 서버 주소) · id(중계 이름) · hubUrl(중계 주소)."""
+    wid = ws_id(ws)
+    hub_url = f"/w/{wid}/"
+    return {"url": hub_url if proxy_on() else direct, "direct": direct, "id": wid, "hubUrl": hub_url}
 
 
 # ---------- 목록 ----------
@@ -177,10 +215,17 @@ def home(current=None, refused=None):
     for r, i in zip(rows, infos):
         i["opened"] = r.get("opened", "")
         i.setdefault("title", r.get("title") or Path(r["path"]).name)
+        if i.get("workspace"):
+            i["id"] = ws_id(r["path"])
+            i["hubUrl"] = f"/w/{i['id']}/"
         recent.append(i)
+    cur = workspace_info(current) if current else None
+    if cur and cur.get("workspace"):
+        cur["id"] = ws_id(current)
+        cur["hubUrl"] = f"/w/{cur['id']}/"
     return {"documents": str(documents_dir()), "projectsRoot": str(projects_root()), "projectsRootDefault": str(default_projects_root()),
             "projectsRootFromEnv": bool(os.environ.get("NEXA_SLIDE_PROJECTS")), "engine": str(ENGINE),
-            "current": workspace_info(current) if current else None, "refused": str(refused) if refused else None,
+            "current": cur, "refused": str(refused) if refused else None, "proxy": proxy_on(),
             "recent": recent, "templates": templates(), "starters": starters() if _supports_starter() else [],
             "samples": s.get("samples", []), "demo": str(projects_root() / DEMO_DIR)}
 
@@ -207,6 +252,8 @@ def update_settings(b):
                 raise HubError(f"샘플 주소는 http(s):// 로 시작해야 한다: {url}")
             out.append({"name": str(x.get("name") or url)[:80], "url": url[:500], "note": str(x.get("note", ""))[:200]})
         s["samples"] = out
+    if "hubProxy" in b:  # 허브 한 포트로 중계(/w/<id>/) - 끄면 작업 공간 서버 포트로 바로 이동
+        s["hubProxy"] = bool(b["hubProxy"])
     save_settings(s)
     return s
 
@@ -244,9 +291,10 @@ def list_dir(path=None):
 
 
 # ---------- 서버 ----------
-def start_server(ws):
-    """작업 공간 서버를 띄우고(이미 떠 있으면 그대로) 주소를 돌려준다."""
-    code, log = _run([STUDIO / "service.py", "start"], ws, timeout=30)
+def start_server(ws, auto=False):
+    """작업 공간 서버를 띄우고(이미 떠 있으면 그대로) 주소를 돌려준다.
+    auto 면 설정 포트가 쓰는 중일 때 다음 빈 포트로 띄운다(--port auto) - 허브 중계로 여러 작업 공간을 함께 띄울 때(실제 포트는 server.json 에)."""
+    code, log = _run([STUDIO / "service.py", "start"] + (["--port", "auto"] if auto else []), ws, timeout=30)
     code2, st = _run([STUDIO / "status.py", "--json"], ws, timeout=15)
     try:
         sv = json.loads(st)["server"]
@@ -384,10 +432,10 @@ def create(b):
     code, log = _run(p["args"], None, timeout=300)
     if code != 0 or not (ws / CONFIG_NAME).is_file():
         raise HubError("작업 공간을 만들지 못했다", log=log)
-    url, slog = start_server(ws)
+    url, slog = start_server(ws, auto=proxy_on())
     cfg = _read_json(ws / CONFIG_NAME) or {}
     decks = sorted(f.stem for f in (ws / cfg.get("decks", "decks")).glob("*.json") if not f.name.endswith(".requests.json"))
-    return {"ok": True, "path": str(ws), "url": url, "decks": decks, "log": log + "\n" + slog}
+    return {"ok": True, "path": str(ws), **nav(ws, url), "decks": decks, "log": log + "\n" + slog}
 
 
 def build_all(ws):
@@ -420,9 +468,9 @@ def open_ws(path):
     remember(ws, cfg.get("title", ws.name))
     st = server_state(ws, cfg)
     if st["running"]:  # 이미 떠 있으면 띄우지 않고 그 주소로
-        return {"ok": True, "path": str(ws), "url": st["url"], "log": ""}
-    url, log = start_server(ws)
-    return {"ok": True, "path": str(ws), "url": url, "log": log}
+        return {"ok": True, "path": str(ws), **nav(ws, st["url"]), "log": ""}
+    url, log = start_server(ws, auto=proxy_on())
+    return {"ok": True, "path": str(ws), **nav(ws, url), "log": log}
 
 
 def _ws_of(path):
@@ -440,9 +488,26 @@ def start_ws(path):
     ws = _ws_of(path)
     st = server_state(ws)
     if st["running"]:
-        return {"ok": True, "path": str(ws), **st}
-    url, log = start_server(ws)
-    return {"ok": True, "path": str(ws), "running": True, "url": url, "log": log}
+        return {"ok": True, "path": str(ws), **st, "id": ws_id(ws), "hubUrl": f"/w/{ws_id(ws)}/"}
+    url, log = start_server(ws, auto=proxy_on())
+    return {"ok": True, "path": str(ws), "running": True, "url": url, "log": log, "id": ws_id(ws), "hubUrl": f"/w/{ws_id(ws)}/"}
+
+
+def proxy_target(wid):
+    """중계 대상 - 중계 이름의 작업 공간 서버가 듣는 포트. 꺼져 있으면 띄운다(설정 포트가 쓰는 중이면 빈 포트로).
+    nexa.py 로 이미 띄운 서버가 있으면 그 서버로 - 작업 공간당 서버는 하나다."""
+    ws = ws_by_id(wid)
+    if ws is None:
+        raise HubError(f"모르는 작업 공간이다: {wid} - 시작 페이지에서 열거나 만든 작업 공간만 중계한다")
+    st = server_state(ws)
+    url = st["url"]
+    if not st["running"]:
+        url, _ = start_server(ws, auto=True)
+    import urllib.parse
+    port = urllib.parse.urlparse(url).port
+    if not port:
+        raise HubError(f"작업 공간 서버 주소를 알 수 없다: {url}")
+    return ws, int(port)
 
 
 def stop_ws(path):
@@ -476,8 +541,8 @@ def demo():
         cfg = {**cfg, **{k: v for k, v in ex.items() if k not in ("port", "engine")}, **keep}
         (ws / CONFIG_NAME).write_text(json.dumps(cfg, ensure_ascii=False, indent=2) + "\n", encoding="utf-8", newline="\n")
     remember(ws, (_read_json(ws / CONFIG_NAME) or {}).get("title", "데모"))
-    url, log = start_server(ws)
-    return {"ok": True, "path": str(ws), "url": url}
+    url, log = start_server(ws, auto=proxy_on())
+    return {"ok": True, "path": str(ws), **nav(ws, url)}
 
 
 # ---------- 미리보기 ----------

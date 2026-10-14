@@ -11,7 +11,9 @@
      오른쪽     속성(전체) · 요청 목록 · 기록(자동 백업으로 되돌리기) */
 (function () {
   "use strict";
-  window.RENDER_BASE = "/";
+  // 허브 중계(/w/<id>/studio/)로 열렸으면 그 접두를 서버 경로(/api·/out·그림) 앞에 붙인다. 작업 공간 서버로 바로 열면 빈 값(지금과 같음).
+  const BASE = (location.pathname.match(/^\/w\/[^/]+/) || [""])[0];
+  window.RENDER_BASE = BASE + "/";
   const $ = (s, r = document) => r.querySelector(s);
   const $$ = (s, r = document) => [...r.querySelectorAll(s)];
   const esc = (s) => Render.esc(s == null ? "" : s);
@@ -19,8 +21,10 @@
   const LS = { get(k, d) { try { const v = localStorage.getItem("nexa-" + k); return v == null ? d : v; } catch (e) { return d; } },
                set(k, v) { try { localStorage.setItem("nexa-" + k, v); } catch (e) { /* 저장소 없음 */ } } };
   // 아직 남기지 않은 요청 입력 - 덱·슬라이드(·요소)별로 보관해 슬라이드를 옮겨 다녀도·새로 고쳐도 남는다
-  const typed = (key) => LS.get("typed-" + key, "");
-  const keep = (key, v) => { try { if (v.trim()) localStorage.setItem("nexa-typed-" + key, v); else localStorage.removeItem("nexa-typed-" + key); } catch (e) { /* 저장소 없음 */ } };
+  // 중계로 열면 여러 작업 공간이 한 주소(origin)의 저장소를 같이 쓰므로 작업 공간 이름을 앞에 붙여 섞이지 않게 한다
+  const NS = BASE ? BASE.slice(3) + ":" : "";
+  const typed = (key) => LS.get("typed-" + NS + key, "");
+  const keep = (key, v) => { try { if (v.trim()) localStorage.setItem("nexa-typed-" + NS + key, v); else localStorage.removeItem("nexa-typed-" + NS + key); } catch (e) { /* 저장소 없음 */ } };
 
   // 편집기 창(탭) 식별자 - 변경 원장에서 "내 편집"(이 창에서 저장)과 다른 창의 저장을 구분한다. 탭마다 sessionStorage 가 따로라 새 탭은 새 id.
   const TAB = (() => { try { let t = sessionStorage.getItem("nexaTab"); if (!t) { t = (crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2)).slice(0, 8); sessionStorage.setItem("nexaTab", t); } return t; } catch (e) { return Math.random().toString(36).slice(2, 10); } })();
@@ -37,7 +41,7 @@
   // ---------------------------------------------------------------- 공통
   async function api(method, url, body) {
     const headers = { "X-Nexa-Tab": TAB }; if (body !== undefined) headers["Content-Type"] = "application/json";
-    const r = await fetch(url, { method, headers, body: body !== undefined ? JSON.stringify(body) : undefined });
+    const r = await fetch(BASE + url, { method, headers, body: body !== undefined ? JSON.stringify(body) : undefined });
     let data = null;
     try { data = await r.json(); } catch (e) { /* 빈 응답 */ }
     return { ok: r.ok, status: r.status, data, headers: r.headers };
@@ -124,7 +128,6 @@
 
   // ---------------------------------------------------------------- 불러오기·외부 변경 감지
   async function loadDeck(id, keep) {
-    const r = await fetch(`/api/deck/${id}`, { cache: "no-store" });
     if (!r.ok) { toast("덱을 불러오지 못했습니다"); return false; }
     const deck = await r.json();
     if (keep && S.deck && S.id === id) snapshot(); else { S.undo = []; S.redo = []; }
@@ -808,7 +811,7 @@
   function renderPng() {
     if (!S.preview) return;
     const u = S.pngs[S.cur];
-    $("#pngWrap").innerHTML = u ? `<img src="${u}" alt="">` : `<div class="empty">아직 렌더 없음 - "다시 렌더"</div>`;
+    $("#pngWrap").innerHTML = u ? `<img src="${esc(BASE + u)}" alt="">` : `<div class="empty">아직 렌더 없음 - "다시 렌더"</div>`;
     const stale = S.renderAt && S.deck && S.deck.updated && new Date(S.deck.updated).getTime() > S.renderAt;
     $("#pngInfo").textContent = u ? (stale ? "· 렌더 뒤에 편집됨 - 다시 렌더 필요" : "") : "";
     fitStage();
@@ -838,7 +841,7 @@ ${names}
     }
     const fn = embed ? `${S.id}-fonts.pptx` : `${S.id}.pptx`;
     if (r.ok) {
-      const a = $("#dl"); a.href = r.data.url; a.setAttribute("download", fn); a.style.display = ""; a.textContent = `⬇ ${fn}`;
+      const a = $("#dl"); a.href = BASE + r.data.url; a.setAttribute("download", fn); a.style.display = ""; a.textContent = `⬇ ${fn}`;
       toast(embed ? `글꼴을 넣은 PPTX 를 만들었습니다 - 글꼴 ${(r.data.typefaces || []).join(", ")} · ${r.data.sizeKB}KB` : "PPTX 를 만들었습니다 - ⬇ 로 받기 (쓴 글꼴은 out/" + S.id + ".fonts.json 에 기록)", 5000);
     }
     else toast("내보내기 실패: " + (r.data && (r.data.error + " " + (r.data.log || "")) || r.status), 6000);
@@ -847,8 +850,8 @@ ${names}
     openMenu(btn, [
       { icon: "📄", label: "PPTX 내보내기 (편집 가능한 도형)", act: () => doExport() },
       { icon: "🔤", label: "PPTX 내보내기 - 글꼴 포함 (PowerPoint 필요)", act: () => doExport(true) },
-      { icon: "📋", label: "쓴 글꼴 기록 보기 (마지막 내보내기)", act: () => window.open(`/out/${S.id}.fonts.json`, "_blank") },
-      { icon: "❓", label: "글꼴 받기·설치 안내", act: () => window.open("/studio/fonts.html", "_blank") },
+      { icon: "📋", label: "쓴 글꼴 기록 보기 (마지막 내보내기)", act: () => window.open(`${BASE}/out/${S.id}.fonts.json`, "_blank") },
+      { icon: "❓", label: "글꼴 받기·설치 안내", act: () => window.open(`${BASE}/studio/fonts.html`, "_blank") },
       { icon: "🖼", label: S.preview ? "PowerPoint 렌더 미리보기 닫기" : "PowerPoint 렌더 미리보기 (나란히)", act: togglePreview },
       { icon: "↻", label: "PowerPoint 로 다시 렌더 (Windows)", act: () => { if (!S.preview) togglePreview(); doRender(); } },
     ], { right: true });
@@ -1609,7 +1612,7 @@ ${names}
     $("#fontDlg .box").innerHTML = `<div class="row" style="align-items:center;gap:8px"><h3 style="margin:0;flex:1">글꼴 - 지금 세트 <b>${esc(cur || "(템플릿 기본)")}</b>
         <span class="bd ${ws ? "chg" : ""}" style="font-size:12px">${ws ? "작업 공간 지정" : "템플릿 기본"}</span></h3><button class="chip sm" data-fd="close">닫기</button></div>
       <div class="hint">기본 세트(default·modern)는 엔진 템플릿에 있고, 회사 서체 같은 전용 글꼴은 이 작업 공간이 <code>nexa-slide.json</code> 의 <code>fontPresets</code> 와 <code>fonts/</code> 폴더로 관리합니다.
-        글꼴은 되도록 무료 글꼴로 - <a href="/studio/fonts.html" target="_blank">글꼴 받기·설치 안내 ↗</a> (쓰는 글꼴이 무료·시스템 기본·전용 중 무엇인지 확인)</div>
+        글꼴은 되도록 무료 글꼴로 - <a href="${BASE}/studio/fonts.html" target="_blank">글꼴 받기·설치 안내 ↗</a> (쓰는 글꼴이 무료·시스템 기본·전용 중 무엇인지 확인)</div>
       <h4>역할별 글꼴</h4><table>${["body", "heading", "mono"].map((k) => { const v = (f.fonts || {})[k] || {}; const ms = v.measure || {};
         return `<tr><td><b>${ROLE[k]}</b> <code>${k}</code></td><td>${esc(v.latin || "-")} / ${esc(v.ea || "-")}<div style="font-family:${esc(v.css || "inherit")};font-size:18px;margin-top:2px">가나다 ABC 123 - 견본 글자</div>
           <div class="hint">측정 ${esc(ms.regular || "-")} · ${esc(ms.bold || "-")}</div></td></tr>`; }).join("")}</table>
@@ -1654,8 +1657,8 @@ ${names}
     document.title = `${r.data.title} - nexa-slide`;
     $("#appTitle").textContent = r.data.title || "nexa-slide";
     $("#appTitle").title = `작업 공간 ${r.data.path} · 포트 ${r.data.port}${S.template ? ` · 템플릿 ${S.template.name}` : ""}`;
-    if (S.brand.logo) { const l = $("#brandLogo"); l.src = "/" + S.brand.logo; l.alt = S.brand.name || ""; l.style.display = ""; l.onerror = () => (l.style.display = "none"); }
-    if (S.brand.favicon) $("#favicon").href = "/" + S.brand.favicon;
+    if (S.brand.logo) { const l = $("#brandLogo"); l.src = BASE + "/" + S.brand.logo; l.alt = S.brand.name || ""; l.style.display = ""; l.onerror = () => (l.style.display = "none"); }
+    if (S.brand.favicon) $("#favicon").href = BASE + "/" + S.brand.favicon;
   }
   async function switchDeck(id) { if (id === S.id) return; if (S.dirty) await save(); await loadDeck(id); }
   async function init() {

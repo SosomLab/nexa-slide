@@ -22,6 +22,24 @@ python3 <작업 공간>/nexa.py start      # 작업 공간 서버 → 덱이 있
 - 허브 포트는 5599(사용자 설정 `hubPort` 로 바꿀 수 있다). 허브의 실행 정보·로그는 사용자 설정 폴더의 `hub/.studio/` 에 둔다. 엔진이나 현재 폴더에는 아무것도 쓰지 않는다.
 - 작업 공간 서버에서도 시작 페이지(`/studio/home.html`)와 기본 메뉴를 그대로 쓸 수 있다.
 
+## 한 주소로 중계 — 허브 포트 하나로 여러 Studio
+
+허브는 `/w/<이름>/…` 를 **그 작업 공간 서버로 넘겨 준다**(중계). 작업 공간마다 서버 프로세스 하나라는 구조는 그대로지만, 브라우저는 포트 하나(5599)만 쓴다.
+
+```
+브라우저 ──► 127.0.0.1:5599                (허브)
+               ├─ /                      시작 페이지 (허브가 직접)
+               ├─ /w/신제품-소개-3fa9c1/…  → 127.0.0.1:5600  (작업 공간 A 서버)
+               └─ /w/교육자료-slides-9b2e…/ → 127.0.0.1:5604  (작업 공간 B 서버)
+```
+
+- **이름**(`<이름>`) = 작업 공간 폴더 이름 + 경로 해시 6자(`hub.ws_id`). 폴더가 `slides` 면 저장소 이름을 앞에 붙인다. 최근 작업(열기·만들기를 거친 작업 공간)만 중계한다 — 모르는 이름은 404.
+- **대상 서버**: 떠 있으면 그 서버로(`nexa.py start` 로 띄운 것도 같다 — 작업 공간당 서버 하나). 꺼져 있으면 첫 요청 때 `--port auto` 로 띄운다 — 설정 포트가 비어 있으면 그 포트, 다른 작업 공간이 쓰고 있으면 다음 빈 포트(실제 포트는 `out/.studio/server.json`). 대상이 응답하지 않으면 다시 찾아 한 번 더 시도한다(꺼졌으면 다시 띄움).
+- **편집기**(`studio.js`·`menu.js`·`slide.html`)는 주소의 `/w/<이름>` 접두를 보고 `/api`·`/out`·그림 경로(`RENDER_BASE`) 앞에 붙인다. 작업 공간 서버로 바로 열면 접두가 빈 값이라 전과 같다. 메뉴의 홈·새로 만들기·열기는 접두 없이 허브로, Studio 항목만 접두를 붙인다.
+- 중계로 열면 여러 작업 공간이 한 origin 의 `localStorage` 를 같이 쓴다 — 화면 배치 같은 편집기 설정은 공유되고(브라우저 설정으로 봄), 아직 보내지 않은 요청 입력(`nexa-typed-*`)은 작업 공간 이름을 앞에 붙여 섞이지 않게 한다.
+- **설정 `hubProxy`**(기본 켬, 시작 페이지 메뉴 "기준 폴더 설정"): 켜면 열기·만들기·데모가 중계 주소(`/w/<이름>/`)로 가고 최근 작업의 포트 배지가 그 서버로 바로 가는 링크(새 탭)가 된다. 끄면 전처럼 작업 공간 서버의 포트로 바로 이동한다. `nexa.py start` 로 직접 띄우는 방식은 둘 다 그대로다.
+- 응답에 `url`(이동할 곳) 과 `direct`(그 작업 공간 서버 주소), `id`, `hubUrl` 이 함께 온다. `/api/home` 의 최근 작업에도 `id`·`hubUrl` 이 있고, `proxy` 로 설정값을 알 수 있다.
+
 ## 기준 폴더
 
 특별히 정하지 않으면 **운영체제의 기본 문서 폴더** 아래 `NexaSlide/` 가 기준 폴더이고, 제작마다 그 아래에 폴더를 하나씩 만든다.
@@ -64,6 +82,7 @@ python3 <작업 공간>/nexa.py start      # 작업 공간 서버 → 덱이 있
 |---|---|
 | `projectsRoot` | 기준 폴더(없으면 문서 폴더/NexaSlide) |
 | `hubPort` | 허브 포트(기본 5599) |
+| `hubProxy` | 열기·만들기를 중계 주소 `/w/<이름>/` 로(기본 `true`). `false` 면 작업 공간 서버 포트로 바로 이동 |
 | `recent` | 최근 작업 `[{path, title, opened}]` - 최대 30개 |
 | `samples` | 등록한 샘플 사이트 `[{name, url, note}]` |
 
@@ -143,9 +162,9 @@ Esc·바깥·닫기 단추로 닫는다. 주소에 `?menu=open` 을 붙이면 �
 | 메서드 · 경로 | 설명 |
 |---|---|
 | `GET /api/home` | `{mode, documents, projectsRoot, projectsRootDefault, current, refused, recent, templates, starters, samples, demo}` |
-| `POST /api/project` | `{"action": "create", title, template, starter?, folder?, sub?, port?, purpose, audience, direction, materials, askDraft}` · `{"action": "plan", …create 와 같음}` → `{path, port, url, args, commands: {powershell, bash: {init, start}}, warnings}` · `{"action": "open", path}` · `{"action": "demo"}` · `{"action": "forget", path}` → `{ok, path, url}`. 실패하면 400 `{error, needInit?, existing?, log?}` |
+| `POST /api/project` | `{"action": "create", title, template, starter?, folder?, sub?, port?, purpose, audience, direction, materials, askDraft}` · `{"action": "plan", …create 와 같음}` → `{path, port, url, args, commands: {powershell, bash: {init, start}}, warnings}` · `{"action": "open", path}` · `{"action": "demo"}` · `{"action": "forget", path}` → `{ok, path, url, direct, id, hubUrl}` (`url` = `hubProxy` 가 켜져 있으면 `/w/<이름>/`, 아니면 `direct`). 실패하면 400 `{error, needInit?, existing?, log?}` |
 | `GET /api/preview?template=&starter=` | 미리 보기 - 템플릿 × 시작용 내용(없으면 레이아웃 견본)을 사용자 설정 폴더의 임시 작업 공간에 빌드 → `{template, starter, tokens, base, decks}` |
-| `POST /api/settings` | `{projectsRoot?, samples?}` - `projectsRoot` 를 빈 값으로 주면 기본으로 |
+| `POST /api/settings` | `{projectsRoot?, samples?, hubProxy?}` - `projectsRoot` 를 빈 값으로 주면 기본으로 |
 | `GET /api/fs?path=<폴더>` | 폴더 고르기 - 하위 폴더 `[{name, path, git, workspace}]`, 드라이브 목록, 바로 가기(문서·기준·홈) |
 
 `/api/fs` 는 이 PC 의 폴더 이름을 보여 준다. 서버는 `127.0.0.1` 에만 열린다([server.md](server.md)).
