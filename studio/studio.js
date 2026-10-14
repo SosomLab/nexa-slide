@@ -447,8 +447,8 @@
     let h = "", svg = "";
     if (s && S.mode !== "draw" && LS.get("langTag", "1") === "1") {  // 코드 요소 언어 이름표(⋯ 더보기에서 끄고 켬, 기본 켜짐) - 편집 화면에만(슬라이드·발표·PPTX 에는 없음). 크기는 확대와 무관하게 일정
       const inv = 1 / scale;
-      for (const e of s.elements) if (e.type === "code") {
-        const k = Render.langOf(e);
+      for (const e of s.elements) if (e.type === "code" && e.lang) {  // 언어를 고르지 않았거나 일반 글자면 이름표 없음
+        const k = Render.langOf(e); if (k === "plain") continue;
         h += `<div class="langtag" style="left:${e.x + e.w}px;top:${e.y}px;transform:translate(-100%, -100%) scale(${inv});transform-origin:100% 100%" title="코드 언어 - 서식 줄 또는 속성 탭에서 바꾼다">${esc(langLabel(k))}</div>`;
       }
     }
