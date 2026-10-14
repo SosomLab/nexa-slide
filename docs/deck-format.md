@@ -57,7 +57,7 @@
 
 ### 코드 언어 (`lang`)
 
-`studio/code_langs.json` 에 정의(화면 `render.js` 와 PPTX `common.py` 가 같은 파일·같은 알고리즘 - `check_parity` 가 언어별 예제로 동일성 검사). 없으면 `sql`(예전 기본), 모르는 이름은 `plain`(색 없음). 이름·별칭은 대소문자 무시(예: `sh`·`shell` → `bash`, `cs`·`c#` → `csharp`, `js` → `javascript`, `py` → `python`, `rs` → `rust`, `html` → `xml`, `ini` → `toml`, `mssql`·`oracle` → `sql`).
+`studio/code_langs.json` 에 정의(화면 `render.js` 와 PPTX `common.py` 가 같은 파일·같은 알고리즘 - `check_parity` 가 언어별 예제로 동일성 검사). 없으면(편집기에서 언어 칸을 비움) 색은 `sql` 규칙(예전 기본)이고 언어 이름표는 없다, 모르는 이름은 `plain`(색 없음). 이름·별칭은 대소문자 무시(예: `sh`·`shell` → `bash`, `cs`·`c#` → `csharp`, `js` → `javascript`, `py` → `python`, `rs` → `rust`, `html` → `xml`, `ini` → `toml`, `mssql`·`oracle` → `sql`).
 
 `plain` · `sql` · `bash` · `powershell` · `c` · `cpp` · `csharp` · `java` · `kotlin` · `scala` · `javascript` · `typescript` · `json` · `yaml` · `toml` · `xml` · `css` · `scss` · `markdown` · `diff` · `python` · `ruby` · `perl` · `php` · `go` · `rust` · `swift` · `dart` · `objectivec` · `vbnet` · `lua` · `r` · `graphql` · `makefile` · `dockerfile`
 

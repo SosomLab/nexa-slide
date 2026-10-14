@@ -639,7 +639,7 @@
         <button class="ib" data-f="head" title="화살 머리 - 누를 때마다 바뀜">${{ none: "-", end: "→", start: "←", both: "↔" }[el.head || (el.type === "arrow" ? "end" : "none")]}</button>
         <button class="ib" data-f="dash" title="선 모양 - 누를 때마다 바뀜">${{ solid: "실선", dash: "파선", dot: "점선" }[el.dash || "solid"]}</button>`;
     }
-    if (el.type === "code") h += `<span class="vsep"></span><button class="ib" data-f="lang" title="코드 언어 - ${esc(langLabel(Render.langOf(el)))}">${esc(langLabel(Render.langOf(el)))} ▾</button><button class="ib" data-f="copy" title="코드를 클립보드에 복사">📋</button>`;
+    if (el.type === "code") h += `<span class="vsep"></span><button class="ib" data-f="lang" title="코드 언어 - ${el.lang ? esc(langLabel(Render.langOf(el))) : "지정 안 함(SQL 색)"}">${el.lang ? esc(langLabel(Render.langOf(el))) : "언어"} ▾</button><button class="ib" data-f="copy" title="코드를 클립보드에 복사">📋</button>`;
     h += `<span class="vsep"></span><button class="ib" data-f="dup" title="복제 (Ctrl+D)">⧉</button>
       <button class="ib" data-f="del" title="삭제 (Delete)" ${lk ? "disabled" : ""}>🗑</button>
       <button class="ib${lk ? " on" : ""}" data-f="lock" title="잠금 - 끌기·삭제 막기">🔒</button>
@@ -933,7 +933,7 @@ ${names}
         ${seg("점선", "dash", el, [["solid", "실선"], ["dash", "파선"], ["dot", "점선"]], "solid")}</div>`;
     if (el.type === "code") { const lk = Render.langOf(el), ln = el.lineNo !== false; h += `<div class="sec"><h3>코드</h3><textarea data-k="text" style="min-height:160px">${esc(el.text || "")}</textarea>
         <div class="row"><label>언어</label><label class="switch" style="margin:0 8px 0 0" title="캔버스 코드 블록 오른쪽 위 언어 이름표 표시 여부(편집 화면에만, 모든 코드 블록 공통)"><input type="checkbox" data-langtag="1"${LS.get("langTag", "1") === "1" ? " checked" : ""}><span class="track"></span></label>
-          <input type="search" list="langList" data-lang="1" value="${esc(langLabel(lk))}" placeholder="언어 찾기 - 예: bash, c#, json, rust" title="입력하면 목록이 좁혀집니다 - 이름·별칭(sh, cs, js, py …)으로 찾기" style="flex:1;min-width:0"></div>
+          <input type="search" list="langList" data-lang="1" value="${el.lang ? esc(langLabel(lk)) : ""}" placeholder="언어 찾기 - 예: bash, c#, json, rust" title="입력하면 목록이 좁혀집니다 - 이름·별칭(sh, cs, js, py …)으로 찾기" style="flex:1;min-width:0"></div>
         <datalist id="langList">${langOptions()}</datalist>
         <div class="row"><label>줄 번호</label><label class="switch" style="margin-left:0" title="코드 왼쪽 줄 번호 열 - 끄면 화면·PPTX 모두 번호 없이"><input type="checkbox" data-linenosw="1"${ln ? " checked" : ""}><span class="track"></span></label>
           <button class="chip sm" data-copy="code" title="코드 글자를 클립보드에 복사(줄 번호·색 없이)" style="margin-left:auto">📋 복사</button></div>
@@ -986,6 +986,7 @@ ${names}
     if (t.dataset.linenosw && el) { const on = t.checked; mutate((x) => { if (on) delete x.lineNo; else x.lineNo = false; }, (x) => x.type === "code"); return; }
     if (t.dataset.langtag) { LS.set("langTag", t.checked ? "1" : "0"); renderMarks(); return; }
     if (t.dataset.lang) {  // 언어 - 목록의 이름·별칭으로. 고른 코드 요소 모두
+      if (!t.value.trim()) { mutate((x) => { delete x.lang; }, (x) => x.type === "code"); return; }  // 비우면 언어 지정 없음(이름표 없음)
       const k = findLang(t.value); if (!k) { toast(`모르는 언어: ${t.value} - 목록에서 고르세요`); return; }
       mutate((x) => { x.lang = k; }, (x) => x.type === "code"); return;
     }
@@ -1779,7 +1780,7 @@ ${names}
     $("#zoomPct").onclick = () => setZoom(100); $("#zoomFit").onclick = () => setZoom(null);
     // 오른쪽 패널
     $$(".tabs .chip").forEach((b) => (b.onclick = () => switchTab(b.dataset.tab)));
-    const P = $("#tab-props"); P.addEventListener("change", onPropChange); P.addEventListener("click", onPropClick);
+    const P = $("#tab-props"); P.addEventListener("change", onPropChange); P.addEventListener("search", (e) => { if (e.target.dataset.lang && !e.target.value) onPropChange(e); });  // ✕ 로 지우면 바로 반영 P.addEventListener("click", onPropClick);
     $("#tab-reqs").addEventListener("click", onReqClick);
     $("#tab-reqs").addEventListener("input", (e) => { if (e.target.id === "reqText") keep(e.target.dataset.key, e.target.value); });
     $("#tab-reqs").addEventListener("keydown", (e) => { // 슬라이드 요청 칸도 메모 팝오버처럼: Enter = 메모 남기기(초안), Shift+Enter = 줄바꿈
