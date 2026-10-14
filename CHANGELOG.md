@@ -1,5 +1,9 @@
 # 변경 이력
 
+## 0.21.7 - 2026-10-15 · 수동 엔진 세션(터미널이 서버 작업 큐를 맡기)
+
+- `python3 studio/watch_engine_requests.py --stream`(Monitor) — 터미널의 Claude Code 세션이 엔진 요청 큐를 맡는다. 하트비트(kind=manual)로 시작 페이지 서버 작업 카드에 "수동 세션 · <이름> · <폴더>" 가 보이고 [세션 시작]은 "터미널이 맡음"으로. 처리할 요청(open)이 생기면 Monitor 알림, 상태 변경은 `engine_request.py status …`. 웹 엔진 세션과 서로 배타(둘 다 거절). 승인 대기 알림의 "세션 꺼짐" 판정에도 반영.
+
 ## 0.21.6 - 2026-10-15 · 도형 안 글자 세로 중심 보정(글꼴 세트별)
 
 - 원·칩 등 도형 안의 글자가 브라우저에서 PowerPoint 보다 2.5px 위에 보이던 것: 맑은 고딕·Consolas 로 잰 PPT 줄 배치 보정(`pptTextShift`)이 다른 글꼴 세트(KoPub돋움체 등)에도 그대로 적용돼서. 보정은 **측정한 글꼴(`measuredFor`)을 쓸 때만** 적용하고, 다른 세트는 세트 자체의 `pptTextShift` 가 있으면 그것, 없으면 0. 측정: 원(56px) 안 I·II·III — PowerPoint dy −1.0px, 브라우저 −3.5px → 보정 뒤 −1.0px.

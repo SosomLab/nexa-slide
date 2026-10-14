@@ -61,8 +61,32 @@ def session_state():
     except (OSError, ValueError):
         return {"connected": False}
     age = time.time() - float(hb.get("ts", 0))
-    return {"connected": not hb.get("stopped") and age <= float(hb.get("interval", 1)) * 4 + 2, "age": round(age, 1),
-            **{k: hb.get(k) for k in ("kind", "label", "agent", "model", "user", "pid")}}
+    alive = not hb.get("stopped") and age <= float(hb.get("interval", 1)) * 4 + 2
+    if alive and hb.get("kind") == "manual" and hb.get("pid") and not pid_alive(hb["pid"]):  # 강제 종료돼 stopped 를 못 쓴 수동 감시
+        alive = False
+    return {"connected": alive, "age": round(age, 1), **{k: hb.get(k) for k in ("kind", "label", "agent", "model", "user", "pid", "cwd", "started")}}
+
+
+def pid_alive(pid):
+    """그 pid 가 살아 있는가(Windows 는 OpenProcess - os.kill(pid, 0) 은 Windows 에서 프로세스를 죽이므로 쓰지 않는다)."""
+    try:
+        pid = int(pid)
+    except (TypeError, ValueError):
+        return False
+    if os.name == "nt":
+        import ctypes
+        h = ctypes.windll.kernel32.OpenProcess(0x1000, False, pid)
+        if not h:
+            return False
+        code = ctypes.c_ulong()
+        ok = ctypes.windll.kernel32.GetExitCodeProcess(h, ctypes.byref(code))
+        ctypes.windll.kernel32.CloseHandle(h)
+        return bool(ok) and code.value == 259  # STILL_ACTIVE - 끝났지만 핸들이 남아 열리는 프로세스는 죽은 것으로
+    try:
+        os.kill(pid, 0)
+        return True
+    except OSError:
+        return False
 
 
 def pending_note(status="open"):

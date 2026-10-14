@@ -160,7 +160,11 @@
 
 진행 현황(2026-10-15 새벽): E-1~E-4 완료·운영 중. 엔진 개발 세션이 운영에서 요청 #3(import_pptx·set_template)·#4(place·extra·spread)·#5(scale_fonts·fontScale)·#6(채우기 투명도·그라데이션)을 처리했고 모두 검토·main 병합·`applied` 표시됨(0.20.1·0.20.3·0.21.2·0.21.4). 적용 절차는 `docs/server-admin.md` 9절(협업 세션 작성). 큐는 비어 있다. 카드 [적용됨]은 병합 커밋 해시를 기록한다.
 
-남은 것(E 후속): 수동 엔진 세션용 `watch_engine_requests`, Studio 요청 탭의 "엔진 요청 #N" 배지와 적용 뒤 원 요청 자동 재개(E-2 일부), 전체 작업 공간 PPTX XML 회귀(검증 ④)를 세션 규약에 자동화, `server-admin.md` 적용 절차(병합+재시작 한 묶음), `mechanism.md` 그림.
+### 12.2 수동 엔진 세션 (2026-10-15)
+
+`studio/watch_engine_requests.py --stream`(Monitor) — 터미널 세션이 큐를 맡는다. 하트비트 `hub/engine/.studio/session.json`(kind=manual, label·pid·cwd·user), 1초마다 쓰고 끝나면 `stopped`. open 요청이 생기거나 바뀌면(`updated` 기준) `{"event":"request","item":{id,title,body,from,evidence,attachments,…},"open":n,"triage":n}`. 웹 엔진 세션(kind=engine)이 살아 있으면 `refused`(web-engine-session), 다른 수동 감시가 살아 있으면 `--takeover`. 허브 `/api/engine`·`/api/engine/notice`·`/api/home(/live)` 는 WS_ENGINE 이 꺼져 있을 때 이 하트비트를 보고 `state=manual` 로 알리며, `EngineProfile.check_start` 가 거절한다. 작업 공간(common)에 묶이지 않도록 `requests_core` 를 쓰지 않는다. 승인(triage→open)은 여전히 관리자가 카드에서 한다.
+
+남은 것(E 후속): Studio 요청 탭의 "엔진 요청 #N" 배지와 적용 뒤 원 요청 자동 재개(E-2 일부), 전체 작업 공간 PPTX XML 회귀(검증 ④)를 세션 규약에 자동화, `server-admin.md` 적용 절차(병합+재시작 한 묶음), `mechanism.md` 그림.
 
 ## 11. 검토 기록
 
