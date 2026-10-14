@@ -1074,7 +1074,7 @@ class H(BaseHTTPRequestHandler):
             return self._session_get(WS_ENGINE, (self._rest or [None])[0], q)
         if what == "notice":  # 알림(메뉴 단추 배지·토스트) - 몇 초마다 부르므로 큐 파일만 읽는다
             c = engine_requests.counts()
-            on = bool(WS_ENGINE and WS_ENGINE.state != "off")
+            on = bool(WS_ENGINE and WS_ENGINE.state != "off") or engine_requests.session_state().get("kind") == "manual" and engine_requests.session_state().get("connected")
             return self.send_json({"ok": True, "admin": self.role == "admin", "triage": c.get("triage", 0), "open": c.get("open", 0), "working": c.get("working", 0),
                                    "done": c.get("done", 0), "sessionOff": not on, "startRequest": engine_requests.start_request(),
                                    "titles": [f"#{x['id']} {x['title']}" for x in engine_requests.load() if x.get("status") == "triage"][:5]})
@@ -1095,13 +1095,17 @@ class H(BaseHTTPRequestHandler):
         if what:
             return self.err(404, "없는 API")
         info = WS_ENGINE.info() if WS_ENGINE else {"state": "off"}
+        if info.get("state", "off") == "off":  # 웹 엔진 세션이 없으면 수동 엔진 세션(watch_engine_requests)의 하트비트를 본다
+            hb = engine_requests.session_state()
+            if hb.get("connected") and hb.get("kind") == "manual":
+                info = {**info, "state": "manual", "kind": "manual", "label": hb.get("label"), "pid": hb.get("pid"), "startedBy": hb.get("user"), "startedAt": hb.get("started"), "cwd": hb.get("cwd")}
         recent = sorted(engine_requests.load(), key=lambda x: -x["id"])[:8]
         for x in recent:  # 첨부 - 화면의 축소판·링크용(허브 /api/engine/attach/<id>/<파일> 로 본다)
             att = engine_requests.attach_files(x["id"])
             if att:
                 x["attachments"] = [{"name": a["name"], "size": a["size"], "url": f"/api/engine/attach/{x['id']}/{a['name']}"} for a in att]
         return self.send_json({"ok": True, "session": info, "counts": engine_requests.counts(), "recent": recent, "git": info.get("git") or {},
-                               "startRequest": engine_requests.start_request(), "sessionOff": info.get("state", "off") == "off"})
+                               "startRequest": engine_requests.start_request(), "sessionOff": info.get("state", "off") == "off"})  # manual 도 켜진 것
 
     def api_post_engine(self, what, q):
         """requests: {action: add, title, body, …}(로그인 사용자 누구나) · {action: status, id, status, reply?…}·{action: remove, id}·{action: priority, id, priority}(관리자)
@@ -1287,7 +1291,8 @@ class H(BaseHTTPRequestHandler):
             if HUB:
                 import engine_requests
                 c = engine_requests.counts()
-                out["engineWork"] = {"pending": c.get("open", 0) + c.get("triage", 0), "triage": c.get("triage", 0), "sessionOff": not (WS_ENGINE and WS_ENGINE.state != "off"),
+                m = engine_requests.session_state()
+                out["engineWork"] = {"pending": c.get("open", 0) + c.get("triage", 0), "triage": c.get("triage", 0), "sessionOff": not ((WS_ENGINE and WS_ENGINE.state != "off") or (m.get("connected") and m.get("kind") == "manual")),
                                      "startRequest": engine_requests.start_request()}
             return self.send_json(out)
         d = hub.home(None if HUB else WORKSPACE, REFUSED)
@@ -1295,7 +1300,8 @@ class H(BaseHTTPRequestHandler):
         if HUB:  # 서버 작업 주의 표시(메뉴 배지) - 처리·승인 대기가 있는데 엔진 세션이 꺼져 있으면
             import engine_requests
             c = engine_requests.counts()
-            d["engineWork"] = {"pending": c.get("open", 0) + c.get("triage", 0), "triage": c.get("triage", 0), "sessionOff": not (WS_ENGINE and WS_ENGINE.state != "off"), "startRequest": engine_requests.start_request()}  # home.engine 은 엔진 경로(문자열)
+            m = engine_requests.session_state()
+            d["engineWork"] = {"pending": c.get("open", 0) + c.get("triage", 0), "triage": c.get("triage", 0), "sessionOff": not ((WS_ENGINE and WS_ENGINE.state != "off") or (m.get("connected") and m.get("kind") == "manual")), "startRequest": engine_requests.start_request()}  # home.engine 은 엔진 경로(문자열)
         self.send_json(d)
 
     def api_post_project(self, _, q):

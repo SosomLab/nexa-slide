@@ -663,15 +663,19 @@
       + (["triage", "open", "working", "done", "rejected", "applied"].filter((k) => c[k]).map((k) => `<span class="badge ${k === "working" ? "run" : k === "done" ? "ok" : ""}">${ST_KO[k]} ${c[k]}</span>`).join("") || `<span class="badge">처리할 요청 없음</span>`);
     // 4줄 세션 상태 + 마지막 요약 + 오른쪽 끝 버튼(최근 작업과 같은 .svc)
     let line, btn = "";
-    if (on) line = `<span class="badge run">엔진 세션 ${esc(s.state)}</span> ${esc(s.agent || "")} · ${esc(s.model || "")}${s.startedBy ? ` · ${esc(s.startedBy)}` : ""} · 턴 ${s.turns || 0} ${sidBadge(s.sessionId, s.cwd, s.turns)}${s.lastError ? ` · <span style="color:var(--err)">${esc(s.lastError.slice(0, 80))}</span>` : ""}`;
+    if (s.state === "manual") line = `<span class="badge run" title="터미널의 Claude Code 세션이 watch_engine_requests 로 큐를 맡고 있다(pid ${esc(String(s.pid || ""))})">수동 세션</span> ${esc(s.label || "")}${s.startedBy ? ` · ${esc(s.startedBy)}` : ""}${s.cwd ? ` <span class="hint" title="${esc(s.cwd)}">· ${esc(String(s.cwd).split(/[\\/]/).pop())}</span>` : ""}`;
+    else if (on) line = `<span class="badge run">엔진 세션 ${esc(s.state)}</span> ${esc(s.agent || "")} · ${esc(s.model || "")}${s.startedBy ? ` · ${esc(s.startedBy)}` : ""} · 턴 ${s.turns || 0} ${sidBadge(s.sessionId, s.cwd, s.turns)}${s.lastError ? ` · <span style="color:var(--err)">${esc(s.lastError.slice(0, 80))}</span>` : ""}`;
     else line = `<span class="badge">세션 없음</span>${s.last && s.last.startedAt ? ` <span class="hint">· 마지막 · ${esc(s.last.agent || "")} ${esc(s.last.model || "")} · ${fmtT(s.last.stoppedAt || s.last.startedAt)}${s.last.reason ? ` · ${reasonKo(s.last.reason)}` : ""}</span>` : ""}`;
     const sr = d.startRequest, banner = !on && (pending || sr);  // 세션이 꺼진 채 할 일이 있으면 배너 - 그때 [세션 시작]은 배너에만(버튼이 두 개가 되지 않게)
-    if (admin) btn = on
+    if (s.state === "manual") btn = `<span class="hint" title="수동 세션이 끝나면(그 터미널에서 Monitor 종료) 웹 세션을 시작할 수 있다">터미널이 맡음</span>`;
+    else if (admin) btn = on
       ? `<button type="button" class="chip sm" data-eng="progress">진행</button><button type="button" class="svc stop" data-eng="stop">${icon("stop", 14)}세션 중지</button>`
       : banner ? ""
       : `<button type="button" class="svc" data-eng="start" title="엔진 요청 큐를 처리하는 개발 세션을 띄웁니다(엔진 worktree, 관리자)">${icon("play", 14)}세션 시작</button>`;
     else if (on) btn = `<button type="button" class="chip sm" data-eng="progress">진행</button>`;
+    if (!on && s.state !== "manual" && admin) btn += `<button type="button" class="ib" data-eng="manualhow" title="터미널의 Claude Code 세션이 큐를 맡게 하는 방법(숨김 메뉴)" style="height:24px;min-width:24px;padding:0 4px">⋯</button>`;
     $("#engSess").innerHTML = `<span style="flex:1;min-width:0">${line}</span>${btn}`;
+    const mw = $("#engManual"); if (mw && (on || s.state === "manual")) mw.style.display = "none";
     // 배너 - 처리·승인 대기가 있는데 세션이 꺼져 있으면(관리자: 시작 버튼 · 일반: 관리자에게 시작 요청)
     const srLine = sr ? `${esc((sr.by || []).join(", ") || "사용자")} 님이 ${fmtT(sr.at)} 에 시작을 요청${sr.count > 1 ? ` (${sr.count}회)` : ""}` : "";
     const what = [c.triage ? `승인 대기 ${c.triage}건` : "", c.open ? `처리 대기 ${c.open}건` : ""].filter(Boolean).join(" · ") || "시작 요청";
@@ -751,6 +755,16 @@
     const b = e.target.closest("[data-eng]"); if (!b) return;
     if (b.dataset.eng === "start") { openSessModal({ engine: true }, "nexa-slide 엔진 개발"); return; }
     if (b.dataset.eng === "progress") { openEngProgress(); return; }
+    if (b.dataset.eng === "manualhow") {  // 터미널 세션으로 맡기기 - 명령을 보여 주고 복사(숨김 메뉴)
+      let box = $("#engManual");
+      if (!box) { box = document.createElement("div"); box.id = "engManual"; box.className = "hint"; box.style.cssText = "margin-top:6px;border:1px dashed var(--line);border-radius:10px;padding:8px 10px"; $("#engSess").insertAdjacentElement("afterend", box); }
+      else if (box.style.display !== "none") { box.style.display = "none"; return; }
+      const g = (H.engine && H.engine.git) || {}, dir = g.worktreeExists ? g.worktree : g.engine;
+      const cmd = `cd "${dir}"; python studio/watch_engine_requests.py --stream`;
+      box.style.display = ""; box.innerHTML = `<b>터미널 세션으로 맡기기</b> - 엔진 worktree 를 연 Claude Code 세션에서 아래 명령을 <b>Monitor</b> 로 실행하면 이 카드가 "수동 세션"이 되고 처리할 요청이 그 세션에 알림으로 간다(웹 엔진 세션과 동시에는 안 됨).<div class="row" style="margin:6px 0 0"><code style="flex:1;min-width:0;overflow:auto;white-space:nowrap;background:var(--tone);border-radius:6px;padding:4px 8px" id="engManualCmd">${esc(cmd)}</code><button type="button" class="chip sm" data-eng="manualcopy">복사</button></div>`;
+      return;
+    }
+    if (b.dataset.eng === "manualcopy") { const t = $("#engManualCmd").textContent; try { await navigator.clipboard.writeText(t); toast("명령을 복사했습니다"); } catch (err) { prompt("명령", t); } return; }
     if (b.dataset.eng === "askstart") {  // 일반 사용자 → 관리자에게 엔진 세션 시작 요청(묶어서 기록)
       const r = await post("/api/engine/requests", { action: "startRequest" });
       if (!r.ok) toast(r.data.error || "요청하지 못했습니다", 5000); else toast("관리자에게 세션 시작을 요청했습니다");
