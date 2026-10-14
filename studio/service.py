@@ -67,6 +67,13 @@ def _start(extra):
             print("".join(LOG.read_text(encoding="utf-8").splitlines(True)[-5:]))
             return 1
         run = running_server()
+        if run and not isinstance(run.get("pid"), int):  # 포트는 답하는데 server.json 을 아직 안 썼다(설정 포트로 찾음) - 조금 더 기다려 실제 pid 를 본다
+            for _ in range(12):
+                time.sleep(0.25)
+                again = running_server()
+                if again and isinstance(again.get("pid"), int):
+                    run = again
+                    break
         if run:
             print(f"시작: {run['url']} (pid {run['pid']}) · 로그 {LOG}")
             return 0
