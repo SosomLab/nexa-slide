@@ -1,5 +1,11 @@
 # 변경 이력
 
+## 0.21.2 - 2026-10-15 · 글자 크기 일괄 확대 scale_fonts · content fontScale (engine-request #5)
+
+- **`scale_fonts <덱> --ratio 1.2 [--role body,title] [--slides …] [--dry-run] [--keep-ratio] [--no-fit]`**(`studio/scale_fonts.py`): 덱 전체 글자 크기를 비율로 키우고(바닥 부품·잠긴 요소는 `--role` 로 고르지 않으면 그대로) 글이 상자보다 커지면 상자 높이(칩은 폭, 표는 `rowH`)를 늘려 아래 요소를 내린다. 바닥을 넘치면 그 장만 비율을 0.02 씩 낮춘다. 저장은 `save_deck` 과 같은 경로(변경 원장·백업·충돌 검사).
+- content `"fontScale": 1.2 | {ratio, roles, keep}`(장 전체·슬라이드별, 0 = 뺌)을 `build_deck` 이 같은 규칙으로 적용 — 다시 빌드해도 유지. `docs/operation.md` "글자 크기 일괄 확대" · `deck-format.md` · `templates.md`(lecture-large 와의 차이).
+- 엔진 개발 세션(engine-request #5)이 만들어 main 에 병합·적용. 검증: `check_parity` 모두 같음 · 시험 덱 ×1.2 저장 뒤 `check_layout` ERROR 0.
+
 ## 0.21.1 - 2026-10-15 · 덱 관리 · 세션 ID 복사·검색 · 엔진 요청 #4 적용
 
 - **덱 관리**(`studio/deck_admin.py`, `POST /api/decks`, `nexa.py deck …`): 편집기 덱 탭 끝 **＋** = 새 덱(이름·제목 → 표지 1장), 탭 **오른쪽 클릭** = 제목 바꾸기(덱 + `content/<id>.json`) · 덱 이름(id) 바꾸기(요청·기록 `.history`·첨부 `out/attach`·content 를 함께 옮기고 안의 id·첨부 경로도) · 새 덱 · 삭제(`decks/.trash/<id>-<시각>/` 로 이동). 웹 세션 턴이 도는 중에는 이름 바꾸기·삭제 거절. `docs/editor.md` 덱 관리 절.

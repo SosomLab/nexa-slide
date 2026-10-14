@@ -17,6 +17,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from common import CONFIG, CONTENT, DECKS, safe_id  # noqa: E402
 from layouts import build_slide  # noqa: E402
+from scale_fonts import parse_scale, scale_slide  # noqa: E402
 import ledger  # noqa: E402
 
 
@@ -35,7 +36,8 @@ def toc_order(toc):
 def chapter_block(content):
     """장 블록 — 장 표지부터 장 정리까지(장 파일의 slides). 각 슬라이드에 그 장의 부(part)를 붙인다."""
     part = content.get("part", "day1")
-    return [dict(s, _part=s.get("_part", part)) for s in content["slides"]]
+    fs = content.get("fontScale")  # 장 전체 글자 배율(scale_fonts) - 통합본에서도 그 장의 값을 따라가게 슬라이드에 붙인다
+    return [dict(s, _part=s.get("_part", part), **({"_fontScale": fs} if fs else {})) for s in content["slides"]]
 
 
 def front(com, contents, current=None):
@@ -88,8 +90,18 @@ def assemble_book(contents):
 def to_deck(did, title, part, slides_src, meta):
     slides = []
     for i, s in enumerate(slides_src, 1):
-        fields = {k: v for k, v in s.items() if k not in ("layout", "_part")}
-        slides.append(build_slide(s["layout"], fields, s.get("_part", part), f"s{i:02d}"))
+        fields = {k: v for k, v in s.items() if k not in ("layout", "_part", "_fontScale", "fontScale")}
+        sl = build_slide(s["layout"], fields, s.get("_part", part), f"s{i:02d}")
+        # 글자 배율(fontScale): 슬라이드 값 > 장 값(_fontScale) > 덱(내용 파일) 값 - 레이아웃·place·extra 뒤에 scale_fonts 와 같은 규칙으로
+        fs = s["fontScale"] if "fontScale" in s else s.get("_fontScale", meta.get("fontScale"))
+        if fs:
+            spec = parse_scale(fs)
+            info = scale_slide(sl, **spec)
+            if not info["applied"]:
+                print(f"  ! {sl['id']} fontScale ×{spec['ratio']:g}: 바닥을 넘쳐 그대로 둔다(내용을 줄이거나 나눈다)")
+            elif info["ratio"] != round(spec["ratio"], 2):
+                print(f"  · {sl['id']} fontScale ×{spec['ratio']:g} → ×{info['ratio']:.2f} (바닥에 맞춰 낮춤)")
+        slides.append(sl)
     return {"id": did, "title": title, "part": part, "version": meta.get("version", "0.1"),
             "updated": dt.datetime.now().isoformat(timespec="seconds"), "source": meta.get("source", ""),
             "slides": slides}
