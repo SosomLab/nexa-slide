@@ -1454,10 +1454,20 @@ ${names}
     if (t === "chg") loadChanges();
     setTimeout(() => { fitStage(); fitThumbs(); }, 0);
   }
-  function toggleRight() { const n = !document.body.classList.contains("noright"); document.body.classList.toggle("noright", n); LS.set("noright", n ? "1" : "0"); setTimeout(() => { fitStage(); fitThumbs(); }, 0); }
+  // 최대화 배치 - 노트·개요·검사 탭과 패널을 오른쪽 패널 아래로 옮기고(가운데는 슬라이드만), 복원하면 제자리로
+  function setMaxi(on) {
+    const b = $("#bottom"), t = $("#bTabs"), foot = $("#foot"), dock = $("#rDock");
+    if (on) { document.body.classList.remove("noright"); dock.append(t, b); }
+    else { foot.insertBefore(t, foot.firstChild); foot.parentNode.insertBefore(b, foot); }
+    document.body.classList.toggle("maxi", on); LS.set("maxi", on ? "1" : "0");
+    if (S.zoom) S.zoom = null;
+    setTimeout(() => { fitStage(); fitThumbs(); }, 0);
+  }
+  function toggleRight() { const n = !document.body.classList.contains("noright"); if (n && document.body.classList.contains("maxi")) setMaxi(false); /* 오른쪽을 숨기면 노트가 갈 곳이 없으니 먼저 복원 */ document.body.classList.toggle("noright", n); LS.set("noright", n ? "1" : "0"); setTimeout(() => { fitStage(); fitThumbs(); }, 0); }
   const HELP = [
     ["모드", "<kbd>E</kbd> 편집 · <kbd>M</kbd> 선택(요청 메모) · <kbd>D</kbd> 그리기(영역 메모)"],
     ["여러 요소", "<kbd>Shift</kbd>/<kbd>Ctrl</kbd>+클릭 더하기·빼기 · 빈 곳을 끌어 범위 선택 · <kbd>Ctrl</kbd>+<kbd>A</kbd> 이 장 전체 · 끌기·방향키로 함께 이동 · 서식 줄·속성은 공통 적용 · ✥ = 맞춤·분배·같은 크기"],
+    ["최대화 배치", "아래 ⛶ 최대화 = 노트·개요·검사를 오른쪽 아래로 옮겨 슬라이드를 크게 · 🗗 복원 · <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>M</kbd>"],
     ["패널 크기", "왼쪽·아래·오른쪽 경계를 끌어 조절 · 두 번 클릭 = 처음 크기 · 슬라이드는 새 영역에 자동 맞춤"],
     ["슬라이드 이동", "<kbd>PageUp</kbd> <kbd>PageDown</kbd> · 선택이 없을 때 방향키 · <kbd>Home</kbd> <kbd>End</kbd>"],
     ["확대", "<kbd>Ctrl</kbd>+휠 · <kbd>Ctrl</kbd>+<kbd>=</kbd>/<kbd>-</kbd> · <kbd>Ctrl</kbd>+<kbd>0</kbd> 화면 맞춤 · <kbd>Ctrl</kbd>+<kbd>1</kbd> 100%"],
@@ -1479,6 +1489,7 @@ ${names}
     if (ctrl && kl === "s") { e.preventDefault(); save(); return; }
     if (k === "F5") { e.preventDefault(); present(e.shiftKey); return; }
     if (ctrl && k === "\\") { e.preventDefault(); toggleRight(); return; }
+    if (ctrl && e.shiftKey && kl === "m") { e.preventDefault(); setMaxi(!document.body.classList.contains("maxi")); return; }
     if (ctrl && (k === "=" || k === "+")) { e.preventDefault(); setZoom(scale * 100 * 1.15); return; }
     if (ctrl && k === "-") { e.preventDefault(); setZoom(scale * 100 / 1.15); return; }
     if (ctrl && k === "0") { e.preventDefault(); setZoom(null); return; }
@@ -1579,7 +1590,7 @@ ${names}
       { label: "글꼴 설정 보기·수정…", act: showFonts }, "-",
       { h: `템플릿: ${S.template ? S.template.label : "-"}` },
       { label: "단축키 보기", key: "?", act: showHelp },
-      { label: "편집기 화면 배치 초기화", act: () => { ["mode", "btab", "bfold", "noright", "railW", "rightW", "bottomH"].forEach((k) => LS.set(k, "")); location.reload(); } },
+      { label: "편집기 화면 배치 초기화", act: () => { ["mode", "btab", "bfold", "noright", "railW", "rightW", "bottomH", "maxi"].forEach((k) => LS.set(k, "")); location.reload(); } },
     ], { right: true });
   }
   async function loadConfig() {
@@ -1619,6 +1630,8 @@ ${names}
     // 머리줄
     $("#deckTabs").addEventListener("click", (e) => { const b = e.target.closest("[data-deck]"); if (b) switchDeck(b.dataset.deck); });
     $("#tab-chg").addEventListener("click", onChangesClick); renderChanges();
+    $("#layMax").onclick = () => setMaxi(true); $("#layRestore").onclick = () => setMaxi(false);
+    if (LS.get("maxi", "0") === "1") setMaxi(true);
     // 변경 탭 설명(ⓘ) - 다른 단추·객체를 누르면 자동으로 숨긴다
     document.addEventListener("pointerdown", (e) => { if (S.chgInfo && !e.target.closest("#chgInfoBtn, #chgInfo")) { S.chgInfo = false; renderChanges(); } }, true);
     $("#fontDlg").addEventListener("click", onFontDlg);
