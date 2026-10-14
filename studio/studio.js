@@ -222,14 +222,20 @@
     const n = Object.keys(S.chgMark[S.id] || {}).length;
     $("#chgCnt").style.display = n ? "" : "none"; $("#chgCnt").textContent = n;
     const P = $("#tab-chg"); if (!P) return;
-    const F = [["all", "전체"], ["mine", "내 편집"], ["editor", "다른 창"], ["claude", "Claude"], ["build", "빌드"], ["external", "외부"]];
+    const F = [["all", "전체", "모든 변경 - 편집기·Claude·빌드·외부"],
+      ["mine", "내 편집", "이 편집기 창에서 저장한 변경"],
+      ["editor", "다른 창", "다른 편집기 창(탭)에서 저장한 변경"],
+      ["claude", "Claude", "Claude 세션이 바꾼 변경 - save_deck 저장은 정확, 파일 직접 수정은 추정(점선 배지)"],
+      ["build", "빌드", "build_deck 으로 content 에서 덱을 다시 만든 변경"],
+      ["external", "외부", "출처를 알 수 없는 변경 - 파일 수동 복사·수정, 서버가 꺼진 사이의 변경"]];
     const cnt = (k) => S.changes.filter((g) => inFilter(g, k)).length;
     const list = S.changes.filter((g) => inFilter(g, S.chgFilter));
     const recent = S.chgRecent.filter((r) => r.exists).slice(0, 8);
-    P.innerHTML = `<div class="sec"><h3>변경 - ${esc(S.id || "")}</h3><div class="hint">편집기·Claude·빌드·외부에서 덱이 바뀔 때마다 서버가 원장(덱당 최근 ${S.chgKeep || 1000}건)에 남깁니다. 항목을 누르면 그 장·요소로 갑니다. 내 편집이 아닌 변경은 썸네일 배지와 캔버스 파란 점선으로 표시하고, "확인함"은 지금까지를 미표시로, "최근 3개 표시"는 최근 묶음 3개를 표시, "표시 끄기"는 기록을 보지 않고 작업할 때 모든 표시를 감춥니다. 묶음마다 "표시/숨기기". 장기 보관을 대신하지 않습니다 - 되돌리기는 백업(최근 50개)이 남아 있을 때만.</div>
-      <div class="row" style="gap:6px;margin-top:6px;flex-wrap:wrap"><span class="seg" id="chgFilter">${F.map(([k, l]) => `<button data-chgf="${k}" class="${S.chgFilter === k ? "on" : ""}">${l}${cnt(k) ? ` ${cnt(k)}` : ""}</button>`).join("")}</span>
-</div>
-      <div class="row" style="gap:6px;margin-top:6px;flex-wrap:wrap">
+    P.innerHTML = `<div class="sec"><div class="chg-top"><h3>변경 - ${esc(S.id || "")}</h3>
+        <button class="ib chg-ibtn${S.chgInfo ? " on" : ""}" id="chgInfoBtn" data-chg-info="1" title="설명 보기/숨기기" aria-expanded="${S.chgInfo ? "true" : "false"}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9.5"/><path d="M12 11v6"/><circle cx="12" cy="7.5" r=".6" fill="currentColor"/></svg></button></div>
+      ${S.chgInfo ? `<div class="hint chg-info" id="chgInfo">편집기·Claude·빌드·외부에서 덱이 바뀔 때마다 서버가 원장(덱당 최근 ${S.chgKeep || 1000}건)에 남깁니다. 항목을 누르면 그 장·요소로 갑니다. 내 편집이 아닌 변경은 썸네일 배지와 캔버스 파란 점선으로 표시하고, "확인함"은 지금까지를 미표시로, "최근 3개 표시"는 최근 묶음 3개를 표시, "표시 끄기"는 기록을 보지 않고 작업할 때 모든 표시를 감춥니다. 묶음마다 "표시/숨기기". 장기 보관을 대신하지 않습니다 - 되돌리기는 백업(최근 50개)이 남아 있을 때만.</div>` : ""}
+      <div class="chg-fil" id="chgFilter">${F.map(([k, l, t]) => `<button data-chgf="${k}" class="f-${k}${S.chgFilter === k ? " on" : ""}" title="${esc(t)}">${l}${cnt(k) ? ` <b>${cnt(k)}</b>` : ""}</button>`).join("")}</div>
+      <div class="chg-acts">
       <button class="chip sm" data-chg-seen="1" title="최근 변경까지 확인한 것으로 - 모든 묶음을 미표시로 바꾼다(묶음마다 '표시'로 다시 볼 수 있다)">확인함</button>
       <button class="chip sm" data-chg-recent="1" title="가장 최근 변경 묶음 3개를 표시한다(내 편집 포함) - 묶음마다 '표시'를 누르는 것과 같다">최근 3개 표시</button>
       <button class="chip sm${S.chgOff ? " on" : ""}" data-chg-off="1" title="${S.chgOff ? "변경 표시를 다시 켠다(묶음별 표시 상태는 그대로)" : "변경 기록을 보지 않고 작업 - 배지·점선을 모두 감춘다(묶음별 표시 상태는 그대로)"}">${S.chgOff ? "표시 켜기" : "표시 끄기"}</button></div></div>
@@ -255,6 +261,7 @@
     toast("되돌렸습니다 (Ctrl+Z 로 취소 가능)"); return true;
   }
   async function onChangesClick(e) {
+    if (e.target.closest("[data-chg-info]")) { S.chgInfo = !S.chgInfo; renderChanges(); return; }
     const f = e.target.closest("[data-chgf]"); if (f) { S.chgFilter = f.dataset.chgf; LS.set("chgFilter", S.chgFilter); renderChanges(); return; }
     if (e.target.closest("[data-chg-seen]")) { markSeen(); return; }
     if (e.target.closest("[data-chg-recent]")) { showRecent(3); return; }
@@ -1496,6 +1503,8 @@ ${names}
     // 머리줄
     $("#deckTabs").addEventListener("click", (e) => { const b = e.target.closest("[data-deck]"); if (b) switchDeck(b.dataset.deck); });
     $("#tab-chg").addEventListener("click", onChangesClick); renderChanges();
+    // 변경 탭 설명(ⓘ) - 다른 단추·객체를 누르면 자동으로 숨긴다
+    document.addEventListener("pointerdown", (e) => { if (S.chgInfo && !e.target.closest("#chgInfoBtn, #chgInfo")) { S.chgInfo = false; renderChanges(); } }, true);
     $("#fontDlg").addEventListener("click", onFontDlg);
     $("#addDlg").addEventListener("click", onAddDlg); $("#adQ").addEventListener("input", renderAddDlg);
     window.addEventListener("resize", () => { if ($("#addDlg").classList.contains("show")) fitAdd(); }); $("#fontChip").onclick = showFonts;
