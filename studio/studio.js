@@ -158,7 +158,7 @@
   // ---------------------------------------------------------------- 변경(서버 원장) - 편집기·Claude·빌드·외부의 모든 변경을 서버가 decks/.history/<덱>/changes.jsonl 에 남기고
   // 편집기는 묶음(group)과 슬라이드별 최근 수정(recent)을 받아 그린다. 비교 규칙은 서버 deckdiff.py 한 곳(0.16.0 전에는 여기 JS 에 있었다 - tests/deckdiff_ref.js).
   // 표시(썸네일 배지·개요 배지·캔버스 점선) = "표시 지우기" 뒤에 생긴, 내 편집이 아닌 묶음의 합 - 묶음마다 숨기기/표시.
-  const ORG = { editor: "편집기", claude: "Claude", build: "빌드", external: "외부" };
+  const ORG = { editor: "편집기", claude: "AI", build: "빌드", external: "외부" };
   const seenKey = () => "chgSeen-" + S.id;
   const isMine = (g) => g.origin === "editor" && !!g.actor && g.actor.tab === TAB;
   function ago(ts) {
@@ -225,7 +225,7 @@
     const F = [["all", "전체", "모든 변경 - 편집기·Claude·빌드·외부"],
       ["mine", "편집", "현재 편집기에서 수정"],
       ["editor", "협업", "다른 편집기에서 수정"],
-      ["claude", "Claude", "Claude 세션이 바꾼 변경 - save_deck 저장은 정확, 파일 직접 수정은 추정(점선 배지)"],
+      ["claude", "AI", "AI에서 수정, 파일 직접 수정은 추정"],
       ["build", "빌드", "build_deck 으로 content 에서 덱을 다시 만든 변경"],
       ["external", "외부", "출처를 알 수 없는 변경 - 파일 수동 복사·수정, 서버가 꺼진 사이의 변경"]];
     const cnt = (k) => S.changes.filter((g) => inFilter(g, k)).length;
