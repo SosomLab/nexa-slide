@@ -126,7 +126,7 @@ Genspark AI Slides 작업 화면의 조작 방식(모드 3분할 · 그 자리 �
 - 표 머리 행의 둥근 모서리(concept 의 `th` 반경)는 PPT 표가 지원하지 않아 양쪽 모두 직각으로 그린다.
 - PPT 표는 글자가 칸보다 크면 행이 저절로 늘어난다(브라우저는 넘쳐 보임). `plan-table` 콜아웃은 행 높이 고정을 전제로 놓이므로 행이 늘면 어긋날 수 있다.
 - `plan` 강조의 배경색은 run 강조색(`a:highlight`)이다 — PowerPoint 2019/365 에서 보이고, 이전 버전·다른 뷰어에서는 글자색 + 굵게만 보일 수 있다.
-- 줄 배치 보정은 맑은 고딕·Consolas 기준 측정값이다. 글꼴을 바꾸면 `compare.py` 로 다시 재서 `pptTextShift` 를 고친다.
+- 줄 배치 보정은 맑은 고딕·Consolas 기준 측정값이라 **그 글꼴을 쓸 때만** 적용된다(`tokens.pptTextShift.measuredFor`). 다른 글꼴 세트(KoPub 등)는 보정 없이 CSS 중앙 — PowerPoint 와 ±1px 안에서 맞는다(원 안의 I·II·III 측정). 더 정밀하게 맞추려면 `compare.py` 로 재서 그 세트의 `pptTextShift` 에 넣는다.
 - 글자 자동 맞춤(넘치면 줄이기)·회전·그림자·투명도·그라데이션은 지원하지 않는다. 다중 선택·정렬 맞추기 도구 없음.
 - PPT 에서 사람이 고친 내용은 덱 JSON 으로 돌아오지 않는다(단방향). 수정은 편집기나 JSON 에서 한다. 다른 PPTX 의 내용을 덱으로 옮길 때는 `nexa.py import_pptx <파일>` 로 글·표·차트·노트·그림을 꺼내(`out/import/<이름>/`) 세션이 읽어 쓴다([claude-session.md](claude-session.md) 2절).
 - 새 슬라이드(레이아웃)는 자리 표시 내용으로 만들어진다 — 내용은 요소를 고치거나 `content/` 에 쓰고 build 한다.
