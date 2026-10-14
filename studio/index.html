@@ -157,7 +157,7 @@
   /* 변경 출처 배지(행위 종류 .k 와 축 분리) - 편집기 초록 · Claude 파랑 · 빌드 호박 · 외부 회색 · 추정은 점선 */
   .org { font-size: 11px; border-radius: 999px; padding: 1px 7px; white-space: nowrap; }
   /* 클래스는 o- 접두 - "editor" 는 글자 편집 상자(.editor, position:absolute)와 이름이 겹친다 */
-  .org.o-editor { background: var(--okc); color: var(--ok); } .org.o-claude { background: var(--infoc); color: var(--info); }
+  .org.o-mine { background: var(--okc); color: var(--ok); } .org.o-editor { background: #CDEFE6; color: #00695C; } .org.o-claude { background: var(--infoc); color: var(--info); }
   .org.o-build { background: var(--warnc); color: var(--warn); } .org.o-external { background: var(--tone2); color: var(--ink2); }
   .org.inf { outline: 1px dashed currentColor; outline-offset: -1px; }
   .chg-tbl { width: 100%; border-collapse: collapse; font-size: 12px; table-layout: fixed; }
@@ -179,7 +179,7 @@
   .chg-fil button.on { background: var(--ink); color: #fff; }
   .chg-fil button.on:hover { color: var(--pc); }
   /* 동작 단추 - 진한 회색 바탕 기본 · 올리면 글자색 강조 · 같은 폭 */
-  .chg-acts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; margin-top: 12px; }
+  .chg-acts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line); }
   .chg-acts .chip { justify-content: center; width: 100%; background: var(--tone2); border: 0; font-weight: 600; }
   .chg-acts .chip:hover { background: var(--tone2); color: var(--p); }
   .chg-acts .chip.on { background: var(--ink); color: #fff; } .chg-acts .chip.on:hover { color: var(--pc); }
