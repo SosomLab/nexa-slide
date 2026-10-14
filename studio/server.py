@@ -1311,11 +1311,19 @@ class H(BaseHTTPRequestHandler):
                 if not text:
                     return self.err(400, "내용 없음")
                 st = b.get("status") if b.get("status") in ("draft", "open") else "open"
+                par = next((r for r in items if r.get("id") == b.get("parent")), None) if b.get("parent") else None
+                if b.get("parent") and not par:
+                    return self.err(400, "원 요청이 없다(지워졌을 수 있다)")
                 item = {"id": "r" + dt.datetime.now().strftime("%Y%m%d%H%M%S%f")[:17], "slide": b.get("slide"),
                         "element": b.get("element"), "text": text[:2000], "status": st, "reply": "",
                         "created": dt.datetime.now().isoformat(timespec="seconds")}
                 if isinstance(b.get("region"), dict):  # 그리기 모드 영역 {kind: rect|pen|pin, box:[x,y,w,h], points:[[x,y]…]}
                     item["region"] = b["region"]
+                if par:  # 후속 요청 - 앞선 요청에 이어 묻는다. 대상(slide·element·region)은 따로 주지 않으면 물려받고, 원 요청은 그대로 둔다
+                    item["parent"], item["thread"] = par["id"], par.get("thread") or par["id"]
+                    for k in ("slide", "element", "region"):
+                        if item.get(k) is None and par.get(k) is not None:
+                            item[k] = par[k]
                 att = self._valid_attachments(i, b.get("attachments"))
                 if att:
                     item["attachments"] = att
