@@ -684,7 +684,14 @@ def end(b, f):
     b.text(760, 560, 420, 80, f.get("meta", ""), size=15, lineHeight=1.8, color="on-surface-variant", align="right")
 
 
+def blank(b, f):
+    """빈 슬라이드 - 템플릿 기본 항목(로고 · 바닥 경로 · 워드마크 · 쪽번호)만. 본문은 편집기에서 요소를 더해 채운다."""
+    b.logo()
+    b.foot_parts(f.get("crumb", ""), 12)
+
+
 LAYOUTS = {
+    "blank": ("빈 슬라이드", blank),
     "cover": ("표지", cover), "toc": ("목차", toc), "revisions": ("개정 내역", revisions),
     "chapter": ("장 표지", chapter), "section": ("절 구분", section), "bullets": ("본문 글머리", bullets),
     "sequence": ("본문+다이어그램(시퀀스)", sequence), "table": ("표", table), "code_plan": ("코드+실행계획", code_plan),
@@ -696,6 +703,7 @@ LAYOUTS = {
 
 # 편집기의 "레이아웃으로 새 슬라이드" 기본 내용(자리 표시)
 SAMPLES = {
+    "blank": {"crumb": ""},
     "cover": {"title": "제목\n두 번째 줄", "subtitle": "부제", "days": [["day1", "Day1 설계"]], "meta": "작성 부서\n장 제목\nv0.1"},
     "toc": {"groups": [{"part": "day1", "label": "Day1 설계", "items": [["ch00", "장 제목"]]}]},
     "revisions": {"rows": [["v0.1", "2026-00-00", "내용", "작성자"]], "note": "버전 규칙"},

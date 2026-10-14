@@ -1238,7 +1238,10 @@ ${names}
     $("#adGroups").innerHTML = [["", "전체"], ...d.groups.map((g) => [g.id, g.label])].map(([id, l]) =>
       `<button data-adgroup="${id}" class="${AD.group === id ? "on" : ""}">${esc(l)} <small>${id ? d.types.filter((t) => t.group === id).length : d.types.length}</small></button>`).join("");
     const show = d.types.filter((t) => t.slide && (!AD.group || t.group === AD.group) && (!q || `${t.label} ${t.purpose} ${t.layout} ${t.layoutLabel}`.toLowerCase().includes(q)));
-    $("#adBody").innerHTML = d.groups.filter((g) => show.some((t) => t.group === g.id)).map((g) => `<div class="ad-gt">${esc(g.label)}<small>${esc(g.desc)}</small></div>
+    const blankCard = !q || "빈 슬라이드 blank".includes(q) ? `<div class="ad-gt">빈 슬라이드<small>템플릿 기본 항목(로고·쪽번호·바닥 경로)만 - 본문은 직접 추가</small></div>
+      <div class="ad-grid"><button class="ad-card" data-adlayout="blank" title="로고·쪽번호·바닥 경로만 있는 빈 장"><div class="ad-vp">${AD.blank ? Render.renderSlide(AD.blank, 1) : ""}</div><b>빈 슬라이드</b><small>로고 · 쪽번호만</small><span class="lay">blank</span></button></div>` : "";
+    if (!AD.blank) api("POST", "/api/newslide", { layout: "blank", part: S.deck.part || "day1", id: "blank" }).then((r) => { if (r.ok) { AD.blank = r.data; renderAddDlg(); } });
+    $("#adBody").innerHTML = blankCard + d.groups.filter((g) => show.some((t) => t.group === g.id)).map((g) => `<div class="ad-gt">${esc(g.label)}<small>${esc(g.desc)}</small></div>
       <div class="ad-grid">${show.filter((t) => t.group === g.id).map((t) => `<button class="ad-card" data-adtype="${esc(t.id)}" title="${esc(t.purpose)}${t.image ? `\n이미지: ${esc(t.image)}` : ""}">
         <div class="ad-vp">${Render.renderSlide(t.slide, 1)}</div><b>${esc(t.label)}</b><small>${esc(t.purpose)}</small><span class="lay">${esc(t.layout)}${t.image ? " · 사진 자리" : ""}</span></button>`).join("")}</div>`).join("")
       || `<div class="hint">찾는 유형이 없습니다.</div>`;
