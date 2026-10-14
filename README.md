@@ -106,6 +106,8 @@ nexa-slide/
 | [docs/operation.md](docs/operation.md) | 일상 운영 — 빌드·내보내기·렌더·비교, 백업·복원, 포트·프로세스 점검, 문제 해결 |
 | **[docs/ai-editing.md](docs/ai-editing.md)** | **새로 만든 작업 공간에서 AI 로 고치기 — Claude Code(터미널·VS Code·Desktop)·그 밖의 AI(Codex·Gemini CLI·Cursor) 연결, 요청·초안·마무리 과정** |
 | [docs/claude-session.md](docs/claude-session.md) | Claude Code 세션 연결 — 상시 감시(Monitor), 세션 상태 표시, 지금 보내기, 처리 규약(`save_deck` 으로 저장) |
+| [docs/claude-install.md](docs/claude-install.md) | Claude Code 설치·로그인 — 운영체제별 설치, 비대화형 실행 확인, 서버에서 쓸 때(같은 사용자·토큰) |
+| [docs/openai-codex.md](docs/openai-codex.md) | OpenAI(Codex CLI)로 쓰기 — 설치·로그인, 수동 세션(1회 대기 반복), 웹 세션 서비스 유형 |
 | [docs/fonts.md](docs/fonts.md) | 글꼴 — 기본 세트(엔진)와 작업 공간 전용 글꼴(`fonts/` · `fontPresets`), 편집기 글꼴 창, `install_fonts` |
 | [docs/slide-types.md](docs/slide-types.md) | 슬라이드 유형 54개 — 목적·구성 기준, 고를 신호, 초안·요청 처리의 장 선별 기준, 편집기 "유형으로 추가" |
 | [docs/deck-format.md](docs/deck-format.md) | 덱 JSON·요소 모델, content 형식, 레이아웃, 인라인 강조, 각주 규칙 |
