@@ -73,6 +73,34 @@ def heartbeat(hb, stopped=False):
     write_json(SESSION, {**hb, "ts": time.time(), "last_seen": now(), **({"stopped": True} if stopped else {})})
 
 
+def pid_alive(pid):
+    """그 pid 의 프로세스가 살아 있는가. Windows 는 OpenProcess 로 묻는다 - os.kill(pid, 0) 은 Windows 에서 프로세스를 죽이므로 쓰지 않는다."""
+    try:
+        pid = int(pid)
+    except (TypeError, ValueError):
+        return False
+    if pid <= 0:
+        return False
+    if os.name == "nt":
+        import ctypes
+        h = ctypes.windll.kernel32.OpenProcess(0x1000, False, pid)  # PROCESS_QUERY_LIMITED_INFORMATION
+        if not h:
+            return False
+        try:
+            code = ctypes.c_ulong()
+            ok = ctypes.windll.kernel32.GetExitCodeProcess(h, ctypes.byref(code))
+            return bool(ok) and code.value == 259  # STILL_ACTIVE
+        finally:
+            ctypes.windll.kernel32.CloseHandle(h)
+    try:
+        os.kill(pid, 0)
+        return True
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True
+
+
 def session_status():
     """서버·편집기용 — 감시 하트비트와 요청 상태를 묶어 돌려준다."""
     reqs = all_requests()

@@ -45,9 +45,15 @@ API
   GET  /api/fs?path=<폴더>           폴더 고르기 — 하위 폴더 목록(git 저장소·작업 공간 표시)
   GET  /api/preview?template=&starter=  템플릿 × 시작용 내용 미리보기 — 사용자 설정 폴더의 임시 작업 공간에 빌드한 덱·토큰
   /preview/<템플릿>--<내용>/…        미리보기 덱의 그림(assetRoot)
-AI 세션(B 단계 - docs/dev/web-session-design.md · studio/agents/)
+AI 세션(B 단계 - docs/dev/web-session-design.md · studio/agents/ · wsession.py)
   GET  /api/agent[?refresh=1]        어댑터 확인 {agents: {claude, codex}: {installed, loggedIn, version, verified, hint, doc, flags, models}} +
                                      우선순위(전역 < 작업 공간)로 정한 agent·model·sources·limits·models
+  GET  /api/wsession                 웹 세션 상태 {state: off|ready|running|error, agent, model, modelActual, sessionId, startedBy, startedAt, turns, lastError,
+                                     open, working, manual(살아 있는 수동 감시), limits, seq, last(끊긴 마지막 세션)} - 작업 공간 서버에서만(허브 404)
+  POST /api/wsession                 {"action": "start", agent?, model?, saveAs?: local|shared} · {"action": "stop"} · {"action": "model", model, saveAs?}
+                                     · {"action": "defaults", sessionAgent?, sessionModel?, saveAs?} - 로그인 사용자 누구나(로컬 직접 접속은 local)
+  GET  /api/wsession/events?since=N  진행 이벤트(폴링) {state, seq, events: [{seq, t, type: state|turn.start|init|text|tool|tool_result|turn.end|error|model|idle, …}]}
+  GET  /api/wsession/log?turn=N      그 턴의 어댑터 출력 원문(줄 목록)
 중계(허브 한 포트로 여러 작업 공간 — hub.py ws_id·proxy_target)
   /w/<id>/…                          그 작업 공간 서버(별도 프로세스·포트)로 그대로 넘기고 응답을 돌려준다(Location 은 접두를 다시 붙임).
                                      꺼져 있으면 띄운다(--port auto — 설정 포트가 쓰는 중이면 빈 포트). nexa.py 로 띄운 서버가 있으면 그 서버로.
@@ -88,6 +94,7 @@ try:  # 템플릿 검토(검토 등록부) — 시작 페이지 메뉴 "템플�
 except ImportError:  # 문서 폴더 없이 엔진만 배포한 경우
     review = None
 
+WS = None  # 웹 AI 세션 관리자(작업 공간 서버에서만 - main 에서 만든다)
 HISTORY_KEEP = 50
 RENDER_LOCK = threading.Lock()
 WRITE_LOCK = threading.Lock()
@@ -732,6 +739,8 @@ class H(BaseHTTPRequestHandler):
                  "request": (q.get("request") or [None])[0], "note": ((q.get("note") or [""])[0][:200] or None)}
         if self.user:  # 허브 로그인 사용자(중계로 들어온 저장) - 원장에 누가 저장했는지
             actor["user"] = self.user
+        elif not self.via_hub and self.headers.get("X-Nexa-Session-User"):  # 웹 세션의 save_deck(로컬) - 세션을 시작한 사용자
+            actor["user"] = self.headers["X-Nexa-Session-User"][:40]
         with WRITE_LOCK:
             p = deck_path(i)
             track(i)
@@ -927,6 +936,66 @@ class H(BaseHTTPRequestHandler):
             self._event = f"users.{act}:{uid}"
             return self.send_json({"ok": True, "users": [auth.public(u, r) for u, r in sorted(auth.load_users().items())]})
         return self.err(404, "없는 API")
+
+    # ---------- 웹 AI 세션(B-3) - wsession.py ----------
+    def api_get_wsession(self, what, q):
+        if HUB or WS is None:
+            return self.err(404, "허브에는 세션이 없다 - 작업 공간(중계 /w/<이름>/api/wsession)에서")
+        if what == "events":  # 폴링(B-4 에서 SSE 를 더한다)
+            since = int((q.get("since") or ["0"])[0])
+            return self.send_json({"ok": True, "state": WS.state, "seq": WS.seq, "events": WS.events_since(since)})
+        if what == "log":
+            return self.send_json({"ok": True, "turn": (q.get("turn") or ["1"])[0], "lines": WS.turn_log((q.get("turn") or ["1"])[0]).splitlines()})
+        if what:
+            return self.err(404, "없는 API")
+        self.send_json({"ok": True, **WS.info()})
+
+    def api_post_wsession(self, what, q):
+        """{action: start, agent?, model?, saveAs?: local|shared} · {action: stop} · {action: model, model, saveAs?}. 로그인 사용자 누구나(로컬 직접 접속은 local)."""
+        if HUB or WS is None:
+            return self.err(404, "허브에는 세션이 없다 - 작업 공간(중계 /w/<이름>/api/wsession)에서")
+        b = self.body_json() or {}
+        act = b.get("action")
+        who = self.user or "local"
+        try:
+            if act == "start":
+                info = WS.start(b.get("agent"), b.get("model"), who)
+                self._event = f"session.start:{info['agent']}:{info['model']}"
+                if b.get("saveAs") in ("local", "shared"):
+                    self._save_session_defaults(b.get("saveAs"), {"sessionAgent": info["agent"], "sessionModel": info["model"]})
+                return self.send_json({"ok": True, **info})
+            if act == "stop":
+                was = WS.state != "off"
+                info = WS.stop(str(b.get("reason") or "user")[:40])
+                self._event = "session.stop"
+                return self.send_json({"ok": True, "stopped": was, **info})
+            if act == "model":
+                info = WS.set_model(b.get("model"))
+                self._event = f"session.model:{b.get('model')}"
+                if b.get("saveAs") in ("local", "shared"):
+                    self._save_session_defaults(b.get("saveAs"), {"sessionModel": str(b.get("model"))})
+                return self.send_json({"ok": True, **info})
+            if act == "defaults":  # 세션 없이 작업 공간 기본(에이전트·모델)만 저장
+                vals = {k: str(b[k]) for k in ("sessionAgent", "sessionModel") if b.get(k)}
+                self._save_session_defaults(b.get("saveAs") or "local", vals)
+                import agents
+                return self.send_json({"ok": True, **agents.effective(read_config())})
+        except ValueError as e:
+            self._event = f"session.denied"
+            return self.err(400, str(e))
+        return self.err(400, "action = start|stop|model|defaults")
+
+    def _save_session_defaults(self, where, vals):
+        """작업 공간 기본 에이전트·모델 - local 은 nexa-slide.local.json(PC 별, git 제외), shared 는 nexa-slide.json(공유)."""
+        from paths import LOCAL_CONFIG
+        f = WORKSPACE / (LOCAL_CONFIG if where == "local" else "nexa-slide.json")
+        try:
+            cfg = json.loads(f.read_text(encoding="utf-8")) if f.is_file() else {}
+            cfg = cfg if isinstance(cfg, dict) else {}
+        except (OSError, ValueError):
+            cfg = {}
+        cfg.update(vals)
+        atomic_write(f, json.dumps(cfg, ensure_ascii=False, indent=2) + "\n")
 
     # ---------- AI 세션 어댑터(B-2) - 설치·로그인 확인과 기본값 ----------
     def api_get_agent(self, _, q):
@@ -1312,8 +1381,11 @@ def main():
         sys.exit(f"이 작업 공간의 서버가 이미 실행 중이다: {run['url']} (pid {run['pid']}, {run['started']}) — 그대로 쓰면 된다")
     auto = str(a.port).lower() == "auto"
     port = DEFAULT_PORT if a.port is None or auto else int(a.port)
+    global WS
     if not HUB:
         DECKS.mkdir(parents=True, exist_ok=True)
+        import wsession
+        WS = wsession.WebSession()
     srv = _bind(port, auto)
     port = srv.server_port
     url = f"http://127.0.0.1:{port}/"
@@ -1332,6 +1404,11 @@ def main():
     except KeyboardInterrupt:
         pass
     finally:
+        if WS is not None:
+            try:
+                WS.stop("server-stop")  # 실행 중 턴의 프로세스 트리까지 끝낸다
+            except Exception:  # noqa: BLE001
+                pass
         srv.server_close()
         try:  # 내가 쓴 정보일 때만 지운다(같은 작업 공간에 다른 서버가 뒤에 떴을 수 있다)
             if json.loads(SERVER_INFO.read_text(encoding="utf-8")).get("pid") == os.getpid():

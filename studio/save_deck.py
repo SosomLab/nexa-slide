@@ -53,8 +53,10 @@ def via_server(url, deck_id, deck, a):
             raise
         q["base"] = ""  # 새 덱
     body = json.dumps(deck, ensure_ascii=False).encode("utf-8")
-    req = urllib.request.Request(f"{url}api/deck/{deck_id}?{urllib.parse.urlencode(q)}", data=body, method="PUT",
-                                 headers={"Content-Type": "application/json", "X-Nexa-Tab": "save_deck"})
+    headers = {"Content-Type": "application/json", "X-Nexa-Tab": "save_deck"}
+    if os.environ.get("NEXA_SLIDE_USER"):  # 웹 세션이 준 시작 사용자 - 서버는 로컬(중계 아님) 요청에서만 받아 원장 actor.user 에 적는다
+        headers["X-Nexa-Session-User"] = os.environ["NEXA_SLIDE_USER"][:40]
+    req = urllib.request.Request(f"{url}api/deck/{deck_id}?{urllib.parse.urlencode(q)}", data=body, method="PUT", headers=headers)
     try:
         with urllib.request.urlopen(req, timeout=30) as r:
             res = json.loads(r.read().decode("utf-8"))
@@ -92,8 +94,10 @@ def direct(deck_id, deck, a):
     deck["id"] = deck_id
     deck["updated"] = dt.datetime.now().isoformat(timespec="seconds")
     ledger.atomic_write(p, json.dumps(deck, ensure_ascii=False, indent=1))
-    seq = ledger.record(deck_id, old_obj, before, deck, ledger.meta(p), "claude", "exact", a.action,
-                        {"label": a.label or "", "request": a.request, "note": a.note})
+    actor = {"label": a.label or "", "request": a.request, "note": a.note}
+    if os.environ.get("NEXA_SLIDE_USER"):
+        actor["user"] = os.environ["NEXA_SLIDE_USER"][:40]
+    seq = ledger.record(deck_id, old_obj, before, deck, ledger.meta(p), "claude", "exact", a.action, actor)
     print(f"저장됨(직접 - 서버 없음): {p} · 원장 seq {seq}")
     return 0
 

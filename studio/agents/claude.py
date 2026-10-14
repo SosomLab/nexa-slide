@@ -92,7 +92,9 @@ class ClaudeAgent(Agent):
             return None
         if t == "result":
             ok = not d.get("is_error") and d.get("subtype") == "success"
-            return {"type": "result", "sessionId": d.get("session_id"), "model": (d.get("modelUsage") and next(iter(d["modelUsage"]), None)) or None,
+            mu = d.get("modelUsage") or {}
+            main_model = max(mu, key=lambda k: (mu[k] or {}).get("outputTokens", 0) if isinstance(mu[k], dict) else 0) if mu else None  # 가장 많이 쓴 모델(보조 모델 제외)
+            return {"type": "result", "sessionId": d.get("session_id"), "model": main_model, "models": list(mu),
                     "ok": ok, "turns": d.get("num_turns"), "costUsd": d.get("total_cost_usd"), "usage": d.get("usage"),
                     "text": (d.get("result") or "")[:2000], "subtype": d.get("subtype")}
         if t == "error":

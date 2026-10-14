@@ -200,6 +200,19 @@ B-1·B-2 는 기존 동작을 바꾸지 않는다. B-3 부터 새 기능. 각 �
 6. **미확인으로 처리하고 진행**(처음 "보류" → 협업 세션 경유로 갱신) — codex 확인용 설치는 하지 않는다. 어댑터는 공식 문서 기준으로 구현하되 probe·시작 창에 "미확인(이 PC 미설치)" 표시, 미설치면 [openai-codex.md](../openai-codex.md) 안내. 순서는 `claude` 먼저.
 7. (검토 반영) claude 는 `--restricted` + `--settings`(권한을 엔진이 넘김, 수동 세션 파일은 참고용)로 간다 — 구 판(2.1.248 미만)에서만 `--setting-sources project,local` 대체.
 
-## 14. 검토 기록
+## 14. 구현 메모 (B-1 ~ B-3)
+
+- B-1 `b2c01d4`·`ab17b90`: `requests_core.py`(판정·하트비트·`pid_alive`), 권한 템플릿(workspace/web/retired), `AGENTS.md` 통일.
+- B-2 `c2be20b`: `studio/agents/`(base·claude·codex·`turn_prompt.md`), `GET /api/agent`. 실제 claude 한 턴으로 파서 확인.
+- B-3: `wsession.py` + `/api/wsession`. 구현하며 정한 것:
+  - 상태는 `starting` 없이 `off → ready`(probe 가 동기라 바로 대기). 턴 끝의 `result` 모델은 사용량이 가장 큰 모델(보조 모델 제외), `init` 의 모델이 우선.
+  - 웹 권한 JSON 에 **이 작업 공간 실행기의 절대 경로 변형**(`Bash(python3 <ws>/nexa.py *)` 등)을 더한다 — 허브가 만든 작업 공간의 `CLAUDE.md` 는 절대 경로로 안내하므로.
+  - 수동 감시 판정은 하트비트 + **pid 생존 확인**(`OpenProcess`; `os.kill(pid, 0)` 은 Windows 에서 프로세스를 죽이므로 금지) — 끝난 감시의 "끝남" 표시가 파일 경합으로 빠질 수 있다.
+  - `save_deck` 은 환경 `NEXA_SLIDE_USER`(세션 시작 사용자)를 `X-Nexa-Session-User` 로 보내고 서버는 로컬(중계 아님) 요청에서만 받아 `actor.user` 에 적는다.
+  - `service.py stop` 은 서버를 죽이기 전에 `POST /api/wsession stop` 으로 세션(실행 중 턴의 프로세스 트리)을 먼저 끊는다. 서버 정상 종료(`finally`)도 같다.
+  - `sessionMax: 0` 은 "웹 세션 금지"로 뜻이 있다(0 을 기본값으로 바꾸지 않는다).
+  - 검증(격리 환경, 실제 sonnet 턴): 수동 감시 중 시작 거절 · 한도 · codex 미설치 안내 · 시작(startedBy=허브 사용자) · 하트비트 kind=web · `watch_requests --takeover` 거절(서버 생존) · 요청 1건 → working → save_deck → done+reply · 원장 claude(exact)+actor.user · 이벤트·턴 로그 · 모델 변경 · 끊기 · 등록 삭제 · `service.py stop` 선종료 — 27건.
+
+## 15. 검토 기록
 
 - 2026-10-14 협업 세션(nexa-slide-f4) 공식 문서 대조: codex `-c approval_policy="never"`·`--ignore-user-config`·stdin `-`·`thread.started.thread_id` / claude deny 우선 규칙·`dontAsk`+`--permission-prompts none`·`--restricted`·`blockReadsOutsideWorkingDirectories`·PowerShell 도구·`--strict-mcp-config`·`--max-turns`/`--max-budget-usd`·`claude auth status` / 원장 `actor.user`=시작 사용자·사용량 표시·stdin UTF-8·SSE 머리·probe 안내 링크·hooks 와 SSE — 모두 §4~§11 에 반영.

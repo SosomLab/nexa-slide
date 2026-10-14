@@ -71,6 +71,10 @@ python3 studio/service.py start                                                 
 | `GET /api/fontfile/<이름>` | 설치된 OFL 글꼴 파일(편집기 `fonts.css` 용) |
 | `GET /api/config` | 작업 공간 이름·경로(`path`)·포트·제목·브랜드(로고·워드마크·파비콘·로고 비율) |
 | `GET /api/agent` | AI 세션 어댑터 확인 — `{agents: {claude, codex: {installed, loggedIn, version, verified, hint, doc, flags, models}}, agent, model, sources, limits}`(전역 < 작업 공간 우선순위, `?refresh=1` 로 다시 확인). [dev/web-session-design.md](dev/web-session-design.md) |
+| `GET /api/wsession` | 웹 AI 세션 상태 — `{state: off\|ready\|running\|error, agent, model, modelActual, sessionId, startedBy, startedAt, turns, lastError, open, working, manual, limits, seq, last}`. 작업 공간 서버에서만(허브는 404 — 중계 `/w/<이름>/api/wsession`) |
+| `POST /api/wsession` | `{"action": "start", agent?, model?, saveAs?: "local"\|"shared"}` · `{"action": "stop"}` · `{"action": "model", model, saveAs?}`(실행 중이면 턴이 끝난 뒤 적용) · `{"action": "defaults", sessionAgent?, sessionModel?, saveAs?}`. 로그인 사용자 누구나. 수동 감시가 살아 있거나 PC 동시 세션 한도(`sessionMax`)면 400 |
+| `GET /api/wsession/events?since=N` | 진행 이벤트(폴링) — `turn.start`·`init`·`text`·`tool`·`tool_result`·`turn.end`·`error`·`model`·`idle`·`state` |
+| `GET /api/wsession/log?turn=N` | 그 턴의 어댑터 출력 원문 |
 | `GET /api/session` | Claude 세션 연결 상태 `{connected, label, mode, last_seen, age, open, working}` |
 | `POST /api/flush/<id>` | "지금 보내기" — 감시 스크립트가 대기 없이 열린 요청을 바로 전달 |
 | `GET /api/history/<id>` | 자동 백업 목록 `[{file, kind(save/build/ext), at, size}]` · `?f=<파일>` 이면 그 시점 덱 JSON |

@@ -75,6 +75,16 @@ def stop():
     if not isinstance(pid, int):
         print(f"{run['url']} 에 이 작업 공간 서버가 있지만 pid 를 모른다(server.json 없음) — 직접 종료가 필요하다")
         return 1
+    if not HUB:  # 웹 AI 세션이 있으면 먼저 끊는다(실행 중 턴의 프로세스 트리까지) - 서버를 바로 죽이면 자식이 남는다
+        import urllib.request
+        try:
+            req = urllib.request.Request(run["url"] + "api/wsession", data=b'{"action":"stop","reason":"server-stop"}', method="POST",
+                                         headers={"Content-Type": "application/json"})
+            with urllib.request.urlopen(req, timeout=15) as r:
+                if json.loads(r.read().decode("utf-8")).get("stopped"):
+                    print("웹 AI 세션을 끊었다")
+        except Exception:  # noqa: BLE001 - 세션이 없거나 구 판 서버
+            pass
     if os.name == "nt":
         subprocess.run(["taskkill", "/PID", str(pid), "/F"], capture_output=True)
     else:

@@ -3,6 +3,7 @@
 편집기에서 남긴 요청 메모를 Claude Code 세션이 **바로** 받아 처리하게 하는 방법이다.
 
 > 작업 공간을 만든 직후의 연결 순서, Claude 가 아닌 AI 도구(Codex CLI·Gemini CLI·Cursor 등) 연결, 고치기 반복 과정은 [ai-editing.md](ai-editing.md).
+> **웹 세션**(허브에서 [세션 시작] — 서버가 `claude -p` 를 턴마다 실행, 같은 규약·같은 파일·같은 표시)은 [dev/web-session-design.md](dev/web-session-design.md). 웹 세션이 살아 있으면 아래 수동 감시는 `{"event":"refused","reason":"web-session"}` 으로 거절된다(`--takeover` 로도 서버를 끊지 않는다) — 허브나 세션 칩에서 끊은 뒤 시작한다.
 
 ```
 편집기 ──(요청 남기기 / 지금 보내기)──▶ decks/<id>.requests.json · out/.studio/flush.json

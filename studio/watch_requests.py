@@ -61,6 +61,11 @@ def main():
     a = ap.parse_args()
     sys.stdout.reconfigure(encoding="utf-8")
     cur = session_status()
+    if cur["connected"] and cur.get("kind") == "web":  # 서버 안의 웹 세션이 맡고 있다 - --takeover 로 서버를 죽이지 않고, --force 로도 겹치지 않게 거절
+        print(json.dumps({"event": "refused", "reason": "web-session", "pid": cur["pid"], "label": cur["label"], "user": cur.get("user"),
+                          "last_seen": cur["last_seen"], "workspace": str(DECKS.parent),
+                          "message": "웹 세션이 이 작업 공간을 맡고 있다 - 허브(시작 페이지)나 Studio 세션 칩에서 끊은 뒤 시작한다"}, ensure_ascii=False), flush=True)
+        sys.exit(2)
     if cur["connected"] and cur["pid"] not in (None, os.getpid()) and a.takeover:
         _kill(cur["pid"])
         time.sleep(0.5)
