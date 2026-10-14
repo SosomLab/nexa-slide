@@ -663,6 +663,39 @@ def text_width(s, size_px, bold=False, mono=False):
     return w
 
 
+def pad_of(el, default=0):
+    """pad(숫자 또는 [위, 오, 아, 왼]) → 네 값 튜플 (render.js padOf 와 같은 규칙)"""
+    p = el.get("pad", default)
+    if isinstance(p, (int, float)):
+        return (p, p, p, p)
+    p = list(p) + [0] * 4
+    return tuple(p[:4])
+
+
+# ---------- 글머리(bullets) → 행 (render.js bulletRows 와 같은 규칙) ----------
+def bullet_rows(el):
+    """bullets → [[글자, 수준, 뒤 간격 px]]. gap(항목 사이)·subGap(하위 사이).
+    spread 가 참이면 균등 간격 - 행 높이(줄 수 = 줄바꿈 수 + 1, 자동 줄바꿈은 세지 않음)를 뺀 나머지를 행 사이에 고르게 나눠
+    상자 높이를 채운다(원본 PPT 의 "세로 고르게" 글상자를 옮길 때). 마지막 행 뒤는 0."""
+    gap, sub_gap = el.get("gap", 14), el.get("subGap", 6)
+    rows = []
+    for it in el.get("items", []):
+        if isinstance(it, str):
+            it = {"text": it}
+        subs = it.get("sub", []) or []
+        rows.append([it.get("text", ""), 0, sub_gap if subs else gap])
+        for k, s in enumerate(subs):
+            rows.append([s, 1, sub_gap if k < len(subs) - 1 else gap])
+    if el.get("spread") and len(rows) > 1:
+        size, sub, lh = float(el.get("size", 20)), float(el.get("subSize", 17)), float(el.get("lineHeight", 1.55))
+        pt, _, pb, _ = pad_of(el)
+        used = sum((sub if lvl else size) * lh * (str(t).count("\n") + 1) for t, lvl, _ in rows)
+        g = max(0.0, (float(el["h"]) - pt - pb - used) / (len(rows) - 1))
+        for i, r in enumerate(rows):
+            r[2] = g if i < len(rows) - 1 else 0
+    return rows
+
+
 def load_deck(deck_id):
     return json.loads((DECKS / f"{deck_id}.json").read_text(encoding="utf-8"))
 

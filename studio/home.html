@@ -665,16 +665,18 @@
     let line, btn = "";
     if (on) line = `<span class="badge run">엔진 세션 ${esc(s.state)}</span> ${esc(s.agent || "")} · ${esc(s.model || "")}${s.startedBy ? ` · ${esc(s.startedBy)}` : ""} · 턴 ${s.turns || 0} ${sidBadge(s.sessionId, s.cwd, s.turns)}${s.lastError ? ` · <span style="color:var(--err)">${esc(s.lastError.slice(0, 80))}</span>` : ""}`;
     else line = `<span class="badge">세션 없음</span>${s.last && s.last.startedAt ? ` <span class="hint">· 마지막 · ${esc(s.last.agent || "")} ${esc(s.last.model || "")} · ${fmtT(s.last.stoppedAt || s.last.startedAt)}${s.last.reason ? ` · ${reasonKo(s.last.reason)}` : ""}</span>` : ""}`;
+    const sr = d.startRequest, banner = !on && (pending || sr);  // 세션이 꺼진 채 할 일이 있으면 배너 - 그때 [세션 시작]은 배너에만(버튼이 두 개가 되지 않게)
     if (admin) btn = on
       ? `<button type="button" class="chip sm" data-eng="progress">진행</button><button type="button" class="svc stop" data-eng="stop">${icon("stop", 14)}세션 중지</button>`
+      : banner ? ""
       : `<button type="button" class="svc" data-eng="start" title="엔진 요청 큐를 처리하는 개발 세션을 띄웁니다(엔진 worktree, 관리자)">${icon("play", 14)}세션 시작</button>`;
     else if (on) btn = `<button type="button" class="chip sm" data-eng="progress">진행</button>`;
     $("#engSess").innerHTML = `<span style="flex:1;min-width:0">${line}</span>${btn}`;
     // 배너 - 처리·승인 대기가 있는데 세션이 꺼져 있으면(관리자: 시작 버튼 · 일반: 관리자에게 시작 요청)
-    const sr = d.startRequest;
     const srLine = sr ? `${esc((sr.by || []).join(", ") || "사용자")} 님이 ${fmtT(sr.at)} 에 시작을 요청${sr.count > 1 ? ` (${sr.count}회)` : ""}` : "";
-    $("#engBanner").innerHTML = !on && (pending || sr)
-      ? `<div class="warn" style="display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px"><span style="flex:1;min-width:0">처리 대기 ${pending}건 · 세션 꺼짐${srLine ? ` — ${srLine}` : ""}</span>${admin
+    const what = [c.triage ? `승인 대기 ${c.triage}건` : "", c.open ? `처리 대기 ${c.open}건` : ""].filter(Boolean).join(" · ") || "시작 요청";
+    $("#engBanner").innerHTML = banner
+      ? `<div class="warn" style="display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px"><span style="flex:1;min-width:0">${what} · 엔진 세션 꺼짐${c.triage && !c.open ? " - 승인하면 세션이 처리한다" : ""}${srLine ? ` — ${srLine}` : ""}</span>${admin
         ? `<button type="button" class="svc" data-eng="start" style="flex:none">${icon("play", 14)}세션 시작</button>`
         : sr ? `<span class="badge">관리자에게 시작 요청됨</span>` : `<button type="button" class="svc" data-eng="askstart" style="flex:none">관리자에게 시작 요청</button>`}</div>`
       : "";
@@ -785,12 +787,22 @@
   $("#engpModal").addEventListener("click", (e) => { if (e.target.closest("[data-close]") || e.target === $("#engpModal")) { if (engSrc) { engSrc.close(); engSrc = null; } } });
 
   // 세션 식별자 - claude 세션 ID 앞 8자리 배지, 누르면 확인 명령(그 폴더에서 claude --resume <ID>)을 복사
-  const sidBadge = (id, cwd, turns) => id ? `<button type="button" class="badge sid" data-sid="${esc(id)}" data-cwd="${esc(cwd || "")}" title="claude 세션 ID ${esc(id)}${cwd ? `\n폴더 ${esc(cwd)}` : ""}\n누르면 확인 명령 복사: claude --resume ${esc(id)}${turns === 0 ? "\n(첫 턴이 끝나야 claude 에서 열린다)" : ""}\n웹 세션이 도는 중에 이어 쓰면 대화가 섞인다 - 보기만, 또는 세션 중지 뒤에">ID ${esc(id.slice(0, 8))}</button>` : "";
-  document.addEventListener("click", async (e) => {
+  const sidBadge = (id, cwd, turns) => id ? `<button type="button" class="badge sid" data-sid="${esc(id)}" data-cwd="${esc(cwd || "")}" title="claude 세션 ID ${esc(id)}${cwd ? `
+폴더 ${esc(cwd)}` : ""}
+누르면 ID 복사 · Shift+누르면 확인 명령(claude --resume) 복사${turns === 0 ? "
+(첫 턴이 끝나야 claude 에서 열린다)" : ""}">ID ${esc(id.slice(0, 8))}</button>` : "";
+  async function copyText(text, what) {
+    try { await navigator.clipboard.writeText(text); toast(`${what} 복사했습니다 - ${text}`, 5000); }
+    catch (err) {  // 클립보드 API 가 막힌 환경(http 원격 등) - 숨은 입력칸으로 복사
+      const ta = document.createElement("textarea"); ta.value = text; ta.style.position = "fixed"; ta.style.opacity = "0"; document.body.appendChild(ta); ta.select();
+      const ok = document.execCommand && document.execCommand("copy"); ta.remove();
+      if (ok) toast(`${what} 복사했습니다 - ${text}`, 5000); else prompt(what, text);
+    }
+  }
+  document.addEventListener("click", (e) => {
     const b = e.target.closest("[data-sid]"); if (!b) return;
     e.preventDefault(); e.stopPropagation();
-    const cmd = (b.dataset.cwd ? `cd "${b.dataset.cwd}"; ` : "") + `claude --resume ${b.dataset.sid}`;
-    try { await navigator.clipboard.writeText(cmd); toast("확인 명령을 복사했습니다 - " + cmd, 5000); } catch (err) { prompt("확인 명령", cmd); }
+    if (e.shiftKey) copyText((b.dataset.cwd ? `cd "${b.dataset.cwd}"; ` : "") + `claude --resume ${b.dataset.sid}`, "확인 명령을"); else copyText(b.dataset.sid, "세션 ID 를");
   }, true);
   // AI 세션 줄(4줄) - 웹 세션(유형·모델·시작 사용자·대기/처리 중) 또는 수동 세션 또는 없음. [세션 시작] 은 꺼진 서버도 먼저 띄운다(결정 5)
   function sessLine(r) {

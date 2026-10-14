@@ -308,6 +308,8 @@
     return { x: el.x, y: el.y, tw, colW, rowH, cells, rule: el.rule || "surface-container-high", size: el.size || 16, callouts };
   }
 
+  /** bullets → [[글자, 수준, 뒤 간격 px]] (common.bullet_rows 와 같은 규칙).
+      spread = 균등 간격: 행 높이(줄 수 = 줄바꿈 수 + 1, 자동 줄바꿈은 세지 않음)를 뺀 나머지를 행 사이에 고르게 - 마지막 행 뒤는 0 */
   function bulletRows(el) {
     const gap = el.gap == null ? 14 : el.gap, sub = el.subGap == null ? 6 : el.subGap, rows = [];
     for (let it of el.items || []) {
@@ -315,6 +317,12 @@
       const subs = it.sub || [];
       rows.push([it.text || "", 0, subs.length ? sub : gap]);
       subs.forEach((s, k) => rows.push([s, 1, k < subs.length - 1 ? sub : gap]));
+    }
+    if (el.spread && rows.length > 1) {
+      const size = +el.size || 20, subSz = +el.subSize || 17, lh = +(el.lineHeight || 1.55), [pt, , pb] = padOf(el);
+      const used = rows.reduce((a, [t, lvl]) => a + (lvl ? subSz : size) * lh * String(t == null ? "" : t).split("\n").length, 0);
+      const g = Math.max(0, (+el.h - pt - pb - used) / (rows.length - 1));
+      rows.forEach((r, i) => { r[2] = i < rows.length - 1 ? g : 0; });
     }
     return rows;
   }

@@ -12,8 +12,8 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from common import (cur_fonts, use_fonts, CODE_GUTTER_W, CODE_PAD_Y, OUT, REPO, HL_ROLE, code_lines, code_style, color, load_deck, plan_runs, radius,  # noqa: E402
-                    runs, safe_id, table_grid, tokens)
+from common import (cur_fonts, use_fonts, CODE_GUTTER_W, CODE_PAD_Y, OUT, REPO, HL_ROLE, bullet_rows, code_lines, code_style, color, load_deck,  # noqa: E402
+                    pad_of, plan_runs, radius, runs, safe_id, table_grid, tokens)
 
 from lxml import etree  # noqa: E402  (python-pptx 의존성)
 from pptx import Presentation  # noqa: E402
@@ -107,14 +107,6 @@ def frame(tf, pad=(0, 0, 0, 0), valign="top", wrap=True):
     tf.vertical_anchor = ANCHOR.get(valign, MSO_ANCHOR.TOP)
     bp = tf._txBody.find(qn("a:bodyPr"))
     bp.set("rtlCol", "0")
-
-
-def pad_of(el, default=0):
-    p = el.get("pad", default)
-    if isinstance(p, (int, float)):
-        return (p, p, p, p)
-    p = list(p) + [0] * 4
-    return tuple(p[:4])
 
 
 def fill_markup_text(tf, el, page, default_color="on-surface"):
@@ -397,21 +389,8 @@ def do_code(slide, el, page):
     return grp
 
 
-def bullet_rows(el):
-    """bullets → [(글자, 수준, 뒤 간격 px)] — render.js bulletRows 와 같은 규칙"""
-    gap, sub_gap = el.get("gap", 14), el.get("subGap", 6)
-    rows = []
-    for it in el.get("items", []):
-        if isinstance(it, str):
-            it = {"text": it}
-        subs = it.get("sub", []) or []
-        rows.append([it.get("text", ""), 0, sub_gap if subs else gap])
-        for k, s in enumerate(subs):
-            rows.append([s, 1, sub_gap if k < len(subs) - 1 else gap])
-    return rows
-
-
 def do_bullets(slide, el, page):
+    """bullets — 행(글자·수준·뒤 간격)은 common.bullet_rows(spread = 균등 간격 포함), 뒤 간격은 단락 뒤 간격(spcAft)으로"""
     shp = slide.shapes.add_textbox(E(el["x"]), E(el["y"]), E(el["w"]), E(el["h"]))
     tf = shp.text_frame
     frame(tf, pad_of(el), el.get("valign", "top"), True)
