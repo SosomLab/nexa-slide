@@ -173,6 +173,7 @@
 </style>
 <script src="i18n.js"></script>
 <script src="menu.js"></script>
+<script src="lightbox.js"></script>
 <script src="render.js"></script>
 <link rel="stylesheet" href="fonts.css">
 <style id="rs-css"></style>
@@ -678,7 +679,7 @@
         x.status === "done" ? `<button type="button" class="chip sm" data-er="applied" data-id="${x.id}" title="main 에 병합·재시작한 뒤">적용됨</button>` : "",
         ["triage", "open", "done"].includes(x.status) ? `<button type="button" class="chip sm" data-er="rejected" data-id="${x.id}">거절</button>` : "",
         ["rejected", "applied"].includes(x.status) ? `<button type="button" class="ib" data-er="remove" data-id="${x.id}" title="목록에서 지우기">${icon("x", 13)}</button>` : ""].join("") : "";
-      const att = (x.attachments || []).map((a) => `<a class="a" href="${esc(a.url)}" target="_blank" rel="noopener" title="${esc(a.name)}">${/\.(png|jpe?g|gif|webp|svg)$/i.test(a.name) ? `<img src="${esc(a.url)}" alt="">` : "📄"}<span class="n">${esc(a.name)}</span></a>`).join("");
+      const att = (x.attachments || []).map((a, i) => `<a class="a" href="${esc(a.url)}" data-lb="${x.id}:${i}" title="${esc(a.name)}">${/\.(png|jpe?g|gif|webp|svg)$/i.test(a.name) ? `<img src="${esc(a.url)}" alt="" loading="lazy">` : "📄"}<span class="n">${esc(a.name)}</span></a>`).join("");
       return `<div class="ritem" style="padding:6px 8px"><div class="rb"><div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap"><span class="badge ${x.status === "working" ? "run" : x.status === "done" ? "ok" : ""}">${ST_KO[x.status] || x.status}</span><b style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(x.body || "")}">#${x.id} ${esc(x.title)}</b><span style="display:flex;gap:4px;flex:none">${acts}</span></div>
         <small class="hint" style="display:block">${esc(f.kind === "session" ? "세션" : f.kind || "")}${f.user ? ` · ${esc(f.user)}` : ""}${f.wsId ? ` · ${esc(f.wsId)}` : ""}${x.commit ? ` · ${esc(x.commit)}` : ""} · ${fmtT(x.updated)}${x.reply ? ` — ${esc(x.reply.slice(0, 120))}` : ""}</small>${att ? `<div class="att ro">${att}</div>` : ""}</div></div>`;
     }).join("") : `<div class="empty">엔진 변경 요청이 없습니다. 작업 공간 세션이 엔진 한계를 만나면 여기로 넘기고, 직접 적을 수도 있습니다.</div>`;
@@ -686,7 +687,7 @@
   // 요청 양식 첨부 - 클립보드 그림(Ctrl+V)·끌어다 놓기·＋ 첨부 → /api/engine/attach(_new/) → 큐에 넣을 때 그 요청 폴더로
   const ER = { att: [], busy: 0 };
   function erRender() {
-    $("#erAtt").innerHTML = ER.att.map((a, i) => `<span class="a" title="${esc(a.orig)} · ${Math.round((a.size || 0) / 1024)}KB">${/^image\//.test(a.type || "") ? `<img src="${esc(a.url)}" alt="">` : "📄"}<span class="n">${esc(a.orig)}</span><button type="button" class="x" data-erx="${i}" title="빼기">✕</button></span>`).join("")
+    $("#erAtt").innerHTML = ER.att.map((a, i) => `<span class="a" title="${esc(a.orig)} · ${Math.round((a.size || 0) / 1024)}KB" data-erv="${i}">${/^image\//.test(a.type || "") ? `<img src="${esc(a.url)}" alt="">` : "📄"}<span class="n">${esc(a.orig)}</span><button type="button" class="x" data-erx="${i}" title="빼기">✕</button></span>`).join("")
       + (ER.busy ? `<span class="a"><span class="n">올리는 중…</span></span>` : "");
   }
   function erUpload(files) {
@@ -720,6 +721,12 @@
     toast(`엔진 요청 #${r.data.item.id} 을 넣었습니다${r.data.note ? ` — ${r.data.note}` : ""}`, r.data.note ? 7000 : 3200); loadEngine();
   });
   $("#engineCard").addEventListener("click", async (e) => {
+    const lb = e.target.closest("[data-lb]");
+    if (lb) {  // 요청 첨부 미리보기(라이트박스) - 그 요청의 첨부
+      e.preventDefault(); const [id, i] = lb.dataset.lb.split(":"); const x = (H.engine.recent || []).find((r) => String(r.id) === id);
+      if (x) NexaLightbox.open(x.attachments.map((a) => ({ url: a.url, name: a.name, size: a.size })), +i, { title: `#${x.id} ${x.title}` }); return;
+    }
+    const erv = e.target.closest("[data-erv]"); if (erv) { NexaLightbox.open(ER.att.map((a) => ({ url: a.url, name: a.orig, size: a.size, type: a.type })), +erv.dataset.erv); return; }
     const er = e.target.closest("[data-er]");
     if (er) {
       const act = er.dataset.er, id = +er.dataset.id;

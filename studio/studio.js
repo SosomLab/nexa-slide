@@ -560,7 +560,7 @@
   const attIsImg = (a) => /^image\//.test(a.type || "");
   function attRender(which) {
     const box = $(which === "memo" ? "#memoAtt" : "#reqAtt"); if (!box) return;
-    box.innerHTML = ATT[which].map((a, i) => `<span class="a" title="${esc(a.name)} · ${Math.round((a.size || 0) / 1024)}KB">${attIsImg(a) ? `<img src="${esc(BASE + a.url)}" alt="">` : `<span>📄</span>`}<span class="n">${esc(a.name)}</span><button class="x" data-attx="${which}:${i}" title="빼기">✕</button></span>`).join("")
+    box.innerHTML = ATT[which].map((a, i) => `<span class="a" title="${esc(a.name)} · ${Math.round((a.size || 0) / 1024)}KB" data-attv="${which}:${i}">${attIsImg(a) ? `<img src="${esc(BASE + a.url)}" alt="">` : `<span>📄</span>`}<span class="n">${esc(a.name)}</span><button class="x" data-attx="${which}:${i}" title="빼기">✕</button></span>`).join("")
       + (ATT.busy ? `<span class="a"><span class="spin"></span><span class="n">올리는 중…</span></span>` : "");
     if (which === "memo") memoInput();
   }
@@ -596,9 +596,16 @@
     el.addEventListener("drop", (e) => { if (e.dataTransfer.files.length) { e.preventDefault(); e.stopPropagation(); el.classList.remove("dropping"); attUpload(which, e.dataTransfer.files); } });
   }
   function attPick(which) { const f = $("#attFile"); f.onchange = () => { attUpload(which, f.files); f.value = ""; }; f.click(); }
-  function attListHtml(list) {  // 요청 목록의 축소판(읽기 전용) - 누르면 새 탭
+  const attUrl = (a) => BASE + (a.url || "/" + a.path);  // 중계(/w/<id>/)면 접두를 붙인 주소
+  function attListHtml(list, rid) {  // 요청 목록의 축소판(읽기 전용) - 누르면 라이트박스(새 창 없음)
     if (!list || !list.length) return "";
-    return `<div class="att ro">${list.map((a) => `<a class="a" href="${esc(BASE + "/" + a.path)}" target="_blank" rel="noopener" title="${esc(a.name)}">${attIsImg(a) ? `<img src="${esc(BASE + "/" + a.path)}" alt="">` : "📄"}<span class="n">${esc(a.name)}</span></a>`).join("")}</div>`;
+    return `<div class="att ro">${list.map((a, i) => `<a class="a" href="${esc(attUrl(a))}" data-lb="${esc(rid || "")}:${i}" title="${esc(a.name)}">${attIsImg(a) ? `<img src="${esc(attUrl(a))}" alt="" loading="lazy">` : "📄"}<span class="n">${esc(a.name)}</span></a>`).join("")}</div>`;
+  }
+  const lbItems = (list) => (list || []).map((a) => ({ url: attUrl(a), name: a.name, size: a.size, type: a.type }));
+  function attLightbox(rid, i) {  // 그 요청의 첨부부터, 토글로 이 슬라이드의 모든 요청 첨부
+    const r = S.reqs.find((x) => x.id === rid); if (!r) return;
+    const all = S.reqs.filter((x) => x.slide === r.slide && x.attachments && x.attachments.length).flatMap((x) => lbItems(x.attachments));
+    NexaLightbox.open(lbItems(r.attachments), i, { title: `슬라이드 ${S.deck.slides.findIndex((s) => s.id === r.slide) + 1}`, alt: { label: "이 슬라이드의 모든 요청 첨부", items: all } });
   }
   async function sendDrafts() {
     const n = S.reqs.filter((r) => r.status === "draft").length; if (!n) return;
@@ -1109,13 +1116,14 @@ ${names}
       ${list.length ? list.slice().reverse().map((r) => `<div class="req ${r.status === "done" ? "done" : ""}" data-rid="${esc(r.id)}">
         <div class="meta"><span class="st ${esc(r.status || "open")}">${ST[r.status] || "대기"}</span>
           <a href="#" data-goto="${esc(r.slide)}" data-el="${esc(r.element || "")}">슬라이드 ${idx(r.slide) || "?"}${r.element ? " · " + esc(r.element) : ""}${r.region ? " · 영역" : ""}</a><span>${esc((r.created || "").replace("T", " "))}</span></div>
-        <div class="txt">${esc(r.text)}</div>${attListHtml(r.attachments)}${r.reply ? `<div class="reply"><b>${agentName()}</b> ${esc(r.reply)}</div>` : ""}
+        <div class="txt">${esc(r.text)}</div>${attListHtml(r.attachments, r.id)}${r.reply ? `<div class="reply"><b>${agentName()}</b> ${esc(r.reply)}</div>` : ""}
         <div class="acts">${r.status === "draft" ? "" : `<button class="chip sm" data-rs="${r.status === "done" ? "open" : "done"}">${r.status === "done" ? "다시 열기" : "완료로 표시"}</button>`}<button class="chip sm" data-rdel="1">삭제</button></div></div>`).join("") : `<div class="hint">요청이 없다.</div>`}`;
     attRender("tab"); attWire($("#reqText"), "tab");
   }
   async function onReqClick(e) {
     const b = e.target.closest("button, a"); if (!b) return;
     if (b.dataset.sessStart !== undefined) { e.preventDefault(); sessStartDlg(); return; }
+    if (b.dataset.lb !== undefined) { e.preventDefault(); const [rid, i] = b.dataset.lb.split(":"); attLightbox(rid, +i); return; }
     if (b.id === "reqAdd") {
       const t = $("#reqText").value.trim(); if (!t && !ATT.tab.length) return;
       const body = { action: "add", status: "draft", slide: slide().id, element: null, text: t || "(첨부 참고)" };
@@ -1126,6 +1134,7 @@ ${names}
     }
     if (b.dataset.attach) { attPick(b.dataset.attach); return; }
     if (b.dataset.attx) { const [w, i] = b.dataset.attx.split(":"); ATT[w].splice(+i, 1); attRender(w); return; }
+    const v = e.target.closest("[data-attv]"); if (v) { const [w, i] = v.dataset.attv.split(":"); NexaLightbox.open(lbItems(ATT[w]), +i); return; }
     if (b.id === "reqSend") { await sendDrafts(); return; }
     if (b.closest("#reqFilter")) { S.reqOnlySlide = b.dataset.v === "1"; renderReqs(); return; }
     const card = b.closest(".req"); if (!card) return;
@@ -1924,7 +1933,8 @@ ${names}
     $("#memoTa").addEventListener("input", memoInput);
     attWire($("#memoTa"), "memo"); attWire($("#memo"), "memo");
     $("#memo").addEventListener("click", (e) => {
-      const b = e.target.closest("[data-attach],[data-attx]"); if (!b) return;
+      const b = e.target.closest("[data-attach],[data-attx]");
+      if (!b) { const v = e.target.closest("[data-attv]"); if (v) { const [w, i] = v.dataset.attv.split(":"); NexaLightbox.open(lbItems(ATT[w]), +i); } return; }
       if (b.dataset.attach) attPick("memo"); else { const [w, i] = b.dataset.attx.split(":"); ATT[w].splice(+i, 1); attRender(w); }
     });
     $("#memoTa").addEventListener("keydown", (e) => {

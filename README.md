@@ -53,7 +53,7 @@ D:\Projects\
 nexa-slide/
 ├─ studio/                 엔진 — 이 폴더만 있으면 어디서든 동작(작업 공간은 --workspace 로 지정)
 │   ├─ server.py           로컬 서버(정적 파일 + API + /w/<이름>/ 중계) ├─ index.html · studio.js   편집기
-│   ├─ hub.py · paths.py   시작 페이지 동작 · 기준 폴더·사용자 설정 ├─ home.html · menu.js     시작 페이지 · 기본 메뉴(i18n.js 표시 언어)
+│   ├─ hub.py · paths.py   시작 페이지 동작 · 기준 폴더·사용자 설정 ├─ home.html · menu.js     시작 페이지 · 기본 메뉴(i18n.js 표시 언어 · lightbox.js 첨부 미리보기)
 │   ├─ common.py           작업 공간·설정 해석, 공용 규칙      ├─ render.js                요소 → HTML 렌더러
 │   ├─ layouts.py          레이아웃 빌더 21종                  ├─ slide.html               검증용 1:1 슬라이드
 │   ├─ build_deck.py       content → 덱 JSON                  ├─ (토큰은 templates/<이름>/)
