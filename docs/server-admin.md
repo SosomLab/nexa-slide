@@ -38,7 +38,7 @@
 ```bash
 git pull                                            # 엔진 갱신(또는 새 판 받기)
 python3 studio/auth.py add <아이디> --admin         # ① 재시작 "전에" 관리자부터
-python3 studio/service.py restart                   # ② 허브 재시작
+python3 studio/service.py restart                   # ② 허브 재시작(구 판에서 처음 올릴 때는 아래 "처음 한 번만")
 ```
 
 - **처음 한 번만**: 인증 이전 판 허브는 새 판의 생존 확인(`/api/auth/state`)에 답하지 않아 `service.py restart`·`stop` 이 그 허브를 찾지 못한다.
