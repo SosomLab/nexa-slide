@@ -160,28 +160,29 @@
   .org.o-editor { background: var(--okc); color: var(--ok); } .org.o-claude { background: var(--infoc); color: var(--info); }
   .org.o-build { background: var(--warnc); color: var(--warn); } .org.o-external { background: var(--tone2); color: var(--ink2); }
   .org.inf { outline: 1px dashed currentColor; outline-offset: -1px; }
-  .chg-tbl { width: 100%; border-collapse: collapse; font-size: 12px; } .chg-tbl tr { cursor: pointer; } .chg-tbl tr:hover { background: var(--tone); }
+  .chg-tbl { width: 100%; border-collapse: collapse; font-size: 12px; table-layout: fixed; }
+  .chg-tbl td { overflow: hidden; text-overflow: ellipsis; }
+  .chg-tbl col.n { width: 28px; } .chg-tbl col.o { width: 76px; } .chg-tbl col.a { width: 62px; } .chg-tbl tr { cursor: pointer; } .chg-tbl tr:hover { background: var(--tone); }
   .chg-tbl td { padding: 4px 6px; border-bottom: 1px solid var(--tone2); vertical-align: top; white-space: nowrap; }
-  .chg-tbl td.n { color: var(--ink2); width: 24px; } .chg-tbl td.t { max-width: 140px; overflow: hidden; text-overflow: ellipsis; }
+  .chg-tbl td.n { color: var(--ink2); width: 24px; } .chg-tbl td.t { overflow: hidden; text-overflow: ellipsis; }
   /* 변경 탭 머리 - 설명(ⓘ 토글) · 출처 필터 칩 · 동작 단추(균등 폭) */
   .chg-top { display: flex; align-items: center; gap: 6px; } .chg-top h3 { flex: 1; margin: 0; }
   .chg-ibtn { width: 28px; height: 28px; min-width: 28px; padding: 0; border-radius: 50%; color: var(--ink2); }
   .chg-ibtn.on { background: var(--ink); color: #fff; }
   .chg-info { margin-top: 6px; padding: 8px 10px; background: var(--card); border-radius: 10px; }
   .chg-fil { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
-  .chg-fil button { border: 0; border-radius: 999px; padding: 3px 11px; font-size: 12px; font-weight: 700; white-space: nowrap; background: var(--fc, var(--tone2)); color: var(--fk, var(--ink2)); }
+  /* 필터 칩 - 미선택 회색 · 선택 검정 바탕 흰 글자 · 올리면 글자색 강조. 높이 고정(개수 숫자 유무와 상관없이 같게) */
+  .chg-fil button { border: 0; border-radius: 999px; height: 26px; padding: 0 11px; display: inline-flex; align-items: center; gap: 4px;
+    font-size: 12px; line-height: 1; font-weight: 700; white-space: nowrap; background: #E7E0E0; color: #5F5555; }
   .chg-fil button b { font-weight: 700; opacity: .8; }
-  .chg-fil button:hover { filter: brightness(.96); }
-  .chg-fil button.on { background: var(--fk, var(--ink)); color: #fff; }
-  .chg-fil .f-all { --fc: var(--tone2); --fk: var(--ink); }
-  .chg-fil .f-mine { --fc: var(--okc); --fk: var(--ok); }
-  .chg-fil .f-editor { --fc: #CDEFE6; --fk: #00695C; }
-  .chg-fil .f-claude { --fc: var(--infoc); --fk: var(--info); }
-  .chg-fil .f-build { --fc: var(--warnc); --fk: var(--warn); }
-  .chg-fil .f-external { --fc: #E7E0E0; --fk: #5F5555; }
-  .chg-acts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; margin-top: 8px; }
-  .chg-acts .chip { justify-content: center; width: 100%; background: var(--card); border: 1px solid var(--line); font-weight: 600; }
-  .chg-acts .chip:hover { background: var(--tone2); } .chg-acts .chip.on { background: var(--ink); color: #fff; border-color: var(--ink); }
+  .chg-fil button:hover { color: var(--p); }
+  .chg-fil button.on { background: var(--ink); color: #fff; }
+  .chg-fil button.on:hover { color: var(--pc); }
+  /* 동작 단추 - 진한 회색 바탕 기본 · 올리면 글자색 강조 · 같은 폭 */
+  .chg-acts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; margin-top: 12px; }
+  .chg-acts .chip { justify-content: center; width: 100%; background: var(--tone2); border: 0; font-weight: 600; }
+  .chg-acts .chip:hover { background: var(--tone2); color: var(--p); }
+  .chg-acts .chip.on { background: var(--ink); color: #fff; } .chg-acts .chip.on:hover { color: var(--pc); }
   .mk { position: absolute; border: 2px solid var(--mark); border-radius: 4px; }
   .mk.open { border-color: #C98A00; border-style: dashed; }
   .mk.working { border-color: var(--info); border-style: dashed; }
