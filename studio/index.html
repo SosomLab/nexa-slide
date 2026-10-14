@@ -162,7 +162,10 @@
   .org.inf { outline: 1px dashed currentColor; outline-offset: -1px; }
   .chg-tbl { width: 100%; border-collapse: collapse; font-size: 12px; table-layout: fixed; }
   .chg-tbl td { overflow: hidden; text-overflow: ellipsis; }
-  .chg-tbl col.n { width: 28px; } .chg-tbl col.o { width: 76px; } .chg-tbl col.a { width: 62px; } .chg-tbl tr { cursor: pointer; } .chg-tbl tr:hover { background: var(--tone); }
+  /* 제목 칸을 최대로 - 번호·출처·시각은 내용에 맞는 최소 폭 */
+  .chg-tbl col.n { width: 24px; } .chg-tbl col.o { width: 50px; } .chg-tbl col.a { width: 40px; }
+  .chg-tbl td.o, .chg-tbl td.a { padding-left: 2px; padding-right: 2px; text-align: right; } .chg-tbl td.n { padding-left: 2px; }
+  .chg-tbl .org { padding: 1px 5px; } .chg-tbl tr { cursor: pointer; } .chg-tbl tr:hover { background: var(--tone); }
   .chg-tbl td { padding: 4px 6px; border-bottom: 1px solid var(--tone2); vertical-align: top; white-space: nowrap; }
   .chg-tbl td.n { color: var(--ink2); width: 24px; } .chg-tbl td.t { overflow: hidden; text-overflow: ellipsis; }
   /* 변경 탭 머리 - 설명(ⓘ 토글) · 출처 필터 칩 · 동작 단추(균등 폭) */
