@@ -188,7 +188,7 @@
   // 표시 여부 - 직접 켠 묶음(chgShown)은 내 편집·확인한 것이라도 표시, 직접 끈 묶음(chgHidden)은 표시 안 함,
   // 그 밖에는 "표시 지우기" 이후의 내 편집이 아닌 묶음만
   const isMarked = (g, seen = +LS.get(seenKey(), 0)) => !S.chgOff && isOn(g, seen);
-  const isOn = (g, seen = +LS.get(seenKey(), 0)) => S.chgShown.has(g.seq) || (!S.chgHidden.has(g.seq) && !isMine(g) && g.last > seen);
+  const isOn = (g, seen = +LS.get(seenKey(), 0)) => S.chgShown.has(g.seq) || (!S.chgHidden.has(g.seq) && g.last > seen);  // 내 편집도 "확인함" 전까지 표시
   function rebuildMarks() {
     S.chgMark = {}; if (!S.id) return;
     const seen = +LS.get(seenKey(), 0), mark = (S.chgMark[S.id] = {});
@@ -236,7 +236,7 @@
     const recent = S.chgRecent.filter((r) => r.exists).slice(0, 8);
     P.innerHTML = `<div class="sec"><div class="chg-top"><h3>변경 - ${esc(S.id || "")}</h3>
         <button class="ib chg-ibtn${S.chgInfo ? " on" : ""}" id="chgInfoBtn" data-chg-info="1" title="설명 보기/숨기기" aria-expanded="${S.chgInfo ? "true" : "false"}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9.5"/><path d="M12 11v6"/><circle cx="12" cy="7.5" r=".6" fill="currentColor"/></svg></button></div>
-      ${S.chgInfo ? `<div class="hint chg-info" id="chgInfo">편집기·Claude·빌드·외부에서 덱이 바뀔 때마다 서버가 원장(덱당 최근 ${S.chgKeep || 1000}건)에 남깁니다. 항목을 누르면 그 장·요소로 갑니다. 내 편집이 아닌 변경은 썸네일 배지와 캔버스 파란 점선으로 표시하고, "확인함"은 지금까지를 미표시로, "최근 3개 표시"는 최근 묶음 3개를 표시, "표시 끄기"는 기록을 보지 않고 작업할 때 모든 표시를 감춥니다. 묶음마다 "표시/숨기기". 장기 보관을 대신하지 않습니다 - 되돌리기는 백업(최근 50개)이 남아 있을 때만.</div>` : ""}
+      ${S.chgInfo ? `<div class="hint chg-info" id="chgInfo">편집기·Claude·빌드·외부에서 덱이 바뀔 때마다 서버가 원장(덱당 최근 ${S.chgKeep || 1000}건)에 남깁니다. 항목을 누르면 그 장·요소로 갑니다. 확인하지 않은 변경(내 편집 포함)은 썸네일 배지와 캔버스 파란 점선으로 표시하고, "확인함"은 지금까지를 미표시로, "최근 3개 표시"는 최근 묶음 3개를 표시, "표시 끄기"는 기록을 보지 않고 작업할 때 모든 표시를 감춥니다. 묶음마다 "표시/숨기기". 장기 보관을 대신하지 않습니다 - 되돌리기는 백업(최근 50개)이 남아 있을 때만.</div>` : ""}
       <div class="chg-fil" id="chgFilter">${F.map(([k, l, t]) => `<button data-chgf="${k}" class="f-${k}${S.chgFilter === k ? " on" : ""}" title="${esc(t)}">${l}${cnt(k) ? ` <b>${cnt(k)}</b>` : ""}</button>`).join("")}</div>
       <div class="chg-acts">
       <button class="chip sm" data-chg-seen="1" title="최근 변경까지 확인한 것으로 - 모든 묶음을 미표시로 바꾼다(묶음마다 '표시'로 다시 볼 수 있다)">확인함</button>
