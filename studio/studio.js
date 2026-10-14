@@ -1210,10 +1210,10 @@ ${names}
   // ---------------------------------------------------------------- 슬라이드 추가 창 — 목적별 유형(studio/slide_types.json) 또는 레이아웃
   const AD = { tab: "type", group: "", data: null, layouts: null, mode: "add" };
   async function openAddDlg(mode) {
-    AD.mode = mode === "replace" ? "replace" : "add";
+    AD.mode = mode === "replace" ? "replace" : mode === "end" ? "end" : "add";  // end = 맨 아래(왼쪽 레일 "+ 새 슬라이드"), add = 지금 슬라이드 다음(오른쪽 단추 메뉴)
     $("#adTitle").textContent = AD.mode === "replace" ? `유형 바꾸기 — 슬라이드 ${S.cur + 1}` : "슬라이드 추가";
     $("#adHint").textContent = AD.mode === "replace" ? "누르면 지금 슬라이드를 그 유형으로 바꿉니다 — 제목·발표자 노트·슬라이드 id(요청 메모)는 그대로 옮깁니다(Ctrl+Z 로 되돌리기)."
-      : "누르면 지금 슬라이드 다음에 들어갑니다(Ctrl+Z 로 되돌리기). 유형 = 이 장이 하는 일(목적·구성) — 예시 내용이 채워져 있으니 고쳐 쓰세요.";
+      : (AD.mode === "end" ? "누르면 맨 아래(마지막 슬라이드 다음)에 들어갑니다(Ctrl+Z 로 되돌리기). 특정 슬라이드 다음에 넣으려면 그 썸네일 오른쪽 단추 → 아래에 새 슬라이드." : "누르면 지금 슬라이드 다음에 들어갑니다(Ctrl+Z 로 되돌리기).") + " 유형 = 이 장이 하는 일(목적·구성) — 예시 내용이 채워져 있으니 고쳐 쓰세요.";
     $("#addDlg").classList.add("show"); $("#adQ").value = "";
     if (!AD.data) {
       $("#adBody").innerHTML = `<div class="hint">유형을 불러오는 중…</div>`;
@@ -1255,7 +1255,8 @@ ${names}
       toast("유형을 바꿨습니다 — 제목·노트는 옮겼고 본문은 예시 내용입니다 (Ctrl+Z 로 되돌리기)", 4000);
       return;
     }
-    snapshot(); S.deck.slides.splice(S.cur + 1, 0, s); S.cur += 1; S.sel = null; afterChange(true); closeAddDlg();
+    const at = AD.mode === "end" ? S.deck.slides.length : S.cur + 1;
+    snapshot(); S.deck.slides.splice(at, 0, s); S.cur = at; S.sel = null; afterChange(true); closeAddDlg();
     toast("슬라이드를 추가했습니다 — 예시 내용을 고쳐 쓰세요 (Ctrl+Z 로 되돌리기)");
   }
   async function onAddDlg(e) {
@@ -1515,7 +1516,7 @@ ${names}
     // 왼쪽 레일
     const left = $("#left");
     left.addEventListener("click", (e) => {
-      if (e.target.id === "addSlide") return openAddDlg();
+      if (e.target.id === "addSlide") return openAddDlg("end");
       const t = e.target.closest(".thumb"); if (!t) return;
       const i = +t.dataset.i, act = e.target.dataset.act;
       if (act === "dup") dupSlide(i); else if (act === "del") delSlide(i); else goSlide(i);
