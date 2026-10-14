@@ -716,7 +716,7 @@
     const lk = !!el.locked; let h = "";
     if (SIZED.has(el.type)) {
       const sz = el.size || defSize(el);
-      if (TEXTY.has(el.type)) h += `<select data-f="font" title="글꼴"><option value="body"${el.font !== "mono" ? " selected" : ""}>본문 글꼴</option><option value="mono"${el.font === "mono" ? " selected" : ""}>고정폭(코드)</option></select>`;
+      if (TEXTY.has(el.type)) h += `<select data-f="font" title="글꼴 역할 - 세트의 본문·제목·고정폭 글꼴 중 어느 것을 쓰는지"><option value="body"${!el.font || el.font === "body" ? " selected" : ""}>본문 글꼴</option><option value="heading"${el.font === "heading" ? " selected" : ""}>제목 글꼴</option><option value="mono"${el.font === "mono" ? " selected" : ""}>고정폭(코드)</option></select>`;
       h += `<input class="num" type="number" min="6" max="400" step="1" data-f="size" value="${sz}" title="글자 크기(px) - PPT pt = px × 0.75">
         <button class="ib" data-f="sizePreset" title="크기 프리셋">▾</button><span class="pt" title="PowerPoint 글자 크기">${+(sz * 0.75).toFixed(2)}pt</span>`;
       if (TEXTY.has(el.type) || el.type === "bullets") h += `<button class="ib" data-f="color" title="글자색 - ${esc(el.color || "기본")}"><b style="text-decoration:underline;text-decoration-color:${swatch(el.color || "on-surface")};text-decoration-thickness:3px">A</b></button>`;
@@ -1002,7 +1002,8 @@ ${names}
     const fi = fontOf(el), px = +el.size || (el.type === "code" ? 14 : 20), pt = Math.round(px * 0.75 * 100) / 100;
     const bold = el.bold === undefined ? el.type === "pill" : !!el.bold;
     const miss = [!fi.haveLatin && fi.latin, !fi.haveEa && fi.ea].filter(Boolean);
-    return `<div class="finfo" title="이 요소에 실제로 적용되는 글꼴 - 역할·세트·크기">적용 글꼴 · ${ROLE[fi.role] || fi.role} · <b>${esc(fi.latin || "?")}</b>${fi.ea && fi.ea !== fi.latin ? ` + ${esc(fi.ea)}(한글)` : ""} · ${px}px = ${pt}pt${bold ? " · 굵게" : ""}<br>${esc(fi.from)}${fi.css ? ` · CSS ${esc(fi.css)}` : ""}${miss.length ? `<br><span style="color:var(--warn)">이 브라우저에 없음: ${esc(miss.join(", "))} - 대체 글꼴로 보이는 중(PPTX 는 받는 PC 의 글꼴)</span>` : ""}</div>`;
+    const heavy = /\b(bold|black|heavy|extrabold|semibold)\b/i.test(fi.latin + " " + fi.ea) ? " · 세트의 이 역할 글꼴 자체가 굵은 서체(굵게 토글과 별개)" : "";
+    return `<div class="finfo" title="이 요소에 실제로 적용되는 글꼴 - 역할·세트·크기">적용 글꼴 · ${ROLE[fi.role] || fi.role} · <b>${esc(fi.latin || "?")}</b>${fi.ea && fi.ea !== fi.latin ? ` + ${esc(fi.ea)}(한글)` : ""} · ${px}px = ${pt}pt${bold ? " · 굵게" : ""}${heavy}<br>${esc(fi.from)}${fi.css ? ` · CSS ${esc(fi.css)}` : ""}${miss.length ? `<br><span style="color:var(--warn)">이 브라우저에 없음: ${esc(miss.join(", "))} - 대체 글꼴로 보이는 중(PPTX 는 받는 PC 의 글꼴)</span>` : ""}</div>`;
   }
   function renderProps() {
     const P = $("#tab-props"), s = slide();
@@ -1029,7 +1030,7 @@ ${names}
         ${seg("정렬", "align", el, [["left", "⇤ 왼쪽"], ["center", "↔ 가운데"], ["right", "⇥ 오른쪽"]], el.type === "pill" || el.type === "ellipse" ? "center" : "left")}
         ${seg("세로", "valign", el, [["top", "⤒ 위"], ["middle", "↕ 가운데"], ["bottom", "⤓ 아래"]], el.type === "text" ? "top" : "middle")}
         ${num("줄 높이", "lineHeight", el, 0.05)}${colorRow("글자색", "color", el)}
-        ${seg("글꼴", "font", el, [["body", "본문"], ["mono", "고정폭"]], "body")}${fontInfoHtml(el)}</div>`;
+        ${seg("글꼴", "font", el, [["body", "본문"], ["heading", "제목"], ["mono", "고정폭"]], "body")}${fontInfoHtml(el)}</div>`;
     }
     if (["rect", "ellipse", "pill", "text", "plan"].includes(el.type)) {
       h += `<div class="sec"><h3>면·테두리</h3>${colorRow("채우기", "fill", el, el.type === "text")}
@@ -1051,10 +1052,11 @@ ${names}
         <div class="row"><label>발췌</label><input type="text" data-list="show" value="${esc(showToText(el.show))}" placeholder="예: 2, 13-24 (비우면 전체)"></div>
         <div class="row"><button class="chip sm" data-fit="code">높이를 줄 수에 맞추기</button><span class="hint">표시 ${Render.codeLines(el).length}줄 (15~18줄 이내 권장)</span></div></div>`; }
     if (el.type === "plan") h += `<div class="sec"><h3>실행계획 원문 - [[값]] = 경고 강조, [[ok:값]] = 개선 강조 (폭 불변)</h3><textarea data-k="text" style="min-height:180px">${esc(el.text || "")}</textarea>
-        ${num("크기(px)", "size", el, 0.5)}${num("줄 높이", "lineHeight", el, 0.05)}</div>`;
+        ${num("크기(px)", "size", el, 0.5)}${num("줄 높이", "lineHeight", el, 0.05)}${fontInfoHtml(el)}</div>`;
     if (el.type === "bullets") h += `<div class="sec"><h3>글머리 - 줄마다 항목, 앞에 공백 두 칸 = 하위 항목</h3><textarea data-bul="1" style="min-height:140px;font-family:var(--font);font-size:13px">${esc(bulletsToText(el.items))}</textarea>
         ${num("크기(px)", "size", el)}${num("하위 크기", "subSize", el)}${num("줄 높이", "lineHeight", el, 0.05)}${num("항목 간격", "gap", el)}
-        ${colorRow("점 색", "dot", el)}${colorRow("글자색", "color", el)}${colorRow("하위 글자색", "subColor", el)}</div>`;
+        ${colorRow("점 색", "dot", el)}${colorRow("글자색", "color", el)}${colorRow("하위 글자색", "subColor", el)}
+        ${seg("글꼴", "font", el, [["body", "본문"], ["heading", "제목"], ["mono", "고정폭"]], "body")}${fontInfoHtml(el)}</div>`;
     if (el.type === "table") h += `<div class="sec"><h3>표 - 줄 = 행, 칸은 " | " 로 구분 (첫 행 = 머리)</h3>${fontInfoHtml(el)}<textarea data-tbl="1" style="min-height:140px">${esc(tableToText(el.rows))}</textarea>
         <div class="row"><label>열 비율</label><input type="text" data-list="colW" value="${esc((el.colW || []).join(", "))}"></div>
         <div class="row"><label>행 비율</label><input type="text" data-list="rowH" value="${esc((el.rowH || []).join(", "))}" placeholder="비우면 고르게 · 예: 44, 46, 70"></div>
