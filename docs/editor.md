@@ -49,7 +49,7 @@ Genspark AI Slides 작업 화면의 조작 방식(모드 3분할 · 그 자리 �
 ## 코드 요소
 
 - **언어**: 속성 탭 "언어" 칸에 입력하면 목록이 좁혀진다(이름·별칭 - sh, cs, js, py, rs …). 서식 줄의 언어 단추(예: "SQL ▾")는 찾기 칸이 있는 메뉴, Enter = 첫 항목. 35종 - Bash · PowerShell · C · C++ · C# · Java · Kotlin · Scala · JavaScript · TypeScript · JSON · YAML · INI/TOML · HTML/XML · CSS · SCSS/Less · Markdown · Diff · Python · Ruby · Perl · PHP · Go · Rust · Swift · Dart · Objective-C · VB.NET · Lua · R · GraphQL · Makefile · Dockerfile · SQL · 일반 글자.
-- **언어 표시**: 캔버스의 코드 블록 오른쪽 위에 언어 이름표(예: SQL, 줄 번호를 숨겼으면 "· 번호 없음"). 편집 화면에만 보이고 슬라이드·발표·PPTX 에는 들어가지 않는다.
+- **언어 표시**: 캔버스의 코드 블록 오른쪽 위에 언어 이름표(예: SQL, 줄 번호를 숨겼으면 "· 번호 없음"). 편집 화면에만 보이고 슬라이드·발표·PPTX 에는 들어가지 않는다. ⋯ 더보기 → "코드 언어 이름표 표시"로 끄고 켠다(기본 켜짐, 브라우저 기억).
 - **줄 번호**: 보기/숨김(`lineNo: false`) - 숨기면 번호 열 없이 코드가 왼쪽부터. PPTX 도 같다.
 - **복사**: 속성 탭 "📋 복사" 또는 서식 줄 📋 - 코드 글자만(줄 번호·색 없이) 클립보드로.
 - 여러 코드 요소를 함께 골랐으면 언어·줄 번호는 모두에 적용.
