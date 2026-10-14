@@ -1120,12 +1120,19 @@ ${names}
     const el = selEl(), s = slide();
     if (b.dataset.sel) {  // 요소 목록: 클릭 = 선택(기준점) · Ctrl/⌘+클릭 = 더하거나 빼기 · Shift+클릭 = 기준점부터 이 요소까지 범위
       const id = b.dataset.sel, order = s.elements.map((x) => x.id);
+      // 고른 요소에 따라 위쪽 절이 바뀌어 목록이 위아래로 움직인다 → 다시 그린 뒤 목록이 화면의 같은 자리에 있도록 패널 스크롤을 맞춘다
+      const P = $("#tab-props"), before = $("#tab-props .ellist"), top0 = before ? before.getBoundingClientRect().top : null;
       if (e.shiftKey && (S.selAnchor || S.sel) && order.includes(S.selAnchor || S.sel)) {
         const a = order.indexOf(S.selAnchor || S.sel), c = order.indexOf(id), range = order.slice(Math.min(a, c), Math.max(a, c) + 1);
         setSelection([S.selAnchor || S.sel, ...range.filter((x) => x !== (S.selAnchor || S.sel))]);
       } else if (e.ctrlKey || e.metaKey) { toggleSel(id); if (!S.selAnchor) S.selAnchor = id; }
       else { select(id); S.selAnchor = id; }
-      const row = $(`#tab-props [data-sel="${CSS.escape(id)}"]`); if (row && row.scrollIntoView) row.scrollIntoView({ block: "nearest" });
+      const after = $("#tab-props .ellist");
+      if (after && top0 != null) {
+        const want = P.scrollTop + (after.getBoundingClientRect().top - top0);
+        P.scrollTop = want;
+        if (P.scrollTop < want - 1) { P.style.paddingBottom = `${Math.ceil(want - P.scrollTop) + 40}px`; P.scrollTop = want; }  // 아래 내용이 모자라면 여백을 늘려 자리를 맞춘다
+      }
       return;
     }
     if (b.dataset.lineno && el) { const on = b.dataset.lineno === "1"; mutate((x) => { if (on) delete x.lineNo; else x.lineNo = false; }, (x) => x.type === "code"); return; }
