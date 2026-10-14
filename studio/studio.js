@@ -171,7 +171,7 @@
   const dayText = (ts) => { const d = new Date(ts || 0); if (isNaN(d)) return ""; const n = new Date(); return d.toDateString() === n.toDateString() ? "오늘" : `${d.getMonth() + 1}/${d.getDate()}`; };
   function orgTitle(g) {
     const a = g.actor || {}, out = [];
-    if (g.origin === "editor") out.push(isMine(g) ? "이 창에서 저장" : `다른 창(${a.tab || "?"})에서 저장`);
+    if (g.origin === "editor") out.push(isMine(g) ? "현재 편집기에서 수정" : `다른 편집기(${a.tab || "?"})에서 수정 - 협업`);
     if (g.origin === "claude") out.push(a.label ? `세션 ${a.label}` : "Claude 세션", a.request ? `요청 ${a.request}` : "", g.confidence === "inferred" ? "정황으로 추정(세션 연결·처리 중 요청)" : "서버 API 로 저장(정확)");
     if (g.origin === "build") out.push(a.note || "build_deck");
     if (g.origin === "external") out.push(g.action === "startup" ? "서버가 꺼진 사이에 바뀜(출처 모름)" : "출처를 알 수 없는 외부 변경(파일 직접 수정)");
@@ -223,8 +223,8 @@
     $("#chgCnt").style.display = n ? "" : "none"; $("#chgCnt").textContent = n;
     const P = $("#tab-chg"); if (!P) return;
     const F = [["all", "전체", "모든 변경 - 편집기·Claude·빌드·외부"],
-      ["mine", "내 편집", "이 편집기 창에서 저장한 변경"],
-      ["editor", "다른 창", "다른 편집기 창(탭)에서 저장한 변경"],
+      ["mine", "편집", "현재 편집기에서 수정"],
+      ["editor", "협업", "다른 편집기에서 수정"],
       ["claude", "Claude", "Claude 세션이 바꾼 변경 - save_deck 저장은 정확, 파일 직접 수정은 추정(점선 배지)"],
       ["build", "빌드", "build_deck 으로 content 에서 덱을 다시 만든 변경"],
       ["external", "외부", "출처를 알 수 없는 변경 - 파일 수동 복사·수정, 서버가 꺼진 사이의 변경"]];
