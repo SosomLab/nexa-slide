@@ -130,6 +130,12 @@ def session_status():
     for k in ("kind", "agent", "model", "user", "state", "turn", "allowWeb"):  # 웹 세션이 더 적는 값(없으면 빠진다) - state=running 이면 턴 실행 중
         if hb.get(k) is not None:
             st[k] = hb[k]
+    if not st["connected"]:  # 마지막 웹 세션이 왜 끝났는지(서버 재시작·유휴·사용자) - 편집기가 "세션 종료됨" 안내에 쓴다
+        try:
+            last = json.loads((STATE / "wsession.json").read_text(encoding="utf-8"))
+            st["last"] = {k: last.get(k) for k in ("agent", "model", "startedBy", "stoppedAt", "reason")}
+        except (OSError, ValueError):
+            pass
     return st
 
 
