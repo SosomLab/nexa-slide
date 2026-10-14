@@ -1,5 +1,11 @@
 # 변경 이력
 
+## 0.20.1 - 2026-10-14 · PPTX 내용 추출 · 템플릿 고르기 명령 (engine-request #3)
+
+- **`import_pptx <파일.pptx> [--out <폴더>]`**(`studio/import_pptx.py`): AI 세션이 Read 로 열 수 없는 PPTX 첨부에서 슬라이드별 제목·본문(수준·굵게 `**…**`·가장 큰 글자 pt)·표(행×열)·차트(종류·제목·범주·계열 값)·SmartArt 글·발표자 노트·숨긴 슬라이드를 `out/import/<이름>/slides.md`·`slides.json`(도형마다 kind·role·box 1280×720 기준) 으로, 그림을 `images/`(같은 그림은 한 번, emf·wmf·bmp 는 Pillow 로 PNG) 로 꺼낸다. 그룹 안 도형 좌표는 슬라이드 기준으로 환산, 제목 자리가 없는 덱은 위쪽 1/3 의 가장 큰 글을 제목으로 추정(`title?`). 입력 파일과 `--out` 은 작업 공간 안만(웹 세션이 저장소 루트 접근을 받았으면 그 루트 안까지) - 이 명령으로 작업 공간 밖 파일을 읽지 못하게. `--selftest` 로 견본 PPTX(제목·노트·굵게·수준·표·차트·그림·그룹) 추출 점검.
+- **`set_template [<이름>] [--json]`**(`studio/set_template.py`): 고를 수 있는 템플릿 목록(이름·라벨·설명, 숨긴 것 제외)과 현재 선택을 보이고, 이름을 주면 `nexa-slide.json` 의 `template` 을 바꾼다(`set_fonts` 와 같은 방식 - 공유 파일에만, PC 별 덮어쓰기 알림). 숨긴 템플릿은 `replacedBy` 를 안내. 반영에는 서버 재시작·`build_deck --force` 가 필요하다고 출력.
+- `help`·실행기 설명·웹 세션 턴 프롬프트(PPTX 첨부는 `import_pptx` 로, 테마 변경은 `set_template` 로 하되 웹 세션 안에서는 재시작하지 않고 안내)·`docs/claude-session.md`·`docs/templates.md`·`docs/editor.md`.
+
 ## 0.20.0 - 2026-10-14 · 웹 세션 git·push·저장소 루트 권한
 
 - 관리자 "AI 세션 전역 기본"에 **git 기록 허용 · push 허용 · 저장소 루트 접근**(사용자 설정 `sessionAllowGit`·`sessionAllowPush`·`sessionRepoRoot`, 기본 끔, 경고문). 세션 시작 창(허브·Studio)에 전역이 켜진 항목만 "이 세션에 … 허용" 체크(관리자만, 기본 해제, push 를 고르면 git 기록도). 작업 공간 설정에 `false` 로 끌 수 있다.

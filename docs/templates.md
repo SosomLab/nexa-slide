@@ -60,7 +60,8 @@ studio/templates/<이름>/
 
 ## 템플릿 바꾸기
 
-1. `nexa-slide.json` 의 `template` 을 바꾼다(미리보기만 하려면 환경변수 `NEXA_SLIDE_TEMPLATE=<이름>` — 설정 파일은 그대로).
+1. `nexa-slide.json` 의 `template` 을 바꾼다 — `python3 nexa.py set_template`(고를 수 있는 목록·설명·현재) → `set_template <이름>`(AI 세션도 같은 명령으로 바꾼다).
+   미리보기만 하려면 환경변수 `NEXA_SLIDE_TEMPLATE=<이름>` — 설정 파일은 그대로.
 2. 서버를 다시 시작한다(`nexa.py restart`) — 토큰·검사 기준이 바뀐다.
 3. 글자 크기(`sizes`)는 **빌드할 때** 적용된다 → 장마다 `build_deck.py <id> --force` 로 다시 만들고 "검사" 탭으로 확인한다.
    편집기에서 고친 슬라이드가 있으면 build 가 멈춘다(내용 원본에 옮긴 뒤 다시, 또는 `--discard-edits`).

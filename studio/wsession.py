@@ -152,7 +152,8 @@ class WorkspaceProfile:
     def env(self, sess):
         # git 이 대화형으로 묻지 않게(자격 증명 창·편집기) - 답할 사람이 없으니 바로 실패하게 한다
         return {"NEXA_SLIDE_WORKSPACE": str(WORKSPACE), "NEXA_SLIDE_SESSION": f"web:{sess.agent}", "NEXA_SLIDE_USER": sess.started_by or "local",
-                "GIT_TERMINAL_PROMPT": "0", "GCM_INTERACTIVE": "never", "GIT_MERGE_AUTOEDIT": "no", "GIT_EDITOR": "true"}
+                "GIT_TERMINAL_PROMPT": "0", "GCM_INTERACTIVE": "never", "GIT_MERGE_AUTOEDIT": "no", "GIT_EDITOR": "true",
+                **({"NEXA_SLIDE_REPO_ROOT": str(sess.repo_root)} if sess.repo_root else {})}  # 저장소 루트 접근 세션 - 작업 공간 밖을 읽는 명령(import_pptx)의 허용 범위
 
     def extra_info(self):
         st = rc.session_status()
