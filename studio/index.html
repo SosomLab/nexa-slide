@@ -137,6 +137,13 @@
   .selbox.multi { border-style: solid; opacity: .85; }
   .selbox.group { border-style: dashed; border-color: var(--ink2); }
   .marquee { position: absolute; border: 1px dashed var(--p); background: rgba(169, 31, 36, .06); pointer-events: none; }
+  /* 켜기/끄기 스위치 - 켜짐 초록 트랙 · 흰 손잡이 */
+  .switch, .row label.switch { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; flex: none; width: auto; min-width: 0; margin-left: 8px; font-size: 12px; color: var(--ink2); white-space: nowrap; }
+  .switch input { position: absolute; opacity: 0; width: 0; height: 0; }
+  .switch .track { position: relative; width: 34px; height: 20px; border-radius: 999px; background: #C9C3C3; transition: background .15s; }
+  .switch .track::after { content: ""; position: absolute; left: 3px; top: 3px; width: 14px; height: 14px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.3); transition: left .15s; }
+  .switch input:checked + .track { background: #2EA44F; } .switch input:checked + .track::after { left: 17px; }
+  .switch input:focus-visible + .track { outline: 2px solid var(--p); outline-offset: 2px; }
   .lang-pick { width: 260px; } .lang-pick input { width: 100%; margin-bottom: 4px; }
   .lang-pick .lang-list { max-height: 300px; overflow-y: auto; }
   .lang-pick .lang-list button { display: flex; justify-content: space-between; } .lang-pick .lang-list button.on { background: var(--pc); color: var(--onpc); font-weight: 700; }
