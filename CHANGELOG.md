@@ -1,5 +1,9 @@
 # 변경 이력
 
+## 0.16.1 - 2026-10-14 · 레일 "+ 새 슬라이드" = 맨 아래에 추가
+
+- 왼쪽 레일 맨 아래 **＋ 새 슬라이드** 는 지금 슬라이드 다음이 아니라 **맨 마지막**에 넣는다. 특정 슬라이드 다음에 넣을 때는 그 썸네일 오른쪽 클릭 메뉴 "아래에 새 슬라이드…"(기존 동작). 추가 창 안내문도 위치에 맞게.
+
 ## 0.16.0 - 2026-10-14 · 변경 원장 - 편집기·Claude·빌드·외부 변경을 덱당 1,000건 보존
 
 - **변경 원장** `decks/.history/<덱>/changes.jsonl`(`studio/ledger.py`): 덱 파일의 모든 쓰기를 한 줄씩 - 출처(editor · claude · build · external)와 확신도(exact · inferred · unknown), 행위(save · restore · build · detect · startup), 주체(세션 라벨 · 편집기 탭 id · 요청 id · 메모), 전후 (버전 · 크기 · sha256 · 직전 백업 파일), 장·요소 단위 diff. 덱당 최근 1,000줄(`nexa-slide.json` `ledger.keep`, `keep+100` 넘으면 압축, `seq` 유지). 교차 프로세스 잠금은 `out/.studio/ledger-<덱>.lock`(msvcrt / fcntl). 찢어진 마지막 줄은 무시. 문서 [docs/change-ledger.md](docs/change-ledger.md).
