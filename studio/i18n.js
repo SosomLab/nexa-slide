@@ -292,7 +292,9 @@
     [/^처리 대기 (\d+)건 · 세션 꺼짐(.*)$/, "$1 waiting · session off$2"], [/^(.+) 님이 (.+) 에 시작을 요청(.*)$/, "$1 asked to start at $2$3"], [/^엔진 요청 #(\d+) 을 넣었습니다 — (.*)$/, "Engine request #$1 added — $2"],
     [/^엔진 개발 세션이 꺼져 있어 관리자가 시작해야 처리됩니다(.*)$/, "The engine session is off; an admin must start it before this is handled$1"],
     [/^세션이 꺼져 있어 대기 요청 (\d+)건이 처리되지 않습니다 - $/, "The session is off, so $1 waiting requests are not being handled - "], [/^(서버 재시작으로 세션 종료됨|유휴로 세션 종료됨|사용자가 세션 중지|오류로 세션 종료됨)\((.+)\)$/, (m, a, b) => EN[a] + "(" + b + ")"], [/^기록 - (.+)$/, "History - $1"], [/^변경 - (.+)$/, "Changes - $1"], [/^이 서버의 작업 공간 (.*)$/, "This server's workspace $1"], [/^작업 공간 ([A-Za-z]:\.+|\/.+)$/, "Workspace $1"], [/^(\d+)개$/, "$1"], [/^#(\d+) 를 거절할까요\?$/, "Reject #$1?"],
-    [/^#(\d+) 의 커밋을 main 에 병합하고 서버를 재시작했나요\? 적용됨으로 표시합니다\.$/, "Did you merge #$1's commit into main and restart the server? It will be marked applied."],
+    [/^#(\d+) 의 커밋을 main 에 병합하고 서버를 재시작했나요\? 적용됨으로 표시합니다\.(
+병합 커밋\(main\) 해시:)?$/, (m, a, b) => `Did you merge #${a}'s commit into main and restart the server? It will be marked applied.${b ? "
+Merge commit (main) hash:" : ""}`],
   ];
   const KO_NAME = { ko: "한국어", en: "English" };
 
