@@ -269,6 +269,11 @@ def cur_fonts():
     return _font_over or tokens()["fonts"]
 
 
+def font_role(k):
+    """글꼴 역할 이름 정규화(render.js fontRole 와 같은 규칙): mono·code → mono, heading → heading, 그 밖(없음·body·모르는 값) → body"""
+    return "mono" if k in ("mono", "code") else "heading" if k == "heading" else "body"
+
+
 BRAND = {"name": "", "logo": "", "wordmark": "", "favicon": "", **CONFIG.get("brand", {})}
 
 _tokens = None
@@ -846,7 +851,9 @@ def table_grid(el):
         return rowH[0] * k if even else sum(rowH[:k])
     header = el.get("header", True) if not is_plan else True
     head_fill, head_color = el.get("headFill", "surface-container-high"), el.get("headColor", "on-surface")
+    # 본문 셀 글꼴 = colFont[열](비어 있으면 el.font, 둘 다 없으면 body) - 값은 body·heading·mono("code" 도 mono). 머리 행은 항상 본문
     fonts = el.get("colFont") or []
+    def_font = font_role(el.get("font"))
     aligns = el.get("align") or []
     cells = []
     if is_plan:
@@ -877,7 +884,7 @@ def table_grid(el):
             cells.append([{"text": str(rc[j]), "fill": head_fill if hd else None,
                            "color": head_color if hd else el.get("color", "on-surface"), "bold": hd,
                            "align": (aligns[j] if j < len(aligns) and aligns[j] else "left"),
-                           "font": "body" if hd else (fonts[j] if j < len(fonts) and fonts[j] else "body")}
+                           "font": "body" if hd else font_role(fonts[j] if j < len(fonts) and fonts[j] else def_font)}
                           for j in range(nc)])
     callouts = []
     if is_plan and cw:

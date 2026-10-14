@@ -27,7 +27,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from common import CONFIG, DECKS, TEMPLATE, code_lines, load_deck, plain, safe_id, text_width, use_fonts  # noqa: E402
+from common import CONFIG, DECKS, TEMPLATE, code_lines, font_role, load_deck, plain, safe_id, text_width, use_fonts  # noqa: E402
 
 W, H = 1280, 720
 CHK = CONFIG.get("check", {})  # 작업 공간은 제외 대상(ignore·ignoreSlides)만 고른다 — 기준값은 템플릿
@@ -78,7 +78,7 @@ def text_extent(el):
     size = float(el.get("size") or 20)
     lh = float(el.get("lineHeight") or (1.4 if t == "text" else 1.2))
     bold = bool(el["bold"]) if "bold" in el else t == "pill"
-    mono = el.get("font") == "mono"
+    mono = font_role(el.get("font")) == "mono"  # "code" 도 고정폭(render.js fontRole 와 같은 규칙)
     wrap = el["wrap"] if "wrap" in el else t in ("text", "rect")
     align = el.get("align") or ("center" if t in ("pill", "ellipse") else "left")
     valign = el.get("valign") or ("top" if t == "text" else "middle")

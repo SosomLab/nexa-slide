@@ -78,8 +78,11 @@
   }
   // style="…" 속성 안에 들어가므로 큰따옴표를 작은따옴표로 바꾼다
   /** PPT 줄 배치 보정(px): PowerPoint 는 여분 줄 높이를 위 75%·아래 25%로 둔다 - tokens.pptTextShift */
+  /** 글꼴 역할 이름 정규화(common.font_role 와 같은 규칙): mono·code → mono, heading → heading, 그 밖(없음·body·모르는 값) → body */
+  const fontRole = (k) => (k === "mono" || k === "code") ? "mono" : k === "heading" ? "heading" : "body";
   const shift = (k, s, lh) => {
-    const role = k === "mono" ? "mono" : "body", fs = FO || (T && T.fonts), f = fs && (fs[k || "body"] || fs[role]);
+    k = fontRole(k);
+    const role = k === "mono" ? "mono" : "body", fs = FO || (T && T.fonts), f = fs && (fs[k] || fs[role]);
     // 측정값은 특정 글꼴(measuredFor)에서 잰 것 - 그 글꼴을 쓸 때만 적용한다. 다른 세트는 세트 자체의 pptTextShift(compare.py 로 잰 값)가 있으면 그것, 없으면 0(PowerPoint 가 글꼴 중심에 두는 것과 맞음)
     let c = null;
     if (fs && fs.pptTextShift && fs.pptTextShift[role]) c = fs.pptTextShift[role];
@@ -100,7 +103,7 @@
     return f;
   }
   function setDeckFonts(name) { DECK_FP = name || null; }
-  const font = (k) => { const fs = FO || (T && T.fonts); return (fs && fs[k || "body"] ? fs[k || "body"].css : "'Malgun Gothic', sans-serif").replace(/"/g, "'"); };
+  const font = (k) => { const fs = FO || (T && T.fonts), r = fontRole(k); return (fs && (fs[r] || fs.body) ? (fs[r] || fs.body).css : "'Malgun Gothic', sans-serif").replace(/"/g, "'"); };
 
   // ---------- 인라인 강조 ----------
   const MARK = /\*\*(.+?)\*\*|==(.+?)==|\[\[([#\w-]+)\|(.+?)\]\]/g;
@@ -313,7 +316,8 @@
     const even = rowH.every((v) => v === rowH[0]);
     const rowTop = (k) => (even ? rowH[0] * k : rowH.slice(0, k).reduce((a, b) => a + b, 0));
     const headFill = el.headFill || "surface-container-high", headColor = el.headColor || "on-surface";
-    const fonts = el.colFont || [], aligns = el.align || [];
+    // 본문 셀 글꼴 = colFont[열](비어 있으면 el.font, 둘 다 없으면 body) - 값은 body·heading·mono("code" 도 mono). 머리 행은 항상 본문
+    const fonts = el.colFont || [], aligns = el.align || [], defFont = fontRole(el.font);
     const cells = [];
     if (isPlan) {
       const op = el.opCol == null ? 1 : el.opCol;
@@ -342,7 +346,7 @@
         const hd = (el.header !== false) && i === 0;
         cells.push(rc.slice(0, nc).map((t, j) => ({
           text: String(t), fill: hd ? headFill : null, color: hd ? headColor : (el.color || "on-surface"), bold: hd,
-          align: aligns[j] || "left", font: hd ? "body" : (fonts[j] || "body"),
+          align: aligns[j] || "left", font: hd ? "body" : fontRole(fonts[j] || defFont),
         })));
       });
     }
@@ -608,7 +612,7 @@
 .rs-cell>.rs-ct{white-space:pre-wrap;word-break:keep-all;flex:1}`;
   }
 
-  const api = { setDeckFonts, presetFonts,  setTokens, setLangs, langOf, color, colorAlpha, fillSpec, fillCss, radius, runs, plain, hlSQL, hlPython, codeLines, planRuns, tableGrid, bulletRows, renderElement, renderSlide, css, esc, lineBox };
+  const api = { setDeckFonts, presetFonts, fontRole, setTokens, setLangs, langOf, color, colorAlpha, fillSpec, fillCss, radius, runs, plain, hlSQL, hlPython, codeLines, planRuns, tableGrid, bulletRows, renderElement, renderSlide, css, esc, lineBox };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   root.Render = api;
 })(typeof window !== "undefined" ? window : globalThis);

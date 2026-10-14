@@ -718,7 +718,7 @@
     const lk = !!el.locked; let h = "";
     if (SIZED.has(el.type)) {
       const sz = el.size || defSize(el);
-      if (TEXTY.has(el.type)) h += `<select data-f="font" title="글꼴 역할 - 세트의 본문·제목·고정폭 글꼴 중 어느 것을 쓰는지"><option value="body"${!el.font || el.font === "body" ? " selected" : ""}>본문 글꼴</option><option value="heading"${el.font === "heading" ? " selected" : ""}>제목 글꼴</option><option value="mono"${el.font === "mono" ? " selected" : ""}>고정폭(코드)</option></select>`;
+      if (TEXTY.has(el.type) || el.type === "table") h += `<select data-f="font" title="글꼴 역할 - 세트의 본문·제목·고정폭 글꼴 중 어느 것을 쓰는지${el.type === "table" ? " (표 본문 셀 - 열별 글꼴 colFont 가 없는 열)" : ""}"><option value="body"${!el.font || el.font === "body" ? " selected" : ""}>본문 글꼴</option><option value="heading"${el.font === "heading" ? " selected" : ""}>제목 글꼴</option><option value="mono"${el.font === "mono" ? " selected" : ""}>고정폭(코드)</option></select>`;
       h += `<input class="num" type="number" min="6" max="400" step="1" data-f="size" value="${sz}" title="글자 크기(px) - PPT pt = px × 0.75">
         <button class="ib" data-f="sizePreset" title="크기 프리셋">▾</button><span class="pt" title="PowerPoint 글자 크기">${+(sz * 0.75).toFixed(2)}pt</span>`;
       if (TEXTY.has(el.type) || el.type === "bullets") h += `<button class="ib" data-f="color" title="글자색 - ${esc(el.color || "기본")}"><b style="text-decoration:underline;text-decoration-color:${swatch(el.color || "on-surface")};text-decoration-thickness:3px">A</b></button>`;
@@ -855,7 +855,7 @@
     if (e.type === "change") {
       if (f === "size") mutate((x) => { x.size = Math.max(6, Math.min(400, +t.value || defSize(x))); }, (x) => SIZED.has(x.type));
       if (f === "width") mutate((x) => { x.width = +t.value || 2; }, isLine);
-      if (f === "font") mutate((x) => { if (t.value === "body") delete x.font; else x.font = t.value; }, (x) => TEXTY.has(x.type));
+      if (f === "font") mutate((x) => { if (t.value === "body") delete x.font; else x.font = t.value; }, (x) => TEXTY.has(x.type) || x.type === "table");
       return;
     }
     if (t.tagName === "INPUT" || t.tagName === "SELECT") return;
@@ -991,9 +991,9 @@ ${names}
   const showToText = (sh) => (sh || []).map(([a, b]) => (a === b ? `${a}` : `${a}-${b}`)).join(", ");
   function textToShow(t) { const out = []; for (const p of t.split(/[,\s]+/).filter(Boolean)) { const m = p.match(/^(\d+)(?:-(\d+))?$/); if (m) out.push([+m[1], +(m[2] || m[1])]); } return out; }
 
-  // 요소에 실제로 적용되는 글꼴 - 역할(el.font 또는 유형: code·plan·table = 고정폭) → 덱 글꼴 세트(fontPreset) 또는 작업 공간 세트의 역할별 글꼴(render.js 와 같은 규칙)
+  // 요소에 실제로 적용되는 글꼴 - 역할(el.font 또는 유형: code·plan·plan-table 본문 = 고정폭, 표는 el.font·colFont) → 덱 글꼴 세트(fontPreset) 또는 작업 공간 세트의 역할별 글꼴(render.js 와 같은 규칙)
   function fontOf(el) {
-    const role = el.font === "mono" || ["code", "plan", "table"].includes(el.type) ? "mono" : el.font === "heading" ? "heading" : "body";
+    const role = ["code", "plan", "plan-table"].includes(el.type) ? "mono" : Render.fontRole(el.font);
     const set = (S.deck && S.deck.fontPreset && Render.presetFonts(S.deck.fontPreset)) || (S.tokens && S.tokens.fonts) || {};
     const f = set[role] || set.body || {};
     const from = S.deck && S.deck.fontPreset ? `덱 세트 ${S.deck.fontPreset}` : S.fonts && S.fonts.current ? `${S.fonts.source === "workspace" ? "작업 공간" : "템플릿"} 세트 ${S.fonts.current}` : "템플릿 기본";
@@ -1005,7 +1005,10 @@ ${names}
     const bold = el.bold === undefined ? el.type === "pill" : !!el.bold;
     const miss = [!fi.haveLatin && fi.latin, !fi.haveEa && fi.ea].filter(Boolean);
     const heavy = /\b(bold|black|heavy|extrabold|semibold)\b/i.test(fi.latin + " " + fi.ea) ? " · 세트의 이 역할 글꼴 자체가 굵은 서체(굵게 토글과 별개)" : "";
-    return `<div class="finfo" title="이 요소에 실제로 적용되는 글꼴 - 역할·세트·크기">적용 글꼴 · ${ROLE[fi.role] || fi.role} · <b>${esc(fi.latin || "?")}</b>${fi.ea && fi.ea !== fi.latin ? ` + ${esc(fi.ea)}(한글)` : ""} · ${px}px = ${pt}pt${bold ? " · 굵게" : ""}${heavy}<br>${esc(fi.from)}${fi.css ? ` · CSS ${esc(fi.css)}` : ""}${miss.length ? `<br><span style="color:var(--warn)">이 브라우저에 없음: ${esc(miss.join(", "))} - 대체 글꼴로 보이는 중(PPTX 는 받는 PC 의 글꼴)</span>` : ""}</div>`;
+    // 표: 열별 글꼴(colFont)이 있으면 열마다 역할을 보인다(머리 행은 항상 본문)
+    const cols = el.type === "table" && Array.isArray(el.colFont) && el.colFont.some(Boolean)
+      ? `<br>열별(colFont) · ${el.colFont.map((f, j) => `${j + 1} ${ROLE[Render.fontRole(f || el.font)]}`).join(" · ")} · 머리 행 본문` : "";
+    return `<div class="finfo" title="이 요소에 실제로 적용되는 글꼴 - 역할·세트·크기">적용 글꼴 · ${ROLE[fi.role] || fi.role} · <b>${esc(fi.latin || "?")}</b>${fi.ea && fi.ea !== fi.latin ? ` + ${esc(fi.ea)}(한글)` : ""} · ${px}px = ${pt}pt${bold ? " · 굵게" : ""}${heavy}<br>${esc(fi.from)}${fi.css ? ` · CSS ${esc(fi.css)}` : ""}${cols}${miss.length ? `<br><span style="color:var(--warn)">이 브라우저에 없음: ${esc(miss.join(", "))} - 대체 글꼴로 보이는 중(PPTX 는 받는 PC 의 글꼴)</span>` : ""}</div>`;
   }
   function renderProps() {
     const P = $("#tab-props"), s = slide();
@@ -1062,7 +1065,9 @@ ${names}
     if (el.type === "table") h += `<div class="sec"><h3>표 - 줄 = 행, 칸은 " | " 로 구분 (첫 행 = 머리)</h3>${fontInfoHtml(el)}<textarea data-tbl="1" style="min-height:140px">${esc(tableToText(el.rows))}</textarea>
         <div class="row"><label>열 비율</label><input type="text" data-list="colW" value="${esc((el.colW || []).join(", "))}"></div>
         <div class="row"><label>행 비율</label><input type="text" data-list="rowH" value="${esc((el.rowH || []).join(", "))}" placeholder="비우면 고르게 · 예: 44, 46, 70"></div>
-        ${num("크기(px)", "size", el)}${colorRow("머리 면", "headFill", el)}${colorRow("머리 글자", "headColor", el)}</div>`;
+        ${num("크기(px)", "size", el)}${colorRow("머리 면", "headFill", el)}${colorRow("머리 글자", "headColor", el)}
+        ${seg("글꼴", "font", el, [["body", "본문"], ["heading", "제목"], ["mono", "고정폭"]], "body")}
+        <div class="row"><label>열별 글꼴</label><input type="text" data-list="colFont" value="${esc((el.colFont || []).map((f) => f || "").join(", "))}" placeholder="비우면 위 글꼴 · 예: body, mono, body" title="열마다 body(본문)·heading(제목)·mono(고정폭) - 빈 칸은 위 글꼴. 머리 행은 항상 본문"></div></div>`;
     if (el.type === "plan-table") h += `<div class="sec"><h3>실행계획 표</h3>${fontInfoHtml(el)}<div class="hint">rows[].cells · depth(들여쓰기) · hl({열 번호: "warn"|"ok"}) · note(오른쪽 설명) - 아래 JSON 에서 고친다.</div></div>`;
     h += `<div class="sec"><h3>동작</h3><div class="zrow" style="grid-template-columns:repeat(3,1fr)"><button class="pbtn" data-act="dupEl" title="복제 (Ctrl+D)">⧉ 복제</button><button class="pbtn" data-act="reqEl" title="이 요소에 요청 메모(세션에 보냄)">💬 요청</button><button class="pbtn danger" data-act="delEl" title="삭제 (Del)" style="color:var(--err)">🗑 삭제</button></div></div>
       <details class="sec" style="padding:8px 12px"><summary class="hint" style="cursor:pointer;margin:0">요소 JSON (고급)</summary><textarea id="elJson" style="min-height:120px;margin-top:8px">${esc(JSON.stringify(el, null, 1))}</textarea>
@@ -1112,6 +1117,11 @@ ${names}
     }
     else if (t.dataset.list) {
       if (t.dataset.list === "show") { const sh = textToShow(t.value); if (sh.length) el.show = sh; else delete el.show; }
+      else if (t.dataset.list === "colFont") {  // 열별 글꼴 역할 - 쉼표로 나눠 body/heading/mono 로 정규화("code" 도 mono, "-"·빈 칸 = 위 글꼴). 모두 비면 뺀다
+        const a = t.value.split(",").map((x) => x.trim()).map((x) => (!x || x === "-" ? "" : Render.fontRole(x)));
+        while (a.length && !a[a.length - 1]) a.pop();
+        if (a.some(Boolean)) el.colFont = a; else delete el.colFont;
+      }
       else { const a = t.value.split(/[,\s]+/).filter(Boolean).map(Number).filter((x) => !isNaN(x)); if (a.length) el[t.dataset.list] = a; else delete el[t.dataset.list]; }
     } else if (t.dataset.bul) el.items = textToBullets(t.value);
     else if (t.dataset.tbl) el.rows = textToTable(t.value);
@@ -1634,7 +1644,7 @@ ${names}
     const b = boxOf(el), ed = document.createElement("div");
     ed.className = "editor"; ed.setAttribute("contenteditable", "plaintext-only");
     if (ed.contentEditable !== "plaintext-only") ed.setAttribute("contenteditable", "true");
-    const mono = el.font === "mono" || el.type === "code" || el.type === "plan" || el.type === "table";
+    const mono = el.type === "code" || el.type === "plan" || Render.fontRole(el.font) === "mono";
     Object.assign(ed.style, { left: b.x + "px", top: b.y + "px", minWidth: Math.max(80, b.w) + "px", minHeight: Math.max(24, b.h) + "px",
       fontSize: (el.size || 20) + "px", lineHeight: (el.lineHeight || 1.4), fontFamily: mono ? "Consolas, 'Malgun Gothic', monospace" : "'Malgun Gothic', sans-serif" });
     ed.textContent = raw;
