@@ -1066,8 +1066,8 @@ ${names}
         <div class="row"><label>열 비율</label><input type="text" data-list="colW" value="${esc((el.colW || []).join(", "))}"></div>
         <div class="row"><label>행 비율</label><input type="text" data-list="rowH" value="${esc((el.rowH || []).join(", "))}" placeholder="비우면 고르게 · 예: 44, 46, 70"></div>
         ${num("크기(px)", "size", el)}${colorRow("머리 면", "headFill", el)}${colorRow("머리 글자", "headColor", el)}
-        ${seg("글꼴", "font", el, [["body", "본문"], ["heading", "제목"], ["mono", "고정폭"]], "body")}
-        <div class="row"><label>열별 글꼴</label><input type="text" data-list="colFont" value="${esc((el.colFont || []).map((f) => f || "").join(", "))}" placeholder="비우면 위 글꼴 · 예: body, mono, body" title="열마다 body(본문)·heading(제목)·mono(고정폭) - 빈 칸은 위 글꼴. 머리 행은 항상 본문"></div></div>`;
+        ${seg("유형", "font", el, [["body", "일반"], ["mono", "코드"], ["heading", "제목 글꼴"]], "body")}<div class="hint">일반 = 세트의 본문 글꼴 · 코드 = 고정폭(코드) 글꼴 - 본문 셀 전체(머리 행은 항상 본문). 열마다 다르게 하려면 아래 열별 글꼴.</div>
+        <div class="row"><label>열별 글꼴</label><input type="text" data-list="colFont" value="${esc((el.colFont || []).map((f) => f || "").join(", "))}" placeholder="비우면 위 유형 · 예: body, mono, body" title="열마다 body(일반)·mono(코드)·heading(제목 글꼴) - 빈 칸은 위 유형. 머리 행은 항상 본문"></div></div>`;
     if (el.type === "plan-table") h += `<div class="sec"><h3>실행계획 표</h3>${fontInfoHtml(el)}<div class="hint">rows[].cells · depth(들여쓰기) · hl({열 번호: "warn"|"ok"}) · note(오른쪽 설명) - 아래 JSON 에서 고친다.</div></div>`;
     h += `<div class="sec"><h3>동작</h3><div class="zrow" style="grid-template-columns:repeat(3,1fr)"><button class="pbtn" data-act="dupEl" title="복제 (Ctrl+D)">⧉ 복제</button><button class="pbtn" data-act="reqEl" title="이 요소에 요청 메모(세션에 보냄)">💬 요청</button><button class="pbtn danger" data-act="delEl" title="삭제 (Del)" style="color:var(--err)">🗑 삭제</button></div></div>
       <details class="sec" style="padding:8px 12px"><summary class="hint" style="cursor:pointer;margin:0">요소 JSON (고급)</summary><textarea id="elJson" style="min-height:120px;margin-top:8px">${esc(JSON.stringify(el, null, 1))}</textarea>
