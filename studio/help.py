@@ -10,6 +10,7 @@ COMMANDS = [
     ("slide_types [낱말]", "내용 성격에 맞는 슬라이드 유형 고르기(레이아웃·필드 구조)"),
     ("build_deck <덱> --force", "content/<덱>.json → decks/<덱>.json 빌드"),
     ("check_layout <덱>", "레이아웃 검사(겹침·넘침·최소 글자·슬라이드 밖) - ERROR 0 목표"),
+    ("scale_fonts <덱> --ratio 1.2 [--role body,title] [--dry-run]", "덱 전체 글자 크기를 비율로 키우고 상자 높이·세로 배치를 다시 잡는다(바닥을 넘치면 그 장만 비율을 낮춤)"),
     ("export_pptx <덱>", "PPTX 내보내기 → out/<덱>.pptx"),
     ("set_fonts <세트>", "글꼴 세트 고르기"),
     ("set_template [<이름>] [--json]", "템플릿(디자인) 목록 보기·고르기 - 바꾼 뒤 서버 재시작(사용자에게 안내) → build_deck --force"),

@@ -16,7 +16,27 @@ python3 studio/check_parity.py -W <ws> [ch00 …]        # render.js ↔ common.
 python3 studio/gen_tokens_css.py -W <ws> [--write]     # 템플릿 tokens.json ↔ 템플릿 design/tokens.css 값 일치 확인/갱신
 python3 studio/set_fonts.py    -W <ws> [default|modern]   # 글꼴 프리셋
 python3 studio/check_layout.py -W <ws> [ch00 …] [--json]  # 레이아웃 검사(ERROR 가 있으면 종료 코드 1)
+python3 studio/scale_fonts.py  -W <ws> ch00 --ratio 1.2 [--role body,title] [--slides s03] [--dry-run] [--keep-ratio] [--no-fit]
+                                                       # 덱 전체 글자 크기를 비율로(상자 높이·세로 배치도 다시 잡음) - 아래 "글자 크기 일괄 확대"
 ```
+
+## 글자 크기 일괄 확대 — `scale_fonts`
+
+요소별 고정 `size`·고정 상자로 된 덱(원본 PPT 를 옮긴 덱 등)을 "전반적으로 조금 더 크게" 할 때. 템플릿 `lecture-large` 는 역할별 **하한**만 올려 이미 큰 글에는 효과가 없지만, 이 명령은 **비율**이라 모든 글이 같이 커진다.
+
+```bash
+python3 nexa.py scale_fonts policy --ratio 1.2 --dry-run      # 슬라이드별로 무엇이 바뀌는지만
+python3 nexa.py scale_fonts policy --ratio 1.2                # 저장(save_deck 과 같은 경로 - 변경 원장·백업·충돌 검사)
+python3 nexa.py scale_fonts policy --ratio 1.2 --role body    # 본문(role 없는 요소)만 · title,subtitle,label,crumb,page,footnotes
+python3 nexa.py check_layout policy                           # 저장 뒤 확인
+```
+
+슬라이드마다 ① 글자 크기(`size`·`subSize`)에 비율을 곱하고(정수 px. 바닥 부품 `crumb`·`page`·`footnotes`·`decor` 와 잠긴 요소는 `--role` 로 고르지 않는 한 그대로)
+② 글이 상자보다 커지면 상자 높이를 늘리고(줄바꿈 없는 글·칩은 폭도, 표는 행 높이 `rowH`), 늘어난 만큼 그 아래(가로로 겹치는) 요소를 내린다 — 글상자를 담은 카드(rect)는 안의 글에 맞춰 같이 늘고 그 아래도 내려간다. 오른쪽으로 커진 칩은 같은 줄의 오른쪽 이웃을 민다.
+③ 바닥 부품 위 한계를 넘으면 그 장만 비율을 0.02 씩 낮춰 들어가는 값으로 한다(`--keep-ratio` 면 낮추지 않음). 1.02 까지 낮춰도 넘치면 그 장은 그대로 두고 알린다 — 내용을 줄이거나 장을 나눈 뒤 다시 돌린다.
+줄 수·폭 추정은 `check_layout` 과 같은 방법이므로 저장 뒤 검사로 확인한다. 가로로 촘촘한 도식(시퀀스 등)은 세로만 다시 잡으므로 겹침이 남을 수 있다.
+
+content 로 만드는 덱은 내용 파일에 `"fontScale": 1.2` 를 두면 `build_deck` 이 같은 규칙으로 적용한다(다시 빌드해도 유지 - [deck-format.md](deck-format.md)). 편집기에서 고친 덱에 명령으로 적용했다면 다음 `build_deck --force` 가 그 수정을 되돌리니 content 에도 `fontScale` 을 적는다.
 
 ## 레이아웃 검사
 
