@@ -449,7 +449,7 @@
       const inv = 1 / scale;
       for (const e of s.elements) if (e.type === "code") {
         const k = Render.langOf(e);
-        h += `<div class="langtag" style="left:${e.x + e.w}px;top:${e.y}px;transform:translate(-100%, -100%) scale(${inv});transform-origin:100% 100%" title="코드 언어 - 서식 줄 또는 속성 탭에서 바꾼다${e.lineNo === false ? " · 줄 번호 숨김" : ""}">${esc(langLabel(k))}${e.lineNo === false ? " · 번호 없음" : ""}</div>`;
+        h += `<div class="langtag" style="left:${e.x + e.w}px;top:${e.y}px;transform:translate(-100%, -100%) scale(${inv});transform-origin:100% 100%" title="코드 언어 - 서식 줄 또는 속성 탭에서 바꾼다">${esc(langLabel(k))}</div>`;
       }
     }
     if (s) {
@@ -932,9 +932,10 @@ ${names}
         ${seg("머리", "head", el, [["none", "없음"], ["end", "끝"], ["start", "시작"], ["both", "양쪽"]], el.type === "arrow" ? "end" : "none")}
         ${seg("점선", "dash", el, [["solid", "실선"], ["dash", "파선"], ["dot", "점선"]], "solid")}</div>`;
     if (el.type === "code") { const lk = Render.langOf(el), ln = el.lineNo !== false; h += `<div class="sec"><h3>코드</h3><textarea data-k="text" style="min-height:160px">${esc(el.text || "")}</textarea>
-        <div class="row"><label>언어</label><input type="search" list="langList" data-lang="1" value="${esc(langLabel(lk))}" placeholder="언어 찾기 - 예: bash, c#, json, rust" title="입력하면 목록이 좁혀집니다 - 이름·별칭(sh, cs, js, py …)으로 찾기"></div>
+        <div class="row"><label>언어</label><input type="search" list="langList" data-lang="1" value="${esc(langLabel(lk))}" placeholder="언어 찾기 - 예: bash, c#, json, rust" title="입력하면 목록이 좁혀집니다 - 이름·별칭(sh, cs, js, py …)으로 찾기" style="flex:1;min-width:0">
+          <label class="switch" title="캔버스 코드 블록 오른쪽 위 언어 이름표 표시 여부(편집 화면에만, 모든 코드 블록 공통)"><input type="checkbox" data-langtag="1"${LS.get("langTag", "1") === "1" ? " checked" : ""}><span class="track"></span><span class="sw-l">표시</span></label></div>
         <datalist id="langList">${langOptions()}</datalist>
-        <div class="row"><label>줄 번호</label><span class="seg"><button data-lineno="1" class="${ln ? "on" : ""}">보기</button><button data-lineno="0" class="${ln ? "" : "on"}">숨김</button></span>
+        <div class="row"><label>줄 번호</label><label class="switch" style="margin-left:0" title="코드 왼쪽 줄 번호 열 - 끄면 화면·PPTX 모두 번호 없이"><input type="checkbox" data-linenosw="1"${ln ? " checked" : ""}><span class="track"></span><span class="sw-l">${ln ? "보기" : "숨김"}</span></label>
           <button class="chip sm" data-copy="code" title="코드 글자를 클립보드에 복사(줄 번호·색 없이)" style="margin-left:auto">📋 복사</button></div>
         ${num("크기(px)", "size", el)}${num("줄 높이", "lineHeight", el, 0.05)}${num("시작 번호", "start", el)}
         <div class="row"><label>강조 줄</label><input type="text" data-list="focus" value="${esc((el.focus || []).join(", "))}" placeholder="예: 1, 9"></div>
@@ -982,6 +983,8 @@ ${names}
     if (t.dataset.slide === "fontPreset") { snapshot(); if (t.value) s.fontPreset = t.value; else delete s.fontPreset; afterChange(true); return; }  // 이 장만
     if (t.dataset.deckfont) { snapshot(); if (t.value) S.deck.fontPreset = t.value; else delete S.deck.fontPreset; Render.setDeckFonts(S.deck.fontPreset); afterChange(true); return; }  // 덱 전체
     if (!el || t.id === "elJson") return;
+    if (t.dataset.linenosw && el) { const on = t.checked; mutate((x) => { if (on) delete x.lineNo; else x.lineNo = false; }, (x) => x.type === "code"); return; }
+    if (t.dataset.langtag) { LS.set("langTag", t.checked ? "1" : "0"); renderMarks(); return; }
     if (t.dataset.lang) {  // 언어 - 목록의 이름·별칭으로. 고른 코드 요소 모두
       const k = findLang(t.value); if (!k) { toast(`모르는 언어: ${t.value} - 목록에서 고르세요`); return; }
       mutate((x) => { x.lang = k; }, (x) => x.type === "code"); return;
@@ -1638,7 +1641,7 @@ ${names}
       ...(f.presets.some((p) => p.source === "workspace") ? [{ h: "글꼴 세트 - 작업 공간 지정(nexa-slide.json)" }, ...f.presets.filter((p) => p.source === "workspace").map((p) => ({ label: `${p.name} - ${p.label}`, on: p.name === f.current, act: () => setFonts(p.name) }))] : []),
       { label: "글꼴 설정 보기·수정…", act: showFonts }, "-",
       { h: `템플릿: ${S.template ? S.template.label : "-"}` },
-      { label: "코드 언어 이름표 표시", on: LS.get("langTag", "1") === "1", act: () => { LS.set("langTag", LS.get("langTag", "1") === "1" ? "0" : "1"); renderMarks(); } },
+      { label: "코드 언어 이름표 표시", on: LS.get("langTag", "1") === "1", act: () => { LS.set("langTag", LS.get("langTag", "1") === "1" ? "0" : "1"); renderMarks(); renderProps(); } },
       { label: "단축키 보기", key: "?", act: showHelp },
       { label: "편집기 화면 배치 초기화", act: () => { ["mode", "btab", "bfold", "noright", "railW", "rightW", "bottomH", "maxi", "langTag"].forEach((k) => LS.set(k, "")); location.reload(); } },
     ], { right: true });
