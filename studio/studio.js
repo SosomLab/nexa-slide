@@ -1612,6 +1612,9 @@ ${names}
     await loadFonts();
     const r = await api("GET", "/api/decks"); S.decks = r.ok ? r.data : [];
     if (LS.get("noright", "0") === "1") document.body.classList.add("noright");
+    // 기본 배치(0.17.2): 왼쪽 226 · 오른쪽 392 · 노트는 아래. 이 배치가 바뀌면 LAYOUT_VER 를 올려 저장된 크기·최대화를 한 번 비운다
+    const LAYOUT_VER = "2";
+    if (LS.get("layoutVer", "") !== LAYOUT_VER) { ["railW", "rightW", "bottomH", "maxi"].forEach((k) => LS.set(k, "")); LS.set("layoutVer", LAYOUT_VER); }
     for (const [k, v] of [["railW", "--railW"], ["rightW", "--rightW"], ["bottomH", "--bottomH"]]) { const n = +LS.get(k, 0); if (n) document.documentElement.style.setProperty(v, n + "px"); }
     setMode(["edit", "pick", "draw"].includes(S.mode) ? S.mode : "edit"); setTool("rect");
     setBtab(S.btab); if (LS.get("bfold", "0") === "1") toggleBottom();
