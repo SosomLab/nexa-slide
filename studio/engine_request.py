@@ -56,7 +56,12 @@ def main():
     try:
         if args.cmd == "add":
             ws = os.environ.get("NEXA_SLIDE_WORKSPACE")
-            kind = args.kind or ("session" if ws else "cli")
+            in_session = bool(ws or os.environ.get("NEXA_SLIDE_SESSION"))
+            # 작업 공간 안(또는 AI 세션 환경)에서는 --kind/--user 를 무시하고 session 으로 강제 - triage(관리자 승인)를 건너뛰지 못하게.
+            # 사람 요청(kind=user)은 허브 화면(/api/engine/requests)으로만 들어온다
+            kind = "session" if in_session else (args.kind if args.kind in ("cli", "user") else "cli")
+            if in_session:
+                args.user = os.environ.get("NEXA_SLIDE_USER") or None
             ws_id = None
             if ws:
                 try:

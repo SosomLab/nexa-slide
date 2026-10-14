@@ -355,7 +355,7 @@ def render_list(i):
 
 
 MUTATING = {"POST", "PUT", "DELETE", "PATCH"}
-AUTH_FREE = {"/login", "/setup", "/api/auth/state", "/api/auth/login", "/api/auth/setup"}  # 허브에서 로그인 없이 닿는 전부(페이지는 CSS·JS 내장)
+AUTH_FREE = {"/login", "/setup", "/api/auth/state", "/api/auth/login", "/api/auth/setup", "/studio/i18n.js"}  # 허브에서 로그인 없이 닿는 전부(페이지는 CSS·JS 내장 + 표시 언어 사전)
 POLL_RX = re.compile(r"(^|/w/[^/]+)/api/(version/[^/?]+|session)$")  # 2초 폴링 - /api/version/<덱> · /api/session (/api/wsession 은 아님)
 SERVER_NAME = "hub" if HUB else None  # 접근 로그 server 필드 - 작업 공간은 중계 이름(ws id, 저장소형은 모두 slides/ 라 폴더 이름으로는 구분이 안 된다)
 
