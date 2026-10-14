@@ -708,7 +708,8 @@
   const TYPE_KO = { text: "글자", pill: "칩", rect: "상자", ellipse: "원", image: "그림", line: "선", arrow: "화살표", table: "표", "plan-table": "실행계획 표", code: "코드", plan: "실행계획", bullets: "글머리", curve: "곡선" };
   const SIZE_PRESETS = [10, 11, 12, 13, 14, 15, 16, 17, 18, 20, 22, 24, 28, 32, 36, 40, 48, 60, 72];
   function defSize(el) { return { pill: 14, code: 15, plan: 14, "plan-table": 15, table: 16 }[el.type] || 20; }
-  function swatch(v) { return v ? Render.color(v) : "transparent"; }
+  function swatch(v) { return v ? Render.fillCss(v) : "transparent"; }  // 토큰·#hex(투명도)·그라데이션 객체 모두
+  const fillLabel = (v) => !v ? "없음" : typeof v === "object" ? "그라데이션·투명도 (요소 JSON 에서 고침)" : v;
   function renderFtb() {
     const F = $("#ftb"), el = selEl();
     if (S.mode !== "edit" || !el || S.editing) { F.classList.remove("show"); F.innerHTML = ""; return; }
@@ -727,7 +728,7 @@
         h += `<button class="ib" data-f="spacing" title="줄 간격·세로 정렬">↕ ▾</button>`;
       }
     }
-    if (["rect", "ellipse", "pill", "text", "plan"].includes(el.type)) h += `<span class="vsep"></span><button class="ib" data-f="fill" title="채우기 - ${esc(el.fill || "없음")}">🪣<span class="sw" style="background:${swatch(el.fill)}"></span></button>`;
+    if (["rect", "ellipse", "pill", "text", "plan"].includes(el.type)) h += `<span class="vsep"></span><button class="ib" data-f="fill" title="채우기 - ${esc(fillLabel(el.fill))}">🪣<span class="sw" style="background:${swatch(el.fill)}"></span></button>`;
     if (["rect", "ellipse", "pill", "text"].includes(el.type)) h += `<button class="ib" data-f="stroke" title="테두리 - ${esc(el.stroke || "없음")}">▢<span class="sw" style="background:${swatch(el.stroke)}"></span></button>`;
     if (isLine(el)) {
       h += `<button class="ib" data-f="color" title="선 색">━<span class="sw" style="background:${swatch(el.color || "on-surface")}"></span></button>
@@ -960,8 +961,8 @@ ${names}
     return h;
   }
   function colorRow(label, key, el, allowNone) {
-    const v = el[key] || "";
-    return `<div class="row"><label>${label}</label><span class="sw" style="background:${v ? Render.color(v) : "transparent"}"></span><select class="colorSel" data-k="${key}" data-kind="color">${colorOptions(v, allowNone)}</select></div>`;
+    const v = el[key] || "", obj = typeof v === "object";  // 객체 = 그라데이션·투명도(요소 JSON 에서 고침) - 고르면 단색으로 바뀜
+    return `<div class="row"><label>${label}</label><span class="sw" style="background:${swatch(v)}"></span><select class="colorSel" data-k="${key}" data-kind="color">${obj ? `<option value="" selected disabled>${esc(fillLabel(v))}</option>` : ""}${colorOptions(obj ? "" : v, allowNone)}</select></div>`;
   }
   const num = (label, key, el, step = 1) => `<div class="row"><label>${label}</label><input type="number" step="${step}" data-k="${key}" value="${el[key] == null ? "" : el[key]}"></div>`;
   function seg(label, key, el, opts, dflt) {
@@ -988,6 +989,21 @@ ${names}
   const showToText = (sh) => (sh || []).map(([a, b]) => (a === b ? `${a}` : `${a}-${b}`)).join(", ");
   function textToShow(t) { const out = []; for (const p of t.split(/[,\s]+/).filter(Boolean)) { const m = p.match(/^(\d+)(?:-(\d+))?$/); if (m) out.push([+m[1], +(m[2] || m[1])]); } return out; }
 
+  // 요소에 실제로 적용되는 글꼴 - 역할(el.font 또는 유형: code·plan·table = 고정폭) → 덱 글꼴 세트(fontPreset) 또는 작업 공간 세트의 역할별 글꼴(render.js 와 같은 규칙)
+  function fontOf(el) {
+    const role = el.font === "mono" || ["code", "plan", "table"].includes(el.type) ? "mono" : el.font === "heading" ? "heading" : "body";
+    const set = (S.deck && S.deck.fontPreset && Render.presetFonts(S.deck.fontPreset)) || (S.tokens && S.tokens.fonts) || {};
+    const f = set[role] || set.body || {};
+    const from = S.deck && S.deck.fontPreset ? `덱 세트 ${S.deck.fontPreset}` : S.fonts && S.fonts.current ? `${S.fonts.source === "workspace" ? "작업 공간" : "템플릿"} 세트 ${S.fonts.current}` : "템플릿 기본";
+    const have = (name) => { try { return !name || document.fonts.check(`12px "${name}"`); } catch (e) { return true; } };
+    return { role, latin: f.latin || "", ea: f.ea || "", css: f.css || "", from, haveLatin: have(f.latin), haveEa: have(f.ea) };
+  }
+  function fontInfoHtml(el) {
+    const fi = fontOf(el), px = +el.size || (el.type === "code" ? 14 : 20), pt = Math.round(px * 0.75 * 100) / 100;
+    const bold = el.bold === undefined ? el.type === "pill" : !!el.bold;
+    const miss = [!fi.haveLatin && fi.latin, !fi.haveEa && fi.ea].filter(Boolean);
+    return `<div class="finfo" title="이 요소에 실제로 적용되는 글꼴 - 역할·세트·크기">적용 글꼴 · ${ROLE[fi.role] || fi.role} · <b>${esc(fi.latin || "?")}</b>${fi.ea && fi.ea !== fi.latin ? ` + ${esc(fi.ea)}(한글)` : ""} · ${px}px = ${pt}pt${bold ? " · 굵게" : ""}<br>${esc(fi.from)}${fi.css ? ` · CSS ${esc(fi.css)}` : ""}${miss.length ? `<br><span style="color:var(--warn)">이 브라우저에 없음: ${esc(miss.join(", "))} - 대체 글꼴로 보이는 중(PPTX 는 받는 PC 의 글꼴)</span>` : ""}</div>`;
+  }
   function renderProps() {
     const P = $("#tab-props"), s = slide();
     if (!s) { P.innerHTML = ""; return; }
@@ -1001,25 +1017,22 @@ ${names}
         <div class="hint">요소를 누르면 위 서식 줄과 여기서 고칠 수 있다. 색은 토큰 이름으로 고른다(색의 의미 유지).</div></div>${list}`;
       return;
     }
-    let h = `<div class="sec"><h3>${esc(TYPE_KO[el.type] || el.type)} · ${esc(el.id)}</h3>`;
+    let h = `<div class="sec"><div class="elhead"><span class="ty">${esc(TYPE_KO[el.type] || el.type)}</span><span class="id">${esc(el.id)}</span><label class="switch" title="잠금 - 끌기·삭제 막기"><input type="checkbox" data-k="locked" ${el.locked ? "checked" : ""}><span class="track"></span>잠금</label></div>`;
     if (isMulti()) { const n = selIds().length, same = selEls().filter((x) => x.type === el.type).length;
       h += `<div class="hint multi-hint"><b>${n}개 선택</b> - 아래 값은 주 선택(${esc(el.id)}) 기준. 고치면 같은 종류 ${same}개에 함께 적용(위치·크기는 선이 아닌 모든 요소, 잠금은 전체, 글자 내용은 주 선택만).</div>`; }
-    if (isLine(el)) h += `<div class="row">${["x1", "y1", "x2", "y2"].map((k) => `<label style="width:auto">${k}</label><input type="number" data-k="${k}" value="${el[k]}">`).join("")}</div>`;
-    else h += `<div class="row"><label style="width:auto">x</label><input type="number" data-k="x" value="${el.x}"><label style="width:auto">y</label><input type="number" data-k="y" value="${el.y}"></div>
-      <div class="row"><label style="width:auto">w</label><input type="number" data-k="w" value="${el.w}"><label style="width:auto">h</label><input type="number" data-k="h" value="${el.h}"></div>`;
-    h += `<div class="row"><label>순서</label><button class="chip sm" data-z="front">맨 앞</button><button class="chip sm" data-z="back">맨 뒤</button>
-      <label style="width:auto;margin-left:6px"><input type="checkbox" data-k="locked" ${el.locked ? "checked" : ""}> 잠금</label></div></div>`;
+    const grid = (keys) => `<div class="xywh">${keys.map((k) => `<div class="f"><label>${k}</label><input type="number" data-k="${k}" value="${el[k]}" title="${k} (px)"></div>`).join("")}</div>`;
+    h += `<h3>위치·크기 <span class="hint">px · 슬라이드 1280×720</span></h3>${grid(isLine(el) ? ["x1", "y1", "x2", "y2"] : ["x", "y", "w", "h"])}
+      <h3 style="margin-top:10px">순서</h3><div class="zrow"><button class="pbtn" data-z="back" title="맨 뒤로 보내기 (Alt+Ctrl+[)">⇊ 맨 뒤</button><button class="pbtn" data-z="bwd" title="뒤로 보내기 (Ctrl+[)">↓ 뒤로</button><button class="pbtn" data-z="fwd" title="앞으로 가져오기 (Ctrl+])">↑ 앞으로</button><button class="pbtn" data-z="front" title="맨 앞으로 가져오기 (Alt+Ctrl+])">⇈ 맨 앞</button></div></div>`;
     if (TEXTY.has(el.type)) {
-      h += `<div class="sec"><h3>글자 - **굵게** · ==강조== · [[토큰|색 글자]] · {page}</h3><textarea data-k="text" style="min-height:70px;font-family:var(--font);font-size:13px">${esc(el.text || "")}</textarea>
-        ${num("크기(px)", "size", el)}<div class="hint">PPT 글자 크기 = px × 0.75 pt</div>
-        ${seg("굵게", "bold", { bold: el.bold === undefined ? (el.type === "pill" ? "1" : "0") : (el.bold ? "1" : "0") }, [["0", "보통"], ["1", "굵게"]])}
-        ${seg("정렬", "align", el, [["left", "왼쪽"], ["center", "가운데"], ["right", "오른쪽"]], el.type === "pill" || el.type === "ellipse" ? "center" : "left")}
-        ${seg("세로", "valign", el, [["top", "위"], ["middle", "가운데"], ["bottom", "아래"]], el.type === "text" ? "top" : "middle")}
-        ${seg("글꼴", "font", el, [["body", "본문"], ["mono", "고정폭"]], "body")}
-        ${num("줄 높이", "lineHeight", el, 0.05)}${colorRow("글자색", "color", el)}</div>`;
+      h += `<div class="sec"><h3>글자 <span class="hint" title="인라인 강조 표기">**굵게** · ==강조== · [[토큰|색]] · {page}</span></h3><textarea data-k="text" style="min-height:70px;font-family:var(--font);font-size:13px">${esc(el.text || "")}</textarea>
+        <div class="row"><label>크기</label><input type="number" step="1" data-k="size" value="${el.size == null ? "" : el.size}" title="px (PPT = px × 0.75 pt)"><span class="hint" style="margin:0">px</span><span class="seg" data-k="bold" style="margin-left:auto"><button data-v="0" class="${(el.bold === undefined ? el.type === "pill" : el.bold) ? "" : "on"}">보통</button><button data-v="1" class="${(el.bold === undefined ? el.type === "pill" : el.bold) ? "on" : ""}" style="font-weight:700">굵게</button></span></div>
+        ${seg("정렬", "align", el, [["left", "⇤ 왼쪽"], ["center", "↔ 가운데"], ["right", "⇥ 오른쪽"]], el.type === "pill" || el.type === "ellipse" ? "center" : "left")}
+        ${seg("세로", "valign", el, [["top", "⤒ 위"], ["middle", "↕ 가운데"], ["bottom", "⤓ 아래"]], el.type === "text" ? "top" : "middle")}
+        ${num("줄 높이", "lineHeight", el, 0.05)}${colorRow("글자색", "color", el)}
+        ${seg("글꼴", "font", el, [["body", "본문"], ["mono", "고정폭"]], "body")}${fontInfoHtml(el)}</div>`;
     }
     if (["rect", "ellipse", "pill", "text", "plan"].includes(el.type)) {
-      h += `<div class="sec"><h3>면</h3>${colorRow("채우기", "fill", el, el.type === "text")}
+      h += `<div class="sec"><h3>면·테두리</h3>${colorRow("채우기", "fill", el, el.type === "text")}
         ${el.type !== "ellipse" && el.type !== "pill" ? `<div class="row"><label>모서리</label><select data-k="radius">${["", "r-s", "r-m", "r-l", "r-full"].map((r) => `<option value="${r}"${(el.radius || "") === r ? " selected" : ""}>${r || "없음"}</option>`).join("")}${typeof el.radius === "number" ? `<option selected value="${el.radius}">${el.radius}px</option>` : ""}</select></div>` : ""}
         ${colorRow("테두리", "stroke", el, true)}</div>`;
     }
@@ -1027,7 +1040,7 @@ ${names}
     if (isLine(el)) h += `<div class="sec"><h3>선</h3>${colorRow("색", "color", el)}${num("두께(px)", "width", el, 0.5)}
         ${seg("머리", "head", el, [["none", "없음"], ["end", "끝"], ["start", "시작"], ["both", "양쪽"]], el.type === "arrow" ? "end" : "none")}
         ${seg("점선", "dash", el, [["solid", "실선"], ["dash", "파선"], ["dot", "점선"]], "solid")}</div>`;
-    if (el.type === "code") { const lk = Render.langOf(el), ln = el.lineNo !== false; h += `<div class="sec"><h3>코드</h3><textarea data-k="text" style="min-height:160px">${esc(el.text || "")}</textarea>
+    if (el.type === "code") { const lk = Render.langOf(el), ln = el.lineNo !== false; h += `<div class="sec"><h3>코드</h3>${fontInfoHtml(el)}<textarea data-k="text" style="min-height:160px">${esc(el.text || "")}</textarea>
         <div class="row"><label>언어</label><label class="switch" style="margin:0 8px 0 0" title="캔버스 코드 블록 오른쪽 위 언어 이름표 표시 여부(편집 화면에만, 모든 코드 블록 공통)"><input type="checkbox" data-langtag="1"${LS.get("langTag", "1") === "1" ? " checked" : ""}><span class="track"></span></label>
           <input type="search" list="langList" data-lang="1" value="${el.lang ? esc(langLabel(lk)) : ""}" placeholder="언어 찾기 - 예: bash, c#, json, rust" title="입력하면 목록이 좁혀집니다 - 이름·별칭(sh, cs, js, py …)으로 찾기" style="flex:1;min-width:0"></div>
         <datalist id="langList">${langOptions()}</datalist>
@@ -1042,14 +1055,14 @@ ${names}
     if (el.type === "bullets") h += `<div class="sec"><h3>글머리 - 줄마다 항목, 앞에 공백 두 칸 = 하위 항목</h3><textarea data-bul="1" style="min-height:140px;font-family:var(--font);font-size:13px">${esc(bulletsToText(el.items))}</textarea>
         ${num("크기(px)", "size", el)}${num("하위 크기", "subSize", el)}${num("줄 높이", "lineHeight", el, 0.05)}${num("항목 간격", "gap", el)}
         ${colorRow("점 색", "dot", el)}${colorRow("글자색", "color", el)}${colorRow("하위 글자색", "subColor", el)}</div>`;
-    if (el.type === "table") h += `<div class="sec"><h3>표 - 줄 = 행, 칸은 " | " 로 구분 (첫 행 = 머리)</h3><textarea data-tbl="1" style="min-height:140px">${esc(tableToText(el.rows))}</textarea>
+    if (el.type === "table") h += `<div class="sec"><h3>표 - 줄 = 행, 칸은 " | " 로 구분 (첫 행 = 머리)</h3>${fontInfoHtml(el)}<textarea data-tbl="1" style="min-height:140px">${esc(tableToText(el.rows))}</textarea>
         <div class="row"><label>열 비율</label><input type="text" data-list="colW" value="${esc((el.colW || []).join(", "))}"></div>
         <div class="row"><label>행 비율</label><input type="text" data-list="rowH" value="${esc((el.rowH || []).join(", "))}" placeholder="비우면 고르게 · 예: 44, 46, 70"></div>
         ${num("크기(px)", "size", el)}${colorRow("머리 면", "headFill", el)}${colorRow("머리 글자", "headColor", el)}</div>`;
-    if (el.type === "plan-table") h += `<div class="sec"><h3>실행계획 표</h3><div class="hint">rows[].cells · depth(들여쓰기) · hl({열 번호: "warn"|"ok"}) · note(오른쪽 설명) - 아래 JSON 에서 고친다.</div></div>`;
-    h += `<div class="sec"><h3>요소 JSON (고급)</h3><textarea id="elJson" style="min-height:120px">${esc(JSON.stringify(el, null, 1))}</textarea>
-      <div class="row"><button class="chip sm" id="applyJson">JSON 적용</button><button class="chip sm" data-act="dupEl">복제 (Ctrl+D)</button><button class="chip sm" data-act="delEl">삭제 (Del)</button>
-      <button class="chip sm" data-act="reqEl">이 요소에 요청</button></div></div>`;
+    if (el.type === "plan-table") h += `<div class="sec"><h3>실행계획 표</h3>${fontInfoHtml(el)}<div class="hint">rows[].cells · depth(들여쓰기) · hl({열 번호: "warn"|"ok"}) · note(오른쪽 설명) - 아래 JSON 에서 고친다.</div></div>`;
+    h += `<div class="sec"><h3>동작</h3><div class="zrow" style="grid-template-columns:repeat(3,1fr)"><button class="pbtn" data-act="dupEl" title="복제 (Ctrl+D)">⧉ 복제</button><button class="pbtn" data-act="reqEl" title="이 요소에 요청 메모(세션에 보냄)">💬 요청</button><button class="pbtn danger" data-act="delEl" title="삭제 (Del)" style="color:var(--err)">🗑 삭제</button></div></div>
+      <details class="sec" style="padding:8px 12px"><summary class="hint" style="cursor:pointer;margin:0">요소 JSON (고급)</summary><textarea id="elJson" style="min-height:120px;margin-top:8px">${esc(JSON.stringify(el, null, 1))}</textarea>
+      <div class="row"><button class="chip sm" id="applyJson">JSON 적용</button></div></details>`;
     P.innerHTML = h + list;
   }
   // 코드 언어 목록(code_langs.json) - 이름 · 별칭으로 찾는다
@@ -1315,6 +1328,7 @@ ${names}
     const text = cmd ? (st.cwd ? `cd "${st.cwd}"; ` : "") + `claude --resume ${st.sessionId}` : st.sessionId, what = cmd ? "확인 명령을" : "세션 ID 를";
     try { await navigator.clipboard.writeText(text); toast(`${what} 복사했습니다 - ${text}`, 5000); }
     catch (e) { const ta = document.createElement("textarea"); ta.value = text; ta.style.position = "fixed"; ta.style.opacity = "0"; document.body.appendChild(ta); ta.select(); const ok = document.execCommand && document.execCommand("copy"); ta.remove(); if (ok) toast(`${what} 복사했습니다 - ${text}`, 5000); else prompt(what, text); }
+    if (!(st.turn > 0)) setTimeout(() => toast("이 세션은 아직 첫 턴 전이라 claude --resume 로 열리지 않습니다 - 요청을 하나 처리한 뒤에 다시 시도", 6000), 600);
   }
   function sessBox(html) { $("#sessDlg .box").innerHTML = html; $("#sessDlg").classList.add("show"); }
   function sessClose() { $("#sessDlg").classList.remove("show"); if (WSS.src) { WSS.src.close(); WSS.src = null; } }

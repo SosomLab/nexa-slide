@@ -792,7 +792,7 @@
   $("#engpModal").addEventListener("click", (e) => { if (e.target.closest("[data-close]") || e.target === $("#engpModal")) { if (engSrc) { engSrc.close(); engSrc = null; } } });
 
   // 세션 식별자 - claude 세션 ID 앞 8자리 배지, 누르면 ID 복사(Shift = 그 폴더에서 claude --resume <ID> 확인 명령)
-  const sidBadge = (id, cwd, turns) => id ? `<button type="button" class="badge sid" data-sid="${esc(id)}" data-cwd="${esc(cwd || "")}" title="${esc(["claude 세션 ID " + id, cwd ? "폴더 " + cwd : "", "누르면 ID 복사 · Shift+누르면 확인 명령(claude --resume) 복사", "터미널에서 claude --resume <ID> 로 바로 열거나, claude --resume 목록에서 '#앞 8자리' 로 검색", turns === 0 ? "(첫 턴이 끝나야 claude 에서 열린다)" : ""].filter(Boolean).join("\n"))}">ID ${esc(id.slice(0, 8))}</button>` : "";
+  const sidBadge = (id, cwd, turns) => id ? `<button type="button" class="badge sid" data-sid="${esc(id)}" data-cwd="${esc(cwd || "")}" title="${esc(["claude 세션 ID " + id, cwd ? "폴더 " + cwd : "", "누르면 ID 복사 · Shift+누르면 확인 명령(claude --resume) 복사", "터미널에서 claude --resume <ID> 로 바로 열거나, claude --resume 목록에서 '#앞 8자리' 로 검색", turns === 0 ? "아직 첫 턴 전 - 대화 파일이 없어 claude --resume 로는 안 열린다(요청을 처리한 뒤부터)" : ""].filter(Boolean).join("\n"))}"${turns === 0 ? ' data-turn0="1" style="border-style:dashed;opacity:.75"' : ""}>ID ${esc(id.slice(0, 8))}${turns === 0 ? " · 턴 전" : ""}</button>` : "";
   async function copyText(text, what) {
     try { await navigator.clipboard.writeText(text); toast(`${what} 복사했습니다 - ${text}`, 5000); }
     catch (err) {  // 클립보드 API 가 막힌 환경(http 원격 등) - 숨은 입력칸으로 복사
@@ -805,6 +805,7 @@
     const b = e.target.closest("[data-sid]"); if (!b) return;
     e.preventDefault(); e.stopPropagation();
     if (e.shiftKey) copyText((b.dataset.cwd ? `cd "${b.dataset.cwd}"; ` : "") + `claude --resume ${b.dataset.sid}`, "확인 명령을"); else copyText(b.dataset.sid, "세션 ID 를");
+    if (b.dataset.turn0) setTimeout(() => toast("이 세션은 아직 첫 턴 전이라 claude --resume 로 열리지 않습니다 - 요청을 하나 처리한 뒤에 다시 시도", 6000), 600);
   }, true);
   // AI 세션 줄(4줄) - 웹 세션(유형·모델·시작 사용자·대기/처리 중) 또는 수동 세션 또는 없음. [세션 시작] 은 꺼진 서버도 먼저 띄운다(결정 5)
   function sessLine(r) {

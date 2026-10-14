@@ -20,6 +20,56 @@
     }
     return dflt || "#000000";
   }
+  /** 토큰명 또는 #RRGGBB·#RRGGBBAA → ["#RRGGBB", 불투명도 0~1] (common.color_alpha 와 같은 규칙) */
+  function colorAlpha(v, dflt) {
+    if (!v) return null;
+    let x = v;
+    for (let i = 0; i < 5; i++) {
+      if (typeof x !== "string") return [dflt || "#000000", 1];
+      if (x[0] === "#") {
+        if (x.length === 7) return [x.toUpperCase(), 1];
+        if (x.length === 9 && /^[0-9A-Fa-f]{2}$/.test(x.slice(7, 9))) return [x.slice(0, 7).toUpperCase(), Math.round(parseInt(x.slice(7, 9), 16) / 255 * 1000) / 1000];
+        return [dflt || "#000000", 1];
+      }
+      if (T && T.colors && x in T.colors) x = T.colors[x]; else return [dflt || "#000000", 1];
+    }
+    return [dflt || "#000000", 1];
+  }
+  const clamp01 = (v, d) => { const n = parseFloat(v); return isNaN(n) ? d : Math.max(0, Math.min(1, n)); };
+  const r3 = (n) => Math.round(n * 1000) / 1000;
+  /** 도형 채우기(fill) 값 정규화 - common.fill_spec 와 같은 규칙. 없으면 null.
+   *  토큰·"#RRGGBB"·"#RRGGBBAA"·{color, alpha} → {kind:"solid", color, alpha}
+   *  {gradient:{angle, stops:[[위치, 색, (불투명도)]…] | [색…]}, alpha} → {kind:"gradient", angle(0 = 왼→오, 90 = 위→아래, 시계 방향), stops:[[위치, "#RRGGBB", 불투명도]…]} */
+  function fillSpec(v) {
+    if (!v) return null;
+    if (typeof v === "string") { const ca = colorAlpha(v); return ca ? { kind: "solid", color: ca[0], alpha: ca[1] } : null; }
+    if (typeof v !== "object") return null;
+    const baseA = clamp01(v.alpha === undefined ? 1 : v.alpha, 1);
+    const g = v.gradient;
+    if (!g || typeof g !== "object") { const ca = colorAlpha(v.color); return ca ? { kind: "solid", color: ca[0], alpha: r3(ca[1] * baseA) } : null; }
+    const raw = Array.isArray(g.stops) ? g.stops : [], n = raw.length, stops = [];
+    raw.forEach((st, i) => {
+      let pos, col, a;
+      if (typeof st === "string") { pos = n > 1 ? i / (n - 1) : 0; col = st; a = 1; }  // 색만 → 고른 간격
+      else if (Array.isArray(st) && st.length >= 2) { pos = st[0]; col = st[1]; a = st.length > 2 ? st[2] : 1; }
+      else return;
+      const ca = colorAlpha(col);
+      if (ca) stops.push([Math.round(clamp01(pos, 0) * 10000) / 10000, ca[0], r3(ca[1] * clamp01(a, 1) * baseA)]);
+    });
+    stops.sort((p, q) => p[0] - q[0]);
+    if (!stops.length) return null;
+    if (stops.length === 1) return { kind: "solid", color: stops[0][1], alpha: stops[0][2] };
+    const ang = parseFloat(g.angle);
+    return { kind: "gradient", angle: Math.round((((isNaN(ang) ? 0 : ang) % 360) + 360) % 360 * 100) / 100, stops };
+  }
+  const rgba = (hex, a) => a >= 1 ? hex : `rgba(${parseInt(hex.slice(1, 3), 16)},${parseInt(hex.slice(3, 5), 16)},${parseInt(hex.slice(5, 7), 16)},${a})`;
+  /** fill → CSS background 값. 그라데이션 각도: PPT 0 = 왼→오 = CSS 90deg */
+  function fillCss(v) {
+    const f = fillSpec(v);
+    if (!f) return "transparent";
+    if (f.kind === "solid") return rgba(f.color, f.alpha);
+    return `linear-gradient(${f.angle + 90}deg, ${f.stops.map(([p, c, a]) => `${rgba(c, a)} ${+(p * 100).toFixed(2)}%`).join(", ")})`;
+  }
   function radius(v, w, h) {
     if (v === undefined || v === null || v === 0 || v === "0" || v === "") return 0;
     let r = typeof v === "string" ? (T && T.radius && v in T.radius ? T.radius[v] : parseFloat(v)) : v;
@@ -366,7 +416,7 @@
     else if (kind === "pill") r = Math.min(w, h) / 2 + "px";
     else r = radius(el.radius, w, h) + "px";
     let s = `border-radius:${r};`;
-    if (el.fill) s += `background:${color(el.fill)};`;
+    if (el.fill) s += `background:${fillCss(el.fill)};`;
     if (el.stroke) s += `box-shadow:inset 0 0 0 ${el.strokeWidth || 1}px ${color(el.stroke)};`;
     return s;
   }
@@ -551,7 +601,7 @@
 .rs-cell>.rs-ct{white-space:pre-wrap;word-break:keep-all;flex:1}`;
   }
 
-  const api = { setDeckFonts, presetFonts,  setTokens, setLangs, langOf, color, radius, runs, plain, hlSQL, hlPython, codeLines, planRuns, tableGrid, bulletRows, renderElement, renderSlide, css, esc, lineBox };
+  const api = { setDeckFonts, presetFonts,  setTokens, setLangs, langOf, color, colorAlpha, fillSpec, fillCss, radius, runs, plain, hlSQL, hlPython, codeLines, planRuns, tableGrid, bulletRows, renderElement, renderSlide, css, esc, lineBox };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   root.Render = api;
 })(typeof window !== "undefined" ? window : globalThis);
