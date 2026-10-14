@@ -932,7 +932,7 @@ ${names}
         ${seg("머리", "head", el, [["none", "없음"], ["end", "끝"], ["start", "시작"], ["both", "양쪽"]], el.type === "arrow" ? "end" : "none")}
         ${seg("점선", "dash", el, [["solid", "실선"], ["dash", "파선"], ["dot", "점선"]], "solid")}</div>`;
     if (el.type === "code") { const lk = Render.langOf(el), ln = el.lineNo !== false; h += `<div class="sec"><h3>코드</h3><textarea data-k="text" style="min-height:160px">${esc(el.text || "")}</textarea>
-        <div class="row"><label>언어</label><label class="switch" style="margin:0 8px 0 0" title="캔버스 코드 블록 오른쪽 위 언어 이름표 표시 여부(편집 화면에만, 모든 코드 블록 공통)"><input type="checkbox" data-langtag="1"${LS.get("langTag", "1") === "1" ? " checked" : ""}><span class="track"></span><span class="sw-l">표시</span></label>
+        <div class="row"><label>언어</label><label class="switch" style="margin:0 8px 0 0" title="캔버스 코드 블록 오른쪽 위 언어 이름표 표시 여부(편집 화면에만, 모든 코드 블록 공통)"><input type="checkbox" data-langtag="1"${LS.get("langTag", "1") === "1" ? " checked" : ""}><span class="track"></span></label>
           <input type="search" list="langList" data-lang="1" value="${esc(langLabel(lk))}" placeholder="언어 찾기 - 예: bash, c#, json, rust" title="입력하면 목록이 좁혀집니다 - 이름·별칭(sh, cs, js, py …)으로 찾기" style="flex:1;min-width:0"></div>
         <datalist id="langList">${langOptions()}</datalist>
         <div class="row"><label>줄 번호</label><label class="switch" style="margin-left:0" title="코드 왼쪽 줄 번호 열 - 끄면 화면·PPTX 모두 번호 없이"><input type="checkbox" data-linenosw="1"${ln ? " checked" : ""}><span class="track"></span></label>
