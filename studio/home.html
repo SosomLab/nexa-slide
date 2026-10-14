@@ -390,7 +390,7 @@
 <!-- 웹 AI 세션 시작 -->
 <div class="modal-back" id="sessModal"><div class="modal" style="width:min(560px,100%)">
   <div class="mh"><h3>웹 세션 시작 — <span id="sessTitle"></span></h3><button type="button" class="ib" data-close>✕</button></div>
-  <div class="mb"><p class="hint" style="margin-top:0">서버가 이 작업 공간에서 AI 를 턴마다 실행해 편집기 요청을 처리합니다. 쓰기 범위는 그 작업 공간 폴더뿐이며 <code>nexa.py</code> 명령만 허용됩니다.</p><div id="sessBody"></div></div>
+  <div class="mb"><p class="hint" style="margin-top:0">서버가 이 작업 공간에서 AI 를 턴마다 실행해 편집기 요청을 처리합니다. 쓰기 범위는 그 작업 공간 폴더뿐이며 <code>nexa.py</code> 명령만 허용됩니다.</p><div id="sessBody"></div><div id="sessErr"></div></div>
   <div class="mf"><button type="button" class="chip" data-close>취소</button><button type="button" class="chip primary" id="sessGo">시작</button></div>
 </div></div>
 <!-- 미리 보기 -->
@@ -582,9 +582,9 @@
     const list = H.home.recent.filter((r) => !q || `${r.title} ${r.path}`.toLowerCase().includes(q));
     $("#recent").innerHTML = list.length ? list.map((r) => `<div class="ritem">
       <span class="av" style="background:${color(r.path)}">${esc((r.title || "?").trim().charAt(0).toUpperCase())}</span>
-      <div class="rb"><div class="t" data-open="${esc(r.path)}" title="${esc(r.path)}"><b>${esc(r.title || r.path)}</b><small>${esc(r.path)}</small></div>
-        <div class="rm">${!r.exists ? '<span class="badge">폴더 없음</span>' : r.workspace ? `${r.git ? `<span class="badge git">git</span>` : ""}<span class="badge">덱 ${r.decks.length}</span>${svc(r)}` : '<span class="badge">작업 공간 아님</span>'}
-          <button type="button" class="ib" data-forget="${esc(r.path)}" title="목록에서 빼기(폴더는 그대로)">${icon("x", 14)}</button></div>
+      <div class="rb"><div style="display:flex;align-items:flex-start;gap:6px"><div class="t" style="flex:1;min-width:0" data-open="${esc(r.path)}" title="${esc(r.path)}"><b>${esc(r.title || r.path)}</b><small>${esc(r.path)}</small></div>
+          <button type="button" class="ib" data-forget="${esc(r.path)}" title="목록에서 빼기(폴더는 그대로)" style="height:24px;min-width:24px;padding:0 4px">${icon("x", 14)}</button></div>
+        <div class="rm">${!r.exists ? '<span class="badge">폴더 없음</span>' : r.workspace ? `${r.git ? `<span class="badge git">git</span>` : ""}<span class="badge">덱 ${r.decks.length}</span>${svc(r)}` : '<span class="badge">작업 공간 아님</span>'}</div>
         ${r.workspace ? sessLine(r) : ""}</div></div>`).join("")
       : `<div class="empty">${q ? "찾는 작업이 없습니다" : "아직 연 작업이 없습니다. 새로 만들거나 폴더를 열어 보세요."}</div>`;
   }
@@ -596,8 +596,8 @@
     return r.running
       ? (H.home.proxy && r.url ? `<a class="badge run" href="${esc(r.url)}" target="_blank" rel="noopener" style="text-decoration:none" title="작업 공간 서버로 바로 열기(새 탭) - ${esc(r.url)}">포트 ${port || r.port || "?"} ↗</a>`
                                 : `<span class="badge run" title="${esc(r.url || "")}">포트 ${port || r.port || "?"}</span>`) +
-        (self ? "" : `<button type="button" class="svc stop" data-svc="stop" data-path="${esc(r.path)}" title="이 작업 공간 서버 끄기">${icon("stop", 14)}중지</button>`)
-      : `<span class="badge off" title="설정 포트(nexa-slide.json · nexa-slide.local.json)">포트 ${r.port || "?"}</span><button type="button" class="svc" data-svc="start" data-path="${esc(r.path)}" title="서버만 띄우기(페이지는 그대로)">${icon("play", 14)}시작</button>`;
+        (self ? "" : `<button type="button" class="svc stop" data-svc="stop" data-path="${esc(r.path)}" title="이 작업 공간 서버 끄기">${icon("stop", 14)}서버 중지</button>`)
+      : `<span class="badge off" title="설정 포트(nexa-slide.json · nexa-slide.local.json)">포트 ${r.port || "?"}</span><button type="button" class="svc" data-svc="start" data-path="${esc(r.path)}" title="서버만 띄우기(페이지는 그대로)">${icon("play", 14)}서버 시작</button>`;
   }
   // AI 세션 줄(4줄) - 웹 세션(유형·모델·시작 사용자·대기/처리 중) 또는 수동 세션 또는 없음. [세션 시작] 은 꺼진 서버도 먼저 띄운다(결정 5)
   function sessLine(r) {
@@ -606,7 +606,7 @@
     if (s.kind === "web") info = `<span class="badge run" title="시작 ${esc(s.started || "")} · 마지막 확인 ${esc(s.lastSeen || "")}">웹 세션</span> ${esc(s.agent || "")} · ${esc(s.model || "")}${s.user ? ` · ${esc(s.user)}` : ""}${s.working ? ` · <b>처리 중 ${s.working}</b>` : s.open ? ` · 대기 ${s.open}` : ""}`;
     else if (s.kind === "manual") info = `<span class="badge run">수동 세션</span> ${esc(s.label || "")}${s.working ? ` · 처리 중 ${s.working}` : s.open ? ` · 대기 ${s.open}` : ""}`;
     else info = `<span class="badge">세션 없음</span>${s.open ? ` 대기 요청 ${s.open}` : ""}${s.last && s.last.startedAt ? ` <span class="hint">· 마지막 ${esc(s.last.agent || "")} ${esc(s.last.model || "")} ${esc((s.last.stoppedAt || s.last.startedAt || "").slice(0, 16))}${s.last.reason ? ` (${esc(s.last.reason)})` : ""}</span>` : ""}`;
-    const btn = s.kind === "web" ? `<button type="button" class="svc stop" data-sess="stop" data-path="${esc(r.path)}" title="이 작업 공간의 웹 세션 끊기">${icon("stop", 14)}세션 끊기</button>`
+    const btn = s.kind === "web" ? `<button type="button" class="svc stop" data-sess="stop" data-path="${esc(r.path)}" title="이 작업 공간의 웹 세션 중지(실행 중 턴도 끝낸다)">${icon("stop", 14)}세션 중지</button>`
       : s.kind === "manual" ? "" : `<button type="button" class="svc" data-sess="start" data-path="${esc(r.path)}" data-title="${esc(r.title || "")}" data-agent="${esc((s.defaults || {}).agent || "")}" data-model="${esc((s.defaults || {}).model || "")}" title="웹 세션 시작(서버가 꺼져 있으면 먼저 띄움)">${icon("play", 14)}세션 시작</button>`;
     return `<div class="rm" style="margin-top:3px;font-size:12px">${info}${btn}</div>`;
   }
@@ -615,6 +615,7 @@
   async function openSessModal(path, title, agentDef, modelDef) {
     sessTarget = path;
     $("#sessTitle").textContent = title || path;
+    $("#sessErr").innerHTML = "";
     $("#sessBody").innerHTML = '<div class="hint">에이전트·로그인 상태를 확인하는 중…</div>';
     $("#sessModal").classList.add("on");
     let d; try { const r = await fetch("/api/agent", { cache: "no-store" }); d = await r.json(); if (NexaMenu.auth401(r, d)) return; } catch (e) { d = null; }
@@ -635,10 +636,15 @@
     const model = $("#smModel").value === "__custom" ? $("#smModelText").value.trim() : $("#smModel").value;
     if (!model) { toast("모델을 고르거나 입력하세요"); return; }
     const body = { action: "session", op: "start", path: sessTarget, agent: $("#smAgent").value, model }; if ($("#smSave").checked) body.saveAs = $("#smSaveAs").value;
+    $("#sessErr").innerHTML = ""; $("#sessGo").disabled = true; $("#sessGo").textContent = "시작 중...";
     busy(true, "서버를 확인하고 세션을 시작하는 중...");
     const r = await post("/api/project", body);
-    busy(false);
-    if (!r.ok) { toast(r.data.error || "시작하지 못했습니다", 6000); return; }
+    busy(false); $("#sessGo").disabled = false; $("#sessGo").textContent = "시작";
+    if (!r.ok) {  // 창 안에 오류를 남긴다(토스트는 창에 가려 안 보일 수 있다). 허브가 옛 판이면 "action = create|…" 로 거절된다 → 재시작 안내
+      const msg = r.data.error || `시작하지 못했습니다 (${r.status || "응답 없음"})`;
+      $("#sessErr").innerHTML = `<div class="warn" style="margin-top:10px">${esc(msg)}${/action = /.test(msg) ? "<br>허브 서버가 옛 판입니다 - 운영자가 <code>service.py restart</code> 로 새 판을 올려야 합니다." : ""}${r.data.log ? `<pre class="log">${esc(r.data.log)}</pre>` : ""}</div>`;
+      return;
+    }
     closeModals(); toast(`웹 세션 시작 - ${body.agent} · ${model}`); await load();
   };
   $("#rFind").addEventListener("input", renderRecent);
@@ -647,10 +653,10 @@
     if (ss) {
       e.stopPropagation();
       if (ss.dataset.sess === "start") { openSessModal(ss.dataset.path, ss.dataset.title, ss.dataset.agent, ss.dataset.model); return; }
-      if (!confirm("이 작업 공간의 웹 세션을 끊을까요? 실행 중인 턴이 있으면 바로 종료됩니다.")) return;
-      ss.disabled = true; ss.textContent = "끊는 중...";
+      if (!confirm("이 작업 공간의 웹 세션을 중지할까요? 실행 중인 턴이 있으면 바로 종료됩니다.")) return;
+      ss.disabled = true; ss.textContent = "중지 중...";
       const r = await post("/api/project", { action: "session", op: "stop", path: ss.dataset.path });
-      if (!r.ok) toast(r.data.error || "끊지 못했습니다", 5000); else toast("세션을 끊었습니다");
+      if (!r.ok) toast(r.data.error || "중지하지 못했습니다", 5000); else toast("세션을 중지했습니다");
       await load();
       return;
     }

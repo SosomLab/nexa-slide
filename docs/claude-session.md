@@ -84,7 +84,25 @@ Monitor
 
 연결 판정: 하트비트가 `interval × 4 + 2`초(기본 6초) 안에 갱신되면 연결됨.
 
-## 5. 여러 작업 공간 · 여러 세션
+## 5. 웹 세션 — 서버가 세션을 띄운다
+
+터미널을 열지 않고 **허브(시작 페이지)나 Studio 의 세션 칩에서 [세션 시작]** 을 누르면, 그 작업 공간 서버가 AI CLI(`claude` 또는 `codex`)를 **요청 묶음마다 한 턴씩** 실행해 위 규약 그대로 처리한다(`studio/wsession.py`, 설계 [dev/web-session-design.md](dev/web-session-design.md)).
+
+| | 수동 세션(1~5절) | 웹 세션 |
+|---|---|---|
+| 시작 | 터미널에서 Claude Code 를 열고 Monitor 로 `watch_requests --stream` | 허브 최근 작업 [세션 시작] / Studio 세션 칩 ▾ → "웹 세션 시작…"(에이전트·모델 선택, 서버가 꺼져 있으면 허브가 먼저 띄움) |
+| 요청 전달 | Monitor 알림 → 세션이 처리 | 서버가 같은 판정(`requests_core`)으로 묶음을 만들어 `claude -p`(stdin 프롬프트 = `studio/agents/turn_prompt.md` + 요청 JSON)를 실행 |
+| 권한 | 작업 공간 `.claude/settings.json`(사람이 승인 창에서 판단) | 엔진 권한 템플릿(`agents/permissions.json` workspace+web)을 `--settings` 로, `--restricted --permission-mode dontAsk` — 작업 공간 안 Read/Edit/Write 와 `python3 nexa.py …` 만. 물음은 모두 거절 |
+| 저장 | `save_deck` | 같다 — `draft_deck`(사본+줄 번호) → Edit → `save_deck --from`. 원장 `actor.user` = 세션을 시작한 사용자 |
+| 표시 | 칩 "세션 연결됨" | 칩 "웹 세션 · 모델 · 사용자", 칩 메뉴의 진행 패널(SSE: 턴 시작·도구·글·턴 끝·경고), 턴 로그, 모델 바꾸기(실행 중이면 턴이 끝난 뒤), 세션 중지 |
+| 끝 | 세션 종료·Monitor 만료 | [세션 중지]·유휴 `sessionIdleMinutes`(60분)·서버 종료 — 실행 중 턴의 프로세스 트리까지 끝낸다. 턴 한도 `sessionTurnMinutes`(20분) |
+| 함께 쓰기 | 웹 세션이 살아 있으면 `watch_requests` 는 `{"event":"refused","reason":"web-session"}` (`--takeover` 로도 서버를 끊지 않는다) | 수동 감시가 살아 있으면 시작을 거절한다 |
+
+- 처리하지 못한 요청은 서버가 `open` 으로 두고 `reply` 에 "세션이 처리하지 못했습니다: <사유>" 를 적는다(침묵 실패 없음).
+- 로그: `out/.studio/sessions/<시작 시각>/turn-N.jsonl`(CLI 출력 원문)·`session.log`, 접근 로그 `event=session.*`. 이 PC 의 동시 웹 세션 수는 `sessionMax`(3).
+- 서비스 유형 `codex` 는 [openai-codex.md](openai-codex.md) 5절(미확인). 설치·로그인은 [claude-install.md](claude-install.md).
+
+## 6. 여러 작업 공간 · 여러 세션
 
 - **작업 공간 하나 = 감시 하나 = 세션 하나.** 각 저장소(폴더)에서 연 Claude 세션이 자기 작업 공간의 감시를 띄운다.
   세션의 작업 폴더·규칙·git 이 그 저장소라서 요청 처리와 커밋이 제자리에 남는다.

@@ -80,19 +80,23 @@ codex exec resume --last "다음 요청"                                    # �
 - 한 번만 키를 쓰려면 `CODEX_API_KEY` 를 그 실행에만 준다.
 - 정확한 옵션은 설치한 버전의 `codex exec --help` 로 확인한다(버전마다 바뀐다 — 예: `--full-auto` 는 없어졌다).
 
-## 5. 웹 세션에서 서비스 유형 바꾸기 (개발 중)
+## 5. 웹 세션에서 서비스 유형 바꾸기
 
-웹 세션은 **서비스 유형(`claude` / `codex`)만 바꾸면 같은 화면·같은 처리 규약으로** 동작하게 만든다. 확정되면 이 절과 [claude-session.md](claude-session.md) 를 갱신한다.
+웹 세션(허브 시작 페이지·Studio 세션 칩의 [세션 시작])은 **서비스 유형(`claude` / `codex`)만 바꾸면 같은 화면·같은 처리 규약**으로 동작한다 — 서버가 턴마다 그 CLI 를 실행한다([claude-session.md](claude-session.md) 5절, 설계 [dev/web-session-design.md](dev/web-session-design.md)).
+`codex` 어댑터(`studio/agents/codex.py`)는 **공식 문서 기준으로 만들었고 이 PC 에서 확인되지 않았다** — 시작 창에 "미확인" 으로 표시되고, 설치가 없으면 비활성(이 문서 안내).
 
-| 항목 | `claude` | `codex` |
+| 항목 | `claude` (확인됨) | `codex` (미확인) |
 |---|---|---|
-| 실행 파일 | `claude` | `codex` |
-| 설치·로그인 확인 | `claude --version`, `claude -p … --max-turns 1` | `codex --version`, `codex login status` |
-| 한 번 실행 | `claude -p --output-format stream-json …` | `codex exec --json …` |
-| 이어 가기 | `--resume <세션 id>` | `codex exec resume <세션 id>` |
-| 모델 | `--model opus` 등 | 모델 ID(계정에서 쓸 수 있는 것) |
-| 쓰기 범위 | 작업 공간 `.claude/settings.json` 권한 + `--permission-mode acceptEdits` | `--sandbox workspace-write`(작업 공간 폴더 안만 쓰기) |
+| 실행 파일 | `claude`(PATH) — 사용자 설정 `agentPaths.claude` 로 지정 가능 | `codex` — `agentPaths.codex` |
+| 설치·로그인 확인 | `claude --version` · `claude auth status`(JSON, 턴을 쓰지 않음) | `codex --version` · `codex login status` |
+| 한 턴 | `claude -p --output-format stream-json --verbose --model <m> --permission-mode dontAsk --permission-prompts none --restricted --tools "Read,Edit,Write,Glob,Grep,Bash" --settings <권한 JSON> --strict-mcp-config --max-turns <n>`(프롬프트는 stdin) | `codex exec --json --sandbox workspace-write -m <m> -c approval_policy="never" -c sandbox_workspace_write.network_access=true --ignore-user-config --skip-git-repo-check -`(프롬프트는 stdin) |
+| 이어 가기 | `--resume <session_id>`(`system/init` 의 `session_id`) | `codex exec resume <thread_id> -`(`thread.started` 의 `thread_id`) |
+| 모델 | 별칭 `opus`·`sonnet`·`haiku` 또는 전체 ID | 계정에서 쓸 수 있는 모델 ID(목록은 관리자가 전역 설정 `sessionModels.codex` 에) |
+| 쓰기 범위 | 엔진 권한 템플릿(`studio/agents/permissions.json` workspace+web)을 `--settings` 로 — 작업 공간 안 Read/Edit/Write, 명령은 `python3 nexa.py …` 만 | `--sandbox workspace-write`(cwd = 작업 공간 안만 쓰기), 네트워크는 `save_deck` 의 127.0.0.1 저장을 위해 켬 |
 | 읽는 안내 파일 | `CLAUDE.md` | `AGENTS.md` |
+| 출력 파싱 | stream-json(`system`·`assistant`·`result`) | NDJSON(`thread.started`·`turn.started/completed/failed`·`item.*`·`error`) |
 | 서버 계정이 다를 때 인증 | `CLAUDE_CODE_OAUTH_TOKEN` 또는 `ANTHROPIC_API_KEY` | `OPENAI_API_KEY`(→ `codex login --with-api-key`) 또는 `CODEX_HOME` 의 `auth.json` |
+| 금지(어떤 설정으로도 넣지 않음) | `--dangerously-skip-permissions`·`bypassPermissions` | `--sandbox danger-full-access`·`--approve-for-me` |
 
-서비스 유형·모델은 사용자 설정(전역) < 작업 공간 설정 < 세션 시작 창 순으로 정하고, 화면에서 바꾼다.
+서비스 유형·모델은 **전역(사용자 설정 `sessionAgent`·`sessionModel`, 관리자만) < 작업 공간 설정(`nexa-slide.local.json`/`nexa-slide.json` 의 같은 키) < 세션 시작 창의 선택** 순이고 모두 화면에서 바꾼다(시작 창의 "이 작업 공간 기본으로 저장").
+`codex` 를 처음 쓸 때는 작업 공간 하나로 `python3 nexa.py draft_deck`·`save_deck` 흐름이 끝까지 가는지 턴 로그(Studio 세션 칩 → 턴 로그)로 확인한다 — 옵션 이름이 설치된 판과 다르면 `probe` 가 `--help` 로 알아내 경고한다.

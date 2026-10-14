@@ -82,7 +82,7 @@
     const r = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
     let d = null; try { d = await r.json(); } catch (_) { /* 응답 없음 */ }
     auth401(r, d);
-    return { ok: r.ok && d && d.ok !== false, data: d || {} };
+    return { ok: r.ok && d && d.ok !== false, status: r.status, data: d || {} };
   }
   async function logout() {
     await post("/api/auth/logout", {});

@@ -1157,7 +1157,7 @@ ${names}
       ? [{ h: `웹 세션 · ${st.agent || ""} · ${st.model || ""}${st.user ? ` · ${st.user}` : ""}` },
          { icon: "▶", label: "진행 보기", act: sessProgress }, { icon: "⟳", label: "모델 바꾸기…", act: sessModelDlg },
          { icon: "📄", label: "턴 로그…", act: () => sessLog(1) }, "-",
-         { icon: "■", label: "세션 끊기", act: sessStop }]
+         { icon: "■", label: "세션 중지", act: sessStop }]
       : st.connected
         ? [{ h: `수동 세션 · ${st.label || ""}` }, { html: `<div class="hint" style="padding:4px 10px;max-width:280px">터미널의 Claude Code 세션이 요청 감시(watch_requests)로 맡고 있습니다. 웹 세션으로 바꾸려면 그 감시를 끝내세요.</div>` }]
         : [{ icon: "▶", label: "웹 세션 시작…", act: sessStartDlg }, { html: `<div class="hint" style="padding:4px 10px;max-width:280px">서버가 Claude 를 띄워 편집기 요청을 처리합니다. 터미널 세션(Monitor)과 함께 쓸 수 없습니다.</div>` }];
@@ -1195,10 +1195,10 @@ ${names}
     sessProgress();
   }
   async function sessStop() {
-    if (!confirm("웹 세션을 끊을까요? 실행 중인 턴이 있으면 바로 종료됩니다.")) return;
+    if (!confirm("웹 세션을 중지할까요? 실행 중인 턴이 있으면 바로 종료됩니다.")) return;
     const r = await api("POST", "/api/wsession", { action: "stop" });
-    if (!r.ok) { toast("끊지 못했습니다: " + ((r.data && r.data.error) || r.status), 5000); return; }
-    toast("웹 세션을 끊었습니다"); sessClose(); api("GET", "/api/session").then((x) => x.ok && renderSession(x.data));
+    if (!r.ok) { toast("중지하지 못했습니다: " + ((r.data && r.data.error) || r.status), 5000); return; }
+    toast("웹 세션을 중지했습니다"); sessClose(); api("GET", "/api/session").then((x) => x.ok && renderSession(x.data));
   }
   async function sessModelDlg() {
     const r = await api("GET", "/api/agent"); const st = S.session || {};
@@ -1221,7 +1221,7 @@ ${names}
   function sessProgress() {
     sessBox(`<div class="row" style="align-items:center;gap:8px"><h3 style="margin:0;flex:1">웹 세션 진행</h3><span class="hint" id="sdState"></span><button class="chip sm" data-sd="log">턴 로그</button><button class="chip sm" data-sd="close">닫기</button></div>
       <div class="ev" id="sdEv"><div class="hint">연결 중…</div></div>
-      <div class="row" style="justify-content:flex-end;gap:8px"><button class="chip sm" data-sd="model">모델 바꾸기…</button><button class="chip sm" data-sd="stop">세션 끊기</button></div>`);
+      <div class="row" style="justify-content:flex-end;gap:8px"><button class="chip sm" data-sd="model">모델 바꾸기…</button><button class="chip sm" data-sd="stop">세션 중지</button></div>`);
     if (WSS.src) WSS.src.close();
     WSS.events = [];
     const box = $("#sdEv"); box.innerHTML = "";
