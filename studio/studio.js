@@ -343,7 +343,10 @@
   function renderDeckTabs() {
     $("#deckTabs").innerHTML = S.decks.map((d) => `<button data-deck="${esc(d.id)}" class="${d.id === S.id ? "on" : ""}" title="${esc(d.title)} (${d.slides}장)">${esc(d.id)}</button>`).join("");
   }
-  const reqsOf = (sid, st) => S.reqs.filter((r) => r.slide === sid && (st ? r.status === st : r.status !== "done"));
+  const reqsOf = (sid, st) => {  // 썸네일 배지 - 후속 요청은 thread 단위로 하나만 센다
+    const l = S.reqs.filter((r) => r.slide === sid && (st ? r.status === st : r.status !== "done"));
+    return [...new Map(l.map((r) => [r.thread || r.id, r])).values()];
+  };
   function thumbHtml(s, i) {
     const dr = reqsOf(s.id, "draft").length, op = reqsOf(s.id, "open").length, wk = reqsOf(s.id, "working").length;
     return `<div class="thumb${i === S.cur ? " cur" : ""}" data-i="${i}" draggable="true"><span class="num">${i + 1}</span>
@@ -556,10 +559,10 @@
   }
 
   // ---------------------------------------------------------------- 요청 첨부 - 클립보드 그림(Ctrl+V)·끌어다 놓기·📎. 올리면 out/attach/<덱>/ 에 저장되고 요청의 attachments 로 담긴다
-  const ATT = { memo: [], tab: [], busy: 0 };
+  const ATT = { memo: [], tab: [], fu: [], busy: 0 };
   const attIsImg = (a) => /^image\//.test(a.type || "");
   function attRender(which) {
-    const box = $(which === "memo" ? "#memoAtt" : "#reqAtt"); if (!box) return;
+    const box = $({ memo: "#memoAtt", tab: "#reqAtt", fu: "#fuAtt" }[which]); if (!box) return;
     box.innerHTML = ATT[which].map((a, i) => `<span class="a" title="${esc(a.name)} · ${Math.round((a.size || 0) / 1024)}KB" data-attv="${which}:${i}">${attIsImg(a) ? `<img src="${esc(BASE + a.url)}" alt="">` : `<span>📄</span>`}<span class="n">${esc(a.name)}</span><button class="x" data-attx="${which}:${i}" title="빼기">✕</button></span>`).join("")
       + (ATT.busy ? `<span class="a"><span class="spin"></span><span class="n">올리는 중…</span></span>` : "");
     if (which === "memo") memoInput();
@@ -1098,6 +1101,29 @@ ${names}
     renderReqs(); if (S.deck) { renderThumbs(); renderMarks(); }
   }
   const ST = { draft: "초안", open: "대기", working: "처리 중", done: "완료" };
+  // 후속 요청 - 같은 thread(뿌리 요청 id)를 한 묶음으로. 묶음 안은 오래된 순, 묶음끼리는 최근 활동이 위
+  const threadKey = (r) => r.thread || r.id;
+  function threadsOf(list) {
+    const m = new Map();
+    for (const r of list) { const k = threadKey(r); if (!m.has(k)) m.set(k, []); m.get(k).push(r); }
+    const gs = [...m.values()].map((g) => g.sort((a, b) => String(a.created || "").localeCompare(String(b.created || "")) || String(a.id).localeCompare(String(b.id))));
+    return gs.sort((a, b) => String(b[b.length - 1].created || "").localeCompare(String(a[a.length - 1].created || "")));
+  }
+  function fuFormHtml(r) {  // 마지막 요청 아래 인라인 입력칸 - 앞선 답은 접어서 인용
+    return `<div class="fu-form">${r.reply ? `<details><summary>앞선 답 보기</summary><div class="quote">${esc(r.reply)}</div></details>` : ""}
+      <textarea id="fuText" placeholder="이어서 묻거나 답하기 (Enter = 보내기, Shift+Enter = 줄바꿈 · 그림은 Ctrl+V)"></textarea><div class="att" id="fuAtt"></div>
+      <div class="row" style="gap:6px;justify-content:flex-end"><button class="att-btn" data-attach="fu" title="그림 붙여넣기(Ctrl+V) · 끌어다 놓기 · 파일 고르기"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 11.5l-8.5 8.5a5 5 0 0 1-7-7l9-9a3.3 3.3 0 0 1 4.7 4.7l-9 9a1.6 1.6 0 0 1-2.3-2.3l8-8"/></svg>＋ 첨부</button><span style="flex:1"></span><button class="chip sm" data-fucancel="1">취소</button><button class="chip sm primary" data-fusend="1">보내기</button></div></div>`;
+  }
+  async function fuSend(parentId) {
+    const t = ($("#fuText") && $("#fuText").value.trim()) || ""; if (!t && !ATT.fu.length) return;
+    if (ATT.busy) { toast("첨부를 올리는 중입니다"); return; }
+    const body = { action: "add", status: "open", parent: parentId, text: t || "(첨부 참고)" };
+    if (ATT.fu.length) body.attachments = ATT.fu;
+    const r = await api("POST", `/api/requests/${S.id}`, body);
+    if (!r.ok) { toast("요청하지 못했습니다: " + ((r.data && r.data.error) || r.status), 5000); return; }
+    S.fu = null; ATT.fu = []; S.reqs = r.data; afterReqs(); await flushReqs(true);
+    toast(S.session && S.session.connected ? "후속 요청을 세션에 보냈습니다" : "후속 요청을 남겼습니다 - 세션이 연결되면 전달됩니다");
+  }
   function renderReqs() {
     const R = $("#tab-reqs"), s = slide(); if (!s) return;
     const open = S.reqs.filter((r) => r.status !== "done").length;
@@ -1113,12 +1139,16 @@ ${names}
       <div class="hint">${S.session && S.session.connected ? (S.session.kind === "web" ? (S.session.state === "running" ? `웹 세션이 처리 중(턴 ${S.session.turn || "?"}) - 새로 보낸 요청은 이 턴이 끝난 뒤 바로 처리된다` : "웹 세션 대기 중 - 보낸 요청은 바로 처리된다") : "세션 연결됨 - 보낸 요청은 바로 전달된다") : `세션 연결 없음 - 보낸 요청은 저장되고, 세션이 감시를 시작하면 전달된다${sessOffNote()}`}</div>
       ${!(S.session && S.session.connected) && S.reqs.some((r) => r.status === "open") ? `<div class="warn" style="font-size:12px;margin-top:6px">세션이 꺼져 있어 대기 요청 ${S.reqs.filter((r) => r.status === "open").length}건이 처리되지 않습니다 - <a href="#" data-sess-start>웹 세션 시작…</a></div>` : ""}</div>
       <div class="row"><span class="seg" id="reqFilter"><button data-v="1" class="${S.reqOnlySlide ? "on" : ""}">이 슬라이드</button><button data-v="0" class="${S.reqOnlySlide ? "" : "on"}">전체 (${S.reqs.length})</button></span></div>
-      ${list.length ? list.slice().reverse().map((r) => `<div class="req ${r.status === "done" ? "done" : ""}" data-rid="${esc(r.id)}">
-        <div class="meta"><span class="st ${esc(r.status || "open")}">${ST[r.status] || "대기"}</span>
-          <a href="#" data-goto="${esc(r.slide)}" data-el="${esc(r.element || "")}">슬라이드 ${idx(r.slide) || "?"}${r.element ? " · " + esc(r.element) : ""}${r.region ? " · 영역" : ""}</a><span>${esc((r.created || "").replace("T", " "))}</span></div>
-        <div class="txt">${esc(r.text)}</div>${attListHtml(r.attachments, r.id)}${r.reply ? `<div class="reply"><b>${agentName()}</b> ${esc(r.reply)}</div>` : ""}
-        <div class="acts">${r.status === "draft" ? "" : `<button class="chip sm" data-rs="${r.status === "done" ? "open" : "done"}">${r.status === "done" ? "다시 열기" : "완료로 표시"}</button>`}<button class="chip sm" data-rdel="1">삭제</button></div></div>`).join("") : `<div class="hint">요청이 없다.</div>`}`;
+      ${list.length ? threadsOf(list).map((g) => `<div class="thread${g.length > 1 ? " multi" : ""}">${g.map((r, k) => {
+        const last = k === g.length - 1;
+        return `<div class="req ${r.status === "done" ? "done" : ""}${k ? " fu" : ""}" data-rid="${esc(r.id)}">
+        <div class="meta"><span class="st ${esc(r.status || "open")}">${ST[r.status] || "대기"}</span>${k ? `<span class="fu-tag">후속</span>` : `<a href="#" data-goto="${esc(r.slide)}" data-el="${esc(r.element || "")}">슬라이드 ${idx(r.slide) || "?"}${r.element ? " · " + esc(r.element) : ""}${r.region ? " · 영역" : ""}</a>`}<span>${esc((r.created || "").replace("T", " "))}</span></div>
+        <div class="txt">${esc(r.text)}</div>${attListHtml(r.attachments, r.id)}${r.reply ? `<div class="reply${r.status !== "done" ? " ask" : ""}"><b>${agentName()}</b> ${esc(r.reply)}</div>` : ""}
+        <div class="acts">${r.status === "draft" ? "" : `<button class="chip sm" data-rs="${r.status === "done" ? "open" : "done"}" ${r.status === "done" ? 'title="같은 요청을 세션에 다시 보냅니다(답을 달려면 후속 요청)"' : ""}>${r.status === "done" ? "다시 열기" : "완료로 표시"}</button>`}${last && r.status !== "draft" ? `<button class="chip sm primary" data-fu="1" title="이 요청에 이어서 묻거나 답합니다 - 앞선 요청과 답이 함께 세션에 전달됩니다">후속 요청</button>` : ""}<button class="chip sm" data-rdel="1">삭제</button></div>
+        ${last && S.fu === r.id ? fuFormHtml(r) : ""}</div>`;
+      }).join("")}</div>`).join("") : `<div class="hint">요청이 없다.</div>`}`;
     attRender("tab"); attWire($("#reqText"), "tab");
+    if (S.fu && $("#fuText")) { attRender("fu"); attWire($("#fuText"), "fu"); $("#fuText").focus(); }
   }
   async function onReqClick(e) {
     const b = e.target.closest("button, a"); if (!b) return;
@@ -1145,6 +1175,9 @@ ${names}
       if (i >= 0) { S.cur = i; S.sel = b.dataset.el && elById(b.dataset.el, S.deck.slides[i]) ? b.dataset.el : null; renderAll(); revealThumb(S.cur); }
       return;
     }
+    if (b.dataset.fu) { S.fu = S.fu === rid ? null : rid; ATT.fu = []; renderReqs(); return; }
+    if (b.dataset.fucancel) { S.fu = null; ATT.fu = []; renderReqs(); return; }
+    if (b.dataset.fusend) { await fuSend(rid); return; }
     let body = null;
     if (b.dataset.rs) body = { action: "update", id: rid, status: b.dataset.rs };
     if (b.dataset.rdel) { if (!confirm("이 요청을 지울까요?")) return; body = { action: "delete", id: rid }; }
@@ -1999,6 +2032,8 @@ ${names}
     $("#tab-reqs").addEventListener("input", (e) => { if (e.target.id === "reqText") keep(e.target.dataset.key, e.target.value); });
     $("#tab-reqs").addEventListener("keydown", (e) => { // 슬라이드 요청 칸도 메모 팝오버처럼: Enter = 메모 남기기(초안), Shift+Enter = 줄바꿈
       if (e.target.id === "reqText" && e.key === "Enter" && !e.shiftKey && !e.isComposing) { e.preventDefault(); $("#reqAdd").click(); }
+      if (e.target.id === "fuText" && e.key === "Enter" && !e.shiftKey && !e.isComposing) { e.preventDefault(); fuSend(e.target.closest(".req").dataset.rid); }
+      if (e.target.id === "fuText" && e.key === "Escape") { S.fu = null; ATT.fu = []; renderReqs(); }
     });
     $("#tab-hist").addEventListener("click", onHistClick);
     $("#notesTa").addEventListener("input", onNotes);

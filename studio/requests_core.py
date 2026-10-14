@@ -50,9 +50,35 @@ def request_key(r):
                                    ensure_ascii=False).encode("utf-8")).hexdigest()
 
 
+CONTEXT_MAX, CONTEXT_CHARS = 6, 800  # 후속 요청에 붙이는 앞선 대화 - 최대 항목 수 · 항목당 글자 수
+
+
+def thread_context(r):
+    """후속 요청(thread)이면 같은 thread 의 앞선 요청들 [{id, text, reply, status, attachments?}] - 오래된 것부터, 최근 CONTEXT_MAX 개."""
+    th = r.get("thread")
+    if not th or not r.get("deck"):
+        return []
+    try:
+        rs = json.loads((DECKS / f"{r['deck']}.requests.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return []
+    prev = [x for x in rs if (x.get("id") == th or x.get("thread") == th) and x.get("id") != r.get("id") and str(x.get("created", "")) <= str(r.get("created", "~"))]
+    prev.sort(key=lambda x: (str(x.get("created", "")), str(x.get("id"))))
+    out = []
+    for x in prev[-CONTEXT_MAX:]:
+        c = {"id": x.get("id"), "status": x.get("status"), "text": str(x.get("text") or "")[:CONTEXT_CHARS], "reply": str(x.get("reply") or "")[:CONTEXT_CHARS]}
+        if x.get("attachments"):
+            c["attachments"] = [a.get("path") for a in x["attachments"] if isinstance(a, dict)]
+        out.append(c)
+    return out
+
+
 def brief(r):
-    """세션에 넘기는 요약 - deck·id·slide·element·text(·region)."""
+    """세션에 넘기는 요약 - deck·id·slide·element·text(·region·attachments). 후속 요청이면 parent·thread 와 앞선 대화 context."""
     out = {k: r.get(k) for k in ("deck", "id", "slide", "element", "text")}
+    if r.get("thread"):
+        out["parent"], out["thread"] = r.get("parent"), r["thread"]
+        out["context"] = thread_context(r)
     if r.get("region"):
         out["region"] = r["region"]
     if r.get("attachments"):  # 첨부(클립보드 그림·파일) - 작업 공간 안 경로(out/attach/<덱>/…), 세션이 Read 로 본다

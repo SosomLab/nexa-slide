@@ -344,6 +344,16 @@
   .req .st.working { background: var(--infoc); color: var(--info); }
   .req .txt { white-space: pre-wrap; }
   .req .reply { margin-top: 6px; background: #fff; border-radius: 10px; padding: 6px 10px; white-space: pre-wrap; }
+  .req .reply.ask { border-left: 3px solid var(--warn); }  /* 아직 열려 있는 요청의 답 = 질문 */
+  /* 후속 요청 - 같은 대화(thread)를 한 상자로, 후속은 들여 쓰고 연결선 */
+  .thread.multi { border-left: 2px solid var(--line); margin-left: 4px; padding-left: 6px; margin-bottom: 8px; }
+  .thread.multi .req { margin-bottom: 6px; }
+  .req.fu { margin-left: 10px; }
+  .req .fu-tag { border-radius: 999px; padding: 0 8px; background: var(--infoc); color: var(--info); font-weight: 700; }
+  .fu-form { margin-top: 8px; border-top: 1px solid var(--line); padding-top: 8px; }
+  .fu-form textarea { width: 100%; min-height: 56px; border: 1px solid var(--line); border-radius: 10px; padding: 6px 9px; font: 13px/1.5 var(--font); resize: vertical; box-sizing: border-box; }
+  .fu-form details { font-size: 12px; color: var(--ink2); margin-bottom: 6px; }
+  .fu-form .quote { white-space: pre-wrap; border-left: 3px solid var(--line); padding: 4px 8px; margin-top: 4px; }
   .req .reply b { color: var(--p); }
   .req .acts { display: flex; gap: 6px; margin-top: 6px; }
   .chk { background: var(--tone); border-radius: 12px; padding: 7px 10px; margin-bottom: 6px; cursor: pointer; }

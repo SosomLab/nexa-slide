@@ -14,6 +14,7 @@ import datetime as dt
 import json
 import os
 import signal
+import re
 import shutil
 import subprocess
 import sys
@@ -146,7 +147,13 @@ class WorkspaceProfile:
                 rc.write_json(p, rs)
         if unhandled:
             emit("warn", message=f"처리되지 않은 요청 {len(unhandled)}건 - reply 에 사유를 적고 open 으로 두었다", ids=unhandled)
+        asked = [q["id"] for q in rc.all_requests() if q.get("id") in ids and q.get("status") == "done" and QUESTION_RX.search(str(q.get("reply") or ""))]
+        if asked:  # 규약 위반(질문하면서 done) - 상태는 바꾸지 않고 알리기만 한다
+            emit("warn", message=f"질문으로 끝나는 reply 인데 done 인 요청 {len(asked)}건 - 사용자는 [후속 요청]으로 답할 수 있다", ids=asked)
         return unhandled
+
+
+QUESTION_RX = re.compile(r"(\?|？|알려\s*주세요|알려\s*주십시오|골라\s*주세요|할까요|드릴까요|원하시는)\s*[.!)\]]*\s*$")
 
 
 class EngineQueueSource:
