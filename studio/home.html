@@ -679,7 +679,7 @@
     }
     const tl = (H.home.templates.find((t) => t.name === d.template) || {}).label || d.template;
     const sl = d.starter ? (H.home.starters.find((x) => x.name === d.starter) || {}).label || d.starter : "레이아웃 견본";
-    $("#pvInfo").textContent = `${tl} · ${sl} · ${n}장 — ${PV.one < 0 ? "슬라이드를 누르면 크게 봅니다" : "← → 키로 넘깁니다"}`;
+    $("#pvInfo").textContent = `${tl} · ${sl} · ${n}장 - ${PV.one < 0 ? "슬라이드를 누르면 크게 봅니다" : "← → 키로 넘깁니다"}`;
     requestAnimationFrame(fitPv);
   }
   $("#pvTpl").addEventListener("change", () => { PV.tpl = $("#pvTpl").value; loadPreview(); });

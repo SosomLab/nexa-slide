@@ -1,9 +1,9 @@
-/* 요소 모델 → HTML(절대 위치) 순수 렌더러 — 썸네일·캔버스·검증 페이지 공용.
+/* 요소 모델 → HTML(절대 위치) 순수 렌더러 - 썸네일·캔버스·검증 페이지 공용.
    export_pptx.py 와 같은 규칙으로 그린다. 한쪽을 고치면 다른 쪽(common.py·export_pptx.py)도 고친다.
      - 좌표·크기 px(1280×720), 글자 size px (PPT pt = px × 0.75)
      - 줄마다 한 단락, 줄 높이 = size × lineHeight (PPT "정확히" 줄 간격)
      - 인라인: **굵게**, ==강조==, [[토큰|색 글자]], {page}
-     - plan: [[글자]] = warn 강조, [[ok:글자]] = ok 강조 (배경·글자색·굵게만 — 폭 불변) */
+     - plan: [[글자]] = warn 강조, [[ok:글자]] = ok 강조 (배경·글자색·굵게만 - 폭 불변) */
 (function (root) {
   "use strict";
   let T = null; // tokens.json
@@ -27,12 +27,12 @@
     return Math.max(0, Math.min(r, Math.min(w, h) / 2));
   }
   // style="…" 속성 안에 들어가므로 큰따옴표를 작은따옴표로 바꾼다
-  /** PPT 줄 배치 보정(px): PowerPoint 는 여분 줄 높이를 위 75%·아래 25%로 둔다 — tokens.pptTextShift */
+  /** PPT 줄 배치 보정(px): PowerPoint 는 여분 줄 높이를 위 75%·아래 25%로 둔다 - tokens.pptTextShift */
   const shift = (k, s, lh) => {
     const c = T && T.pptTextShift && T.pptTextShift[k === "mono" ? "mono" : "body"];
     return c ? +(s * (c[0] * lh + c[1])).toFixed(2) : 0;
   };
-  // 슬라이드·덱 글꼴 세트(fontPreset) — common.preset_fonts 와 같은 규칙. FO = 지금 그리는 장의 글꼴(없으면 작업 공간 글꼴)
+  // 슬라이드·덱 글꼴 세트(fontPreset) - common.preset_fonts 와 같은 규칙. FO = 지금 그리는 장의 글꼴(없으면 작업 공간 글꼴)
   let FO = null, DECK_FP = null;
   function presetFonts(name) {
     const p = name && T && T.fontPresets && T.fontPresets[name]; if (!p) return null;
@@ -64,7 +64,7 @@
   }
   const plain = (s) => runs(s).map((r) => r[0]).join("");
 
-  // ---------- 코드 하이라이트 (concept.html hlSQL() 이식 — common.py hl_sql 과 같은 결과) ----------
+  // ---------- 코드 하이라이트 (concept.html hlSQL() 이식 - common.py hl_sql 과 같은 결과) ----------
   // 역할: k 예약어·타입·함수(굵게) · tb 테이블·CTE · al 테이블 별칭(기울임) · ca 결과 컬럼 별칭(기울임)
   //       st 문자열 · nu 숫자 · co 주석 · bi 바인드 · null 일반
   const SQL_KW = new Set(("select from where and or not in exists join left right full outer inner cross on as group by order having union all with recursive " +
@@ -109,10 +109,84 @@
     while ((m = re.exec(src))) out.push([m[0], m[1] ? "co" : m[2] ? "st" : m[3] ? "nu" : m[4] ? (PY_KW.has(m[0]) ? "k" : null) : null]);
     return out;
   }
-  /** code 요소 → 표시 줄 [{n, focus, gap, runs:[[글자, 역할]]}] — start·focus·show(구간 발췌, 사이는 ⋮) */
+  // ---------- 여러 언어 하이라이트 - 언어 정의는 code_langs.json(common.py 와 같은 파일·같은 알고리즘). setLangs 로 받는다 ----------
+  let LANGS = null, LANG_SETS = {};
+  function setLangs(d) { LANGS = d || null; LANG_SETS = {}; }
+  /** el.lang → 정의 이름(별칭 포함, 대소문자 무시). 없으면 sql(예전 기본), 모르면 plain */
+  function langOf(el) {
+    const l = String(el.lang || "sql").toLowerCase();
+    if (!LANGS) return l === "python" || l === "sql" ? l : "plain";
+    if (LANGS[l] && l[0] !== "_") return l;
+    for (const k of Object.keys(LANGS)) if (k[0] !== "_" && (LANGS[k].alias || []).includes(l)) return k;
+    return "plain";
+  }
+  const isA = (c) => (c >= "A" && c <= "Z") || (c >= "a" && c <= "z") || c === "_";
+  const isD = (c) => c >= "0" && c <= "9";
+  function hlGeneric(src, name) {
+    const sp = LANGS[name], n = src.length, out = [];
+    if (!LANG_SETS[name]) { const low = (w) => (sp.ci ? w.toLowerCase() : w); LANG_SETS[name] = ["kw", "types", "lits", "fn"].map((k) => new Set((sp[k] || []).map(low))); }
+    const [KW, TY, LI, FN] = LANG_SETS[name], idx = sp.idx || "";
+    const id0 = (c) => isA(c) || (c !== "" && idx.includes(c)), id1 = (c) => isA(c) || isD(c) || (c !== "" && idx.includes(c));
+    const push = (v, r) => { const L = out[out.length - 1]; if (L && L[1] === null && r === null) L[0] += v; else out.push([v, r]); };
+    const eol = (i) => { const e = src.indexOf("\n", i); return e < 0 ? n : e; };
+    const skipSp = (j) => { while (j < n && (src[j] === " " || src[j] === "\t")) j++; return j; };
+    let i = 0;
+    while (i < n) {
+      const c = src[i], prev = i ? src[i - 1] : "\n", nx = i + 1 < n ? src[i + 1] : "";
+      let k = i - 1; while (k >= 0 && (src[k] === " " || src[k] === "\t")) k--;
+      const atLine = k < 0 || src[k] === "\n";
+      let j = -1, role = null;
+      if (sp.diff && (i === 0 || prev === "\n")) { j = eol(i); role = c === "+" ? "st" : c === "-" ? "bi" : c === "@" ? "co" : null; }
+      if (j < 0 && sp.md && atLine && c === "#") { j = eol(i); role = "k"; }
+      if (j < 0) for (const [a, b] of sp.block || []) if (src.startsWith(a, i)) { const e = src.indexOf(b, i + a.length); j = e < 0 ? n : e + b.length; role = "co"; break; }
+      if (j < 0 && sp.vars && c === "$" && nx) {
+        if (nx === "{" || nx === "(") { const e = src.indexOf(nx === "{" ? "}" : ")", i); j = e < 0 ? n : e + 1; }
+        else if (id0(nx) || isD(nx)) { j = i + 2; while (j < n && id1(src[j])) j++; }
+        else if ("@#?*!$-".includes(nx)) j = i + 2;
+        if (j >= 0) role = "bi";
+      }
+      if (j < 0) for (const a of sp.line || []) if (src.startsWith(a, i) && !(sp.hashWs && a === "#" && !/\s/.test(prev))) { j = eol(i); role = "co"; break; }
+      if (j < 0 && sp.pre && c === "#" && atLine) { j = eol(i); role = "bi"; }
+      if (j < 0) for (const [a, b, raw] of sp.str || []) {
+        if (!src.startsWith(a, i)) continue;
+        let m = i + a.length;
+        while (m < n) {
+          if (!raw && sp.esc && src[m] === "\\") { m += 2; continue; }
+          if (src.startsWith(b, m)) { if (raw && b.length === 1 && src[m + 1] === b) { m += 2; continue; } m += b.length; break; }
+          if (b.length === 1 && !sp.ml && !raw && src[m] === "\n") break;
+          m++;
+        }
+        j = Math.min(m, n); role = "st";
+        if (sp.keys && src[skipSp(j)] === sp.keys) role = "tb";
+        break;
+      }
+      if (j < 0 && sp.tags && c === "<" && (isA(nx) || nx === "/" || nx === "!" || nx === "?")) { j = i + 1; while (j < n && (id1(src[j]) || "/!?:-.".includes(src[j]))) j++; role = "tb"; }
+      if (j < 0 && sp.deco && c === "@" && isA(nx)) { j = i + 1; while (j < n && (id1(src[j]) || src[j] === ".")) j++; role = "bi"; }
+      if (j < 0 && (isD(c) || (c === "." && isD(nx))) && !(i > 0 && id1(prev))) { j = i + 1; while (j < n && (isA(src[j]) || isD(src[j]) || src[j] === ".")) j++; role = "nu"; }
+      if (j < 0 && (id0(c) || ((KW.size || LI.size) && "@!$~".includes(c) && id0(nx)))) {
+        j = i + 1; while (j < n && id1(src[j])) j++;
+        const w = src.slice(i, j), lw = sp.ci ? w.toLowerCase() : w;
+        role = KW.has(lw) ? "k" : TY.has(lw) ? "tb" : LI.has(lw) ? "nu" : FN.has(lw) ? "ca" : null;
+        if (role === null && sp.keys) { const t = skipSp(j); if (src[t] === sp.keys && src[t + 1] !== sp.keys) role = "tb"; }
+        if (role === null && sp.attrs && src[skipSp(j)] === "=") role = "ca";
+        if (role === null && sp.calls !== false && src[skipSp(j)] === "(") role = "ca";
+        if (role === null && !id0(c)) { j = i + 1; }  // 기호로 시작했는데 예약어가 아니면 기호 한 글자만
+      }
+      if (j < 0) { j = i + 1; role = null; }
+      push(src.slice(i, j), role); i = j;
+    }
+    return out;
+  }
+  function highlight(src, el) {
+    const name = langOf(el);
+    if (name === "sql") return hlSQL(src);
+    if (!LANGS) return name === "python" ? hlPython(src) : [[src, null]];
+    return name === "plain" ? [[src, null]] : hlGeneric(src, name);
+  }
+  /** code 요소 → 표시 줄 [{n, focus, gap, runs:[[글자, 역할]]}] - start·focus·show(구간 발췌, 사이는 ⋮) */
   function codeLines(el) {
     const src = String(el.text == null ? "" : el.text);
-    const toks = el.lang === "python" ? hlPython(src) : hlSQL(src);
+    const toks = highlight(src, el);
     const lines = [[]];
     for (const [v, role] of toks) {
       v.split("\n").forEach((p, i) => { if (i) lines.push([]); if (p) lines[lines.length - 1].push([p, role]); });
@@ -325,7 +399,7 @@
     return `<svg class="rs-svg" style="left:${-m}px;top:${-m}px" width="${Math.max(1, el.w) + 2 * m}" height="${Math.max(1, el.h) + 2 * m}">${lineSvg(el, el.x - m, el.y - m)}</svg>`;
   }
 
-  /** 곡선(꺾은선 근사): points = 요소 상자 기준 [[x,y],…], head = end/none — 화살 머리는 마지막 선분 방향 */
+  /** 곡선(꺾은선 근사): points = 요소 상자 기준 [[x,y],…], head = end/none - 화살 머리는 마지막 선분 방향 */
   function elCurve(el) {
     const m = 20, pts = el.points || [], w = +el.width || 2, c = color(el.color || "on-surface");
     const dash = el.dash === "dot" ? `stroke-dasharray="${w} ${w}"` : el.dash && el.dash !== "solid" ? `stroke-dasharray="${w * 4} ${w * 3}"` : "";
@@ -368,7 +442,7 @@
     return html;
   }
 
-  /** plan: 실행계획 원문(고정폭) + [[강조]] — 배경·글자색·굵게만(폭 불변) */
+  /** plan: 실행계획 원문(고정폭) + [[강조]] - 배경·글자색·굵게만(폭 불변) */
   function elPlan(el) {
     const size = +el.size || 14, lh = +(el.lineHeight || 1.5), L = size * lh;
     const [pt, pr, pb, pl] = padOf(el, [16, 18, 16, 18]);
@@ -381,19 +455,19 @@
     return `<div class="rs-box" style="${boxStyle({ ...el, fill: el.fill || "surface-container", radius: el.radius == null ? "r-m" : el.radius }, "rect")}padding:${pt}px ${pr}px ${pb}px ${pl}px;justify-content:flex-start;font-family:${font("mono")};font-size:${size}px">${body}</div>`;
   }
 
-  /** code: DBeaver 라이트 — 줄 번호 여백 + 강조 줄 면 + 역할별 색·굵게·기울임 (export_pptx.do_code 와 같은 배치) */
+  /** code: DBeaver 라이트 - 줄 번호 여백 + 강조 줄 면 + 역할별 색·굵게·기울임 (export_pptx.do_code 와 같은 배치) */
   function elCode(el) {
-    const size = +el.size || 15, lh = +(el.lineHeight || 1.6), L = size * lh, gw = el.gutterW || CODE_GUTTER_W;
+    const size = +el.size || 15, lh = +(el.lineHeight || 1.6), L = size * lh, gw = el.lineNo === false ? 0 : el.gutterW || CODE_GUTTER_W;
     const r = radius(el.radius == null ? "r-m" : el.radius, el.w, el.h);
     const lines = codeLines(el);
     let html = `<div class="rs-code" style="border-radius:${r}px;background:${color("code-bg")};box-shadow:inset 0 0 0 1px ${color("surface-container-high")};font-family:${font("mono")};font-size:${size}px">`;
-    html += `<div class="rs-abs" style="left:0;top:0;width:${gw}px;height:100%;background:${color("code-gutter-bg")}"></div>`;
+    if (gw) html += `<div class="rs-abs" style="left:0;top:0;width:${gw}px;height:100%;background:${color("code-gutter-bg")}"></div>`;
     const sh = shift("mono", size, lh);
     lines.forEach((ln, i) => {
       const top = CODE_PAD_Y + i * L;
       if (ln.focus) html += `<div class="rs-abs" style="left:${gw}px;top:${top}px;right:0;height:${L}px;background:${color("code-focus")}"></div>`;
       const gc = ln.focus ? color("on-surface") : color("code-gutter");
-      html += `<div class="rs-abs rs-pre" style="left:0;top:${top + sh}px;width:${gw - 12}px;height:${L}px;line-height:${L}px;text-align:right;color:${gc};font-weight:${ln.focus ? 700 : 400}">${esc(ln.n)}</div>`;
+      if (gw) html += `<div class="rs-abs rs-pre" style="left:0;top:${top + sh}px;width:${gw - 12}px;height:${L}px;line-height:${L}px;text-align:right;color:${gc};font-weight:${ln.focus ? 700 : 400}">${esc(ln.n)}</div>`;
       const body = ln.runs.map(([t, role]) => {
         const [c, b, it] = codeStyle(role);
         return `<span style="color:${color(c)};font-weight:${b ? 700 : 400};font-style:${it ? "italic" : "normal"}">${esc(t)}</span>`;
@@ -469,7 +543,7 @@
 .rs-cell>.rs-ct{white-space:pre-wrap;word-break:keep-all;flex:1}`;
   }
 
-  const api = { setDeckFonts, presetFonts,  setTokens, color, radius, runs, plain, hlSQL, hlPython, codeLines, planRuns, tableGrid, bulletRows, renderElement, renderSlide, css, esc, lineBox };
+  const api = { setDeckFonts, presetFonts,  setTokens, setLangs, langOf, color, radius, runs, plain, hlSQL, hlPython, codeLines, planRuns, tableGrid, bulletRows, renderElement, renderSlide, css, esc, lineBox };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   root.Render = api;
 })(typeof window !== "undefined" ? window : globalThis);

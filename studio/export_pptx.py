@@ -359,28 +359,30 @@ def do_code(slide, el, page):
     size = float(el.get("size", 15))
     lh = float(el.get("lineHeight", 1.6))
     L = size * lh
-    gw = float(el.get("gutterW", CODE_GUTTER_W))
+    gw = 0.0 if el.get("lineNo") is False else float(el.get("gutterW", CODE_GUTTER_W))
     r = radius(el.get("radius", "r-m"), w, h)
     lines = code_lines(el)
     grp = slide.shapes.add_group_shape()
-    add_shape(grp, {"x": x, "y": y, "w": w, "h": h, "fill": "code-gutter-bg", "radius": r}, "rect")
+    if gw:
+        add_shape(grp, {"x": x, "y": y, "w": w, "h": h, "fill": "code-gutter-bg", "radius": r}, "rect")
     add_shape(grp, {"x": x + gw, "y": y, "w": w - gw, "h": h, "fill": "code-bg", "radius": r}, "rect")
-    if r > 0:
+    if r > 0 and gw:
         add_shape(grp, {"x": x + gw, "y": y, "w": min(r, w - gw), "h": h, "fill": "code-bg"}, "rect")
     for i, ln in enumerate(lines):
         if ln["focus"]:
             add_shape(grp, {"x": x + gw, "y": y + CODE_PAD_Y + i * L, "w": w - gw, "h": L, "fill": "code-focus"}, "rect")
     add_shape(grp, {"x": x + 0.5, "y": y + 0.5, "w": w - 1, "h": h - 1, "radius": max(0, r - 0.5),
                     "stroke": "surface-container-high", "strokeWidth": 1}, "rect")
-    # 줄 번호
-    g = grp.shapes.add_textbox(E(x), E(y + CODE_PAD_Y), E(gw - 12), E(len(lines) * L))
-    frame(g.text_frame, (0, 0, 0, 0), "top", False)
-    for i, ln in enumerate(lines):
-        p = g.text_frame.paragraphs[0] if i == 0 else g.text_frame.add_paragraph()
-        para_fmt(p, size, lh, "right")
-        set_run(p.add_run(), ln["n"], size, ln["focus"], color("on-surface" if ln["focus"] else "code-gutter"), "mono")
-        end_para(p, size)
-    g.name = f"{el.get('id')} code-gutter"
+    # 줄 번호(lineNo: false 면 없음)
+    if gw:
+        g = grp.shapes.add_textbox(E(x), E(y + CODE_PAD_Y), E(gw - 12), E(len(lines) * L))
+        frame(g.text_frame, (0, 0, 0, 0), "top", False)
+        for i, ln in enumerate(lines):
+            p = g.text_frame.paragraphs[0] if i == 0 else g.text_frame.add_paragraph()
+            para_fmt(p, size, lh, "right")
+            set_run(p.add_run(), ln["n"], size, ln["focus"], color("on-surface" if ln["focus"] else "code-gutter"), "mono")
+            end_para(p, size)
+        g.name = f"{el.get('id')} code-gutter"
     # 코드
     c = grp.shapes.add_textbox(E(x + gw + 14), E(y + CODE_PAD_Y), E(max(1, w - gw - 14)), E(len(lines) * L))
     frame(c.text_frame, (0, 0, 0, 0), "top", False)

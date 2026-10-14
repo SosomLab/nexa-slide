@@ -1,5 +1,13 @@
 # 변경 이력
 
+## 0.18.0 - 2026-10-14 · 코드 언어 35종 하이라이트 · 줄 번호 보기 · 복사
+
+- 코드 요소 `lang` 에 언어 35종: Bash · PowerShell · C · C++ · C# · Java · Kotlin · Scala · JavaScript · TypeScript · JSON · YAML · INI/TOML · HTML/XML · CSS · SCSS/Less · Markdown · Diff · Python · Ruby · Perl · PHP · Go · Rust · Swift · Dart · Objective-C · VB.NET · Lua · R · GraphQL · Makefile · Dockerfile · SQL(기존 전용 규칙) · 일반 글자. 별칭(sh·cs·js·py·rs·html·ini·mssql …) 대소문자 무시. 정의는 `studio/code_langs.json` 한 파일, 화면(`render.js`)과 PPTX(`common.py`)가 같은 알고리즘(주석·문자열·변수·전처리·장식자·숫자·예약어·타입·함수 호출·키·태그·속성).
+- `lineNo: false` = 줄 번호 숨김(화면·PPTX).
+- 편집기: 속성 탭 언어 = 찾기 목록(입력하면 좁혀짐), 줄 번호 보기/숨김, 📋 복사. 서식 줄에 언어 단추(찾기 메뉴)와 📋. 여러 코드 요소에 함께 적용.
+- 편집기 화면 글의 "—" 를 "-" 로, 코드 속성 제목의 설명 제거.
+- 검증: `check_parity` 코드 43개(언어 35종 · 별칭 · 모르는 이름 · 대문자 · 이모지 · 줄 번호 숨김) 화면·PPTX 모두 같음(`tests/fixtures/code_samples.json`), 교재 ch00 PPTX 슬라이드 XML 53장 전후 동일(SQL 회귀 없음), PPTX 줄 번호 숨김 확인, headless 편집기에서 언어 찾기(rs → Rust, json)·줄 번호 숨김 확인.
+
 ## 0.17.2 - 2026-10-14 · 기본 화면 배치
 
 - 기본 폭: 왼쪽 썸네일 레일 210 → 226px, 오른쪽 패널 330 → 392px. 노트·개요·검사는 아래(최대화 아님)가 기본.
