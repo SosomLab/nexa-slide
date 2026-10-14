@@ -69,9 +69,12 @@ python3 <작업 공간>/nexa.py stop       # 그 작업 공간 서버만 종료
 |---|---|---|
 | 편집기 저장 전 덱 | `decks/.history/<id>/<시각>.json` | 최근 50개 |
 | build 덮어쓰기 전 덱 | `decks/.history/<id>/<시각>-build.json` | 50개에 포함 |
+| 밖에서 바뀌기 직전 덱 | `decks/.history/<id>/<시각>-ext.json` | 50개에 포함 |
 | 마지막 빌드 결과 | `decks/.history/<id>/last-build.json` | 1개 |
+| **변경 원장**(누가 언제 어느 장·요소를) | `decks/.history/<id>/changes.jsonl` | 덱당 1,000줄(`ledger.keep`) - [change-ledger.md](change-ledger.md) |
+| 원장 잠금 | `out/.studio/ledger-<id>.lock` | 상태 파일(내용 없음) |
 
-복원 = 백업 파일을 `decks/<id>.json` 으로 복사. 편집기가 2초 안에 다시 불러온다(편집 중이면 충돌 선택).
+복원 = 편집기 기록 탭·변경 탭 "직전으로"(원장에 `restore` 로 남는다), 또는 백업 파일을 `decks/<id>.json` 으로 복사(원장에는 "외부" 로 남는다). 편집기가 2초 안에 다시 불러온다(편집 중이면 충돌 선택).
 `.history` 와 `out/` 은 git 에서 제외한다 — 덱 JSON 자체는 작업 공간 저장소에서 git 으로 관리한다.
 
 ## 포트·프로세스 점검

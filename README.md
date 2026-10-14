@@ -61,6 +61,8 @@ nexa-slide/
 │   ├─ update_launcher.py   예전 작업 공간의 실행기(nexa.py)를 최신 판으로(.env·PC 별 설정 지원)
 │   ├─ layout_samples.py    레이아웃 21종과 필드 예시(초안 작성용)
 │   ├─ check_layout.py      레이아웃 검사 — 겹침·넘침·최소 글자(pt)·슬라이드 밖·고정폭 정렬
+│   ├─ ledger.py · deckdiff.py   변경 원장(decks/.history/<덱>/changes.jsonl) · 덱 비교(장·요소 diff) — docs/change-ledger.md
+│   ├─ save_deck.py · check_changes.py   Claude 세션용 저장(원장에 Claude 로) · 비교 규칙 golden 검사
 │   ├─ templates/          디자인 템플릿 15종 — lecture(기본) · lecture-large · 목적별 4(brief·notice·schedule·proposal) · 검토로 들인 시각 템플릿 9(keynote·archive·blueprint·swiss·editorial·ledger·signal·forest·graphite). tokens.json · template.json · design/
 │   └─ set_fonts.py · gen_tokens_css.py · render_mermaid.py
 ├─ example/                예제(데모 원본) - 서버는 엔진 안에서 열지 않고 시작 페이지 "데모"가 기준 폴더로 복사해 연다
@@ -92,9 +94,10 @@ nexa-slide/
 | [docs/templates.md](docs/templates.md) | 디자인 템플릿 — 제공 템플릿, 폴더 구성, 작업 공간이 고르는 것, 바꾸기·새로 만들기 |
 | [docs/configuration.md](docs/configuration.md) | `nexa-slide.json` 전 항목·기본값, 작업 공간 찾기 순서, `tokens.json`·글꼴 프리셋 |
 | [docs/server.md](docs/server.md) | 서버 실행 옵션, URL 구성, API 전체, 보안 범위, 동시 편집 처리 |
+| **[docs/change-ledger.md](docs/change-ledger.md)** | **변경 원장 - 편집기·Claude·빌드·외부의 모든 변경을 덱당 1,000건 보존, 출처 배지·최근 수정 대상·되돌리기, `save_deck`** |
 | [docs/operation.md](docs/operation.md) | 일상 운영 — 빌드·내보내기·렌더·비교, 백업·복원, 포트·프로세스 점검, 문제 해결 |
 | **[docs/ai-editing.md](docs/ai-editing.md)** | **새로 만든 작업 공간에서 AI 로 고치기 — Claude Code(터미널·VS Code·Desktop)·그 밖의 AI(Codex·Gemini CLI·Cursor) 연결, 요청·초안·마무리 과정** |
-| [docs/claude-session.md](docs/claude-session.md) | Claude Code 세션 연결 — 상시 감시(Monitor), 세션 상태 표시, 지금 보내기, 처리 규약 |
+| [docs/claude-session.md](docs/claude-session.md) | Claude Code 세션 연결 — 상시 감시(Monitor), 세션 상태 표시, 지금 보내기, 처리 규약(`save_deck` 으로 저장) |
 | [docs/fonts.md](docs/fonts.md) | 글꼴 — 기본 세트(엔진)와 작업 공간 전용 글꼴(`fonts/` · `fontPresets`), 편집기 글꼴 창, `install_fonts` |
 | [docs/slide-types.md](docs/slide-types.md) | 슬라이드 유형 54개 — 목적·구성 기준, 고를 신호, 초안·요청 처리의 장 선별 기준, 편집기 "유형으로 추가" |
 | [docs/deck-format.md](docs/deck-format.md) | 덱 JSON·요소 모델, content 형식, 레이아웃, 인라인 강조, 각주 규칙 |

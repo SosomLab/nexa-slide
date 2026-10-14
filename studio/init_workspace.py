@@ -317,7 +317,8 @@ CLAUDE_MD = '''# 슬라이드 작업 공간 (nexa-slide) — Claude 세션 안�
 - **요청 감시**: 세션을 시작하면 Monitor 도구로
   `python3 {ws}/nexa.py watch_requests --stream --takeover --label "<세션 이름>"` (timeout 1800000) 를 건다.
   `{{"event":"ttl"}}` 이 오면 같은 명령으로 다시 건다. `{{"event":"refused"}}` 는 다른 세션이 맡고 있다는 뜻.
-- **요청 처리 규약**(엔진 `docs/claude-session.md`): `decks/<덱>.requests.json` 에서 status `working` → 덱 수정(요소 id 유지, 원자적 쓰기)
+- **요청 처리 규약**(엔진 `docs/claude-session.md`): `decks/<덱>.requests.json` 에서 status `working` → 덱 수정(요소 id 유지) →
+  **저장은 `python3 {ws}/nexa.py save_deck <덱> --from <새 덱 파일> --request <요청 id>`** (변경 원장에 Claude 로 남고 백업·충돌 검사도 서버가 한다 - 파일을 직접 덮어쓰지 않는다)
   → 같은 변경을 `content/` 에도 → status `done` + `reply` 한두 문장. 영역 요청(`region`)은 그 좌표와 겹치는 요소가 대상.
 - 기존 디자인·레이아웃 규칙을 유지한다 — 검사 경고를 없애려고 요소를 지우지 않는다. 근거·각주는 지어내지 않는다.
 - **글꼴 파일은 이 작업 공간 `fonts/` 에만 둔다**(엔진에 넣지 않는다). 전용 글꼴 세트는 `nexa-slide.json` 의 `fontPresets` 에 정의하고

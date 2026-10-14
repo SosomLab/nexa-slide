@@ -1,0 +1,173 @@
+# -*- coding: utf-8 -*-
+"""덱 비교 - 두 덱(옛것·새것)을 장·요소 단위로 비교해 변경 탭 항목을 만든다.
+
+0.15.3 까지 편집기(studio.js diffDeck)에 JS 로 있던 규칙을 그대로 옮긴 것. 0.16.0 부터 비교는 서버(여기) 한 곳에서만 하고
+편집기는 결과를 그리기만 한다. 규칙을 바꾸면 tests/fixtures/deckdiff 의 golden 과 check_changes.py 로 확인한다.
+
+    diff_deck(old, new) → [{sid, idx, kind: 추가|수정|이동|삭제, moved: [a, b]|None, title, els: [{id, kinds, before, after, gone?}], extra, gone?}]
+
+규칙
+  - 장·요소는 id 로 짝을 맞춘다. 값 비교는 canon()(키 정렬 · 정수값 float → int) 문자열 동치 - JS 의 JSON.stringify 비교와 달리
+    키 순서만 다른 같은 객체(build 가 쓴 덱을 편집기가 다시 저장)는 변경으로 보지 않는다(의도된 개선).
+  - 요소 키: GEO → "위치·크기", TXT → "글자"(첫 TXT 키의 전→후 60자), src → "그림", 그 밖 → "모양". id 는 비교하지 않는다.
+  - 장 이동 = 양쪽에 있는 장을 옛 순서로 늘어놓았을 때 새 순서의 최장 증가 부분 수열(엄격, patience) 밖의 장만.
+    els 나 extra 가 있으면 kind 는 "수정"(moved 는 따로 남김), 없으면 "이동".
+  - extra = 노트 · 레이아웃 · 바탕 · 부 순서 고정. 항목 순서 = 새 덱 순서(추가·수정·이동) 뒤에 옛 덱 순서(삭제, gone).
+"""
+import json
+import re
+
+from common import plain
+
+GEO = ("x", "y", "w", "h", "x1", "y1", "x2", "y2", "z", "rot")
+TXT = ("text", "rows", "header", "items", "code", "lines", "cells", "label", "title", "sub")
+SHORT = 60
+MAX_ELS = 200  # 한 장의 요소 변경이 이보다 많으면 앞 200개만 남기고 truncated 를 적는다
+_MISSING = object()
+
+
+def _norm(v):
+    """정수값 float 를 int 로(329.0 → 329). JS 는 1.0 을 "1" 로 쓰므로 표기 차이를 없앤다."""
+    if isinstance(v, float):
+        return int(v) if v.is_integer() else v
+    if isinstance(v, list):
+        return [_norm(x) for x in v]
+    if isinstance(v, dict):
+        return {k: _norm(x) for k, x in v.items()}
+    return v
+
+
+def canon(v):
+    """동치 비교용 문자열 - 키 정렬, 공백 없음, 한글 그대로."""
+    if v is _MISSING:
+        return None
+    return json.dumps(_norm(v), sort_keys=True, separators=(",", ":"), ensure_ascii=False, allow_nan=False)
+
+
+def short(v, n=SHORT):
+    """글자 전→후 표시용 - 강조 표식을 벗기고 공백을 모아 n 자까지(넘치면 … )."""
+    t = v if isinstance(v, str) else json.dumps(_norm("" if v is None else v), separators=(",", ":"), ensure_ascii=False)
+    t = re.sub(r"\s+", " ", plain(t)).strip()
+    return t[:n] + "…" if len(t) > n else t
+
+
+def slide_title(s):
+    els = s.get("elements") or []
+    t = next((e for e in els if e.get("role") == "title"), None) or \
+        next((e for e in els if e.get("type") == "text" and (e.get("size") or 20) >= 28), None)
+    return plain(str(t.get("text") or "")).replace("\n", " ") if t else f"({s.get('layout') or '슬라이드'})"
+
+
+def diff_el(a, b):
+    kinds, before, after = [], "", ""
+    keys = list(a.keys()) + [k for k in b.keys() if k not in a]
+    for k in keys:
+        if k == "id" or canon(a.get(k, _MISSING)) == canon(b.get(k, _MISSING)):
+            continue
+        if k in GEO:
+            kind = "위치·크기"
+        elif k in TXT:
+            kind = "글자"
+            if not before and not after:
+                before, after = short(a.get(k)), short(b.get(k))
+        elif k == "src":
+            kind = "그림"
+        else:
+            kind = "모양"
+        if kind not in kinds:
+            kinds.append(kind)
+    return {"kinds": kinds, "before": before, "after": after} if kinds else None
+
+
+def _lis_stable(seq):
+    """엄격 증가 patience LIS - 마지막 tails 원소에서 prev 로 역추적한 인덱스 집합(JS 와 같은 동률 선택)."""
+    tails, prev = [], [-1] * len(seq)
+    for i, v in enumerate(seq):
+        lo, hi = 0, len(tails)
+        while lo < hi:
+            m = (lo + hi) >> 1
+            if seq[tails[m]] < v:
+                lo = m + 1
+            else:
+                hi = m
+        prev[i] = tails[lo - 1] if lo else -1
+        if lo == len(tails):
+            tails.append(i)
+        else:
+            tails[lo] = i
+    out, i = set(), (tails[-1] if tails else -1)
+    while i >= 0:
+        out.add(i)
+        i = prev[i]
+    return out
+
+
+def _label(e):
+    return short(e.get("text") or e.get("src") or e.get("type"))
+
+
+def diff_deck(old, new):
+    os_, ns = old.get("slides") or [], new.get("slides") or []
+    om = {s.get("id"): (s, i) for i, s in enumerate(os_)}
+    nm = {s.get("id"): (s, i) for i, s in enumerate(ns)}
+    oc = [s.get("id") for s in os_ if s.get("id") in nm]
+    npos = {s.get("id"): i for i, s in enumerate([s for s in ns if s.get("id") in om])}
+    stable_idx = _lis_stable([npos[i] for i in oc])
+    stable = {oc[i] for i in stable_idx}
+    items = []
+    for i, s in enumerate(ns):
+        sid = s.get("id")
+        if sid not in om:
+            items.append({"sid": sid, "idx": i, "kind": "추가", "moved": None, "title": slide_title(s), "els": [], "extra": []})
+            continue
+        o, oi = om[sid]
+        oe = {e.get("id"): e for e in (o.get("elements") or [])}
+        ne = {e.get("id"): e for e in (s.get("elements") or [])}
+        els = []
+        for e in s.get("elements") or []:
+            eid = e.get("id")
+            if eid not in oe:
+                els.append({"id": eid, "kinds": ["추가"], "before": "", "after": _label(e)})
+            else:
+                d = diff_el(oe[eid], e)
+                if d:
+                    els.append({"id": eid, **d})
+        for e in o.get("elements") or []:
+            if e.get("id") not in ne:
+                els.append({"id": e.get("id"), "kinds": ["삭제"], "before": _label(e), "after": "", "gone": True})
+        extra = []
+        if canon(o.get("notes") or "") != canon(s.get("notes") or ""):
+            extra.append("노트")
+        for k, name in (("layout", "레이아웃"), ("bg", "바탕"), ("part", "부")):
+            if canon(o.get(k, _MISSING)) != canon(s.get(k, _MISSING)):
+                extra.append(name)
+        moved = sid not in stable
+        if els or extra or moved:
+            it = {"sid": sid, "idx": i, "kind": "수정" if (els or extra) else "이동", "moved": [oi + 1, i + 1] if moved else None,
+                  "title": slide_title(s), "els": els[:MAX_ELS], "extra": extra}
+            if len(els) > MAX_ELS:
+                it["truncated"] = len(els) - MAX_ELS
+            items.append(it)
+    for i, s in enumerate(os_):
+        if s.get("id") not in nm:
+            items.append({"sid": s.get("id"), "idx": i, "kind": "삭제", "moved": None, "title": slide_title(s), "els": [], "extra": [], "gone": True})
+    return items
+
+
+def deck_fields(old, new):
+    """장 밖(덱 수준)에서 바뀐 키 - title·part·version·fontPreset 등. slides·updated 는 뺀다."""
+    skip = {"slides", "updated"}
+    keys = [k for k in old.keys() if k not in skip] + [k for k in new.keys() if k not in skip and k not in old]
+    return [k for k in keys if canon(old.get(k, _MISSING)) != canon(new.get(k, _MISSING))]
+
+
+def summary(items):
+    out = {"수정": 0, "추가": 0, "삭제": 0, "이동": 0}
+    for it in items:
+        out[it["kind"]] = out.get(it["kind"], 0) + 1
+    return out
+
+
+def summary_text(items):
+    c = summary(items)
+    return " · ".join(f"{c[k]}장 {k}" for k in ("수정", "추가", "삭제", "이동") if c.get(k))
