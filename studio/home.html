@@ -723,7 +723,6 @@
     sessTarget = path;
     $("#sessTitle").textContent = title || path;
     $("#sessErr").innerHTML = "";
-    $("#sessSaveRow").style.display = path && path.engine ? "none" : "";
     $("#sessBody").innerHTML = '<div class="hint">에이전트·로그인 상태를 확인하는 중…</div>';
     $("#sessModal").classList.add("on");
     let d; try { const r = await fetch("/api/agent", { cache: "no-store" }); d = await r.json(); if (NexaMenu.auth401(r, d)) return; } catch (e) { d = null; }
@@ -736,6 +735,7 @@
       <div class="row"><select id="smModel">${models(cur)}</select><input type="text" id="smModelText" placeholder="모델 ID 직접 입력" style="display:none"></div>
       <label class="f" id="sessSaveRow" style="display:flex;align-items:center;gap:8px;font-weight:400;margin-top:10px"><input type="checkbox" id="smSave" style="margin:0"> 이 작업 공간 기본으로 저장 <select id="smSaveAs" style="font-size:12px"><option value="local">이 PC 만</option><option value="shared">공유(nexa-slide.json)</option></select></label>
       <div class="hint">한도: 유휴 ${esc(String(d.limits.sessionIdleMinutes))}분 · 턴 ${esc(String(d.limits.sessionTurnMinutes))}분 · 동시 ${esc(String(d.limits.sessionMax))}. 서버가 꺼져 있으면 먼저 띄웁니다.</div>`;
+    $("#sessSaveRow").style.display = path && path.engine ? "none" : "";  // 엔진 세션은 작업 공간 기본 저장이 없다(sessBody 를 그린 뒤에 있어야 한다 - 그 전엔 null)
     $("#smAgent").onchange = () => { const n = $("#smAgent").value; $("#smModel").innerHTML = models(n); $("#smHint").textContent = d.agents[n].hint || ""; };
     $("#smModel").onchange = () => { $("#smModelText").style.display = $("#smModel").value === "__custom" ? "" : "none"; };
   }
