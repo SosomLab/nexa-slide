@@ -3,7 +3,7 @@
 
     python3 studio/check_parity.py [ch00 …]
 
-비교 대상: 덱의 모든 code 요소 줄 하이라이트(codeLines) · 모든 요소의 인라인 강조(runs) · plan 강조 · 표 격자(tableGrid).
+비교 대상: 덱의 모든 code 요소 줄 하이라이트(codeLines) · 모든 요소의 인라인 강조(runs) · plan 강조 · 표 격자(tableGrid) · 글머리 행(bulletRows, 균등 간격 포함).
 """
 import json
 import subprocess
@@ -11,11 +11,18 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from common import DECKS, LANGS, STUDIO, code_lines, resolve_tokens, plan_runs, runs, table_grid  # noqa: E402
+from common import DECKS, LANGS, STUDIO, bullet_rows, code_lines, resolve_tokens, plan_runs, runs, table_grid  # noqa: E402
 
 SAMPLES = [
     {"type": "code", "lang": "python", "text": "def f(x):\n    # 주석\n    return x * 2 + 'a'  # 끝\n"},
     {"type": "code", "lang": "sql", "text": "WITH t AS (SELECT a.id AS k FROM tab a JOIN tab2 b ON b.id = a.id)\nSELECT t.k, COUNT(*) cnt\nFROM t\nWHERE t.k > 10 AND x = 'it''s' -- c\n/* 여러\n 줄 */ AND y = :b1;"},
+]
+# 글머리 행 예제 - 기본 간격 · 균등 간격(spread, pad·두 줄 항목·하위 항목 포함) · 행 하나(spread 무시)
+BULLET_SAMPLES = [
+    {"type": "bullets", "h": 330, "items": ["가", {"text": "나", "sub": ["나-1", "나-2"]}, "다"]},
+    {"type": "bullets", "h": 400, "size": 20, "subSize": 17, "lineHeight": 1.55, "spread": True, "pad": [10, 0, 6, 0],
+     "items": ["가\n두 줄", {"text": "나", "sub": ["나-1"]}, "다", "라"]},
+    {"type": "bullets", "h": 200, "spread": True, "gap": 20, "items": ["하나"]},
 ]
 
 JS = r"""
@@ -25,7 +32,8 @@ R.setTokens(inp.tokens); R.setLangs(inp.langs);
 const out = {code: inp.code.map(e => R.codeLines(e).map(l => ({n: l.n, focus: l.focus, gap: l.gap, runs: l.runs}))),
   runs: inp.texts.map(t => R.runs(t, 3).map(([t2, st]) => [t2, {bold: st.bold, color: st.color}])),
   plan: inp.plans.map(p => R.planRuns(p)),
-  grid: inp.tables.map(e => { const g = R.tableGrid(e); return {colW: g.colW.map(v => +v.toFixed(3)), rowH: g.rowH.map(v => +v.toFixed(3)), cells: g.cells, callouts: g.callouts.map(c => ({...c, x: +c.x.toFixed(3), y: +c.y.toFixed(3), h: +c.h.toFixed(3), cy: +c.cy.toFixed(3), tx: +c.tx.toFixed(3)}))}; })};
+  grid: inp.tables.map(e => { const g = R.tableGrid(e); return {colW: g.colW.map(v => +v.toFixed(3)), rowH: g.rowH.map(v => +v.toFixed(3)), cells: g.cells, callouts: g.callouts.map(c => ({...c, x: +c.x.toFixed(3), y: +c.y.toFixed(3), h: +c.h.toFixed(3), cy: +c.cy.toFixed(3), tx: +c.tx.toFixed(3)}))}; }),
+  bullets: inp.bullets.map(e => R.bulletRows(e).map(([t, lvl, after]) => [t, lvl, +(+after).toFixed(3)]))};
 process.stdout.write(JSON.stringify(out));
 """
 
@@ -48,6 +56,7 @@ def main():
     # 언어별 하이라이트 예제(tests/fixtures/code_samples.json - 35개 언어·별칭·줄 번호 끔·이모지)
     extra = STUDIO.parent / "tests" / "fixtures" / "code_samples.json"
     code, texts, plans, tables = list(SAMPLES) + (json.loads(extra.read_text(encoding="utf-8")) if extra.is_file() else []), [], [], []
+    bullets = list(BULLET_SAMPLES)
     for i in ids:
         for s in json.loads((DECKS / f"{i}.json").read_text(encoding="utf-8"))["slides"]:
             for e in s["elements"]:
@@ -57,12 +66,15 @@ def main():
                     plans += str(e.get("text", "")).split("\n")
                 elif e["type"] in ("table", "plan-table"):
                     tables.append(e)
+                elif e["type"] == "bullets":
+                    bullets.append(e)
                 if e["type"] in ("text", "pill", "rect", "ellipse") and e.get("text"):
                     texts += str(e["text"]).split("\n")
                 if e["type"] == "table":
                     texts += [c for r in e["rows"] for c in r]
     tokens = resolve_tokens()
-    inp = json.dumps({"tokens": tokens, "langs": LANGS, "code": code, "texts": texts, "plans": plans, "tables": tables}, ensure_ascii=False)
+    inp = json.dumps({"tokens": tokens, "langs": LANGS, "code": code, "texts": texts, "plans": plans, "tables": tables, "bullets": bullets},
+                     ensure_ascii=False)
     r = subprocess.run(["node", "-e", JS, str(STUDIO / "render.js")], input=inp.encode("utf-8"), capture_output=True)
     if r.returncode:
         sys.exit(r.stderr.decode("utf-8", "replace"))
@@ -78,7 +90,8 @@ def main():
     py = {"code": [[{"n": l["n"], "focus": l["focus"], "gap": l["gap"], "runs": [list(x) for x in l["runs"]]} for l in code_lines(e)] for e in code],
           "runs": [norm_runs(runs(t, 3)) for t in texts],
           "plan": [[list(x) for x in plan_runs(p)] for p in plans],
-          "grid": [rnd(table_grid(e)) for e in tables]}
+          "grid": [rnd(table_grid(e)) for e in tables],
+          "bullets": [[[t, lvl, round(float(after), 3)] for t, lvl, after in bullet_rows(e)] for e in bullets]}
     def canon(o):  # 직렬화 차이(정수/실수, 빠진 키/null) 제거
         if isinstance(o, dict):
             return {k: canon(v) for k, v in o.items() if v is not None}
@@ -100,7 +113,7 @@ def main():
             bad += 1
             print(f"개수 다름: {k} py={len(py[k])} js={len(js[k])}")
     n = {k: len(v) for k, v in py.items()}
-    print(f"비교: 코드 {n['code']}개 · 인라인 {n['runs']}줄 · plan {n['plan']}줄 · 표 {n['grid']}개 → {'모두 같음' if not bad else f'{bad}건 다름'}")
+    print(f"비교: 코드 {n['code']}개 · 인라인 {n['runs']}줄 · plan {n['plan']}줄 · 표 {n['grid']}개 · 글머리 {n['bullets']}개 → {'모두 같음' if not bad else f'{bad}건 다름'}")
     sys.exit(1 if bad else 0)
 
 

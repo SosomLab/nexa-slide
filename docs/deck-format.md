@@ -26,7 +26,7 @@
 | `plan` | `text`(DBMS_XPLAN 원문), `size`, `lineHeight`, `fill`, `pad` — `[[값]]` = 경고 강조, `[[ok:값]]` = 개선 강조 | 고정폭 글자, 강조 run = 굵게 + 글자색 + **run 강조색(a:highlight)** |
 | `plan-table` | `columns`, `colW`, `opCol`(들여쓰기 열), `rows[{cells, depth, hl:{열번호: warn/ok}, note}]`, `calloutW` | 표 + 오른쪽 설명 콜아웃(연결선 + 둥근 상자) |
 | `code` | `text`, `lang`(언어 35종 - 아래), `lineNo`(false = 줄 번호 숨김), `size`, `lineHeight`, `start`, `focus`[줄], `show`[[from,to],…] | 그룹 도형: 줄 번호 여백·코드 면·강조 줄 면·테두리·줄 번호 글상자·코드 글상자(run 단위 색·굵게·기울임) |
-| `bullets` | `items`(문자열 또는 `{text, sub:[…]}`), `size`, `subSize`, `lineHeight`, `gap`, `subGap`, `dot`, `color`, `subColor` | 단락 글머리(●/–, 글머리 색) |
+| `bullets` | `items`(문자열 또는 `{text, sub:[…]}`), `size`, `subSize`, `lineHeight`, `gap`, `subGap`, `dot`, `color`, `subColor`, `spread`(참이면 **균등 간격** — 행 높이(줄바꿈 수 + 1 줄, 자동 줄바꿈은 세지 않음)를 뺀 나머지를 행 사이에 고르게 나눠 상자 `h` 를 채운다. 원본 PPT 의 "세로 고르게" 글상자용) | 단락 글머리(●/–, 글머리 색) · 뒤 간격 = 단락 뒤 간격 |
 
 **인라인 강조**(text·pill·rect·ellipse·table 셀·bullets): `**굵게**`, `==강조==`(CI 적색 굵게), `[[토큰|색 글자]]`, `{page}`(쪽 번호).
 
@@ -39,6 +39,26 @@
 `table` 표 · `code_plan` 코드+실행계획(plan) · `plan_table` 실행계획 해설 표 · `compare` 전후 비교 · `files` 예제 파일 · `code_excerpt` 긴 코드 발췌 · `lab` 실습 · `summary` 장 정리.
 추가: `chapter_toc` 장 목차(중분류 지도) · `subsection` 소분류(상위 절 칩 + 같은 절 소분류 흐름) · `flow` 순서 흐름(단계 카드 + 규칙 카드) · `cards` 카드 대비 2~3장 · `end` 문서 끝(EoD).
 슬라이드마다 `"level": "req"|"adv"` 를 주면 머리의 부 칩 옆에 필수/심화 칩이 붙는다.
+행을 쌓는 레이아웃(`summary`·`lab`·`agenda`·`numbered_rows`)은 `"rowH": <px>`(행 간격 고정) 또는 `"rowSpread": true`(본문 영역을 행 수로 고르게 나눔)로 행 간격을 바꾼다.
+
+### 요소 자리·앞뒤 순서·추가 요소 — `place` · `extra` (모든 레이아웃)
+
+원본 PPT 를 옮기는 덱처럼 레이아웃이 놓은 요소를 **원본 좌표·앞뒤 순서(z)·색**으로 바꾸거나, 레이아웃에 없는 글상자(출처·질문 문구)를 더해야 할 때 — 덱에 덧입히지 말고(다음 build 가 "편집기 수정"으로 보고 멈춘다) content 의 슬라이드에 적는다. build 가 레이아웃을 그린 뒤 적용하므로 다시 build 해도 같은 결과다.
+
+```json
+{"layout": "bullets", "title": "…", "items": ["…"],
+ "place": {"image#1": {"x": 820, "y": 200, "w": 380, "h": 300, "z": -1},
+           "pill#1":  {"fill": "#C00000", "color": "white"},
+           "title":   {"x": 100},
+           "e07":     null},
+ "extra": [{"type": "text", "x": 64, "y": 640, "w": 700, "h": 20, "text": "출처: …", "size": 12, "color": "on-surface-variant", "role": "footnotes"},
+           {"id": "q1", "type": "text", "x": 900, "y": 300, "w": 300, "h": 80, "text": "질문: …", "size": 16, "z": 2}]}
+```
+
+- `place`: `{키: {덮어쓸 필드…}}` — 요소 모델의 어떤 필드든(`x`·`y`·`w`·`h`·`z`·`fill`·`color`·`text`·`size`·`spread`…) 덮어쓴다. 값이 `null` 이면 그 요소를 뺀다. 없는 키는 build 가 경고만 하고 지나간다.
+  키는 **요소 id**(`e05` — build 결과 덱에서 확인) · **역할**(`title`·`subtitle`·`crumb`·`page`·`footnotes`·`label`) · **유형#순번**(`image#1`·`pill#2`·`ellipse#1`·`bullets#1` — 그 유형의 n번째, 1부터). 내용이 바뀌어 id 가 밀릴 수 있는 곳은 역할·유형#순번이 안전하다.
+- `extra`: 덱 요소를 그대로 적는다(위 표의 type·필드). id 는 레이아웃 요소의 뒤 번호를 잇고(`e09`…), 직접 주면 그 id. `z` 로 앞뒤 순서(음수 = 뒤, 없으면 배열 순서 = 레이아웃 요소 뒤).
+- 적용 순서: 레이아웃 → `place` → `extra`. 글자 최소 크기(템플릿 `sizes.minPx`)는 `extra` 에도 적용된다(`role` 로 역할별 기준).
 슬라이드마다 `"source": ["자료 1 절", "자료 2 절"]` 은 **각주 번호의 기준 목록**이다(첫째가 ¹, 둘째가 ²). 슬라이드에는 **그리지 않는다** — 근거 줄·근거 상자 없음.
 본문에는 그 근거를 쓴 곳에 **각주 표식** `[[theory|¹]]` 만 단다(이론 색 위첨자).
 자료명·절·쪽과 원문은 발표자 노트의 `── 원문 (각주 순서, 원어 그대로) ──` 아래에 같은 번호로 적는다. 노트에 "근거: …"로 시작하는 줄은 쓰지 않는다.

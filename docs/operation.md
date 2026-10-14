@@ -43,6 +43,7 @@ python3 studio/check_layout.py -W <ws> [ch00 …] [--json]  # 레이아웃 검�
 
 - **build 보호**: `--force` 여도 마지막 빌드 뒤 편집기에서 고친 슬라이드가 있으면 멈추고 번호·종류를 알려 준다.
   고친 내용을 content 에 옮긴 뒤 다시 빌드하거나, 버려도 되면 `--discard-edits`. 비교 기준 = `decks/.history/<id>/last-build.json`.
+  요소 좌표·앞뒤 순서·색을 바꾸거나 글상자를 더하는 정도면 덱에 덧입히지 말고 content 의 `place`·`extra` 로 적는다([deck-format.md](deck-format.md#요소-자리앞뒤-순서추가-요소--place--extra-모든-레이아웃)) — 매번 `--discard-edits` 가 필요 없다.
 - 공통 슬라이드(`content/_common.json`)를 바꾸면 각 장을 `--force` 로 다시 빌드한다.
 
 ## 여러 작업 공간

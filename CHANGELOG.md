@@ -1,5 +1,13 @@
 # 변경 이력
 
+## 0.21.1 - 2026-10-15 · 덱 관리 · 세션 ID 복사·검색 · 엔진 요청 #4 적용
+
+- **덱 관리**(`studio/deck_admin.py`, `POST /api/decks`, `nexa.py deck …`): 편집기 덱 탭 끝 **＋** = 새 덱(이름·제목 → 표지 1장), 탭 **오른쪽 클릭** = 제목 바꾸기(덱 + `content/<id>.json`) · 덱 이름(id) 바꾸기(요청·기록 `.history`·첨부 `out/attach`·content 를 함께 옮기고 안의 id·첨부 경로도) · 새 덱 · 삭제(`decks/.trash/<id>-<시각>/` 로 이동). 웹 세션 턴이 도는 중에는 이름 바꾸기·삭제 거절. `docs/editor.md` 덱 관리 절.
+- 세션 ID 배지: 누르면 **ID 복사**, Shift+누르면 확인 명령(`cd "<폴더>"; claude --resume <ID>`) 복사. 클립보드 API 가 막힌 환경은 숨은 입력칸으로. Studio 칩 메뉴도 두 항목. claude 세션 표시 이름을 `nexa-slide web: <폴더> #<ID 앞 8자리>` 로 — `claude --resume` 목록에서 `#56e85d12` 로 검색해 고를 수 있다.
+- 서버 작업 카드: 세션이 꺼진 채 할 일이 있어 배너가 보일 때 세션 줄의 [세션 시작]을 감춰 버튼이 둘 되지 않게. 배너 문구는 승인 대기/처리 대기 수.
+- 엔진 요청 #4(`place`·`extra`·`spread`·`rowH`·`rowSpread`, 아래 0.20.3) 를 main 에 병합·적용.
+- 검증: 덱 관리 CLI 전 과정(만들기·중복/잘못된 이름 거절·이름 바꾸기와 딸린 것 이동·제목·휴지통) · 헤드리스 스모크 44단계(＋·제목·이름·삭제 포함) · `check_parity` · 회귀(웹 검색·후속·서버 작업·B-5·동시 기동).
+
 ## 0.21.0 - 2026-10-15 · 세션 식별자 · 상태 자동 갱신 · 승인 대기 알림 · Word·Excel·PDF 내용 추출
 
 - **세션 식별자**: 웹 세션·엔진 개발 세션이 시작할 때 claude 세션 ID 를 정해(`--session-id`, 이후 `--resume`) 턴 0 부터 시작 페이지 세션 줄·서버 작업 카드·Studio 세션 칩 메뉴에 `ID 1a2b3c4d` 표시 — 누르면 `cd "<폴더>"; claude --resume <ID>` 복사.
@@ -7,6 +15,12 @@
 - **승인 대기 알림**(관리자): 메뉴 단추 숫자 배지·탭 제목 `(n)`·새 요청 토스트(+선택: 데스크톱 알림), 모든 페이지에서 10초마다(`/api/engine/notice`). 폴링 줄은 접근 로그에서 뺀다.
 - **`import_doc <파일>`**(`studio/import_doc.py`): Word(.docx — 제목 수준·문단(굵게)·목록 수준·표·각주·그림) · Excel(.xlsx/.xlsm — 시트별 표·날짜 변환·수식(계산값이 없으면 수식 그대로)·병합·숨긴 시트·차트 계열 값(캐시가 없으면 참조를 셀에서 찾음)) · PDF(책갈피·쪽별 글·표·그림, PyMuPDF — 없으면 pypdf 로 글만) → `out/import/<이름>/content.md`·`content.json`·`images/`. Word·Excel 은 추가 설치 없음, PyMuPDF 는 선택(`requirements.txt`). 입력·출력은 작업 공간 안만. `--selftest`. 웹 세션 턴 프롬프트·help·실행기·문서.
 - 검증: import_doc selftest 10항목 · 실제 엑셀(차트·병합·날짜)·PDF(표·그림·책갈피) 추출 · 밖 파일 거절, 실제 sonnet 턴이 엑셀·PDF 첨부를 import_doc 로 읽어 값을 답함 + 세션 ID 가 턴 전후 같고 claude 세션 파일 생성, 헤드리스 스모크 40단계(승인 대기 배지·탭 제목·토스트·주기 갱신·표시 언어와 제목 접두), 회귀(웹 검색·후속·서버 작업·B-5·git 실제 턴).
+## 0.20.3 - 2026-10-15 · content 에서 요소 자리·앞뒤 순서·추가 요소 · 글머리/행 균등 간격 (engine-request #4)
+
+- **`place`·`extra`**(모든 레이아웃, `layouts.apply_place`): content 의 슬라이드에 `"place": {키: {x, y, w, h, z, fill, color, text, …} | null}` 로 레이아웃이 놓은 요소를 덮어쓰거나 빼고, `"extra": [덱 요소…]` 로 레이아웃에 없는 요소(출처·질문 글상자 등)를 더한다. 키 = 요소 id(`e05`) · 역할(`title`·`crumb`…) · 유형#순번(`image#1`·`pill#2`). 원본 PPT 를 옮기는 덱이 덱에 덧입히던 것(다음 build 가 편집기 수정으로 보고 멈춰 매번 `--discard-edits`)을 content 로 옮긴다 — 다시 build 해도 같은 결과. 없는 키는 경고만. `docs/deck-format.md`.
+- **글머리 균등 간격** `bullets.spread`(render.js `bulletRows` ↔ common.py `bullet_rows` — export_pptx 에서 옮김): 행 높이(줄바꿈 수 + 1 줄)를 뺀 나머지를 행 사이에 고르게 나눠 상자 높이를 채운다(마지막 행 뒤 0). `check_parity` 가 글머리 행(기본·spread·행 하나)도 비교한다.
+- **행 간격** `rowH`(px)·`rowSpread`(본문 영역을 행 수로 고르게) — `summary`·`lab`·`agenda`·`numbered_rows`(`layouts.row_pitch`). 주지 않으면 전과 같다.
+- 검증: `check_parity -W example`(글머리 4개 포함 모두 같음) · 임시 작업 공간에서 place(id·역할·유형#순번·null 삭제·없는 키)·extra(z·직접 id)·spread·rowSpread·rowH 빌드 → `--force` 재빌드가 편집 감지 없이 통과 · `export_pptx` · `check_layout` ERROR 0 · 예제 덱(`demo`) 재빌드 결과의 행 좌표·필드 수가 저장소 덱과 같음(place·extra 가 없으면 전과 같은 코드 경로).
 
 ## 0.20.2 - 2026-10-14 · 서버 시작 출력의 pid
 
