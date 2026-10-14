@@ -1,5 +1,9 @@
 # 변경 이력
 
+## 0.18.1 - 2026-10-14 · 코드 언어 이름표
+
+- 편집 캔버스의 코드 블록 오른쪽 위에 설정된 언어 이름표(SQL · Rust …, 줄 번호를 숨겼으면 "· 번호 없음"). 편집 화면에만 - 슬라이드·발표·PPTX 에는 없음, 확대와 무관하게 같은 크기.
+
 ## 0.18.0 - 2026-10-14 · 코드 언어 35종 하이라이트 · 줄 번호 보기 · 복사
 
 - 코드 요소 `lang` 에 언어 35종: Bash · PowerShell · C · C++ · C# · Java · Kotlin · Scala · JavaScript · TypeScript · JSON · YAML · INI/TOML · HTML/XML · CSS · SCSS/Less · Markdown · Diff · Python · Ruby · Perl · PHP · Go · Rust · Swift · Dart · Objective-C · VB.NET · Lua · R · GraphQL · Makefile · Dockerfile · SQL(기존 전용 규칙) · 일반 글자. 별칭(sh·cs·js·py·rs·html·ini·mssql …) 대소문자 무시. 정의는 `studio/code_langs.json` 한 파일, 화면(`render.js`)과 PPTX(`common.py`)가 같은 알고리즘(주석·문자열·변수·전처리·장식자·숫자·예약어·타입·함수 호출·키·태그·속성).
