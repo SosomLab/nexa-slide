@@ -4,6 +4,9 @@
 디자인 기준(concept v2 Material)의 레이아웃 13종을 같은 좌표로 옮겼다.
 브랜드(로고·워드마크)·부 이름·표지 배지는 작업 공간 nexa-slide.json 에서 읽는다(없으면 중립 기본값).
 좌표·크기는 px(1280×720), 글자 크기 size 도 px(PPT pt = px × 0.75).
+
+슬라이드 공통 필드(모든 레이아웃): place(레이아웃이 놓은 요소의 자리·앞뒤 순서 z·색 덮어쓰기 또는 삭제) · extra(레이아웃에 없는 요소 추가) -
+apply_place. 행을 쌓는 레이아웃(summary·lab·agenda·numbered_rows)은 rowH(행 간격 px)·rowSpread(본문 영역에 고르게) - row_pitch.
 """
 import copy
 import struct
@@ -57,6 +60,16 @@ def foot_lines(source, width=None):
 
 PART_LABEL = {"day1": "Part 1", "day2": "Part 2", "day3": "Part 3", "apx": "Appendix", **CONFIG.get("partLabels", {})}
 COVER_BADGE = CONFIG.get("coverBadge", "Presentation")
+
+
+def row_pitch(f, n, default, top=184, bottom=640):
+    """행을 쌓는 레이아웃의 행 간격(px) - rowH(고정값) > rowSpread(본문 영역 top~bottom 을 행 수로 고르게 나눔) > 기본값.
+    원본 PPT 의 행 간격을 그대로 옮기거나(rowH) 행 수가 적을 때 영역을 채우려고(rowSpread) 쓴다."""
+    if f.get("rowH"):
+        return f["rowH"]
+    if f.get("rowSpread") and n:
+        return (bottom - top) / n
+    return default
 
 
 class B:
@@ -527,8 +540,9 @@ def files(b, f):
 
 def lab(b, f):
     b.head(f["title"], f.get("sub"), f.get("tags", ["lab", "req"]))
+    rh = row_pitch(f, len(f["steps"]), 62)
     for i, s in enumerate(f["steps"]):
-        y = 184 + i * 62
+        y = 184 + i * rh
         b.ellipse(64, y + 14, 34, "lab", text=str(i + 1), size=16, bold=True, color="white")
         b.text(112, y + 14, 590, 34, s, size=19, lineHeight=1.5, valign="middle")
     if f.get("side"):
@@ -541,8 +555,9 @@ def lab(b, f):
 
 def summary(b, f):
     b.head(f["title"], f.get("sub"))
+    rh = row_pitch(f, len(f["items"]), 68)
     for i, t in enumerate(f["items"]):
-        y = 184 + i * 68
+        y = 184 + i * rh
         b.rect(64, y, 1152, 58, "surface-container", "r-m")
         b.ellipse(84, y + 14, 30, b.dc, text="✓", size=16, bold=True, color="white")
         b.text(130, y + 14, 1060, 30, t, size=19, lineHeight=1.55, valign="middle")
@@ -735,6 +750,43 @@ SAMPLES = {
 }
 
 
+def _targets(els, key):
+    """place 의 키 → 요소 목록. 요소 id(e05) · 역할(title·subtitle·crumb·page·footnotes …) · 유형#순번(image#1, pill#2 = 그 유형의 n번째, 1부터)."""
+    if "#" in key:
+        t, n = key.split("#", 1)
+        same = [e for e in els if e["type"] == t]
+        return [same[int(n) - 1]] if n.isdigit() and 0 < int(n) <= len(same) else []
+    return [e for e in els if e["id"] == key] or [e for e in els if e.get("role") == key]
+
+
+def apply_place(b, fields):
+    """content 의 place·extra - 레이아웃이 놓은 요소를 덮어쓰고(place) 레이아웃에 없는 요소를 더한다(extra).
+    원본 PPT 를 옮기는 덱에서 그림을 원본 좌표·앞뒤 순서로 두고, 출처·질문 글상자를 더하고, 칩·번호 원의 색을 원본 색으로 바꾸는 데 쓴다 -
+    덱에 덧입히지 않고 content 에 두므로 다시 build 해도 같은 결과(편집기 수정으로 보지 않는다).
+      place: {키: {x, y, w, h, z, fill, color, text, …} | null(그 요소 삭제)} - 키는 _targets. 없는 키는 경고만.
+      extra: 덱 요소 그대로 [{type, x, y, w, h, …}] - id 는 뒤 번호를 잇는다(직접 주면 그 id). z 로 앞뒤 순서."""
+    for key, over in (fields.get("place") or {}).items():
+        hit = _targets(b.els, key)
+        if not hit:
+            print(f"  ! place {key}: 그런 요소가 없다")
+            continue
+        for el in hit:
+            if over is None:
+                b.els.remove(el)
+                continue
+            el.update(over)
+            for k in ("x", "y", "w", "h"):
+                if isinstance(el.get(k), float):
+                    el[k] = round(el[k])
+    nums = [int(e["id"][1:]) for e in b.els if isinstance(e.get("id"), str) and e["id"][1:].isdigit()]
+    for el in fields.get("extra") or []:
+        el = copy.deepcopy(el)
+        if not el.get("id"):  # 삭제로 빈 번호가 생겨도 겹치지 않게 - 가장 큰 번호 다음
+            nums.append(max(nums, default=0) + 1)
+            el["id"] = f"e{nums[-1]:02d}"
+        b.add(el)
+
+
 def build_slide(layout, fields, part="day1", sid="s01"):
     if layout not in LAYOUTS:
         raise ValueError(f"알 수 없는 레이아웃: {layout}")
@@ -742,6 +794,7 @@ def build_slide(layout, fields, part="day1", sid="s01"):
     b.level = fields.get("level")
     b.source = fields.get("source")
     LAYOUTS[layout][1](b, copy.deepcopy(fields))
+    apply_place(b, fields)
     return {"id": sid, "layout": layout, "notes": fields.get("notes", ""), "elements": b.els}
 
 

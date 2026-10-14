@@ -21,7 +21,7 @@ photo_text     사진+글       사진(없으면 자리 표시) + 제목·글·�
 agenda         진행 순서     번호·제목·시간·담당 목록
 여러 레이아웃이 함께 쓰는 필드: action(아래 행동 띠 한 줄), footnote(아래 한 줄 주석), crumb.
 """
-from layouts import H, PAD, W, B, text_width  # noqa: F401
+from layouts import H, PAD, W, B, row_pitch, text_width  # noqa: F401
 
 STATUS = {"ok": "정상", "caution": "주의", "bad": "위험", "info": "진행", "idle": "대기"}
 RIGHT = W - PAD
@@ -481,11 +481,11 @@ def photo_text(b, f):
 
 
 def agenda(b, f):
-    """진행 순서 - items: [번호·제목·시간·담당] 또는 {title, time?, owner?, desc?}. 현재 항목 current(0부터)."""
+    """진행 순서 - items: [번호·제목·시간·담당] 또는 {title, time?, owner?, desc?}. 현재 항목 current(0부터). rowH·rowSpread(행 간격)."""
     b.head(f.get("title", "진행 순서"), f.get("sub"), f.get("kick"))
     its = [it if isinstance(it, dict) else {"title": it} for it in f["items"]]
     n = len(its)
-    rh = min(72, (600 - 184) / max(n, 1))
+    rh = row_pitch(f, n, min(72, (600 - 184) / max(n, 1)), 184, 600)
     for i, it in enumerate(its):
         y = 184 + i * rh
         cur = f.get("current") == i

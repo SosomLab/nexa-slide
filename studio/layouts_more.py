@@ -25,7 +25,7 @@ qa              예상 질문            질문(크게) + 답 띠 + 근거
 donut           도넛 구성비          원호(굵은 곡선) + 가운데 큰 값 + 오른쪽 범례·비율
 heatmap         히트맵               행×열 칸을 값 4단 색으로(코호트 빈 칸 가능) + 해석 패널
 """
-from layouts import H, PAD, W, B, text_width  # noqa: F401
+from layouts import H, PAD, W, B, row_pitch, text_width  # noqa: F401
 from layouts_extra import bottom_extras
 
 RIGHT = W - PAD
@@ -260,10 +260,10 @@ def matrix_plot(b, f):
 
 
 def numbered_rows(b, f):
-    """큰 번호 행 - rows [{title, body, meta}] 3~5행(01~05 큰 번호 + 문장 + 설명 + 오른쪽 메타)."""
+    """큰 번호 행 - rows [{title, body, meta}] 3~5행(01~05 큰 번호 + 문장 + 설명 + 오른쪽 메타). rowH·rowSpread(행 간격)."""
     b.head(f["title"], f.get("sub"), f.get("kick"))
     rows = f["rows"][:5]
-    rh = min(96, 420 / len(rows))
+    rh = row_pitch(f, len(rows), min(96, 420 / len(rows)), 184, 604)
     y = 184
     for i, r in enumerate(rows):
         b.text(PAD, y, 100, rh - 12, f"{i + 1:02d}", size=48, bold=True, color="primary", lineHeight=1.1, font="heading")

@@ -1,5 +1,12 @@
 # 변경 이력
 
+## 0.20.3 - 2026-10-15 · content 에서 요소 자리·앞뒤 순서·추가 요소 · 글머리/행 균등 간격 (engine-request #4)
+
+- **`place`·`extra`**(모든 레이아웃, `layouts.apply_place`): content 의 슬라이드에 `"place": {키: {x, y, w, h, z, fill, color, text, …} | null}` 로 레이아웃이 놓은 요소를 덮어쓰거나 빼고, `"extra": [덱 요소…]` 로 레이아웃에 없는 요소(출처·질문 글상자 등)를 더한다. 키 = 요소 id(`e05`) · 역할(`title`·`crumb`…) · 유형#순번(`image#1`·`pill#2`). 원본 PPT 를 옮기는 덱이 덱에 덧입히던 것(다음 build 가 편집기 수정으로 보고 멈춰 매번 `--discard-edits`)을 content 로 옮긴다 — 다시 build 해도 같은 결과. 없는 키는 경고만. `docs/deck-format.md`.
+- **글머리 균등 간격** `bullets.spread`(render.js `bulletRows` ↔ common.py `bullet_rows` — export_pptx 에서 옮김): 행 높이(줄바꿈 수 + 1 줄)를 뺀 나머지를 행 사이에 고르게 나눠 상자 높이를 채운다(마지막 행 뒤 0). `check_parity` 가 글머리 행(기본·spread·행 하나)도 비교한다.
+- **행 간격** `rowH`(px)·`rowSpread`(본문 영역을 행 수로 고르게) — `summary`·`lab`·`agenda`·`numbered_rows`(`layouts.row_pitch`). 주지 않으면 전과 같다.
+- 검증: `check_parity -W example`(글머리 4개 포함 모두 같음) · 임시 작업 공간에서 place(id·역할·유형#순번·null 삭제·없는 키)·extra(z·직접 id)·spread·rowSpread·rowH 빌드 → `--force` 재빌드가 편집 감지 없이 통과 · `export_pptx` · `check_layout` ERROR 0 · 예제 덱(`demo`) 재빌드 결과의 행 좌표·필드 수가 저장소 덱과 같음(place·extra 가 없으면 전과 같은 코드 경로).
+
 ## 0.20.2 - 2026-10-14 · 서버 시작 출력의 pid
 
 - `nexa.py start`·`restart`(`service.py start`)가 "시작: … (pid ?)" 로 찍히던 것 - 포트는 답하는데 `server.json` 이 아직 안 쓰인 순간(설정 포트로 찾음)을 잡았기 때문. 실제 pid 가 보일 때까지 잠깐(최대 3초) 더 기다린다. 동시 기동 시험 통과.
