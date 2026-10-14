@@ -278,7 +278,7 @@
           <div class="list" id="engList" style="margin-top:6px"></div>
           <form id="engForm" style="display:none;margin-top:8px;border-top:1px solid var(--line);padding-top:8px">
             <label class="f" for="erTitle">요청 제목</label><input type="text" id="erTitle" required maxlength="200" placeholder="예: 표 레이아웃에 각주 칸 추가">
-            <label class="f" for="erBody">내용(무엇이 왜 필요한지 · 재현 방법) <span class="hint">- 그림은 Ctrl+V 로 붙여 넣기, 파일은 끌어다 놓기</span></label><textarea id="erBody" rows="3" style="width:100%;font:inherit;border:1px solid var(--line);border-radius:8px;padding:6px 9px"></textarea>
+            <label class="f" for="erBody">내용(무엇이 왜 필요한지 · 재현 방법) <span class="hint">- Enter = 큐에 넣기, Shift+Enter = 줄바꿈 · 그림은 Ctrl+V 로 붙여 넣기, 파일은 끌어다 놓기</span></label><textarea id="erBody" rows="3" style="width:100%;font:inherit;border:1px solid var(--line);border-radius:8px;padding:6px 9px"></textarea>
             <div class="att" id="erAtt"></div>
             <div class="row" style="justify-content:flex-end;gap:6px;margin-top:6px"><button type="button" class="att-btn" id="erAttach" title="그림 붙여넣기(Ctrl+V) · 끌어다 놓기 · 파일 고르기"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 11.5l-8.5 8.5a5 5 0 0 1-7-7l9-9a3.3 3.3 0 0 1 4.7 4.7l-9 9a1.6 1.6 0 0 1-2.3-2.3l8-8"/></svg>＋ 첨부</button><span style="flex:1"></span><button type="button" class="chip sm" id="engReqCancel">취소</button><button type="submit" class="chip sm primary">큐에 넣기</button></div>
             <input type="file" id="erFile" multiple accept="image/*,.pdf,.txt,.md,.csv,.json,.pptx,.docx,.xlsx" style="display:none">
@@ -716,6 +716,8 @@
       rd.readAsDataURL(f);
     });
   }
+  // 내용 칸: Enter = 큐에 넣기, Shift+Enter = 줄바꿈(편집기 요청 칸과 같다 - 한글 조합 중 Enter 는 조합 확정만)
+  $("#erBody").addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.shiftKey && !e.isComposing) { e.preventDefault(); $("#engForm").requestSubmit(); } });
   $("#erBody").addEventListener("paste", (e) => { const fs = [...((e.clipboardData && e.clipboardData.items) || [])].filter((it) => it.kind === "file").map((it) => it.getAsFile()).filter(Boolean); if (fs.length) { e.preventDefault(); e.stopPropagation(); erUpload(fs); } });
   $("#erBody").addEventListener("dragover", (e) => { if ([...e.dataTransfer.types].includes("Files")) { e.preventDefault(); $("#erBody").classList.add("dropping"); } });
   $("#erBody").addEventListener("dragleave", () => $("#erBody").classList.remove("dropping"));
