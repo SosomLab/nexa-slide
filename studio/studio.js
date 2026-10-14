@@ -1139,13 +1139,129 @@ ${names}
       else if (w.state === "idle") label = st.working ? `세션 처리 중 ${st.working}` : "대기 - 요청 바로 처리";
     }
     if (act && act.othersBusy) label += ` · 다른 세션 ${act.othersBusy}`;
+    if (st.connected && st.kind === "web") label = `웹 세션 · ${st.model || st.agent || ""}${st.user ? ` · ${st.user}` : ""}${st.working ? ` · 처리 중 ${st.working}` : ""}`;
     c.className = "chip sm " + (st.connected ? (st.working || (w && w.state === "busy") ? "busy" : "on") : "off");
-    c.innerHTML = `<span class="dot"></span>${esc(label)}`;
+    c.innerHTML = `<span class="dot"></span>${esc(label)} ▾`;
     if (w && w.state === "busy" && w.source === "chat" && w.prompt) c.dataset.prompt = w.prompt; else delete c.dataset.prompt;
     c.title = st.connected ? `${st.label || "Claude Code"} · 마지막 확인 ${st.last_seen} (${st.age}초 전) · 대기 ${st.open} · 처리 중 ${st.working}${c.dataset.prompt ? `
 대화 입력: ${c.dataset.prompt}` : ""}`
-      : `요청 감시가 실행 중이 아니다${st.last_seen ? ` - 마지막 확인 ${st.last_seen}` : ""}. 세션에서 watch_requests.py --stream 을 Monitor 로 실행하면 연결된다`;
+      : `세션 연결 없음${st.last_seen ? ` - 마지막 확인 ${st.last_seen}` : ""}. 눌러서 웹 세션을 시작하거나, 터미널 세션에서 watch_requests.py --stream 을 Monitor 로 실행하면 연결된다`;
   }
+
+  // ---------------------------------------------------------------- 웹 AI 세션(B-5) - 세션 칩 메뉴 · 시작 창 · 진행 패널(SSE) · 턴 로그
+  const WSS = { src: null, events: [], agent: null };
+  function sessMenu(btn) {
+    const st = S.session || {};
+    const web = st.connected && st.kind === "web";
+    const items = web
+      ? [{ h: `웹 세션 · ${st.agent || ""} · ${st.model || ""}${st.user ? ` · ${st.user}` : ""}` },
+         { icon: "▶", label: "진행 보기", act: sessProgress }, { icon: "⟳", label: "모델 바꾸기…", act: sessModelDlg },
+         { icon: "📄", label: "턴 로그…", act: () => sessLog(1) }, "-",
+         { icon: "■", label: "세션 끊기", act: sessStop }]
+      : st.connected
+        ? [{ h: `수동 세션 · ${st.label || ""}` }, { html: `<div class="hint" style="padding:4px 10px;max-width:280px">터미널의 Claude Code 세션이 요청 감시(watch_requests)로 맡고 있습니다. 웹 세션으로 바꾸려면 그 감시를 끝내세요.</div>` }]
+        : [{ icon: "▶", label: "웹 세션 시작…", act: sessStartDlg }, { html: `<div class="hint" style="padding:4px 10px;max-width:280px">서버가 Claude 를 띄워 편집기 요청을 처리합니다. 터미널 세션(Monitor)과 함께 쓸 수 없습니다.</div>` }];
+    openMenu(btn, items, { right: false });
+  }
+  function sessBox(html) { $("#sessDlg .box").innerHTML = html; $("#sessDlg").classList.add("show"); }
+  function sessClose() { $("#sessDlg").classList.remove("show"); if (WSS.src) { WSS.src.close(); WSS.src = null; } }
+  async function sessStartDlg() {
+    sessBox(`<div class="hint">에이전트·로그인 상태를 확인하는 중…</div>`);
+    const r = await api("GET", "/api/agent");
+    if (!r.ok) { sessBox(`<div class="hint">확인 실패: ${esc((r.data && r.data.error) || r.status)}</div><div class="row"><button class="chip sm" data-sd="close">닫기</button></div>`); return; }
+    WSS.agent = r.data;
+    const ag = r.data.agents, cur = r.data.agent, model = r.data.model;
+    const opt = (name) => { const a = ag[name]; const ok = a.installed && a.loggedIn; return `<option value="${name}" ${name === cur ? "selected" : ""} ${ok ? "" : "disabled"}>${esc(a.label)}${a.verified ? "" : " (미확인)"}${ok ? "" : a.installed ? " - 로그인 안 됨" : " - 미설치"}</option>`; };
+    const models = (name) => (r.data.models[name] || []).map((m) => `<option value="${esc(m)}" ${m === model ? "selected" : ""}>${esc(m)}</option>`).join("") + `<option value="__custom">직접 입력…</option>`;
+    sessBox(`<div class="row" style="align-items:center;gap:8px"><h3 style="margin:0;flex:1">웹 세션 시작</h3><button class="chip sm" data-sd="close">닫기</button></div>
+      <div class="hint">서버가 이 작업 공간에서 AI 를 턴마다 실행해 편집기 요청을 처리합니다. 쓰기 범위는 이 작업 공간 폴더뿐이며 <code>nexa.py</code> 명령만 허용됩니다.</div>
+      <label class="f">에이전트</label><select id="sdAgent">${opt("claude")}${opt("codex")}</select>
+      <div class="hint" id="sdHint">${esc(ag[cur].hint || "")}${ag[cur].hint && ag[cur].doc ? ` (엔진 ${esc(ag[cur].doc)})` : ""}</div>
+      <label class="f">모델 <span class="hint">(기본: ${esc(model)} — ${esc(r.data.sources.model)})</span></label>
+      <div class="row" style="gap:6px"><select id="sdModel">${models(cur)}</select><input type="text" id="sdModelText" placeholder="모델 ID 직접 입력" style="display:none;flex:1"></div>
+      <label class="f" style="display:flex;align-items:center;gap:8px;font-weight:400"><input type="checkbox" id="sdSave"> 이 작업 공간 기본으로 저장 <select id="sdSaveAs" style="font-size:12px"><option value="local">이 PC 만(nexa-slide.local.json)</option><option value="shared">공유(nexa-slide.json)</option></select></label>
+      <div class="hint">한도: 유휴 ${esc(String(r.data.limits.sessionIdleMinutes))}분 · 턴 ${esc(String(r.data.limits.sessionTurnMinutes))}분 · 동시 ${esc(String(r.data.limits.sessionMax))}</div>
+      <div class="row" style="justify-content:flex-end;gap:8px"><button class="chip sm" data-sd="close">취소</button><button class="chip sm primary" data-sd="start">시작</button></div>`);
+    $("#sdAgent").onchange = () => { const n = $("#sdAgent").value; $("#sdModel").innerHTML = models(n); $("#sdHint").textContent = (ag[n].hint || "") + (ag[n].hint && ag[n].doc ? ` (엔진 ${ag[n].doc})` : ""); };
+    $("#sdModel").onchange = () => { $("#sdModelText").style.display = $("#sdModel").value === "__custom" ? "" : "none"; };
+  }
+  async function sessStart() {
+    const agent = $("#sdAgent").value, model = $("#sdModel").value === "__custom" ? $("#sdModelText").value.trim() : $("#sdModel").value;
+    if (!model) { toast("모델을 고르거나 입력하세요"); return; }
+    const body = { action: "start", agent, model }; if ($("#sdSave").checked) body.saveAs = $("#sdSaveAs").value;
+    const r = await api("POST", "/api/wsession", body);
+    if (!r.ok) { toast("시작 실패: " + ((r.data && r.data.error) || r.status), 6000); return; }
+    toast(`웹 세션 시작 - ${agent} · ${model}`); renderSession({ ...(S.session || {}), connected: true, kind: "web", agent, model, user: r.data.startedBy, label: `web:${agent}`, open: r.data.open, working: r.data.working, last_seen: "", age: 0 });
+    sessProgress();
+  }
+  async function sessStop() {
+    if (!confirm("웹 세션을 끊을까요? 실행 중인 턴이 있으면 바로 종료됩니다.")) return;
+    const r = await api("POST", "/api/wsession", { action: "stop" });
+    if (!r.ok) { toast("끊지 못했습니다: " + ((r.data && r.data.error) || r.status), 5000); return; }
+    toast("웹 세션을 끊었습니다"); sessClose(); api("GET", "/api/session").then((x) => x.ok && renderSession(x.data));
+  }
+  async function sessModelDlg() {
+    const r = await api("GET", "/api/agent"); const st = S.session || {};
+    const list = r.ok ? (r.data.models[st.agent] || []) : [];
+    sessBox(`<div class="row" style="align-items:center;gap:8px"><h3 style="margin:0;flex:1">모델 바꾸기</h3><button class="chip sm" data-sd="close">닫기</button></div>
+      <div class="hint">지금 ${esc(st.model || "")} · 턴 실행 중이면 끝난 뒤 적용됩니다.</div>
+      <div class="row" style="gap:6px"><select id="sdModel">${list.map((m) => `<option value="${esc(m)}" ${m === st.model ? "selected" : ""}>${esc(m)}</option>`).join("")}<option value="__custom">직접 입력…</option></select><input type="text" id="sdModelText" placeholder="모델 ID" style="display:none;flex:1"></div>
+      <label class="f" style="display:flex;align-items:center;gap:8px;font-weight:400"><input type="checkbox" id="sdSave"> 이 작업 공간 기본으로 저장 <select id="sdSaveAs" style="font-size:12px"><option value="local">이 PC 만</option><option value="shared">공유</option></select></label>
+      <div class="row" style="justify-content:flex-end;gap:8px"><button class="chip sm" data-sd="close">취소</button><button class="chip sm primary" data-sd="modelgo">바꾸기</button></div>`);
+    $("#sdModel").onchange = () => { $("#sdModelText").style.display = $("#sdModel").value === "__custom" ? "" : "none"; };
+  }
+  async function sessModel() {
+    const model = $("#sdModel").value === "__custom" ? $("#sdModelText").value.trim() : $("#sdModel").value;
+    if (!model) { toast("모델을 고르거나 입력하세요"); return; }
+    const body = { action: "model", model }; if ($("#sdSave").checked) body.saveAs = $("#sdSaveAs").value;
+    const r = await api("POST", "/api/wsession", body);
+    if (!r.ok) { toast("바꾸지 못했습니다: " + ((r.data && r.data.error) || r.status), 5000); return; }
+    toast(r.data.pendingModel ? `턴이 끝난 뒤 ${model} 로 바뀝니다` : `모델을 ${model} 로 바꿨습니다`); sessClose();
+  }
+  function sessProgress() {
+    sessBox(`<div class="row" style="align-items:center;gap:8px"><h3 style="margin:0;flex:1">웹 세션 진행</h3><span class="hint" id="sdState"></span><button class="chip sm" data-sd="log">턴 로그</button><button class="chip sm" data-sd="close">닫기</button></div>
+      <div class="ev" id="sdEv"><div class="hint">연결 중…</div></div>
+      <div class="row" style="justify-content:flex-end;gap:8px"><button class="chip sm" data-sd="model">모델 바꾸기…</button><button class="chip sm" data-sd="stop">세션 끊기</button></div>`);
+    if (WSS.src) WSS.src.close();
+    WSS.events = [];
+    const box = $("#sdEv"); box.innerHTML = "";
+    const line = (e) => {
+      const d = e.data || e; const t = (d.t || "").slice(11, 19);
+      let txt = d.type;
+      if (d.type === "state") txt = `상태 ${d.state}${d.reason ? ` (${d.reason})` : ""}${d.model ? ` · ${d.model}` : ""}`;
+      else if (d.type === "turn.start") txt = `턴 ${d.turn} 시작 - 요청 ${d.count}건 (${d.reason}) · ${d.model}`;
+      else if (d.type === "init") txt = `세션 ${String(d.sessionId || "").slice(0, 8)} · 모델 ${d.model}`;
+      else if (d.type === "tool") txt = `도구 ${d.tool} ${d.summary || ""}`;
+      else if (d.type === "text") txt = `✎ ${d.text}`;
+      else if (d.type === "turn.end") txt = `턴 ${d.turn} 끝 - ${d.ok ? "정상" : "실패"}${d.costUsd != null ? ` · $${Number(d.costUsd).toFixed(4)}` : ""}${d.unhandled && d.unhandled.length ? ` · 처리 못 함 ${d.unhandled.length}` : ""}${d.error ? ` · ${d.error}` : ""}`;
+      else if (d.type === "model") txt = `모델 → ${d.model}${d.pending ? " (턴 끝난 뒤)" : ""}`;
+      else if (d.type === "warn" || d.type === "error") txt = `${d.type === "warn" ? "경고" : "오류"} ${d.message || ""}`;
+      else if (d.type === "idle") txt = `유휴 ${d.minutes}분 초과 - 끊음`;
+      const div = document.createElement("div"); div.className = "e " + d.type; div.textContent = `${t} ${txt}`;
+      box.appendChild(div); box.scrollTop = box.scrollHeight;
+    };
+    try {
+      const src = new EventSource(`${BASE}/api/wsession/events`); WSS.src = src;
+      ["state", "turn.start", "init", "text", "tool", "tool_result", "turn.end", "warn", "error", "model", "idle"].forEach((k) => src.addEventListener(k, (ev) => { try { const d = JSON.parse(ev.data); if (k === "state" && !d.seq) { $("#sdState").textContent = `${d.state} · ${d.agent || ""} · ${d.model || ""}`; } line({ ...d, type: d.type || k }); if (d.type === "state" || k === "state") $("#sdState").textContent = `${d.state}`; } catch (e) { /* 무시 */ } }));
+      src.onerror = () => { const div = document.createElement("div"); div.className = "e warn"; div.textContent = "연결이 끊겨 다시 붙는 중…"; box.appendChild(div); };
+    } catch (e) { box.textContent = "이 브라우저는 SSE 를 지원하지 않습니다"; }
+  }
+  async function sessLog(n) {
+    const r = await api("GET", `/api/wsession/log?turn=${n}`);
+    const lines = r.ok ? r.data.lines : [];
+    sessBox(`<div class="row" style="align-items:center;gap:8px"><h3 style="margin:0;flex:1">턴 ${n} 로그 <span class="hint">(어댑터 출력 원문 ${lines.length}줄)</span></h3>
+      <button class="chip sm" data-sd="logprev">◀</button><button class="chip sm" data-sd="lognext">▶</button><button class="chip sm" data-sd="progress">진행</button><button class="chip sm" data-sd="close">닫기</button></div>
+      <div class="ev">${lines.length ? lines.map((l) => `<div class="e">${esc(l.length > 400 ? l.slice(0, 400) + " …" : l)}</div>`).join("") : '<div class="hint">로그 없음</div>'}</div>`);
+    WSS.logTurn = n;
+  }
+  $("#sessDlg").addEventListener("click", (e) => {
+    if (e.target === $("#sessDlg")) { sessClose(); return; }
+    const b = e.target.closest("[data-sd]"); if (!b) return;
+    const k = b.dataset.sd;
+    if (k === "close") sessClose(); else if (k === "start") sessStart(); else if (k === "model") sessModelDlg(); else if (k === "modelgo") sessModel();
+    else if (k === "stop") sessStop(); else if (k === "log") sessLog(1); else if (k === "progress") sessProgress();
+    else if (k === "logprev") sessLog(Math.max(1, (WSS.logTurn || 1) - 1)); else if (k === "lognext") sessLog((WSS.logTurn || 1) + 1);
+  });
   async function flushReqs(quiet) {
     const r = await api("POST", `/api/flush/${S.id}`);
     if (!r.ok) { if (!quiet) toast("보내기 신호를 쓰지 못했습니다"); return; }
@@ -1712,6 +1828,7 @@ ${names}
     $("#undoBtn").onclick = undo; $("#redoBtn").onclick = redo;
     $("#exportBtn").onclick = (e) => exportMenu(e.currentTarget);
     $("#moreBtn").onclick = (e) => moreMenu(e.currentTarget);
+    $("#sessChip").onclick = (e) => sessMenu(e.currentTarget);  // 웹 세션 시작·끊기·모델·진행
     $("#presentBtn").onclick = () => present(false);
     $("#histBtn").onclick = () => switchTab("hist");
     $("#rightBtn").onclick = toggleRight;
@@ -1803,7 +1920,7 @@ ${names}
     new ResizeObserver(() => fitStage()).observe(vp);
     document.addEventListener("keydown", onKey);
     document.addEventListener("keyup", (e) => { if (e.key === " ") { spaceDown = false; if (!S.pan) document.body.classList.remove("panning"); } });
-    document.addEventListener("pointerdown", (e) => { if (!e.target.closest(".menu") && !e.target.closest("#ftb") && !e.target.closest("#addBtn,#exportBtn,#moreBtn")) closeMenu(); });
+    document.addEventListener("pointerdown", (e) => { if (!e.target.closest(".menu") && !e.target.closest("#ftb") && !e.target.closest("#addBtn,#exportBtn,#moreBtn,#sessChip")) closeMenu(); });
     window.addEventListener("resize", () => { fitStage(); fitThumbs(); if ($("#present").classList.contains("show")) renderPresent(); });
     window.addEventListener("beforeunload", (e) => { if (S.dirty) { save(); e.preventDefault(); e.returnValue = ""; } });
     setInterval(poll, 2000);

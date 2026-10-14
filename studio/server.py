@@ -354,7 +354,12 @@ def render_list(i):
 
 MUTATING = {"POST", "PUT", "DELETE", "PATCH"}
 AUTH_FREE = {"/login", "/setup", "/api/auth/state", "/api/auth/login", "/api/auth/setup"}  # 허브에서 로그인 없이 닿는 전부(페이지는 CSS·JS 내장)
-POLL = ("/api/version/", "/api/session")
+POLL_RX = re.compile(r"(^|/w/[^/]+)/api/(version/[^/?]+|session)$")  # 2초 폴링 - /api/version/<덱> · /api/session (/api/wsession 은 아님)
+SERVER_NAME = "hub" if HUB else None  # 접근 로그 server 필드 - 작업 공간은 중계 이름(ws id, 저장소형은 모두 slides/ 라 폴더 이름으로는 구분이 안 된다)
+
+
+def _is_poll(path):
+    return bool(POLL_RX.search((path or "").split("?")[0]))
 
 
 class H(BaseHTTPRequestHandler):
@@ -365,7 +370,7 @@ class H(BaseHTTPRequestHandler):
     _status = _err = _event = None
 
     def log_message(self, fmt, *args):
-        if any(k in (self.path or "") for k in POLL):
+        if _is_poll(self.path):
             return  # 2초 폴링은 기록하지 않는다
         sys.stderr.write("%s %s\n" % (self.log_date_time_string(), fmt % args))
 
@@ -496,14 +501,14 @@ class H(BaseHTTPRequestHandler):
         u = urlparse(self.path or "")
         st = self._status or 0
         result = "deny" if st in (401, 403) or (st == 400 and self._err == "허용되지 않은 Host") else "error" if st >= 400 or not st else "allow"
-        static = not re.match(r"^(/w/[^/]+)?/api/", u.path) or any(k in u.path for k in POLL)
+        static = not re.match(r"^(/w/[^/]+)?/api/", u.path) or _is_poll(u.path)
         if result == "allow" and static and not self._event and not auth.setting("accessLogStatic", False):
             return  # 정적 파일·2초 폴링의 승인 줄은 설정으로만(부피)
         m = re.match(r"^/w/([^/]+)", u.path)
         rec = {"t": dt.datetime.now().astimezone().isoformat(timespec="milliseconds"), "result": result, "status": st, "method": method,
                "path": u.path, "user": self.user, "ip": self.client_ip(), "via": "cloudflare" if self.headers.get("Cf-Ray") else "hub" if self.via_hub else "local",
                "ua": (self.headers.get("User-Agent") or "")[:160], "ms": int((time.monotonic() - t0) * 1000),
-               "server": "hub" if HUB else WORKSPACE.name}
+               "server": SERVER_NAME or (hub.ws_id(WORKSPACE) if not HUB else "hub")}
         if m:
             rec["ws"] = unquote(m.group(1))
         if self._err:
@@ -584,7 +589,7 @@ class H(BaseHTTPRequestHandler):
                 conn.request(method, path, body=body or None, headers={**hdrs, "Host": f"127.0.0.1:{port}"})
                 resp = conn.getresponse()
                 if (resp.getheader("Content-Type") or "").startswith("text/event-stream"):  # SSE - 다 읽지 않고 줄 단위로 흘린다(keepalive 가 25초마다 온다)
-                    return self._stream_through(resp, prefix)
+                    return self._stream_through(resp, prefix, conn)
                 data = resp.read()
                 break
             except (OSError, http.client.HTTPException) as e:  # 연결 거부·끊김 - 서버가 꺼졌거나 포트가 바뀜
@@ -610,7 +615,7 @@ class H(BaseHTTPRequestHandler):
         if method != "HEAD" and data:
             self.wfile.write(data)
 
-    def _stream_through(self, resp, prefix):
+    def _stream_through(self, resp, prefix, conn):
         """중계 - text/event-stream 응답을 받는 대로 브라우저에 쓴다. 어느 쪽이든 끊기면 끝(연결은 finally 에서 닫힌다)."""
         self.send_response(resp.status, resp.reason)
         for k, v in resp.getheaders():
@@ -621,8 +626,9 @@ class H(BaseHTTPRequestHandler):
                 v = prefix + v
             self.send_header(k, v)
         self.end_headers()
+        closed = self._watch_close(on_close=conn.close)  # 브라우저가 끊으면 작업 공간 쪽 소켓을 닫는다(FIN) → readline 이 깨고, 작업 공간 서버도 EOF 로 바로 안다
         try:
-            while True:
+            while not closed.is_set():
                 line = resp.readline()
                 if not line:
                     break
@@ -987,6 +993,7 @@ class H(BaseHTTPRequestHandler):
         self.send_header("X-Accel-Buffering", "no")
         self.end_headers()
         last, idle = since, 0.0
+        closed = self._watch_close()
 
         def send(text):
             self.wfile.write(text.encode("utf-8"))
@@ -994,7 +1001,7 @@ class H(BaseHTTPRequestHandler):
         try:
             send("retry: 3000\n\n")
             send(f"event: state\ndata: {json.dumps({'state': WS.state, 'seq': WS.seq, 'agent': WS.agent, 'model': WS.model}, ensure_ascii=False)}\n\n")
-            while True:
+            while not closed.is_set():
                 evs = WS.events_since(last)
                 for e in evs:
                     last = e["seq"]
@@ -1007,6 +1014,27 @@ class H(BaseHTTPRequestHandler):
                     idle = 0.0
         except (OSError, ValueError):  # 연결 끊김
             return
+
+    def _watch_close(self, on_close=None):
+        """클라이언트가 연결을 끊는 것을 바로 알아챈다(쓰기 실패에 기대면 Windows 에서는 keepalive 두 번 = 50초까지 늦다).
+        스트리밍 응답은 요청 본문이 더 오지 않으므로 소켓에서 EOF 를 기다리는 스레드를 둔다. 돌려주는 Event 가 set 되면 끊긴 것."""
+        closed = threading.Event()
+
+        def watch():
+            try:
+                while not closed.is_set():
+                    if not self.connection.recv(1):
+                        break
+            except OSError:  # 상대가 리셋해도 "끊김"
+                pass
+            closed.set()
+            if on_close:
+                try:
+                    on_close()
+                except Exception:  # noqa: BLE001
+                    pass
+        threading.Thread(target=watch, daemon=True).start()
+        return closed
 
     def api_post_wsession(self, what, q):
         """{action: start, agent?, model?, saveAs?: local|shared} · {action: stop} · {action: model, model, saveAs?}. 로그인 사용자 누구나(로컬 직접 접속은 local)."""
@@ -1077,6 +1105,9 @@ class H(BaseHTTPRequestHandler):
 
     def api_post_project(self, _, q):
         b = self.body_json() or {}
+        if b.get("action") == "session":  # 허브에서 작업 공간 세션 켜기·끄기·모델(꺼진 서버면 먼저 띄운다) - 로그인 사용자 누구나
+            self._event = f"session.{b.get('op')}:{Path(str(b.get('path') or '')).name}"
+            return self.hub_call(hub.session_ws, b.get("path"), b.get("op"), b.get("agent"), b.get("model"), self.user, self.role, b.get("saveAs"))
         if b.get("action") == "open" and not HUB and b.get("path") and Path(b["path"]).resolve() == WORKSPACE:
             hub.remember(WORKSPACE, CONFIG.get("title", WORKSPACE.name))
             return self.send_json({"ok": True, "path": str(WORKSPACE), "url": f"http://127.0.0.1:{self.server.server_port}/"})
@@ -1087,10 +1118,15 @@ class H(BaseHTTPRequestHandler):
             self.hub_call(hub.preview, (q.get("template") or [None])[0], (q.get("starter") or [None])[0])
 
     def api_post_settings(self, _, q):
-        def save(b):
-            hub.update_settings(b)
+        b = self.body_json() or {}
+        if any(k in b for k in hub.SESSION_KEYS) and self.role != "admin":  # AI 세션 전역 기본은 관리자만(결정 1)
+            self._event = "settings.denied"
+            return self.err(403, "AI 세션 전역 설정은 관리자만 바꿀 수 있다")
+
+        def save(body):
+            hub.update_settings(body)
             return {"ok": True, **hub.home(None if HUB else WORKSPACE, REFUSED)}
-        self.hub_call(save, self.body_json() or {})
+        self.hub_call(save, b)
 
     def api_get_fs(self, _, q):
         self.hub_call(hub.list_dir, (q.get("path") or [""])[0])
@@ -1439,11 +1475,12 @@ def main():
         sys.exit(f"이 작업 공간의 서버가 이미 실행 중이다: {run['url']} (pid {run['pid']}, {run['started']}) — 그대로 쓰면 된다")
     auto = str(a.port).lower() == "auto"
     port = DEFAULT_PORT if a.port is None or auto else int(a.port)
-    global WS
+    global WS, SERVER_NAME
     if not HUB:
         DECKS.mkdir(parents=True, exist_ok=True)
         import wsession
         WS = wsession.WebSession()
+        SERVER_NAME = hub.ws_id(WORKSPACE)
     srv = _bind(port, auto)
     port = srv.server_port
     url = f"http://127.0.0.1:{port}/"

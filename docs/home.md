@@ -84,6 +84,7 @@ python3 <작업 공간>/nexa.py start      # 작업 공간 서버 → 덱이 있
 | `hubPort` | 허브 포트(기본 5599) |
 | `hubProxy` | 열기·만들기를 중계 주소 `/w/<이름>/` 로(기본 `true`). `false` 면 작업 공간 서버 포트로 바로 이동 |
 | `sessionDays` · `publicHosts` · `accessLogDays` · `accessLogStatic` | 로그인 유지 일수(7) · 허용 공개 호스트 · 접근 로그 보관 일수(30) · 정적 승인 줄 기록 — [auth.md](auth.md) |
+| `sessionAgent` · `sessionModel` · `sessionModels` · `sessionIdleMinutes` · `sessionTurnMinutes` · `sessionMax` · `sessionMaxTurns` · `sessionBudgetUsd` · `agentPaths` | AI 웹 세션 전역 기본(에이전트 `claude`/`codex` · 모델 · 모델 목록 `{claude: […], codex: […]}` · 유휴 60분 · 턴 20분 · 동시 3 · 턴당 도구 반복 40 · 예산 · 실행 파일 경로). **관리자만** — 시작 페이지 메뉴 "기준 폴더 설정" 아래 "AI 세션 전역 기본". 작업 공간 설정 `sessionAgent`·`sessionModel`(`nexa-slide.local.json`/`nexa-slide.json`)과 세션 시작 창의 선택이 이보다 우선 |
 
 계정(`users.json`)·세션·접근 로그도 이 폴더에 있다. 허브는 로컬이어도 로그인이 필요하다 — [auth.md](auth.md).
 | `recent` | 최근 작업 `[{path, title, opened}]` - 최대 30개 |
@@ -136,6 +137,10 @@ python3 'C:\Users\me\Documents\NexaSlide\신제품-소개\nexa.py' start
 | 실행 중 | `포트 5603`(초록 — 실제로 쓰는 포트) | **중지** — 그 작업 공간 서버만 끈다(`service.py stop`). 지금 이 페이지를 내주는 작업 공간 서버는 끄지 않는다 |
 | 꺼짐 | `포트 5603`(회색 — 설정 포트 — `nexa-slide.json`·`nexa-slide.local.json`) | **시작** — 서버만 띄우고 페이지는 그대로 |
 
+**AI 세션 줄(4줄)** — `웹 세션 · claude · opus · <시작 사용자> · 대기 n/처리 중 n` / `수동 세션 · <label>` / `세션 없음 (· 마지막 …)`.
+**[세션 시작]** 은 창에서 에이전트·모델(설치·로그인 상태, 작업 공간 기본값 미리 선택, 직접 입력, "이 작업 공간 기본으로 저장")을 고르고, **서버가 꺼져 있으면 먼저 띄운 뒤** 그 서버의 세션을 시작한다(`POST /api/project {"action": "session", "op": "start"|"stop"|"status", path, agent?, model?, saveAs?}` → `hub.session_ws`).
+**[세션 끊기]** 는 실행 중 턴의 프로세스까지 끝낸다. 수동 세션이 맡고 있으면 단추가 없다. 로그인 사용자 누구나 쓸 수 있다 — [dev/web-session-design.md](dev/web-session-design.md).
+
 항목은 세 줄 — 1줄 제목, 2줄 경로, 3줄(오른쪽 정렬) 덱 개수 · 포트 · 시작/중지 · ✕(목록에서 빼기).
 항목(제목)을 누르면 예전처럼 연다 — 꺼져 있으면 띄운 뒤 이동, 이미 떠 있으면 다시 띄우지 않고 바로 그 주소로 이동.
 5. 버튼이면 그 작업 공간 서버를 띄워 Studio 로 이동한다. 명령이면 ② 를 실행하고 주소를 연다.
@@ -164,12 +169,13 @@ Esc·바깥·닫기 단추로 닫는다. 주소에 `?menu=open` 을 붙이면 �
 
 | 메서드 · 경로 | 설명 |
 |---|---|
-| `GET /api/home` | `{mode, documents, projectsRoot, projectsRootDefault, current, refused, recent, templates, starters, samples, demo}` |
+| `GET /api/home` | `{mode, documents, projectsRoot, projectsRootDefault, current, refused, recent, templates, starters, samples, demo, user, proxy, sessionGlobal}`. `recent[].session` = `{kind: web\|manual\|none, connected, label, agent, model, user, started, lastSeen, open, working, last, defaults}`(파일만 읽음) |
 | `POST /api/project` | `{"action": "create", title, template, starter?, folder?, sub?, port?, purpose, audience, direction, materials, askDraft}` · `{"action": "plan", …create 와 같음}` → `{path, port, url, args, commands: {powershell, bash: {init, start}}, warnings}` · `{"action": "open", path}` · `{"action": "demo"}` · `{"action": "forget", path}` → `{ok, path, url, direct, id, hubUrl}` (`url` = `hubProxy` 가 켜져 있으면 `/w/<이름>/`, 아니면 `direct`). 실패하면 400 `{error, needInit?, existing?, log?}` |
 | `/w/<이름>/…` | 중계 — 그 작업 공간 서버의 `/…` 로 넘긴다(위 "한 주소로 중계"). 모르는 이름은 404, 서버를 띄우지 못하면 502 |
 | `/api/auth/…` · `/login` · `/setup` · `/account` | 로그인·계정 — [auth.md](auth.md). 위의 모든 API 는 로그인 뒤에 있다(미인증 401) |
 | `GET /api/preview?template=&starter=` | 미리 보기 - 템플릿 × 시작용 내용(없으면 레이아웃 견본)을 사용자 설정 폴더의 임시 작업 공간에 빌드 → `{template, starter, tokens, base, decks}` |
-| `POST /api/settings` | `{projectsRoot?, samples?, hubProxy?}` - `projectsRoot` 를 빈 값으로 주면 기본으로 |
+| `POST /api/settings` | `{projectsRoot?, samples?, hubProxy?, sessionAgent?, sessionModel?, sessionModels?, sessionIdleMinutes?, sessionTurnMinutes?, sessionMax?, sessionMaxTurns?, sessionBudgetUsd?, agentPaths?}` - 빈 값은 기본으로. `session*`·`agentPaths` 는 관리자만(403) |
+| `POST /api/project` `{"action": "session", op, path, agent?, model?, saveAs?}` | 작업 공간 웹 세션 `start`·`stop`·`status`·`model` — 서버가 꺼져 있으면 먼저 띄운다. 응답은 그 서버의 `/api/wsession` 과 같고 `url`(서버 주소)이 붙는다 |
 | `GET /api/fs?path=<폴더>` | 폴더 고르기 - 하위 폴더 `[{name, path, git, workspace}]`, 드라이브 목록, 바로 가기(문서·기준·홈) |
 
 `/api/fs` 는 이 PC 의 폴더 이름을 보여 준다. 서버는 `127.0.0.1` 에만 열린다([server.md](server.md)).

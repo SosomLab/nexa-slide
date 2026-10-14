@@ -183,8 +183,34 @@ def server_state(ws, cfg=None):
     return {"running": False, "url": None, "pid": None}
 
 
+def session_summary(ws, cfg=None):
+    """작업 공간의 AI 세션 요약 - 파일만 읽는다(서버에 묻지 않음). {kind: web|manual|none, connected, label, agent, model, user, started, lastSeen, open, working, last, defaults}"""
+    import time
+    ws = Path(ws)
+    cfg = cfg if cfg is not None else load_ws_config(ws)
+    st_dir = ws / cfg.get("out", "out") / ".studio"
+    hb = _read_json(st_dir / "session.json") or {}
+    age = (time.time() - float(hb.get("ts", 0))) if hb else None
+    connected = bool(hb) and not hb.get("stopped") and age <= float(hb.get("interval", 1)) * 4 + 2
+    out = {"kind": (hb.get("kind") or "manual") if connected else "none", "connected": connected, "label": hb.get("label", ""),
+           "agent": hb.get("agent"), "model": hb.get("model"), "user": hb.get("user"), "started": hb.get("started", ""), "lastSeen": hb.get("last_seen", ""),
+           "open": 0, "working": 0, "defaults": {"agent": cfg.get("sessionAgent"), "model": cfg.get("sessionModel")}}
+    decks_dir = ws / cfg.get("decks", "decks")
+    for f in (decks_dir.glob("*.requests.json") if decks_dir.is_dir() else []):
+        try:
+            rs = json.loads(f.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            continue
+        out["open"] += sum(1 for r in rs if r.get("status") == "open")
+        out["working"] += sum(1 for r in rs if r.get("status") == "working")
+    last = _read_json(st_dir / "wsession.json")
+    if last:
+        out["last"] = {k: last.get(k) for k in ("agent", "model", "startedBy", "startedAt", "stoppedAt", "reason", "turns", "lastError")}
+    return out
+
+
 def workspace_info(path, state=False):
-    """작업 공간 요약 - 제목·템플릿·덱 수. state 면 실행 상태(running·url)까지 확인한다(응답을 두드려 본다)."""
+    """작업 공간 요약 - 제목·템플릿·덱 수·세션. state 면 실행 상태(running·url)까지 확인한다(응답을 두드려 본다)."""
     p = Path(path)
     if not (p / CONFIG_NAME).is_file():
         return {"path": str(p), "exists": p.is_dir(), "workspace": False}
@@ -194,7 +220,51 @@ def workspace_info(path, state=False):
     info = server_state(p, cfg) if state else {"running": None, "url": (_read_json(p / cfg.get("out", "out") / ".studio" / "server.json") or {}).get("url")}
     return {"path": str(p), "exists": True, "workspace": True, "title": cfg.get("title", p.name), "template": cfg.get("template", "lecture"),
             "port": cfg.get("port"), "decks": decks, "url": info.get("url"), "running": info.get("running"), "git": _git_root(p) is not None,
-            "brief": (p / "BRIEF.md").is_file(), "root": str((p / cfg["repo"]["root"]).resolve()) if isinstance(cfg.get("repo"), dict) else ""}
+            "brief": (p / "BRIEF.md").is_file(), "root": str((p / cfg["repo"]["root"]).resolve()) if isinstance(cfg.get("repo"), dict) else "",
+            "session": session_summary(p, cfg)}
+
+
+SESSION_KEYS = ("sessionAgent", "sessionModel", "sessionModels", "sessionIdleMinutes", "sessionTurnMinutes", "sessionMax", "sessionMaxTurns", "sessionBudgetUsd", "agentPaths")
+
+
+def session_ws(path, op, agent=None, model=None, user=None, role=None, save_as=None):
+    """허브에서 작업 공간의 웹 세션을 켜고 끈다 - 서버가 꺼져 있으면 먼저 띄우고(--port auto) 그 서버의 /api/wsession 을 공유 비밀·사용자 머리로 부른다(결정 5)."""
+    import urllib.error
+    import urllib.request
+    import auth
+    if op not in ("start", "stop", "model", "status"):
+        raise HubError("op = start|stop|model|status")
+    ws = _ws_of(path)
+    st = server_state(ws)
+    if not st["running"]:
+        if op in ("stop", "status"):
+            return {"ok": True, "path": str(ws), "running": False, "state": "off", "session": session_summary(ws)}
+        url, _ = start_server(ws, auto=True)
+    else:
+        url = st["url"]
+    headers = {"Content-Type": "application/json", "X-Nexa-Hub-Key": auth.hub_key(), "X-Nexa-User": user or "", "X-Nexa-Role": role or "user"}
+    if op == "status":
+        req = urllib.request.Request(url + "api/wsession", headers=headers)
+    else:
+        body = {"action": op}
+        if agent:
+            body["agent"] = agent
+        if model:
+            body["model"] = model
+        if save_as in ("local", "shared"):
+            body["saveAs"] = save_as
+        req = urllib.request.Request(url + "api/wsession", data=json.dumps(body).encode("utf-8"), method="POST", headers=headers)
+    try:
+        with urllib.request.urlopen(req, timeout=90) as r:
+            return {"ok": True, "path": str(ws), "url": url, **json.loads(r.read().decode("utf-8"))}
+    except urllib.error.HTTPError as e:
+        try:
+            msg = json.loads(e.read().decode("utf-8")).get("error") or str(e)
+        except ValueError:
+            msg = str(e)
+        raise HubError(msg)
+    except Exception as e:  # noqa: BLE001
+        raise HubError(f"작업 공간 서버에 닿지 못했다: {e}")
 
 
 def _git_root(p):
@@ -226,6 +296,7 @@ def home(current=None, refused=None):
     return {"documents": str(documents_dir()), "projectsRoot": str(projects_root()), "projectsRootDefault": str(default_projects_root()),
             "projectsRootFromEnv": bool(os.environ.get("NEXA_SLIDE_PROJECTS")), "engine": str(ENGINE),
             "current": cur, "refused": str(refused) if refused else None, "proxy": proxy_on(),
+            "sessionGlobal": {k: s.get(k) for k in SESSION_KEYS if s.get(k) is not None},
             "recent": recent, "templates": templates(), "starters": starters() if _supports_starter() else [],
             "samples": s.get("samples", []), "demo": str(projects_root() / DEMO_DIR)}
 
@@ -254,6 +325,46 @@ def update_settings(b):
         s["samples"] = out
     if "hubProxy" in b:  # 허브 한 포트로 중계(/w/<id>/) - 끄면 작업 공간 서버 포트로 바로 이동
         s["hubProxy"] = bool(b["hubProxy"])
+    # AI 세션 전역 기본(관리자만 - server.py 가 역할을 확인한다). 빈 값은 지운다(기본으로)
+    for k in ("sessionAgent", "sessionModel"):
+        if k in b:
+            v = str(b[k] or "").strip()
+            if k == "sessionAgent" and v and v not in ("claude", "codex"):
+                raise HubError("에이전트는 claude 또는 codex")
+            if v:
+                s[k] = v
+            else:
+                s.pop(k, None)
+    if "sessionModels" in b:
+        m = b["sessionModels"] or {}
+        if not isinstance(m, dict):
+            raise HubError("sessionModels 는 {에이전트: [모델…]}")
+        s["sessionModels"] = {str(k): [str(x).strip() for x in (v or []) if str(x).strip()] for k, v in m.items() if str(k) in ("claude", "codex")}
+    for k in ("sessionIdleMinutes", "sessionTurnMinutes", "sessionMax", "sessionMaxTurns"):
+        if k in b:
+            v = str(b[k] if b[k] is not None else "").strip()
+            if v:
+                try:
+                    n = int(v)
+                except ValueError:
+                    raise HubError(f"{k} 는 정수")
+                if n < 0 or n > 100000:
+                    raise HubError(f"{k} 범위 밖")
+                s[k] = n
+            else:
+                s.pop(k, None)
+    if "sessionBudgetUsd" in b:
+        v = str(b["sessionBudgetUsd"] if b["sessionBudgetUsd"] is not None else "").strip()
+        if v:
+            try:
+                s["sessionBudgetUsd"] = float(v)
+            except ValueError:
+                raise HubError("sessionBudgetUsd 는 숫자")
+        else:
+            s.pop("sessionBudgetUsd", None)
+    if "agentPaths" in b:
+        ap = b["agentPaths"] or {}
+        s["agentPaths"] = {str(k): str(v).strip() for k, v in ap.items() if str(k) in ("claude", "codex") and str(v).strip()} if isinstance(ap, dict) else {}
     save_settings(s)
     return s
 

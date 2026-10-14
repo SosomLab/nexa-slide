@@ -216,6 +216,11 @@ B-1·B-2 는 기존 동작을 바꾸지 않는다. B-3 부터 새 기능. 각 �
 - B-3 보완 `f312e09`: `draft_deck`·`help`(큰 덱을 통째로 옮기지 않게), `_reconcile`(침묵 실패 보정), 접근 로그 잠금, `--max-turns` 항상, 계정 메일 제거.
 - B-4: `/api/wsession/events` SSE(`H.sse_events` — id/event/data, 25초 keepalive, `Last-Event-ID`) + 중계 스트리밍 통과(`H._stream_through` — `text/event-stream` 이면 줄 단위로 바로 흘림, 빈 줄마다 flush). 폴링 JSON 은 그대로. 검증 17건(중계·직접 SSE, 실시간 도착, keepalive, 재개, 끊은 뒤 서버 정상).
 
+- B-5: 화면 — Studio 세션 칩 메뉴(`studio.js sessMenu` — 웹 세션 시작 창(`/api/agent` 로 설치·로그인·모델 목록·기본값)·진행 패널(`EventSource` SSE)·모델 바꾸기·턴 로그·끊기, 칩 글자 `웹 세션 · 모델 · 사용자`) ·
+  허브 최근 작업의 세션 줄(`hub.session_summary` — 파일만 읽음)과 [세션 시작]/[세션 끊기](`POST /api/project {action: "session"}` → `hub.session_ws` — 꺼진 서버면 먼저 기동, 결정 5) ·
+  관리자 전역 설정(설정 모달 "AI 세션 전역 기본" — `SESSION_KEYS`, 서버가 역할 확인 403). 접근 로그 `server` = ws id, 폴링 제외 패턴을 정규식으로(`/api/wsession` 이 빠지던 문제).
+  검증(서버 쪽) 20건: 꺼진 서버 기동+세션 시작(startedBy)·상태·끊기·중복 400·전역 설정 저장/검증/403·일반 사용자 시작 가능·로그 필드. 화면은 협업 세션 브라우저 확인.
+
 ## 15. 검토 기록
 
 - 2026-10-14 협업 세션(nexa-slide-f4) 공식 문서 대조: codex `-c approval_policy="never"`·`--ignore-user-config`·stdin `-`·`thread.started.thread_id` / claude deny 우선 규칙·`dontAsk`+`--permission-prompts none`·`--restricted`·`blockReadsOutsideWorkingDirectories`·PowerShell 도구·`--strict-mcp-config`·`--max-turns`/`--max-budget-usd`·`claude auth status` / 원장 `actor.user`=시작 사용자·사용량 표시·stdin UTF-8·SSE 머리·probe 안내 링크·hooks 와 SSE — 모두 §4~§11 에 반영.
