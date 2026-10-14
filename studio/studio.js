@@ -179,7 +179,10 @@
     if (g.evidence) out.push("근거: " + JSON.stringify(g.evidence));
     return out.filter(Boolean).join(" · ");
   }
-  const orgBadge = (g) => `<span class="org o-${esc(g.origin)}${g.confidence === "inferred" ? " inf" : ""}" title="${esc(orgTitle(g))}">${esc(ORG[g.origin] || g.origin)}${g.confidence === "inferred" ? " 추정" : ""}${isMine(g) ? " · 나" : ""}</span>`;
+  // 배지 글자 = 변경 탭 필터 칩 글자(편집 · 협업 · AI · 빌드 · 외부)
+  const orgKey = (g) => (g.origin === "editor" ? (isMine(g) ? "mine" : "editor") : g.origin);
+  const ORG_LABEL = { mine: "편집", editor: "협업", claude: "AI", build: "빌드", external: "외부" };
+  const orgBadge = (g) => { const k = orgKey(g); return `<span class="org o-${esc(k)}${g.confidence === "inferred" ? " inf" : ""}" title="${esc(orgTitle(g))}">${esc(ORG_LABEL[k] || g.origin)}${g.confidence === "inferred" ? " 추정" : ""}</span>`; };
   const chgSummary = (sum) => ["수정", "추가", "삭제", "이동"].filter((k) => sum && sum[k]).map((k) => `${sum[k]}장 ${k}`).join(" · ");
   const inFilter = (g, f) => f === "all" || (f === "mine" ? isMine(g) : f === "editor" ? (g.origin === "editor" && !isMine(g)) : g.origin === f);
   // 표시 여부 - 직접 켠 묶음(chgShown)은 내 편집·확인한 것이라도 표시, 직접 끈 묶음(chgHidden)은 표시 안 함,
