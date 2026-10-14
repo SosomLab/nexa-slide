@@ -12,6 +12,8 @@ COMMANDS = [
     ("check_layout <덱>", "레이아웃 검사(겹침·넘침·최소 글자·슬라이드 밖) - ERROR 0 목표"),
     ("export_pptx <덱>", "PPTX 내보내기 → out/<덱>.pptx"),
     ("set_fonts <세트>", "글꼴 세트 고르기"),
+    ("set_template [<이름>] [--json]", "템플릿(디자인) 목록 보기·고르기 - 바꾼 뒤 서버 재시작(사용자에게 안내) → build_deck --force"),
+    ("import_pptx <파일.pptx> [--out <폴더>]", "첨부 PPTX 의 글·표·차트·노트 → out/import/<이름>/slides.md·.json, 그림 → images/ (Read 로 못 여는 PPTX 를 꺼낼 때)"),
     ("watch_requests --stream", "수동 세션용 요청 감시(웹 세션 중에는 거절된다)"),
     ("help", "이 목록"),
 ]

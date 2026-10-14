@@ -57,6 +57,8 @@ Monitor
 
 **첨부**가 있으면 `attachments: [{path, name, type, size}]` 가 붙는다 — 편집기에서 클립보드 그림(Ctrl+V)·끌어다 놓기·📎 로 올린 파일로, 작업 공간 안 `out/attach/<덱>/…` 에 있다(git 제외).
 세션은 **먼저 Read 로 열어 본다**(그림은 내용을 보고, 글 파일은 읽어서) — 참고 디자인·캡처·손그림·자료. 그림을 슬라이드에 넣는 요청이면 `image` 요소의 `src` 에 그 경로를 그대로 쓴다.
+PPTX 첨부는 Read 로 열리지 않으므로 `nexa.py import_pptx <파일>` 로 꺼낸다 — `out/import/<이름>/slides.md`(슬라이드별 제목·본문·표·차트 값·발표자 노트, 도형 위치 1280×720 기준)·`slides.json`·`images/`(그림, `src` 에 그대로). 덱으로 자동 변환하지는 않고 세션이 읽어 알맞은 장(`slide_types`)으로 옮긴다.
+테마를 바꿔 달라는 요청은 `nexa.py set_template [<이름>]`(목록·선택, [templates.md](templates.md)) — 반영에는 서버 재시작이 필요하므로 웹 세션은 `reply` 에 안내만 한다.
 
 ## 3. 처리 규약 (세션이 지킬 것)
 
