@@ -2007,7 +2007,7 @@ ${names}
     $("#exportBtn").onclick = (e) => exportMenu(e.currentTarget);
     $("#moreBtn").onclick = (e) => moreMenu(e.currentTarget);
     $("#sessChip").onclick = (e) => sessMenu(e.currentTarget);  // 웹 세션 시작·끊기·모델·진행
-    $("#presentBtn").onclick = () => present(false);
+    $("#presentBtn").onclick = (e) => present(!!e.shiftKey);  // Shift+클릭 = 현재 슬라이드부터(Shift+F5 와 같다)
     $("#histBtn").onclick = () => switchTab("hist");
     $("#rightBtn").onclick = toggleRight;
     $("#renderBtn").onclick = doRender;

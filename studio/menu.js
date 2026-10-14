@@ -198,7 +198,8 @@
   const NOTICE = { admin: false, triage: 0, n: 0, btn: null, title: document.title };
   async function notice() {
     if (document.hidden) return;
-    let d; try { const r = await fetch("/api/engine/notice", { cache: "no-store" }); if (!r.ok) return; d = await r.json(); } catch (e) { return; }  // 작업 공간 서버로 바로 열었으면 없음 - 조용히
+    if (NOTICE.off) return;
+    let d; try { const r = await fetch("/api/engine/notice", { cache: "no-store" }); if (r.status === 404) { NOTICE.off = true; return; } if (!r.ok) return; d = await r.json(); } catch (e) { return; }  // 작업 공간 서버로 바로 열었으면 없음(404) - 한 번 보고 그만 묻는다
     if (!d.ok) return;
     NOTICE.admin = !!d.admin;
     const n = d.admin ? d.triage + (d.startRequest && d.sessionOff ? 1 : 0) : 0;

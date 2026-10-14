@@ -79,7 +79,14 @@
   // style="…" 속성 안에 들어가므로 큰따옴표를 작은따옴표로 바꾼다
   /** PPT 줄 배치 보정(px): PowerPoint 는 여분 줄 높이를 위 75%·아래 25%로 둔다 - tokens.pptTextShift */
   const shift = (k, s, lh) => {
-    const c = T && T.pptTextShift && T.pptTextShift[k === "mono" ? "mono" : "body"];
+    const role = k === "mono" ? "mono" : "body", fs = FO || (T && T.fonts), f = fs && (fs[k || "body"] || fs[role]);
+    // 측정값은 특정 글꼴(measuredFor)에서 잰 것 - 그 글꼴을 쓸 때만 적용한다. 다른 세트는 세트 자체의 pptTextShift(compare.py 로 잰 값)가 있으면 그것, 없으면 0(PowerPoint 가 글꼴 중심에 두는 것과 맞음)
+    let c = null;
+    if (fs && fs.pptTextShift && fs.pptTextShift[role]) c = fs.pptTextShift[role];
+    else if (T && T.pptTextShift && T.pptTextShift[role]) {
+      const mf = T.pptTextShift.measuredFor;
+      if (!mf || !f || !f.latin || f.latin === mf[role]) c = T.pptTextShift[role];
+    }
     return c ? +(s * (c[0] * lh + c[1])).toFixed(2) : 0;
   };
   // 슬라이드·덱 글꼴 세트(fontPreset) - common.preset_fonts 와 같은 규칙. FO = 지금 그리는 장의 글꼴(없으면 작업 공간 글꼴)
