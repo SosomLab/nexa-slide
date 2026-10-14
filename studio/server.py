@@ -31,6 +31,11 @@ API
   POST /api/flush/<id>               "지금 보내기" — 대기 시간 없이 열린 요청을 세션에 바로 전달하라는 신호
   GET  /api/templates                템플릿 목록과 이 작업 공간이 고른 템플릿
   GET  /api/check/<id>               레이아웃 검사(check_layout.py) — 겹침·넘침·최소 글자·슬라이드 밖·고정폭 정렬
+변경 원장(0.16.0 - ledger.py · deckdiff.py · docs/change-ledger.md)
+  PUT  /api/deck/<id>?origin=editor|claude&action=save|restore&request=<요청 id>&note=…&label=… + 헤더 X-Nexa-Tab
+                                     저장할 때마다 decks/.history/<id>/changes.jsonl 에 한 줄(출처·전후 해시·장·요소 diff). 응답에 seq
+  GET  /api/version/<id>             응답에 changes(원장 파일 버전). 이 핸들러가 밖에서 바뀐 덱도 발견해 원장에 적는다(claude 추정 | external)
+  GET  /api/changes/<id>             원장 조회 - ?limit=&before=<seq>&since=<seq>&origin=a,b&slide=<sid>&group=1(묶음)&recent=1(슬라이드별 최근)&seq=N(한 줄)
 시작 페이지(허브) — studio/home.html · hub.py
   GET  /api/home                     기준 폴더·최근 작업·템플릿·시작용 내용·샘플·현재 작업 공간
   POST /api/project                  {"action": "create"|"plan"|"open"|"start"|"stop"|"demo"|"forget", ...} → {"url": 그 작업 공간 서버 주소}
@@ -64,6 +69,7 @@ STUDIO = Path(__file__).resolve().parent
 sys.path.insert(0, str(STUDIO))
 from common import ASSET_ROOT, BRAND, CONFIG, DECKS, DEFAULT_PORT, HUB, OUT, REFUSED, SERVER_INFO, STATE, TEMPLATE, WORKSPACE, fonts_dir, list_templates, read_config, resolve_tokens, running_server, safe_id  # noqa: E402
 from watch_requests import session_status  # noqa: E402
+import ledger  # noqa: E402
 import hub  # noqa: E402
 sys.path.insert(0, str(STUDIO.parent / "docs" / "research" / "review"))
 try:  # 템플릿 검토(검토 등록부) — 시작 페이지 메뉴 "템플릿 검토"(/review)
@@ -94,36 +100,150 @@ def req_path(i):
     return DECKS / f"{i}.requests.json"
 
 
-def atomic_write(path: Path, text: str):
-    path.parent.mkdir(parents=True, exist_ok=True)
-    fd, tmp = tempfile.mkstemp(prefix=path.name + ".", suffix=".tmp", dir=str(path.parent))
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8", newline="\n") as f:
-            f.write(text)
-            f.flush()
-            os.fsync(f.fileno())
-        for k in range(5):  # Windows: 다른 프로세스가 잠깐 열고 있으면 재시도
-            try:
-                os.replace(tmp, path)
-                return
-            except PermissionError:
-                time.sleep(0.1 * (k + 1))
-        os.replace(tmp, path)
-    finally:
-        if os.path.exists(tmp):
-            os.remove(tmp)
+atomic_write = ledger.atomic_write  # 0.16.0 - ledger.py 로 옮김(build_deck · save_deck 도 같은 것을 쓴다)
 
 
-def backup(i):
+def backup(i, data=None, suffix=""):
+    """덮어쓰기 직전 덱을 .history/<id>/<시각><suffix>.json 으로 - 파일(copy2) 또는 서버 메모리의 바이트(data). 만든 파일 이름을 돌려준다.
+    50개(HISTORY_KEEP) 상한은 -build · -ext 도 함께 센다."""
     src = deck_path(i)
-    if not src.exists():
-        return
+    if data is None and not src.exists():
+        return None
     h = DECKS / ".history" / i
     h.mkdir(parents=True, exist_ok=True)
-    shutil.copy2(src, h / (dt.datetime.now().strftime("%Y%m%d-%H%M%S-%f") + ".json"))
+    name = dt.datetime.now().strftime("%Y%m%d-%H%M%S-%f") + suffix + ".json"
+    if data is None:
+        shutil.copy2(src, h / name)
+    else:
+        (h / name).write_bytes(data)
     files = sorted(h.glob("*.json"))
     for old in files[:-HISTORY_KEEP]:
         old.unlink(missing_ok=True)
+    return name
+
+
+# ---------- 변경 원장 - 서버가 마지막으로 알고 있는 덱 파일 상태(자기 쓰기와 밖의 쓰기를 구분하는 유일한 기억) ----------
+LAST = {}      # deck → {"sig": (mtime_ns, size), "hash", "data", "obj"}
+PENDING = {}   # deck → {"hash", "at"} 밖에서 바뀐 후보 - 한 폴링(GRACE)만 기다려 build·save_deck 가 자기 줄을 남길 틈을 준다
+GRACE = 1.5
+
+
+def _load(p: Path):
+    data = p.read_bytes()
+    try:
+        return data, json.loads(data.decode("utf-8"))
+    except ValueError:
+        return data, None  # 쓰는 중(불완전) - 다음에 다시
+
+
+def _remember(i, p, data, obj):
+    LAST[i] = {"sig": ledger.sig(p), "hash": ledger.sha256(data), "data": data, "obj": obj}
+    PENDING.pop(i, None)
+
+
+def _meta(p, data):
+    return {"ver": ver(p), "size": len(data), "hash": ledger.sha256(data)}
+
+
+def _working_requests(i):
+    try:
+        return [r.get("id") for r in json.loads(req_path(i).read_text(encoding="utf-8")) if r.get("status") == "working"]
+    except (OSError, ValueError):
+        return []
+
+
+def attribute(i):
+    """밖에서 바뀐 덱의 출처 추정 - 결정 트리(docs/change-ledger.md). (origin, confidence, actor, evidence)"""
+    st = session_status()
+    working = _working_requests(i)
+    act = activity()
+    w = act.get("watcher") if act else None
+    if st.get("connected") and working:
+        return "claude", "inferred", {"label": st.get("label", ""), "request": working[0]}, \
+            {"heartbeat_age_s": st.get("age"), "working": working, "watcher_state": w.get("state") if w else None}
+    if st.get("connected") and w and w.get("state") == "busy":
+        return "claude", "inferred", {"label": st.get("label", "")}, \
+            {"heartbeat_age_s": st.get("age"), "watcher_state": "busy", "source": w.get("source"), "prompt": (w.get("prompt") or "")[:80], "watcher_id": w.get("id")}
+    if act and act.get("othersBusy"):
+        return "claude", "inferred", {"label": ""}, {"othersBusy": act["othersBusy"]}
+    return "external", "unknown", {}, None
+
+
+def track(i):
+    """이 서버가 덱을 처음 볼 때 - 원장 마지막 줄의 after.hash 와 파일이 다르면 '서버가 꺼진 사이 바뀜' 한 줄(startup)을 적고 상태를 기억한다. WRITE_LOCK 안."""
+    p = deck_path(i)
+    if i in LAST or not p.exists():
+        return
+    data, obj = _load(p)
+    if obj is None:
+        return
+    last = ledger.last_change(i)
+    want = (last.get("after") or {}).get("hash") if last else None
+    if want and want != ledger.sha256(data):
+        before_obj, bname = None, None
+        hdir = DECKS / ".history" / i
+        for f in sorted(hdir.glob("*.json"), reverse=True) if hdir.exists() else []:
+            if f.name == "last-build.json":
+                continue
+            try:
+                b = f.read_bytes()
+            except OSError:
+                continue
+            if ledger.sha256(b) == want:
+                try:
+                    before_obj, bname = json.loads(b), f.name
+                except ValueError:
+                    pass
+                break
+        try:
+            ledger.record(i, before_obj, {**last["after"], "backup": bname}, obj, _meta(p, data), "external", "unknown", "startup",
+                          {"note": "서버가 꺼진 사이에 바뀜" + ("" if bname else " - 직전 백업 없음(상세 없음)")})
+        except Exception as e:  # noqa: BLE001
+            sys.stderr.write(f"ledger startup {i}: {e}\n")
+    _remember(i, p, data, obj)
+
+
+def detect(i, immediate=False):
+    """밖에서 바뀐 덱 발견(2초 폴링마다, WRITE_LOCK 안). stat 서명 → 해시 → 유예 → 원장 꼬리 대조 → 출처 추정 → -ext 백업 + detect 줄."""
+    p = deck_path(i)
+    if not p.exists():
+        LAST.pop(i, None)
+        return
+    if i not in LAST:
+        track(i)
+        return
+    last = LAST[i]
+    sg = ledger.sig(p)
+    if sg == last["sig"]:
+        PENDING.pop(i, None)
+        return
+    data, obj = _load(p)
+    if obj is None:
+        return
+    h = ledger.sha256(data)
+    if h == last["hash"]:  # mtime 만 바뀜(touch·동기화) - 기록하지 않는다
+        last["sig"] = sg
+        PENDING.pop(i, None)
+        return
+    if not immediate:
+        pend = PENDING.get(i)
+        if not pend or pend["hash"] != h:
+            PENDING[i] = {"hash": h, "at": time.time()}
+            return
+        if time.time() - pend["at"] < GRACE:
+            return
+    for e in ledger.tail(i, 5):  # build · save_deck 가 이미 자기 줄을 남겼으면 그것이 정답
+        if (e.get("after") or {}).get("hash") == h:
+            _remember(i, p, data, obj)
+            return
+    origin, conf, actor, evidence = attribute(i)
+    bname = backup(i, data=last["data"], suffix="-ext")  # 덮이기 직전 상태는 서버 메모리에만 남아 있다 - 복원용으로 저장
+    before = {"ver": str(last["sig"][0]), "size": last["sig"][1], "hash": last["hash"], "backup": bname}
+    try:
+        ledger.record(i, last["obj"], before, obj, _meta(p, data), origin, conf, "detect", actor, evidence)
+    except Exception as e:  # noqa: BLE001
+        sys.stderr.write(f"ledger detect {i}: {e}\n")
+    _remember(i, p, data, obj)
 
 
 def dumps(o):
@@ -351,19 +471,98 @@ class H(BaseHTTPRequestHandler):
                 return self.err(400, "슬라이드 형식 아님")
         base = (q.get("base") or [self.headers.get("X-Base-Version") or ""])[0]
         force = (q.get("force") or ["0"])[0] == "1"
+        origin = (q.get("origin") or ["editor"])[0]
+        action = (q.get("action") or ["save"])[0]
+        if origin not in ("editor", "claude"):
+            return self.err(400, "origin = editor | claude")
+        if action not in ("save", "restore"):
+            return self.err(400, "action = save | restore")
+        actor = {"label": (q.get("label") or [""])[0][:80], "tab": (self.headers.get("X-Nexa-Tab") or None),
+                 "request": (q.get("request") or [None])[0], "note": ((q.get("note") or [""])[0][:200] or None)}
         with WRITE_LOCK:
             p = deck_path(i)
+            track(i)
             cur = ver(p)
             if p.exists() and base and base != cur and not force:
                 return self.send_json({"ok": False, "error": "conflict", "version": cur}, 409)
+            try:
+                detect(i, immediate=True)  # 밖에서 바뀐 것이 있으면 먼저 그 줄을 남긴다(force 덮어쓰기에 묻히지 않게)
+            except Exception as e:  # noqa: BLE001
+                sys.stderr.write(f"ledger detect {i}: {e}\n")
             deck["id"] = i
             deck["updated"] = dt.datetime.now().isoformat(timespec="seconds")
-            backup(i)
-            atomic_write(p, dumps(deck))
-            self.send_json({"ok": True, "version": ver(p), "updated": deck["updated"]})
+            old = LAST.get(i)
+            before = {"ver": cur, "size": old["sig"][1] if old else 0, "hash": old["hash"] if old else None, "backup": backup(i)}
+            text = dumps(deck)
+            atomic_write(p, text)
+            data = text.encode("utf-8")
+            seq = None
+            try:
+                seq = ledger.record(i, old["obj"] if old else None, before, deck, _meta(p, data), origin, "exact", action, actor)
+            except Exception as e:  # noqa: BLE001
+                sys.stderr.write(f"ledger put {i}: {e}\n")
+            _remember(i, p, data, deck)
+            self.send_json({"ok": True, "version": ver(p), "updated": deck["updated"], "seq": seq})
 
     def api_get_version(self, i, q):
-        self.send_json({"deck": ver(deck_path(i)), "requests": ver(req_path(i)), "session": session_status(), "activity": activity(), **workspace_stamp()})
+        with WRITE_LOCK:
+            try:
+                detect(i)
+            except Exception as e:  # noqa: BLE001
+                sys.stderr.write(f"ledger detect {i}: {e}\n")
+        self.send_json({"deck": ver(deck_path(i)), "requests": ver(req_path(i)), "changes": ver(ledger.path(i)),
+                        "session": session_status(), "activity": activity(), **workspace_stamp()})
+
+    # ---------- 변경 원장 ----------
+    def api_get_changes(self, i, q):
+        if not deck_path(i).exists() and not ledger.path(i).exists():
+            return self.err(404, "덱 없음")
+        with WRITE_LOCK:
+            track(i)
+        entries = ledger.read(i)
+        hdir = DECKS / ".history" / i
+
+        def g1(k, d=None):
+            return (q.get(k) or [d])[0]
+
+        def bx(name):
+            return bool(name) and (hdir / name).is_file()
+
+        def mark(e):
+            return {**e, "backupExists": bx((e.get("before") or {}).get("backup"))}
+        out = {"ok": True, "deck": i, "latest": entries[-1]["seq"] if entries else 0, "keep": ledger.KEEP, "groupGap": ledger.GROUP_GAP,
+               "ver": ver(ledger.path(i)), "tab": self.headers.get("X-Nexa-Tab") or None}
+        if g1("seq"):
+            e = next((x for x in entries if str(x.get("seq")) == g1("seq")), None)
+            if not e:
+                return self.err(404, "없는 seq")
+            out["entry"] = mark(e)
+            return self.send_json(out)
+        sel = entries
+        if g1("origin"):
+            allow = set(g1("origin").split(","))
+            sel = [e for e in sel if e.get("origin") in allow]
+        if g1("slide"):
+            sid = g1("slide")
+            sel = [e for e in sel if any(it.get("sid") == sid for it in e.get("items") or [])]
+        if g1("since"):
+            sel = [e for e in sel if e.get("seq", 0) > int(g1("since"))]
+        limit = max(1, min(500, int(g1("limit", 50))))
+        if g1("recent"):
+            cur = LAST[i]["obj"] if i in LAST else None
+            out["recent"] = ledger.recent(sel, cur)[:limit]
+        if g1("group"):
+            groups = ledger.group(sel)
+            if g1("before"):
+                groups = [g for g in groups if g["seq"] < int(g1("before"))]
+            out["more"] = len(groups) > limit
+            out["groups"] = [{**g, "backupExists": bx(g.get("backup"))} for g in reversed(groups[-limit:])]
+        elif not g1("recent"):
+            if g1("before"):
+                sel = [e for e in sel if e.get("seq", 0) < int(g1("before"))]
+            out["more"] = len(sel) > limit
+            out["entries"] = [mark(e) for e in reversed(sel[-limit:])]
+        self.send_json(out)
 
     # ---------- 레이아웃 검사 ----------
     def api_get_check(self, i, q):
@@ -481,7 +680,7 @@ class H(BaseHTTPRequestHandler):
             return self.send_json(json.loads(p.read_text(encoding="utf-8")))
         out = []
         for p in sorted(h.glob("*.json"), reverse=True) if h.exists() else []:
-            kind = "build" if p.stem.endswith("-build") else "last-build" if p.name == "last-build.json" else "save"
+            kind = "build" if p.stem.endswith("-build") else "ext" if p.stem.endswith("-ext") else "last-build" if p.name == "last-build.json" else "save"
             if kind == "last-build":
                 continue
             out.append({"file": p.name, "kind": kind, "size": p.stat().st_size,

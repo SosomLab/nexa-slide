@@ -40,8 +40,9 @@ python3 studio/service.py start                                                 
 |---|---|
 | `GET /api/decks` | 덱 목록 `[{id, title, slides, updated, version}]` |
 | `GET /api/deck/<id>` | 덱 JSON. 헤더 `X-Deck-Version` = 파일 mtime_ns |
-| `PUT /api/deck/<id>?base=<ver>` | 덱 저장 — 원자적 쓰기, 저장 전 `.history` 백업(50개 유지). `base` 가 현재 버전과 다르면 **409**(`force=1` 이면 무시) |
-| `GET /api/version/<id>` | `{deck, requests, session, deckIds, decksVer, config, engine}` — 편집기가 2초마다 확인(외부 변경 감지·세션 상태·덱 목록·설정·엔진 변경 → 탭 갱신·새로 고침 안내) |
+| `PUT /api/deck/<id>?base=<ver>&origin=editor\|claude&action=save\|restore&request=&note=&label=` + 헤더 `X-Nexa-Tab` | 덱 저장 — 원자적 쓰기, 저장 전 `.history` 백업(50개 유지), **변경 원장에 한 줄**(응답 `seq`). `base` 가 현재 버전과 다르면 **409**(`force=1` 이면 무시) - [change-ledger.md](change-ledger.md) |
+| `GET /api/version/<id>` | `{deck, requests, changes, session, deckIds, decksVer, config, engine}` — 편집기가 2초마다 확인(외부 변경 감지·원장 기록·세션 상태·덱 목록·설정·엔진 변경 → 탭 갱신·새로 고침 안내) |
+| `GET /api/changes/<id>` | 변경 원장 - `?limit=&before=&since=&origin=&slide=&group=1&recent=1&seq=N` ([change-ledger.md](change-ledger.md#api)) |
 | `GET /api/requests/<id>` | 요청 메모 목록 |
 | `POST /api/requests/<id>` | `{"action": "add"\|"update"\|"delete"\|"send"\|"discard", …}` — add 는 `status`(draft/open)·`region`, send = 초안→대기(slide 생략 시 전체), discard = 초안 지우기, update 는 `status`·`reply`·`text` |
 | `POST /api/export/<id>` | PPTX 생성 → `{url: "/out/<id>.pptx?v=…"}` |
@@ -54,7 +55,7 @@ python3 studio/service.py start                                                 
 | `GET /api/config` | 작업 공간 이름·경로(`path`)·포트·제목·브랜드(로고·워드마크·파비콘·로고 비율) |
 | `GET /api/session` | Claude 세션 연결 상태 `{connected, label, mode, last_seen, age, open, working}` |
 | `POST /api/flush/<id>` | "지금 보내기" — 감시 스크립트가 대기 없이 열린 요청을 바로 전달 |
-| `GET /api/history/<id>` | 자동 백업 목록 `[{file, kind(save/build), at, size}]` · `?f=<파일>` 이면 그 시점 덱 JSON |
+| `GET /api/history/<id>` | 자동 백업 목록 `[{file, kind(save/build/ext), at, size}]` · `?f=<파일>` 이면 그 시점 덱 JSON |
 | `GET /api/templates` | 템플릿 목록과 선택된 템플릿 |
 | `GET /api/home` · `POST /api/project` · `POST /api/settings` · `GET /api/fs` · `GET /api/preview` | 시작 페이지 - [home.md](home.md#api) |
 | `GET /api/check/<id>` | 레이아웃 검사 결과 `{issues[{rule, severity, slide, n, elements, box, message, detail}], errors, warnings, minFontPt}` |

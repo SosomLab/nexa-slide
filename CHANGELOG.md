@@ -1,5 +1,15 @@
 # 변경 이력
 
+## 0.16.0 - 2026-10-14 · 변경 원장 - 편집기·Claude·빌드·외부 변경을 덱당 1,000건 보존
+
+- **변경 원장** `decks/.history/<덱>/changes.jsonl`(`studio/ledger.py`): 덱 파일의 모든 쓰기를 한 줄씩 - 출처(editor · claude · build · external)와 확신도(exact · inferred · unknown), 행위(save · restore · build · detect · startup), 주체(세션 라벨 · 편집기 탭 id · 요청 id · 메모), 전후 (버전 · 크기 · sha256 · 직전 백업 파일), 장·요소 단위 diff. 덱당 최근 1,000줄(`nexa-slide.json` `ledger.keep`, `keep+100` 넘으면 압축, `seq` 유지). 교차 프로세스 잠금은 `out/.studio/ledger-<덱>.lock`(msvcrt / fcntl). 찢어진 마지막 줄은 무시. 문서 [docs/change-ledger.md](docs/change-ledger.md).
+- 기록 지점 넷: ① `PUT /api/deck`(편집기 저장 · `?origin=claude` 세션 저장 · `?action=restore` 되돌리기, 헤더 `X-Nexa-Tab` 으로 이 창/다른 창 구분, 응답 `seq`) ② `build_deck.py --force`(원자적 쓰기로 바꾸고 build 줄) ③ `GET /api/version` 폴링에서 밖에서 바뀐 덱 발견 - (mtime_ns, size) 서명 → sha256, 1.5초 유예 뒤 원장 꼬리와 대조, 덮이기 직전 상태를 `<시각>-ext.json` 으로 저장(기록 탭 `ext`), 출처는 세션 연결 + `working` 요청 / 감시 세션 작업 중 / 다른 세션 작업 중 → "Claude 추정"(근거를 `evidence` 에), 아니면 "외부" ④ 서버 기동 때 마지막 줄과 파일 해시가 다르면 `startup` 한 줄.
+- **`save_deck.py`**: Claude 세션용 저장 CLI - 서버가 있으면 `X-Deck-Version` 을 base 로 PUT(백업·409·원장은 서버가), 없으면 직접 쓰고 원장 줄. `claude-session.md` §3 과 작업 공간 CLAUDE.md 템플릿의 처리 규약을 "파일 직접 쓰기" 에서 "`save_deck` 으로 저장" 으로.
+- **비교 규칙을 서버로**(`studio/deckdiff.py`): 0.15.3 편집기 JS `diffDeck` 을 1:1 이식(GEO/TXT 분류 · 60자 전→후 · 엄격 증가 LIS 이동 판정 · 추가/수정/이동/삭제 순서). 동등 비교는 키 정렬 canon + 정수값 float 정규화라 키 순서만 다른 같은 객체는 변경이 아니다(JS 와 다른 점 - 가짜 변경 제거). 요소 200개 상한(`truncated`), 덱 수준 키 변경은 `fields`. 편집기의 JS diff 는 제거(기준 구현은 `tests/deckdiff_ref.js`).
+- **변경 탭 재작성**(같은 자리·같은 CSS 축): 출처 필터(전체 · 내 편집 · 다른 창 · Claude · 빌드 · 외부, 브라우저 기억) · **최근 수정 대상** 표(슬라이드별 마지막 변경 - 출처 배지 · 상대 시각 · 종류, 누르면 이동) · 묶음 목록(같은 출처·창에서 `ledger.groupGap` 60초 안의 저장은 한 묶음, 빌드·되돌리기·외부·요청 전환이 경계; 저장 N회(요약)) · 출처 배지(`.org` - 편집기 초록 · Claude 파랑 · 빌드 호박 · 외부 회색 · 추정은 점선 + 툴팁 근거) · **직전으로**(그 변경 직전 백업으로 되돌리기 - 백업이 50개 상한으로 지워졌으면 비활성) · 더 보기. 썸네일 배지·개요 배지·캔버스 점선은 "표시 지우기" 이후의 **내 편집이 아닌** 변경만. 기록 탭 되돌리기도 같은 경로(`restore`).
+- API: `GET /api/changes/<id>`(`limit · before · since · origin · slide · group · recent · seq`, 각 줄 `backupExists`), `GET /api/version` 응답 `changes`. `atomic_write` 는 `ledger.py` 로 옮겨 서버·build·save_deck 가 같은 것을 쓴다.
+- 검증: `check_changes.py --js` 33건(JS 기준과 동일 - 키 순서·이모지 길이 2건은 의도된 차이) + 속성 검사 3,000회; 임시 작업 공간 서버 시나리오 28건(편집기 저장 · 같은 내용 생략 · 다른 창 · 409 · save_deck 서버/직접 · 직접 쓰기 → Claude 추정 + `-ext` 백업 · 하트비트 없는 외부 쓰기 · 서버 켠 채 build(중복 없음) · touch 무시 · 재시작 startup · group/recent/필터/seq · 복원 · 찢어진 줄 · 압축) 모두 통과; `check_parity -W example` 같음; build 결과 JSON 이 main 과 동일; 교재 ch11 PPTX 슬라이드 XML 전후 동일. 설계 보고서 [docs/research/change-ledger-design.md](docs/research/change-ledger-design.md), 개발 과정 [docs/dev/0.16.0-change-ledger.md](docs/dev/0.16.0-change-ledger.md).
+
 ## 0.15.3 - 2026-10-14 · 표 행별 높이 `rowH`
 
 - 표(`table`·`plan-table`)에 **행별 높이 `rowH`**(머리 행부터, `colW` 처럼 비율 - `h` 에 맞춰 나눔, 합을 `h` 와 같게 두면 px 그대로). 없으면 지금처럼 고르게. 모자란 행은 준 값의 평균, 0 이하·숫자 아님이 섞이면 무시. 화면(`render.js rowHeights`)·PPTX(`common.row_heights`) 같은 규칙, 실행계획 해설 표 콜아웃도 행별 위치를 따른다.

@@ -154,6 +154,15 @@
   .chg-el { margin: 3px 0 0 14px; padding: 2px 6px; border-left: 2px solid #A8C3F0; font-size: 12px; }
   .chg-el:hover { background: #EEF3FD; }
   .chg-tx { color: var(--ink2); margin-top: 2px; word-break: break-all; } .chg-tx s { color: #93000A; }
+  /* 변경 출처 배지(행위 종류 .k 와 축 분리) - 편집기 초록 · Claude 파랑 · 빌드 호박 · 외부 회색 · 추정은 점선 */
+  .org { font-size: 11px; border-radius: 999px; padding: 1px 7px; white-space: nowrap; }
+  .org.editor { background: var(--okc); color: var(--ok); } .org.claude { background: var(--infoc); color: var(--info); }
+  .org.build { background: var(--warnc); color: var(--warn); } .org.external { background: var(--tone2); color: var(--ink2); }
+  .org.inf { outline: 1px dashed currentColor; outline-offset: -1px; }
+  .chg-tbl { width: 100%; border-collapse: collapse; font-size: 12px; } .chg-tbl tr { cursor: pointer; } .chg-tbl tr:hover { background: var(--tone); }
+  .chg-tbl td { padding: 4px 6px; border-bottom: 1px solid var(--tone2); vertical-align: top; white-space: nowrap; }
+  .chg-tbl td.n { color: var(--ink2); width: 24px; } .chg-tbl td.t { max-width: 140px; overflow: hidden; text-overflow: ellipsis; }
+  #chgFilter { flex-wrap: wrap; } #chgFilter button { font-size: 11.5px; padding: 2px 8px; white-space: nowrap; }
   .mk { position: absolute; border: 2px solid var(--mark); border-radius: 4px; }
   .mk.open { border-color: #C98A00; border-style: dashed; }
   .mk.working { border-color: var(--info); border-style: dashed; }
@@ -408,7 +417,7 @@
       <button class="chip on" data-tab="props">속성</button>
       <button class="chip" data-tab="reqs">요청 <span class="cnt" id="reqCnt" style="display:none"></span></button>
       <button class="chip" data-tab="hist">기록</button>
-      <button class="chip" data-tab="chg" title="밖에서(Claude 등) 바뀐 슬라이드·요소">변경 <span class="cnt" id="chgCnt" style="display:none"></span></button>
+      <button class="chip" data-tab="chg" title="변경 원장 - 편집기·Claude·빌드·외부의 변경, 출처, 최근 수정 대상, 되돌리기">변경 <span class="cnt" id="chgCnt" style="display:none"></span></button>
     </div>
     <div class="panel on" id="tab-props"></div>
     <div class="panel" id="tab-reqs"></div>

@@ -2,7 +2,7 @@
 """장 내용 원본(content/<id>.json) → 덱 JSON(decks/<id>.json).
 
     python3 studio/build_deck.py ch00            # 덱이 없을 때만 만든다
-    python3 studio/build_deck.py ch00 --force    # 기존 덱을 덮어쓴다(.history 에 백업 후)
+    python3 studio/build_deck.py ch00 --force    # 기존 덱을 덮어쓴다(.history 에 백업 후, 변경 원장에 build 줄)
     python3 studio/build_deck.py ch00 --out x.json
 
 편집기에서 사람이 고친 덱을 지키기 위해, 덱이 이미 있으면 --force 없이는 쓰지 않는다.
@@ -17,6 +17,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from common import CONFIG, CONTENT, DECKS, safe_id  # noqa: E402
 from layouts import build_slide  # noqa: E402
+import ledger  # noqa: E402
 
 
 def load_common():
@@ -167,14 +168,30 @@ def main():
             lines += ["  " + e for e in edits]
             lines.append("옮긴 뒤 다시 실행하거나, 버려도 되면 --discard-edits")
             sys.exit(chr(10).join(lines))
+    old_obj, before = None, {"ver": "0", "size": 0, "hash": None, "backup": None}
     if out.exists():
         h = DECKS / ".history" / a.id
         h.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(out, h / (dt.datetime.now().strftime("%Y%m%d-%H%M%S-%f") + "-build.json"))
-    out.write_text(json.dumps(tidy(deck), ensure_ascii=False, indent=1), encoding="utf-8")
-    if not a.out:
+        name = dt.datetime.now().strftime("%Y%m%d-%H%M%S-%f") + "-build.json"
+        shutil.copy2(out, h / name)
+        data = out.read_bytes()
+        before = {**ledger.meta(out, data), "backup": name}
+        try:
+            old_obj = json.loads(data.decode("utf-8"))
+        except ValueError:
+            old_obj = None
+    text = json.dumps(tidy(deck), ensure_ascii=False, indent=1)
+    if a.out:
+        out.write_text(text, encoding="utf-8")  # 다른 경로로 내보내기 - 원장 밖
+    else:
+        ledger.atomic_write(out, text)
         last.parent.mkdir(parents=True, exist_ok=True)
-        last.write_text(json.dumps(tidy(deck), ensure_ascii=False, indent=1), encoding="utf-8")
+        ledger.atomic_write(last, text)
+        try:  # 변경 원장 - build 줄(이 줄이 있어야 서버가 build 결과를 외부 변경으로 오판하지 않는다)
+            ledger.record(a.id, old_obj, before, tidy(deck), ledger.meta(out), "build", "exact", "build",
+                          {"note": ("build_deck " + " ".join(sys.argv[1:]))[:200]})
+        except Exception as e:  # noqa: BLE001
+            print(f"경고: 변경 원장을 쓰지 못했다 - {e}", file=sys.stderr)
     n = sum(len(s["elements"]) for s in deck["slides"])
     print(f"{out} — 슬라이드 {len(deck['slides'])}장, 요소 {n}개")
 
