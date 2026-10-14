@@ -557,7 +557,7 @@ class WebSession:
             cmd = ag.turn_cmd(self.model, self.session_id if made else None, self._settings_path if self.agent == "claude" else None,
                               max_turns=self.limits.get("sessionMaxTurns"), budget_usd=self.limits.get("sessionBudgetUsd"), flags=self.flags, allow_web=self.allow_web,
                               add_dirs=[self.repo_root] if self.repo_root and self.agent == "claude" else None,
-                              new_session_id=None if made else self.session_id, name=f"nexa-slide {self.p.kind}: {self.p.cwd.name}")
+                              new_session_id=None if made else self.session_id, name=f"nexa-slide {self.p.kind}: {self.p.cwd.name} #{(self.session_id or '')[:8]}")  # /resume 목록에서 ID 앞 8자리로 찾을 수 있게
             self._turn_log = self._log_dir / f"turn-{n}.jsonl"
         self.emit("turn.start", turn=n, count=len(batch), reason=reason, ids=self.p.ids(batch), model=self.model)
         env = {**os.environ, **ag.env(), **self.p.env(self)}

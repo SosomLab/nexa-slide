@@ -13,6 +13,7 @@ COMMANDS = [
     ("export_pptx <덱>", "PPTX 내보내기 → out/<덱>.pptx"),
     ("set_fonts <세트>", "글꼴 세트 고르기"),
     ("set_template [<이름>] [--json]", "템플릿(디자인) 목록 보기·고르기 - 바꾼 뒤 서버 재시작(사용자에게 안내) → build_deck --force"),
+    ("deck list|create <id> [--title …]|rename <id> <새 id>|retitle <id> \"제목\"|delete <id>", "덱 관리 - 추가·이름(id)·제목·삭제(휴지통 decks/.trash/). 편집기 덱 탭의 ＋·오른쪽 클릭과 같다"),
     ("import_doc <파일> [--out <폴더>]", "첨부 Word(.docx)·Excel(.xlsx/.xlsm)·PDF 의 글·제목·목록·표·시트·차트 값·그림 → out/import/<이름>/content.md·.json, images/"),
     ("import_pptx <파일.pptx> [--out <폴더>]", "첨부 PPTX 의 글·표·차트·노트 → out/import/<이름>/slides.md·.json, 그림 → images/ (Read 로 못 여는 PPTX 를 꺼낼 때)"),
     ("watch_requests --stream", "수동 세션용 요청 감시(웹 세션 중에는 거절된다)"),

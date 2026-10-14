@@ -786,11 +786,8 @@
   }
   $("#engpModal").addEventListener("click", (e) => { if (e.target.closest("[data-close]") || e.target === $("#engpModal")) { if (engSrc) { engSrc.close(); engSrc = null; } } });
 
-  // 세션 식별자 - claude 세션 ID 앞 8자리 배지, 누르면 확인 명령(그 폴더에서 claude --resume <ID>)을 복사
-  const sidBadge = (id, cwd, turns) => id ? `<button type="button" class="badge sid" data-sid="${esc(id)}" data-cwd="${esc(cwd || "")}" title="claude 세션 ID ${esc(id)}${cwd ? `
-폴더 ${esc(cwd)}` : ""}
-누르면 ID 복사 · Shift+누르면 확인 명령(claude --resume) 복사${turns === 0 ? "
-(첫 턴이 끝나야 claude 에서 열린다)" : ""}">ID ${esc(id.slice(0, 8))}</button>` : "";
+  // 세션 식별자 - claude 세션 ID 앞 8자리 배지, 누르면 ID 복사(Shift = 그 폴더에서 claude --resume <ID> 확인 명령)
+  const sidBadge = (id, cwd, turns) => id ? `<button type="button" class="badge sid" data-sid="${esc(id)}" data-cwd="${esc(cwd || "")}" title="${esc(["claude 세션 ID " + id, cwd ? "폴더 " + cwd : "", "누르면 ID 복사 · Shift+누르면 확인 명령(claude --resume) 복사", "터미널에서 claude --resume <ID> 로 바로 열거나, claude --resume 목록에서 '#앞 8자리' 로 검색", turns === 0 ? "(첫 턴이 끝나야 claude 에서 열린다)" : ""].filter(Boolean).join("\n"))}">ID ${esc(id.slice(0, 8))}</button>` : "";
   async function copyText(text, what) {
     try { await navigator.clipboard.writeText(text); toast(`${what} 복사했습니다 - ${text}`, 5000); }
     catch (err) {  // 클립보드 API 가 막힌 환경(http 원격 등) - 숨은 입력칸으로 복사

@@ -726,6 +726,36 @@ class H(BaseHTTPRequestHandler):
             self.wfile.write(data)
 
     # ---------- 덱 ----------
+    def api_post_decks(self, _, q):
+        """덱 관리 {action: create|rename|retitle|delete, id, …} - deck_admin 과 같은 함수(CLI `nexa.py deck …`). 허브에서는 없다."""
+        if HUB:
+            return self.err(404, "작업 공간 서버에서")
+        import deck_admin
+        b = self.body_json() or {}
+        act, i = b.get("action"), str(b.get("id") or "")
+        try:
+            with WRITE_LOCK:
+                if act == "create":
+                    out = deck_admin.create(i, b.get("title"), b.get("layout") or "cover", b.get("part") or "day1")
+                elif act == "rename":
+                    if WS is not None and WS.state == "running":
+                        return self.err(409, "웹 세션이 턴을 실행 중이다 - 끝난 뒤에 이름을 바꾼다")
+                    out = deck_admin.rename(i, str(b.get("newId") or ""))
+                    LAST.pop(i, None)
+                elif act == "retitle":
+                    out = deck_admin.retitle(i, b.get("title"))
+                elif act == "delete":
+                    if WS is not None and WS.state == "running":
+                        return self.err(409, "웹 세션이 턴을 실행 중이다 - 끝난 뒤에 지운다")
+                    out = deck_admin.delete(i)
+                    LAST.pop(i, None)
+                else:
+                    return self.err(400, "action = create|rename|retitle|delete")
+        except ValueError as e:
+            return self.err(400, str(e))
+        self._event = f"deck.{act}:{i}" + (f"→{out.get('id')}" if act == "rename" else "")
+        self.send_json({"ok": True, **out, "decks": deck_admin.list_decks()})
+
     def api_get_decks(self, _, q):
         out = []
         for f in sorted(DECKS.glob("*.json")):

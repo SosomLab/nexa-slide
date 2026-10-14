@@ -105,7 +105,7 @@ Word(.docx)·Excel(.xlsx/.xlsm)·PDF 첨부는 `nexa.py import_doc <파일>` —
 | 끝 | 세션 종료·Monitor 만료 | [세션 중지]·유휴 `sessionIdleMinutes`(60분)·서버 종료 — 실행 중 턴의 프로세스 트리까지 끝낸다. 턴 한도 `sessionTurnMinutes`(20분) |
 | 함께 쓰기 | 웹 세션이 살아 있으면 `watch_requests` 는 `{"event":"refused","reason":"web-session"}` (`--takeover` 로도 서버를 끊지 않는다) | 수동 감시가 살아 있으면 시작을 거절한다 |
 
-- **세션 식별자**: 웹 세션은 시작할 때 claude 세션 ID(UUID)를 정해 첫 턴을 `--session-id` 로 만들고 이후 `--resume` 한다(표시 이름 `nexa-slide workspace: <폴더>`). 시작 페이지 세션 줄·서버 작업 카드·Studio 세션 칩 메뉴에 `ID 1a2b3c4d`(앞 8자리)가 보이고, 누르면 확인 명령 `cd "<폴더>"; claude --resume <ID>` 를 복사한다(첫 턴이 끝나야 열린다 · 웹 세션이 도는 중에 이어 쓰면 대화가 섞이니 보기만, 또는 세션 중지 뒤에). `/api/session`·`/api/wsession` 의 `sessionId`·`cwd`.
+- **세션 식별자**: 웹 세션은 시작할 때 claude 세션 ID(UUID)를 정해 첫 턴을 `--session-id` 로 만들고 이후 `--resume` 한다(표시 이름 `nexa-slide workspace: <폴더> #<ID 앞 8자리>` — `claude --resume` 목록에서 이 이름으로 보이고 `#56e85d12` 처럼 검색할 수 있다). 시작 페이지 세션 줄·서버 작업 카드·Studio 세션 칩 메뉴에 `ID 1a2b3c4d`(앞 8자리)가 보이고, 누르면 확인 명령 `cd "<폴더>"; claude --resume <ID>` 를 복사한다(첫 턴이 끝나야 열린다 · 웹 세션이 도는 중에 이어 쓰면 대화가 섞이니 보기만, 또는 세션 중지 뒤에). `/api/session`·`/api/wsession` 의 `sessionId`·`cwd`.
 - 처리하지 못한 요청은 서버가 `open` 으로 두고 `reply` 에 "세션이 처리하지 못했습니다: <사유>" 를 적는다(침묵 실패 없음).
 - 로그: `out/.studio/sessions/<시작 시각>/turn-N.jsonl`(CLI 출력 원문)·`session.log`, 접근 로그 `event=session.*`. 이 PC 의 동시 웹 세션 수는 `sessionMax`(3).
 - 서비스 유형 `codex` 는 [openai-codex.md](openai-codex.md) 5절(미확인). 설치·로그인은 [claude-install.md](claude-install.md).
