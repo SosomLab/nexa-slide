@@ -1,5 +1,11 @@
 # 변경 이력
 
+## 0.21.4 - 2026-10-15 · 도형 채우기 투명도·선형 그라데이션 (engine-request #6)
+
+- rect·ellipse·pill·text·plan 의 `fill` 에 **투명도·선형 그라데이션**: `"#RRGGBBAA"`(끝 두 자리 = 불투명도) · `{"color": "primary", "alpha": 0.5}` · `{"gradient": {"angle": 0, "stops": [[0, "#002F7B00"], [1, "#002F7B"]]}}`(angle 0 = 왼→오, 90 = 위→아래, 시계 방향 = PPT `a:lin`; 정지점 `[위치, 색, (불투명도)]` 또는 색 나열 = 고른 간격). 편집기는 CSS `rgba`·`linear-gradient`, PPTX 는 `a:alpha`·`a:gradFill`(gsLst + lin, scaled=0) — `common.fill_spec` ↔ `render.fillSpec` 같은 규칙, `check_parity` 가 예제 20개 + 덱의 모든 fill 을 비교. `docs/deck-format.md`.
+- 편집기 서식 줄·속성 탭: 그라데이션 채우기는 견본에 그대로 보이고 이름은 "그라데이션·투명도 (요소 JSON 에서 고침)" — 토큰을 고르면 단색으로 바뀐다. 입력은 "요소 JSON (고급)" 에서.
+- `export_pptx --selftest [--out x.pptx]`: 채우기 견본 6개를 내보내 슬라이드 XML(gradFill 위치·정지점·각도·alpha·단색 불변) 8항목 점검. 단색 채우기의 XML 은 전과 같다(solidFill 경로 불변).
+
 ## 0.21.3 - 2026-10-15 · 여러 요소에 한 요청 메모
 
 - 서버 작업 카드 [적용됨]이 병합 커밋 해시(기본값 = 지금 main HEAD)를 물어 `appliedCommit` 으로 기록한다. 협업 세션: `docs/server-admin.md` 9절 "엔진 요청 적용 절차", `docs/mechanism.md` 엔진 요청 큐·개발 세션 흐름과 0.19~0.21 API, i18n 사전에 템플릿·시작 내용 설명문 46개.

@@ -11,6 +11,11 @@
 
 **단위**: 좌표·크기·글자 크기 모두 **px (슬라이드 1280×720 기준)**. PPT 변환 시 EMU = px × 9525, pt = px × 0.75.
 색은 토큰 이름(`primary`, `day1-container`, `s3` …) 또는 `#RRGGBB`. 반경은 px 또는 `r-s`/`r-m`/`r-l`/`r-full`.
+
+**채우기 `fill`**(rect·ellipse·pill·text·plan)은 색 외에 투명도·선형 그라데이션도 받는다 — 편집기(CSS)와 PPTX(`a:alpha`·`a:gradFill`) 같은 규칙(`common.fill_spec` ↔ `render.fillSpec`, `check_parity` 가 비교):
+- `"#RRGGBBAA"` — 끝 두 자리 = 불투명도(`00` 투명 ~ `FF` 불투명). `{"color": "primary", "alpha": 0.5}` 도 같다(토큰에 투명도).
+- `{"gradient": {"angle": 0, "stops": [[0, "#002F7B00"], [1, "#002F7B"]]}}` — 선형 그라데이션. `angle` 은 도(0 = 왼→오, 90 = 위→아래, 시계 방향 — PPT `a:lin` 과 같음, 기본 0). 정지점 = `[위치 0~1, 색, (불투명도 0~1)]`, 색만 나열하면(`"stops": ["#DCE3F0", "#3F62A2"]`) 고른 간격. 바깥 `alpha` 는 전체에 곱한다.
+- 편집기 서식 줄·속성 탭의 채우기는 단색 토큰만 고르고(고르면 그라데이션이 단색으로 바뀜), 그라데이션·투명도는 "요소 JSON (고급)" 에서 적는다.
 공통 필드: `id`, `type`, `x`, `y`, `w`, `h`, `z`(선택, 없으면 배열 순서), `locked`(선택 — 편집기에서 이동·삭제 막음).
 
 | type | 필드 | PPT 변환 |
