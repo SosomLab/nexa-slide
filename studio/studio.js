@@ -466,6 +466,11 @@
     const ids = (g.children || []).map((c, i) => { const e = clone(c); e.id = newElId(s); if (isLine(e)) { e.x1 += g.x; e.x2 += g.x; e.y1 += g.y; e.y2 += g.y; Object.assign(e, Render.lineBox(e)); } else { e.x += g.x; e.y += g.y; } if (g.rot) e.rot = (e.rot || 0) + g.rot; s.elements.splice(at + i, 0, e); return e.id; });
     setSelection(ids); afterChange();
   }
+  /** 스마트 가이드 선 - 끌기 중 #ov 에 덧그린다(drawSel 이 지운 뒤) */
+  function drawGuides(gs) {
+    const ov = $("#ov"); if (!ov || !gs || !gs.length) return;
+    ov.insertAdjacentHTML("beforeend", gs.map(([d, v]) => d === "v" ? `<div class="guide" style="left:${v}px;top:0;width:0;height:${SH}px"></div>` : `<div class="guide" style="top:${v}px;left:0;height:0;width:${SW}px"></div>`).join(""));
+  }
   function drawSel() {
     const ov = $("#ov"); const el = selEl();
     if (!el || S.editing || S.mode === "draw") { ov.innerHTML = drag && drag.mode === "marquee" ? marqueeHtml() : ""; drawChkBox(); return; }
@@ -1122,10 +1127,10 @@ ${names}
         ${num("크기(px)", "size", el)}${num("하위 크기", "subSize", el)}${num("줄 높이", "lineHeight", el, 0.05)}${num("항목 간격", "gap", el)}
         ${colorRow("점 색", "dot", el)}${colorRow("글자색", "color", el)}${colorRow("하위 글자색", "subColor", el)}
         ${seg("글꼴", "font", el, [["body", "본문"], ["heading", "제목"], ["mono", "고정폭"]], "body")}${fontInfoHtml(el)}</div>
-        <div class="sec"><h3>글머리 종류 <span class="hint" title="항목 글 앞에 직접 적은 번호·기호(1. · a) · ① · - · • …)가 있으면 그것이 먼저 쓰인다">글 앞의 번호·기호가 우선</span></h3>
+        <details class="sec fold" data-fold="bul-marker"${LS.get("fold-bul-marker", "0") === "1" ? " open" : ""}><summary><h3 style="display:inline-flex;margin:0">글머리 종류 <span class="hint" title="항목 글 앞에 직접 적은 번호·기호(1. · a) · ① · - · • …)가 있으면 그것이 먼저 쓰인다">글 앞의 번호·기호가 우선</span></h3></summary>
         ${seg("항목", "marker", el, MARKER_OPTS, "●")}${seg("하위 항목", "subMarker", el, SUB_MARKER_OPTS, "–")}
         ${seg("글 앞 번호·기호 감지", "autoNum", { autoNum: el.autoNum === false ? "off" : "on" }, [["on", "켬"], ["off", "끔"]], "on")}
-        <div class="row"><button class="chip sm" data-conv="text" title="항목을 줄로 펼친 글자 상자로 바꿉니다(하위 항목은 앞에 공백 두 칸)">글자 상자로 바꾸기</button></div></div>`;
+        <div class="row"><button class="chip sm" data-conv="text" title="항목을 줄로 펼친 글자 상자로 바꿉니다(하위 항목은 앞에 공백 두 칸)">글자 상자로 바꾸기</button></div></details>`;
     if (el.type === "table") h += `<div class="sec"><h3>표 - 줄 = 행, 칸은 " | " 로 구분 (첫 행 = 머리)</h3>${fontInfoHtml(el)}<textarea data-tbl="1" style="min-height:140px">${esc(tableToText(el.rows))}</textarea>
         <div class="row"><label>행·열</label><button class="chip sm" data-tblop="row+" title="맨 아래에 행 추가">＋행</button><button class="chip sm" data-tblop="row-" title="맨 아래 행 지우기">－행</button><button class="chip sm" data-tblop="col+" title="맨 오른쪽에 열 추가">＋열</button><button class="chip sm" data-tblop="col-" title="맨 오른쪽 열 지우기">－열</button><span class="hint" style="margin:0">${(el.rows || []).length}×${((el.rows || [])[0] || []).length}</span></div>
         <div class="row"><label>셀 병합</label><input type="text" data-merge="1" value="${esc((el.merge || []).map((m) => m.join(",")).join("; "))}" placeholder="행,열,행수,열수; … (0부터 · 예: 0,0,1,2; 1,1,2,1)" title="왼쪽 위 셀이 행수×열수를 차지한다. 머리 행도 0행. 겹치면 앞 것만"></div>
@@ -1205,6 +1210,7 @@ ${names}
     else if (t.dataset.tbl) el.rows = textToTable(t.value);
     afterChange();
   }
+  document.addEventListener("toggle", (e) => { const d = e.target; if (d && d.matches && d.matches("details.fold[data-fold]")) LS.set("fold-" + d.dataset.fold, d.open ? "1" : "0"); }, true);
   function onPropClick(e) {
     const b = e.target.closest("button, [data-sel]"); if (!b) return;
     const el = selEl(), s = slide();
@@ -1703,14 +1709,27 @@ ${names}
       drag.box = { x: Math.min(drag.p0.x, p.x), y: Math.min(drag.p0.y, p.y), w: Math.abs(dx), h: Math.abs(dy) };
       drawSel(); return;
     }
-    if (drag.mode === "move") {  // 잡은 요소 기준으로 격자에 맞춘 이동량을 고른 요소 모두에
-      const b0 = boxOf(o), mx = snap(b0.x + dx, free) - b0.x, my = snap(b0.y + dy, free) - b0.y;
+    if (drag.mode === "move") {  // 잡은 요소 기준으로 격자에 맞춘 이동량을 고른 요소 모두에 - 그 뒤 스마트 가이드(다른 요소·슬라이드 가운데)에 붙인다
+      const b0 = boxOf(o); let mx = snap(b0.x + dx, free) - b0.x, my = snap(b0.y + dy, free) - b0.y;
+      const guides = [];
+      if (!free) {
+        const bs = drag.origs.map(boxOf), gx1 = Math.min(...bs.map((b) => b.x)) + mx, gy1 = Math.min(...bs.map((b) => b.y)) + my, gx2 = Math.max(...bs.map((b) => b.x + b.w)) + mx, gy2 = Math.max(...bs.map((b) => b.y + b.h)) + my;
+        const moving = new Set(drag.els.map((x) => x.id)), others = slide().elements.filter((x) => !moving.has(x.id)).map(boxOf);
+        const tx = [[0, "edge"], [SW / 2, "center"], [SW, "edge"]].concat(others.flatMap((b) => [[b.x, "edge"], [b.x + b.w / 2, "center"], [b.x + b.w, "edge"]]));
+        const ty = [[0, "edge"], [SH / 2, "center"], [SH, "edge"]].concat(others.flatMap((b) => [[b.y, "edge"], [b.y + b.h / 2, "center"], [b.y + b.h, "edge"]]));
+        const TH = 6 / scale + 2;
+        const bestX = [[gx1, "l"], [(gx1 + gx2) / 2, "c"], [gx2, "r"]].flatMap(([v, w]) => tx.map(([t]) => [Math.abs(t - v), t - v, t])).filter((c) => c[0] <= TH).sort((a, b) => a[0] - b[0])[0];
+        const bestY = [[gy1, "t"], [(gy1 + gy2) / 2, "m"], [gy2, "b"]].flatMap(([v, w]) => ty.map(([t]) => [Math.abs(t - v), t - v, t])).filter((c) => c[0] <= TH).sort((a, b) => a[0] - b[0])[0];
+        if (bestX) { mx += bestX[1]; guides.push(["v", bestX[2]]); }
+        if (bestY) { my += bestY[1]; guides.push(["h", bestY[2]]); }
+      }
+      drag.guides = guides;
       drag.els.forEach((x, i) => {
         const q = drag.origs[i];
         if (isLine(x)) { x.x1 = q.x1 + mx; x.x2 = q.x2 + mx; x.y1 = q.y1 + my; x.y2 = q.y2 + my; Object.assign(x, Render.lineBox(x)); } else { x.x = q.x + mx; x.y = q.y + my; }
         renderElementDom(x);
       });
-      drawSel(); renderMarks(); return;
+      drawSel(); drawGuides(drag.guides); renderMarks(); return;
     } else if (drag.h === "p1" || drag.h === "p2") {
       const k = drag.h === "p1" ? ["x1", "y1"] : ["x2", "y2"];
       el[k[0]] = snap(o[k[0]] + dx, free); el[k[1]] = snap(o[k[1]] + dy, free); Object.assign(el, Render.lineBox(el));
@@ -1959,7 +1978,91 @@ ${names}
       e.preventDefault(); addImageFiles(files, null);
     });
   }
+  // ---- 삽입 패널: 한 단에 검색 + 묶음별 타일(하위 메뉴 없음). 글자를 치면 바로 걸러지고 Enter 는 첫 타일. Canva·Figma 의 '요소' 패널 꼴
+  function insertItems() {
+    const base = [["text", "T", "글자", "텍스트 text"], ["bullets", "≡", "글머리 목록", "bullets list 번호"], ["pill", "◖◗", "칩", "pill badge 태그"], ["rect", "▭", "상자", "사각형 rect box"], ["ellipse", "◯", "원", "타원 circle"], ["arrow", "→", "화살표", "선 line connector"]];
+    const data = [["table", "▦", "표", "table 격자"], ["code", "{ }", "코드", "code sql"]].concat(CHART_KINDS.map(([k, i, l]) => [`chart:${k}`, i, l, `차트 chart ${k}`]));
+    const media = [["imgfile", "🖼", "그림 파일…", "image photo 사진 업로드"], ["image", "🏷", "로고", "brand logo"], ["mermaid", "⤳", "다이어그램 코드…", "mermaid flowchart sequence 코드"]];
+    const shapes = Render.shapeNames().map(([k, ko]) => [`shape:${k}`, `<svg viewBox="-2 -2 52 40" width="34" height="26"><path d="${Render.shapePath(k, 48, 36)}" fill="currentColor"/></svg>`, ko, `도형 shape ${k}`]);
+    const diagrams = DIAGRAMS.map(([k, i, l]) => [`diagram:${k}`, i, l, `다이어그램 diagram smartart ${k}`]);
+    return [["기본", base], ["데이터", data], ["미디어", media], ["도형", shapes], ["다이어그램", diagrams]];
+  }
+  function runInsert(kind) {
+    if (kind === "imgfile") return imagePick(null);
+    if (kind === "mermaid") return mermaidDialog(null);
+    if (kind.startsWith("diagram:")) return addDiagram(kind.slice(8));
+    return addEl(kind);
+  }
   function addMenu(btn) {
+    const groups = insertItems();
+    const html = `<div class="inspanel"><input type="search" class="insq" placeholder="무엇을 넣을까요? 예: 차트, 별, 화살표  (Enter = 첫 항목)" autocomplete="off">
+      ${groups.map(([g, items]) => `<div class="insg" data-g="${esc(g)}"><div class="h">${esc(g)}</div><div class="instiles">${items.map(([k, i, l, kw]) => `<button type="button" class="tile" data-ins="${esc(k)}" data-kw="${esc((l + " " + (kw || "")).toLowerCase())}" title="${esc(l)}"><span class="ic">${i}</span><span class="lb">${esc(l)}</span></button>`).join("")}</div></div>`).join("")}
+      <div class="hint" style="padding:4px 8px 2px">명령 팔레트 <kbd>Ctrl</kbd>+<kbd>K</kbd> 에서도 넣을 수 있습니다</div></div>`;
+    openMenu(btn, [{ html, bind: (div) => {
+      const q = div.querySelector(".insq"); setTimeout(() => q.focus(), 0);
+      const filter = () => { const t = q.value.trim().toLowerCase(); div.querySelectorAll(".tile").forEach((b) => { b.style.display = !t || b.dataset.kw.includes(t) ? "" : "none"; }); div.querySelectorAll(".insg").forEach((g) => { g.style.display = [...g.querySelectorAll(".tile")].some((b) => b.style.display !== "none") ? "" : "none"; }); };
+      q.addEventListener("input", filter);
+      q.addEventListener("keydown", (e) => { if (e.key === "Enter") { const first = [...div.querySelectorAll(".tile")].find((b) => b.style.display !== "none"); if (first) { closeMenu(); runInsert(first.dataset.ins); } e.preventDefault(); } if (e.key === "Escape") closeMenu(); e.stopPropagation(); });
+      div.querySelectorAll(".tile").forEach((b) => { b.onclick = () => { closeMenu(); runInsert(b.dataset.ins); }; });
+    } }]);
+  }
+  // ---- 명령 팔레트(Ctrl+K): 넣기 + 동작을 글자로 찾아 Enter. 최근 쓴 것이 위
+  function commandList() {
+    const el = selEl(), sel = selEls().length;
+    const ins = insertItems().flatMap(([g, items]) => items.map(([k, , l, kw]) => ({ id: "ins:" + k, label: `${l}`, group: `넣기 · ${g}`, kw: (l + " " + (kw || "")).toLowerCase(), run: () => runInsert(k) })));
+    const btn = (id) => { const b = $("#" + id); if (b) b.click(); else toast("지금은 쓸 수 없습니다"); };
+    const cmds = [
+      { id: "present", label: "발표 (처음부터)", key: "F5", kw: "발표 present play", run: () => present(false) },
+      { id: "presentCur", label: "발표 (지금 슬라이드부터)", key: "Shift+F5", kw: "발표 present", run: () => present(true) },
+      { id: "pptx", label: "PPTX 내보내기", kw: "export pptx 파워포인트", run: () => doExport() },
+      { id: "pdf", label: "PDF 내보내기", kw: "export pdf 인쇄", run: () => doExportPdf() },
+      { id: "check", label: "레이아웃 검사", kw: "check 검사 겹침 넘침", run: () => btn("chkBtn") },
+      { id: "aifix", label: "레이아웃 고치기 (세션에 요청)", kw: "fix ai 세션 고치기", run: () => btn("aiFixBtn") },
+      { id: "polish", label: "다듬기 (세션에 요청)", kw: "polish 다듬기 ai", run: () => btn("aiPolishBtn") },
+      { id: "dupSlide", label: "슬라이드 복제", kw: "slide duplicate 복제", run: () => dupSlide(S.cur) },
+      { id: "delSlide", label: "슬라이드 삭제", kw: "slide delete 삭제", run: () => delSlide(S.cur) },
+      { id: "group", label: "묶기", key: "Ctrl+G", kw: "group 묶음", disabled: sel < 2, run: () => groupSel() },
+      { id: "ungroup", label: "묶음 풀기", key: "Ctrl+Shift+G", kw: "ungroup", disabled: !el || el.type !== "group", run: () => ungroupSel() },
+      { id: "dup", label: "요소 복제", key: "Ctrl+D", kw: "duplicate", disabled: !el, run: () => dupEl() },
+      { id: "del", label: "요소 삭제", key: "Delete", kw: "delete remove", disabled: !el, run: () => delEl() },
+      { id: "front", label: "맨 앞으로", kw: "z order front", disabled: !el, run: () => zorder("front") },
+      { id: "back", label: "맨 뒤로", kw: "z order back", disabled: !el, run: () => zorder("back") },
+      { id: "maxi", label: "최대화 배치 켜기/끄기", key: "Ctrl+Shift+M", kw: "maximize layout 배치", run: () => setMaxi(!document.body.classList.contains("maxi")) },
+      { id: "right", label: "오른쪽 패널 보이기/숨기기", key: "Ctrl+\\", kw: "panel 패널", run: () => toggleRight() },
+      { id: "zoomFit", label: "화면 맞춤", key: "Ctrl+0", kw: "zoom fit 확대", run: () => setZoom(null) },
+      { id: "help", label: "단축키 도움말", key: "?", kw: "help shortcuts 단축키", run: () => showHelp() },
+    ].map((c) => ({ ...c, group: "동작" }));
+    const recent = (LS.get("cmd-recent", "") || "").split(",").filter(Boolean);
+    const all = [...cmds, ...ins];
+    return all.sort((a, b) => (recent.indexOf(b.id) >= 0 ? recent.length - recent.indexOf(b.id) : 0) - (recent.indexOf(a.id) >= 0 ? recent.length - recent.indexOf(a.id) : 0));
+  }
+  function commandPalette() {
+    closeMenu();
+    const back = document.createElement("div"); back.id = "cmdpal";
+    back.innerHTML = `<div class="box"><input type="search" placeholder="무엇을 할까요? 넣기·발표·내보내기·검사… (↑↓ 고르고 Enter)" autocomplete="off"><div class="list"></div></div>`;
+    document.body.appendChild(back);
+    const q = back.querySelector("input"), list = back.querySelector(".list"); let items = commandList(), cur = 0;
+    const render = () => {
+      const t = q.value.trim().toLowerCase(), show = items.filter((c) => !t || c.label.toLowerCase().includes(t) || c.kw.includes(t)).slice(0, 40);
+      cur = Math.max(0, Math.min(cur, show.length - 1));
+      list.innerHTML = show.length ? show.map((c, i) => `<div class="it${i === cur ? " on" : ""}${c.disabled ? " dis" : ""}" data-i="${i}"><span class="g">${esc(c.group)}</span><span class="l">${esc(c.label)}</span>${c.key ? `<span class="k">${esc(c.key)}</span>` : ""}</div>`).join("") : `<div class="empty">찾는 것이 없습니다</div>`;
+      list.dataset.n = show.length; list._show = show;
+    };
+    const close = () => back.remove();
+    const run = (c) => { if (!c || c.disabled) return; close(); LS.set("cmd-recent", [c.id, ...(LS.get("cmd-recent", "") || "").split(",").filter((x) => x && x !== c.id)].slice(0, 8).join(",")); c.run(); };
+    q.addEventListener("input", () => { cur = 0; render(); });
+    q.addEventListener("keydown", (e) => {
+      if (e.key === "ArrowDown") { cur = Math.min(+list.dataset.n - 1, cur + 1); render(); e.preventDefault(); }
+      else if (e.key === "ArrowUp") { cur = Math.max(0, cur - 1); render(); e.preventDefault(); }
+      else if (e.key === "Enter") { run(list._show[cur]); e.preventDefault(); }
+      else if (e.key === "Escape") close();
+      e.stopPropagation();
+    });
+    list.addEventListener("click", (e) => { const it = e.target.closest(".it"); if (it) run(list._show[+it.dataset.i]); });
+    back.addEventListener("mousedown", (e) => { if (e.target === back) close(); });
+    render(); q.focus();
+  }
+  function addMenuLegacy(btn) {
     openMenu(btn, [["text", "T", "글자"], ["bullets", "≡", "글머리 목록"], ["pill", "◖◗", "칩"], ["rect", "▭", "상자"], ["ellipse", "◯", "원"], ["arrow", "→", "화살표"], ["table", "▦", "표 (2×2)"], ["code", "{ }", "코드"], ["image", "🖼", "로고"]]
       .map(([k, i, l]) => ({ icon: i, label: l, act: () => addEl(k) })).concat([{ icon: "📊", label: "차트…", keep: true, act: () => chartMenu(btn) }, { icon: "🖼", label: "그림 파일…", act: () => imagePick(null) }, { icon: "⤳", label: "다이어그램 코드(mermaid)…", act: () => mermaidDialog(null) }, "-", { icon: "◇", label: "도형…", keep: true, act: () => shapeMenu(btn) }, { icon: "⬡", label: "다이어그램…", keep: true, act: () => diagramMenu(btn) }]));
   }
@@ -2090,6 +2193,10 @@ ${names}
   }
   function toggleRight() { const n = !document.body.classList.contains("noright"); if (n && document.body.classList.contains("maxi")) setMaxi(false); /* 오른쪽을 숨기면 노트가 갈 곳이 없으니 먼저 복원 */ document.body.classList.toggle("noright", n); LS.set("noright", n ? "1" : "0"); setTimeout(() => { fitStage(); fitThumbs(); }, 0); }
   const HELP = [
+    ["명령 팔레트", "<kbd>Ctrl</kbd>+<kbd>K</kbd> 또는 <kbd>/</kbd> - 넣기·발표·내보내기·검사를 글자로 찾아 <kbd>Enter</kbd>"],
+    ["넣기", "＋ 추가 패널에서 글자를 치면 바로 걸러짐 · <kbd>Enter</kbd> = 첫 항목"],
+    ["묶음", "<kbd>Ctrl</kbd>+<kbd>G</kbd> 묶기 · <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>G</kbd> 풀기"],
+    ["스마트 가이드", "끌 때 다른 요소의 가장자리·가운데, 슬라이드 가운데에 붙는다(빨간 안내선) · <kbd>Shift</kbd> = 자유"],
     ["모드", "<kbd>E</kbd> 편집 · <kbd>M</kbd> 선택(요청 메모) · <kbd>D</kbd> 그리기(영역 메모)"],
     ["여러 요소", "<kbd>Shift</kbd>/<kbd>Ctrl</kbd>+클릭 더하기·빼기 · 빈 곳을 끌어 범위 선택 · <kbd>Ctrl</kbd>+<kbd>A</kbd> 이 장 전체 · 끌기·방향키로 함께 이동 · 서식 줄·속성은 공통 적용 · ✥ = 맞춤·분배·같은 크기"],
     ["최대화 배치", "아래 ⛶ 최대화 = 노트·개요·검사를 오른쪽 아래로 옮겨 슬라이드를 크게 · 🗗 복원 · <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>M</kbd>"],
@@ -2111,6 +2218,7 @@ ${names}
     if ($("#help").classList.contains("show")) { if (e.key === "Escape" || e.key === "?") $("#help").classList.remove("show"); return; }
     const inField = /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName) || S.editing;
     const k = e.key, kl = k.toLowerCase(), ctrl = e.ctrlKey || e.metaKey;
+    if (ctrl && kl === "k") { e.preventDefault(); commandPalette(); return; }
     if (ctrl && kl === "s") { e.preventDefault(); save(); return; }
     if (k === "F5") { e.preventDefault(); present(e.shiftKey); return; }
     if (ctrl && k === "\\") { e.preventDefault(); toggleRight(); return; }
@@ -2123,6 +2231,7 @@ ${names}
     if (k === "Escape") { if (S.memo) { closeMemo(); return; } closeMenu(); select(null); return; }
     if (k === " " && !e.repeat) { spaceDown = true; document.body.classList.add("panning"); e.preventDefault(); return; }
     if (k === "?") { showHelp(); return; }
+    if (k === "/" && !ctrl) { e.preventDefault(); commandPalette(); return; }
     if (!ctrl && !e.altKey) { if (kl === "e") return setMode("edit"); if (kl === "m") return setMode("pick"); if (kl === "d") return setMode("draw"); }
     if (ctrl && kl === "z" && !e.shiftKey) { e.preventDefault(); undo(); return; }
     if (ctrl && (kl === "y" || (kl === "z" && e.shiftKey))) { e.preventDefault(); redo(); return; }
