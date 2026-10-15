@@ -118,6 +118,6 @@ NEXA_SLIDE_HOME=D:/Projects/nexa-slide       # 절대 경로 또는 작업 공�
 | `fonts` | 현재 글꼴 `body`·`mono` — 각각 `latin`(라틴)·`ea`(한글) |
 | `fontPresets` · `fontPreset` | 글꼴 세트 목록과 현재 이름. `set_fonts.py <이름>` 또는 편집기 글꼴 선택이 `fonts` 를 바꾼다 |
 | `codeStyle` | 코드 색(예약어·함수·테이블·별칭·문자열·숫자·주석·바인드) |
-| `pptTextShift` | PowerPoint 줄 배치 보정 측정값 `{measuredFor: {body, mono}, body: [a, b], mono: [a, b]}` — **`measuredFor` 의 글꼴(라틴 이름)을 쓸 때만** 브라우저 글자를 옮긴다. 다른 글꼴 세트(작업 공간 `fontPresets` 등)는 세트 안에 `pptTextShift` 를 두면 그 값, 없으면 0(PowerPoint 가 글꼴 중심에 두는 것과 맞음). 글꼴을 바꾸고 더 정밀하게 맞추려면 `compare.py` 로 재서 세트에 넣는다 |
+| `pptTextShift` | (자동) PowerPoint 줄 배치 보정 `{body: [a, b], heading: [a, b], mono: [a, b]}` — 서버가 역할별 글꼴 파일(`measure.regular`)의 세로 메트릭(winAscent+winDescent)으로 계산해 `fonts` 와 각 `fontPresets[*]` 에 넣는다(`common.ppt_text_shift`). 세트에 직접 적어 두면 그 값을 쓴다. 글꼴 파일을 못 찾으면 기본 메트릭 1.2 로 계산(항목에 `"default"` 표시) |
 
 작업 공간이 고른 `fontPreset` 이 `fonts` 를 정한다. 색·반경·보정값을 바꾸려면 새 템플릿을 만든다([templates.md](templates.md#새-템플릿-만들기)).

@@ -122,7 +122,7 @@ Genspark AI Slides 작업 화면의 조작 방식(모드 3분할 · 그 자리 �
 ## 화면 ↔ PPT 일치 규칙 (검증 결과)
 
 - 글자: 한 줄 = 한 단락, 줄 간격 "정확히 size × lineHeight × 0.75 pt". PowerPoint 는 여분 줄 높이를 위 75%·아래 25%로 두므로
-  브라우저 글자를 `tokens.pptTextShift`(보정 측정값) 만큼 내려 맞춘다 — 크기 12.5~60px, 줄 높이 1.0~1.8 에서 오차 ±2px.
+  브라우저 글자를 `fonts.pptTextShift`(서버가 글꼴 파일의 세로 메트릭으로 계산한 보정값, shift = size × (0.355 × lineHeight − 0.362 × C), C = (winAscent+winDescent)/unitsPerEm) 만큼 내려 맞춘다 — Pretendard·KoPub돋움체·JetBrains Mono 를 PowerPoint 렌더와 대조해 크기 16~44px, 줄 높이 1.0~1.6 에서 오차 ±1px(`studio/tests/shift_bench.py`).
 - 둥근 사각형·타원의 PPT 글자 영역은 도형 안쪽으로 들어가 있어(반경 × 0.29289, 타원 14.6%) 그만큼 여백에서 뺀다.
 - 한국어 줄바꿈: 두 쪽 모두 어절 단위(`word-break: keep-all` ↔ PowerPoint 기본). 긴 문장은 `\n` 으로 직접 끊는 것이 가장 안전하다.
 - `python3 studio/compare.py ch00`: 샘플 덱 15장 모두 픽셀 차이 0.3~2.7%(글자 가장자리 안티앨리어싱 수준). 비교 이미지 `out/ch00/compare-NN.png`
@@ -133,7 +133,7 @@ Genspark AI Slides 작업 화면의 조작 방식(모드 3분할 · 그 자리 �
 - 표 머리 행의 둥근 모서리(concept 의 `th` 반경)는 PPT 표가 지원하지 않아 양쪽 모두 직각으로 그린다.
 - PPT 표는 글자가 칸보다 크면 행이 저절로 늘어난다(브라우저는 넘쳐 보임). `plan-table` 콜아웃은 행 높이 고정을 전제로 놓이므로 행이 늘면 어긋날 수 있다.
 - `plan` 강조의 배경색은 run 강조색(`a:highlight`)이다 — PowerPoint 2019/365 에서 보이고, 이전 버전·다른 뷰어에서는 글자색 + 굵게만 보일 수 있다.
-- 줄 배치 보정은 맑은 고딕·Consolas 기준 측정값이라 **그 글꼴을 쓸 때만** 적용된다(`tokens.pptTextShift.measuredFor`). 다른 글꼴 세트(KoPub 등)는 보정 없이 CSS 중앙 — PowerPoint 와 ±1px 안에서 맞는다(원 안의 I·II·III 측정). 더 정밀하게 맞추려면 `compare.py` 로 재서 그 세트의 `pptTextShift` 에 넣는다.
+- 줄 배치 보정은 글꼴 파일(`measure.regular`)의 메트릭으로 계산하므로 어느 글꼴 세트든 적용된다. 글꼴 파일을 찾지 못하면(설치도 작업 공간 `fonts/` 에도 없음) 평균 메트릭(1.2)으로 계산해 ±2px 정도 어긋날 수 있다 — 그 글꼴 파일을 `fonts/` 에 두면 된다. 고정폭 코드 안의 한글(D2Coding 등 대체 글꼴)은 라틴 글꼴 메트릭 기준이라 ±2px.
 - 글자 자동 맞춤(넘치면 줄이기)·회전·그림자·투명도·그라데이션은 지원하지 않는다. 다중 선택·정렬 맞추기 도구 없음.
 - 다른 PPTX 를 덱으로 가져오기: `python3 nexa.py import_pptx <파일> --deck <새 덱 id>` — 글·글머리(번호·기호 유지)·표·그림(`assets/import/<id>/`)·차트·프리셋 도형을 원본 위치·크기로 넣는다(색·글꼴은 템플릿 기본). 이미 있는 덱 이름이면 `--force`.
 - PPT 에서 사람이 고친 내용은 덱 JSON 으로 돌아오지 않는다(단방향). 수정은 편집기나 JSON 에서 한다. 다른 PPTX 의 내용을 덱으로 옮길 때는 `nexa.py import_pptx <파일>` 로 글·표·차트·노트·그림을 꺼내(`out/import/<이름>/`) 세션이 읽어 쓴다([claude-session.md](claude-session.md) 2절).

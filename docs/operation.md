@@ -176,5 +176,5 @@ pgrep -fl watch_requests
 | `start` 하면 빈 콘솔 창이 뜨고 닫으면 서버가 꺼짐(Windows venv) | 0.13.3 이하 `service.py` 문제 - 0.13.4 이상으로 올린 뒤 `restart` |
 | "세션 연결 없음" | 세션이 감시를 실행 중인지([claude-session.md](claude-session.md)). Monitor 는 최대 30분 — 만료되면 다시 건다 |
 | PPT 렌더 실패 | PowerPoint 설치·`pwsh` 경로, 이전 렌더가 진행 중이면 429 |
-| PPT 와 화면 글자 위치가 다름 | 글꼴을 바꿨다면 `compare.py` 로 다시 재서 `pptTextShift` 수정 |
+| PPT 와 화면 글자 위치가 다름 | 그 글꼴 파일이 설치돼 있거나 작업 공간 `fonts/` 에 있는지 확인(보정은 글꼴 메트릭으로 자동) · `studio/tests/shift_bench.py` 로 대조 |
 | 저장 충돌이 반복 | 같은 덱을 다른 브라우저 탭에서 열었는지 |
