@@ -36,9 +36,9 @@ from common import CELL_PADX, CODE_PAD_Y, DECKS, bullet_rows, num_hang, code_lin
 from check_layout import W, H, _wrap_count, text_extent  # noqa: E402
 
 FIXED_ROLES = ("crumb", "page", "footnotes", "decor")  # 바닥·장식 부품 — 고르지 않으면 크기를 바꾸지 않고, 자리는 언제나 그대로
-TEXT_TYPES = ("text", "pill", "rect", "ellipse")
+TEXT_TYPES = ("text", "pill", "rect", "ellipse", "shape")
 SIZED = ("bullets", "table", "plan-table", "plan", "code")
-DEFAULT_SIZE = {"text": 20, "pill": 20, "rect": 20, "ellipse": 20, "bullets": 20, "table": 16, "plan-table": 16, "plan": 14, "code": 15}
+DEFAULT_SIZE = {"text": 20, "pill": 20, "rect": 20, "ellipse": 20, "shape": 20, "bullets": 20, "table": 16, "plan-table": 16, "plan": 14, "code": 15}
 STEP = 0.02      # 바닥을 넘칠 때 비율을 낮추는 단위
 FLOOR_GAP = 8    # 바닥 부품 위에 남기는 틈(px)
 HOLDER_PAD = 12  # 카드(담은 도형)가 늘어나기 전에 지키는 아래 여백(px) — 원래 여백이 이보다 작으면 그 값

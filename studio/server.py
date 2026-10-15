@@ -1469,6 +1469,45 @@ class H(BaseHTTPRequestHandler):
 
     IMAGE_TYPES = {"image/png": ".png", "image/jpeg": ".jpg", "image/gif": ".gif", "image/webp": ".webp", "image/svg+xml": ".svg"}
 
+    def api_post_mermaid(self, _, q):
+        """편집기 다이어그램(코드) - {code, name?} → mermaid-cli(npx)로 PNG 를 그려 assetRoot/assets/images/diagram-<날짜-시각>.png(+.mmd)에 두고 {src, w, h} 를 돌려준다."""
+        if HUB:
+            return self.err(404, "작업 공간 서버에서")
+        b = self.body_json() or {}
+        code = str(b.get("code") or "").strip()
+        if not code:
+            return self.err(400, "code 가 비었다")
+        if len(code) > 20000:
+            return self.err(413, "코드가 너무 길다")
+        import render_mermaid
+        import shutil
+        import subprocess
+        stem = re.sub(r"[^\w가-힣-]+", "_", str(b.get("name") or "diagram"))[:30].strip("._") or "diagram"
+        d = ASSET_ROOT / "assets" / "images"
+        d.mkdir(parents=True, exist_ok=True)
+        png = d / f"{stem}-{dt.datetime.now().strftime('%Y%m%d-%H%M%S')}.png"
+        mmd = png.with_suffix(".mmd")
+        cfg = d / "_mermaid-config.json"
+        cfg.write_text(json.dumps(render_mermaid.CONFIG, ensure_ascii=False, indent=1), encoding="utf-8")
+        mmd.write_text(code + "\n", encoding="utf-8")
+        npx = shutil.which("npx.cmd" if os.name == "nt" else "npx") or shutil.which("npx")
+        if not npx:
+            return self.err(400, "mermaid 렌더에 Node(npx)가 필요하다 - Node.js 를 설치한다")
+        try:
+            r = subprocess.run([npx, "-y", "@mermaid-js/mermaid-cli", "-i", str(mmd), "-o", str(png), "-s", "2", "-b", "white", "-c", str(cfg)],
+                               capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=180, cwd=str(ASSET_ROOT))
+        except subprocess.TimeoutExpired:
+            return self.err(504, "mermaid 렌더가 180초 안에 끝나지 않았다(처음 한 번은 mermaid-cli 내려받기)")
+        if r.returncode != 0 or not png.exists():
+            msg = (r.stderr or r.stdout or "").strip().splitlines()
+            return self.err(400, "mermaid 렌더 실패: " + " / ".join(msg[-4:])[:600])
+        head = png.read_bytes()[:24]
+        w = h = None
+        if head[:8] == b"\x89PNG\r\n\x1a\n":
+            w, h = int.from_bytes(head[16:20], "big") // 2, int.from_bytes(head[20:24], "big") // 2  # -s 2 로 그렸으니 CSS px 는 절반
+        self._event = f"mermaid:{png.name}"
+        self.send_json({"ok": True, "src": png.resolve().relative_to(ASSET_ROOT.resolve()).as_posix(), "mmd": mmd.name, "w": w, "h": h})
+
     def api_post_image(self, _, q):
         """편집기 그림 삽입 - {name, type, data(base64)} → 작업 공간 그림 폴더(assetRoot/assets/images/<날짜-시각>-<이름>)에 저장하고 {src} 를 돌려준다(src = assetRoot 기준, image 요소의 src)."""
         import base64

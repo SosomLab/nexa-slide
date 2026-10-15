@@ -14,7 +14,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from common import (cur_fonts, font_role, use_fonts, BULLET_HEAVY, CODE_GUTTER_W, CODE_PAD_Y, OUT, REPO, HL_ROLE, bullet_rows, num_hang, code_lines, code_style, color, fill_spec, load_deck,  # noqa: E402
+from common import (cur_fonts, font_role, use_fonts, BULLET_HEAVY, table_merges, table_merges, table_merges, CODE_GUTTER_W, CODE_PAD_Y, OUT, REPO, HL_ROLE, bullet_rows, num_hang, code_lines, code_style, color, fill_spec, load_deck,  # noqa: E402
                     pad_of, plan_runs, radius, runs, safe_id, table_grid, tokens)
 
 from lxml import etree  # noqa: E402  (python-pptx 의존성)
@@ -378,6 +378,12 @@ def do_table(slide, el, page):
             else:
                 etree.SubElement(tcPr, qn("a:noFill"))
     shapes = [gf]
+    if el.get("type") != "plan-table":  # 셀 병합 - 왼쪽 위 셀의 글만 남고 덮인 셀은 비운다(render.js elTable 과 같은 규칙)
+        span, skip = table_merges(el, nr, nc)
+        for (r, c) in sorted(skip):
+            tbl.cell(r, c).text_frame.text = ""
+        for (r, c), (rs, cs) in span.items():
+            tbl.cell(r, c).merge(tbl.cell(r + rs - 1, c + cs - 1))
     for co in g["callouts"]:
         ln = {"type": "line", "x1": co["tx"] + 4, "y1": co["cy"], "x2": co["x"], "y2": co["cy"], "color": co["line"], "width": 2, "head": "none"}
         shapes.append(do_line(slide, ln, page))
@@ -510,9 +516,51 @@ def do_bullets(slide, el, page):
     return shp
 
 
+class _GroupHost:
+    """묶음 안에 그릴 때 핸들러에 slide 대신 준다(핸들러는 slide.shapes 만 쓴다)."""
+
+    def __init__(self, grp):
+        self.shapes = grp.shapes
+
+
+def do_group(slide, el, page):
+    """group - PPTX 묶음 도형(grpSp). 자식은 묶음 상자 기준 좌표 → 절대 좌표로 바꿔 묶음 안에 그린다(표·실행계획 표는 묶음에 못 넣어 건너뛴다). 묶음의 회전·뒤집기는 main 루프의 apply_xfrm."""
+    kids = sorted(enumerate(el.get("children", [])), key=lambda t: (t[1].get("z", 0), t[0]))
+    if not kids:
+        return None
+    grp = slide.shapes.add_group_shape()
+    host = _GroupHost(grp)
+    ox, oy = float(el.get("x", 0)), float(el.get("y", 0))
+    n = 0
+    for _, c in kids:
+        h = HANDLERS.get(c.get("type"))
+        if not h or c.get("type") in ("table", "plan-table", "group"):
+            print(f"  ! {el.get('id')}: 묶음 안의 {c.get('type')} 은 건너뜀(표·묶음은 묶음에 넣지 않는다)")
+            continue
+        cc = dict(c)
+        if c.get("type") in ("line", "arrow", "curve"):
+            for k in ("x1", "x2"):
+                if k in cc:
+                    cc[k] = cc[k] + ox
+            for k in ("y1", "y2"):
+                if k in cc:
+                    cc[k] = cc[k] + oy
+        cc["x"] = float(c.get("x", 0)) + ox
+        cc["y"] = float(c.get("y", 0)) + oy
+        res = h(host, cc, page)
+        for shp in (res if isinstance(res, list) else [res]):
+            if shp is not None:
+                apply_xfrm(shp, cc)
+                n += 1
+    if not n:
+        grp._element.getparent().remove(grp._element)
+        return None
+    return grp
+
+
 HANDLERS = {"rect": do_box, "ellipse": do_box, "pill": do_box, "text": do_box, "image": do_image,
             "line": do_line, "arrow": do_line, "curve": do_curve, "table": do_table, "plan-table": do_table,
-            "code": do_code, "plan": do_plan, "bullets": do_bullets, "shape": do_shape}
+            "code": do_code, "plan": do_plan, "bullets": do_bullets, "shape": do_shape, "group": do_group}
 
 
 def export(deck, out):

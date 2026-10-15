@@ -380,7 +380,7 @@
     return `<div class="thumb${i === S.cur ? " cur" : ""}" data-i="${i}" draggable="true"><span class="num">${i + 1}</span>
       <div class="vp">${Render.renderSlide(s, i + 1)}</div>
       <div class="tools"><button data-act="dup" title="복제">복제</button><button data-act="del" title="삭제">삭제</button></div>
-      <div class="badges">${dr ? `<span class="bd draft" title="보내지 않은 요청 메모">✎ ${dr}</span>` : ""}${op ? `<span class="bd req" title="세션에 보낸 요청(대기)">요청 ${op}</span>` : ""}${wk ? `<span class="bd work" title="세션 처리 중">처리 ${wk}</span>` : ""}${chgOf(s.id) ? `<span class="bd chg" title="내 편집이 아닌 변경이 있는 슬라이드 - 변경 탭">변경${chgOf(s.id).size ? " " + chgOf(s.id).size : ""}</span>` : ""}${chkBadge(s.id)}</div></div>`;
+      <div class="badges">${dr ? `<span class="bd draft" title="보내지 않은 요청 메모">✎ ${dr}</span>` : ""}${op ? `<span class="bd req" title="세션에 보낸 요청(대기)">요청${op}</span>` : ""}${wk ? `<span class="bd work" title="세션 처리 중">처리${wk}</span>` : ""}${chgOf(s.id) ? `<span class="bd chg" title="내 편집이 아닌 변경이 있는 슬라이드 - 변경 탭">변경${chgOf(s.id).size ? " " + chgOf(s.id).size : ""}</span>` : ""}${chkBadge(s.id)}</div></div>`;
   }
   function chkBadge(sid) {
     if (!S.check) return "";
@@ -444,6 +444,28 @@
     if (node) node.outerHTML = Render.renderElement(el, S.cur + 1); else renderCanvas();
   }
   function boxOf(el) { return isLine(el) ? Render.lineBox(el) : el; }
+  /** 클릭한 자리의 맨 바깥 요소(묶음 안의 자식을 눌러도 묶음이 잡힌다) */
+  function topEl(target) { let n = target.closest("#host .rs-el"); while (n && n.parentElement) { const up = n.parentElement.closest("#host .rs-el"); if (!up) break; n = up; } return n; }
+  // 묶음: 고른 요소(2개 이상, 잠기지 않은 것)를 한 요소(type group, children 은 묶음 상자 기준 좌표)로 · 풀기: 자식을 절대 좌표로 되돌리고 새 id
+  function groupSel() {
+    const s = slide(); if (!s) return;
+    const els = selEls().filter((x) => !x.locked && x.type !== "group");
+    if (els.length < 2) { toast("잠기지 않은 요소를 2개 이상 고르세요(묶음은 다시 묶지 않습니다)"); return; }
+    const bs = els.map(boxOf), x = Math.min(...bs.map((b) => b.x)), y = Math.min(...bs.map((b) => b.y)), w = Math.max(...bs.map((b) => b.x + b.w)) - x, h = Math.max(...bs.map((b) => b.y + b.h)) - y;
+    snapshot();
+    const kids = els.map((el) => { const c = clone(el); if (isLine(c)) { c.x1 -= x; c.x2 -= x; c.y1 -= y; c.y2 -= y; Object.assign(c, Render.lineBox(c)); } else { c.x -= x; c.y -= y; } return c; });
+    const at = Math.min(...els.map((el) => s.elements.indexOf(el)));
+    els.forEach((el) => s.elements.splice(s.elements.indexOf(el), 1));
+    const g = { id: newElId(s), type: "group", x, y, w, h, children: kids };
+    s.elements.splice(at, 0, g); select(g.id); afterChange();
+  }
+  function ungroupSel() {
+    const s = slide(), g = selEl(); if (!s || !g || g.type !== "group") { toast("묶음 요소를 고르세요"); return; }
+    snapshot();
+    const at = s.elements.indexOf(g); s.elements.splice(at, 1);
+    const ids = (g.children || []).map((c, i) => { const e = clone(c); e.id = newElId(s); if (isLine(e)) { e.x1 += g.x; e.x2 += g.x; e.y1 += g.y; e.y2 += g.y; Object.assign(e, Render.lineBox(e)); } else { e.x += g.x; e.y += g.y; } if (g.rot) e.rot = (e.rot || 0) + g.rot; s.elements.splice(at + i, 0, e); return e.id; });
+    setSelection(ids); afterChange();
+  }
   function drawSel() {
     const ov = $("#ov"); const el = selEl();
     if (!el || S.editing || S.mode === "draw") { ov.innerHTML = drag && drag.mode === "marquee" ? marqueeHtml() : ""; drawChkBox(); return; }
@@ -707,7 +729,7 @@
   // ---------------------------------------------------------------- 서식 도구줄(편집 모드 · 요소 선택)
   const TEXTY = new Set(["text", "pill", "rect", "ellipse", "shape"]);
   const SIZED = new Set(["text", "pill", "rect", "ellipse", "shape", "bullets", "table", "plan-table", "code", "plan"]);
-  const TYPE_KO = { text: "글자", pill: "칩", rect: "상자", ellipse: "원", image: "그림", line: "선", arrow: "화살표", table: "표", "plan-table": "실행계획 표", code: "코드", plan: "실행계획", bullets: "글머리", curve: "곡선", shape: "도형" };
+  const TYPE_KO = { text: "글자", pill: "칩", rect: "상자", ellipse: "원", image: "그림", line: "선", arrow: "화살표", table: "표", "plan-table": "실행계획 표", code: "코드", plan: "실행계획", bullets: "글머리", curve: "곡선", shape: "도형", group: "묶음" };
   const SIZE_PRESETS = [10, 11, 12, 13, 14, 15, 16, 17, 18, 20, 22, 24, 28, 32, 36, 40, 48, 60, 72];
   function defSize(el) { return { pill: 14, code: 15, plan: 14, "plan-table": 15, table: 16 }[el.type] || 20; }
   function swatch(v) { return v ? Render.fillCss(v) : "transparent"; }  // 토큰·#hex(투명도)·그라데이션 객체 모두
@@ -894,6 +916,7 @@
       { label: "잘라내기", key: "Ctrl+X", disabled: lk, act: () => { S.clip = selEls().filter((x) => !x.locked).map(clone); delEl(); } },
       { label: "붙여넣기", key: "Ctrl+V", disabled: !S.clip, act: () => dupEl(S.clip) },
       { label: "복제", key: "Ctrl+D", act: () => dupEl() },
+      { label: "묶기", key: "Ctrl+G", disabled: selEls().length < 2, act: () => groupSel() }, { label: "묶음 풀기", key: "Ctrl+Shift+G", disabled: !el || el.type !== "group", act: () => ungroupSel() },
       { label: "삭제", key: "Delete", disabled: lk, act: () => delEl() }, "-",
       { label: "앞으로 가져오기", key: "Ctrl+]", act: () => zorder("fwd") }, { label: "뒤로 보내기", key: "Ctrl+[", act: () => zorder("bwd") },
       { label: "맨 앞으로", key: "Alt+Ctrl+]", act: () => zorder("front") }, { label: "맨 뒤로", key: "Alt+Ctrl+[", act: () => zorder("back") }, "-",
@@ -1058,7 +1081,8 @@ ${names}
         ${el.type !== "ellipse" && el.type !== "pill" && el.type !== "shape" ? `<div class="row"><label>모서리</label><select data-k="radius">${["", "r-s", "r-m", "r-l", "r-full"].map((r) => `<option value="${r}"${(el.radius || "") === r ? " selected" : ""}>${r || "없음"}</option>`).join("")}${typeof el.radius === "number" ? `<option selected value="${el.radius}">${el.radius}px</option>` : ""}</select></div>` : ""}
         ${colorRow("테두리", "stroke", el, true)}</div>`;
     }
-    if (el.type === "image") h += `<div class="sec"><h3>그림</h3><div class="row"><label>경로</label><input type="text" data-k="src" value="${esc(el.src)}"></div><div class="row"><button class="chip sm" data-imgpick="1" title="새 그림 파일을 올려 이 자리에 바꿔 넣습니다(폭 유지, 높이는 비율로)">그림 바꾸기…</button><span class="hint" style="margin:0">assetRoot 기준 경로 · 모서리 핸들은 비율 유지</span></div></div>`;
+    if (el.type === "group") h += `<div class="sec"><h3>묶음 (${(el.children || []).length}개)</h3><div class="row"><button class="chip sm" data-act="ungroup" title="자식을 낱개로 되돌립니다 (Ctrl+Shift+G)">묶음 풀기</button><span class="hint" style="margin:0">${(el.children || []).map((c) => TYPE_KO[c.type] || c.type).join(" · ")}</span></div><div class="hint">자식은 묶음 상자 기준 좌표. 크기를 바꾸면 자식 위치·크기가 비율로 따라간다. 두 번 클릭 편집은 풀어서.</div></div>`;
+    if (el.type === "image") h += `<div class="sec"><h3>그림</h3><div class="row"><label>경로</label><input type="text" data-k="src" value="${esc(el.src)}"></div><div class="row"><button class="chip sm" data-imgpick="1" title="새 그림 파일을 올려 이 자리에 바꿔 넣습니다(폭 유지, 높이는 비율로)">그림 바꾸기…</button>${el.mermaid != null ? `<button class="chip sm" data-mermaid="1" title="mermaid 코드를 고쳐 다시 그립니다(폭 유지)">다이어그램 코드 수정…</button>` : ""}<span class="hint" style="margin:0">assetRoot 기준 경로 · 모서리 핸들은 비율 유지</span></div></div>`;
     if (isLine(el)) h += `<div class="sec"><h3>선</h3>${colorRow("색", "color", el)}${num("두께(px)", "width", el, 0.5)}
         ${seg("머리", "head", el, [["none", "없음"], ["end", "끝"], ["start", "시작"], ["both", "양쪽"]], el.type === "arrow" ? "end" : "none")}
         ${seg("점선", "dash", el, [["solid", "실선"], ["dash", "파선"], ["dot", "점선"]], "solid")}</div>`;
@@ -1084,6 +1108,7 @@ ${names}
         <div class="row"><button class="chip sm" data-conv="text" title="항목을 줄로 펼친 글자 상자로 바꿉니다(하위 항목은 앞에 공백 두 칸)">글자 상자로 바꾸기</button></div></div>`;
     if (el.type === "table") h += `<div class="sec"><h3>표 - 줄 = 행, 칸은 " | " 로 구분 (첫 행 = 머리)</h3>${fontInfoHtml(el)}<textarea data-tbl="1" style="min-height:140px">${esc(tableToText(el.rows))}</textarea>
         <div class="row"><label>행·열</label><button class="chip sm" data-tblop="row+" title="맨 아래에 행 추가">＋행</button><button class="chip sm" data-tblop="row-" title="맨 아래 행 지우기">－행</button><button class="chip sm" data-tblop="col+" title="맨 오른쪽에 열 추가">＋열</button><button class="chip sm" data-tblop="col-" title="맨 오른쪽 열 지우기">－열</button><span class="hint" style="margin:0">${(el.rows || []).length}×${((el.rows || [])[0] || []).length}</span></div>
+        <div class="row"><label>셀 병합</label><input type="text" data-merge="1" value="${esc((el.merge || []).map((m) => m.join(",")).join("; "))}" placeholder="행,열,행수,열수; … (0부터 · 예: 0,0,1,2; 1,1,2,1)" title="왼쪽 위 셀이 행수×열수를 차지한다. 머리 행도 0행. 겹치면 앞 것만"></div>
         <div class="row"><label>열 비율</label><input type="text" data-list="colW" value="${esc((el.colW || []).join(", "))}"></div>
         <div class="row"><label>행 비율</label><input type="text" data-list="rowH" value="${esc((el.rowH || []).join(", "))}" placeholder="비우면 고르게 · 예: 44, 46, 70"></div>
         ${num("크기(px)", "size", el)}${colorRow("머리 면", "headFill", el)}${colorRow("머리 글자", "headColor", el)}
@@ -1145,7 +1170,8 @@ ${names}
         if (a.some(Boolean)) el.colFont = a; else delete el.colFont;
       }
       else { const a = t.value.split(/[,\s]+/).filter(Boolean).map(Number).filter((x) => !isNaN(x)); if (a.length) el[t.dataset.list] = a; else delete el[t.dataset.list]; }
-    } else if (t.dataset.bul) el.items = textToBullets(t.value);
+    } else if (t.dataset.merge) { const a = t.value.split(";").map((x) => x.split(",").map((v) => parseInt(v, 10))).filter((m) => m.length === 4 && m.every((v) => !isNaN(v))); if (a.length) el.merge = a; else delete el.merge; }
+    else if (t.dataset.bul) el.items = textToBullets(t.value);
     else if (t.dataset.tbl) el.rows = textToTable(t.value);
     afterChange();
   }
@@ -1177,6 +1203,7 @@ ${names}
     if (b.dataset.fit === "code" && el) { snapshot(); el.h = Math.round(24 + Render.codeLines(el).length * (el.size || 15) * (el.lineHeight || 1.6)); afterChange(); return; }
     if (b.dataset.conv && el) { snapshot(); convertEl(el, b.dataset.conv); afterChange(); return; }
     if (b.dataset.imgpick && el && el.type === "image") { imagePick(el); return; }
+    if (b.dataset.mermaid && el && el.type === "image") { mermaidDialog(el); return; }
     if (b.dataset.flip && el) { snapshot(); const k = "flip" + b.dataset.flip; selEls().forEach((x) => { if (x[k]) delete x[k]; else x[k] = true; }); afterChange(); return; }
     if (b.dataset.tblop && el && el.type === "table") {  // 표 행·열 더하기·빼기(머리 행·첫 열은 남긴다)
       const op = b.dataset.tblop, rows = el.rows || [], nc = (rows[0] || []).length;
@@ -1198,6 +1225,7 @@ ${names}
       return;
     }
     if (b.dataset.act === "dupEl") dupEl();
+    if (b.dataset.act === "ungroup") ungroupSel();
     if (b.dataset.act === "delEl") delEl();
     if (b.dataset.act === "reqEl") openMemo({ element: el.id });
   }
@@ -1603,12 +1631,12 @@ ${names}
     if (S.mode === "draw") { drawDown(e); return; }
     const hd = e.target.closest(".hd"), p = toSlide(e);
     if (S.mode === "pick") {
-      const node = e.target.closest("#host .rs-el");
+      const node = topEl(e.target);
       if (!node) { select(null); closeMemo(); return; }
       select(node.dataset.id); openMemo({ element: node.dataset.id }); e.preventDefault(); return;
     }
     if (hd && !isMulti()) { const el = selEl(); if (!el) return; drag = { mode: "resize", h: hd.dataset.h, el, orig: clone(el), p0: p, moved: false, before: deckJson() }; e.preventDefault(); return; }
-    const node = e.target.closest("#host .rs-el"), add = e.shiftKey || e.ctrlKey || e.metaKey;
+    const node = topEl(e.target), add = e.shiftKey || e.ctrlKey || e.metaKey;
     if (!node) {  // 빈 곳 - 끌면 범위 선택(Shift/Ctrl 이면 더하기), 그냥 누르면 선택 해제
       drag = { mode: "marquee", p0: p, box: { x: p.x, y: p.y, w: 0, h: 0 }, base: add ? selIds() : [], moved: false };
       e.preventDefault(); return;
@@ -1648,6 +1676,10 @@ ${names}
       if (h.includes("n")) y1 = snap(o.y + dy, free); if (h.includes("s")) y2 = snap(o.y + o.h + dy, free);
       if (el.type === "image" && h.length === 2) { const ratio = o.w / o.h, w = Math.max(4, x2 - x1), hh = w / ratio; if (h.includes("n")) y1 = y2 - hh; else y2 = y1 + hh; }
       el.x = Math.round(Math.min(x1, x2 - 4)); el.y = Math.round(Math.min(y1, y2 - 4)); el.w = Math.round(Math.max(4, x2 - x1)); el.h = Math.round(Math.max(4, y2 - y1));
+      if (el.type === "group" && o.children) {  // 묶음 크기 조절 - 자식 위치·크기를 비율로(글자 크기는 그대로)
+        const sx = el.w / (o.w || 1), sy = el.h / (o.h || 1);
+        el.children = o.children.map((c) => { const k = clone(c); if (isLine(k)) { k.x1 *= sx; k.x2 *= sx; k.y1 *= sy; k.y2 *= sy; Object.assign(k, Render.lineBox(k)); } else { k.x = Math.round(k.x * sx); k.y = Math.round(k.y * sy); k.w = Math.max(4, Math.round(k.w * sx)); k.h = Math.max(4, Math.round(k.h * sy)); } return k; });
+      }
     }
     renderElementDom(el); drawSel(); renderMarks();
   }
@@ -1828,6 +1860,32 @@ ${names}
     };
     f.click();
   }
+  // ---- 다이어그램(코드, mermaid): 코드 창 → POST /api/mermaid → PNG(assets/images/) → image 요소(mermaid 코드를 같이 둔다 - 속성 [다이어그램 코드 수정…])
+  const MERMAID_SAMPLE = "flowchart LR\n  A[요청] --> B{검토}\n  B -->|승인| C[처리]\n  B -->|거절| D[반려]";
+  function codeDialog(title, value, hint, onOk) {
+    const back = document.createElement("div");
+    back.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:60;display:flex;align-items:center;justify-content:center";
+    back.innerHTML = `<div style="background:#fff;border-radius:14px;padding:16px 18px;width:min(640px,92vw);box-shadow:0 8px 30px rgba(0,0,0,.25);font:14px var(--font)"><h3 style="margin:0 0 8px;font-size:15px">${esc(title)}</h3><div class="hint" style="margin:0 0 6px">${hint}</div><textarea id="dlgCode" style="width:100%;min-height:220px;font:13px Consolas,monospace;border:1px solid var(--line);border-radius:8px;padding:8px">${esc(value)}</textarea><div style="display:flex;justify-content:flex-end;gap:6px;margin-top:10px"><button type="button" class="chip" id="dlgCancel">취소</button><button type="button" class="chip primary" id="dlgOk">그리기</button></div></div>`;
+    document.body.appendChild(back);
+    const ta = back.querySelector("#dlgCode"); ta.focus();
+    const close = () => back.remove();
+    back.querySelector("#dlgCancel").onclick = close;
+    back.addEventListener("keydown", (e) => { if (e.key === "Escape") close(); if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) back.querySelector("#dlgOk").click(); });
+    back.querySelector("#dlgOk").onclick = async () => { const ok = back.querySelector("#dlgOk"); ok.disabled = true; ok.textContent = "그리는 중…"; const done = await onOk(ta.value); if (done) close(); else { ok.disabled = false; ok.textContent = "그리기"; } };
+  }
+  async function renderMermaid(code, replaceEl) {
+    const r = await api("POST", "/api/mermaid", { code, name: "diagram" });
+    if (!r.ok) { toast("다이어그램을 그리지 못했습니다: " + ((r.data && r.data.error) || r.status), 8000); return false; }
+    const s = slide(); if (!s) return false;
+    const nw = r.data.w || 640, nh = r.data.h || 400, sc = Math.min(1, 800 / nw, 500 / nh), w = Math.max(8, Math.round(nw * sc)), h = Math.max(8, Math.round(nh * sc));
+    snapshot();
+    if (replaceEl) { replaceEl.src = r.data.src; replaceEl.mermaid = code; replaceEl.h = Math.max(8, Math.round(replaceEl.w * nh / nw)); }
+    else { const el = { id: newElId(s), type: "image", x: Math.round(640 - w / 2), y: Math.round(360 - h / 2), w, h, src: r.data.src, mermaid: code }; s.elements.push(el); S.sel = el.id; }
+    afterChange(); toast("다이어그램을 그렸습니다 - " + r.data.src); return true;
+  }
+  const mermaidDialog = (el) => codeDialog(el ? "다이어그램 코드 수정 (mermaid)" : "다이어그램 코드 (mermaid)", el ? el.mermaid || "" : MERMAID_SAMPLE,
+    "flowchart · sequenceDiagram · classDiagram · stateDiagram · erDiagram · gantt · pie 등 mermaid 문법. 그리면 작업 공간 assets/images/ 에 PNG(+.mmd)로 저장되고 그림 요소가 된다. Ctrl+Enter = 그리기",
+    (code) => renderMermaid(code.trim(), el));
   function wireImageDrop() {  // 캔버스에 그림 파일 끌어다 놓기(놓은 자리에) · 편집기 어디서나 Ctrl+V 그림(글 편집·메모·요청 입력 중이 아닐 때)
     const st = $("#stageWrap") || $("#stage"); if (!st) return;
     st.addEventListener("dragover", (e) => { if ([...e.dataTransfer.types].includes("Files")) { e.preventDefault(); st.classList.add("dropping"); } });
@@ -1843,7 +1901,7 @@ ${names}
   }
   function addMenu(btn) {
     openMenu(btn, [["text", "T", "글자"], ["bullets", "≡", "글머리 목록"], ["pill", "◖◗", "칩"], ["rect", "▭", "상자"], ["ellipse", "◯", "원"], ["arrow", "→", "화살표"], ["table", "▦", "표 (2×2)"], ["code", "{ }", "코드"], ["image", "🖼", "로고"]]
-      .map(([k, i, l]) => ({ icon: i, label: l, act: () => addEl(k) })).concat([{ icon: "🖼", label: "그림 파일…", act: () => imagePick(null) }, "-", { icon: "◇", label: "도형…", keep: true, act: () => shapeMenu(btn) }, { icon: "⬡", label: "다이어그램…", keep: true, act: () => diagramMenu(btn) }]));
+      .map(([k, i, l]) => ({ icon: i, label: l, act: () => addEl(k) })).concat([{ icon: "🖼", label: "그림 파일…", act: () => imagePick(null) }, { icon: "⤳", label: "다이어그램 코드(mermaid)…", act: () => mermaidDialog(null) }, "-", { icon: "◇", label: "도형…", keep: true, act: () => shapeMenu(btn) }, { icon: "⬡", label: "다이어그램…", keep: true, act: () => diagramMenu(btn) }]));
   }
   function goSlide(i) { if (!S.deck) return; S.cur = Math.max(0, Math.min(S.deck.slides.length - 1, i)); S.sel = null; S.chkBox = S.chkBox && S.chkBox.slide === slide().id ? S.chkBox : null; closeMemo(); renderAll(); ensureThumbVisible(S.cur); }
   function dupSlide(i) { snapshot(); const c = clone(S.deck.slides[i]); c.id = newSlideId(); S.deck.slides.splice(i + 1, 0, c); S.cur = i + 1; S.sel = null; afterChange(true); }
@@ -2010,6 +2068,7 @@ ${names}
     if (ctrl && (kl === "y" || (kl === "z" && e.shiftKey))) { e.preventDefault(); redo(); return; }
     if (ctrl && kl === "a" && S.mode === "edit" && slide()) { e.preventDefault(); setSelection(slide().elements.filter((x) => !x.locked).map((x) => x.id)); return; }
     if (ctrl && kl === "d") { e.preventDefault(); dupEl(); return; }
+    if (ctrl && kl === "g") { e.preventDefault(); if (e.shiftKey) ungroupSel(); else groupSel(); return; }
     if (ctrl && kl === "c" && selEl()) { S.clip = selEls().map(clone); toast(`요소 ${S.clip.length}개 복사`); return; }
     if (ctrl && kl === "x" && selEl() && selEls().some((x) => !x.locked)) { S.clip = selEls().filter((x) => !x.locked).map(clone); delEl(); return; }
     if (ctrl && kl === "v" && S.clip) { e.preventDefault(); dupEl(S.clip); return; }
@@ -2228,7 +2287,7 @@ ${names}
     stage.addEventListener("pointerdown", onDown);
     vp.addEventListener("pointerdown", (e) => { if (e.target === vp || e.target.id === "stageWrap") { if (spaceDown || e.button === 1) onDown(e); else { select(null); closeMemo(); } } });
     window.addEventListener("pointermove", onMove); window.addEventListener("pointerup", onUp);
-    stage.addEventListener("dblclick", (e) => { if (S.mode !== "edit") return; const n = e.target.closest("#host .rs-el"); if (n) { select(n.dataset.id); startEdit(selEl()); } });
+    stage.addEventListener("dblclick", (e) => { if (S.mode !== "edit") return; const n = topEl(e.target); if (n) { select(n.dataset.id); startEdit(selEl()); } });
     stage.addEventListener("contextmenu", ctxMenu);
     vp.addEventListener("wheel", (e) => { if (!(e.ctrlKey || e.metaKey)) return; e.preventDefault(); const r = vp.getBoundingClientRect(); setZoom(scale * 100 * (e.deltaY < 0 ? 1.1 : 1 / 1.1), { x: e.clientX - r.left, y: e.clientY - r.top }); }, { passive: false });
     vp.addEventListener("scroll", () => placeMemo());
