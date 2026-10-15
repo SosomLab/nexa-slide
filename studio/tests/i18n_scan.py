@@ -126,7 +126,7 @@ def scan_home():
         {"url": "/studio/home.html?lang=en#demo", "wait": 2000, "steps": [step("데모", "")]},
         {"url": "/studio/home.html?lang=en#templates", "wait": 2000, "steps": [step("템플릿", "")]},
         {"url": "/studio/home.html?lang=en#samples", "wait": 2000, "steps": [step("샘플", "")]},
-        {"url": "/studio/account.html?lang=en", "wait": 2000, "steps": [step("계정", "")]},
+        {"url": "/account?lang=en", "wait": 2000, "steps": [step("계정", "")]},  # 허브의 계정 페이지 경로(/studio/account.html 은 다른 화면으로 넘어간다)
         {"url": "/engine?lang=en", "wait": 2000, "steps": [step("서버 작업 목록", "")]},
         {"url": "/review?lang=en", "wait": 2500, "steps": [step("템플릿 검토", "")]},
         {"url": "/review/slides?lang=en", "wait": 2500, "steps": [step("슬라이드 유형 검토", "")]},
