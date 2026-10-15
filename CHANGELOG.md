@@ -1,5 +1,12 @@
 # 변경 이력
 
+## 0.22.6 - 2026-10-16 · 그림 많은 덱 - lazy 로딩·실패 재시도·재검증 캐시
+
+- **문제**: 그림이 많은 덱에서 썸네일(모든 장)과 캔버스가 바뀔 때마다 그림 수십 장을 한꺼번에 다시 내려받아(서버가 모든 파일을 `no-store` 로 주고, 다시 그릴 때 요청이 끊김 `ERR_ABORTED`) 일부가 깨진 그림으로 남았다.
+- **수정** ① 그림은 보일 때 읽는다(`<img loading="lazy" decoding="async">`, `render.js` - 인쇄·캡처·발표자 보기는 `Render.setLazy(false)` 로 바로 다 읽음). ② 읽기 실패는 0.5·1.5·4초 뒤 캐시를 우회해 3번까지 다시 시도(`studio.js` 그림 error 위임 처리). ③ 서버가 그림·글꼴·산출물에 `ETag`·`Last-Modified`·`Cache-Control: private, max-age=0, must-revalidate` 를 주고 `If-None-Match` 면 304 - 엔진 화면 파일(HTML·JS·토큰)은 전처럼 `no-store`.
+- 시험: 편집기 시나리오 `imgload_test.json`(12장×6 그림 덱 - 캔버스·썸네일 72장 깨짐 0, 틀린 src 재시도 복구), `deck_test` 에 304 재검증.
+- `smoke.js`: 시나리오의 `ignoreErrors`(정규식)로 일부러 내는 콘솔 오류를 뺄 수 있다.
+
 ## 0.22.5 - 2026-10-16 · 내보내기 파일 이름 = 덱 제목
 
 - PPTX·글꼴 포함 PPTX·PDF 를 **덱 제목** 이름으로 받는다(예: `가정형호스피스 사례관리.pptx`, 글꼴 포함은 `… - 글꼴 포함.pptx`). 파일 이름에 못 쓰는 글자(`\ / : * ? " < > |`)는 공백으로. 저장 자체는 전처럼 `out/<id>.pptx` 라 렌더·비교·글꼴 도구는 그대로 - `/api/export` 응답의 `name`, 편집기 ⬇ 링크의 `download`, 그리고 `/out/<id>.pptx|.pdf` 를 직접 열 때도 `Content-Disposition` 으로 같은 이름(`server.export_name`·`studio.js exportName`).

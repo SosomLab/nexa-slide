@@ -46,6 +46,9 @@ def fixture():
             {"id": "e05", "type": "image", "x": 940, "y": 100, "w": 280, "h": 160, "src": "assets/images/t.png", "crop": [0.3, 0, 0.3, 0], "opacity": 0.5}]},
             {"id": "s2", "notes": "둘째 노트", "elements": [{"id": "f01", "type": "text", "x": 60, "y": 30, "w": 800, "h": 40, "text": "둘째", "size": 22}]}]},
     }
+    for n in range(12):  # 그림 많은 덱(12장 × 6장 그림) - lazy 로딩·재시도 시험
+        (WS / "assets" / "images" / f"m{n}.png").write_bytes(PNG)
+    decks["imgmany"] = {"title": "그림 많음", "slides": [{"id": f"s{si + 1:02d}", "elements": [{"id": f"i{si + 1:02d}{k}", "type": "image", "x": 40 + k * 200, "y": 120, "w": 180, "h": 120, "src": f"assets/images/m{(si + k) % 12}.png"} for k in range(6)]} for si in range(12)]}
     (WS / "decks").mkdir(parents=True, exist_ok=True)
     for k, v in decks.items():
         (WS / "decks" / f"{k}.json").write_text(json.dumps(v, ensure_ascii=False, indent=1), encoding="utf-8")

@@ -684,14 +684,17 @@
     if (e === "glow") { const c = color(el.effectColor || "primary"); return `box-shadow:0 0 ${px}px ${Math.round(px / 2)}px ${c}99;`; }
     return "";
   }
+  let LAZY = true;  // 그림을 보일 때 읽기(loading=lazy) - 그림 많은 덱에서 썸네일 수십 장이 한꺼번에 내려받다 끊기지 않게. 인쇄·발표자 보기는 setLazy(false)
+  function setLazy(v) { LAZY = !!v; }
+  const IMG_ATTR = () => (LAZY ? ' loading="lazy" decoding="async"' : ' decoding="sync"');
   function elImage(el) {
     const src = `${esc(root.RENDER_BASE || "/")}${esc(el.src)}`, op = el.opacity != null && el.opacity !== 1 ? `opacity:${+el.opacity};` : "";
     const c = Array.isArray(el.crop) && el.crop.some((v) => v) ? el.crop.map((v) => Math.max(0, Math.min(0.95, +v || 0))) : null;
     const fx = effectCss(el);
     const wrap = (inner) => (fx ? `<div class="rs-fx" style="position:absolute;inset:0;${fx}">${inner}</div>` : inner);
-    if (!c) return wrap(`<img class="rs-img" src="${src}" alt="" draggable="false"${op ? ` style="${op}"` : ""}>`);
+    if (!c) return wrap(`<img class="rs-img" src="${src}" alt="" draggable="false"${IMG_ATTR()}${op ? ` style="${op}"` : ""}>`);
     const [l, t, r, b] = c, W = el.w / Math.max(0.05, 1 - l - r), H = el.h / Math.max(0.05, 1 - t - b);  // 자르기 - 원본을 키워 상자 밖은 감춘다(PowerPoint crop 과 같은 뜻, 비율은 상자 비율)
-    return wrap(`<div style="position:absolute;inset:0;overflow:hidden;${op}"><img class="rs-img" src="${src}" alt="" draggable="false" style="position:absolute;left:${R2(-l * W)}px;top:${R2(-t * H)}px;width:${R2(W)}px;height:${R2(H)}px;object-fit:fill"></div>`);
+    return wrap(`<div style="position:absolute;inset:0;overflow:hidden;${op}"><img class="rs-img" src="${src}" alt="" draggable="false"${IMG_ATTR()} style="position:absolute;left:${R2(-l * W)}px;top:${R2(-t * H)}px;width:${R2(W)}px;height:${R2(H)}px;object-fit:fill"></div>`);
   }
 
   /** 선·화살표: 요소 상자(x,y,w,h) 기준 SVG. 화살 머리 = 선 두께 × 5 (PPT 'lg') */
@@ -921,7 +924,7 @@
 .rs-cell>.rs-ct{white-space:pre-wrap;word-break:keep-all;flex:1}`;
   }
 
-  const api = { setDeckFonts, presetFonts, fontRole, setTokens, setLangs, langOf, color, colorAlpha, fillSpec, fillCss, radius, runs, plain, hlSQL, hlPython, codeLines, planRuns, tableGrid, tableMerges, chartAxis, chartData, iconNames, bulletRows, bulletNum, numHang, markerNum, numLabel, shapePath, shapeNames, renderElement, renderSlide, css, esc, lineBox };
+  const api = { setLazy, setDeckFonts, presetFonts, fontRole, setTokens, setLangs, langOf, color, colorAlpha, fillSpec, fillCss, radius, runs, plain, hlSQL, hlPython, codeLines, planRuns, tableGrid, tableMerges, chartAxis, chartData, iconNames, bulletRows, bulletNum, numHang, markerNum, numLabel, shapePath, shapeNames, renderElement, renderSlide, css, esc, lineBox };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   root.Render = api;
 })(typeof window !== "undefined" ? window : globalThis);

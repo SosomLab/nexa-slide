@@ -80,6 +80,7 @@ import tempfile
 import threading
 import time
 from http import HTTPStatus
+from email.utils import formatdate
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, quote, unquote, urlparse
@@ -733,11 +734,26 @@ class H(BaseHTTPRequestHandler):
         ctype = mimetypes.guess_type(str(p))[0] or "application/octet-stream"
         if ctype.startswith("text/") or ctype in ("application/javascript", "application/json"):
             ctype += "; charset=utf-8"
+        cacheable = not (parts and parts[0] == "studio")  # 엔진 화면 파일(HTML·JS·토큰)은 no-store, 그림·글꼴·산출물은 ETag 로 재검증(304) - 그림 많은 덱의 썸네일이 매번 다시 받지 않게
+        if cacheable:
+            st = p.stat()
+            etag = f'"{st.st_mtime_ns:x}-{st.st_size:x}"'
+            if self.headers.get("If-None-Match") == etag:
+                self.send_response(304)
+                self.send_header("ETag", etag)
+                self.send_header("Cache-Control", "private, max-age=0, must-revalidate")
+                self.end_headers()
+                return
         data = p.read_bytes()
         self.send_response(200)
         self.send_header("Content-Type", ctype)
         self.send_header("Content-Length", str(len(data)))
-        self.send_header("Cache-Control", "no-store")
+        if cacheable:
+            self.send_header("ETag", etag)
+            self.send_header("Last-Modified", formatdate(st.st_mtime, usegmt=True))
+            self.send_header("Cache-Control", "private, max-age=0, must-revalidate")
+        else:
+            self.send_header("Cache-Control", "no-store")
         if parts and parts[0] == "out" and p.parent == root and p.suffix.lower() in (".pptx", ".pdf"):  # 내보내기 결과는 덱 제목으로 받게
             from urllib.parse import quote as _q
             nm = export_name(p.stem, p.suffix.lower())

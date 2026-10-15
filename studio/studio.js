@@ -2612,6 +2612,13 @@ ${names}
     $$(".tabs .chip").forEach((b) => (b.onclick = () => switchTab(b.dataset.tab)));
     const P = $("#tab-props"); P.addEventListener("change", onPropChange); P.addEventListener("search", (e) => { if (e.target.dataset.lang && !e.target.value) onPropChange(e); });  // ✕ 로 지우면 바로 반영
     P.addEventListener("click", onPropClick);  // 속성 패널의 단추·요소 목록(주석 뒤에 묻혀 있어 눌러도 안 되던 회귀)
+    document.addEventListener("error", (e) => {  // 그림 읽기 실패 재시도 - 많은 그림이 한꺼번에 내려받다 끊기면(ERR_ABORTED 등) 0.5·1.5·4초 뒤 다시(캐시 우회), 3번까지
+      const im = e.target; if (!(im instanceof HTMLImageElement) || !im.classList.contains("rs-img")) return;
+      const n = +(im.dataset.retry || 0); if (n >= 3) return;
+      im.dataset.retry = n + 1;
+      const base = (im.dataset.src0 = im.dataset.src0 || im.getAttribute("src"));
+      setTimeout(() => { if (im.isConnected) im.src = base + (base.includes("?") ? "&" : "?") + "r=" + (n + 1) + "_" + Date.now(); }, [500, 1500, 4000][n]);
+    }, true);
     $("#tab-reqs").addEventListener("click", onReqClick);
     $("#tab-reqs").addEventListener("input", (e) => { if (e.target.id === "reqText") keep(e.target.dataset.key, e.target.value); });
     $("#tab-reqs").addEventListener("keydown", (e) => { // 슬라이드 요청 칸도 메모 팝오버처럼: Enter = 메모 남기기(초안), Shift+Enter = 줄바꿈

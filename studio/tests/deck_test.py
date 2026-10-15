@@ -7,6 +7,7 @@ import subprocess
 import sys
 import tempfile
 import time
+import urllib.error
 import urllib.request
 from pathlib import Path
 for _s in (sys.stdout, sys.stderr): _s.reconfigure(encoding="utf-8", errors="replace")
@@ -91,6 +92,15 @@ def main():
         with urllib.request.urlopen(urllib.request.Request(base + f"/out/{i3}.pptx", method="HEAD"), timeout=30) as h:
             cd = h.headers.get("Content-Disposition") or ""
         check("GET /out/<id>.pptx 의 Content-Disposition 에 제목", "filename*=UTF-8''API%20%EB%8D%B1.pptx" in cd, cd)
+        # 그림·산출물은 ETag 재검증(304) - 썸네일을 다시 그릴 때 다시 받지 않게
+        with urllib.request.urlopen(base + f"/out/{i3}.pptx", timeout=30) as h:
+            et = h.headers.get("ETag"); cc = h.headers.get("Cache-Control") or ""
+        code = None
+        try:
+            urllib.request.urlopen(urllib.request.Request(base + f"/out/{i3}.pptx", headers={"If-None-Match": et or ""}), timeout=30)
+        except urllib.error.HTTPError as e:
+            code = e.code
+        check("ETag + If-None-Match → 304 · must-revalidate", bool(et) and code == 304 and "must-revalidate" in cc, f"etag={et} code={code} cc={cc}")
     finally:
         srv.terminate()
     print("실패:", FAILS or "없음")
