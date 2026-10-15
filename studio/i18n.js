@@ -194,6 +194,11 @@
     "파일을 오른쪽 단추 →": "Right-click the file →", "(현재 사용자) 또는": "(current user) or", "PowerPoint·브라우저를 다시 연다.": "Reopen PowerPoint and the browser.", "에 넣은 글꼴은 그 폴더에서": "Fonts placed in", "로 한 번에 설치(관리자 권한 불필요).": "can be installed from that folder in one go (no admin rights).", "글꼴 파일을 두 번 눌러": "Double-click the font file",
     "맑은 고딕·Consolas 는 Windows 기본 글꼴이라 macOS 에는 없다 — 받는 쪽이 macOS 면 무료 글꼴 세트를 쓴다.": "Malgun Gothic and Consolas ship with Windows and are absent on macOS — use a free font set when the recipient is on macOS.", "도 같은 일을 한다.": "does the same.", "— 편집기": "— editor",
     "내보내기 → PPTX 내보내기 — 글꼴 포함": "Export → Export PPTX — with fonts", "(Windows·PowerPoint 필요): 쓴 글자만 PPTX 안에 넣어 받는 사람이 설치하지 않아도 같은 모양으로 본다. 포함 금지(fsType) 글꼴은 들어가지 않는다. 쓴 글꼴은 내보낼 때마다": "(needs Windows and PowerPoint): embeds only the glyphs used, so recipients see the same look without installing. Fonts that forbid embedding (fsType) are skipped. The fonts used are recorded on every export in", "에 기록된다.": ".",
+    // ---- 요청 기록·찾기(편집기 요청 탭 [더보기] · 서버 작업 목록)
+    "요청 기록": "Request history", "더보기": "More", "최근": "Recent", "최근 24시간에 진행된 요청과 아직 끝나지 않은 요청만 보입니다 - 이전 것은 [더보기]": "Only requests active in the last 24 hours and still-open ones are shown - older ones under [More]",
+    "이전 요청까지 모두 찾아보기(편집 화면 위에 뜹니다)": "Browse and search all requests, including older ones (opens over the editor)", "제목·내용·답으로 찾기 - 기본 퍼지(띄어쓰기·한두 글자 차이 허용)": "Search text and replies - fuzzy by default (tolerates spacing and a typo or two)",
+    "대소문자 구분": "Match case", "단어 단위": "Whole word", "정규식": "Regular expression", "찾기 방식 - 기본은 퍼지(띄어쓰기·한두 글자 차이 허용)": "Search mode - fuzzy by default (tolerates spacing and a typo or two)", "정규식 오류:": "Regex error:",
+    "상태": "Status",
     // ---- 편집기 - 남은 글
     "세션 연결 없음 ▾": "No session ▾", "세션 연결됨 ▾": "Session connected ▾", "세션 연결 없음. 눌러서 웹 세션을 시작하거나, 터미널 세션에서 watch_requests.py --stream 을 Monitor 로 실행하면 연결된다": "No session. Click to start a web session, or run watch_requests.py --stream with Monitor in a terminal session to connect",
     "내보내기 - PPTX · PowerPoint 렌더 미리보기": "Export - PPTX · PowerPoint render preview", "최대화 배치 - 노트·개요·검사를 오른쪽 아래로 옮기고 가운데를 슬라이드에 (Ctrl+Shift+M)": "Maximized layout - move notes/outline/check to the bottom right and give the center to the slide (Ctrl+Shift+M)",

@@ -9,6 +9,7 @@
 <script src="/studio/i18n.js"></script>
 <script src="/studio/menu.js"></script>
 <script src="/studio/lightbox.js"></script>
+<script src="/studio/search.js"></script>
 <!-- 서버 작업(엔진 요청 큐) 전체 목록(/engine) - 시작 페이지 카드는 최근 5건만, 나머지는 여기서 검색·상태별 조회·관리자 조작. 허브에서만. -->
 <style>
   :root { --p: #A91F24; --pc: #FFDAD6; --onpc: #410004; --bg: #F4F1F1; --card: #fff; --tone: #F2EFEF; --tone2: #ECE8E8; --ink: #1F1B1B; --ink2: #534343; --line: #D8C2C0; --ok: #146C2E; --okc: #C4EED0; --warn: #7D5700; --warnc: #FFDEA6; --err: #BA1A1A; --font: "Pretendard", "Malgun Gothic", system-ui, sans-serif; }
@@ -59,11 +60,12 @@
 <main>
   <div class="card">
     <div class="bar">
-      <input type="search" id="q" placeholder="제목·내용·답·요청자·커밋·번호로 찾기 (예: 글머리, #9, kiros33)" autocomplete="off">
+      <input type="search" id="q" placeholder="제목·내용·답·요청자·커밋·번호로 찾기 (예: 글머리, #9, kiros33) - 기본 퍼지" autocomplete="off">
+      <span id="qtg" title="찾기 방식 - 기본은 퍼지(띄어쓰기·한두 글자 차이 허용)"></span>
       <span id="filters"></span>
       <button type="button" class="chip" id="reload" title="다시 읽기">↻</button>
     </div>
-    <div class="hint" style="margin-top:6px">최근 것이 위. 제목을 누르면 내용·답·첨부를 펼칩니다. 관리자는 승인·거절·적용됨·삭제를 여기서도 할 수 있습니다.</div>
+    <div class="hint" style="margin-top:6px">최근 것이 위. 제목을 누르면 내용·답·첨부를 펼칩니다. 관리자는 승인·거절·적용됨·삭제를 여기서도 할 수 있습니다. <span id="qerr" style="color:var(--err)"></span></div>
   </div>
   <div class="card"><div class="list" id="list"></div><div class="more" id="more" style="display:none"><button type="button" class="chip" id="moreBtn">더 보기</button></div></div>
 </main>
@@ -76,7 +78,9 @@
   const PAGE = 30;
   const S = { items: [], admin: false, q: "", status: "", shown: PAGE, open: new Set() };
   const fmtT = (iso) => { const m = /^(\d{4})-(\d\d)-(\d\d)T(\d\d:\d\d)/.exec(iso || ""); return m ? `${m[1]}-${m[2]}-${m[3]} ${m[4]}` : (iso || ""); };
-  const hl = (s) => { const t = esc(String(s == null ? "" : s)); if (!S.q) return t; const re = new RegExp(S.q.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "gi"); return t.replace(re, (m) => `<mark>${m}</mark>`); };
+  const tgOpts = NexaSearch.toggles($("#qtg"), "engine", () => { S.shown = PAGE; render(); });  // Aa · ab · .* (저장됨)
+  let M = NexaSearch.matcher("");
+  const hl = (s) => M.hl(s);
   async function load() {
     const r = await fetch("/api/engine/requests", { cache: "no-store" }); const d = await r.json();
     if (!d.ok) { $("#list").innerHTML = `<div class="empty">${esc(d.error || "읽지 못했습니다")}</div>`; return; }
@@ -88,11 +92,13 @@
   function matches(x) {
     if (S.status && x.status !== S.status) return false;
     if (!S.q) return true;
-    const q = S.q.toLowerCase(), f = x.from || {};
+    const f = x.from || {};
     if (/^#?\d+$/.test(S.q) && String(x.id) === S.q.replace("#", "")) return true;
-    return [x.title, x.body, x.reply, x.commit, x.appliedCommit, x.branch, f.user, f.wsId, f.ws, x.test, ...(x.evidence || []), ...((x.attachments || []).map((a) => a.name))].some((v) => v && String(v).toLowerCase().includes(q));
+    return M.any([x.title, x.body, x.reply, x.commit, x.appliedCommit, x.branch, f.user, f.wsId, f.ws, x.test, ...(x.evidence || []), ...((x.attachments || []).map((a) => a.name))]);
   }
   function render() {
+    M = NexaSearch.matcher(S.q, tgOpts());
+    $("#qerr").textContent = M.error ? `정규식 오류: ${M.error}` : "";
     const counts = {}; S.items.forEach((x) => { counts[x.status] = (counts[x.status] || 0) + 1; });
     $("#filters").innerHTML = [["", "전체", S.items.length], ...ORDER.map((k) => [k, ST_KO[k], counts[k] || 0])].filter(([k, , c]) => !k || c).map(([k, t, c]) => `<button type="button" class="chip${S.status === k ? " on" : ""}" data-st="${k}">${t} <span class="n">${c}</span></button>`).join("");
     const list = S.items.filter(matches);

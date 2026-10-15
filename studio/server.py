@@ -1413,7 +1413,7 @@ class H(BaseHTTPRequestHandler):
             elif act == "send":  # 초안(draft) → 대기(open) — "요청 N개 보내기"
                 for r in items:
                     if r.get("status") == "draft" and (not b.get("slide") or r.get("slide") == b.get("slide")):
-                        r["status"] = "open"
+                        r["status"], r["updated"] = "open", dt.datetime.now().isoformat(timespec="seconds")
             elif act == "discard":  # 초안 지우기(현재 슬라이드 또는 전체)
                 items = [r for r in items if not (r.get("status") == "draft" and (not b.get("slide") or r.get("slide") == b.get("slide")))]
             elif act == "delete":
@@ -1427,6 +1427,7 @@ class H(BaseHTTPRequestHandler):
                         for k in ("status", "reply", "text"):
                             if k in b:
                                 r[k] = b[k]
+                        r["updated"] = dt.datetime.now().isoformat(timespec="seconds")  # 마지막 진행 시각 - 요청 탭 기본 보기(24시간)의 기준
                         if "attachments" in b:
                             r["attachments"] = self._valid_attachments(i, b.get("attachments"))
             else:
