@@ -37,6 +37,8 @@
     return out === undefined ? s : m[1] + out + m[3];
   }
   const t = (s) => tr1(String(s == null ? "" : s));
+  /** 데이터 라벨 - 객체의 i18n[언어][키]가 있으면 그것, 없으면 원문을 사전으로(템플릿·시작용 내용·슬라이드 유형의 label·description 등). docs/dev/i18n.md 2절 */
+  const pick = (obj, key) => { if (!obj) return ""; const l = effective(), v = obj.i18n && obj.i18n[l] && obj.i18n[l][key]; return v != null ? String(v) : t(obj[key]); };
 
   // ---------- DOM 적용 - 원문은 노드별로 기억해 두고 언어가 바뀌면 원문에서 다시 번역
   const ORIG = new WeakMap();
@@ -111,5 +113,5 @@
   }
   const nameOf = (k) => (k === "ko" ? "한국어" : (LOC()[k] && LOC()[k].name) || k);
   const options = () => [{ value: "system", label: `System (${nameOf(sysLang())})` }, ...langs().filter((k) => k !== "ko").map((k) => ({ value: k, label: nameOf(k) })), { value: "ko", label: "한국어" }];
-  window.I18N = { t, set, lang: () => cur, effective, options, apply: applyAll, langs, get dict() { return dictOf(effective() === "ko" ? "en" : effective()); } };
+  window.I18N = { t, pick, set, lang: () => cur, effective, options, apply: applyAll, langs, get dict() { return dictOf(effective() === "ko" ? "en" : effective()); } };
 })();

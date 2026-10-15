@@ -42,5 +42,11 @@
       "day3-container": "#EEDCF7",
       "on-day3-container": "#2A0840"
     }
+  },
+  "i18n": {
+    "en": {
+      "label": "Schedule · roadmap - calm blue",
+      "description": "Gantt charts, milestones, roadmaps and timetables. Blue · teal · violet as phase colors so each phase stands apart, on a pale blue-gray background."
+    }
   }
 }

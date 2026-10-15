@@ -1,21 +1,27 @@
 {
- "label": "IR·재무 브리핑 (12장)",
- "description": "실적·전망·밸류에이션을 원장풍으로 — 표·범위·요약 패널. 기본 구성: 표지 — 제목형 → 요약 — 결론 먼저 → KPI 대시보드 → 추이 — 선 그래프 → 표 → 구성비 → 구성비 — 도넛 → 범위·민감도 → 근거 + 해석 패널 → 리스크·이슈와 요청 → 예상 질문(부록) → 끝",
- "template": "proposal",
- "config": {
-  "partLabels": {
-   "day1": "IR",
-   "day2": "IR",
-   "day3": "IR",
-   "apx": "부록"
+  "label": "IR·재무 브리핑 (12장)",
+  "description": "실적·전망·밸류에이션을 원장풍으로 — 표·범위·요약 패널. 기본 구성: 표지 — 제목형 → 요약 — 결론 먼저 → KPI 대시보드 → 추이 — 선 그래프 → 표 → 구성비 → 구성비 — 도넛 → 범위·민감도 → 근거 + 해석 패널 → 리스크·이슈와 요청 → 예상 질문(부록) → 끝",
+  "template": "proposal",
+  "config": {
+    "partLabels": {
+      "day1": "IR",
+      "day2": "IR",
+      "day3": "IR",
+      "apx": "부록"
+    },
+    "coverBadge": "IR"
   },
-  "coverBadge": "IR"
- },
- "decks": [
-  "ir"
- ],
- "copy": [
-  "content"
- ],
- "source": "템플릿 유형 ir-finance — docs/research/genspark-skills/05-template-types.md (참고 덱 026, 009, 074, 058)"
+  "decks": [
+    "ir"
+  ],
+  "copy": [
+    "content"
+  ],
+  "source": "템플릿 유형 ir-finance — docs/research/genspark-skills/05-template-types.md (참고 덱 026, 009, 074, 058)",
+  "i18n": {
+    "en": {
+      "label": "IR · finance briefing (12 slides)",
+      "description": "Results · outlook · valuation in ledger style — tables · ranges · summary panels. Default outline: Cover — title → Summary — conclusion first → KPI dashboard → Trend — line chart → Table → Composition → Composition — donut → Range · sensitivity → Evidence + interpretation panel → Risks · issues and asks → Anticipated questions (appendix) → End"
+    }
+  }
 }

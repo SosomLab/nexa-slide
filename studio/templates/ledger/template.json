@@ -61,5 +61,11 @@
   "parts": {
     "_comment": "구조 부품(layouts.py PARTS) — labels·foot·pageGhost",
     "foot": "band"
+  },
+  "i18n": {
+    "en": {
+      "label": "Ledger - cream · navy · gold",
+      "description": "IR · finance · board · public reporting. Cream background, navy panels and text, gold secondary, serif titles, no corners — ledger-style thin-rule tables (recommended in template review gs-tpl-ledger)."
+    }
   }
 }

@@ -1,5 +1,10 @@
 # 변경 이력
 
+## 0.22.8 - 2026-10-16 · 데이터 라벨 i18n 필드(`I18N.pick`) · 시험 실행기 Chrome 포트·종료 보강
+
+- 템플릿(`templates/*/template.json`)·시작용 내용(`starters/*/starter.json`)·슬라이드 유형(`studio/slide_types.json` 묶음·유형)에 **`i18n: {en: {label, description|desc|purpose}}`** 를 넣었다(영어 사전에서 옮김). 서버 목록(`list_templates`·`hub.templates/starters`·`/api/slidetypes`)이 `i18n` 을 그대로 주고, 화면은 **`I18N.pick(obj, "label")`**(언어 파일의 값 → 없으면 원문을 사전으로)로 고른다 - 시작 페이지 템플릿·시작용 내용 카드·선택 상자·미리 보기, 편집기 슬라이드 추가 창·⋯ 메뉴. 데이터를 고칠 때 그 파일의 `i18n` 만 같이 고치면 된다(`docs/dev/i18n.md` 2절). 유형의 `when` 은 화면에 쓰지 않아 비워 둠.
+- `smoke.js`: 실행마다 다른 Chrome 디버그 포트(앞선 실행의 창에 붙던 것), Windows 에서 Chrome 프로세스 트리 종료.
+
 ## 0.22.7 - 2026-10-16 · 엔진 요청 ↔ 원 요청 연결 · 적용 뒤 자동 재개
 
 - 세션이 엔진 요청으로 넘긴 원 요청(작업 공간 requests.json)에 `engineRequest: N` 이 기록되고 편집기 카드에 **엔진 요청 #N** 배지(중계면 `/engine?q=#N` 링크)가 보인다(`engine_request add --request --deck` → `engine_requests.link_origin`).

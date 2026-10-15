@@ -2240,15 +2240,15 @@ ${names}
       return;
     }
     const d = AD.data;
-    $("#adGroups").innerHTML = [["", "전체"], ...d.groups.map((g) => [g.id, g.label])].map(([id, l]) =>
+    $("#adGroups").innerHTML = [["", "전체"], ...d.groups.map((g) => [g.id, I18N.pick(g, "label")])].map(([id, l]) =>
       `<button data-adgroup="${id}" class="${AD.group === id ? "on" : ""}">${esc(l)} <small>${id ? d.types.filter((t) => t.group === id).length : d.types.length}</small></button>`).join("");
     const show = d.types.filter((t) => t.slide && (!AD.group || t.group === AD.group) && (!q || `${t.label} ${t.purpose} ${t.layout} ${t.layoutLabel}`.toLowerCase().includes(q)));
     const blankCard = !q || "빈 슬라이드 blank".includes(q) ? `<div class="ad-gt">빈 슬라이드<small>템플릿 기본 항목(로고·쪽번호·바닥 경로)만 - 본문은 직접 추가</small></div>
       <div class="ad-grid"><button class="ad-card" data-adlayout="blank" title="로고·쪽번호·바닥 경로만 있는 빈 장"><div class="ad-vp">${AD.blank ? Render.renderSlide(AD.blank, 1) : ""}</div><b>빈 슬라이드</b><small>로고 · 쪽번호만</small><span class="lay">blank</span></button></div>` : "";
     if (!AD.blank) api("POST", "/api/newslide", { layout: "blank", part: S.deck.part || "day1", id: "blank" }).then((r) => { if (r.ok) { AD.blank = r.data; renderAddDlg(); } });
-    $("#adBody").innerHTML = blankCard + d.groups.filter((g) => show.some((t) => t.group === g.id)).map((g) => `<div class="ad-gt">${esc(g.label)}<small>${esc(g.desc)}</small></div>
-      <div class="ad-grid">${show.filter((t) => t.group === g.id).map((t) => `<button class="ad-card" data-adtype="${esc(t.id)}" title="${esc(t.purpose)}${t.image ? `\n이미지: ${esc(t.image)}` : ""}">
-        <div class="ad-vp">${Render.renderSlide(t.slide, 1)}</div><b>${esc(t.label)}</b><small>${esc(t.purpose)}</small><span class="lay">${esc(t.layout)}${t.image ? " · 사진 자리" : ""}</span></button>`).join("")}</div>`).join("")
+    $("#adBody").innerHTML = blankCard + d.groups.filter((g) => show.some((t) => t.group === g.id)).map((g) => `<div class="ad-gt">${esc(I18N.pick(g, "label"))}<small>${esc(I18N.pick(g, "desc"))}</small></div>
+      <div class="ad-grid">${show.filter((t) => t.group === g.id).map((t) => `<button class="ad-card" data-adtype="${esc(t.id)}" title="${esc(I18N.pick(t, "purpose"))}${t.image ? `\n이미지: ${esc(t.image)}` : ""}">
+        <div class="ad-vp">${Render.renderSlide(t.slide, 1)}</div><b>${esc(I18N.pick(t, "label"))}</b><small>${esc(I18N.pick(t, "purpose"))}</small><span class="lay">${esc(t.layout)}${t.image ? " · 사진 자리" : ""}</span></button>`).join("")}</div>`).join("")
       || `<div class="hint">찾는 유형이 없습니다.</div>`;
     requestAnimationFrame(fitAdd);
   }
@@ -2462,7 +2462,7 @@ ${names}
       { h: "글꼴 세트 - 템플릿 기본" }, ...f.presets.filter((p) => p.source !== "workspace").map((p) => ({ label: `${p.name} - ${p.label}`, on: p.name === f.current, act: () => setFonts(p.name) })),
       ...(f.presets.some((p) => p.source === "workspace") ? [{ h: "글꼴 세트 - 작업 공간 지정(nexa-slide.json)" }, ...f.presets.filter((p) => p.source === "workspace").map((p) => ({ label: `${p.name} - ${p.label}`, on: p.name === f.current, act: () => setFonts(p.name) }))] : []),
       { label: "글꼴 설정 보기·수정…", act: showFonts }, "-",
-      { h: `템플릿: ${S.template ? S.template.label : "-"}` },
+      { h: `템플릿: ${S.template ? I18N.pick(S.template, "label") : "-"}` },
       { label: "코드 언어 이름표 표시", on: LS.get("langTag", "1") === "1", act: () => { LS.set("langTag", LS.get("langTag", "1") === "1" ? "0" : "1"); renderMarks(); renderProps(); } },
       { label: "단축키 보기", key: "?", act: showHelp },
       { label: "편집기 화면 배치 초기화", act: () => { ["mode", "btab", "bfold", "noright", "railW", "rightW", "bottomH", "maxi", "langTag"].forEach((k) => LS.set(k, "")); location.reload(); } },

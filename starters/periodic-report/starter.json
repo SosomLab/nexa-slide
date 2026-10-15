@@ -1,21 +1,27 @@
 {
- "label": "정기 업무 보고(주간·월간·QBR) (12장)",
- "description": "매 회차 같은 배치 — 결론 KPI·추이·상태·이슈·다음 행동. 기본 구성: 표지 — 제목형 → 요약 — 결론 먼저 → KPI 대시보드 → 추이 — 선 그래프 → 막대 비교 → 구성비 → 상태 표(신호등) → 히트맵·코호트 → 리스크·이슈와 요청 → 마일스톤 → 다음 행동·부탁 → 끝",
- "template": "swiss",
- "config": {
-  "partLabels": {
-   "day1": "정기 보고",
-   "day2": "정기 보고",
-   "day3": "정기 보고",
-   "apx": "부록"
+  "label": "정기 업무 보고(주간·월간·QBR) (12장)",
+  "description": "매 회차 같은 배치 — 결론 KPI·추이·상태·이슈·다음 행동. 기본 구성: 표지 — 제목형 → 요약 — 결론 먼저 → KPI 대시보드 → 추이 — 선 그래프 → 막대 비교 → 구성비 → 상태 표(신호등) → 히트맵·코호트 → 리스크·이슈와 요청 → 마일스톤 → 다음 행동·부탁 → 끝",
+  "template": "swiss",
+  "config": {
+    "partLabels": {
+      "day1": "정기 보고",
+      "day2": "정기 보고",
+      "day3": "정기 보고",
+      "apx": "부록"
+    },
+    "coverBadge": "정기 보고"
   },
-  "coverBadge": "정기 보고"
- },
- "decks": [
-  "report"
- ],
- "copy": [
-  "content"
- ],
- "source": "템플릿 유형 periodic-report — docs/research/genspark-skills/05-template-types.md (참고 덱 128, 044, 048, 050)"
+  "decks": [
+    "report"
+  ],
+  "copy": [
+    "content"
+  ],
+  "source": "템플릿 유형 periodic-report — docs/research/genspark-skills/05-template-types.md (참고 덱 128, 044, 048, 050)",
+  "i18n": {
+    "en": {
+      "label": "Periodic report (weekly · monthly · QBR) (12 slides)",
+      "description": "Same layout every time — headline KPIs · trends · status · issues · next actions. Default outline: Cover — title → Summary — conclusion first → KPI dashboard → Trend — line chart → Bar comparison → Composition → Status table (traffic lights) → Heatmap · cohort → Risks · issues and asks → Milestones → Next actions · asks → End"
+    }
+  }
 }

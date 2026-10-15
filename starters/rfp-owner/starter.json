@@ -1,20 +1,26 @@
 {
- "label": "RFP 제안요청서 요약 - 발주자용 (12장)",
- "description": "사업 한 문장 → 개요 2×2 → 기능·비기능 요구(조항 번호) → 범위 밖 → 평가 기준 → 제출 일정 → 제출물 → 제약 → 접수 방법.",
- "template": "proposal",
- "config": {
-  "partLabels": {
-   "day1": "제안요청서",
-   "day2": "제안요청서",
-   "day3": "제안요청서",
-   "apx": "부록"
+  "label": "RFP 제안요청서 요약 - 발주자용 (12장)",
+  "description": "사업 한 문장 → 개요 2×2 → 기능·비기능 요구(조항 번호) → 범위 밖 → 평가 기준 → 제출 일정 → 제출물 → 제약 → 접수 방법.",
+  "template": "proposal",
+  "config": {
+    "partLabels": {
+      "day1": "제안요청서",
+      "day2": "제안요청서",
+      "day3": "제안요청서",
+      "apx": "부록"
+    },
+    "coverBadge": "제안요청서"
   },
-  "coverBadge": "제안요청서"
- },
- "decks": [
-  "rfp"
- ],
- "copy": [
-  "content"
- ]
+  "decks": [
+    "rfp"
+  ],
+  "copy": [
+    "content"
+  ],
+  "i18n": {
+    "en": {
+      "label": "RFP summary - for issuers (12 slides)",
+      "description": "One-sentence project → 2×2 overview → functional · non-functional requirements (clause numbers) → out of scope → evaluation criteria → submission schedule → deliverables → constraints → how to submit."
+    }
+  }
 }

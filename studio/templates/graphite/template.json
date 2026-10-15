@@ -54,5 +54,11 @@
   "parts": {
     "_comment": "구조 부품(layouts.py PARTS) — labels·foot·pageGhost. 참고 덱은 작은 회색 라벨·가는 선 바닥줄이라 기본 부품 그대로",
     "foot": "minimal"
+  },
+  "i18n": {
+    "en": {
+      "label": "Graphite - white · grays · black",
+      "description": "Internal summaries · design systems · internal reports. White background, black text, no accent color — only gray steps and black weights, thin gray dividers, large black numbers, no corners (approved in template review, reference deck 101 minimalist-content-cleanup-deck)."
+    }
   }
 }

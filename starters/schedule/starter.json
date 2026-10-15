@@ -1,20 +1,26 @@
 {
- "label": "일정·로드맵 (7장)",
- "description": "마일스톤 → 로드맵(Now·Next·Later) → 13주 간트 → 교육 3일 시간표 → 이번 달 일정표.",
- "template": "schedule",
- "config": {
-  "partLabels": {
-   "day1": "일정",
-   "day2": "일정",
-   "day3": "일정",
-   "apx": "부록"
+  "label": "일정·로드맵 (7장)",
+  "description": "마일스톤 → 로드맵(Now·Next·Later) → 13주 간트 → 교육 3일 시간표 → 이번 달 일정표.",
+  "template": "schedule",
+  "config": {
+    "partLabels": {
+      "day1": "일정",
+      "day2": "일정",
+      "day3": "일정",
+      "apx": "부록"
+    },
+    "coverBadge": "일정 계획"
   },
-  "coverBadge": "일정 계획"
- },
- "decks": [
-  "schedule"
- ],
- "copy": [
-  "content"
- ]
+  "decks": [
+    "schedule"
+  ],
+  "copy": [
+    "content"
+  ],
+  "i18n": {
+    "en": {
+      "label": "Schedule · roadmap (7 slides)",
+      "description": "Milestones → roadmap (Now · Next · Later) → 13-week Gantt → 3-day training timetable → this month's calendar."
+    }
+  }
 }

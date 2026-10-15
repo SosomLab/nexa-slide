@@ -61,5 +61,11 @@
   "parts": {
     "_comment": "구조 부품(layouts.py PARTS) — labels·foot·pageGhost",
     "foot": "minimal"
+  },
+  "i18n": {
+    "en": {
+      "label": "Keynote - dark stage · gold",
+      "description": "Talks · keynotes · brand · event proposals. Dark background, one gold accent, serif titles. One sentence per slide, full-bleed photos and big numbers take the stage (approved in template review gs-tpl-keynote)."
+    }
   }
 }

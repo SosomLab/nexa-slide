@@ -4,42 +4,90 @@
   {
    "id": "intro",
    "label": "시작·도입",
-   "desc": "덱을 열고 길을 보여 주는 장"
+   "desc": "덱을 열고 길을 보여 주는 장",
+   "i18n": {
+    "en": {
+     "label": "Opening",
+     "desc": "Slides that open the deck and show the way"
+    }
+   }
   },
   {
    "id": "message",
    "label": "메시지",
-   "desc": "한 장에 하나의 주장·장면"
+   "desc": "한 장에 하나의 주장·장면",
+   "i18n": {
+    "en": {
+     "label": "Message",
+     "desc": "One claim or scene per slide"
+    }
+   }
   },
   {
    "id": "data",
    "label": "근거·데이터",
-   "desc": "숫자·추이·표로 근거를 보이는 장"
+   "desc": "숫자·추이·표로 근거를 보이는 장",
+   "i18n": {
+    "en": {
+     "label": "Evidence · data",
+     "desc": "Slides that show evidence with numbers, trends and tables"
+    }
+   }
   },
   {
    "id": "decide",
    "label": "비교·판단",
-   "desc": "선택지를 비교하고 결정을 요청하는 장"
+   "desc": "선택지를 비교하고 결정을 요청하는 장",
+   "i18n": {
+    "en": {
+     "label": "Compare · decide",
+     "desc": "Slides that compare options and ask for a decision"
+    }
+   }
   },
   {
    "id": "plan",
    "label": "과정·계획",
-   "desc": "순서·일정·구조를 보여 주는 장"
+   "desc": "순서·일정·구조를 보여 주는 장",
+   "i18n": {
+    "en": {
+     "label": "Process · plan",
+     "desc": "Slides that show order, schedule and structure"
+    }
+   }
   },
   {
    "id": "people",
    "label": "사람·사례",
-   "desc": "사람·사례·현장으로 설득하는 장"
+   "desc": "사람·사례·현장으로 설득하는 장",
+   "i18n": {
+    "en": {
+     "label": "People · cases",
+     "desc": "Slides that persuade with people, cases and the field"
+    }
+   }
   },
   {
    "id": "learn",
    "label": "학습·확인",
-   "desc": "개념·풀이·실습·확인 문제"
+   "desc": "개념·풀이·실습·확인 문제",
+   "i18n": {
+    "en": {
+     "label": "Learn · check",
+     "desc": "Concept · worked example · practice · check"
+    }
+   }
   },
   {
    "id": "close",
    "label": "마무리·부록",
-   "desc": "정리·다음 행동·근거·질의응답"
+   "desc": "정리·다음 행동·근거·질의응답",
+   "i18n": {
+    "en": {
+     "label": "Closing · appendix",
+     "desc": "Wrap-up · next actions · sources · Q&A"
+    }
+   }
   }
  ],
  "types": [
@@ -53,7 +101,13 @@
     "title": "결론이 보이는 덱 제목",
     "subtitle": "누구에게 무엇을 — 한 줄"
    },
-   "when": "덱의 첫 장 · 제목과 발표자"
+   "when": "덱의 첫 장 · 제목과 발표자",
+   "i18n": {
+    "en": {
+     "label": "Cover — title",
+     "purpose": "Start with the deck title, subtitle and presenter"
+    }
+   }
   },
   {
    "id": "cover-photo",
@@ -68,7 +122,13 @@
     "text": "숫자 한 줄과 걱정 한 가지",
     "sub": "발표자 · 날짜"
    },
-   "when": "분위기가 중요한 발표(강연·브랜드·이야기)의 첫 장, 대표 사진이 있을 때"
+   "when": "분위기가 중요한 발표(강연·브랜드·이야기)의 첫 장, 대표 사진이 있을 때",
+   "i18n": {
+    "en": {
+     "label": "Cover — full photo",
+     "purpose": "Set the mood with one scene first"
+    }
+   }
   },
   {
    "id": "agenda",
@@ -76,7 +136,13 @@
    "label": "진행 순서",
    "layout": "agenda",
    "purpose": "시간·담당이 있는 순서",
-   "when": "시간·담당이 정해진 순서(워크숍·회의·교육 일정)"
+   "when": "시간·담당이 정해진 순서(워크숍·회의·교육 일정)",
+   "i18n": {
+    "en": {
+     "label": "Agenda",
+     "purpose": "Sequence with time and owner"
+    }
+   }
   },
   {
    "id": "toc",
@@ -84,7 +150,13 @@
    "label": "목차",
    "layout": "toc",
    "purpose": "장 목록으로 길 안내",
-   "when": "장이 3개 이상인 긴 덱"
+   "when": "장이 3개 이상인 긴 덱",
+   "i18n": {
+    "en": {
+     "label": "Contents",
+     "purpose": "Guide with a list of chapters"
+    }
+   }
   },
   {
    "id": "section",
@@ -92,7 +164,13 @@
    "label": "장 구분",
    "layout": "chapter",
    "purpose": "새 장을 여는 표지",
-   "when": "새 장이 시작될 때"
+   "when": "새 장이 시작될 때",
+   "i18n": {
+    "en": {
+     "label": "Section divider",
+     "purpose": "Cover that opens a new chapter"
+    }
+   }
   },
   {
    "id": "hook-question",
@@ -105,7 +183,13 @@
     "text": "왜 같은 투자를 했는데 결과가 두 배 차이 났을까?",
     "sub": "오늘 30분 동안 이 질문에 답합니다"
    },
-   "when": "청중이 답을 궁금해할 질문으로 시작하고 싶을 때"
+   "when": "청중이 답을 궁금해할 질문으로 시작하고 싶을 때",
+   "i18n": {
+    "en": {
+     "label": "Open with a question",
+     "purpose": "One question that makes the audience want the answer"
+    }
+   }
   },
   {
    "id": "one-sentence",
@@ -117,7 +201,13 @@
     "kicker": "핵심",
     "text": "속도보다 멈추지 않는 것이 고객이 원한 것이었다"
    },
-   "when": "덱 전체의 결론·축을 한 문장으로 말할 때"
+   "when": "덱 전체의 결론·축을 한 문장으로 말할 때",
+   "i18n": {
+    "en": {
+     "label": "One key sentence",
+     "purpose": "The sentence that runs through the deck (axis)"
+    }
+   }
   },
   {
    "id": "dark-statement",
@@ -130,7 +220,13 @@
     "kicker": "그런데",
     "text": "숫자가 좋아질수록 놓친 것이 하나 있었다"
    },
-   "when": "흐름을 바꾸는 전환점(그런데·하지만)"
+   "when": "흐름을 바꾸는 전환점(그런데·하지만)",
+   "i18n": {
+    "en": {
+     "label": "Dark transition statement",
+     "purpose": "A pause slide that breaks the flow and emphasizes"
+    }
+   }
   },
   {
    "id": "photo-statement",
@@ -144,7 +240,13 @@
     "kicker": "현장",
     "text": "새벽 4시, 물류센터는 이미 다음 날을 준비하고 있었다"
    },
-   "when": "현장·장면 사진과 기억할 한 문장"
+   "when": "현장·장면 사진과 기억할 한 문장",
+   "i18n": {
+    "en": {
+     "label": "Photo + one sentence",
+     "purpose": "A memorable sentence over a field photo"
+    }
+   }
   },
   {
    "id": "quote-voice",
@@ -158,7 +260,13 @@
     "role": "구매 담당",
     "context": "2026년 9월 인터뷰"
    },
-   "when": "고객·현장·전문가의 실명 발언이 근거일 때"
+   "when": "고객·현장·전문가의 실명 발언이 근거일 때",
+   "i18n": {
+    "en": {
+     "label": "Quote — customer / field voice",
+     "purpose": "Trust through a named speaker's words"
+    }
+   }
   },
   {
    "id": "big-number",
@@ -166,7 +274,13 @@
    "label": "숫자 하나",
    "layout": "big_number",
    "purpose": "결론이 되는 숫자 하나와 맥락",
-   "when": "숫자 하나가 결론일 때(맥락·비교 하나)"
+   "when": "숫자 하나가 결론일 때(맥락·비교 하나)",
+   "i18n": {
+    "en": {
+     "label": "One number",
+     "purpose": "One conclusive number with context"
+    }
+   }
   },
   {
    "id": "exec-summary",
@@ -189,7 +303,13 @@
      "text": "주문 실패율(전년 같은 분기 대비)"
     }
    },
-   "when": "결론 먼저 — 바쁜 의사결정자용 첫 장(근거 3개 + 결론 수치)"
+   "when": "결론 먼저 — 바쁜 의사결정자용 첫 장(근거 3개 + 결론 수치)",
+   "i18n": {
+    "en": {
+     "label": "Summary — conclusion first",
+     "purpose": "Three reasons and the conclusive figure on the first slide"
+    }
+   }
   },
   {
    "id": "kpi-dashboard",
@@ -197,7 +317,13 @@
    "label": "KPI 대시보드",
    "layout": "kpi_tiles",
    "purpose": "핵심 지표 2~4개를 목표·비교와 함께",
-   "when": "지표 2~4개를 목표·전기 대비로"
+   "when": "지표 2~4개를 목표·전기 대비로",
+   "i18n": {
+    "en": {
+     "label": "KPI dashboard",
+     "purpose": "2–4 key metrics with targets and comparisons"
+    }
+   }
   },
   {
    "id": "trend-line",
@@ -206,7 +332,14 @@
    "layout": "line_chart",
    "purpose": "시간에 따른 변화·계획 대비·이벤트 전후",
    "ref": "line_chart",
-   "when": "시간에 따른 변화·계획 대비·이벤트 전후"
+   "when": "시간에 따른 변화·계획 대비·이벤트 전후",
+   "i18n": {
+    "en": {
+     "label": "Trend — line chart",
+     "purpose": "Change over time, vs plan, before/after an event",
+     "when": "Change over time, vs plan, before/after an event"
+    }
+   }
   },
   {
    "id": "bar-compare",
@@ -214,7 +347,13 @@
    "label": "막대 비교",
    "layout": "column_chart",
    "purpose": "항목·기간별 크기 비교",
-   "when": "항목·기간별 크기 비교(12개 이내)"
+   "when": "항목·기간별 크기 비교(12개 이내)",
+   "i18n": {
+    "en": {
+     "label": "Bar comparison",
+     "purpose": "Compare sizes by item or period"
+    }
+   }
   },
   {
    "id": "composition",
@@ -222,7 +361,13 @@
    "label": "구성비",
    "layout": "stack_bars",
    "purpose": "전체 안의 비율 비교",
-   "when": "전체 안의 비율을 여러 항목끼리 비교"
+   "when": "전체 안의 비율을 여러 항목끼리 비교",
+   "i18n": {
+    "en": {
+     "label": "Composition",
+     "purpose": "Compare shares of the whole"
+    }
+   }
   },
   {
    "id": "number-evidence",
@@ -231,7 +376,13 @@
    "layout": "number_chart",
    "purpose": "결론 숫자와 그 추이를 한 장에",
    "ref": "big_number_evidence",
-   "when": "결론 숫자 + 그 추이(트랙션·성장)"
+   "when": "결론 숫자 + 그 추이(트랙션·성장)",
+   "i18n": {
+    "en": {
+     "label": "Number + evidence chart",
+     "purpose": "The conclusive number and its trend on one slide"
+    }
+   }
   },
   {
    "id": "evidence-panel",
@@ -276,7 +427,13 @@
      "text": "전체 증가율 — 수도권이 절반 이상을 끌었다"
     }
    },
-   "when": "표·목록 근거 옆에 해석을 붙일 때"
+   "when": "표·목록 근거 옆에 해석을 붙일 때",
+   "i18n": {
+    "en": {
+     "label": "Evidence + interpretation panel",
+     "purpose": "Pin the interpretation next to table or list evidence"
+    }
+   }
   },
   {
    "id": "data-table",
@@ -284,7 +441,13 @@
    "label": "표",
    "layout": "table",
    "purpose": "여러 항목을 같은 기준으로",
-   "when": "여러 항목을 같은 기준으로 나열"
+   "when": "여러 항목을 같은 기준으로 나열",
+   "i18n": {
+    "en": {
+     "label": "Table",
+     "purpose": "Several items on the same criteria"
+    }
+   }
   },
   {
    "id": "status-board",
@@ -292,7 +455,13 @@
    "label": "상태 표(신호등)",
    "layout": "status_table",
    "purpose": "계획 대비 실적과 상태",
-   "when": "계획 대비 실적과 정상·주의·위험 상태"
+   "when": "계획 대비 실적과 정상·주의·위험 상태",
+   "i18n": {
+    "en": {
+     "label": "Status table (traffic light)",
+     "purpose": "Actual vs plan and status"
+    }
+   }
   },
   {
    "id": "range-estimate",
@@ -301,7 +470,13 @@
    "layout": "range_bars",
    "purpose": "추정치를 범위로·기준선과 함께",
    "ref": "range_scale",
-   "when": "추정치·밸류에이션을 범위로, 기준선과 함께"
+   "when": "추정치·밸류에이션을 범위로, 기준선과 함께",
+   "i18n": {
+    "en": {
+     "label": "Range · sensitivity",
+     "purpose": "Estimates as a range, with a baseline"
+    }
+   }
   },
   {
    "id": "funnel",
@@ -310,7 +485,13 @@
    "layout": "funnel",
    "purpose": "단계별로 줄어드는 수(전환·TAM)",
    "ref": "funnel_pyramid",
-   "when": "단계별로 줄어드는 수(전환·TAM→SAM→SOM)"
+   "when": "단계별로 줄어드는 수(전환·TAM→SAM→SOM)",
+   "i18n": {
+    "en": {
+     "label": "Funnel · market size",
+     "purpose": "Numbers shrinking by stage (conversion · TAM)"
+    }
+   }
   },
   {
    "id": "share-donut",
@@ -319,7 +500,13 @@
    "layout": "donut",
    "purpose": "비율 하나를 강조하는 구성비",
    "ref": "share_circle",
-   "when": "비율 하나를 강조(시간·예산·점유율)"
+   "when": "비율 하나를 강조(시간·예산·점유율)",
+   "i18n": {
+    "en": {
+     "label": "Composition — doughnut",
+     "purpose": "Composition that highlights one share"
+    }
+   }
   },
   {
    "id": "heatmap",
@@ -328,7 +515,13 @@
    "layout": "heatmap",
    "purpose": "행×열 값을 색 농도로(코호트·세그먼트×월)",
    "ref": "heatmap",
-   "when": "행×열 값(코호트 유지율·세그먼트×월)"
+   "when": "행×열 값(코호트 유지율·세그먼트×월)",
+   "i18n": {
+    "en": {
+     "label": "Heatmap · cohort",
+     "purpose": "Row × column values as color intensity (cohort · segment × month)"
+    }
+   }
   },
   {
    "id": "before-after",
@@ -336,7 +529,14 @@
    "label": "전후 비교",
    "layout": "compare",
    "purpose": "바꾸기 전과 후",
-   "when": "바꾸기 전과 후"
+   "when": "바꾸기 전과 후",
+   "i18n": {
+    "en": {
+     "label": "Before / after",
+     "purpose": "Before and after the change",
+     "when": "Before and after the change"
+    }
+   }
   },
   {
    "id": "options",
@@ -345,7 +545,14 @@
    "layout": "tier_columns",
    "purpose": "대안 2~4개 중 추천안",
    "ref": "tier_columns",
-   "when": "대안 2~4개 중 추천안"
+   "when": "대안 2~4개 중 추천안",
+   "i18n": {
+    "en": {
+     "label": "Option comparison (recommended highlighted)",
+     "purpose": "The recommended one among 2–4 alternatives",
+     "when": "The recommended one among 2–4 alternatives"
+    }
+   }
   },
   {
    "id": "matrix-2x2",
@@ -354,7 +561,13 @@
    "layout": "matrix_plot",
    "purpose": "효과×실행으로 항목 배치",
    "ref": "matrix_plot",
-   "when": "두 기준(효과×실행 등)으로 항목 배치·우선순위"
+   "when": "두 기준(효과×실행 등)으로 항목 배치·우선순위",
+   "i18n": {
+    "en": {
+     "label": "Quadrant priorities",
+     "purpose": "Place items by impact × effort"
+    }
+   }
   },
   {
    "id": "pros-cons",
@@ -362,7 +575,14 @@
    "label": "장단점·대비 카드",
    "layout": "cards",
    "purpose": "두세 가지를 나란히 대비",
-   "when": "두세 가지를 나란히 대비"
+   "when": "두세 가지를 나란히 대비",
+   "i18n": {
+    "en": {
+     "label": "Pros / cons · contrast cards",
+     "purpose": "Contrast two or three side by side",
+     "when": "Contrast two or three side by side"
+    }
+   }
   },
   {
    "id": "decision-ask",
@@ -370,7 +590,13 @@
    "label": "결정 요청",
    "layout": "decision_brief",
    "purpose": "무엇을·누가·언제까지 결정",
-   "when": "결정권자에게 무엇을·누가·언제까지 요청"
+   "when": "결정권자에게 무엇을·누가·언제까지 요청",
+   "i18n": {
+    "en": {
+     "label": "Decision request",
+     "purpose": "What, who and by when to decide"
+    }
+   }
   },
   {
    "id": "risk-issues",
@@ -378,7 +604,13 @@
    "label": "리스크·이슈와 요청",
    "layout": "issue_cards",
    "purpose": "상황·영향·요청·담당·기한",
-   "when": "리스크·이슈와 대응·요청"
+   "when": "리스크·이슈와 대응·요청",
+   "i18n": {
+    "en": {
+     "label": "Risks · issues and asks",
+     "purpose": "Situation · impact · ask · owner · due"
+    }
+   }
   },
   {
    "id": "pricing",
@@ -420,7 +652,13 @@
      }
     ]
    },
-   "when": "등급별 가격·패키지"
+   "when": "등급별 가격·패키지",
+   "i18n": {
+    "en": {
+     "label": "Pricing · packages",
+     "purpose": "Price and inclusions per tier"
+    }
+   }
   },
   {
    "id": "process-flow",
@@ -428,7 +666,13 @@
    "label": "단계 흐름",
    "layout": "flow",
    "purpose": "화살표로 잇는 순서",
-   "when": "순서가 있는 단계(화살표)"
+   "when": "순서가 있는 단계(화살표)",
+   "i18n": {
+    "en": {
+     "label": "Step flow",
+     "purpose": "Sequence joined by arrows"
+    }
+   }
   },
   {
    "id": "milestones",
@@ -436,7 +680,14 @@
    "label": "마일스톤",
    "layout": "milestones",
    "purpose": "날짜가 있는 주요 시점",
-   "when": "날짜가 있는 주요 시점"
+   "when": "날짜가 있는 주요 시점",
+   "i18n": {
+    "en": {
+     "label": "Milestones",
+     "purpose": "Key moments with dates",
+     "when": "Key moments with dates"
+    }
+   }
   },
   {
    "id": "roadmap",
@@ -444,7 +695,13 @@
    "label": "로드맵 Now·Next·Later",
    "layout": "roadmap",
    "purpose": "시기별 할 일 묶음",
-   "when": "시기별(Now·Next·Later) 할 일"
+   "when": "시기별(Now·Next·Later) 할 일",
+   "i18n": {
+    "en": {
+     "label": "Roadmap Now · Next · Later",
+     "purpose": "Work grouped by period"
+    }
+   }
   },
   {
    "id": "gantt",
@@ -452,7 +709,14 @@
    "label": "간트",
    "layout": "gantt",
    "purpose": "기간×작업 일정",
-   "when": "기간×작업 일정"
+   "when": "기간×작업 일정",
+   "i18n": {
+    "en": {
+     "label": "Gantt",
+     "purpose": "Period × task schedule",
+     "when": "Period × task schedule"
+    }
+   }
   },
   {
    "id": "week-schedule",
@@ -460,7 +724,13 @@
    "label": "시간표",
    "layout": "week_grid",
    "purpose": "일자×시간 칸",
-   "when": "일자×시간 시간표"
+   "when": "일자×시간 시간표",
+   "i18n": {
+    "en": {
+     "label": "Timetable",
+     "purpose": "Day × time cells"
+    }
+   }
   },
   {
    "id": "numbered-steps",
@@ -469,7 +739,13 @@
    "layout": "numbered_rows",
    "purpose": "세 가지 원인·요청·교훈을 번호로",
    "ref": "numbered_rows",
-   "when": "원인·교훈·요점 3~5개를 번호로"
+   "when": "원인·교훈·요점 3~5개를 번호로",
+   "i18n": {
+    "en": {
+     "label": "Big-number steps · points",
+     "purpose": "Three causes, asks or lessons, numbered"
+    }
+   }
   },
   {
    "id": "issue-tree",
@@ -478,7 +754,13 @@
    "layout": "tree",
    "purpose": "하나를 갈래로 나눠 원인·구성 보기",
    "ref": "tree_org",
-   "when": "하나를 갈래로 나눠 원인·구성 보기(이슈·지표 트리)"
+   "when": "하나를 갈래로 나눠 원인·구성 보기(이슈·지표 트리)",
+   "i18n": {
+    "en": {
+     "label": "Issue · metric tree",
+     "purpose": "Branch one thing into causes or parts"
+    }
+   }
   },
   {
    "id": "diagram",
@@ -486,7 +768,13 @@
    "label": "구조도",
    "layout": "diagram",
    "purpose": "시스템·관계도(Mermaid)",
-   "when": "시스템·관계 구조(Mermaid)"
+   "when": "시스템·관계 구조(Mermaid)",
+   "i18n": {
+    "en": {
+     "label": "Structure diagram",
+     "purpose": "System · relationship diagram (Mermaid)"
+    }
+   }
   },
   {
    "id": "team",
@@ -496,7 +784,14 @@
    "purpose": "사람 2~4명 소개",
    "ref": "people_cards",
    "image": "카드 사진 · 인물 · 세로 3:4 · 줄 단위 톤 통일",
-   "when": "사람 2~4명 소개"
+   "when": "사람 2~4명 소개",
+   "i18n": {
+    "en": {
+     "label": "Team · people cards",
+     "purpose": "Introduce 2–4 people",
+     "when": "Introduce 2–4 people"
+    }
+   }
   },
   {
    "id": "profile",
@@ -505,7 +800,13 @@
    "layout": "photo_text",
    "purpose": "한 사람·한 대상을 깊게",
    "image": "반쪽 · 인물·장소 · 시선이 글 쪽",
-   "when": "한 사람·한 대상을 사진과 함께 깊게"
+   "when": "한 사람·한 대상을 사진과 함께 깊게",
+   "i18n": {
+    "en": {
+     "label": "Person / subject intro (photo + text)",
+     "purpose": "One person or subject in depth"
+    }
+   }
   },
   {
    "id": "case-story",
@@ -514,7 +815,13 @@
    "layout": "case_story",
    "purpose": "사례와 생각해 볼 질문",
    "ref": "case_story",
-   "when": "사례와 생각해 볼 질문(교육·분석)"
+   "when": "사례와 생각해 볼 질문(교육·분석)",
+   "i18n": {
+    "en": {
+     "label": "Case presentation",
+     "purpose": "A case and a question to consider"
+    }
+   }
   },
   {
    "id": "case-choice",
@@ -549,7 +856,13 @@
      }
     ]
    },
-   "when": "사례를 보고 A~D 판단(훈련·토론)"
+   "when": "사례를 보고 A~D 판단(훈련·토론)",
+   "i18n": {
+    "en": {
+     "label": "Case judgment (choices)",
+     "purpose": "Judge A–D from the case"
+    }
+   }
   },
   {
    "id": "photo-plates",
@@ -559,7 +872,14 @@
    "purpose": "현장·결과물 사진 여러 장",
    "ref": "photo_plates",
    "image": "가로 띠·카드 · 증거·과정 · 같은 톤",
-   "when": "현장·결과물 사진 여러 장"
+   "when": "현장·결과물 사진 여러 장",
+   "i18n": {
+    "en": {
+     "label": "Photo plates",
+     "purpose": "Several field or deliverable photos",
+     "when": "Several field or deliverable photos"
+    }
+   }
   },
   {
    "id": "concept",
@@ -567,7 +887,13 @@
    "label": "개념 설명",
    "layout": "bullets",
    "purpose": "핵심 개념 글머리",
-   "when": "개념·요점 글머리"
+   "when": "개념·요점 글머리",
+   "i18n": {
+    "en": {
+     "label": "Concept",
+     "purpose": "Key concept bullets"
+    }
+   }
   },
   {
    "id": "worked-example",
@@ -576,7 +902,13 @@
    "layout": "worked_example",
    "purpose": "문제 → 단계 → 답, 규칙·함정",
    "ref": "worked_example",
-   "when": "문제 → 단계 → 답(풀이·계산·문법)"
+   "when": "문제 → 단계 → 답(풀이·계산·문법)",
+   "i18n": {
+    "en": {
+     "label": "Step-by-step solution",
+     "purpose": "Problem → steps → answer, rules and pitfalls"
+    }
+   }
   },
   {
    "id": "quiz",
@@ -585,7 +917,13 @@
    "layout": "quiz",
    "purpose": "보기 4개로 이해도 확인",
    "ref": "quiz_check",
-   "when": "이해도 확인 문제(보기 4개)"
+   "when": "이해도 확인 문제(보기 4개)",
+   "i18n": {
+    "en": {
+     "label": "Check question",
+     "purpose": "Check understanding with four choices"
+    }
+   }
   },
   {
    "id": "lab",
@@ -593,7 +931,14 @@
    "label": "실습",
    "layout": "lab",
    "purpose": "실습 과제와 단계",
-   "when": "실습 과제와 단계"
+   "when": "실습 과제와 단계",
+   "i18n": {
+    "en": {
+     "label": "Practice",
+     "purpose": "Practice task and steps",
+     "when": "Practice task and steps"
+    }
+   }
   },
   {
    "id": "code-walk",
@@ -601,7 +946,14 @@
    "label": "코드 설명",
    "layout": "code_plan",
    "purpose": "코드와 실행 계획",
-   "when": "코드와 실행 계획"
+   "when": "코드와 실행 계획",
+   "i18n": {
+    "en": {
+     "label": "Code walkthrough",
+     "purpose": "Code and execution plan",
+     "when": "Code and execution plan"
+    }
+   }
   },
   {
    "id": "summary",
@@ -609,7 +961,13 @@
    "label": "정리",
    "layout": "summary",
    "purpose": "기억할 것",
-   "when": "장·덱의 기억할 것"
+   "when": "장·덱의 기억할 것",
+   "i18n": {
+    "en": {
+     "label": "Wrap-up",
+     "purpose": "What to remember"
+    }
+   }
   },
   {
    "id": "next-actions",
@@ -638,7 +996,13 @@
      }
     ]
    },
-   "when": "누가 무엇을 언제까지(마지막 장)"
+   "when": "누가 무엇을 언제까지(마지막 장)",
+   "i18n": {
+    "en": {
+     "label": "Next actions · asks",
+     "purpose": "Who does what by when"
+    }
+   }
   },
   {
    "id": "references",
@@ -647,7 +1011,13 @@
    "layout": "references",
    "purpose": "근거 목록과 쓴 장",
    "ref": "references",
-   "when": "근거·출처 목록"
+   "when": "근거·출처 목록",
+   "i18n": {
+    "en": {
+     "label": "References · sources",
+     "purpose": "List of sources and where used"
+    }
+   }
   },
   {
    "id": "qa",
@@ -656,7 +1026,13 @@
    "layout": "qa",
    "purpose": "질문·답·근거를 미리",
    "ref": "qa_backup",
-   "when": "예상 질문과 답(부록)"
+   "when": "예상 질문과 답(부록)",
+   "i18n": {
+    "en": {
+     "label": "Anticipated questions (appendix)",
+     "purpose": "Questions, answers and evidence in advance"
+    }
+   }
   },
   {
    "id": "end",
@@ -664,7 +1040,14 @@
    "label": "끝",
    "layout": "end",
    "purpose": "문서 끝",
-   "when": "문서 끝"
+   "when": "문서 끝",
+   "i18n": {
+    "en": {
+     "label": "End",
+     "purpose": "End of document",
+     "when": "End of document"
+    }
+   }
   }
  ]
 }

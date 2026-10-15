@@ -54,5 +54,11 @@
   "parts": {
     "_comment": "구조 부품(layouts.py PARTS) — labels·foot·pageGhost",
     "foot": "band"
+  },
+  "i18n": {
+    "en": {
+      "label": "Signal - yellow · black · red",
+      "description": "Safety and field training · school classes · recruiting posters. White background, yellow accent with black bands, red warnings, bold sans-serif, no corners — big numbers and step bands take the stage (recommended in template review gs-tpl-signal)."
+    }
   }
 }
