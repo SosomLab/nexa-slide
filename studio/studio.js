@@ -1339,9 +1339,9 @@ ${names}
     if ($("#reqHist")) { $("#reqHist input").focus(); return; }
     closeMenu();
     const back = document.createElement("div"); back.id = "reqHist";
-    back.innerHTML = `<div class="box"><div class="hd"><h3>요청 기록<small id="rhCnt"></small></h3><button type="button" class="chip sm" id="rhClose" title="닫기 (Esc)">✕</button></div>
-      <div class="sb"><input type="search" placeholder="제목·내용·답으로 찾기 - 기본 퍼지(띄어쓰기·한두 글자 차이 허용)" autocomplete="off" value="${esc(RH.q)}"><span id="rhTg" title="찾기 방식 - 기본은 퍼지(띄어쓰기·한두 글자 차이 허용)"></span></div>
-      <div class="fl"><span class="seg" id="rhScope"><button data-v="all">전체</button><button data-v="slide">이 슬라이드</button></span><span>상태</span><span class="seg" id="rhSt"><button data-v="">전체</button>${Object.entries(ST).map(([k, v]) => `<button data-v="${k}">${v}</button>`).join("")}</span><span class="err" id="rhErr"></span></div>
+    back.innerHTML = `<div class="box"><div class="rh-hd"><h3>요청 기록<small id="rhCnt"></small></h3><button type="button" class="chip sm" id="rhClose" title="닫기 (Esc)">✕</button></div>
+      <div class="rh-sb"><input type="search" placeholder="제목·내용·답으로 찾기 - 기본 퍼지(띄어쓰기·한두 글자 차이 허용)" autocomplete="off" value="${esc(RH.q)}"><span id="rhTg" title="찾기 방식 - 기본은 퍼지(띄어쓰기·한두 글자 차이 허용)"></span></div>
+      <div class="rh-fl"><span class="seg" id="rhScope"><button data-v="all">전체</button><button data-v="slide">이 슬라이드</button></span><span>상태</span><span class="seg" id="rhSt"><button data-v="">전체</button>${Object.entries(ST).map(([k, v]) => `<button data-v="${k}">${v}</button>`).join("")}</span><span class="err" id="rhErr"></span></div>
       <div class="list" id="rhList"></div></div>`;
     document.body.appendChild(back);
     RH.tg = NexaSearch.toggles(back.querySelector("#rhTg"), "reqs", renderReqHist);
