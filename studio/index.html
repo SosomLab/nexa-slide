@@ -435,6 +435,7 @@
   #help td { padding: 4px 8px; border-bottom: 1px solid var(--tone2); vertical-align: top; }
   #help td:first-child { white-space: nowrap; width: 38%; }
 .menu .shpgrid{display:grid;grid-template-columns:repeat(6,40px);gap:4px;padding:4px 8px 8px}.menu .shp{width:40px;height:32px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--primary);padding:0;cursor:pointer;display:flex;align-items:center;justify-content:center}.menu .shp:hover{background:var(--tone)}
+#stageWrap.dropping{outline:3px dashed var(--primary);outline-offset:-3px}
 </style>
 </head>
 <body class="m-edit">
@@ -499,6 +500,7 @@
           <div class="quick" id="memoQuick"></div>
           <div class="acts"><span class="mcnt" id="memoCnt">0 / 2000</span><button class="att-btn" data-attach="memo" title="그림 붙여넣기(Ctrl+V) · 끌어다 놓기 · 파일 고르기"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 11.5l-8.5 8.5a5 5 0 0 1-7-7l9-9a3.3 3.3 0 0 1 4.7 4.7l-9 9a1.6 1.6 0 0 1-2.3-2.3l8-8"/></svg>＋ 첨부</button><button class="chip sm" id="memoCancel">취소</button><button class="chip sm primary" id="memoOk" disabled>추가</button></div></div>
         <input type="file" id="attFile" multiple accept="image/*,.pdf,.txt,.md,.csv,.json,.pptx,.docx,.xlsx" style="display:none">
+        <input type="file" id="imgFile" multiple accept="image/png,image/jpeg,image/gif,image/webp,image/svg+xml" style="display:none">
         <div id="markbar"><span id="markMsg">보낼 요청</span><button class="chip sm" id="markDiscard" title="이 슬라이드에 메모가 있으면 그 슬라이드만, 없으면 전체를 지운다">취소</button><button class="chip sm primary" id="markSend">보내기</button></div>
       </div>
       <div class="pane" id="pngPane"><div class="cap">PowerPoint 렌더 <span id="pngInfo"></span><button class="chip sm" id="renderBtn">다시 렌더</button></div>
