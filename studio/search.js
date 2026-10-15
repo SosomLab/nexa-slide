@@ -83,5 +83,18 @@
     });
     return () => ({ ...o });
   }
-  window.NexaSearch = { matcher, toggles, options: load };
+  /** 질의에서 번호 지정(#4 · #4-6 · #4,5,7-10, 여러 토큰 가능)을 떼어 낸다 → { nums: Set(번호), text: 나머지 낱말 }. 번호의 뜻(슬라이드·요청 id)은 쓰는 쪽이 정한다 */
+  function split(q) {
+    const nums = new Set(), words = [];
+    for (const w of String(q || "").split(/\s+/).filter(Boolean)) {
+      if (/^#\d+(?:-\d+)?(?:,\d+(?:-\d+)?)*,?$/.test(w)) {
+        for (const part of w.slice(1).split(",").filter(Boolean)) {
+          const [a, b] = part.split("-").map(Number), lo = Math.min(a, b ?? a), hi = Math.max(a, b ?? a);
+          for (let i = lo; i <= Math.min(hi, lo + 999); i++) nums.add(i);
+        }
+      } else words.push(w);
+    }
+    return { nums, text: words.join(" ") };
+  }
+  window.NexaSearch = { matcher, toggles, split, options: load };
 })();
