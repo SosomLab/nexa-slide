@@ -1,5 +1,11 @@
 # 변경 이력
 
+## 0.21.24 - 2026-10-15 · 표 행·열 단추 · 글머리 감지 스위치 · import_pptx 도형·글머리 · 적용 커밋 필드
+
+- 편집기 표 속성 **＋행 −행 ＋열 −열**(머리 행·첫 열은 남김, `colW`·`colFont` 같이 맞춤). 글머리 속성 **글 앞 번호·기호 감지 켬/끔**(`autoNum`).
+- `import_pptx`: 프리셋 도형의 `prst` 와 덱 `shape` 종류(`PRST_TO_SHAPE`, 글 없는 화살표·별 같은 도형도 남김), 단락 글머리(자동 번호 → `marker` 종류·`start`, 글자 글머리 `bullet`, 없음) — slides.md 에 `[1.]`·`[•]` 로. `docs/claude-session.md`.
+- `engine_request.py status <id> applied --commit` 이 처리 커밋(`commit`)을 덮어쓰던 것 → `appliedCommit` 에 기록.
+
 ## 0.21.23 - 2026-10-15 · 시험 모음을 저장소에 (`studio/tests/`)
 
 - 그동안 개발 세션의 임시 폴더에만 있던 자동 시험을 `studio/tests/` 로 옮겼다 — `run_all.py`(기본 묶음: i18n·smoke(헤드리스 클릭 50여 단계)·e3·e4(수동 세션 수명)·englist·race·thread, 약 5분 · `--sessions` 로 실제 claude 턴 시험 c2·c3·c3b·c4), 헤드리스 실행기 `smoke.js`. 격리된 허브(5799)·작업 공간(`<임시 폴더>/nexa-slide-tests/`, 저장소 밖)을 쓰고 운영 서버를 건드리지 않는다. 작업 공간형 시험은 `init_workspace`+`build_deck` 으로 픽스처를 스스로 만든다. `docs/dev/tests.md`.

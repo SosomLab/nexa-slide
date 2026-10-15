@@ -72,6 +72,44 @@ class _Xf:
 
 
 # ---------- 도형 → 항목 ----------
+PRST_TO_SHAPE = {  # PowerPoint 프리셋(prstGeom prst) → 덱 shape 종류(render.js SHAPES / export_pptx SHAPE_PRESETS). rect·roundRect·ellipse 는 덱의 rect(radius)·ellipse
+    "triangle": "triangle", "rtTriangle": "rtTriangle", "diamond": "diamond", "parallelogram": "parallelogram", "trapezoid": "trapezoid", "pentagon": "pentagon",
+    "hexagon": "hexagon", "octagon": "octagon", "rightArrow": "rightArrow", "leftArrow": "leftArrow", "upArrow": "upArrow", "downArrow": "downArrow",
+    "leftRightArrow": "leftRightArrow", "chevron": "chevron", "homePlate": "homePlate", "star5": "star5", "plus": "plus",
+    "wedgeRectCallout": "callout", "wedgeRoundRectCallout": "roundCallout", "can": "can", "cube": "cube",
+}
+AUTONUM_TO_MARKER = {"arabicPeriod": "1.", "arabicParenR": "1)", "arabicParenBoth": "(1)", "alphaLcPeriod": "a.", "alphaLcParenR": "a)", "alphaUcPeriod": "A.", "alphaUcParenR": "A)", "circleNumDbPlain": "①"}
+_A = "{http://schemas.openxmlformats.org/drawingml/2006/main}"
+
+
+def _prst(sh):
+    """도형의 프리셋 기하 이름(prstGeom prst) - 없으면 None. 덱 shape 종류는 PRST_TO_SHAPE 로."""
+    try:
+        g = sh._element.find(f".//{_A}prstGeom")
+        return g.get("prst") if g is not None else None
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def _bullet(p):
+    """단락의 글머리 - 자동 번호면 {"marker": "1."(덱 marker 종류), "start": n}, 글자 글머리면 {"bullet": "•"}, 없음(buNone)이면 {"bullet": None}, 설정 없으면 None."""
+    try:
+        pPr = p._p.find(f"{_A}pPr")
+        if pPr is None:
+            return None
+        an = pPr.find(f"{_A}buAutoNum")
+        if an is not None:
+            return {"marker": AUTONUM_TO_MARKER.get(an.get("type"), an.get("type")), "start": int(an.get("startAt") or 1)}
+        bc = pPr.find(f"{_A}buChar")
+        if bc is not None:
+            return {"bullet": bc.get("char")}
+        if pPr.find(f"{_A}buNone") is not None:
+            return {"bullet": None}
+    except Exception:  # noqa: BLE001
+        return None
+    return None
+
+
 def _paragraphs(tf):
     """글 상자의 문단 → ([{level, text}], 가장 큰 글자 pt) - 빈 문단은 뺀다.
     굵은 run 은 **…**(덱의 인라인 강조와 같은 표기, 앞뒤 공백은 밖에), 줄바꿈(수직 탭)은 \\n. 글자 크기는 run 에 직접 적힌 것만 본다."""
@@ -91,7 +129,11 @@ def _paragraphs(tf):
             parts.append(t)
         text = "".join(parts).replace("\x0b", "\n").strip() or p.text.replace("\x0b", "\n").strip()
         if text:
-            out.append({"level": p.level or 0, "text": text})
+            row = {"level": p.level or 0, "text": text}
+            bu = _bullet(p)
+            if bu:
+                row.update(bu)  # marker(자동 번호 → 덱 marker)·bullet(글자 글머리) - 덱 bullets 로 옮길 때 marker/subMarker 또는 글 앞 기호로
+            out.append(row)
     return out, size
 
 
@@ -213,6 +255,11 @@ def _walk(shapes, xf, sn, images, scale, items):
             continue
         box = xf.box(sh)
         item = {"kind": "shape", "name": sh.name, "box": [round(v * scale) for v in box] if box else None}
+        prst = _prst(sh)
+        if prst:
+            item["prst"] = prst
+            if prst in PRST_TO_SHAPE:
+                item["shape"] = PRST_TO_SHAPE[prst]  # 덱 shape 요소의 shape 값
         role = _role(sh)
         if role:
             item["role"] = role
@@ -242,12 +289,12 @@ def _walk(shapes, xf, sn, images, scale, items):
             paras, size = _paragraphs(sh.text_frame)
             if paras:
                 if item["kind"] == "shape":
-                    item["kind"] = "text"
+                    item["kind"] = "text"  # shape(프리셋 종류)은 그대로 남겨 글이 든 도형임을 알린다
                 item["paragraphs"] = paras
                 if size:
                     item["pt"] = size
-        if item["kind"] == "shape" and not item.get("role"):
-            continue  # 글도 그림도 없는 장식 도형(선·사각형)은 뺀다
+        if item["kind"] == "shape" and not item.get("role") and not item.get("shape"):
+            continue  # 글도 그림도 없는 장식 도형(선·사각형)은 뺀다 - 덱 shape 로 옮길 수 있는 프리셋 도형(화살표·별…)은 남긴다
         items.append(item)
 
 
@@ -304,9 +351,10 @@ def to_markdown(doc):
             k = it["kind"]
             if k == "text":
                 role = it.get("role") or it.get("name") or "글"
-                L.append(f"- **{role}**" + (f" {it['pt']:g}pt" if it.get("pt") else "") + box)
+                L.append(f"- **{role}**" + (f" {it['pt']:g}pt" if it.get("pt") else "") + box + (f" · 도형 {it['shape']}(덱 shape 요소)" if it.get("shape") else ""))
                 for p in it["paragraphs"]:
-                    L.append("  " * (p["level"] + 1) + "- " + p["text"].replace("\n", "  \n" + "  " * (p["level"] + 2)))
+                    bu = f"[{p['marker']}] " if p.get("marker") else (f"[{p['bullet']}] " if p.get("bullet") else "")  # 글머리 - 덱에서는 글 앞에 그대로 적으면 자동 감지된다
+                    L.append("  " * (p["level"] + 1) + "- " + bu + p["text"].replace("\n", "  \n" + "  " * (p["level"] + 2)))
             elif k == "table":
                 rows = it["rows"]
                 L.append(f"- **표** {len(rows)}×{len(rows[0]) if rows else 0}{box}")
@@ -335,6 +383,8 @@ def to_markdown(doc):
                 L.append(f"- **{'미디어' if k == 'media' else '포함 개체(OLE)'}** {it.get('name')}{box} - 꺼내지 않음")
                 if it.get("paragraphs"):
                     L.append("  - 글: " + " / ".join(p["text"] for p in it["paragraphs"]))
+            elif k == "shape" and it.get("shape"):
+                L.append(f"- **도형** {it['shape']}{box} - 덱 shape 요소(shape: \"{it['shape']}\")")
             else:
                 L.append(f"- {it.get('role') or k} {it.get('name')}{box}")
         if s.get("notes"):

@@ -1079,8 +1079,10 @@ ${names}
         ${seg("글꼴", "font", el, [["body", "본문"], ["heading", "제목"], ["mono", "고정폭"]], "body")}${fontInfoHtml(el)}</div>
         <div class="sec"><h3>글머리 종류 <span class="hint" title="항목 글 앞에 직접 적은 번호·기호(1. · a) · ① · - · • …)가 있으면 그것이 먼저 쓰인다">글 앞의 번호·기호가 우선</span></h3>
         ${seg("항목", "marker", el, MARKER_OPTS, "●")}${seg("하위 항목", "subMarker", el, SUB_MARKER_OPTS, "–")}
+        ${seg("글 앞 번호·기호 감지", "autoNum", { autoNum: el.autoNum === false ? "off" : "on" }, [["on", "켬"], ["off", "끔"]], "on")}
         <div class="row"><button class="chip sm" data-conv="text" title="항목을 줄로 펼친 글자 상자로 바꿉니다(하위 항목은 앞에 공백 두 칸)">글자 상자로 바꾸기</button></div></div>`;
     if (el.type === "table") h += `<div class="sec"><h3>표 - 줄 = 행, 칸은 " | " 로 구분 (첫 행 = 머리)</h3>${fontInfoHtml(el)}<textarea data-tbl="1" style="min-height:140px">${esc(tableToText(el.rows))}</textarea>
+        <div class="row"><label>행·열</label><button class="chip sm" data-tblop="row+" title="맨 아래에 행 추가">＋행</button><button class="chip sm" data-tblop="row-" title="맨 아래 행 지우기">－행</button><button class="chip sm" data-tblop="col+" title="맨 오른쪽에 열 추가">＋열</button><button class="chip sm" data-tblop="col-" title="맨 오른쪽 열 지우기">－열</button><span class="hint" style="margin:0">${(el.rows || []).length}×${((el.rows || [])[0] || []).length}</span></div>
         <div class="row"><label>열 비율</label><input type="text" data-list="colW" value="${esc((el.colW || []).join(", "))}"></div>
         <div class="row"><label>행 비율</label><input type="text" data-list="rowH" value="${esc((el.rowH || []).join(", "))}" placeholder="비우면 고르게 · 예: 44, 46, 70"></div>
         ${num("크기(px)", "size", el)}${colorRow("머리 면", "headFill", el)}${colorRow("머리 글자", "headColor", el)}
@@ -1109,6 +1111,7 @@ ${names}
     if (["x", "y", "w", "h", "x1", "y1", "x2", "y2", "size", "subSize", "lineHeight", "width", "gap", "start"].includes(k)) { if (v === "" || v == null) delete el[k]; else el[k] = +v; }
     else if (k === "locked") { if (v) el.locked = true; else delete el.locked; }
     else if (k === "bold") el.bold = v === "1";
+    else if (k === "autoNum") { if (v === "off") el.autoNum = false; else delete el.autoNum; }  // 글 앞 번호·기호 감지(기본 켬)
     else if (v === "" && ["fill", "stroke", "radius"].includes(k)) delete el[k];
     else el[k] = v;
     if (isLine(el)) Object.assign(el, Render.lineBox(el));
@@ -1173,6 +1176,15 @@ ${names}
     if (b.dataset.fit === "code" && el) { snapshot(); el.h = Math.round(24 + Render.codeLines(el).length * (el.size || 15) * (el.lineHeight || 1.6)); afterChange(); return; }
     if (b.dataset.conv && el) { snapshot(); convertEl(el, b.dataset.conv); afterChange(); return; }
     if (b.dataset.imgpick && el && el.type === "image") { imagePick(el); return; }
+    if (b.dataset.tblop && el && el.type === "table") {  // 표 행·열 더하기·빼기(머리 행·첫 열은 남긴다)
+      const op = b.dataset.tblop, rows = el.rows || [], nc = (rows[0] || []).length;
+      snapshot();
+      if (op === "row+") rows.push(Array.from({ length: nc }, () => ""));
+      else if (op === "row-" && rows.length > 2) rows.pop();
+      else if (op === "col+") { rows.forEach((r) => r.push("")); if (el.colW) el.colW.push(1); if (el.colFont) el.colFont.push(""); }
+      else if (op === "col-" && nc > 1) { rows.forEach((r) => r.pop()); if (el.colW && el.colW.length > nc - 1) el.colW.pop(); if (el.colFont && el.colFont.length > nc - 1) el.colFont.pop(); }
+      el.rows = rows; afterChange(); return;
+    }
     if (b.id === "applyJson" && el) {
       try {
         const nv = JSON.parse($("#elJson").value);
