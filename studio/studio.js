@@ -705,9 +705,9 @@
   }
 
   // ---------------------------------------------------------------- 서식 도구줄(편집 모드 · 요소 선택)
-  const TEXTY = new Set(["text", "pill", "rect", "ellipse"]);
-  const SIZED = new Set(["text", "pill", "rect", "ellipse", "bullets", "table", "plan-table", "code", "plan"]);
-  const TYPE_KO = { text: "글자", pill: "칩", rect: "상자", ellipse: "원", image: "그림", line: "선", arrow: "화살표", table: "표", "plan-table": "실행계획 표", code: "코드", plan: "실행계획", bullets: "글머리", curve: "곡선" };
+  const TEXTY = new Set(["text", "pill", "rect", "ellipse", "shape"]);
+  const SIZED = new Set(["text", "pill", "rect", "ellipse", "shape", "bullets", "table", "plan-table", "code", "plan"]);
+  const TYPE_KO = { text: "글자", pill: "칩", rect: "상자", ellipse: "원", image: "그림", line: "선", arrow: "화살표", table: "표", "plan-table": "실행계획 표", code: "코드", plan: "실행계획", bullets: "글머리", curve: "곡선", shape: "도형" };
   const SIZE_PRESETS = [10, 11, 12, 13, 14, 15, 16, 17, 18, 20, 22, 24, 28, 32, 36, 40, 48, 60, 72];
   function defSize(el) { return { pill: 14, code: 15, plan: 14, "plan-table": 15, table: 16 }[el.type] || 20; }
   function swatch(v) { return v ? Render.fillCss(v) : "transparent"; }  // 토큰·#hex(투명도)·그라데이션 객체 모두
@@ -725,13 +725,13 @@
       if (TEXTY.has(el.type)) {
         const bold = el.bold === undefined ? el.type === "pill" : !!el.bold;
         h += `<span class="vsep"></span><button class="ib${bold ? " on" : ""}" data-f="bold" title="굵게 (Ctrl+B)"><b>B</b></button>`;
-        const al = el.align || (el.type === "pill" || el.type === "ellipse" ? "center" : "left");
+        const al = el.align || (el.type === "pill" || el.type === "ellipse" || el.type === "shape" ? "center" : "left");
         h += `<span class="vsep"></span>` + [["left", "⯇≡", "왼쪽"], ["center", "≡", "가운데"], ["right", "≡⯈", "오른쪽"]].map(([k, i, t]) => `<button class="ib${al === k ? " on" : ""}" data-f="align" data-v="${k}" title="${t} 정렬">${i}</button>`).join("");
         h += `<button class="ib" data-f="spacing" title="줄 간격·세로 정렬">↕ ▾</button>`;
       }
     }
-    if (["rect", "ellipse", "pill", "text", "plan"].includes(el.type)) h += `<span class="vsep"></span><button class="ib" data-f="fill" title="채우기 - ${esc(fillLabel(el.fill))}">🪣<span class="sw" style="background:${swatch(el.fill)}"></span></button>`;
-    if (["rect", "ellipse", "pill", "text"].includes(el.type)) h += `<button class="ib" data-f="stroke" title="테두리 - ${esc(el.stroke || "없음")}">▢<span class="sw" style="background:${swatch(el.stroke)}"></span></button>`;
+    if (["rect", "ellipse", "pill", "text", "plan", "shape"].includes(el.type)) h += `<span class="vsep"></span><button class="ib" data-f="fill" title="채우기 - ${esc(fillLabel(el.fill))}">🪣<span class="sw" style="background:${swatch(el.fill)}"></span></button>`;
+    if (["rect", "ellipse", "pill", "text", "shape"].includes(el.type)) h += `<button class="ib" data-f="stroke" title="테두리 - ${esc(el.stroke || "없음")}">▢<span class="sw" style="background:${swatch(el.stroke)}"></span></button>`;
     if (isLine(el)) {
       h += `<button class="ib" data-f="color" title="선 색">━<span class="sw" style="background:${swatch(el.color || "on-surface")}"></span></button>
         <input class="num" type="number" min="0.5" max="20" step="0.5" data-f="width" value="${el.width || 2}" title="두께(px)">
@@ -752,8 +752,8 @@
     const els = selEls().filter((x) => !ok || ok(x)); if (!els.length) return;
     snapshot(); for (const el of els) { fn(el); if (isLine(el)) Object.assign(el, Render.lineBox(el)); } afterChange();
   }
-  const hasFill = (x) => ["rect", "ellipse", "pill", "text", "plan"].includes(x.type);
-  const hasStroke = (x) => ["rect", "ellipse", "pill", "text"].includes(x.type);
+  const hasFill = (x) => ["rect", "ellipse", "pill", "text", "plan", "shape"].includes(x.type);
+  const hasStroke = (x) => ["rect", "ellipse", "pill", "text", "shape"].includes(x.type);
   const hasColor = (x) => TEXTY.has(x.type) || x.type === "bullets" || isLine(x);
   function palette(anchor, cur, allowNone, apply) {
     const T = S.tokens, groups = Object.entries(T.groups || {});
@@ -1051,9 +1051,10 @@ ${names}
         ${num("줄 높이", "lineHeight", el, 0.05)}${colorRow("글자색", "color", el)}
         ${seg("글꼴", "font", el, [["body", "본문"], ["heading", "제목"], ["mono", "고정폭"]], "body")}${fontInfoHtml(el)}</div>`;
     }
-    if (["rect", "ellipse", "pill", "text", "plan"].includes(el.type)) {
+    if (el.type === "shape") h += `<div class="sec"><h3>도형</h3><div class="row"><label>종류</label><select data-k="shape">${Render.shapeNames().map(([k, ko]) => `<option value="${k}"${el.shape === k ? " selected" : ""}>${ko}</option>`).join("")}</select></div><div class="hint">PowerPoint 기본 도형(기본 조정값). 글은 도형의 글 영역에 가운데.</div></div>`;
+    if (["rect", "ellipse", "pill", "text", "plan", "shape"].includes(el.type)) {
       h += `<div class="sec"><h3>면·테두리</h3>${colorRow("채우기", "fill", el, el.type === "text")}
-        ${el.type !== "ellipse" && el.type !== "pill" ? `<div class="row"><label>모서리</label><select data-k="radius">${["", "r-s", "r-m", "r-l", "r-full"].map((r) => `<option value="${r}"${(el.radius || "") === r ? " selected" : ""}>${r || "없음"}</option>`).join("")}${typeof el.radius === "number" ? `<option selected value="${el.radius}">${el.radius}px</option>` : ""}</select></div>` : ""}
+        ${el.type !== "ellipse" && el.type !== "pill" && el.type !== "shape" ? `<div class="row"><label>모서리</label><select data-k="radius">${["", "r-s", "r-m", "r-l", "r-full"].map((r) => `<option value="${r}"${(el.radius || "") === r ? " selected" : ""}>${r || "없음"}</option>`).join("")}${typeof el.radius === "number" ? `<option selected value="${el.radius}">${el.radius}px</option>` : ""}</select></div>` : ""}
         ${colorRow("테두리", "stroke", el, true)}</div>`;
     }
     if (el.type === "image") h += `<div class="sec"><h3>그림</h3><div class="row"><label>경로</label><input type="text" data-k="src" value="${esc(el.src)}"></div><div class="hint">assetRoot 기준 경로. 모서리 핸들은 비율 유지.</div></div>`;
@@ -1725,7 +1726,7 @@ ${names}
       code: { type: "code", x: 64, y: 184, w: 640, h: 0, text: "SELECT d.item_cd\nFROM   trx_demand d\nWHERE  d.tenant_id = :t;", lang: "sql", size: 14, lineHeight: 1.6, radius: "r-m" },
       table: { type: "table", x: 64, y: 184, w: 640, h: 96, rows: [["열 1", "열 2"], ["값", "값"]], colW: [1, 1], size: 16, headFill: `${part}-container`, headColor: `on-${part}-container`, rule: "surface-container-high" },
       image: { type: "image", x: 560, y: 320, w: Math.round(40 * (S.brand.logoRatio || 765 / 237)), h: 40, src: S.brand.logo || "assets/brand/logo.png" },
-    }[kind];
+    }[kind] || (kind.startsWith("shape:") ? shapeBase(kind.slice(6), part) : null);
     if (!base) return;
     snapshot();
     const el = { id: newElId(s), ...base };
@@ -1733,9 +1734,50 @@ ${names}
     if (el.type === "code") el.h = Math.round(24 + Render.codeLines(el).length * el.size * el.lineHeight);
     s.elements.push(el); S.sel = el.id; afterChange();
   }
+  // 도형 기본 크기(PowerPoint 처럼 종류마다) - 채우기는 장 색, 글은 비워 둔다(두 번 클릭해 쓴다)
+  const SHAPE_SIZE = { rightArrow: [200, 90], leftArrow: [200, 90], upArrow: [90, 200], downArrow: [90, 200], leftRightArrow: [240, 90], chevron: [160, 80], homePlate: [160, 80], callout: [200, 110], roundCallout: [200, 110], can: [120, 150], cube: [140, 140], star5: [140, 140], plus: [120, 120] };
+  function shapeBase(shape, part) {
+    const [w, h] = SHAPE_SIZE[shape] || [160, 120];
+    return { type: "shape", shape, x: Math.round(640 - w / 2), y: Math.round(360 - h / 2), w, h, fill: `${part}-container`, color: `on-${part}-container`, text: "", size: 18 };
+  }
+  // ＋ 추가 → 도형… : 도형 격자(아이콘 = render.js 경로)
+  function shapeMenu(btn) {
+    const grid = `<div class="shpgrid">${Render.shapeNames().map(([k, ko]) => `<button type="button" class="shp" data-shape="${k}" title="${esc(ko)}"><svg viewBox="-2 -2 52 40" width="40" height="30"><path d="${Render.shapePath(k, 48, 36)}" fill="currentColor"/></svg></button>`).join("")}</div>`;
+    openMenu(btn, [{ h: "도형" }, { html: grid, bind: (div) => div.querySelectorAll("[data-shape]").forEach((b) => { b.onclick = () => { closeMenu(); addEl("shape:" + b.dataset.shape); }; }) }]);
+  }
+  // ＋ 추가 → 다이어그램… : 요소 묶음을 넣는다(SmartArt 대신 - 넣은 뒤 요소마다 자유롭게 고친다)
+  const DIAGRAMS = [["process", "⮞⮞⮞", "프로세스 (갈매기)"], ["flow", "▭→▭", "흐름 (상자·화살표)"], ["cycle", "↻", "순환"], ["hierarchy", "⏢", "계층 (조직도)"], ["columns", "▥", "열 목록"], ["venn", "◎", "벤 다이어그램"], ["timeline", "⋯", "타임라인"], ["matrix", "▦", "매트릭스 2×2"], ["pyramid", "▲", "피라미드"]];
+  function diagramMenu(btn) { openMenu(btn, [{ h: "다이어그램" }, ...DIAGRAMS.map(([k, i, l]) => ({ icon: i, label: l, act: () => addDiagram(k) }))]); }
+  function addDiagram(kind) {
+    const s = slide(); if (!s) return;
+    const part = S.deck.part || "day1", P1 = part, P2 = `${part}-container`, C1 = "white", C2 = `on-${part}-container`;
+    const out = [], R = (o) => out.push(o);
+    const box = (x, y, w, h, text, strong) => R({ type: "rect", x, y, w, h, text, size: 18, bold: !!strong, fill: strong ? P1 : P2, color: strong ? C1 : C2, radius: "r-m", align: "center" });
+    const arrow = (x1, y1, x2, y2) => R({ type: "arrow", x1, y1, x2, y2, color: "on-surface-variant", width: 2, head: "end" });
+    const line = (x1, y1, x2, y2) => R({ type: "line", x1, y1, x2, y2, color: "on-surface-variant", width: 2 });
+    const label = (x, y, w, h, text, size = 16) => R({ type: "text", x, y, w, h, text, size, color: "on-surface", align: "center", lineHeight: 1.3 });
+    if (kind === "process") [1, 2, 3, 4].forEach((n, i) => R({ type: "shape", shape: i ? "chevron" : "homePlate", x: 160 + i * 240, y: 300, w: 250, h: 100, text: `${n}단계`, size: 18, fill: i % 2 ? P2 : P1, color: i % 2 ? C2 : C1 }));
+    else if (kind === "flow") [1, 2, 3, 4].forEach((n, i) => { box(160 + i * 250, 300, 190, 90, `${n}단계`, i === 0); if (i < 3) arrow(350 + i * 250, 345, 410 + i * 250, 345); });
+    else if (kind === "cycle") {
+      box(540, 160, 200, 80, "계획", true); box(820, 320, 200, 80, "실행"); box(540, 480, 200, 80, "점검"); box(260, 320, 200, 80, "개선");
+      arrow(740, 200, 900, 320); arrow(920, 400, 760, 520); arrow(540, 520, 380, 400); arrow(360, 320, 520, 200);
+    } else if (kind === "hierarchy") {
+      box(540, 170, 200, 70, "최고 책임자", true);
+      [0, 1, 2].forEach((i) => { box(260 + i * 280, 330, 200, 70, `부서 ${i + 1}`); line(360 + i * 280, 290, 360 + i * 280, 330); [0, 1].forEach((j) => { box(260 + i * 280, 440 + j * 80, 200, 60, `팀 ${i + 1}-${j + 1}`); }); line(300 + i * 280, 400, 300 + i * 280, 470); });
+      line(640, 240, 640, 290); line(360, 290, 920, 290);
+    } else if (kind === "columns") [0, 1, 2].forEach((i) => { box(170 + i * 330, 190, 300, 56, `항목 ${i + 1}`, true); R({ type: "rect", x: 170 + i * 330, y: 246, w: 300, h: 300, fill: "surface-container", radius: "r-m" }); R({ type: "bullets", x: 186 + i * 330, y: 262, w: 268, h: 270, items: ["요점 하나", "요점 둘", "요점 셋"], size: 17, subSize: 15 }); });
+    else if (kind === "venn") { R({ type: "ellipse", x: 340, y: 200, w: 340, h: 340, fill: { color: P1, alpha: 0.55 }, text: "A", color: C1, size: 24, bold: true, pad: [0, 170, 0, 0] }); R({ type: "ellipse", x: 600, y: 200, w: 340, h: 340, fill: { color: `${part}-fixed-dim`, alpha: 0.55 }, text: "B", color: C1, size: 24, bold: true, pad: [0, 0, 0, 170] }); label(560, 340, 160, 60, "공통", 20); }
+    else if (kind === "timeline") { line(160, 380, 1120, 380); [0, 1, 2, 3].forEach((i) => { const x = 240 + i * 270; R({ type: "ellipse", x: x - 12, y: 368, w: 24, h: 24, fill: P1 }); R({ type: "pill", x: x - 50, y: 320, w: 100, h: 30, text: `${2024 + i}년`, size: 14, fill: P2, color: C2, bold: true }); label(x - 110, 410, 220, 70, `단계 ${i + 1}\n설명`); }); }
+    else if (kind === "matrix") { [["높음·높음", 0, 0, true], ["높음·낮음", 1, 0], ["낮음·높음", 0, 1], ["낮음·낮음", 1, 1]].forEach(([t, cx, cy, st]) => box(380 + cx * 270, 170 + cy * 200, 260, 190, t, st)); label(140, 170, 230, 390, "세로축 ↑", 16); label(380, 570, 530, 40, "가로축 →", 16); }
+    else if (kind === "pyramid") [0, 1, 2].forEach((i) => { const w = 240 + i * 140; box(640 - w / 2, 190 + i * 120, w, 100, `${i + 1}단계`, i === 0); });
+    if (!out.length) return;
+    snapshot();
+    const ids = out.map((o) => { const el = { id: newElId(s), ...o }; if (isLine(el)) Object.assign(el, Render.lineBox(el)); s.elements.push(el); return el.id; });
+    setSelection(ids); afterChange();
+  }
   function addMenu(btn) {
     openMenu(btn, [["text", "T", "글자"], ["bullets", "≡", "글머리 목록"], ["pill", "◖◗", "칩"], ["rect", "▭", "상자"], ["ellipse", "◯", "원"], ["arrow", "→", "화살표"], ["table", "▦", "표 (2×2)"], ["code", "{ }", "코드"], ["image", "🖼", "로고"]]
-      .map(([k, i, l]) => ({ icon: i, label: l, act: () => addEl(k) })));
+      .map(([k, i, l]) => ({ icon: i, label: l, act: () => addEl(k) })).concat(["-", { icon: "◇", label: "도형…", keep: true, act: () => shapeMenu(btn) }, { icon: "⬡", label: "다이어그램…", keep: true, act: () => diagramMenu(btn) }]));
   }
   function goSlide(i) { if (!S.deck) return; S.cur = Math.max(0, Math.min(S.deck.slides.length - 1, i)); S.sel = null; S.chkBox = S.chkBox && S.chkBox.slide === slide().id ? S.chkBox : null; closeMemo(); renderAll(); ensureThumbVisible(S.cur); }
   function dupSlide(i) { snapshot(); const c = clone(S.deck.slides[i]); c.id = newSlideId(); S.deck.slides.splice(i + 1, 0, c); S.cur = i + 1; S.sel = null; afterChange(true); }

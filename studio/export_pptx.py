@@ -219,6 +219,29 @@ def do_box(slide, el, page):
     return shp
 
 
+SHAPE_PRESETS = {  # render.js SHAPES 와 같은 이름 → PowerPoint 프리셋(기본 조정값) - 기하·글 영역이 render.js 경로와 같다
+    "triangle": MSO_SHAPE.ISOSCELES_TRIANGLE, "rtTriangle": MSO_SHAPE.RIGHT_TRIANGLE, "diamond": MSO_SHAPE.DIAMOND, "parallelogram": MSO_SHAPE.PARALLELOGRAM,
+    "trapezoid": MSO_SHAPE.TRAPEZOID, "pentagon": MSO_SHAPE.REGULAR_PENTAGON, "hexagon": MSO_SHAPE.HEXAGON, "octagon": MSO_SHAPE.OCTAGON,
+    "rightArrow": MSO_SHAPE.RIGHT_ARROW, "leftArrow": MSO_SHAPE.LEFT_ARROW, "upArrow": MSO_SHAPE.UP_ARROW, "downArrow": MSO_SHAPE.DOWN_ARROW,
+    "leftRightArrow": MSO_SHAPE.LEFT_RIGHT_ARROW, "chevron": MSO_SHAPE.CHEVRON, "homePlate": MSO_SHAPE.PENTAGON, "star5": MSO_SHAPE.STAR_5_POINT,
+    "plus": MSO_SHAPE.CROSS, "callout": MSO_SHAPE.RECTANGULAR_CALLOUT, "roundCallout": MSO_SHAPE.ROUNDED_RECTANGULAR_CALLOUT, "can": MSO_SHAPE.CAN, "cube": MSO_SHAPE.CUBE,
+}
+
+
+def do_shape(slide, el, page):
+    """shape - PowerPoint 기본 도형(prstGeom, 기본 조정값). 글은 프리셋의 글 영역에 가운데(render.js elShape 의 rect 와 같다)"""
+    shp = slide.shapes.add_shape(SHAPE_PRESETS.get(el.get("shape"), MSO_SHAPE.DIAMOND), E(el["x"]), E(el["y"]), E(el["w"]), E(el["h"]))
+    strip_style(shp)
+    shape_fill_line(shp, el)
+    tf = shp.text_frame
+    if str(el.get("text", "")) != "":
+        frame(tf, pad_of(el), el.get("valign", "middle"), el.get("wrap", True))
+        fill_markup_text(tf, {**el, "align": el.get("align", "center"), "lineHeight": el.get("lineHeight", 1.2)}, page)
+    else:
+        frame(tf, (0, 0, 0, 0), "middle", False)
+    return shp
+
+
 def do_image(slide, el, page):
     p = REPO / el["src"]
     if not p.exists():
@@ -466,7 +489,7 @@ def do_bullets(slide, el, page):
 
 HANDLERS = {"rect": do_box, "ellipse": do_box, "pill": do_box, "text": do_box, "image": do_image,
             "line": do_line, "arrow": do_line, "curve": do_curve, "table": do_table, "plan-table": do_table,
-            "code": do_code, "plan": do_plan, "bullets": do_bullets}
+            "code": do_code, "plan": do_plan, "bullets": do_bullets, "shape": do_shape}
 
 
 def export(deck, out):
