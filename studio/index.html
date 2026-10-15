@@ -473,13 +473,14 @@
   /* 요청 기록·검색 창 - 요청 탭 [더보기]. 편집 화면 위에 겹쳐 뜨므로 편집 중인 덱을 벗어나지 않는다 */
   #reqHist { position: fixed; inset: 0; background: rgba(0,0,0,.3); z-index: 70; display: flex; align-items: center; justify-content: center; }
   #reqHist .box { width: min(820px, 94vw); height: min(780px, 90vh); background: #fff; border-radius: 16px; box-shadow: 0 12px 40px rgba(0,0,0,.3); display: flex; flex-direction: column; overflow: hidden; }
-  #reqHist .hd { display: flex; align-items: center; gap: 10px; padding: 12px 16px 8px; }
-  #reqHist .hd h3 { margin: 0; font-size: 15px; flex: 1; } #reqHist .hd h3 small { color: var(--ink2); font-weight: 400; margin-left: 6px; }
-  #reqHist .sb { display: flex; align-items: center; gap: 6px; padding: 0 16px 8px; }
-  #reqHist .sb input { flex: 1; height: 34px; border: 1px solid var(--line); border-radius: 10px; padding: 0 12px; font: inherit; font-size: 13.5px; outline: none; }
-  #reqHist .sb input:focus { border-color: var(--p); box-shadow: 0 0 0 2px var(--pc); }
-  #reqHist .fl { display: flex; align-items: center; gap: 8px; padding: 0 16px 8px; flex-wrap: wrap; font-size: 12.5px; color: var(--ink2); }
-  #reqHist .list { flex: 1; overflow: auto; padding: 4px 16px 16px; }
+  /* 클래스 이름은 rh- 접두 - .hd(크기 조절 손잡이)·.sb 같은 편집기 공용 클래스와 겹치지 않게 */
+  #reqHist .rh-hd { display: flex; align-items: center; gap: 10px; padding: 14px 18px 10px; }
+  #reqHist .rh-hd h3 { margin: 0; font-size: 15px; flex: 1; } #reqHist .rh-hd h3 small { color: var(--ink2); font-weight: 400; margin-left: 6px; }
+  #reqHist .rh-sb { display: flex; align-items: center; gap: 6px; padding: 4px 18px 10px; }
+  #reqHist .rh-sb input { flex: 1; height: 36px; border: 1px solid var(--line); border-radius: 10px; padding: 0 12px; font: inherit; font-size: 13.5px; outline: none; }
+  #reqHist .rh-sb input:focus { border-color: var(--p); box-shadow: 0 0 0 2px var(--pc); }
+  #reqHist .rh-fl { display: flex; align-items: center; gap: 8px; padding: 0 18px 10px; flex-wrap: wrap; font-size: 12.5px; color: var(--ink2); }
+  #reqHist .list { flex: 1; overflow: auto; padding: 4px 18px 18px; }
   #reqHist .err { color: var(--err, #BA1A1A); }
   #reqHist mark { background: #FFF2A8; padding: 0 1px; border-radius: 2px; }
   #ov .guide { position: absolute; border-left: 1px dashed var(--err); border-top: 1px dashed var(--err); pointer-events: none; }
