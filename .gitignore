@@ -55,4 +55,5 @@ desktop.ini
 .idea/
 .vscode/
 *.swp
-.claude/
+.claude/*
+!.claude/commands/
