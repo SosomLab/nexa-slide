@@ -85,6 +85,12 @@ def main():
         r = req("POST", "/api/decks", {"action": "start", "id": ""})
         lst = req("GET", "/api/decks")
         check("API start 해제", r.get("ok") and not any(x.get("start") for x in lst))
+        # 내보내기 파일 이름 = 덱 제목(저장은 out/<id>.pptx 그대로)
+        r = req("POST", f"/api/export/{i3}")
+        check("export 응답 name 이 '덱 제목.pptx'", r.get("ok") and r.get("name") == "API 덱.pptx" and r.get("url", "").startswith(f"/out/{i3}.pptx"), str(r)[:200])
+        with urllib.request.urlopen(urllib.request.Request(base + f"/out/{i3}.pptx", method="HEAD"), timeout=30) as h:
+            cd = h.headers.get("Content-Disposition") or ""
+        check("GET /out/<id>.pptx 의 Content-Disposition 에 제목", "filename*=UTF-8''API%20%EB%8D%B1.pptx" in cd, cd)
     finally:
         srv.terminate()
     print("실패:", FAILS or "없음")

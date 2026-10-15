@@ -322,6 +322,19 @@ def workspace_stamp():
             "config": "0" if HUB else max(ver(WORKSPACE / "nexa-slide.json"), ver(WORKSPACE / "nexa-slide.local.json"), key=int), "engine": max((ver(f) for f in eng), key=int, default="0")}
 
 
+def export_name(stem, ext):
+    """받는 파일 이름 = 덱 제목 + 꼬리(.pptx · -fonts.pptx · .pdf). 저장은 out/<id>… 그대로(렌더·비교 도구가 id 로 찾는다) - studio.js exportName 과 같은 규칙.
+    stem 이 '<id>-fonts' 면 제목 뒤에 ' - 글꼴 포함'. 덱이 없으면 stem 그대로."""
+    i, tail = (stem[:-6], " - 글꼴 포함") if stem.endswith("-fonts") else (stem, "")
+    try:
+        title = json.loads(deck_path(i).read_text(encoding="utf-8")).get("title") or i
+    except (OSError, ValueError):
+        return f"{stem}{ext}"
+    name = re.sub(r"[\/:*?\"<>|\x00-\x1f]+", " ", str(title))
+    name = " ".join(name.split())[:120] or i
+    return f"{name}{tail}{ext}"
+
+
 def has_decks():
     return not HUB and DECKS.is_dir() and any(not f.name.endswith(".requests.json") for f in DECKS.glob("*.json"))
 
@@ -725,6 +738,10 @@ class H(BaseHTTPRequestHandler):
         self.send_header("Content-Type", ctype)
         self.send_header("Content-Length", str(len(data)))
         self.send_header("Cache-Control", "no-store")
+        if parts and parts[0] == "out" and p.parent == root and p.suffix.lower() in (".pptx", ".pdf"):  # 내보내기 결과는 덱 제목으로 받게
+            from urllib.parse import quote as _q
+            nm = export_name(p.stem, p.suffix.lower())
+            self.send_header("Content-Disposition", f"attachment; filename=\"{p.name}\"; filename*=UTF-8''{_q(nm)}")
         self.end_headers()
         if not head:
             self.wfile.write(data)
@@ -1668,7 +1685,7 @@ class H(BaseHTTPRequestHandler):
             f = OUT / f"{i}-fonts.pptx"
             if code != 0 or not f.exists():
                 return self.send_json({"ok": False, "error": "글꼴 포함 저장 실패", "log": log}, 500)
-            return self.send_json({"ok": True, **res, "url": f"/out/{i}-fonts.pptx?v={ver(f)}", "report": f"/out/{i}.fonts.json"})
+            return self.send_json({"ok": True, **res, "url": f"/out/{i}-fonts.pptx?v={ver(f)}", "report": f"/out/{i}.fonts.json", "name": export_name(f"{i}-fonts", ".pptx")})
         code, log = export(i)
         f = OUT / f"{i}.pptx"
         if code != 0 or not f.exists():
@@ -1678,8 +1695,8 @@ class H(BaseHTTPRequestHandler):
             via, err = self._export_pdf(i, f, pdf)
             if not pdf.exists():
                 return self.send_json({"ok": False, "error": "PDF 를 만들지 못했다: " + err, "log": log}, 500)
-            return self.send_json({"ok": True, "path": str(pdf), "url": f"/out/{i}.pdf?v={ver(pdf)}", "via": via, "log": log})
-        self.send_json({"ok": True, "path": str(f), "url": f"/out/{i}.pptx?v={ver(f)}", "log": log})
+            return self.send_json({"ok": True, "path": str(pdf), "url": f"/out/{i}.pdf?v={ver(pdf)}", "via": via, "log": log, "name": export_name(i, ".pdf")})
+        self.send_json({"ok": True, "path": str(f), "url": f"/out/{i}.pptx?v={ver(f)}", "log": log, "name": export_name(i, ".pptx")})
 
     def _export_pdf(self, i, pptx, pdf):
         """(방법, 오류). PowerPoint COM(render_pptx.ps1 -Pdf) → 없으면 Chrome/Edge --print-to-pdf(print.html, 슬라이드마다 한 쪽)."""
