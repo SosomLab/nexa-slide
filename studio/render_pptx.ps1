@@ -3,7 +3,9 @@
 param(
   [Parameter(Mandatory = $true)][string]$Pptx,
   [Parameter(Mandatory = $true)][string]$OutDir,
-  [int]$Width = 1280
+  [int]$Width = 1280,
+  [string]$Pdf = "",          # 주면 PDF 로도 저장(ppSaveAsPDF = 32)
+  [switch]$NoPng              # PNG 는 건너뛴다(PDF 만)
 )
 $ErrorActionPreference = 'Stop'
 $Pptx = (Resolve-Path $Pptx).Path
@@ -17,10 +19,18 @@ try {
   # Open(FileName, ReadOnly, Untitled, WithWindow)
   $pres = $app.Presentations.Open($Pptx, -1, 0, 0)
   $n = 0
-  foreach ($s in $pres.Slides) {
-    $n++
-    $f = Join-Path $OutDir ('slide-{0:D2}.png' -f $s.SlideIndex)
-    $s.Export($f, 'PNG', $Width, $Height)
+  if (-not $NoPng) {
+    foreach ($s in $pres.Slides) {
+      $n++
+      $f = Join-Path $OutDir ('slide-{0:D2}.png' -f $s.SlideIndex)
+      $s.Export($f, 'PNG', $Width, $Height)
+    }
+  }
+  if ($Pdf) {
+    $pdfPath = [System.IO.Path]::GetFullPath($Pdf)
+    if (Test-Path $pdfPath) { Remove-Item $pdfPath -Force }
+    $pres.SaveAs($pdfPath, 32)
+    Write-Output "pdf $pdfPath"
   }
   Write-Output "rendered $n"
 }

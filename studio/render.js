@@ -551,8 +551,118 @@
     return html;
   }
 
+
+  // ---------- 차트(chart) - 데이터에서 SVG 로 그린다. PPTX 는 PowerPoint 차트(export_pptx.do_chart, 같은 색·범례·눈금 규칙 - 그림은 PowerPoint 가 그린다)
+  const CHART_PALETTE = ["primary", "#4C7A9E", "#E0A458", "#7BAE7F", "#B57BA6", "#8C8C8C", "#D97B66", "#5FA8A3"];
+  const chartColor = (el, i) => color((el.colors && el.colors[i]) || CHART_PALETTE[i % CHART_PALETTE.length]) || "#888";
+  /** 축 눈금 - 최댓값을 1·2·5 단위로 올려 5칸 안팎 (common.chart_axis 와 같은 규칙) */
+  function chartAxis(max, min) {
+    const hi = Math.max(max, 0), lo = Math.min(min, 0), span = Math.max(hi - lo, 1e-9);
+    const raw = span / 5, p = Math.pow(10, Math.floor(Math.log10(raw))), step = [1, 2, 5, 10].map((k) => k * p).find((s) => span / s <= 5.5) || 10 * p;
+    return { max: Math.ceil(hi / step) * step, min: Math.floor(lo / step) * step, step };
+  }
+  const chartNum = (v) => (Math.abs(v) >= 1000 ? v.toLocaleString("en-US") : String(Math.round(v * 100) / 100));
+  function chartData(el) {
+    const cats = (el.categories || []).map((c) => String(c == null ? "" : c));
+    const series = (el.series || []).map((s, i) => ({ name: String((s && s.name) || `계열 ${i + 1}`), values: ((s && s.values) || []).map((v) => (v == null || v === "" || isNaN(+v) ? null : +v)) }));
+    const n = Math.max(cats.length, ...series.map((s) => s.values.length), 0);
+    while (cats.length < n) cats.push("");
+    series.forEach((s) => { while (s.values.length < n) s.values.push(null); });
+    return { cats, series, n };
+  }
+  function elChart(el, page) {
+    const w = +el.w, h = +el.h, kind = el.chart || "column", size = +el.size || 14, fam = font("body"), ink = color("on-surface"), ink2 = color("on-surface-variant"), rule = color("outline-variant") || "#ddd";
+    const { cats, series, n } = chartData(el);
+    const legend = el.legend === undefined ? (series.length > 1 || kind === "pie" || kind === "doughnut" ? "bottom" : "none") : el.legend;
+    const labels = !!el.labels, stacked = kind === "stackedColumn", pie = kind === "pie" || kind === "doughnut", horiz = kind === "bar";
+    let out = "", top = 6, bottom = h - 6, left = 6, right = w - 6;
+    const T = (x, y, t, o = {}) => `<text x="${R2(x)}" y="${R2(y)}" font-family="${fam}" font-size="${o.size || size}" fill="${o.fill || ink}" text-anchor="${o.anchor || "start"}" dominant-baseline="${o.base || "middle"}"${o.bold ? ' font-weight="700"' : ""}>${esc(t)}</text>`;
+    if (el.title) { out += T(w / 2, top + size * 0.8, String(el.title), { anchor: "middle", size: size * 1.15, bold: true }); top += size * 1.9; }
+    if (legend === "bottom" && series.length) {  // 범례 - 아래 한 줄(원형은 범주)
+      const items = pie ? cats.map((c, i) => [c, chartColor(el, i)]) : series.map((s, i) => [s.name, chartColor(el, i)]);
+      const est = items.reduce((a, [t]) => a + t.length * size * 0.62 + size * 1.6 + 12, 0); let x = Math.max(left, (w - est) / 2); const y = bottom - size * 0.6;
+      items.forEach(([t, c]) => { out += `<rect x="${R2(x)}" y="${R2(y - size * 0.4)}" width="${R2(size * 0.8)}" height="${R2(size * 0.8)}" rx="2" fill="${c}"/>`; out += T(x + size * 1.1, y, t, { size: size * 0.9, fill: ink2 }); x += t.length * size * 0.62 + size * 1.6 + 12; });
+      bottom -= size * 1.8;
+    } else if (legend === "right" && series.length) {
+      const items = pie ? cats.map((c, i) => [c, chartColor(el, i)]) : series.map((s, i) => [s.name, chartColor(el, i)]);
+      const lw = Math.max(...items.map(([t]) => t.length * size * 0.62)) + size * 1.6 + 8; const x = right - lw; let y = top + size;
+      items.forEach(([t, c]) => { out += `<rect x="${R2(x)}" y="${R2(y - size * 0.4)}" width="${R2(size * 0.8)}" height="${R2(size * 0.8)}" rx="2" fill="${c}"/>`; out += T(x + size * 1.1, y, t, { size: size * 0.9, fill: ink2 }); y += size * 1.5; });
+      right = x - 8;
+    }
+    if (pie) {
+      const vals = (series[0] ? series[0].values : []).map((v) => Math.max(0, v || 0)), tot = vals.reduce((a, b) => a + b, 0) || 1;
+      const cx = (left + right) / 2, cy = (top + bottom) / 2, r = Math.max(8, Math.min(right - left, bottom - top) / 2 - (labels ? size * 1.2 : 4)), r0 = kind === "doughnut" ? r * 0.55 : 0;
+      let a0 = -Math.PI / 2;
+      vals.forEach((v, i) => {
+        const a1 = a0 + (v / tot) * Math.PI * 2, big = a1 - a0 > Math.PI ? 1 : 0;
+        const P = (a, rr) => [cx + rr * Math.cos(a), cy + rr * Math.sin(a)];
+        const [x0, y0] = P(a0, r), [x1, y1] = P(a1, r);
+        let d = `M${R2(x0)} ${R2(y0)}A${R2(r)} ${R2(r)} 0 ${big} 1 ${R2(x1)} ${R2(y1)}`;
+        if (r0) { const [u1, v1] = P(a1, r0), [u0, v0] = P(a0, r0); d += `L${R2(u1)} ${R2(v1)}A${R2(r0)} ${R2(r0)} 0 ${big} 0 ${R2(u0)} ${R2(v0)}Z`; } else d += `L${R2(cx)} ${R2(cy)}Z`;
+        if (v > 0) out += `<path d="${d}" fill="${chartColor(el, i)}" stroke="#fff" stroke-width="1"/>`;
+        if (labels && v > 0) { const am = (a0 + a1) / 2, [lx, ly] = P(am, r0 ? (r + r0) / 2 : r * 0.62); out += T(lx, ly, `${Math.round((v / tot) * 100)}%`, { anchor: "middle", size: size * 0.9, fill: "#fff", bold: true }); }
+        a0 = a1;
+      });
+      return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" style="position:absolute;left:0;top:0">${out}</svg>`;
+    }
+    // 세로/가로 막대 · 선 · 영역 - 축과 눈금
+    const sums = stacked ? cats.map((_, i) => series.reduce((a, s) => a + Math.max(0, s.values[i] || 0), 0)) : [];
+    const allv = stacked ? sums : series.flatMap((s) => s.values.filter((v) => v != null));
+    const ax = chartAxis(Math.max(0, ...allv), Math.min(0, ...allv));
+    if (el.axisMax != null && +el.axisMax > 0) ax.max = +el.axisMax;
+    const ticks = []; for (let v = ax.min; v <= ax.max + 1e-9; v += ax.step) ticks.push(Math.round(v * 1e6) / 1e6);
+    const lab = (v) => chartNum(v), axW = Math.max(...ticks.map((v) => lab(v).length)) * size * 0.6 + 8, catH = size * 1.5;
+    const px0 = horiz ? left + Math.max(...cats.map((c) => c.length)) * size * 0.62 + 8 : left + axW, py1 = horiz ? bottom - catH : bottom - catH, px1 = right - 4, py0 = top + 4;
+    const pw = px1 - px0, ph = py1 - py0;
+    const vx = (v) => px0 + ((v - ax.min) / (ax.max - ax.min || 1)) * pw, vy = (v) => py1 - ((v - ax.min) / (ax.max - ax.min || 1)) * ph;
+    ticks.forEach((v) => {
+      if (horiz) { const x = vx(v); if (el.grid !== false) out += `<line x1="${R2(x)}" y1="${R2(py0)}" x2="${R2(x)}" y2="${R2(py1)}" stroke="${rule}" stroke-width="1"/>`; out += T(x, py1 + catH / 2, lab(v), { anchor: "middle", size: size * 0.85, fill: ink2 }); }
+      else { const y = vy(v); if (el.grid !== false) out += `<line x1="${R2(px0)}" y1="${R2(y)}" x2="${R2(px1)}" y2="${R2(y)}" stroke="${rule}" stroke-width="1"/>`; out += T(px0 - 6, y, lab(v), { anchor: "end", size: size * 0.85, fill: ink2 }); }
+    });
+    out += horiz ? `<line x1="${R2(px0)}" y1="${R2(py0)}" x2="${R2(px0)}" y2="${R2(py1)}" stroke="${ink2}" stroke-width="1"/>` : `<line x1="${R2(px0)}" y1="${R2(vy(0))}" x2="${R2(px1)}" y2="${R2(vy(0))}" stroke="${ink2}" stroke-width="1"/>`;
+    const slot = horiz ? ph / Math.max(1, n) : pw / Math.max(1, n), gw = slot / 1.8, ns = Math.max(1, series.length);  // gap 80% (PowerPoint gapWidth 80 과 같다)
+    cats.forEach((c, i) => { if (horiz) out += T(px0 - 6, py1 - slot * (i + 0.5), c, { anchor: "end", size: size * 0.9 }); else out += T(px0 + slot * (i + 0.5), py1 + catH / 2, c, { anchor: "middle", size: size * 0.9 }); });
+    if (kind === "line" || kind === "area") {
+      series.forEach((s, si) => {
+        const pts = s.values.map((v, i) => (v == null ? null : [px0 + slot * (i + 0.5), vy(v)]));
+        const segs = pts.filter(Boolean), c = chartColor(el, si);
+        if (kind === "area" && segs.length) out += `<path d="M${R2(segs[0][0])} ${R2(vy(0))}${segs.map((p) => `L${R2(p[0])} ${R2(p[1])}`).join("")}L${R2(segs[segs.length - 1][0])} ${R2(vy(0))}Z" fill="${c}" fill-opacity=".3"/>`;
+        out += `<polyline points="${segs.map((p) => `${R2(p[0])},${R2(p[1])}`).join(" ")}" fill="none" stroke="${c}" stroke-width="2.5" stroke-linejoin="round"/>`;
+        segs.forEach((p) => { out += `<circle cx="${R2(p[0])}" cy="${R2(p[1])}" r="3.5" fill="${c}"/>`; });
+        if (labels) pts.forEach((p, i) => { if (p) out += T(p[0], p[1] - size * 0.8, chartNum(s.values[i]), { anchor: "middle", size: size * 0.85, fill: ink2 }); });
+      });
+    } else {
+      cats.forEach((_, i) => {
+        let acc = 0;
+        series.forEach((s, si) => {
+          const v = s.values[i]; if (v == null) return;
+          const c = chartColor(el, si);
+          if (stacked) {
+            const v0 = acc, v1 = acc + Math.max(0, v); acc = v1;
+            const x = px0 + slot * (i + 0.5) - gw / 2, y = vy(v1), hh = vy(v0) - vy(v1);
+            out += `<rect x="${R2(x)}" y="${R2(y)}" width="${R2(gw)}" height="${R2(Math.max(0, hh))}" fill="${c}"/>`;
+            if (labels && v) out += T(x + gw / 2, y + hh / 2, chartNum(v), { anchor: "middle", size: size * 0.85, fill: "#fff", bold: true });
+          } else if (horiz) {
+            const bw = gw / ns, y = py1 - slot * (i + 0.5) - gw / 2 + bw * si, x0 = vx(Math.min(0, v)), x1 = vx(Math.max(0, v));
+            out += `<rect x="${R2(x0)}" y="${R2(y)}" width="${R2(x1 - x0)}" height="${R2(bw)}" fill="${c}"/>`;
+            if (labels) out += T(x1 + 4, y + bw / 2, chartNum(v), { size: size * 0.85, fill: ink2 });
+          } else {
+            const bw = gw / ns, x = px0 + slot * (i + 0.5) - gw / 2 + bw * si, y0 = vy(Math.max(0, v)), y1 = vy(Math.min(0, v));
+            out += `<rect x="${R2(x)}" y="${R2(y0)}" width="${R2(bw)}" height="${R2(y1 - y0)}" fill="${c}"/>`;
+            if (labels) out += T(x + bw / 2, y0 - size * 0.7, chartNum(v), { anchor: "middle", size: size * 0.85, fill: ink2 });
+          }
+        });
+      });
+    }
+    return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" style="position:absolute;left:0;top:0">${out}</svg>`;
+  }
+
   function elImage(el) {
-    return `<img class="rs-img" src="${esc(root.RENDER_BASE || "/")}${esc(el.src)}" alt="" draggable="false">`;
+    const src = `${esc(root.RENDER_BASE || "/")}${esc(el.src)}`, op = el.opacity != null && el.opacity !== 1 ? `opacity:${+el.opacity};` : "";
+    const c = Array.isArray(el.crop) && el.crop.some((v) => v) ? el.crop.map((v) => Math.max(0, Math.min(0.95, +v || 0))) : null;
+    if (!c) return `<img class="rs-img" src="${src}" alt="" draggable="false"${op ? ` style="${op}"` : ""}>`;
+    const [l, t, r, b] = c, W = el.w / Math.max(0.05, 1 - l - r), H = el.h / Math.max(0.05, 1 - t - b);  // 자르기 - 원본을 키워 상자 밖은 감춘다(PowerPoint crop 과 같은 뜻, 비율은 상자 비율)
+    return `<div style="position:absolute;inset:0;overflow:hidden;${op}"><img class="rs-img" src="${src}" alt="" draggable="false" style="position:absolute;left:${R2(-l * W)}px;top:${R2(-t * H)}px;width:${R2(W)}px;height:${R2(H)}px;object-fit:fill"></div>`;
   }
 
   /** 선·화살표: 요소 상자(x,y,w,h) 기준 SVG. 화살 머리 = 선 두께 × 5 (PPT 'lg') */
@@ -724,6 +834,10 @@
   }
 
   const isLineType = (t) => t === "line" || t === "arrow" || t === "curve";
+  /** 그림자 - true 면 기본(blur 6 · dx 2 · dy 3 · 검정 30%), 객체면 {blur, dx, dy, color, alpha}. export_pptx.apply_shadow 와 같은 기본값 */
+  const SHADOW_DEF = { blur: 6, dx: 2, dy: 3, color: "#000000", alpha: 0.3 };
+  function shadowSpec(v) { const o = typeof v === "object" && v ? v : {}; const s = { ...SHADOW_DEF, ...o }; s.color = color(s.color) || "#000000"; return s; }
+  function shadowCss(v) { const s = shadowSpec(v); const h = s.color.replace("#", ""), r = parseInt(h.slice(0, 2), 16), g = parseInt(h.slice(2, 4), 16), b = parseInt(h.slice(4, 6), 16); return `;filter:drop-shadow(${s.dx}px ${s.dy}px ${s.blur / 2}px rgba(${r},${g},${b},${s.alpha}))`; }
   function renderElement(el0, page) {
     const el = (el0.type === "line" || el0.type === "arrow") ? lineBox(el0) : el0;
     let inner = "";
@@ -731,6 +845,7 @@
       case "rect": case "ellipse": case "pill": case "text": inner = elBox(el, page); break;
       case "image": inner = elImage(el); break;
       case "shape": inner = elShape(el, page); break;
+      case "chart": inner = elChart(el, page); break;
       case "group": inner = (el.children || []).map((c) => renderElement(c, page)).join(""); break;  // 자식은 묶음 상자 기준 좌표 - 묶음의 회전·뒤집기가 함께 적용된다
       case "line": case "arrow": inner = elLine(el); break;
       case "curve": inner = elCurve(el); break;
@@ -740,8 +855,9 @@
       case "bullets": inner = elBullets(el, page); break;
       default: inner = `<div class="rs-box" style="outline:1px dashed red">? ${esc(el.type)}</div>`;
     }
+    const sh = el.shadow && !isLineType(el.type) ? shadowCss(el.shadow) : "";
     const xf = !isLineType(el.type) && (el.rot || el.flipH || el.flipV) ? `;transform:${el.rot ? `rotate(${+el.rot}deg) ` : ""}${el.flipH ? "scaleX(-1) " : ""}${el.flipV ? "scaleY(-1)" : ""};transform-origin:center center` : "";  // PPT 처럼 중심 기준 - 뒤집은 뒤 회전
-    return `<div class="rs-el" data-id="${esc(el.id)}" data-type="${esc(el.type)}"${el.flipH && !isLineType(el.type) ? ' data-fliph="1"' : ""} style="left:${el.x}px;top:${el.y}px;width:${el.w}px;height:${el.h}px${xf}">${inner}</div>`;  // 좌우 뒤집기는 글은 읽히게(PowerPoint 와 같다) - css 의 [data-fliph] .rs-box
+    return `<div class="rs-el" data-id="${esc(el.id)}" data-type="${esc(el.type)}"${el.flipH && !isLineType(el.type) ? ' data-fliph="1"' : ""} style="left:${el.x}px;top:${el.y}px;width:${el.w}px;height:${el.h}px${xf}${sh}"${el.link ? ` data-link="${esc(String(el.link))}"` : ""}>${inner}</div>`;  // 좌우 뒤집기는 글은 읽히게(PowerPoint 와 같다) - css 의 [data-fliph] .rs-box
   }
 
   function sorted(els) {
@@ -774,7 +890,7 @@
 .rs-cell>.rs-ct{white-space:pre-wrap;word-break:keep-all;flex:1}`;
   }
 
-  const api = { setDeckFonts, presetFonts, fontRole, setTokens, setLangs, langOf, color, colorAlpha, fillSpec, fillCss, radius, runs, plain, hlSQL, hlPython, codeLines, planRuns, tableGrid, tableMerges, bulletRows, bulletNum, numHang, markerNum, numLabel, shapePath, shapeNames, renderElement, renderSlide, css, esc, lineBox };
+  const api = { setDeckFonts, presetFonts, fontRole, setTokens, setLangs, langOf, color, colorAlpha, fillSpec, fillCss, radius, runs, plain, hlSQL, hlPython, codeLines, planRuns, tableGrid, tableMerges, chartAxis, chartData, bulletRows, bulletNum, numHang, markerNum, numLabel, shapePath, shapeNames, renderElement, renderSlide, css, esc, lineBox };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   root.Render = api;
 })(typeof window !== "undefined" ? window : globalThis);

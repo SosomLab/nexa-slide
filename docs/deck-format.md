@@ -31,6 +31,7 @@
 | `plan` | `text`(DBMS_XPLAN 원문), `size`, `lineHeight`, `fill`, `pad` — `[[값]]` = 경고 강조, `[[ok:값]]` = 개선 강조 | 고정폭 글자, 강조 run = 굵게 + 글자색 + **run 강조색(a:highlight)** |
 | `table` 추가 | `merge`: `[[행, 열, 행수, 열수], …]`(0부터, 머리 행 포함 — 왼쪽 위 셀이 그 영역을 차지하고 덮인 셀은 그리지 않는다, 겹치면 앞 것만, 표 밖은 잘라냄). PPTX 는 셀 병합으로 | 편집기 표 속성 "셀 병합" 칸 |
 | `image` 추가 | `mermaid`: 이 그림을 그린 mermaid 코드(편집기 ＋ 추가 → 다이어그램 코드(mermaid)… · 속성 [다이어그램 코드 수정…]). PNG 는 `assets/images/diagram-*.png`, 코드는 옆 `.mmd` | Node(npx) 필요 |
+| `chart` | `chart`(`column` `stackedColumn` `bar` `line` `area` `pie` `doughnut`), `categories[]`, `series[{name, values[]}]`(원형은 첫 계열), `title`, `legend`(`none`·`bottom`·`right`, 기본: 계열 2개 이상·원형이면 아래), `labels`(값 표시), `grid`(눈금선, 기본 켬), `axisMax`, `size`(글자 px, 기본 14), `colors[]`(토큰·#hex) | 편집기는 SVG, PPTX 는 **PowerPoint 차트**(편집 가능 — 색·범례·값 표시·눈금 규칙은 같되 그림은 PowerPoint 가 그린다). 편집기 ＋ 추가 → 차트…, 속성 데이터 칸(`범주 \| 계열…`) |
 | `group` | `children`(요소 배열 — 좌표는 묶음 상자 `x,y` 기준), `x,y,w,h`, `rot`·`flipH`·`flipV`(묶음 전체) | PPTX 묶음 도형(grpSp). 편집기 Ctrl+G 묶기 / Ctrl+Shift+G 풀기(풀면 새 id), 크기 조절은 자식을 비율로. 표·묶음은 묶음 안에 넣지 않는다 |
 | `plan-table` | `columns`, `colW`, `opCol`(들여쓰기 열), `rows[{cells, depth, hl:{열번호: warn/ok}, note}]`, `calloutW` | 표 + 오른쪽 설명 콜아웃(연결선 + 둥근 상자) |
 | `shape` | `shape`(종류: `triangle` `rtTriangle` `diamond` `parallelogram` `trapezoid` `pentagon` `hexagon` `octagon` `rightArrow` `leftArrow` `upArrow` `downArrow` `leftRightArrow` `chevron` `homePlate` `star5` `plus` `callout` `roundCallout` `can` `cube`), `fill`, `stroke`, `strokeWidth`, `text`, `size`, `color`, `bold`, `align`(기본 가운데), `valign`, `pad` | PowerPoint 기본 도형(prstGeom, 기본 조정값). 편집기는 같은 기하를 SVG 경로로 그리고 글은 프리셋의 글 영역에 둔다. 편집기 ＋ 추가 → 도형… / 다이어그램… |
@@ -38,6 +39,8 @@
 | `bullets` | `items`(문자열 또는 `{text, sub:[…]}`), `size`, `subSize`, `lineHeight`, `gap`, `subGap`, `dot`, `color`, `subColor`, `spread`(참이면 **균등 간격** — 행 높이(줄바꿈 수 + 1 줄, 자동 줄바꿈은 세지 않음)를 뺀 나머지를 행 사이에 고르게 나눠 상자 `h` 를 채운다. 원본 PPT 의 "세로 고르게" 글상자용), `autoNum`(기본 참 — 항목 글 앞의 **번호를 자동 감지**해 ● 대신 그 번호로 표기: `1. ` `1) ` `(1) ` `a. ` `A) ` `①` `가. `(번호 뒤 공백 필요, 두 자리까지 — `2024. 매출`·`1.5배` 는 번호가 아님). **글머리 기호**도 감지: `* ` `- ` `+ `(공백 필요)와 `· • ● ○ ◦ ■ □ ▪ ◆ ◇ ▲ ▶ ► → ➤ ✓ ✔ ✗ ★ ☆ ※` 등(공백 없어도) — 그 기호를 글머리 색으로 ● 자리에 그린다(● ■ ◆ ▲ ▼ ★ 은 60% 크기). `marker`(항목, 기본 `●`)·`subMarker`(하위, 기본 `–`) = **글머리 종류**: 기호 한 글자, 번호 매기기 `1.` `1)` `(1)` `a.` `a)` `A.` `A)` `①` `가.`(순번 자동 — 하위는 상위 항목마다 1부터, PPTX 자동 번호), `none`(글머리 없음, 내어쓰기도 없음). 글 앞에 적은 번호·기호가 있으면 그것이 우선. 편집기 속성 "글머리 종류"에서 고른다. 글은 그대로 두고 렌더만 바꾸므로 손으로 적은 번호를 지울 필요가 없다. 번호는 글 색·크기, 내어쓰기는 번호 폭만큼 넓어진다. `false` 면 감지하지 않음) | 단락 글머리(●/–, 글머리 색) · 번호 항목은 PPTX 자동 번호(`a:buAutoNum`, 가. 같은 것은 글자 그대로) · 뒤 간격 = 단락 뒤 간격 |
 
 **인라인 강조**(text·pill·rect·ellipse·shape·table 셀·bullets): `**굵게**`, `==강조==`(CI 적색 굵게), `[[토큰|색 글자]]`, `__밑줄__`, `*기울임*`(한 글자 이상, 앞뒤에 글자·공백 없이), `{page}`(쪽 번호).
+
+**링크**(선 제외 모든 요소): `link` — `https://…`(새 탭) · `#3`(3번 슬라이드) · `#<슬라이드 id>`. 발표 화면에서 누르면 이동, PPTX 는 click_action(hlinkClick). **그림자**: `shadow: true` 또는 `{blur, dx, dy, color, alpha}`(기본 6·2·3·검정·0.3 — 편집기 drop-shadow, PPTX outerShdw). **그림 자르기·투명도**(image): `crop: [왼, 위, 오른, 아래]`(0~0.95 비율, PowerPoint crop 과 같은 뜻), `opacity`(0~1).
 
 **회전·뒤집기**(text·pill·rect·ellipse·shape·image): `rot`(도, 시계 방향, 중심 기준 — PPT 의 회전과 같다) · `flipH` · `flipV`(참이면 뒤집기, 뒤집은 뒤 회전). 편집기 속성 "위치·크기" 아래. 선·표·글머리·코드는 회전하지 않는다.
 

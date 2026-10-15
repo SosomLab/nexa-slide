@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>인쇄</title>
+<!-- PDF 인쇄용: /studio/print.html?deck=ch00 → 슬라이드마다 한 쪽(1280×720px, 여백 0). 서버의 PDF 내보내기(Chrome 헤드리스)가 쓴다. -->
+<style>
+  @page { size: 1280px 720px; margin: 0; }
+  html, body { margin: 0; background: #fff; }
+  .pg { width: 1280px; height: 720px; overflow: hidden; page-break-after: always; break-after: page; position: relative; }
+  .pg:last-child { page-break-after: auto; break-after: auto; }
+</style>
+<link rel="stylesheet" href="fonts.css">
+<link rel="stylesheet" href="../api/fontcss">
+<style id="rs-css"></style>
+</head>
+<body>
+<div id="root"></div>
+<script src="i18n.js"></script>
+<script src="render.js"></script>
+<script>
+(async () => {
+  const BASE = (location.pathname.match(/^\/w\/[^/]+/) || [""])[0];
+  window.RENDER_BASE = BASE + "/";
+  const q = new URLSearchParams(location.search);
+  const id = q.get("deck") || "ch00";
+  const [tok, deck] = await Promise.all([fetch("tokens.json").then(r => r.json()), fetch(BASE + "/api/deck/" + id).then(r => r.json())]);
+  Render.setTokens(tok);
+  try { Render.setLangs(await (await fetch("code_langs.json")).json()); } catch (e) { /* 없으면 SQL 만 */ }
+  Render.setDeckFonts && Render.setDeckFonts(deck.fontPreset);
+  document.getElementById("rs-css").textContent = Render.css();
+  document.getElementById("root").innerHTML = deck.slides.map((s, i) => `<div class="pg">${Render.renderSlide(s, i + 1)}</div>`).join("");
+  await document.fonts.ready;
+  document.body.dataset.ready = "1";
+})();
+</script>
+</body>
+</html>
