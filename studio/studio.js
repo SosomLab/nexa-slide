@@ -1055,8 +1055,8 @@ ${names}
     if (!el) {
       P.innerHTML = `<div class="sec"><h3>슬라이드 ${S.cur + 1} · ${esc(s.id)} · 레이아웃 ${esc(s.layout || "-")}</h3>
         <div class="row"><label>배경</label><select class="colorSel" data-slide="bg">${colorOptions(s.bg || "surface")}</select></div>
-        <div class="row"><label>글꼴 세트</label><select data-slide="fontPreset"><option value="">(덱 기본${S.deck.fontPreset ? ` - ${esc(S.deck.fontPreset)}` : ""})</option>${((S.fonts && S.fonts.presets) || []).map((p) => `<option value="${esc(p.name)}"${s.fontPreset === p.name ? " selected" : ""}>${esc(p.name)} - ${esc(p.label)}</option>`).join("")}</select></div>
-        <div class="row"><label>덱 글꼴 세트</label><select data-deckfont="1"><option value="">(작업 공간 - ${esc((S.fonts && S.fonts.current) || "기본")})</option>${((S.fonts && S.fonts.presets) || []).map((p) => `<option value="${esc(p.name)}"${S.deck.fontPreset === p.name ? " selected" : ""}>${esc(p.name)} - ${esc(p.label)}</option>`).join("")}</select></div>
+        <div class="row"><label>글꼴 세트</label><div class="scrollx"><select data-slide="fontPreset"><option value="">(덱 기본${S.deck.fontPreset ? ` - ${esc(S.deck.fontPreset)}` : ""})</option>${((S.fonts && S.fonts.presets) || []).map((p) => `<option value="${esc(p.name)}"${s.fontPreset === p.name ? " selected" : ""}>${esc(p.name)} - ${esc(p.label)}</option>`).join("")}</select></div></div>
+        <div class="row"><label>덱 글꼴 세트</label><div class="scrollx"><select data-deckfont="1"><option value="">(작업 공간 - ${esc((S.fonts && S.fonts.current) || "기본")})</option>${((S.fonts && S.fonts.presets) || []).map((p) => `<option value="${esc(p.name)}"${S.deck.fontPreset === p.name ? " selected" : ""}>${esc(p.name)} - ${esc(p.label)}</option>`).join("")}</select></div></div>
         <div class="hint">요소를 누르면 위 서식 줄과 여기서 고칠 수 있다. 색은 토큰 이름으로 고른다(색의 의미 유지).</div></div>${list}`;
       return;
     }
