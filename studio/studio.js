@@ -1340,8 +1340,8 @@ ${names}
     closeMenu();
     const back = document.createElement("div"); back.id = "reqHist";
     back.innerHTML = `<div class="box"><div class="rh-hd"><h3>요청 기록<small id="rhCnt"></small></h3><button type="button" class="chip sm" id="rhClose" title="닫기 (Esc)">✕</button></div>
-      <div class="rh-sb"><input type="search" placeholder="제목·내용·답으로 찾기 - 기본 퍼지(띄어쓰기·한두 글자 차이 허용)" autocomplete="off" value="${esc(RH.q)}"><span id="rhTg" title="찾기 방식 - 기본은 퍼지(띄어쓰기·한두 글자 차이 허용)"></span></div>
-      <div class="rh-fl"><span class="seg" id="rhScope"><button data-v="all">전체</button><button data-v="slide">이 슬라이드</button></span><span>상태</span><span class="seg" id="rhSt"><button data-v="">전체</button>${Object.entries(ST).map(([k, v]) => `<button data-v="${k}">${v}</button>`).join("")}</span><span class="err" id="rhErr"></span></div>
+      <div class="rh-sb"><input type="search" placeholder="내용·답으로 찾기 - 기본 퍼지(띄어쓰기·한두 글자 차이 허용) · #4 = 슬라이드 4, #4,5,7-10 = 여러 장" autocomplete="off" value="${esc(RH.q)}"><span id="rhTg" title="찾기 방식 - 기본은 퍼지(띄어쓰기·한두 글자 차이 허용)"></span></div>
+      <div class="rh-fl"><span>범위</span><span class="seg" id="rhScope"><button data-v="all">전체</button><button data-v="slide">이 슬라이드</button></span><span>상태</span><span class="seg" id="rhSt"><button data-v="">전체</button>${Object.entries(ST).map(([k, v]) => `<button data-v="${k}">${v}</button>`).join("")}</span><span class="err" id="rhErr"></span></div>
       <div class="list" id="rhList"></div></div>`;
     document.body.appendChild(back);
     RH.tg = NexaSearch.toggles(back.querySelector("#rhTg"), "reqs", renderReqHist);
@@ -1361,14 +1361,16 @@ ${names}
   function closeReqHist() { const b = $("#reqHist"); if (b) b.remove(); }
   function renderReqHist() {
     const back = $("#reqHist"), s = slide(); if (!back || !s) return;
-    const M = NexaSearch.matcher(RH.q, RH.tg ? RH.tg() : {});
-    const all = S.reqs.filter((r) => (RH.scope !== "slide" || r.slide === s.id) && (!RH.st || r.status === RH.st));
+    // "#4" = 슬라이드 4 의 요청("#4,5,7-10" 처럼 여러 장·범위) - 나머지 낱말만 글 찾기에 쓴다
+    const { nums, text } = NexaSearch.split(RH.q);
+    const M = NexaSearch.matcher(text, RH.tg ? RH.tg() : {});
+    const all = S.reqs.filter((r) => (RH.scope !== "slide" || r.slide === s.id) && (!RH.st || r.status === RH.st) && (!nums.size || nums.has(reqIdx(r.slide))));
     // 찾기는 대화(묶음) 단위 - 묶음 안 어느 요청이든 맞으면 묶음 전체를 보여 준다(앞뒤 맥락)
     const hit = M.empty ? all : threadsOf(all).filter((g) => g.some((r) => M.any([r.text, r.reply, r.element, ...(r.elements || []), ...((r.attachments || []).map((a) => a.name))]))).flat();
     back.querySelectorAll("#rhScope button").forEach((b) => b.classList.toggle("on", b.dataset.v === RH.scope));
     back.querySelectorAll("#rhSt button").forEach((b) => b.classList.toggle("on", b.dataset.v === RH.st));
     back.querySelector("#rhErr").textContent = M.error ? `정규식 오류: ${M.error}` : "";
-    back.querySelector("#rhCnt").textContent = M.empty && !RH.st && RH.scope === "all" ? `전체 ${S.reqs.length}건` : `${hit.length} / ${S.reqs.length}건`;
+    back.querySelector("#rhCnt").textContent = M.empty && !nums.size && !RH.st && RH.scope === "all" ? `전체 ${S.reqs.length}건` : `${hit.length} / ${S.reqs.length}건`;
     back.querySelector("#rhList").innerHTML = hit.length ? reqThreadsHtml(hit, { hl: M.hl, fu: false }) : `<div class="hint" style="padding:20px;text-align:center">${S.reqs.length ? "찾는 요청이 없습니다" : "요청이 없다."}</div>`;
   }
   async function onReqClick(e) {

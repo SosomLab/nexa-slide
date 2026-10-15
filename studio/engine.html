@@ -60,7 +60,7 @@
 <main>
   <div class="card">
     <div class="bar">
-      <input type="search" id="q" placeholder="제목·내용·답·요청자·커밋·번호로 찾기 (예: 글머리, #9, kiros33) - 기본 퍼지" autocomplete="off">
+      <input type="search" id="q" placeholder="제목·내용·답·요청자·커밋으로 찾기 (예: 글머리, kiros33) - 기본 퍼지 · #9 = 요청 9, #1,5,8-9 = 여러 건" autocomplete="off">
       <span id="qtg" title="찾기 방식 - 기본은 퍼지(띄어쓰기·한두 글자 차이 허용)"></span>
       <span id="filters"></span>
       <button type="button" class="chip" id="reload" title="다시 읽기">↻</button>
@@ -79,7 +79,7 @@
   const S = { items: [], admin: false, q: "", status: "", shown: PAGE, open: new Set() };
   const fmtT = (iso) => { const m = /^(\d{4})-(\d\d)-(\d\d)T(\d\d:\d\d)/.exec(iso || ""); return m ? `${m[1]}-${m[2]}-${m[3]} ${m[4]}` : (iso || ""); };
   const tgOpts = NexaSearch.toggles($("#qtg"), "engine", () => { S.shown = PAGE; render(); });  // Aa · ab · .* (저장됨)
-  let M = NexaSearch.matcher("");
+  let M = NexaSearch.matcher(""), Q = { nums: new Set(), text: "" };
   const hl = (s) => M.hl(s);
   async function load() {
     const r = await fetch("/api/engine/requests", { cache: "no-store" }); const d = await r.json();
@@ -93,11 +93,13 @@
     if (S.status && x.status !== S.status) return false;
     if (!S.q) return true;
     const f = x.from || {};
-    if (/^#?\d+$/.test(S.q) && String(x.id) === S.q.replace("#", "")) return true;
+    if (/^\d+$/.test(S.q) && String(x.id) === S.q) return true;  // 번호만 치면 그 요청
+    if (Q.nums.size && !Q.nums.has(x.id)) return false;  // #1,5,8-9 = 요청 번호 지정(나머지 낱말은 그 안에서 글 찾기)
+    if (Q.nums.size && !Q.text) return true;
     return M.any([x.title, x.body, x.reply, x.commit, x.appliedCommit, x.branch, f.user, f.wsId, f.ws, x.test, ...(x.evidence || []), ...((x.attachments || []).map((a) => a.name))]);
   }
   function render() {
-    M = NexaSearch.matcher(S.q, tgOpts());
+    Q = NexaSearch.split(S.q); M = NexaSearch.matcher(Q.text, tgOpts());
     $("#qerr").textContent = M.error ? `정규식 오류: ${M.error}` : "";
     const counts = {}; S.items.forEach((x) => { counts[x.status] = (counts[x.status] || 0) + 1; });
     $("#filters").innerHTML = [["", "전체", S.items.length], ...ORDER.map((k) => [k, ST_KO[k], counts[k] || 0])].filter(([k, , c]) => !k || c).map(([k, t, c]) => `<button type="button" class="chip${S.status === k ? " on" : ""}" data-st="${k}">${t} <span class="n">${c}</span></button>`).join("");
