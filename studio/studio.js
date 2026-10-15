@@ -1298,12 +1298,26 @@ ${names}
     S.fu = null; ATT.fu = []; S.reqs = r.data; afterReqs(); await flushReqs(true);
     toast(S.session && S.session.connected ? "후속 요청을 세션에 보냈습니다" : "후속 요청을 남겼습니다 - 세션이 연결되면 전달됩니다");
   }
+  // 요청 탭 기본 보기 = 최근 24시간에 진행(만듦·상태 변경·답)된 것 + 아직 끝나지 않은 것. 이전 것은 [더보기] 기록 창(reqHist)에서 찾는다
+  const DAY_MS = 864e5;
+  const reqRecent = (r) => r.status !== "done" || Date.now() - Date.parse(r.updated || r.created || "") < DAY_MS;
+  const reqIdx = (sid) => S.deck.slides.findIndex((x) => x.id === sid) + 1;
+  /** 요청 카드 한 장 - 요청 탭과 기록 창이 같이 쓴다. hl = 찾기 강조 함수, fu = 후속 요청 단추·입력칸 */
+  function reqCardHtml(r, k, last, o) {
+    const hl = (o && o.hl) || esc, fu = !o || o.fu !== false;
+    return `<div class="req ${r.status === "done" ? "done" : ""}${k ? " fu" : ""}" data-rid="${esc(r.id)}">
+        <div class="meta"><span class="st ${esc(r.status || "open")}">${ST[r.status] || "대기"}</span>${k ? `<span class="fu-tag">후속</span>` : `<a href="#" data-goto="${esc(r.slide)}" data-el="${esc(r.element || "")}">슬라이드 ${reqIdx(r.slide) || "?"}${r.elements && r.elements.length > 1 ? ` · ${esc(r.elements[0])} 외 ${r.elements.length - 1}` : r.element ? " · " + esc(r.element) : ""}${r.region ? " · 영역" : ""}</a>`}<span>${esc((r.created || "").replace("T", " "))}</span>${r.updated && r.updated !== r.created ? `<span title="마지막 진행">↻ ${esc(r.updated.replace("T", " "))}</span>` : ""}</div>
+        <div class="txt">${hl(r.text)}</div>${attListHtml(r.attachments, r.id)}${r.reply ? `<div class="reply${r.status !== "done" ? " ask" : ""}"><b>${agentName()}</b> ${hl(r.reply)}</div>` : ""}
+        <div class="acts">${r.status === "draft" ? "" : `<button class="chip sm" data-rs="${r.status === "done" ? "open" : "done"}" ${r.status === "done" ? 'title="같은 요청을 세션에 다시 보냅니다(답을 달려면 후속 요청)"' : ""}>${r.status === "done" ? "다시 열기" : "완료로 표시"}</button>`}${fu && last && r.status !== "draft" ? `<button class="chip sm primary" data-fu="1" title="이 요청에 이어서 묻거나 답합니다 - 앞선 요청과 답이 함께 세션에 전달됩니다">후속 요청</button>` : ""}<button class="chip sm" data-rdel="1">삭제</button></div>
+        ${fu && last && S.fu === r.id ? fuFormHtml(r) : ""}</div>`;
+  }
+  const reqThreadsHtml = (list, o) => threadsOf(list).map((g) => `<div class="thread${g.length > 1 ? " multi" : ""}">${g.map((r, k) => reqCardHtml(r, k, k === g.length - 1, o)).join("")}</div>`).join("");
   function renderReqs() {
     const R = $("#tab-reqs"), s = slide(); if (!s) return;
     const open = S.reqs.filter((r) => r.status !== "done").length;
     const c = $("#reqCnt"); c.textContent = open; c.style.display = open ? "" : "none";
-    const list = S.reqs.filter((r) => !S.reqOnlySlide || r.slide === s.id);
-    const idx = (sid) => S.deck.slides.findIndex((x) => x.id === sid) + 1;
+    const recent = S.reqs.filter(reqRecent), older = S.reqs.length - recent.length;
+    const list = recent.filter((r) => !S.reqOnlySlide || r.slide === s.id);
     const drafts = S.reqs.filter((r) => r.status === "draft").length;
     R.innerHTML = `<div class="sec"><h3>${agentName()} 에게 요청</h3>
       <div class="hint">◎ <b>선택</b> 모드에서 요소를 누르거나 ✐ <b>그리기</b> 모드에서 영역을 그려 메모를 단 뒤, 아래 바의 <b>보내기</b>로 한꺼번에 보낸다. 슬라이드 전체 요청은 여기에.</div>
@@ -1312,17 +1326,50 @@ ${names}
       <div class="row"><button class="chip sm primary" id="reqAdd">메모 남기기</button><button class="att-btn" data-attach="tab" title="그림 붙여넣기(Ctrl+V) · 끌어다 놓기 · 파일 고르기"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 11.5l-8.5 8.5a5 5 0 0 1-7-7l9-9a3.3 3.3 0 0 1 4.7 4.7l-9 9a1.6 1.6 0 0 1-2.3-2.3l8-8"/></svg>＋ 첨부</button>${drafts ? `<button class="chip sm" id="reqSend">초안 ${drafts}개 보내기</button>` : ""}</div>
       <div class="hint">${S.session && S.session.connected ? (S.session.kind === "web" ? (S.session.state === "running" ? `웹 세션이 처리 중(턴 ${S.session.turn || "?"}) - 새로 보낸 요청은 이 턴이 끝난 뒤 바로 처리된다` : "웹 세션 대기 중 - 보낸 요청은 바로 처리된다") : "세션 연결됨 - 보낸 요청은 바로 전달된다") : `세션 연결 없음 - 보낸 요청은 저장되고, 세션이 감시를 시작하면 전달된다${sessOffNote()}`}</div>
       ${!(S.session && S.session.connected) && S.reqs.some((r) => r.status === "open") ? `<div class="warn" style="font-size:12px;margin-top:6px">세션이 꺼져 있어 대기 요청 ${S.reqs.filter((r) => r.status === "open").length}건이 처리되지 않습니다 - <a href="#" data-sess-start>웹 세션 시작…</a></div>` : ""}</div>
-      <div class="row"><span class="seg" id="reqFilter"><button data-v="1" class="${S.reqOnlySlide ? "on" : ""}">이 슬라이드</button><button data-v="0" class="${S.reqOnlySlide ? "" : "on"}">전체 (${S.reqs.length})</button></span></div>
-      ${list.length ? threadsOf(list).map((g) => `<div class="thread${g.length > 1 ? " multi" : ""}">${g.map((r, k) => {
-        const last = k === g.length - 1;
-        return `<div class="req ${r.status === "done" ? "done" : ""}${k ? " fu" : ""}" data-rid="${esc(r.id)}">
-        <div class="meta"><span class="st ${esc(r.status || "open")}">${ST[r.status] || "대기"}</span>${k ? `<span class="fu-tag">후속</span>` : `<a href="#" data-goto="${esc(r.slide)}" data-el="${esc(r.element || "")}">슬라이드 ${idx(r.slide) || "?"}${r.elements && r.elements.length > 1 ? ` · ${esc(r.elements[0])} 외 ${r.elements.length - 1}` : r.element ? " · " + esc(r.element) : ""}${r.region ? " · 영역" : ""}</a>`}<span>${esc((r.created || "").replace("T", " "))}</span></div>
-        <div class="txt">${esc(r.text)}</div>${attListHtml(r.attachments, r.id)}${r.reply ? `<div class="reply${r.status !== "done" ? " ask" : ""}"><b>${agentName()}</b> ${esc(r.reply)}</div>` : ""}
-        <div class="acts">${r.status === "draft" ? "" : `<button class="chip sm" data-rs="${r.status === "done" ? "open" : "done"}" ${r.status === "done" ? 'title="같은 요청을 세션에 다시 보냅니다(답을 달려면 후속 요청)"' : ""}>${r.status === "done" ? "다시 열기" : "완료로 표시"}</button>`}${last && r.status !== "draft" ? `<button class="chip sm primary" data-fu="1" title="이 요청에 이어서 묻거나 답합니다 - 앞선 요청과 답이 함께 세션에 전달됩니다">후속 요청</button>` : ""}<button class="chip sm" data-rdel="1">삭제</button></div>
-        ${last && S.fu === r.id ? fuFormHtml(r) : ""}</div>`;
-      }).join("")}</div>`).join("") : `<div class="hint">요청이 없다.</div>`}`;
+      <div class="row" style="align-items:center"><span class="seg" id="reqFilter"><button data-v="1" class="${S.reqOnlySlide ? "on" : ""}">이 슬라이드</button><button data-v="0" class="${S.reqOnlySlide ? "" : "on"}">최근 (${recent.length})</button></span><span style="flex:1"></span><button class="chip sm" id="reqMore" title="이전 요청까지 모두 찾아보기(편집 화면 위에 뜹니다)">더보기${older ? ` · 이전 ${older}` : ""}</button></div>
+      ${older ? `<div class="hint" style="font-size:11.5px;margin:2px 0 6px">최근 24시간에 진행된 요청과 아직 끝나지 않은 요청만 보입니다 - 이전 것은 [더보기]</div>` : ""}
+      ${list.length ? reqThreadsHtml(list) : `<div class="hint">요청이 없다.</div>`}`;
     attRender("tab"); attWire($("#reqText"), "tab");
     if (S.fu && $("#fuText")) { attRender("fu"); attWire($("#fuText"), "fu"); $("#fuText").focus(); }
+    if ($("#reqHist")) renderReqHist();
+  }
+  // ---- 요청 기록·찾기 창([더보기]) - 편집 화면 위에 겹쳐 뜨는 창이라 편집 중인 덱·선택·저장 상태를 벗어나지 않는다. 슬라이드 링크를 누르면 닫고 그 슬라이드로.
+  const RH = { q: "", scope: "all", st: "", tg: null };
+  function openReqHist() {
+    if ($("#reqHist")) { $("#reqHist input").focus(); return; }
+    closeMenu();
+    const back = document.createElement("div"); back.id = "reqHist";
+    back.innerHTML = `<div class="box"><div class="hd"><h3>요청 기록<small id="rhCnt"></small></h3><button type="button" class="chip sm" id="rhClose" title="닫기 (Esc)">✕</button></div>
+      <div class="sb"><input type="search" placeholder="제목·내용·답으로 찾기 - 기본 퍼지(띄어쓰기·한두 글자 차이 허용)" autocomplete="off" value="${esc(RH.q)}"><span id="rhTg" title="찾기 방식 - 기본은 퍼지(띄어쓰기·한두 글자 차이 허용)"></span></div>
+      <div class="fl"><span class="seg" id="rhScope"><button data-v="all">전체</button><button data-v="slide">이 슬라이드</button></span><span>상태</span><span class="seg" id="rhSt"><button data-v="">전체</button>${Object.entries(ST).map(([k, v]) => `<button data-v="${k}">${v}</button>`).join("")}</span><span class="err" id="rhErr"></span></div>
+      <div class="list" id="rhList"></div></div>`;
+    document.body.appendChild(back);
+    RH.tg = NexaSearch.toggles(back.querySelector("#rhTg"), "reqs", renderReqHist);
+    const q = back.querySelector("input");
+    q.addEventListener("input", () => { RH.q = q.value; renderReqHist(); });
+    back.addEventListener("keydown", (e) => { if (e.key === "Escape") { closeReqHist(); e.preventDefault(); } e.stopPropagation(); });
+    back.addEventListener("mousedown", (e) => { if (e.target === back) closeReqHist(); });
+    back.querySelector("#rhClose").onclick = closeReqHist;
+    back.addEventListener("click", (e) => {
+      const b = e.target.closest("#rhScope button, #rhSt button"); if (!b) return;
+      if (b.closest("#rhScope")) RH.scope = b.dataset.v; else RH.st = b.dataset.v;
+      renderReqHist();
+    });
+    back.querySelector("#rhList").addEventListener("click", onReqClick);
+    renderReqHist(); q.focus();
+  }
+  function closeReqHist() { const b = $("#reqHist"); if (b) b.remove(); }
+  function renderReqHist() {
+    const back = $("#reqHist"), s = slide(); if (!back || !s) return;
+    const M = NexaSearch.matcher(RH.q, RH.tg ? RH.tg() : {});
+    const all = S.reqs.filter((r) => (RH.scope !== "slide" || r.slide === s.id) && (!RH.st || r.status === RH.st));
+    // 찾기는 대화(묶음) 단위 - 묶음 안 어느 요청이든 맞으면 묶음 전체를 보여 준다(앞뒤 맥락)
+    const hit = M.empty ? all : threadsOf(all).filter((g) => g.some((r) => M.any([r.text, r.reply, r.element, ...(r.elements || []), ...((r.attachments || []).map((a) => a.name))]))).flat();
+    back.querySelectorAll("#rhScope button").forEach((b) => b.classList.toggle("on", b.dataset.v === RH.scope));
+    back.querySelectorAll("#rhSt button").forEach((b) => b.classList.toggle("on", b.dataset.v === RH.st));
+    back.querySelector("#rhErr").textContent = M.error ? `정규식 오류: ${M.error}` : "";
+    back.querySelector("#rhCnt").textContent = M.empty && !RH.st && RH.scope === "all" ? `전체 ${S.reqs.length}건` : `${hit.length} / ${S.reqs.length}건`;
+    back.querySelector("#rhList").innerHTML = hit.length ? reqThreadsHtml(hit, { hl: M.hl, fu: false }) : `<div class="hint" style="padding:20px;text-align:center">${S.reqs.length ? "찾는 요청이 없습니다" : "요청이 없다."}</div>`;
   }
   async function onReqClick(e) {
     const b = e.target.closest("button, a"); if (!b) return;
@@ -1341,10 +1388,12 @@ ${names}
     const v = e.target.closest("[data-attv]"); if (v) { const [w, i] = v.dataset.attv.split(":"); NexaLightbox.open(lbItems(ATT[w]), +i); return; }
     if (b.id === "reqSend") { await sendDrafts(); return; }
     if (b.closest("#reqFilter")) { S.reqOnlySlide = b.dataset.v === "1"; renderReqs(); return; }
+    if (b.id === "reqMore") { openReqHist(); return; }
     const card = b.closest(".req"); if (!card) return;
     const rid = card.dataset.rid;
     if (b.dataset.goto !== undefined) {
       e.preventDefault();
+      if (b.closest("#reqHist")) closeReqHist();  // 기록 창에서 슬라이드 링크 → 창을 닫고 그 슬라이드로
       const i = S.deck.slides.findIndex((x) => x.id === b.dataset.goto);
       if (i >= 0) { S.cur = i; S.sel = b.dataset.el && elById(b.dataset.el, S.deck.slides[i]) ? b.dataset.el : null; renderAll(); revealThumb(S.cur); }
       return;
