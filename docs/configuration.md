@@ -105,7 +105,7 @@ NEXA_SLIDE_HOME=D:/Projects/nexa-slide       # 절대 경로 또는 작업 공�
 `nexa.py engine <새 위치>` 로 정한다. 지금 어느 엔진을 쓰는지: `python3 nexa.py engine`.
 
 예전에 만든 작업 공간은 실행기를 새 판으로 바꾼다 — `python3 <작업 공간>/nexa.py update_launcher`
-(실행기를 바꾸고, `.gitignore` 에 `.env`·`nexa-slide.local.json` 을 더하고, 없으면 `.env.example`·`.env` 를 둔다. 설정·내용은 그대로).
+(실행기를 바꾸고, `.gitignore` 에 `.env`·`nexa-slide.local.json` 을 더하고, 없으면 `.env.example`·`.env`·`.claude/commands/nexa-slide-server.md`·`nexa-slide-session.md`(슬래시 명령)·`.claude/settings.json` 을 둔다. 설정·내용은 그대로). clone 이후 순서는 [install.md](install.md#저장소를-받은-뒤-할-일-clone-이후), 시작 페이지 **ⓘ 설정 안내**가 실제 경로로 채운 명령을 보여 준다.
 
 ## 템플릿 `tokens.json` — 디자인 토큰
 

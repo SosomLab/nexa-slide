@@ -73,6 +73,7 @@
   .opt { display: flex; gap: 8px; align-items: flex-start; padding: 8px 10px; border-radius: 10px; border: 1.5px solid var(--line); margin-top: 6px; cursor: pointer; }
   .opt.on { border-color: var(--p); background: #fffafa; }
   .opt input { margin-top: 4px; }
+  .cmdrow { display: flex; gap: 6px; align-items: center; margin: 4px 0 8px; } .cmdrow code { flex: 1; min-width: 0; overflow: auto; white-space: nowrap; background: var(--tone); border-radius: 6px; padding: 5px 8px; font: 12px Consolas, "D2Coding", monospace; } .ih { margin: 12px 0 4px; font-size: 14px; } .ih:first-of-type { margin-top: 4px; }
   .path { font: 12.5px Consolas, "D2Coding", monospace; background: var(--tone); border-radius: 8px; padding: 6px 10px; margin-top: 8px; word-break: break-all; }
   .acts { display: flex; gap: 8px; align-items: center; justify-content: flex-end; margin-top: 14px; flex-wrap: wrap; }
   .chk { display: flex; gap: 8px; align-items: center; font-size: 13px; margin-right: auto; }
@@ -187,6 +188,7 @@
   <span class="where" id="where"></span>
   <span class="sp"></span>
   <a class="chip sm" id="studioLink" href="/studio/" style="display:none"></a>
+  <button type="button" class="chip sm" id="infoBtn" data-info="" title="저장소를 받은 뒤 이 PC 에서 할 일 - 실제 경로가 채워진 명령과 복사">ⓘ 설정 안내</button>
   <a class="chip sm primary" href="#new">＋ 새 슬라이드</a>
 </header>
 <nav class="tabs" id="tabs">
@@ -433,6 +435,12 @@
   <div class="mb"><p class="hint" style="margin-top:0">서버가 이 작업 공간에서 AI 를 턴마다 실행해 편집기 요청을 처리합니다. 쓰기 범위는 그 작업 공간 폴더뿐이며 <code>nexa.py</code> 명령만 허용됩니다.</p><div id="sessBody"></div><div id="sessErr"></div></div>
   <div class="mf"><button type="button" class="chip" data-close>취소</button><button type="button" class="chip primary" id="sessGo">시작</button></div>
 </div></div>
+<!-- 설정 안내 - 저장소를 받은 뒤 할 일(실제 경로가 채워진 명령) -->
+<div class="modal-back" id="infoModal"><div class="modal" style="width:min(760px,100%)">
+  <div class="mh"><h3>설정 안내 — 저장소를 받은 뒤 할 일</h3><button type="button" class="ib" data-close>✕</button></div>
+  <div class="mb" id="infoBody"></div>
+  <div class="mf"><a class="chip" href="https://github.com/SosomLab/nexa-slide/blob/main/docs/install.md" target="_blank" rel="noopener">설치 문서</a><button type="button" class="chip primary" data-close>닫기</button></div>
+</div></div>
 <!-- 엔진 개발 세션 진행(SSE) -->
 <div class="modal-back" id="engpModal"><div class="modal" style="width:min(720px,100%)">
   <div class="mh"><h3>엔진 개발 세션 진행</h3><button type="button" class="ib" data-close>✕</button></div>
@@ -629,7 +637,7 @@
     $("#recent").innerHTML = list.length ? list.map((r) => `<div class="ritem">
       <span class="av" style="background:${color(r.path)}">${esc((r.title || "?").trim().charAt(0).toUpperCase())}</span>
       <div class="rb"><div style="display:flex;align-items:flex-start;gap:6px"><div class="t" style="flex:1;min-width:0" data-open="${esc(r.path)}" title="${esc(r.path)}"><b>${esc(r.title || r.path)}</b><small>${esc(r.path)}</small></div>
-          <button type="button" class="ib" data-forget="${esc(r.path)}" title="목록에서 빼기(폴더는 그대로)" style="height:24px;min-width:24px;padding:0 4px">${icon("x", 14)}</button></div>
+          <button type="button" class="ib" data-info="${esc(r.path)}" title="이 작업 공간을 다른 PC 에서 받았을 때 할 일(명령·복사)" style="height:24px;min-width:24px;padding:0 4px;font-size:14px">ⓘ</button><button type="button" class="ib" data-forget="${esc(r.path)}" title="목록에서 빼기(폴더는 그대로)" style="height:24px;min-width:24px;padding:0 4px">${icon("x", 14)}</button></div>
         <div class="rm">${!r.exists ? '<span class="badge">폴더 없음</span>' : r.workspace ? `${r.git ? `<span class="badge git">git</span>` : ""}<span class="badge">덱 ${r.decks.length}</span>${svc(r)}` : '<span class="badge">작업 공간 아님</span>'}</div>
         ${r.workspace ? sessLine(r) : ""}</div></div>`).join("")
       : `<div class="empty">${q ? "찾는 작업이 없습니다" : "아직 연 작업이 없습니다. 새로 만들거나 폴더를 열어 보세요."}</div>`;
@@ -764,7 +772,7 @@
       const cmd = `cd "${dir}"; python studio/watch_engine_requests.py --stream`;
       const state = es.state === "manual" ? `<div class="warn" style="margin:0 0 6px">지금은 터미널 세션 <b>${esc(es.label || "")}</b>(pid ${esc(String(es.pid || ""))})이 맡고 있다 - 그 세션의 Monitor 를 끝내면 다른 세션이나 웹 세션이 맡을 수 있다.</div>`
         : es.state && es.state !== "off" ? `<div class="warn" style="margin:0 0 6px">지금은 <b>웹 엔진 세션</b>(${esc(es.agent || "")} · ${esc(es.model || "")})이 맡고 있어 터미널 명령은 거절된다 - 먼저 위의 <b>[세션 중지]</b>를 누른 뒤 실행한다.</div>` : "";
-      box.style.display = ""; box.innerHTML = `${state}<b>열려 있는 Claude Code 세션(터미널·VS Code)으로 맡기기</b> - 그 세션에 <code>/nexa-engine</code> 한 줄을 입력하면 된다(엔진 저장소나 작업 공간에서 연 세션 - 세션이 큐 감시를 띄우고 요청이 오면 엔진 worktree 에서 처리한다). 명령 파일이 없는 옛 작업 공간은 <code>python3 nexa.py update_launcher</code>.<br>직접 띄우려면 엔진 worktree 를 연 세션에서 아래 명령을 <b>Monitor</b> 로 실행하면 이 카드가 "수동 세션"이 되고 처리할 요청이 그 세션에 알림으로 간다(웹 엔진 세션과 동시에는 안 됨).<div class="row" style="margin:6px 0 0"><code style="flex:1;min-width:0;overflow:auto;white-space:nowrap;background:var(--tone);border-radius:6px;padding:4px 8px" id="engManualCmd">${esc(cmd)}</code><button type="button" class="chip sm" data-eng="manualcopy">복사</button></div>`;
+      box.style.display = ""; box.innerHTML = `${state}<b>열려 있는 Claude Code 세션(터미널·VS Code)으로 맡기기</b> - 그 세션에 <code>/nexa-slide-server</code> 한 줄을 입력하면 된다(엔진 저장소·작업 공간·그 저장소 루트에서 연 세션 - 세션이 큐 감시를 띄우고 요청이 오면 엔진 worktree 에서 처리한다. 작업 공간 자체의 슬라이드 세션은 <code>/nexa-slide-session</code>). 명령 파일이 없는 옛 작업 공간은 <code>python3 nexa.py update_launcher</code>(자세한 명령은 머리의 <b>ⓘ 설정 안내</b>).<br>직접 띄우려면 엔진 worktree 를 연 세션에서 아래 명령을 <b>Monitor</b> 로 실행하면 이 카드가 "수동 세션"이 되고 처리할 요청이 그 세션에 알림으로 간다(웹 엔진 세션과 동시에는 안 됨).<div class="row" style="margin:6px 0 0"><code style="flex:1;min-width:0;overflow:auto;white-space:nowrap;background:var(--tone);border-radius:6px;padding:4px 8px" id="engManualCmd">${esc(cmd)}</code><button type="button" class="chip sm" data-eng="manualcopy">복사</button></div>`;
       return;
     }
     if (b.dataset.eng === "manualcopy") { const t = $("#engManualCmd").textContent; try { await navigator.clipboard.writeText(t); toast("명령을 복사했습니다"); } catch (err) { prompt("명령", t); } return; }
@@ -1074,6 +1082,46 @@
 
   // ---------- 폴더 고르기 ----------
   let fsCb = null, fsCur = null, fsBack = null;  // fsBack = 폴더 고르기를 연 창(기준 폴더 설정) - 고르지 않고 닫으면 그 창으로 돌아간다
+
+  // ---- ⓘ 설정 안내: 엔진·작업 공간 저장소를 받은 뒤 이 PC 에서 할 일을 실제 경로가 채워진 명령으로 보여 주고 복사한다
+  const cmdRow = (c) => `<div class="cmdrow"><code>${esc(c)}</code><button type="button" class="chip sm" data-copy="${esc(c)}">복사</button></div>`;
+  function openInfo(path) {
+    const h = H.home || {}, eng = h.engine || "<엔진 폴더>", list = [];
+    if (h.current && h.current.path) list.push({ path: h.current.path, title: h.current.title || h.current.path });
+    for (const r of h.recent || []) if (!list.some((x) => x.path === r.path)) list.push({ path: r.path, title: r.title || r.path });
+    const sel = path && list.some((x) => x.path === path) ? path : (list[0] || {}).path || "";
+    const ws = sel || "<작업 공간 폴더>", eg = (H.engine && H.engine.git) || {};
+    const opts = list.map((x) => `<option value="${esc(x.path)}"${x.path === sel ? " selected" : ""}>${esc(x.title)} — ${esc(x.path)}</option>`).join("");
+    $("#infoBody").innerHTML = `
+      <p class="hint" style="margin-top:0">명령은 이 PC 의 실제 경로로 채워져 있습니다. 어느 OS 든 <code>python3</code>(없으면 <code>python</code>)로 실행합니다.</p>
+      <h4 class="ih">1. 엔진(제작 도구) 저장소 — <code>${esc(eng)}</code></h4>
+      <div class="hint">처음 받을 때 한 번. 이 시작 페이지(허브)를 내주는 서버가 엔진입니다.</div>
+      ${cmdRow("git clone git@github.com:SosomLab/nexa-slide.git && cd nexa-slide && python3 -m pip install -r requirements.txt")}
+      ${cmdRow("python3 studio/server.py")}
+      <div class="hint">엔진 업데이트(받은 뒤 허브·작업 공간 서버 재시작):</div>
+      ${cmdRow(`git -C "${eng}" pull`)}
+      <div class="hint">서버 작업(엔진 요청 큐)을 이 PC 에서 연 Claude Code 세션(터미널·VS Code)에 맡기기 — 엔진 저장소에서 연 세션에 한 줄(명령 파일 <code>.claude/commands/nexa-slide-server.md</code> 는 저장소에 포함 · 서버 작업 세션은 하나뿐${eg.worktree ? ` · 작업은 worktree <code>${esc(eg.worktree)}</code>` : ""}):</div>
+      ${cmdRow("/nexa-slide-server")}
+      <h4 class="ih">2. 작업 공간(슬라이드) 저장소 — PC 마다 한 번</h4>
+      <div class="row" style="margin:0 0 6px"><label class="f" style="margin:0;flex:none">작업 공간</label><select id="infoWs" style="flex:1;min-width:0">${opts || `<option value="">(최근 작업 없음 - 경로를 <작업 공간 폴더> 로 표시)</option>`}</select></div>
+      <div class="hint">① 이 PC 의 엔진 위치를 알려 줍니다(<code>.env</code> 가 있으면 생략 — <code>.env.example</code> 을 <code>.env</code> 로 복사해 적어도 됩니다):</div>
+      ${cmdRow(`python3 "${ws}/nexa.py" engine "${eng}"`)}
+      <div class="hint">② 실행기와 세션 파일을 이 엔진 판에 맞춥니다 — 없으면 <code>.claude/commands/nexa-slide-server.md</code>(슬래시 명령)·<code>.claude/settings.json</code>(세션 훅·권한)·<code>.env.example</code>·<code>.gitignore</code> 항목을 자동으로 만듭니다(있는 것은 그대로):</div>
+      ${cmdRow(`python3 "${ws}/nexa.py" update_launcher`)}
+      <div class="hint">③ 이 작업 공간 서버 띄우기(시작 페이지의 [서버 시작]과 같음) · 상태 · 끄기:</div>
+      ${cmdRow(`python3 "${ws}/nexa.py" start`)}
+      <div class="hint">④ 그 폴더(CLI) 또는 저장소 루트(VS Code 는 보통 여기)에서 연 Claude Code 세션에 한 줄 — 이 작업 공간의 <b>슬라이드 세션</b>(편집기 요청 처리) 또는 <b>서버 작업</b> 세션으로 연결(②가 명령 파일을 둠 · 이미 웹 세션이 맡고 있으면 먼저 [세션 중지]):</div>
+      ${cmdRow("/nexa-slide-session")}
+      ${cmdRow("/nexa-slide-server")}
+      <div class="hint">슬래시 명령 없이 직접(Monitor): <code>python3 "${esc(ws)}/nexa.py" watch_requests --stream --takeover</code></div>
+      <div class="banner info" style="margin:10px 0 0;font-size:12.5px">저장소 주인이 <code>nexa.py</code>·<code>.claude/commands/</code>·<code>.claude/settings.json</code>·<code>.env.example</code> 을 커밋해 두면 clone 받은 사람은 ①만 하면 됩니다. <code>.env</code>·<code>nexa-slide.local.json</code> 은 PC 별 파일이라 커밋하지 않습니다(.gitignore).</div>`;
+    $("#infoModal").classList.add("on");
+  }
+  document.addEventListener("click", (e) => {
+    const c = e.target.closest("[data-copy]"); if (c) { e.preventDefault(); copyText(c.dataset.copy, "명령을"); return; }
+    const i = e.target.closest("[data-info]"); if (i) { e.preventDefault(); e.stopPropagation(); openInfo(i.dataset.info || ""); }
+  });
+  document.addEventListener("change", (e) => { if (e.target.id === "infoWs") openInfo(e.target.value); });
   function closeModals() {
     const back = $("#fsModal").classList.contains("on") ? fsBack : null;
     fsBack = null;
