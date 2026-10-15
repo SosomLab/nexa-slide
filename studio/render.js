@@ -830,8 +830,9 @@
       const sym = num && num.kind === "symbol";
       const bc = num && !sym ? base : color(lvl ? el.subColor || "on-surface-variant" : el.dot || "primary");  // 번호는 글 색(PowerPoint 자동 번호 기본), 기호는 글머리 색
       const pct = num ? (sym && BULLET_HEAVY.includes(num.label) ? 60 : 100) : lvl ? 100 : 60;
-      const bu = none ? "" : `<span class="rs-bu" style="width:${hang}px;font-size:${pct}%;color:${bc}">${num ? esc(num.label) : lvl ? "–" : "●"}</span>`;
-      return `<div class="rs-p" style="position:relative;top:${shift("body", sz, lh)}px;font-size:${sz}px;line-height:${sz * lh}px;padding-left:${marL}px;text-indent:${-hang}px;padding-bottom:${after}px">${bu}${spanRuns(t, page, base, false)}</div>`;
+      const L = sz * lh;  // 글머리는 첫 줄 상자(높이 L)의 세로 가운데 - 글자 기준선에 두면 작은 ● 가 아래로 처진다. 글은 marL 에서 시작(내어쓰기 = 여백)
+      const bu = none ? "" : `<span class="rs-bu" style="left:${marL - hang}px;width:${hang}px;height:${L}px;font-size:${pct}%;color:${bc}">${num ? esc(num.label) : lvl ? "–" : "●"}</span>`;
+      return `<div class="rs-p" style="position:relative;top:${shift("body", sz, lh)}px;font-size:${sz}px;line-height:${L}px;padding-left:${marL}px;padding-bottom:${after}px">${bu}${spanRuns(t, page, base, false)}</div>`;
     }).join("");
     return `<div class="rs-box" style="padding:${pt}px ${pr}px ${pb}px ${pl}px;justify-content:${JUST[el.valign || "top"]};font-family:${font("body")}">${rows}</div>`;
   }
@@ -893,7 +894,7 @@
 .rs-pre{white-space:pre}
 .rs-code{position:absolute;inset:0;overflow:hidden}
 .rs-abs{position:absolute;box-sizing:border-box}
-.rs-bu{display:inline-block;text-indent:0;line-height:0}
+.rs-bu{position:absolute;top:0;display:flex;align-items:center;justify-content:flex-start;text-indent:0;line-height:1;white-space:nowrap}
 .rs-img{position:absolute;inset:0;width:100%;height:100%;display:block;user-select:none}
 .rs-svg{position:absolute;overflow:visible;pointer-events:none}
 .rs-cell{position:absolute;box-sizing:border-box;display:flex;align-items:center;padding:0 14px;overflow:visible}
