@@ -23,8 +23,10 @@ async function main() {
       if (d.id && pending[d.id]) { pending[d.id](d); delete pending[d.id]; return; }
       if (d.method === "Runtime.consoleAPICalled" && (d.params.type === "error")) errors.push("console.error: " + d.params.args.map((a) => a.value || a.description || "").join(" "));
       if (d.method === "Runtime.exceptionThrown") errors.push("exception: " + (d.params.exceptionDetails.exception?.description || d.params.exceptionDetails.text));
-      if (d.method === "Log.entryAdded" && d.params.entry.level === "error" && !/favicon|net::ERR_ABORTED|api\/engine\/notice|api\/image/.test(d.params.entry.text + " " + (d.params.entry.url || ""))) errors.push("log: " + d.params.entry.text + " " + (d.params.entry.url || ""));
+      if (d.method === "Log.entryAdded" && d.params.entry.level === "error" && !IGNORE.test(d.params.entry.text + " " + (d.params.entry.url || ""))) errors.push("log: " + d.params.entry.text + " " + (d.params.entry.url || ""));
     };
+    // 콘솔 오류로 치지 않는 것 - 기본 목록 + 시나리오의 ignoreErrors(정규식 글) - 예: 일부러 틀린 그림 주소
+    const IGNORE = new RegExp("favicon|net::ERR_ABORTED|api\/engine\/notice|api\/image" + (sc.ignoreErrors ? "|" + sc.ignoreErrors : ""));
     const send = (method, params = {}) => new Promise((r) => { const i = ++id; pending[i] = r; ws.send(JSON.stringify({ id: i, method, params })); });
     const evalJs = async (js) => {
       const r = await send("Runtime.evaluate", { expression: `(async () => { ${js.includes("return") ? js : "return (" + js + ")"} })()`, awaitPromise: true, returnByValue: true });
