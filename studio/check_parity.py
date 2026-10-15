@@ -28,6 +28,11 @@ BULLET_SAMPLES = [
     {"type": "bullets", "h": 200, "autoNum": False, "items": ["1. 그대로"], "spread": True},
     # 글머리 기호 감지 - * - + · • ■ ▶ ✓ 는 그 기호가 글머리(공백 없는 •도), "a-b" "*강조*" 는 아님
     {"type": "bullets", "h": 400, "items": ["* 별표", "- 붙임표", "+ 더하기", "· 가운뎃점", "•공백 없는 점", {"text": "■ 네모", "sub": ["▶ 화살", "✓ 확인"]}, "a-b 는 아님", "**굵게** 는 아님"]},
+    # 글머리 종류(marker·subMarker) - 번호 매기기(순번, 하위는 상위마다 1부터)·기호·없음, 글 앞에 적은 번호가 우선
+    {"type": "bullets", "h": 400, "marker": "1.", "subMarker": "a)", "items": ["첫째", {"text": "둘째", "sub": ["하나", "둘"]}, {"text": "셋째", "sub": ["다시 하나"]}, "7) 적은 번호 우선"]},
+    {"type": "bullets", "h": 300, "marker": "①", "subMarker": "none", "items": [{"text": "원", "sub": ["글머리 없음"]}, "둘"]},
+    {"type": "bullets", "h": 300, "marker": "가.", "subMarker": "▸", "items": [{"text": "한글", "sub": ["기호"]}, "둘", "셋"]},
+    {"type": "bullets", "h": 300, "marker": "■", "items": ["네모", "네모"]},
 ]
 # 표 글꼴 역할 예제 - font(본문 셀 기본) · colFont(열별, 빈 값은 font, "code" 는 mono, 모르는 값은 body) · 머리 행은 본문 · header 없는 표
 TABLE_SAMPLES = [

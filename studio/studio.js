@@ -975,6 +975,20 @@ ${names}
     const t = e.text || (e.items && (typeof e.items[0] === "string" ? e.items[0] : e.items[0] && e.items[0].text)) || e.src || "";
     return `${e.id} · ${TYPE_KO[e.type] || e.type}${t ? " · " + Render.plain(String(t)).slice(0, 28) : ""}`;
   }
+  // 글머리 종류 선택지 - 기호 · 번호 매기기(순번 자동) · 없음 (render.js NUM_STYLES 와 같은 이름)
+  const MARKER_OPTS = [["●", "●"], ["○", "○"], ["■", "■"], ["□", "□"], ["◆", "◆"], ["▪", "▪"], ["▸", "▸"], ["–", "–"], ["✓", "✓"], ["1.", "1."], ["1)", "1)"], ["(1)", "(1)"], ["a.", "a."], ["A.", "A."], ["①", "①"], ["가.", "가."], ["none", "없음"]];
+  const SUB_MARKER_OPTS = [["–", "–"], ["·", "·"], ["◦", "◦"], ["▪", "▪"], ["▸", "▸"], ["✓", "✓"], ["1.", "1."], ["1)", "1)"], ["a.", "a."], ["a)", "a)"], ["①", "①"], ["none", "없음"]];
+  /** 글자 상자 ↔ 글머리 목록 변환 - 위치·크기·글자색은 그대로. 글자→글머리: 줄마다 항목(앞 공백 = 하위), 글머리→글자: 항목을 줄로(하위는 공백 두 칸) */
+  function convertEl(el, to) {
+    if (to === "bullets" && el.type === "text") {
+      el.type = "bullets"; el.items = textToBullets(el.text || "") ; if (!el.items.length) el.items = ["항목"]; delete el.text;
+      el.size = el.size || 20; el.subSize = el.subSize || Math.round(el.size * 0.85); el.lineHeight = el.lineHeight || 1.55;
+      ["bold", "align", "valign"].forEach((k) => delete el[k]);
+    } else if (to === "text" && el.type === "bullets") {
+      el.type = "text"; el.text = bulletsToText(el.items); el.lineHeight = el.lineHeight || 1.55;
+      ["items", "subSize", "gap", "subGap", "dot", "subColor", "marker", "subMarker", "spread", "autoNum"].forEach((k) => delete el[k]);
+    }
+  }
   function bulletsToText(items) { return (items || []).map((it) => typeof it === "string" ? it : [it.text || "", ...(it.sub || []).map((x) => "  " + x)].join("\n")).join("\n"); }
   function textToBullets(t) {
     const out = [];
@@ -1030,7 +1044,7 @@ ${names}
     h += `<h3>위치·크기 <span class="hint">px · 슬라이드 1280×720</span></h3>${grid(isLine(el) ? ["x1", "y1", "x2", "y2"] : ["x", "y", "w", "h"])}
       <h3 style="margin-top:10px">순서</h3><div class="zrow"><button class="pbtn" data-z="back" title="맨 뒤로 보내기 (Alt+Ctrl+[)">⇊ 맨 뒤</button><button class="pbtn" data-z="bwd" title="뒤로 보내기 (Ctrl+[)">↓ 뒤로</button><button class="pbtn" data-z="fwd" title="앞으로 가져오기 (Ctrl+])">↑ 앞으로</button><button class="pbtn" data-z="front" title="맨 앞으로 가져오기 (Alt+Ctrl+])">⇈ 맨 앞</button></div></div>`;
     if (TEXTY.has(el.type)) {
-      h += `<div class="sec"><h3>글자 <span class="hint" title="인라인 강조 표기">**굵게** · ==강조== · [[토큰|색]] · {page}</span></h3><textarea data-k="text" style="min-height:70px;font-family:var(--font);font-size:13px">${esc(el.text || "")}</textarea>
+      h += `${el.type === "text" ? `<div class="row" style="margin:0 0 6px"><button class="chip sm" data-conv="bullets" title="줄마다 항목인 글머리 목록으로 바꿉니다(앞에 공백 두 칸 = 하위 항목, 글 앞의 번호·기호는 자동 감지)">≡ 글머리 목록으로 바꾸기</button></div>` : ""}<div class="sec"><h3>글자 <span class="hint" title="인라인 강조 표기">**굵게** · ==강조== · [[토큰|색]] · {page}</span></h3><textarea data-k="text" style="min-height:70px;font-family:var(--font);font-size:13px">${esc(el.text || "")}</textarea>
         <div class="row"><label>크기</label><input type="number" step="1" data-k="size" value="${el.size == null ? "" : el.size}" title="px (PPT = px × 0.75 pt)"><span class="hint" style="margin:0">px</span><span class="seg" data-k="bold" style="margin-left:auto"><button data-v="0" class="${(el.bold === undefined ? el.type === "pill" : el.bold) ? "" : "on"}">보통</button><button data-v="1" class="${(el.bold === undefined ? el.type === "pill" : el.bold) ? "on" : ""}" style="font-weight:700">굵게</button></span></div>
         ${seg("정렬", "align", el, [["left", "⇤ 왼쪽"], ["center", "↔ 가운데"], ["right", "⇥ 오른쪽"]], el.type === "pill" || el.type === "ellipse" ? "center" : "left")}
         ${seg("세로", "valign", el, [["top", "⤒ 위"], ["middle", "↕ 가운데"], ["bottom", "⤓ 아래"]], el.type === "text" ? "top" : "middle")}
@@ -1061,7 +1075,10 @@ ${names}
     if (el.type === "bullets") h += `<div class="sec"><h3>글머리 - 줄마다 항목, 앞에 공백 두 칸 = 하위 항목</h3><textarea data-bul="1" style="min-height:140px;font-family:var(--font);font-size:13px">${esc(bulletsToText(el.items))}</textarea>
         ${num("크기(px)", "size", el)}${num("하위 크기", "subSize", el)}${num("줄 높이", "lineHeight", el, 0.05)}${num("항목 간격", "gap", el)}
         ${colorRow("점 색", "dot", el)}${colorRow("글자색", "color", el)}${colorRow("하위 글자색", "subColor", el)}
-        ${seg("글꼴", "font", el, [["body", "본문"], ["heading", "제목"], ["mono", "고정폭"]], "body")}${fontInfoHtml(el)}</div>`;
+        ${seg("글꼴", "font", el, [["body", "본문"], ["heading", "제목"], ["mono", "고정폭"]], "body")}${fontInfoHtml(el)}</div>
+        <div class="sec"><h3>글머리 종류 <span class="hint" title="항목 글 앞에 직접 적은 번호·기호(1. · a) · ① · - · • …)가 있으면 그것이 먼저 쓰인다">글 앞의 번호·기호가 우선</span></h3>
+        ${seg("항목", "marker", el, MARKER_OPTS, "●")}${seg("하위 항목", "subMarker", el, SUB_MARKER_OPTS, "–")}
+        <div class="row"><button class="chip sm" data-conv="text" title="항목을 줄로 펼친 글자 상자로 바꿉니다(하위 항목은 앞에 공백 두 칸)">글자 상자로 바꾸기</button></div></div>`;
     if (el.type === "table") h += `<div class="sec"><h3>표 - 줄 = 행, 칸은 " | " 로 구분 (첫 행 = 머리)</h3>${fontInfoHtml(el)}<textarea data-tbl="1" style="min-height:140px">${esc(tableToText(el.rows))}</textarea>
         <div class="row"><label>열 비율</label><input type="text" data-list="colW" value="${esc((el.colW || []).join(", "))}"></div>
         <div class="row"><label>행 비율</label><input type="text" data-list="rowH" value="${esc((el.rowH || []).join(", "))}" placeholder="비우면 고르게 · 예: 44, 46, 70"></div>
@@ -1153,6 +1170,7 @@ ${names}
     if (sg && el) { snapshot(); selEls().filter((x) => x === el || x.type === el.type).forEach((x) => setProp(x, sg.dataset.k, b.dataset.v)); afterChange(); return; }
     if (b.dataset.z && el) { zorder(b.dataset.z); return; }
     if (b.dataset.fit === "code" && el) { snapshot(); el.h = Math.round(24 + Render.codeLines(el).length * (el.size || 15) * (el.lineHeight || 1.6)); afterChange(); return; }
+    if (b.dataset.conv && el) { snapshot(); convertEl(el, b.dataset.conv); afterChange(); return; }
     if (b.id === "applyJson" && el) {
       try {
         const nv = JSON.parse($("#elJson").value);
@@ -1699,6 +1717,7 @@ ${names}
     const part = S.deck.part || "day1";
     const base = {
       text: { type: "text", x: 480, y: 320, w: 320, h: 40, text: "새 글자", size: 20, color: "on-surface", lineHeight: 1.4 },
+      bullets: { type: "bullets", x: 400, y: 260, w: 480, h: 180, items: ["첫째 항목", { text: "둘째 항목", sub: ["하위 항목"] }, "셋째 항목"], size: 20, subSize: 17, lineHeight: 1.55 },
       pill: { type: "pill", x: 560, y: 340, w: 120, h: 30, text: "칩", size: 14, fill: `${part}-container`, color: `on-${part}-container`, bold: true },
       rect: { type: "rect", x: 480, y: 280, w: 320, h: 160, fill: "surface-container", radius: "r-m" },
       ellipse: { type: "ellipse", x: 600, y: 320, w: 80, h: 80, fill: part, color: "white", text: "", size: 20, bold: true },
@@ -1715,7 +1734,7 @@ ${names}
     s.elements.push(el); S.sel = el.id; afterChange();
   }
   function addMenu(btn) {
-    openMenu(btn, [["text", "T", "글자"], ["pill", "◖◗", "칩"], ["rect", "▭", "상자"], ["ellipse", "◯", "원"], ["arrow", "→", "화살표"], ["table", "▦", "표 (2×2)"], ["code", "{ }", "코드"], ["image", "🖼", "로고"]]
+    openMenu(btn, [["text", "T", "글자"], ["bullets", "≡", "글머리 목록"], ["pill", "◖◗", "칩"], ["rect", "▭", "상자"], ["ellipse", "◯", "원"], ["arrow", "→", "화살표"], ["table", "▦", "표 (2×2)"], ["code", "{ }", "코드"], ["image", "🖼", "로고"]]
       .map(([k, i, l]) => ({ icon: i, label: l, act: () => addEl(k) })));
   }
   function goSlide(i) { if (!S.deck) return; S.cur = Math.max(0, Math.min(S.deck.slides.length - 1, i)); S.sel = null; S.chkBox = S.chkBox && S.chkBox.slide === slide().id ? S.chkBox : null; closeMemo(); renderAll(); ensureThumbVisible(S.cur); }

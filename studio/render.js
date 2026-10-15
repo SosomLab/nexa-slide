@@ -394,13 +394,36 @@
     return null;
   }
   /** 번호 글머리의 내어쓰기 폭 px - 번호가 ●보다 넓으면 넓힌다 (common.num_hang 과 같은 식) */
-  const numHang = (label, size, hang) => label.length <= 1 ? hang : Math.max(hang, Math.ceil(size * (0.55 * label.length + 0.25)));
+  const numHang = (label, size, hang) => label.length <= 1 ? hang : Math.max(hang, Math.ceil(size * ([...label].reduce((a, ch) => a + (ch.charCodeAt(0) > 0x2E80 ? 1.0 : 0.55), 0) + 0.25)));  // 한글·한자 같은 전각 글자는 1em
+
+  /** 글머리 종류(marker · subMarker) - 번호 매기기 종류 → PPTX 자동 번호 type (common.NUM_STYLES 와 같다) */
+  const NUM_STYLES = { "1.": "arabicPeriod", "1)": "arabicParenR", "(1)": "arabicParenBoth", "a.": "alphaLcPeriod", "a)": "alphaLcParenR", "A.": "alphaUcPeriod", "A)": "alphaUcParenR", "①": "circleNumDbPlain", "가.": null };
+  const KOR_NUM = "가나다라마바사아자차카타파하";
+  function numLabel(style, n) {
+    if (!(style in NUM_STYLES)) return null;
+    if (style === "①") return n >= 1 && n <= 20 ? String.fromCharCode(0x2460 + n - 1) : `(${n})`;
+    if (style === "가.") return (n >= 1 && n <= KOR_NUM.length ? KOR_NUM[n - 1] : String(n)) + ".";
+    const a = n >= 1 && n <= 26 ? String.fromCharCode(96 + n) : String(n);
+    return { "1.": `${n}.`, "1)": `${n})`, "(1)": `(${n})`, "a.": `${a}.`, "a)": `${a})`, "A.": `${a.toUpperCase()}.`, "A)": `${a.toUpperCase()})` }[style];
+  }
+  /** 요소의 marker(수준 0)/subMarker(수준 1) → 행의 번호·기호 {label, scheme, start, kind} 또는 null(기본 ●/–). common.marker_num 과 같은 규칙 */
+  function markerNum(style, lvl, n) {
+    if (!style || style === (lvl === 0 ? "●" : "–")) return null;
+    if (style in NUM_STYLES) return { label: numLabel(style, n), scheme: NUM_STYLES[style], start: n, kind: "auto" };
+    if (style === "none") return { label: "", scheme: null, start: 0, kind: "none" };
+    return { label: String(style), scheme: null, start: 0, kind: "symbol" };
+  }
 
   /** bullets → [[글자, 수준, 뒤 간격 px, 번호]] (common.bullet_rows 와 같은 규칙). 번호 = 글 앞의 "1. " 같은 번호를 자동 감지한 {label, scheme, start}(글자에서는 뗀다) 또는 null - autoNum: false 면 감지하지 않는다.
       spread = 균등 간격: 행 높이(줄 수 = 줄바꿈 수 + 1, 자동 줄바꿈은 세지 않음)를 뺀 나머지를 행 사이에 고르게 - 마지막 행 뒤는 0 */
   function bulletRows(el) {
-    const gap = el.gap == null ? 14 : el.gap, sub = el.subGap == null ? 6 : el.subGap, rows = [], auto = el.autoNum !== false;
-    const row = (text, lvl, after) => { const num = auto ? bulletNum(text) : null; if (num) { text = num.rest; delete num.rest; } return [text, lvl, after, num]; };
+    const gap = el.gap == null ? 14 : el.gap, sub = el.subGap == null ? 6 : el.subGap, rows = [], auto = el.autoNum !== false, cnt = [0, 0];
+    const row = (text, lvl, after) => {
+      if (lvl === 0) { cnt[0] += 1; cnt[1] = 0; } else cnt[1] += 1;  // 수준별 순번(번호 매기기용) - 하위는 상위 항목마다 다시 1부터
+      let num = auto ? bulletNum(text) : null;  // 글 앞에 적은 번호·기호가 먼저
+      if (num) { text = num.rest; delete num.rest; } else num = markerNum(lvl === 0 ? el.marker : el.subMarker, lvl, cnt[lvl]);  // 요소에 고른 글머리 종류
+      return [text, lvl, after, num];
+    };
     for (let it of el.items || []) {
       if (typeof it === "string") it = { text: it };
       const subs = it.sub || [];
@@ -578,12 +601,12 @@
     const size = +el.size || 20, sub = +el.subSize || 17, lh = +(el.lineHeight || 1.55);
     const [pt, pr, pb, pl] = padOf(el);
     const rows = bulletRows(el).map(([t, lvl, after, num]) => {
-      const sz = lvl ? sub : size, hang0 = lvl ? 20 : 28, hang = num ? numHang(num.label, sz, hang0) : hang0, marL = (lvl ? 48 : 28) - hang0 + hang;
+      const sz = lvl ? sub : size, hang0 = lvl ? 20 : 28, none = num && num.kind === "none", hang = none ? 0 : num ? numHang(num.label, sz, hang0) : hang0, marL = (lvl ? 48 : 28) - hang0 + hang;
       const base = color(lvl ? el.subColor || "on-surface-variant" : el.color || "on-surface");
       const sym = num && num.kind === "symbol";
       const bc = num && !sym ? base : color(lvl ? el.subColor || "on-surface-variant" : el.dot || "primary");  // 번호는 글 색(PowerPoint 자동 번호 기본), 기호는 글머리 색
       const pct = num ? (sym && BULLET_HEAVY.includes(num.label) ? 60 : 100) : lvl ? 100 : 60;
-      const bu = `<span class="rs-bu" style="width:${hang}px;font-size:${pct}%;color:${bc}">${num ? esc(num.label) : lvl ? "–" : "●"}</span>`;
+      const bu = none ? "" : `<span class="rs-bu" style="width:${hang}px;font-size:${pct}%;color:${bc}">${num ? esc(num.label) : lvl ? "–" : "●"}</span>`;
       return `<div class="rs-p" style="position:relative;top:${shift("body", sz, lh)}px;font-size:${sz}px;line-height:${sz * lh}px;padding-left:${marL}px;text-indent:${-hang}px;padding-bottom:${after}px">${bu}${spanRuns(t, page, base, false)}</div>`;
     }).join("");
     return `<div class="rs-box" style="padding:${pt}px ${pr}px ${pb}px ${pl}px;justify-content:${JUST[el.valign || "top"]};font-family:${font("body")}">${rows}</div>`;
@@ -642,7 +665,7 @@
 .rs-cell>.rs-ct{white-space:pre-wrap;word-break:keep-all;flex:1}`;
   }
 
-  const api = { setDeckFonts, presetFonts, fontRole, setTokens, setLangs, langOf, color, colorAlpha, fillSpec, fillCss, radius, runs, plain, hlSQL, hlPython, codeLines, planRuns, tableGrid, bulletRows, bulletNum, numHang, renderElement, renderSlide, css, esc, lineBox };
+  const api = { setDeckFonts, presetFonts, fontRole, setTokens, setLangs, langOf, color, colorAlpha, fillSpec, fillCss, radius, runs, plain, hlSQL, hlPython, codeLines, planRuns, tableGrid, bulletRows, bulletNum, numHang, markerNum, numLabel, renderElement, renderSlide, css, esc, lineBox };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   root.Render = api;
 })(typeof window !== "undefined" ? window : globalThis);

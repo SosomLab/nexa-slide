@@ -799,23 +799,66 @@ def num_hang(label, size, hang):
     """번호 글머리의 내어쓰기 폭 px - 번호가 ●보다 넓으면 넓힌다(글 시작 위치도 그만큼 밀린다). 기호(한 글자)는 그대로. render.js numHang 과 같은 식."""
     if len(label) <= 1:
         return hang
-    return max(hang, math.ceil(size * (0.55 * len(label) + 0.25)))
+    w = sum(1.0 if ord(ch) > 0x2E80 else 0.55 for ch in label)  # 한글·한자 같은 전각 글자는 1em
+    return max(hang, math.ceil(size * (w + 0.25)))
+
+
+# ---------- 글머리 종류(marker · subMarker) - 기호 또는 번호 매기기 (render.js markerNum 과 같은 규칙) ----------
+NUM_STYLES = {  # 번호 매기기 종류 → PPTX a:buAutoNum type(None 이면 글자 그대로 buChar)
+    "1.": "arabicPeriod", "1)": "arabicParenR", "(1)": "arabicParenBoth", "a.": "alphaLcPeriod", "a)": "alphaLcParenR",
+    "A.": "alphaUcPeriod", "A)": "alphaUcParenR", "①": "circleNumDbPlain", "가.": None,
+}
+KOR_NUM = "가나다라마바사아자차카타파하"
+
+
+def num_label(style, n):
+    """번호 매기기 종류와 순번 n(1부터) → 표시 글자. 모르는 종류면 None."""
+    if style not in NUM_STYLES:
+        return None
+    if style == "①":
+        return chr(0x2460 + n - 1) if 1 <= n <= 20 else f"({n})"
+    if style == "가.":
+        return (KOR_NUM[n - 1] if 1 <= n <= len(KOR_NUM) else str(n)) + "."
+    a = chr(96 + n) if 1 <= n <= 26 else str(n)
+    return {"1.": f"{n}.", "1)": f"{n})", "(1)": f"({n})", "a.": f"{a}.", "a)": f"{a})", "A.": f"{a.upper()}.", "A)": f"{a.upper()})"}[style]
+
+
+def marker_num(style, lvl, n):
+    """요소의 marker(수준 0)/subMarker(수준 1) 설정 → 그 행의 번호·기호 {label, scheme, start, kind} 또는 None(기본 ●/–).
+    번호 종류(NUM_STYLES)는 순번 n 으로 번호를 매기고(kind=auto), "none" 은 글머리 없음, 그 밖의 글자는 기호(kind=symbol)."""
+    if not style or style == ("●" if lvl == 0 else "–"):
+        return None
+    if style in NUM_STYLES:
+        return {"label": num_label(style, n), "scheme": NUM_STYLES[style], "start": n, "kind": "auto"}
+    if style == "none":
+        return {"label": "", "scheme": None, "start": 0, "kind": "none"}
+    return {"label": str(style), "scheme": None, "start": 0, "kind": "symbol"}
 
 
 # ---------- 글머리(bullets) → 행 (render.js bulletRows 와 같은 규칙) ----------
 def bullet_rows(el):
     """bullets → [[글자, 수준, 뒤 간격 px, 번호]]. gap(항목 사이)·subGap(하위 사이).
-    번호 = 글 앞의 "1. " 같은 번호를 자동 감지한 {label, scheme, start}(글자에서는 뗀다) 또는 None - autoNum: false 면 감지하지 않는다.
+    번호 = 글 앞의 "1. " 같은 번호·기호를 자동 감지한 {label, scheme, start[, kind]}(글자에서는 뗀다), 없으면 요소의 marker/subMarker(글머리 종류 - 기호·번호 매기기·none)에서,
+    그것도 없으면 None(기본 ●/–). autoNum: false 면 감지하지 않는다.
     spread 가 참이면 균등 간격 - 행 높이(줄 수 = 줄바꿈 수 + 1, 자동 줄바꿈은 세지 않음)를 뺀 나머지를 행 사이에 고르게 나눠
     상자 높이를 채운다(원본 PPT 의 "세로 고르게" 글상자를 옮길 때). 마지막 행 뒤는 0."""
     gap, sub_gap = el.get("gap", 14), el.get("subGap", 6)
     auto = el.get("autoNum", True) is not False
+    marker, sub_marker = el.get("marker"), el.get("subMarker")
     rows = []
+    cnt = [0, 0]  # 수준별 순번(번호 매기기용) - 하위는 상위 항목마다 다시 1부터
 
     def row(text, lvl, after):
-        num = bullet_num(text) if auto else None
+        if lvl == 0:
+            cnt[0] += 1
+            cnt[1] = 0
+        else:
+            cnt[1] += 1
+        num = bullet_num(text) if auto else None  # 글 앞에 적은 번호·기호가 먼저
         if num:
             text = num.pop("rest")
+        else:
+            num = marker_num(marker if lvl == 0 else sub_marker, lvl, cnt[lvl])  # 요소에 고른 글머리 종류
         return [text, lvl, after, num]
 
     for it in el.get("items", []):

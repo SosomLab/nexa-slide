@@ -424,14 +424,18 @@ def do_bullets(slide, el, page):
         sz = size if lvl == 0 else sub
         pPr = para_fmt(p, sz, lh, "left", after)
         marL0, hang0 = (28, 28) if lvl == 0 else (48, 20)
-        hang = num_hang(num["label"], sz, hang0) if num else hang0
+        none = bool(num) and num.get("kind") == "none"
+        hang = 0 if none else num_hang(num["label"], sz, hang0) if num else hang0
         marL = marL0 - hang0 + hang
         pPr.set("marL", str(marL * PX))
         pPr.set("indent", str(-hang * PX))
         pPr.set("lvl", "0")
         base = color(el.get("color", "on-surface") if lvl == 0 else el.get("subColor", "on-surface-variant"))
         bc = etree.SubElement(pPr, qn("a:buClr"))
-        if num and num.get("kind") == "symbol":  # 글 앞의 글머리 기호(* - · • ■ …) - 그 기호를 글머리로, 색은 글머리 색, 굵은 기호는 60%
+        if none:  # 글머리 없음(marker: none) - 내어쓰기도 없이 글만
+            pPr.remove(bc)
+            etree.SubElement(pPr, qn("a:buNone"))
+        elif num and num.get("kind") == "symbol":  # 글 앞의 글머리 기호(* - · • ■ …) - 그 기호를 글머리로, 색은 글머리 색, 굵은 기호는 60%
             rgb_el(bc, color(el.get("dot", "primary") if lvl == 0 else el.get("subColor", "on-surface-variant")))
             etree.SubElement(pPr, qn("a:buSzPct")).set("val", "60000" if num["label"] in BULLET_HEAVY else "100000")
             bf = etree.SubElement(pPr, qn("a:buFont"))
