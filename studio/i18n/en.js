@@ -342,6 +342,11 @@
     "새 덱 만들기 - 제목만 적으면 id 는 저절로": "New deck - just give a title; the id is generated", "새 덱 제목": "New deck title", "복제…": "Duplicate…", "복제한 덱의 제목": "Title of the duplicated deck",
     "시작 덱으로": "Set as start deck", "시작 덱 해제": "Unset start deck", "시작 덱을 해제했습니다": "Start deck unset", "· 시작 덱": "· start deck",
 
+    // ---- 0.22.3 그림 프레임 효과
+    "효과": "Effect", "부드러운 가장자리": "Soft edges", "둥근 모서리": "Rounded corners", "액자(흰 테두리·그림자)": "Frame (white border · shadow)", "빛(글로우)": "Glow",
+    "프레임 효과 - 원본 파일은 그대로 두고 속성으로만 적용(PPTX 도 같은 효과)": "Frame effect - the original file is untouched; applied as a property (same effect in PPTX)", "프레임 효과 - 원본은 그대로": "Frame effect - original untouched",
+    "수준": "Level", "약": "Low", "중": "Mid", "강": "High",
+
   });
   en.patterns.push(
     [/^(.+) \((\d+)장\) · id (\S+)( · 시작 덱)? - 오른쪽 클릭: 제목·복제·시작 덱·삭제$/, (m, a, b, c, d) => `${a} (${b} slides) · id ${c}${d ? " · start deck" : ""} - right-click: title · duplicate · start deck · delete`],

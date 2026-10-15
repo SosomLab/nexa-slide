@@ -670,12 +670,26 @@
     return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" style="position:absolute;left:0;top:0"><g transform="translate(${R2(ox)} ${R2(oy)}) scale(${R2(s / 24)})">${ic.layers.map(([d, tone]) => `<path d="${d}" fill="${tone === "on" ? c2 : c1}"/>`).join("")}</g></svg>`;
   }
 
+  /** 그림 프레임 효과(effect · effectLevel 1~3, 원본 파일은 그대로) - export_pptx.apply_effect 와 같은 수치. softEdge 는 가장자리 흐림(px), round 는 모서리 반경, frame 은 흰 테두리 두께, glow 는 빛 번짐 */
+  const EFFECT_PX = { softEdge: [6, 12, 24], round: [8, 16, 32], frame: [3, 6, 10], glow: [8, 16, 24] };
+  function effectPx(el) { const lv = Math.max(1, Math.min(3, +el.effectLevel || 2)); return (EFFECT_PX[el.effect] || [0, 0, 0])[lv - 1]; }
+  function effectCss(el) {
+    const e = el.effect, px = effectPx(el);
+    if (e === "softEdge") return `-webkit-mask-image:linear-gradient(to right,transparent,#000 ${px}px,#000 calc(100% - ${px}px),transparent),linear-gradient(to bottom,transparent,#000 ${px}px,#000 calc(100% - ${px}px),transparent);-webkit-mask-composite:source-in;mask-image:linear-gradient(to right,transparent,#000 ${px}px,#000 calc(100% - ${px}px),transparent),linear-gradient(to bottom,transparent,#000 ${px}px,#000 calc(100% - ${px}px),transparent);mask-composite:intersect;`;
+    if (e === "round") return `border-radius:${px}px;overflow:hidden;`;
+    if (e === "circle") return "border-radius:50%;overflow:hidden;";
+    if (e === "frame") return `border:${px}px solid #fff;box-sizing:border-box;box-shadow:0 2px 6px rgba(0,0,0,.3);overflow:hidden;`;
+    if (e === "glow") { const c = color(el.effectColor || "primary"); return `box-shadow:0 0 ${px}px ${Math.round(px / 2)}px ${c}99;`; }
+    return "";
+  }
   function elImage(el) {
     const src = `${esc(root.RENDER_BASE || "/")}${esc(el.src)}`, op = el.opacity != null && el.opacity !== 1 ? `opacity:${+el.opacity};` : "";
     const c = Array.isArray(el.crop) && el.crop.some((v) => v) ? el.crop.map((v) => Math.max(0, Math.min(0.95, +v || 0))) : null;
-    if (!c) return `<img class="rs-img" src="${src}" alt="" draggable="false"${op ? ` style="${op}"` : ""}>`;
+    const fx = effectCss(el);
+    const wrap = (inner) => (fx ? `<div class="rs-fx" style="position:absolute;inset:0;${fx}">${inner}</div>` : inner);
+    if (!c) return wrap(`<img class="rs-img" src="${src}" alt="" draggable="false"${op ? ` style="${op}"` : ""}>`);
     const [l, t, r, b] = c, W = el.w / Math.max(0.05, 1 - l - r), H = el.h / Math.max(0.05, 1 - t - b);  // 자르기 - 원본을 키워 상자 밖은 감춘다(PowerPoint crop 과 같은 뜻, 비율은 상자 비율)
-    return `<div style="position:absolute;inset:0;overflow:hidden;${op}"><img class="rs-img" src="${src}" alt="" draggable="false" style="position:absolute;left:${R2(-l * W)}px;top:${R2(-t * H)}px;width:${R2(W)}px;height:${R2(H)}px;object-fit:fill"></div>`;
+    return wrap(`<div style="position:absolute;inset:0;overflow:hidden;${op}"><img class="rs-img" src="${src}" alt="" draggable="false" style="position:absolute;left:${R2(-l * W)}px;top:${R2(-t * H)}px;width:${R2(W)}px;height:${R2(H)}px;object-fit:fill"></div>`);
   }
 
   /** 선·화살표: 요소 상자(x,y,w,h) 기준 SVG. 화살 머리 = 선 두께 × 5 (PPT 'lg') */

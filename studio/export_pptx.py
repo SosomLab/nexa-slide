@@ -274,6 +274,49 @@ def apply_shadow(shp, el):
     etree.SubElement(c, qn("a:alpha")).set("val", str(int(max(0.0, min(1.0, alpha)) * 100000)))
 
 
+EFFECT_PX = {"softEdge": (6, 12, 24), "round": (8, 16, 32), "frame": (3, 6, 10), "glow": (8, 16, 24)}  # render.js EFFECT_PX 와 같다
+
+
+def apply_effect(pic, el):
+    """그림 프레임 효과 effect(softEdge·round·circle·frame·glow) · effectLevel 1~3 - 원본 파일은 그대로, 도형 속성으로만.
+    softEdge/glow → a:effectLst(그림자 뒤에 덧붙임), round/circle → prstGeom, frame → 흰 테두리(a:ln) + 기본 그림자."""
+    e = el.get("effect")
+    if not e or el.get("type") != "image" or pic is None:
+        return
+    lv = max(1, min(3, int(el.get("effectLevel") or 2)))
+    px = EFFECT_PX.get(e, (0, 0, 0))[lv - 1]
+    sp = pic._element.spPr
+    if e in ("round", "circle"):
+        geom = sp.find(qn("a:prstGeom"))
+        if geom is None:
+            geom = etree.SubElement(sp, qn("a:prstGeom"))
+        for ch in list(geom):
+            geom.remove(ch)
+        if e == "circle":
+            geom.set("prst", "ellipse"); etree.SubElement(geom, qn("a:avLst"))
+        else:
+            geom.set("prst", "roundRect")
+            av = etree.SubElement(geom, qn("a:avLst"))
+            m = max(1.0, min(float(el["w"]), float(el["h"])))
+            etree.SubElement(av, qn("a:gd")).set("name", "adj"); av[0].set("fmla", f"val {int(min(50000, 100000 * px / m))}")
+        return
+    if e == "frame":
+        pic.line.width = Pt(px * 0.75)
+        pic.line.color.rgb = RGBColor(0xFF, 0xFF, 0xFF)
+        if not el.get("shadow"):
+            apply_shadow(pic, {**el, "shadow": {"blur": 6, "dx": 0, "dy": 2, "alpha": 0.3}})
+        return
+    ef = sp.find(qn("a:effectLst"))
+    if ef is None:
+        ef = etree.SubElement(sp, qn("a:effectLst"))
+    if e == "softEdge":
+        etree.SubElement(ef, qn("a:softEdge")).set("rad", str(E(px)))
+    elif e == "glow":
+        g = etree.SubElement(ef, qn("a:glow")); g.set("rad", str(E(px)))
+        c = etree.SubElement(g, qn("a:srgbClr")); c.set("val", (color(el.get("effectColor", "primary")) or "#000000").lstrip("#"))
+        etree.SubElement(c, qn("a:alpha")).set("val", "60000")
+
+
 def apply_link(shp, el, slides, index):
     """link: 'https://…' 또는 '#3'(3번 슬라이드)·'#<슬라이드 id>' → click_action. slides 는 prs.slides, index 는 {slide id: 번호}"""
     v = str(el.get("link") or "").strip()
@@ -855,6 +898,7 @@ def export(deck, out):
                 if shp is not None:
                     apply_xfrm(shp, el)
                     apply_shadow(shp, el)
+                    apply_effect(shp, el)
                     if el.get("link"):
                         links.append((shp, el))
                     shp.name = f"{el.get('id')} {el.get('type')}"
