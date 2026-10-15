@@ -1,5 +1,11 @@
 # 변경 이력
 
+## 0.21.14 - 2026-10-15 · 수동 세션 수명 - 세션이 닫히면 감시 종료 · 웹 [끊기] · takeover 수정
+
+- `studio/procutil.py`(새): `pid_alive`·`kill_tree`·`stdout_closed`·`stop_manual`. `watch_engine_requests`·`watch_requests --stream` 은 Monitor 를 건 세션(터미널·VS Code)이 닫혀 표준 출력의 읽는 쪽이 사라지면 1초 안에 스스로 끝난다(전에는 Windows pyenv 래퍼 아래에서 고아로 남아 카드가 계속 "수동 세션"). `--takeover` 가 이전 감시를 실제로 끝낸다(전에는 둘이 같이 돌았다).
+- 웹에서 끊기: 서버 작업 카드의 **[끊기]**(관리자) · 최근 작업 카드의 수동 세션 [끊기] — 세션 stop API(`/api/engine/session`·`/api/wsession`·허브 `/api/project session stop`)가 웹 세션이 없으면 하트비트의 수동 감시 프로세스를 자식까지 끝내고 `stopped` 로 표시한다. 작업 공간 서버가 꺼져 있어도 허브가 하트비트 파일로 끝낸다. 응답 `manual {stopped, pid, label}`.
+- 슬래시 명령 안내에 수명·[끊기] 뒤 동작(다시 띄우지 않음) 추가.
+
 ## 0.21.13 - 2026-10-15 · ⓘ 설정 안내 - clone 이후 할 일 · 슬래시 명령 /nexa-slide-server · /nexa-slide-session
 
 - 슬래시 명령 개명·분리(0.21.12 의 `/nexa-engine` →): **`/nexa-slide-server`** = 서버 작업(엔진 요청 큐) 세션 하나(엔진 저장소·작업 공간 어디서 연 세션이든), **`/nexa-slide-session`** = 그 작업 폴더의 슬라이드 세션(편집기 요청 처리, `watch_requests --stream`). 작업 공간은 `init_workspace`·`update_launcher` 가 두 파일을 작업 공간과 **저장소 루트**(VS Code 를 보통 루트에서 열고 Claude Code 는 cwd 의 명령만 읽으므로, 루트 판은 `python3 slides/nexa.py`) 양쪽에 두고 엔진이 만든 옛 `nexa-engine.md` 는 지운다. 명령 안에 예외 처리: 이미 이 세션이 연결돼 있으면 다시 띄우지 않음, 웹(엔진) 세션이 맡고 있으면 `refused` → [세션 중지] 안내, 다른 터미널 세션이면 물은 뒤 `--takeover`, 서버 꺼짐 → `nexa.py start`, 엔진 못 찾음 → `nexa.py engine <폴더>`, Monitor 만료(`ttl`) → 다시.

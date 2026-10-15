@@ -239,7 +239,12 @@ def session_ws(path, op, agent=None, model=None, user=None, role=None, save_as=N
     ws = _ws_of(path)
     st = server_state(ws)
     if not st["running"]:
-        if op in ("stop", "status"):
+        if op == "stop":  # 서버가 꺼져 있어도 터미널 세션(watch_requests)은 살아 있을 수 있다 - 하트비트의 수동 감시를 끝낸다
+            import procutil
+            cfg = load_ws_config(ws)
+            manual = procutil.stop_manual(ws / cfg.get("out", "out") / ".studio" / "session.json")
+            return {"ok": True, "path": str(ws), "running": False, "state": "off", "stopped": bool(manual.get("stopped")), "manual": manual, "session": session_summary(ws)}
+        if op == "status":
             return {"ok": True, "path": str(ws), "running": False, "state": "off", "session": session_summary(ws)}
         url, _ = start_server(ws, auto=True)
     else:

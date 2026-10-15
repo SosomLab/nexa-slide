@@ -675,7 +675,9 @@
     else if (on) line = `<span class="badge run">엔진 세션 ${esc(s.state)}</span> ${esc(s.agent || "")} · ${esc(s.model || "")}${s.startedBy ? ` · ${esc(s.startedBy)}` : ""} · 턴 ${s.turns || 0} ${sidBadge(s.sessionId, s.cwd, s.turns)}${s.lastError ? ` · <span style="color:var(--err)">${esc(s.lastError.slice(0, 80))}</span>` : ""}`;
     else line = `<span class="badge">세션 없음</span>${s.last && s.last.startedAt ? ` <span class="hint">· 마지막 · ${esc(s.last.agent || "")} ${esc(s.last.model || "")} · ${fmtT(s.last.stoppedAt || s.last.startedAt)}${s.last.reason ? ` · ${reasonKo(s.last.reason)}` : ""}</span>` : ""}`;
     const sr = d.startRequest, banner = !on && (pending || sr);  // 세션이 꺼진 채 할 일이 있으면 배너 - 그때 [세션 시작]은 배너에만(버튼이 두 개가 되지 않게)
-    if (s.state === "manual") btn = `<span class="hint" title="수동 세션이 끝나면(그 터미널에서 Monitor 종료) 웹 세션을 시작할 수 있다">터미널이 맡음</span>`;
+    if (s.state === "manual") btn = admin
+      ? `<button type="button" class="svc stop" data-eng="stopmanual" title="터미널 세션의 큐 감시를 끝냅니다(그 세션의 Monitor 가 끝나고 카드가 '세션 없음'이 됨) - 그 뒤 [세션 시작]으로 웹 세션을 띄울 수 있다">${icon("stop", 14)}끊기</button>`
+      : `<span class="hint" title="수동 세션이 끝나면(그 터미널에서 Monitor 종료 또는 관리자 [끊기]) 웹 세션을 시작할 수 있다">터미널이 맡음</span>`;
     else if (admin) btn = on
       ? `<button type="button" class="chip sm" data-eng="progress">진행</button><button type="button" class="svc stop" data-eng="stop">${icon("stop", 14)}세션 중지</button>`
       : banner ? ""
@@ -781,6 +783,14 @@
       if (!r.ok) toast(r.data.error || "요청하지 못했습니다", 5000); else toast("관리자에게 세션 시작을 요청했습니다");
       loadEngine(); return;
     }
+    if (b.dataset.eng === "stopmanual") {
+      const es = (H.engine && H.engine.session) || {};
+      if (!confirm(`터미널 세션 ${es.label || ""}(pid ${es.pid || "?"})의 큐 감시를 끊을까요? 그 세션이 처리 중인 요청은 그대로 남습니다(working).`)) return;
+      const r = await post("/api/engine/session", { action: "stop", reason: "web" });
+      if (!r.ok) toast(r.data.error || "끊지 못했습니다", 5000); else toast(r.data.stopped ? "터미널 세션의 감시를 끊었습니다 - 이제 [세션 시작]으로 웹 세션을 띄울 수 있습니다" : "끊을 수동 세션이 없습니다", 6000);
+      loadEngine();
+      return;
+    }
     if (b.dataset.eng === "stop") {
       if (!confirm("엔진 개발 세션을 중지할까요? 실행 중인 턴이 있으면 바로 종료됩니다.")) return;
       const r = await post("/api/engine/session", { action: "stop" });
@@ -840,7 +850,7 @@
     else if (s.kind === "manual") info = `<span class="badge run">수동 세션</span> ${esc(s.label || "")}${s.working ? ` · 처리 중 ${s.working}` : s.open ? ` · 대기 ${s.open}` : ""}`;
     else info = `<span class="badge">세션 없음</span>${s.open ? ` 대기 요청 ${s.open}` : ""}${s.last && s.last.startedAt ? ` <span class="hint">· 마지막 · ${esc(s.last.agent || "")} ${esc(s.last.model || "")} · ${fmtT(s.last.stoppedAt || s.last.startedAt)}${s.last.reason ? ` · ${reasonKo(s.last.reason)}` : ""}</span>` : ""}`;
     const btn = s.kind === "web" ? `<button type="button" class="svc stop" data-sess="stop" data-path="${esc(r.path)}" title="이 작업 공간의 웹 세션 중지(실행 중 턴도 끝낸다)">${icon("stop", 14)}세션 중지</button>`
-      : s.kind === "manual" ? "" : `<button type="button" class="svc" data-sess="start" data-path="${esc(r.path)}" data-title="${esc(r.title || "")}" data-agent="${esc((s.defaults || {}).agent || "")}" data-model="${esc((s.defaults || {}).model || "")}" title="웹 세션 시작(서버가 꺼져 있으면 먼저 띄움)">${icon("play", 14)}세션 시작</button>`;
+      : s.kind === "manual" ? `<button type="button" class="svc stop" data-sess="stop" data-path="${esc(r.path)}" title="터미널 세션(watch_requests)의 요청 감시를 끝냅니다 - 그 뒤 웹 세션을 시작할 수 있다">${icon("stop", 14)}끊기</button>` : `<button type="button" class="svc" data-sess="start" data-path="${esc(r.path)}" data-title="${esc(r.title || "")}" data-agent="${esc((s.defaults || {}).agent || "")}" data-model="${esc((s.defaults || {}).model || "")}" title="웹 세션 시작(서버가 꺼져 있으면 먼저 띄움)">${icon("play", 14)}세션 시작</button>`;
     return `<div class="rm" style="margin-top:3px;font-size:12px">${info}${btn}</div>`;
   }
   const GRANTS = [["git", "git 기록", "add·commit·branch·switch·merge·stash·tag"], ["push", "push", "git push·pull·fetch - 원격으로 보냄"], ["root", "저장소 루트 접근", "작업 공간을 품은 저장소 루트의 문서(작업일지·README·docs) 읽기·쓰기"]];

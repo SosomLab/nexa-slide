@@ -1046,8 +1046,17 @@ class H(BaseHTTPRequestHandler):
             elif act == "stop":
                 was = ws.state != "off"
                 info = ws.stop(str(b.get("reason") or "user")[:40])
-                self._event = f"{ws.p.kind}.session.stop"
-                self.send_json({"ok": True, "stopped": was, **info})
+                manual = {}
+                if not was:  # 웹 세션이 없으면 터미널 세션(watch_*)의 수동 감시를 끝낸다 - 카드 [세션 중지]가 수동 세션에도 통하게
+                    import procutil
+                    if ws.p.kind == "engine":
+                        import engine_requests
+                        manual = procutil.stop_manual(engine_requests.HEARTBEAT)
+                    else:
+                        import requests_core
+                        manual = procutil.stop_manual(requests_core.SESSION)
+                self._event = f"{ws.p.kind}.session.stop" + (":manual" if manual.get("stopped") else "")
+                self.send_json({"ok": True, "stopped": was or bool(manual.get("stopped")), "manual": manual, **info})
             else:
                 info = ws.set_model(b.get("model"))
                 self._event = f"{ws.p.kind}.session.model:{b.get('model')}"
