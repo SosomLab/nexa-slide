@@ -241,3 +241,41 @@ def remove(rid):
         if len(d["items"]) == n:
             raise ValueError(f"없는 요청: {rid}")
         _write(d)
+    import shutil
+    shutil.rmtree(ATTACH_DIR / str(int(rid)), ignore_errors=True)  # 첨부도 같이(남으면 고아)
+
+
+def tidy_scan(new_age_hours=24):
+    """첨부 정리 보고 - 큐에 없는 요청의 attach/<id>/ 와, 올려만 두고 요청에 붙지 않은 _new/ 파일(new_age_hours 보다 오래된 것)."""
+    import time
+    ids = {str(x.get("id")) for x in load()}
+    items = []
+    if ATTACH_DIR.is_dir():
+        now = time.time()
+        for d in sorted(ATTACH_DIR.iterdir()):
+            if d.name == "_new":
+                for f in sorted(d.iterdir()):
+                    if f.is_file() and now - f.stat().st_mtime > new_age_hours * 3600:
+                        items.append({"path": f"attach/_new/{f.name}", "size": f.stat().st_size, "reason": "요청에 붙지 않은 올린 파일(하루 지남)"})
+            elif d.is_dir() and d.name not in ids:
+                size = sum(f.stat().st_size for f in d.rglob("*") if f.is_file())
+                items.append({"path": f"attach/{d.name}", "size": size, "reason": f"큐에 없는 요청 #{d.name} 의 첨부"})
+    return {"items": items, "total": sum(i["size"] for i in items)}
+
+
+def tidy_clean(new_age_hours=24):
+    """tidy_scan 이 보고한 것을 지운다 → {removed, size}."""
+    import shutil
+    rep = tidy_scan(new_age_hours)
+    n = size = 0
+    for it in rep["items"]:
+        p = ENGINE_DIR / it["path"]
+        try:
+            if p.is_dir():
+                shutil.rmtree(p)
+            elif p.is_file():
+                p.unlink()
+            n += 1; size += it["size"]
+        except OSError:
+            continue
+    return {"removed": n, "size": size}

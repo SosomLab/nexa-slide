@@ -1,5 +1,12 @@
 # 변경 이력
 
+## 0.22.0 - 2026-10-15 · 작업 공간 관리 - 정리(임시·산출물·끊어진 그림·고아 첨부·세션 로그)·압축 보관
+
+- **`studio/tidy.py`**: `scan`(범주별 보고 - output 산출물·attach 고아 첨부·log 세션 로그·image 참조 없는 그림(백업·휴지통 참조는 `kept` 표시)·backup 백업·휴지통), `clean`(지우지 않고 `out/.tidy/<시각>/` 로 옮김, mermaid `.mmd` 는 `.png` 와 짝), `restore`, `purge`, `archive`(zip - 기본 제외 `out/`(첨부 제외)·`.history`·`.trash`·`.env`·`nexa-slide.local.json`·`.git`, `--all`). CLI `nexa.py tidy|archive`(실행기 안내에 추가).
+- 작업 공간 서버 **`GET/POST /api/tidy`**(허브 관리자 중계 또는 로컬 직접 접속) · 시작 페이지 카드 **🧹 정리·보관 창**(범주 체크·목록·[고른 범주 정리]·[비우기]·[zip 으로 보관]).
+- 원인 쪽: 요청 `discard`·`update` 가 첨부 파일을 지우고, 엔진 요청 `remove` 가 `attach/<id>/` 를 지운다. 허브 `GET/POST /api/engine/tidy`(관리자) - 큐에 없는 요청의 첨부·하루 넘은 `_new/` 파일.
+- 시험 `studio/tests/tidy_test.py`(run_all `tidy`). 문서 `docs/home.md` "작업 공간 관리", `docs/dev/tests.md`.
+
 ## 0.21.42 - 2026-10-15 · 다국어 체계 - 언어 파일 분리(`studio/i18n/en.js`) · 검사·스캔 도구 · 설계 문서
 
 - **사전·패턴을 `studio/i18n/en.js` 로 분리** — 글만 있는 언어 파일(`window.NEXA_LOCALES.en = { name, dict, patterns }`). 엔진 `i18n.js` 는 어느 언어든 `NEXA_LOCALES` 에서 읽고(`langs()`·`options()` 가 파일에서 자동), 새 언어 = 파일 하나. 같은 언어를 영역별 여러 파일로 나눌 수 있다(예: `en.review.js` - 협업 세션 영역). 모든 페이지(편집기·시작·서버 작업·계정·로그인·글꼴·발표자·인쇄·슬라이드·**템플릿/슬라이드 유형 검토**)에 언어 파일 → 엔진 순서로 태그.

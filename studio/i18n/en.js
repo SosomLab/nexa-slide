@@ -328,8 +328,20 @@
     "현장 사례→규칙→실습→확인→휴대 카드. 기본 구성: 표지 — 제목형 → 진행 순서 → 사례 제시 → [알아야 할 것] → 개념 설명 → 단계 흐름 → 큰 번호 단계·요점 → 장단점·대비 카드 → [해 보기] → 실습 → 확인 문제 → 사례 판단(선택지) → 정리 → 다음 행동·부탁 → 끝": "Field case → rules → practice → check → pocket card. Default outline: Cover — title → Agenda → Case → [What to know] → Concept explanation → Step flow → Big numbered steps · points → Pros/cons · contrast cards → [Try it] → Lab → Check question → Case judgment (options) → Wrap-up → Next actions · asks → End",
     "주간 진행 보고 (8장)": "Weekly progress report (8 slides)",
     "결론 KPI → 약속 대비 채점 → 이슈·요청 → 간트 → 다음 주 약속 → 요청. 매주 복제해 숫자만 바꾸는 고정 배치.": "Headline KPIs → scoring against commitments → issues · asks → Gantt → next week's commitments → asks. A fixed layout you duplicate each week and only change the numbers.",
+    // ---- 0.22.0 작업 공간 관리(정리·보관)
+    "정리·보관 - 산출물·고아 첨부·세션 로그·참조 없는 그림 정리, 작업 공간 zip 보관": "Tidy · archive - clean outputs, orphan attachments, session logs and unreferenced images; archive the workspace as zip",
+    "정리·보관 —": "Tidy · archive —", "정리 대상을 살피는 중…": "Scanning what can be cleaned…", "작업 공간 서버가 응답하지 않으면 카드의 [시작]으로 먼저 띄우세요.": "If the workspace server does not respond, start it first with [Start] on the card.",
+    "에 옮겨 두므로 되돌릴 수 있고, [비우기]로 완전히 지웁니다.": "so they can be restored; [Empty] removes them for good.", "고른 범주 정리": "Clean selected categories", "↻ 다시 살피기": "↻ Rescan", "압축 보관": "Archive as zip",
+    "작업 공간(저장소 루트 표식이 있으면 루트째)을 zip 하나로 만듭니다 - 기본은 산출물(out/)·백업(.history)·휴지통·PC 전용 설정(.env·nexa-slide.local.json)·.git 제외, 요청 첨부(out/attach)는 포함. 보관 뒤 카드의 ✕ 로 목록에서 빼고 폴더를 지우면 공간이 비워집니다.": "Packs the workspace (the whole repo root when it has a root marker) into one zip - by default without outputs (out/), backups (.history), trash, per-PC settings (.env · nexa-slide.local.json) and .git; request attachments (out/attach) are included. After archiving, remove the card with ✕ and delete the folder to free space.",
+    "산출물·백업까지 전부 넣기": "Include outputs and backups too", "zip 으로 보관": "Archive as zip", "보관하는 중…": "Archiving…", "정리할 범주를 고르세요": "Pick categories to clean", "보관함:": "Archive:", "zip 으로 보관했습니다": "Archived as zip",
+    "백업·휴지통을 지우면 되돌리기·되살리기를 할 수 없습니다. 계속할까요?": "Removing backups and trash disables restore and undelete. Continue?", "옮겨 둔 정리 파일을 완전히 지울까요? 되돌릴 수 없습니다.": "Permanently delete the files set aside by tidy? This cannot be undone.",
+    "정리하지 못했습니다": "Could not clean", "비우지 못했습니다": "Could not empty", "보관하지 못했습니다": "Could not archive", "백업 참조": "backup ref", "되돌리기·되살리기에 쓰이므로 보통은 두세요": "used for restore and undelete - usually keep", "백업이 참조하는 그림(표시)은 기본으로 남깁니다": "images referenced by backups (marked) are kept by default",
+    "산출물(다시 만들 수 있음)": "Outputs (can be regenerated)", "백업·휴지통": "Backups · trash", "참조 없는 그림": "Unreferenced images", "고아 첨부": "Orphan attachments", "세션 로그": "Session logs",
+
   });
   en.patterns.push(
+    [/^· 정리 대상 (\d+)개 · (.+)\. 지운 파일은$/, "· $1 items to clean · $2. Removed files are moved to"], [/^(\d+)개 · (.+)$/, "$1 · $2"], [/^비우기 \((\d+)건 · (.+)\)$/, "Empty ($1 · $2)"],
+    [/^정리: (\d+)개 · (.+) → (.+)$/, "Cleaned: $1 · $2 → $3"], [/^비움 (.+)$/, "Emptied $1"],
     // ---- 0.21.41 - 변수 든 문구
     [/^(.+): 설치됨$/, "$1: installed"], [/^로그인됨 (.+)$/, "signed in $1"], [/^(.+): 미설치 \(미확인\)$/, "$1: not installed (unverified)"], [/^(.+): 미설치$/, "$1: not installed"],
     [/^(.*)<제목>$/, "$1<Title>"], [/^([\s\S]+)\n이미지: (.*)$/, (m, a, b) => `${t(a)}\nImage: ${b.split(" · ").map((x) => t(x)).join(" · ")}`],
