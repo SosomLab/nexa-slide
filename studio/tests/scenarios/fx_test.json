@@ -1,0 +1,49 @@
+{
+"base": "http://127.0.0.1:5667",
+"pages": [
+{
+"url": "/studio/#fxtest/1",
+"wait": 2500,
+"steps": [
+{
+"name": "상자 선택 → 링크 칸 #2 · 그림자 있음",
+"js": "document.querySelector('[data-sel=\"e02\"]').click(); await new Promise(r=>setTimeout(r,400)); const l=document.querySelector('input[data-k=\"link\"]'); const sh=document.querySelector('.seg[data-k=\"shadow\"] button.on'); return l && l.value==='#2' && sh && sh.dataset.v==='on' ? true : 'link='+(l&&l.value)+' shadow='+(sh&&sh.dataset.v)"
+},
+{
+"name": "  그림자 끔 → 요소 filter 사라짐",
+"js": "document.querySelector('.seg[data-k=\"shadow\"] [data-v=\"off\"]').click(); await new Promise(r=>setTimeout(r,400)); const el=document.querySelector('#host .rs-el[data-id=\"e02\"]'); return !el.style.filter ? true : 'filter='+el.style.filter"
+},
+{
+"name": "그림 선택 → 자르기 30·투명도 50",
+"js": "document.querySelector('[data-sel=\"e05\"]').click(); await new Promise(r=>setTimeout(r,400)); const c=[...document.querySelectorAll('input[data-crop]')].map(i=>i.value).join(','); const o=document.querySelector('input[data-opacity]').value; return c==='30,0,30,0' && o==='50' ? true : 'crop='+c+' op='+o"
+},
+{
+"name": "  자르기 값 바꾸면 그림 상자 안에서 확대",
+"js": "const i=document.querySelector('input[data-crop=\"0\"]'); i.value='10'; i.dispatchEvent(new Event('input',{bubbles:true})); await new Promise(r=>setTimeout(r,500)); const img=document.querySelector('#host .rs-el[data-id=\"e05\"] img'); return img && parseFloat(img.style.width)>280 ? true : 'w='+(img&&img.style.width)"
+},
+{
+"name": "링크 속성 비우면 data-link 사라짐",
+"js": "document.querySelector('[data-sel=\"e02\"]').click(); await new Promise(r=>setTimeout(r,300)); const l=document.querySelector('input[data-k=\"link\"]'); l.value=''; l.dispatchEvent(new Event('input',{bubbles:true})); l.dispatchEvent(new Event('change',{bubbles:true})); await new Promise(r=>setTimeout(r,500)); const el=document.querySelector('#host .rs-el[data-id=\"e02\"]'); return !el.hasAttribute('data-link') ? true : 'still linked'"
+},
+{
+"name": "내보내기 메뉴에 PDF",
+"js": "document.querySelector('#exportBtn').click(); await new Promise(r=>setTimeout(r,300)); const ok=[...document.querySelectorAll('#menu button')].some(b=>b.textContent.includes('PDF 내보내기')); document.body.click(); return ok"
+}
+]
+},
+{
+"url": "/studio/presenter.html?deck=fxtest",
+"wait": 2500,
+"steps": [
+{
+"name": "발표자 보기 - 1 / 2 · 다음 슬라이드 · 노트",
+"js": "const pos=document.querySelector('#pos').textContent.trim(); const n=document.querySelector('#nextSt .rs-slide'); const c=document.querySelector('#curSt .rs-slide'); return pos==='1 / 2' && n && c ? true : 'pos='+pos+' next='+!!n"
+},
+{
+"name": "  다음 ▶ → 2 / 2 · 끝 표시",
+"js": "document.querySelector('#next1').click(); await new Promise(r=>setTimeout(r,300)); const pos=document.querySelector('#pos').textContent.trim(); return pos==='2 / 2' && document.querySelector('#nextSt').textContent.includes('끝') ? true : 'pos='+pos"
+}
+]
+}
+]
+}

@@ -2065,10 +2065,6 @@ ${names}
     back.addEventListener("mousedown", (e) => { if (e.target === back) close(); });
     render(); q.focus();
   }
-  function addMenuLegacy(btn) {
-    openMenu(btn, [["text", "T", "글자"], ["bullets", "≡", "글머리 목록"], ["pill", "◖◗", "칩"], ["rect", "▭", "상자"], ["ellipse", "◯", "원"], ["arrow", "→", "화살표"], ["table", "▦", "표 (2×2)"], ["code", "{ }", "코드"], ["image", "🖼", "로고"]]
-      .map(([k, i, l]) => ({ icon: i, label: l, act: () => addEl(k) })).concat([{ icon: "📊", label: "차트…", keep: true, act: () => chartMenu(btn) }, { icon: "🖼", label: "그림 파일…", act: () => imagePick(null) }, { icon: "⤳", label: "다이어그램 코드(mermaid)…", act: () => mermaidDialog(null) }, "-", { icon: "◇", label: "도형…", keep: true, act: () => shapeMenu(btn) }, { icon: "⬡", label: "다이어그램…", keep: true, act: () => diagramMenu(btn) }]));
-  }
   function goSlide(i) { if (!S.deck) return; S.cur = Math.max(0, Math.min(S.deck.slides.length - 1, i)); S.sel = null; S.chkBox = S.chkBox && S.chkBox.slide === slide().id ? S.chkBox : null; closeMemo(); renderAll(); ensureThumbVisible(S.cur); }
   function dupSlide(i) { snapshot(); const c = clone(S.deck.slides[i]); c.id = newSlideId(); S.deck.slides.splice(i + 1, 0, c); S.cur = i + 1; S.sel = null; afterChange(true); }
   function delSlide(i) {
