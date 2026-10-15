@@ -173,3 +173,10 @@
 ## 11. 검토 기록
 
 - 2026-10-14 협업 세션(nexa-slide-f4): 프롬프트 인젝션 연쇄(→ `triage`) · 적용 중 버전 섞임(→ 병합+재시작 한 묶음, drain) · 회귀 범위(→ 모든 작업 공간 PPTX XML 검증, 사본에서) · 웹 모드 권한(`--add-dir` 는 편집 권한까지 → worktree 를 엔진 안 `.claude/worktrees/` 에, 사본 폴더에 deny) · 큐 파일 잠금 · 추적 필드(`appliedCommit` 등) · 협업 세션도 같은 CLI 로 요청 — 모두 반영.
+
+### 12.2 E-5 (2026-10-16) — 원 요청 연결·자동 재개
+
+- 세션이 `nexa.py engine_request add --request <원 요청 id> --deck <덱> …` 로 넘기면 CLI 가 원 요청에 `engineRequest: N` 을 적는다(`engine_requests.link_origin` → 작업 공간 서버 `POST /api/requests/<덱> {action: update, engineRequest}`, 서버가 꺼져 있으면 파일 직접). 편집기 요청 카드에 **엔진 요청 #N** 배지(중계로 열었을 때는 `/engine?q=#N` 링크).
+- 큐 상태가 바뀌면(`engine_requests.update`, CLI·허브 API 모두) 원 요청에 알린다(`resume_origin`): **done** → `engineNote` "엔진 요청 #N 처리됨(커밋 …) - 운영 서버에 적용(재시작)되면 다시 처리합니다."(status 는 그대로), **applied** → `status: open` 으로 되돌리고 `engineNote` "적용됨(main …) - 다시 처리합니다." → 감시 중인 작업 공간 세션이 이어서 처리한다, **rejected** → `engineNote` 거절 사유. 편집기 카드는 `engineNote` 를 배지 툴팁과 한 줄 안내로 보인다.
+- 운영 흐름: 개발 세션이 done → 협업 세션이 main 병합본으로 재시작 → **적용됨 표시**(`/engine` 의 [적용됨] 또는 `engine_request.py status N applied --applied-commit <main 해시>`)가 원 요청을 다시 연다. 시험 `engine_link_test.py`.
+

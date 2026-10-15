@@ -71,6 +71,7 @@ def main():
                     ws_id = None
             it = q.add(args.title, args.body, kind=kind, user=args.user, ws=ws, ws_id=ws_id, request=args.request, deck=args.deck,
                        slide=args.slide, evidence=args.evidence, priority=args.priority)
+            q.link_origin(it)  # 원 요청(--request·--deck)에 engineRequest 번호를 적는다 - 편집기 배지, 적용 뒤 자동 재개
             note = q.pending_note(it["status"])
             if args.json:
                 print(json.dumps({**it, "note": note}, ensure_ascii=False))

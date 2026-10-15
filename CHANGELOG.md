@@ -1,5 +1,11 @@
 # 변경 이력
 
+## 0.22.7 - 2026-10-16 · 엔진 요청 ↔ 원 요청 연결 · 적용 뒤 자동 재개
+
+- 세션이 엔진 요청으로 넘긴 원 요청(작업 공간 requests.json)에 `engineRequest: N` 이 기록되고 편집기 카드에 **엔진 요청 #N** 배지(중계면 `/engine?q=#N` 링크)가 보인다(`engine_request add --request --deck` → `engine_requests.link_origin`).
+- 큐 상태가 바뀌면 원 요청에 `engineNote` 로 알린다 - done(처리됨, 적용되면 다시 처리) · rejected(거절). **applied(적용됨)** 가 되면 원 요청 `status` 를 `open` 으로 되돌려 작업 공간 세션이 이어서 처리한다(`engine_requests.resume_origin`, CLI·허브 API 공통). 작업 공간 서버 `update` 에 `engineRequest`·`engineNote` 허용.
+- 시험 `engine_link_test.py`(run_all `englink`). 설계 `docs/dev/engine-request-design.md` 12.2.
+
 ## 0.22.6 - 2026-10-16 · 그림 많은 덱 - lazy 로딩·실패 재시도·재검증 캐시
 
 - **문제**: 그림이 많은 덱에서 썸네일(모든 장)과 캔버스가 바뀔 때마다 그림 수십 장을 한꺼번에 다시 내려받아(서버가 모든 파일을 `no-store` 로 주고, 다시 그릴 때 요청이 끊김 `ERR_ABORTED`) 일부가 깨진 그림으로 남았다.
