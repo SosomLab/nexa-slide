@@ -6,6 +6,7 @@
 
 하트비트: 사용자 설정 폴더 hub/engine/.studio/session.json (kind=manual) - 시작 페이지 "서버 작업" 카드가 "수동 세션 · <이름>" 으로 보이고,
 허브의 [세션 시작](웹 엔진 세션)은 이 감시가 살아 있는 동안 거절된다. 웹 엔진 세션이 살아 있으면 이 감시가 거절된다.
+Monitor 를 건 세션(터미널·VS Code)이 닫히면 표준 출력의 읽는 쪽이 닫히므로 감시가 스스로 끝난다(1초 안에 stopped). --takeover 는 이전 수동 감시를 실제로 끝낸다.
 이벤트: {"event":"request","item":{id,title,body,from,evidence,…},"triage":n}  - 처리는 docs/dev/engine-request-design.md 의 순서대로
          (worktree 에서 구현 → 검증 → 커밋 → python3 studio/engine_request.py status <id> done …). 승인 대기(triage)는 관리자가 카드에서 승인한다.
 작업 공간이 없어도 된다(엔진 저장소 어디서나).
@@ -19,6 +20,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import engine_requests as q  # noqa: E402
+import procutil  # noqa: E402
 
 INTERVAL = 1.0
 
@@ -50,10 +52,15 @@ def main():
         print(json.dumps({"event": "refused", "reason": "web-engine-session", "pid": cur.get("pid"), "label": cur.get("label"),
                           "hint": "허브가 띄운 웹 엔진 세션이 큐를 맡고 있다 - 시작 페이지 서버 작업 카드에서 [세션 중지] 뒤 다시"}, ensure_ascii=False), flush=True)
         return 2
-    if cur.get("connected") and cur.get("pid") not in (None, os.getpid()) and _pid_alive(cur.get("pid")) and not a.takeover:
-        print(json.dumps({"event": "refused", "reason": "already-watched", "pid": cur.get("pid"), "label": cur.get("label"),
-                          "hint": "--takeover 로 넘겨받는다"}, ensure_ascii=False), flush=True)
-        return 2
+    if cur.get("connected") and cur.get("pid") not in (None, os.getpid()) and _pid_alive(cur.get("pid")):
+        if not a.takeover:
+            print(json.dumps({"event": "refused", "reason": "already-watched", "pid": cur.get("pid"), "label": cur.get("label"),
+                              "hint": "--takeover 로 넘겨받는다"}, ensure_ascii=False), flush=True)
+            return 2
+        if not procutil.kill_tree(cur.get("pid")):  # 넘겨받기 - 이전 감시를 실제로 끝낸다(둘이 같이 돌지 않게)
+            print(json.dumps({"event": "refused", "reason": "takeover-failed", "pid": cur.get("pid"), "label": cur.get("label")}, ensure_ascii=False), flush=True)
+            return 2
+        print(json.dumps({"event": "takeover", "pid": cur.get("pid"), "label": cur.get("label")}, ensure_ascii=False), flush=True)
     hb = {"pid": os.getpid(), "label": a.label, "mode": "stream" if a.stream else "once", "interval": INTERVAL, "kind": "manual",
           "started": time.strftime("%Y-%m-%dT%H:%M:%S"), "cwd": os.getcwd(), "user": os.environ.get("NEXA_SLIDE_USER") or os.environ.get("USERNAME") or "local"}
     ttl = a.ttl if a.ttl is not None else (1780 if a.stream else 0)
@@ -61,6 +68,8 @@ def main():
     emitted = {}  # id → updated(변경이 있으면 다시 알린다)
     try:
         while True:
+            if procutil.stdout_closed():  # Monitor 를 건 세션이 닫혔다 - 고아로 남지 않게 끝낸다(finally 가 stopped 를 쓴다)
+                return 0
             _beat(hb)
             c = q.counts()
             fresh = []
@@ -80,7 +89,7 @@ def main():
                 print(json.dumps({"event": "expired", "ttl": ttl, "hint": "다시 실행하면 이어진다"}, ensure_ascii=False), flush=True)
                 return 0
             time.sleep(INTERVAL)
-    except KeyboardInterrupt:
+    except (KeyboardInterrupt, BrokenPipeError, OSError):
         return 0
     finally:
         try:

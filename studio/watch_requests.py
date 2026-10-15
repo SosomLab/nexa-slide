@@ -37,14 +37,10 @@ from requests_core import FLUSH, SESSION, STALE_FACTOR, RequestTracker, all_requ
 
 
 def _kill(pid):
-    """이전 감시 프로세스를 끝낸다(Windows 는 taskkill /F, 그 밖은 SIGTERM)."""
+    """이전 감시 프로세스를 자식까지 끝낸다(procutil.kill_tree - pyenv 같은 래퍼로 떠 있어도)."""
     try:
-        if os.name == "nt":
-            import subprocess
-            subprocess.run(["taskkill", "/PID", str(pid), "/F"], capture_output=True)
-        else:
-            import signal
-            os.kill(int(pid), signal.SIGTERM)
+        import procutil
+        procutil.kill_tree(pid)
     except Exception:  # noqa: BLE001 — 이미 끝났으면 그만
         pass
 
@@ -84,6 +80,13 @@ def main():
     tracker = RequestTracker(quiet=a.quiet)
     try:
         while True:
+            if a.stream:
+                try:
+                    import procutil
+                    if procutil.stdout_closed():  # Monitor 를 건 세션이 닫혔다 - 고아로 남지 않게 끝낸다
+                        return
+                except ImportError:
+                    pass
             heartbeat(hb)
             batch, reason = tracker.poll()
             if batch:
@@ -98,7 +101,7 @@ def main():
                                  ensure_ascii=False), flush=True)
                 return
             time.sleep(a.interval)
-    except KeyboardInterrupt:
+    except (KeyboardInterrupt, BrokenPipeError, OSError):
         pass
     finally:
         heartbeat(hb, stopped=True)

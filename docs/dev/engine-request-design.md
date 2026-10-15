@@ -166,6 +166,8 @@
 
 **열린 세션 연결(2026-10-15, 0.21.12)**: 사용자는 "세션 ID 를 입력해 이미 열린 CLI·VS Code 세션을 직접 연결"을 원했다. 조사 결과 Claude Code 는 밖에서 실행 중인 세션에 입력을 밀어넣는 지원 API 가 없다(`claude --help` 에 send/attach 없음, `claude agents --json` 은 읽기 전용, 세션 간 파이프 `\\.\pipe\LOCAL\cc-msg-*` 는 와이어 형식 비공개·외부 발신은 승인 대기 — 인증+추측 메시지 실험은 무응답). 그래서 **세션 쪽에서 한 줄**로 맡는 슬래시 명령 `/nexa-slide-server`(처음 이름 `/nexa-engine`, 0.21.13 에 개명 · 작업 공간의 슬라이드 세션은 `/nexa-slide-session`)을 뒀다 — 엔진 `.claude/commands/nexa-slide-server.md`(gitignore 에서 `.claude/commands/` 만 추적), 작업 공간은 `init_workspace.ensure_claude_commands`(새 작업 공간·`update_launcher`)가 `nexa.py watch_engine_requests --stream` 을 띄우는 판을 둔다. 카드 ⋯ 상자가 안내한다. 세션 ID 입력 방식은 Claude Code 가 공개 API 를 내놓을 때 다시 본다.
 
+**수동 세션 수명(0.21.14)**: 운영에서 처음 `/nexa-slide-server` 로 연결한 뒤 Monitor 를 끝냈는데 감시 프로세스가 고아로 남았다(Windows 의 pyenv 래퍼 sh → cmd → python 사슬 — 세션은 맨 위 sh 만 끝낸다). 또 `--takeover` 가 이전 감시를 끝내지 않고 하트비트만 덮어써 둘이 같이 돌았다. 고침: `studio/procutil.py`(`pid_alive`·`kill_tree`(taskkill /T /F · SIGTERM→SIGKILL)·`stdout_closed`(Windows 0바이트 WriteFile → ERROR_NO_DATA, POSIX poll POLLERR/POLLHUP)·`stop_manual`), 두 감시가 매 주기 `stdout_closed()` 면 끝나고(finally 가 `stopped`), takeover 는 `kill_tree`. 웹에서 끊기: 카드 [끊기] → 세션 stop API 가 웹 세션이 없으면 `stop_manual(하트비트)` 로 감시를 끝낸다(허브는 작업 공간 서버가 꺼져 있어도 하트비트 파일로).
+
 남은 것(E 후속): Studio 요청 탭의 "엔진 요청 #N" 배지와 적용 뒤 원 요청 자동 재개(E-2 일부), 전체 작업 공간 PPTX XML 회귀(검증 ④)를 세션 규약에 자동화, `server-admin.md` 적용 절차(병합+재시작 한 묶음), `mechanism.md` 그림.
 
 ## 11. 검토 기록
