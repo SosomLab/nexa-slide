@@ -1,5 +1,13 @@
 # 변경 이력
 
+## 0.22.1 - 2026-10-15 · 덱 탭 제목 표시 · 덱 복제 · 짧은 해시 id · 시작 덱
+
+- 덱 탭이 **제목**으로 보인다(시작 덱은 ★). 덱 id 는 엔진이 만드는 **짧은 해시 8자**(`deck_admin.new_id`) - 툴팁·메뉴 머리에 표시만. ＋ 는 제목만 묻는다. 오른쪽 클릭 메뉴는 제목 바꾸기 · **복제…**(`deck_admin.copy` - 새 id, content 도 복사) · **시작 덱으로/해제**(`nexa-slide.json` `startDeck`, 편집기가 주소에 덱이 없을 때 처음 여는 덱) · 삭제. "덱 이름(id) 바꾸기"·"새 덱…" 항목은 뺐다(rename 은 CLI 에만).
+- API `POST /api/decks` 에 `copy`·`start`, `create` 는 id 생략 가능, `GET /api/decks` 에 `start`. CLI `nexa.py deck create [<id>] | copy <id> | start [<id>]`, `list` 에 ★.
+- 시험 `deck_test.py`(run_all `deck`) · 편집기 시나리오 `deck_test.json`. 문서 `docs/editor.md` 덱 관리.
+- 시험 실행기 `smoke.js`: 단계가 **글(문자열)을 돌려주면 실패**로 친다(`dump` 단계만 결과 글). 그동안 글을 돌려주고도 통과로 찍히던 숨은 실패 3건을 고침 - `shape_menu` 실행 취소 6번, `group_test` 배지 높이(단추는 숨겨져 0), `ux_test` 삽입 패널 6묶음(아이콘 묶음 추가 이후).
+- `smoke_run.py` 의 덱 단계를 새 방식(제목만 묻기·해시 id·복제)으로 고치고, 결과 글을 보여 주는 두 단계는 `dump` 로 표시.
+
 ## 0.22.0 - 2026-10-15 · 작업 공간 관리 - 정리(임시·산출물·끊어진 그림·고아 첨부·세션 로그)·압축 보관
 
 - **`studio/tidy.py`**: `scan`(범주별 보고 - output 산출물·attach 고아 첨부·log 세션 로그·image 참조 없는 그림(백업·휴지통 참조는 `kept` 표시)·backup 백업·휴지통), `clean`(지우지 않고 `out/.tidy/<시각>/` 로 옮김, mermaid `.mmd` 는 `.png` 와 짝), `restore`, `purge`, `archive`(zip - 기본 제외 `out/`(첨부 제외)·`.history`·`.trash`·`.env`·`nexa-slide.local.json`·`.git`, `--all`). CLI `nexa.py tidy|archive`(실행기 안내에 추가).

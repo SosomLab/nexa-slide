@@ -338,8 +338,15 @@
     "정리하지 못했습니다": "Could not clean", "비우지 못했습니다": "Could not empty", "보관하지 못했습니다": "Could not archive", "백업 참조": "backup ref", "되돌리기·되살리기에 쓰이므로 보통은 두세요": "used for restore and undelete - usually keep", "백업이 참조하는 그림(표시)은 기본으로 남깁니다": "images referenced by backups (marked) are kept by default",
     "산출물(다시 만들 수 있음)": "Outputs (can be regenerated)", "백업·휴지통": "Backups · trash", "참조 없는 그림": "Unreferenced images", "고아 첨부": "Orphan attachments", "세션 로그": "Session logs",
 
+    // ---- 0.22.1 덱 탭·덱 관리
+    "새 덱 만들기 - 제목만 적으면 id 는 저절로": "New deck - just give a title; the id is generated", "새 덱 제목": "New deck title", "복제…": "Duplicate…", "복제한 덱의 제목": "Title of the duplicated deck",
+    "시작 덱으로": "Set as start deck", "시작 덱 해제": "Unset start deck", "시작 덱을 해제했습니다": "Start deck unset", "· 시작 덱": "· start deck",
+
   });
   en.patterns.push(
+    [/^(.+) \((\d+)장\) · id (\S+)( · 시작 덱)? - 오른쪽 클릭: 제목·복제·시작 덱·삭제$/, (m, a, b, c, d) => `${a} (${b} slides) · id ${c}${d ? " · start deck" : ""} - right-click: title · duplicate · start deck · delete`],
+    [/^(.+) · id (\S+)$/, "$1 · id $2"], [/^만들었습니다: (.*)$/, "Created: $1"], [/^복제했습니다: (.*)$/, "Duplicated: $1"], [/^시작 덱: (.*)$/, "Start deck: $1"], [/^휴지통으로 옮겼습니다: (.*)$/, "Moved to trash: $1"],
+    [/^덱 "(.+)" 을 지울까요\? (.*)$/, "Delete deck \"$1\"? It moves to decks/.trash/ together with its requests, history, attachments and content."],
     [/^(.+) \(방금\)$/, "$1 (just now)"],
     [/^· 정리 대상 (\d+)개 · (.+)\. 지운 파일은$/, "· $1 items to clean · $2. Removed files are moved to"], [/^(\d+)개 · (.+)$/, "$1 · $2"], [/^비우기 \((\d+)건 · (.+)\)$/, "Empty ($1 · $2)"],
     [/^정리: (\d+)개 · (.+) → (.+)$/, "Cleaned: $1 · $2 → $3"], [/^비움 (.+)$/, "Emptied $1"],

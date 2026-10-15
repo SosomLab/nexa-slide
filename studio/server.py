@@ -731,7 +731,8 @@ class H(BaseHTTPRequestHandler):
 
     # ---------- 덱 ----------
     def api_post_decks(self, _, q):
-        """덱 관리 {action: create|rename|retitle|delete, id, …} - deck_admin 과 같은 함수(CLI `nexa.py deck …`). 허브에서는 없다."""
+        """덱 관리 {action: create|copy|start|rename|retitle|delete, id, …} - deck_admin 과 같은 함수(CLI `nexa.py deck …`). 허브에서는 없다.
+        create 는 id 를 비우면 짧은 해시 id, copy 는 새 id 로 복제, start 는 시작 덱(id 비우면 해제)."""
         if HUB:
             return self.err(404, "작업 공간 서버에서")
         import deck_admin
@@ -741,6 +742,10 @@ class H(BaseHTTPRequestHandler):
             with WRITE_LOCK:
                 if act == "create":
                     out = deck_admin.create(i, b.get("title"), b.get("layout") or "cover", b.get("part") or "day1")
+                elif act == "copy":
+                    out = deck_admin.copy(i, b.get("title"))
+                elif act == "start":
+                    out = deck_admin.set_start(i)
                 elif act == "rename":
                     if WS is not None and WS.state == "running":
                         return self.err(409, "웹 세션이 턴을 실행 중이다 - 끝난 뒤에 이름을 바꾼다")
@@ -754,21 +759,23 @@ class H(BaseHTTPRequestHandler):
                     out = deck_admin.delete(i)
                     LAST.pop(i, None)
                 else:
-                    return self.err(400, "action = create|rename|retitle|delete")
+                    return self.err(400, "action = create|copy|start|rename|retitle|delete")
         except ValueError as e:
             return self.err(400, str(e))
-        self._event = f"deck.{act}:{i}" + (f"→{out.get('id')}" if act == "rename" else "")
+        self._event = f"deck.{act}:{i}" + (f"→{out.get('id')}" if act in ("rename", "copy") else "")
         self.send_json({"ok": True, **out, "decks": deck_admin.list_decks()})
 
     def api_get_decks(self, _, q):
         out = []
+        import deck_admin
+        sd = deck_admin.start_deck()
         for f in sorted(DECKS.glob("*.json")):
             if f.name.endswith(".requests.json"):
                 continue
             try:
                 d = json.loads(f.read_text(encoding="utf-8"))
                 out.append({"id": f.stem, "title": d.get("title", f.stem), "slides": len(d.get("slides", [])),
-                            "updated": d.get("updated", ""), "version": ver(f)})
+                            "updated": d.get("updated", ""), "version": ver(f), "start": f.stem == sd})
             except Exception as e:  # noqa: BLE001
                 out.append({"id": f.stem, "title": f"(읽기 오류: {e})", "slides": 0, "version": ver(f)})
         self.send_json(out)

@@ -24,12 +24,12 @@ Genspark AI Slides 작업 화면의 조작 방식(모드 3분할 · 그 자리 �
 
 ## 덱 관리
 
-덱 탭에 보이는 이름은 덱 **id**(파일 `decks/<id>.json`)이고, 썸네일·발표·PPTX 에 쓰는 **제목**은 덱 안의 `title` 이다(둘은 따로).
+덱 탭에는 덱 **제목**(덱 안의 `title`)이 보이고, 덱 **id**(파일 `decks/<id>.json`)는 엔진이 만드는 짧은 해시(8자, 예 `d3f9a1c2`)다 - 사용자가 짓지 않고 탭 툴팁과 오른쪽 클릭 메뉴 머리에 표시만 한다(옛 덱의 손으로 지은 id 는 그대로 쓴다). 시작 덱(★)은 주소에 덱이 없을 때 편집기가 처음 여는 덱이다(작업 공간 설정 `nexa-slide.json` 의 `startDeck`).
 
-- **＋**(덱 탭 끝): 새 덱 — 이름(id)과 제목을 물어 표지 1장짜리 `decks/<id>.json` 을 만들고 연다.
-- 탭 **오른쪽 클릭**: **제목 바꾸기**(덱과 `content/<id>.json` 의 `title` — 다음 build 가 되돌리지 않게) · **덱 이름(id) 바꾸기**(덱 파일과 딸린 요청 `<id>.requests.json`·기록 `decks/.history/<id>/`·첨부 `out/attach/<id>/`·`content/<id>.json` 을 함께 옮기고 안의 id·첨부 경로도 바꾼다 — 웹 세션 턴이 도는 중에는 거절) · **새 덱** · **덱 삭제**(바로 지우지 않고 `decks/.trash/<id>-<시각>/` 로 옮긴다 — 되돌리려면 그 폴더의 파일을 제자리에 복사).
-- 같은 일을 터미널에서: `python3 nexa.py deck list | create <id> [--title …] [--layout cover] | rename <id> <새 id> | retitle <id> "제목" | delete <id>`. API `POST /api/decks {action, id, …}`.
-- 덱 id 규칙: 영문·숫자·`-`·`_`(64자). `book` 은 통합본(`build_deck book`)용. PPTX 파일 이름(`out/<id>.pptx`)도 id 를 따른다 — 이름을 바꾸면 다시 내보낸다.
+- **＋**(덱 탭 끝): 새 덱 — 제목만 물어 표지 1장짜리 덱을 만들고 연다(id 는 저절로).
+- 탭 **오른쪽 클릭**: **제목 바꾸기**(덱과 `content/<id>.json` 의 `title` — 다음 build 가 되돌리지 않게) · **복제**(새 id 로 덱 JSON 과 `content/<id>.json` 복사, 제목은 "… (복사)" 기본 - 요청·기록·첨부는 복사하지 않음) · **시작 덱으로 / 시작 덱 해제** · **덱 삭제(휴지통)**(덱·요청 `<id>.requests.json`·기록 `decks/.history/<id>/`·첨부 `out/attach/<id>/`·`content/<id>.json` 을 `decks/.trash/<id>-<시각>/` 로 — 웹 세션 턴이 도는 중에는 거절).
+- 같은 일을 터미널에서: `python3 nexa.py deck list | create [<id>] [--title …] [--layout cover] | copy <id> [--title …] | start [<id>] | rename <id> <새 id> | retitle <id> "제목" | delete <id>`(`list` 의 ★ = 시작 덱, `rename` 은 CLI 에만 남긴다). API `POST /api/decks {action: create|copy|start|rename|retitle|delete, id, …}`, `GET /api/decks` 의 `start`.
+- 덱 id 규칙: 영문·숫자·`-`·`_`(64자). `book` 은 통합본(`build_deck book`)용. PPTX 파일 이름(`out/<id>.pptx`)도 id 를 따른다.
 
 ## 세 가지 모드
 
