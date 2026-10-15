@@ -1,5 +1,9 @@
 # 변경 이력
 
+## 0.21.16 - 2026-10-15 · 수동 감시의 stdout 닫힘 오판 방지
+
+- 운영에서 Monitor(Node 파이프)에 한 줄 쓴 뒤 0바이트 WriteFile 판정이 '닫힘'으로 오판해 감시가 45초 만에 스스로 끝난 것(협업 세션 재현) — `procutil.StdoutWatch`: 판정이 3초 이상 이어지고 실제 한 줄 `{"event":"ping"}` 쓰기도 실패할 때만 끝낸다(쓰기가 되면 오판으로 보고 계속). 두 감시 스크립트가 이것을 쓴다. 서버 변경 없음(감시를 다시 걸면 적용).
+
 ## 0.21.15 - 2026-10-15 · 수동 세션에 모델·세션 ID 표시
 
 - `watch_engine_requests`·`watch_requests` 에 `--agent`·`--model`(기본: Claude Code 안이면 claude, `NEXA_SLIDE_MODEL`/`ANTHROPIC_MODEL`), Claude Code 환경변수에서 세션 ID(`CLAUDE_CODE_SESSION_ID`)·연 곳(`CLAUDE_CODE_ENTRYPOINT` → vscode/cli)을 자동으로 하트비트에 담는다(`procutil.session_meta`). 서버 작업 카드·최근 작업 카드의 수동 세션 줄에 "이름 · claude <모델> · vscode · #세션ID(복사)" 표시. 슬래시 명령 `/nexa-slide-server`·`/nexa-slide-session` 과 작업 공간 `CLAUDE.md` 가 자기 모델 ID 를 `--model` 로 넘기도록 안내. `watch_engine_requests --stream` 은 연결 직후 `{"event":"idle","connected":true,"open":n,"triage":n}` 한 줄을 내 세션이 바로 "연결됨" 을 알린다(협업 세션 제안).

@@ -85,15 +85,16 @@ def main():
     ttl = a.ttl if a.ttl is not None else (1780 if a.stream else 0)
     t_end = time.time() + ttl if ttl else None
     tracker = RequestTracker(quiet=a.quiet)
+    sw = None
+    try:
+        import procutil
+        sw = procutil.StdoutWatch()
+    except ImportError:
+        pass
     try:
         while True:
-            if a.stream:
-                try:
-                    import procutil
-                    if procutil.stdout_closed():  # Monitor 를 건 세션이 닫혔다 - 고아로 남지 않게 끝낸다
-                        return
-                except ImportError:
-                    pass
+            if a.stream and sw is not None and sw.closed():  # Monitor 를 건 세션이 닫혔다(몇 초 연속 + 실제 쓰기 실패로 확인) - 고아로 남지 않게 끝낸다
+                return
             heartbeat(hb)
             batch, reason = tracker.poll()
             if batch:

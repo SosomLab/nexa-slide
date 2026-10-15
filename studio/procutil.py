@@ -4,6 +4,7 @@
     pid_alive(pid)        살아 있는가(Windows 는 OpenProcess+GetExitCodeProcess - os.kill(pid, 0) 은 Windows 에서 프로세스를 죽이므로 쓰지 않는다)
     kill_tree(pid)        그 프로세스와 자식을 끝낸다(Windows taskkill /T /F, 그 밖은 SIGTERM → SIGKILL). 끝났으면 True
     stdout_closed()       표준 출력의 읽는 쪽(Monitor 를 건 세션)이 닫혔는가 - 세션·VS Code 가 닫히면 감시가 스스로 끝나게
+    StdoutWatch().closed() 위 판정의 오판 방지판(몇 초 연속 + 실제 한 줄 쓰기 실패일 때만 True) - 감시 루프는 이것을 쓴다
                           (Windows: 0바이트 WriteFile 이 ERROR_NO_DATA/BROKEN_PIPE · POSIX: poll 의 POLLERR/POLLHUP)
     stop_manual(hb_path)  하트비트 파일의 수동 감시를 끝내고 stopped 로 표시 - 웹 카드 [세션 중지]가 수동 세션에도 통하게
     session_meta()        감시를 띄운 AI 세션의 agent·model·sessionId·entry(인자 > 환경변수 CLAUDE_CODE_*) - 카드에 모델·세션 ID 를 보이게
@@ -109,6 +110,34 @@ def stdout_closed():
         p.register(fd, select.POLLERR | select.POLLHUP)
         return bool(p.poll(0))
     except Exception:  # noqa: BLE001
+        return False
+
+
+class StdoutWatch:
+    """stdout_closed() 의 오판 방지 - Node(Monitor) 파이프에서는 읽는 쪽이 살아 있어도 0바이트 WriteFile 이 간혹 ERROR_NO_DATA 를 낸다(운영 재현).
+    그래서 '닫힘' 판정이 confirm 초 이상 이어질 때 실제 한 줄 {"event":"ping"} 을 써 보고, 그 쓰기가 실패할 때만 닫힌 것으로 본다(성공하면 판정 초기화).
+    Monitor 에는 오판 때만 ping 한 줄이 드물게 보인다 - 무시하면 된다."""
+
+    def __init__(self, confirm=3.0):
+        self.confirm = confirm
+        self.since = None
+
+    def closed(self):
+        if not stdout_closed():
+            self.since = None
+            return False
+        now = time.time()
+        if self.since is None:
+            self.since = now
+            return False
+        if now - self.since < self.confirm:
+            return False
+        try:
+            sys.stdout.write('{"event": "ping"}\n')
+            sys.stdout.flush()
+        except (OSError, ValueError):
+            return True
+        self.since = None  # 실제 쓰기가 됐다 - 오판
         return False
 
 
