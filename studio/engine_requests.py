@@ -64,7 +64,7 @@ def session_state():
     alive = not hb.get("stopped") and age <= float(hb.get("interval", 1)) * 4 + 2
     if alive and hb.get("kind") == "manual" and hb.get("pid") and not pid_alive(hb["pid"]):  # 강제 종료돼 stopped 를 못 쓴 수동 감시
         alive = False
-    return {"connected": alive, "age": round(age, 1), **{k: hb.get(k) for k in ("kind", "label", "agent", "model", "user", "pid", "cwd", "started")}}
+    return {"connected": alive, "age": round(age, 1), **{k: hb.get(k) for k in ("kind", "label", "agent", "model", "user", "pid", "cwd", "started", "sessionId", "entry")}}
 
 
 def pid_alive(pid):

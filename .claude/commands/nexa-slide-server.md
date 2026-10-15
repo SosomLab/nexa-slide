@@ -10,11 +10,11 @@ description: 이 세션이 nexa-slide 서버 작업(엔진 요청 큐)을 맡는
    - `kind: "manual"` 이 살아 있으면 다른 터미널 세션이 맡고 있다 — label·pid 를 알리고 넘겨받을지 묻는다. 예 → 1 에서 `--takeover`.
 
 **1. 큐 감시를 Monitor 로 띄운다**(끝나지 않는 명령이라 Bash 가 아니라 Monitor, timeout 1800000):
-   `python studio/watch_engine_requests.py --stream --label "<이 세션 이름 또는 cwd 폴더 이름>"` (넘겨받기: `--takeover`)
+   `python studio/watch_engine_requests.py --stream --label "<이 세션 이름 또는 cwd 폴더 이름>" --agent claude --model "<자기 모델 ID - 시스템 프롬프트의 model ID, 예 claude-fable-5-1>"` (넘겨받기: `--takeover`). 세션 ID·연 곳(vscode/cli)은 환경변수에서 자동으로 담긴다 - 카드에 "수동 세션 · 이름 · claude 모델 · vscode · #세션ID" 로 보인다.
    - 첫 줄이 `{"event":"refused","reason":"web-engine-session"}` → 0 의 웹 세션 안내. `already-watched` → 0 의 넘겨받기 질문. `ModuleNotFoundError`/`python` 없음 → `python3` 으로, 그래도 안 되면 `pip install -r requirements.txt` 안내.
    - 허브 서버가 꺼져 있어도 감시는 된다(큐는 파일). 다만 요청은 허브에서 들어오므로 허브가 꺼져 있으면 알린다: `python studio/service.py status`.
 
-**2. 연결되면** 시작 페이지 서버 작업 카드가 "수동 세션 · <이름>" 으로 바뀐다. 사용자에게 "연결됨 · 승인된 요청 n건 대기" 를 한 줄로 알린다(`{"event":"idle","open":n,"triage":n}`).
+**2. 연결되면** 시작 페이지 서버 작업 카드가 "수동 세션 · <이름>" 으로 바뀐다. 사용자에게 "연결됨 · 승인된 요청 n건 대기" 를 한 줄로 알린다 - 연결 직후 첫 줄 `{"event":"idle","connected":true,"open":n,"triage":n}` 이 온다.
 
 **3. Monitor 알림** `{"event":"request","item":{id,title,body,from,evidence,attachments,…}}` 이 오면 처리한다 — 규칙은 `studio/agents/engine_turn_prompt.md` 와 같다:
    - 작업은 엔진 **worktree** `.claude/worktrees/engine-dev`(브랜치 `engine-dev`)에서. 없으면 `git worktree add .claude/worktrees/engine-dev engine-dev`(브랜치도 없으면 `-b engine-dev main`). 운영 트리(main)는 직접 고치지 않는다.

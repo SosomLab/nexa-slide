@@ -1,5 +1,9 @@
 # 변경 이력
 
+## 0.21.15 - 2026-10-15 · 수동 세션에 모델·세션 ID 표시
+
+- `watch_engine_requests`·`watch_requests` 에 `--agent`·`--model`(기본: Claude Code 안이면 claude, `NEXA_SLIDE_MODEL`/`ANTHROPIC_MODEL`), Claude Code 환경변수에서 세션 ID(`CLAUDE_CODE_SESSION_ID`)·연 곳(`CLAUDE_CODE_ENTRYPOINT` → vscode/cli)을 자동으로 하트비트에 담는다(`procutil.session_meta`). 서버 작업 카드·최근 작업 카드의 수동 세션 줄에 "이름 · claude <모델> · vscode · #세션ID(복사)" 표시. 슬래시 명령 `/nexa-slide-server`·`/nexa-slide-session` 과 작업 공간 `CLAUDE.md` 가 자기 모델 ID 를 `--model` 로 넘기도록 안내. `watch_engine_requests --stream` 은 연결 직후 `{"event":"idle","connected":true,"open":n,"triage":n}` 한 줄을 내 세션이 바로 "연결됨" 을 알린다(협업 세션 제안).
+
 ## 0.21.14 - 2026-10-15 · 수동 세션 수명 - 세션이 닫히면 감시 종료 · 웹 [끊기] · takeover 수정
 
 - `studio/procutil.py`(새): `pid_alive`·`kill_tree`·`stdout_closed`·`stop_manual`. `watch_engine_requests`·`watch_requests --stream` 은 Monitor 를 건 세션(터미널·VS Code)이 닫혀 표준 출력의 읽는 쪽이 사라지면 1초 안에 스스로 끝난다(전에는 Windows pyenv 래퍼 아래에서 고아로 남아 카드가 계속 "수동 세션"). `--takeover` 가 이전 감시를 실제로 끝낸다(전에는 둘이 같이 돌았다).

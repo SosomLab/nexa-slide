@@ -53,6 +53,8 @@ def main():
     ap.add_argument("--label", default=os.environ.get("NEXA_SLIDE_SESSION", "Claude Code"))
     ap.add_argument("--force", action="store_true", help="다른 감시가 살아 있어도 시작")
     ap.add_argument("--takeover", action="store_true", help="살아 있는 이전 감시를 끝내고 넘겨받는다")
+    ap.add_argument("--agent", default=None, help="이 감시를 띄운 AI(claude·codex …) - 세션 칩·카드에 표시. 기본: Claude Code 안이면 claude")
+    ap.add_argument("--model", default=None, help="그 세션의 모델 ID(예: claude-fable-5-1) - 표시용. 기본: NEXA_SLIDE_MODEL/ANTHROPIC_MODEL")
     ap.add_argument("--ttl", type=float, default=None, help="이 초 뒤 스스로 끝남(--stream 기본 1780, 0=끝없이)")
     a = ap.parse_args()
     sys.stdout.reconfigure(encoding="utf-8")
@@ -74,7 +76,12 @@ def main():
         sys.exit(2)
 
     hb = {"pid": os.getpid(), "label": a.label, "mode": "stream" if a.stream else "once",
-          "interval": a.interval, "started": now()}
+          "interval": a.interval, "started": now(), "cwd": os.getcwd()}
+    try:
+        import procutil
+        hb.update(procutil.session_meta(a.agent, a.model))  # agent·model·sessionId·entry - 세션 칩·카드에 모델·세션 ID
+    except ImportError:
+        pass
     ttl = a.ttl if a.ttl is not None else (1780 if a.stream else 0)
     t_end = time.time() + ttl if ttl else None
     tracker = RequestTracker(quiet=a.quiet)

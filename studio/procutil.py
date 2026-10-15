@@ -6,11 +6,25 @@
     stdout_closed()       표준 출력의 읽는 쪽(Monitor 를 건 세션)이 닫혔는가 - 세션·VS Code 가 닫히면 감시가 스스로 끝나게
                           (Windows: 0바이트 WriteFile 이 ERROR_NO_DATA/BROKEN_PIPE · POSIX: poll 의 POLLERR/POLLHUP)
     stop_manual(hb_path)  하트비트 파일의 수동 감시를 끝내고 stopped 로 표시 - 웹 카드 [세션 중지]가 수동 세션에도 통하게
+    session_meta()        감시를 띄운 AI 세션의 agent·model·sessionId·entry(인자 > 환경변수 CLAUDE_CODE_*) - 카드에 모델·세션 ID 를 보이게
 """
 import json
 import os
 import sys
 import time
+
+
+def session_meta(agent=None, model=None):
+    """감시를 띄운 AI 세션의 정보 - 인자(--agent/--model) > 환경변수. Claude Code 가 내보내는 CLAUDE_CODE_SESSION_ID·CLAUDE_CODE_ENTRYPOINT 도 담는다.
+    {agent, model, sessionId, entry(vscode|cli|…)} - 빈 값은 뺀다."""
+    env = os.environ
+    agent = agent or env.get("NEXA_SLIDE_AGENT") or ("claude" if env.get("CLAUDECODE") else "")
+    model = model or env.get("NEXA_SLIDE_MODEL") or env.get("ANTHROPIC_MODEL") or ""
+    entry = env.get("CLAUDE_CODE_ENTRYPOINT") or ""
+    if entry.startswith("claude-"):
+        entry = entry[7:]  # claude-vscode → vscode
+    out = {"agent": agent, "model": model, "sessionId": env.get("CLAUDE_CODE_SESSION_ID") or "", "entry": entry}
+    return {k: v for k, v in out.items() if v}
 
 
 def pid_alive(pid):
