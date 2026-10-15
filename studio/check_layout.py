@@ -34,7 +34,7 @@ CHK = CONFIG.get("check", {})  # 작업 공간은 제외 대상(ignore·ignoreSl
 MIN_PT = {"default": 9, "footnotes": 7, **TEMPLATE.get("check", {}).get("minFontPt", {})}
 IGNORE = set(CHK.get("ignore", []))
 IGNORE_SLIDES = CHK.get("ignoreSlides", {})
-TEXT_TYPES = ("text", "pill", "rect", "ellipse")
+TEXT_TYPES = ("text", "pill", "rect", "ellipse", "shape")
 _PLAN_MARK = re.compile(r"\[\[(?:ok:|warn:)?(.+?)\]\]")
 
 
@@ -79,11 +79,17 @@ def text_extent(el):
     lh = float(el.get("lineHeight") or (1.4 if t == "text" else 1.2))
     bold = bool(el["bold"]) if "bold" in el else t == "pill"
     mono = font_role(el.get("font")) == "mono"  # "code" 도 고정폭(render.js fontRole 와 같은 규칙)
-    wrap = el["wrap"] if "wrap" in el else t in ("text", "rect")
-    align = el.get("align") or ("center" if t in ("pill", "ellipse") else "left")
+    wrap = el["wrap"] if "wrap" in el else t in ("text", "rect", "shape")
+    align = el.get("align") or ("center" if t in ("pill", "ellipse", "shape") else "left")
     valign = el.get("valign") or ("top" if t == "text" else "middle")
     pt, pr, pb, pl = _pad(el)
-    iw, ih = el["w"] - pl - pr, el["h"] - pt - pb
+    ox = oy = 0
+    bw, bh = el["w"], el["h"]
+    if t == "shape":  # 도형의 글 영역(프리셋 글 상자) - 상자 전체가 아니다
+        from common import shape_text_rect
+        l0, t0, r0, b0 = shape_text_rect(el.get("shape"), float(el["w"]), float(el["h"]))
+        ox, oy, bw, bh = l0, t0, r0 - l0, b0 - t0
+    iw, ih = bw - pl - pr, bh - pt - pb
     lines = str(el.get("text") or "").split("\n")
     widths = [text_width(ln, size, bold, mono) for ln in lines]
     n = sum(_wrap_count(ln, size, bold, mono, iw) for ln in lines) if wrap else len(lines)
@@ -91,8 +97,8 @@ def text_extent(el):
     need_w = max(widths) if widths else 0
     cw = min(need_w, iw) if wrap else need_w
     ch = need_h
-    x0 = el["x"] + pl + {"left": 0, "center": (iw - cw) / 2, "right": iw - cw}.get(align, 0)
-    y0 = el["y"] + pt + {"top": 0, "middle": (ih - ch) / 2, "bottom": ih - ch}.get(valign, 0)
+    x0 = el["x"] + ox + pl + {"left": 0, "center": (iw - cw) / 2, "right": iw - cw}.get(align, 0)
+    y0 = el["y"] + oy + pt + {"top": 0, "middle": (ih - ch) / 2, "bottom": ih - ch}.get(valign, 0)
     return [x0, y0, cw, ch], need_h, need_w, iw, ih, wrap
 
 

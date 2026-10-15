@@ -595,19 +595,66 @@
       `<polyline points="${P.map((q) => q.join(",")).join(" ")}" fill="none" stroke="${c}" stroke-width="${w}" stroke-linejoin="round" ${dash}/>${polys}</svg>`;
   }
 
+  /** 표 merge → {span: Map("r,c" → [rows, cols]), skip: Set("r,c")} (common.table_merges 와 같은 규칙) */
+  function tableMerges(el, nr, nc) {
+    const span = new Map(), skip = new Set();
+    for (const m of el.merge || []) {
+      if (!Array.isArray(m) || m.length < 4) continue;
+      let [r, c, rs, cs] = m.map((v) => parseInt(v, 10));
+      if ([r, c, rs, cs].some((v) => isNaN(v)) || r < 0 || c < 0 || r >= nr || c >= nc) continue;
+      rs = Math.max(1, Math.min(rs, nr - r)); cs = Math.max(1, Math.min(cs, nc - c));
+      if (rs === 1 && cs === 1) continue;
+      const cells = []; for (let i = 0; i < rs; i++) for (let j = 0; j < cs; j++) cells.push(`${r + i},${c + j}`);
+      if (cells.some((k) => skip.has(k) || span.has(k))) continue;
+      span.set(`${r},${c}`, [rs, cs]); cells.slice(1).forEach((k) => skip.add(k));
+    }
+    return { span, skip };
+  }
+  /** 표 merge → {span: Map("r,c" → [rows, cols]), skip: Set("r,c")} (common.table_merges 와 같은 규칙) */
+  function tableMerges(el, nr, nc) {
+    const span = new Map(), skip = new Set();
+    for (const m of el.merge || []) {
+      if (!Array.isArray(m) || m.length < 4) continue;
+      let [r, c, rs, cs] = m.map((v) => parseInt(v, 10));
+      if ([r, c, rs, cs].some((v) => isNaN(v)) || r < 0 || c < 0 || r >= nr || c >= nc) continue;
+      rs = Math.max(1, Math.min(rs, nr - r)); cs = Math.max(1, Math.min(cs, nc - c));
+      if (rs === 1 && cs === 1) continue;
+      const cells = []; for (let i = 0; i < rs; i++) for (let j = 0; j < cs; j++) cells.push(`${r + i},${c + j}`);
+      if (cells.some((k) => skip.has(k) || span.has(k))) continue;
+      span.set(`${r},${c}`, [rs, cs]); cells.slice(1).forEach((k) => skip.add(k));
+    }
+    return { span, skip };
+  }
+  /** 표 merge → {span: Map("r,c" → [rows, cols]), skip: Set("r,c")} (common.table_merges 와 같은 규칙) */
+  function tableMerges(el, nr, nc) {
+    const span = new Map(), skip = new Set();
+    for (const m of el.merge || []) {
+      if (!Array.isArray(m) || m.length < 4) continue;
+      let [r, c, rs, cs] = m.map((v) => parseInt(v, 10));
+      if ([r, c, rs, cs].some((v) => isNaN(v)) || r < 0 || c < 0 || r >= nr || c >= nc) continue;
+      rs = Math.max(1, Math.min(rs, nr - r)); cs = Math.max(1, Math.min(cs, nc - c));
+      if (rs === 1 && cs === 1) continue;
+      const cells = []; for (let i = 0; i < rs; i++) for (let j = 0; j < cs; j++) cells.push(`${r + i},${c + j}`);
+      if (cells.some((k) => skip.has(k) || span.has(k))) continue;
+      span.set(`${r},${c}`, [rs, cs]); cells.slice(1).forEach((k) => skip.add(k));
+    }
+    return { span, skip };
+  }
   function elTable(el, page) {
     const g = tableGrid(el);
     let html = "", y = 0;
-    const size = g.size;
+    const size = g.size, mg = el.type === "plan-table" ? { span: new Map(), skip: new Set() } : tableMerges(el, g.cells.length, g.colW.length);
     g.cells.forEach((row, i) => {
       let x = 0;
       const isHead = i === 0 && (el.type === "plan-table" || el.header !== false);
       row.forEach((c, j) => {
-        const w = g.colW[j], h = g.rowH[i];
+        const sp = mg.span.get(`${i},${j}`);
+        if (mg.skip.has(`${i},${j}`)) { x += g.colW[j]; return; }  // 병합에 덮인 셀
+        const w = sp ? g.colW.slice(j, j + sp[1]).reduce((a, b) => a + b, 0) : g.colW[j], h = sp ? g.rowH.slice(i, i + sp[0]).reduce((a, b) => a + b, 0) : g.rowH[i];
         const bb = isHead ? "" : `border-bottom:1px solid ${color(g.rule)};`;
         html += `<div class="rs-cell" style="left:${x}px;top:${y}px;width:${w}px;height:${h}px;${c.fill ? `background:${color(c.fill)};` : ""}${bb}justify-content:${HJUST[c.align] || "flex-start"};font-family:${font(c.font)};font-size:${size}px;line-height:${size * 1.4}px;text-align:${c.align}">` +
           `<div class="rs-ct" style="position:relative;top:${shift(c.font, size, 1.4)}px">${spanRuns(c.text, page, color(c.color), c.bold) || "&#8203;"}</div></div>`;
-        x += w;
+        x += g.colW[j];
       });
       y += g.rowH[i];
     });
@@ -684,6 +731,7 @@
       case "rect": case "ellipse": case "pill": case "text": inner = elBox(el, page); break;
       case "image": inner = elImage(el); break;
       case "shape": inner = elShape(el, page); break;
+      case "group": inner = (el.children || []).map((c) => renderElement(c, page)).join(""); break;  // 자식은 묶음 상자 기준 좌표 - 묶음의 회전·뒤집기가 함께 적용된다
       case "line": case "arrow": inner = elLine(el); break;
       case "curve": inner = elCurve(el); break;
       case "table": case "plan-table": inner = elTable(el, page); break;
@@ -726,7 +774,7 @@
 .rs-cell>.rs-ct{white-space:pre-wrap;word-break:keep-all;flex:1}`;
   }
 
-  const api = { setDeckFonts, presetFonts, fontRole, setTokens, setLangs, langOf, color, colorAlpha, fillSpec, fillCss, radius, runs, plain, hlSQL, hlPython, codeLines, planRuns, tableGrid, bulletRows, bulletNum, numHang, markerNum, numLabel, shapePath, shapeNames, renderElement, renderSlide, css, esc, lineBox };
+  const api = { setDeckFonts, presetFonts, fontRole, setTokens, setLangs, langOf, color, colorAlpha, fillSpec, fillCss, radius, runs, plain, hlSQL, hlPython, codeLines, planRuns, tableGrid, tableMerges, bulletRows, bulletNum, numHang, markerNum, numLabel, shapePath, shapeNames, renderElement, renderSlide, css, esc, lineBox };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   root.Render = api;
 })(typeof window !== "undefined" ? window : globalThis);

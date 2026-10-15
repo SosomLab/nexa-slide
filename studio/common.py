@@ -931,6 +931,88 @@ def row_heights(el, n):
     return [el["h"] * v / tot for v in r]
 
 
+def shape_text_rect(shape, w, h):
+    """도형(shape 요소)의 글 영역 [l, t, r, b] - render.js SHAPES[*].rect 와 같은 식(PowerPoint 프리셋의 글 상자)."""
+    ss = min(w, h)
+    R = {
+        "triangle": lambda: [w / 4, h / 2, 3 * w / 4, h], "rtTriangle": lambda: [w / 12, h / 2, 7 * w / 12, 11 * h / 12],
+        "diamond": lambda: [w / 4, h / 4, 3 * w / 4, 3 * h / 4], "parallelogram": lambda: [ss / 8, 0, w - ss / 8, h], "trapezoid": lambda: [ss / 8, 0, w - ss / 8, h],
+        "pentagon": lambda: [0.191 * w, 0.382 * h, 0.809 * w, h], "hexagon": lambda: [ss / 8, 0, w - ss / 8, h],
+        "octagon": lambda: [ss * 0.29289 / 2, ss * 0.29289 / 2, w - ss * 0.29289 / 2, h - ss * 0.29289 / 2],
+        "rightArrow": lambda: [0, h / 4, w - ss / 4, 3 * h / 4], "leftArrow": lambda: [ss / 4, h / 4, w, 3 * h / 4],
+        "upArrow": lambda: [w / 4, ss / 4, 3 * w / 4, h], "downArrow": lambda: [w / 4, 0, 3 * w / 4, h - ss / 4],
+        "leftRightArrow": lambda: [ss / 4, h / 4, w - ss / 4, 3 * h / 4],
+        "chevron": lambda: [min(ss / 2, w / 2), 0, w - min(ss / 2, w / 2) / 2, h], "homePlate": lambda: [0, 0, w - min(ss / 2, w) / 2, h],
+        "star5": lambda: [0.318 * w, 0.382 * h, 0.682 * w, 0.764 * h], "plus": lambda: [ss / 4, ss / 4, w - ss / 4, h - ss / 4],
+        "callout": lambda: [0, 0, w, h], "roundCallout": lambda: [ss / 6 * 0.29, ss / 6 * 0.29, w - ss / 6 * 0.29, h - ss / 6 * 0.29],
+        "can": lambda: [0, ss / 4, w, h - ss / 8], "cube": lambda: [0, ss / 4, w - ss / 4, h],
+    }
+    return R.get(shape, R["diamond"])()
+
+
+def table_merges(el, nr, nc):
+    """표 merge → (span{(r,c): (rows, cols)}, skip{(r,c)}) - 왼쪽 위 셀이 rows×cols 를 차지하고 나머지는 그리지 않는다. render.js tableMerges 와 같은 규칙."""
+    span, skip = {}, set()
+    for m in el.get("merge") or []:
+        try:
+            r, c, rs, cs = (int(v) for v in list(m)[:4])
+        except (TypeError, ValueError):
+            continue
+        if r < 0 or c < 0 or r >= nr or c >= nc:
+            continue
+        rs, cs = max(1, min(rs, nr - r)), max(1, min(cs, nc - c))
+        if rs == 1 and cs == 1:
+            continue
+        cells = {(r + i, c + j) for i in range(rs) for j in range(cs)}
+        if any(k in skip or k in span for k in cells):
+            continue  # 앞의 병합과 겹치면 무시
+        span[(r, c)] = (rs, cs)
+        skip |= cells - {(r, c)}
+    return span, skip
+
+
+def table_merges(el, nr, nc):
+    """표 merge → (span{(r,c): (rows, cols)}, skip{(r,c)}) - 왼쪽 위 셀이 rows×cols 를 차지하고 나머지는 그리지 않는다. render.js tableMerges 와 같은 규칙."""
+    span, skip = {}, set()
+    for m in el.get("merge") or []:
+        try:
+            r, c, rs, cs = (int(v) for v in list(m)[:4])
+        except (TypeError, ValueError):
+            continue
+        if r < 0 or c < 0 or r >= nr or c >= nc:
+            continue
+        rs, cs = max(1, min(rs, nr - r)), max(1, min(cs, nc - c))
+        if rs == 1 and cs == 1:
+            continue
+        cells = {(r + i, c + j) for i in range(rs) for j in range(cs)}
+        if any(k in skip or k in span for k in cells):
+            continue  # 앞의 병합과 겹치면 무시
+        span[(r, c)] = (rs, cs)
+        skip |= cells - {(r, c)}
+    return span, skip
+
+
+def table_merges(el, nr, nc):
+    """표 merge → (span{(r,c): (rows, cols)}, skip{(r,c)}) - 왼쪽 위 셀이 rows×cols 를 차지하고 나머지는 그리지 않는다. render.js tableMerges 와 같은 규칙."""
+    span, skip = {}, set()
+    for m in el.get("merge") or []:
+        try:
+            r, c, rs, cs = (int(v) for v in list(m)[:4])
+        except (TypeError, ValueError):
+            continue
+        if r < 0 or c < 0 or r >= nr or c >= nc:
+            continue
+        rs, cs = max(1, min(rs, nr - r)), max(1, min(cs, nc - c))
+        if rs == 1 and cs == 1:
+            continue
+        cells = {(r + i, c + j) for i in range(rs) for j in range(cs)}
+        if any(k in skip or k in span for k in cells):
+            continue  # 앞의 병합과 겹치면 무시
+        span[(r, c)] = (rs, cs)
+        skip |= cells - {(r, c)}
+    return span, skip
+
+
 def table_grid(el):
     """반환: {x, y, tw, colW(px), rowH(px), cells[r][c]{text,fill,color,bold,align,font}, rule, callouts[]}"""
     is_plan = el.get("type") == "plan-table"
