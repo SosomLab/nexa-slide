@@ -390,11 +390,11 @@ def radius(value, w, h):
 
 
 # ---------- 인라인 강조 ----------
-_MARK = re.compile(r"\*\*(.+?)\*\*|==(.+?)==|\[\[([#\w-]+)\|(.+?)\]\]")
+_MARK = re.compile(r"\*\*(.+?)\*\*|==(.+?)==|\[\[([#\w-]+)\|(.+?)\]\]|__(.+?)__|(?<![\w*])\*([^*\s](?:[^*]*?[^*\s])?)\*(?![\w*])")  # **굵게** ==강조== [[색|글]] __밑줄__ *기울임* (render.js MARK 와 같다)
 
 
 def runs(text, page=None):
-    """'a **b** ==c== [[s1|d]]' → [(글자, {'bold':bool,'color':토큰|None})] (줄바꿈은 호출자가 먼저 나눈다)."""
+    """'a **b** ==c== [[s1|d]] __u__ *i*' → [(글자, {'bold'|'color'|'underline'|'italic'})] (줄바꿈은 호출자가 먼저 나눈다)."""
     if page is not None:
         text = text.replace("{page}", str(page))
     out, pos = [], 0
@@ -405,6 +405,10 @@ def runs(text, page=None):
             out.append((m.group(1), {"bold": True}))
         elif m.group(2) is not None:
             out.append((m.group(2), {"bold": True, "color": "primary"}))
+        elif m.group(5) is not None:
+            out.append((m.group(5), {"underline": True}))
+        elif m.group(6) is not None:
+            out.append((m.group(6), {"italic": True}))
         else:
             out.append((m.group(4), {"color": m.group(3)}))
         pos = m.end()
