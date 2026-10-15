@@ -14,7 +14,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from common import (cur_fonts, use_fonts, CODE_GUTTER_W, CODE_PAD_Y, OUT, REPO, HL_ROLE, bullet_rows, code_lines, code_style, color, fill_spec, load_deck,  # noqa: E402
+from common import (cur_fonts, font_role, use_fonts, CODE_GUTTER_W, CODE_PAD_Y, OUT, REPO, HL_ROLE, bullet_rows, code_lines, code_style, color, fill_spec, load_deck,  # noqa: E402
                     pad_of, plan_runs, radius, runs, safe_id, table_grid, tokens)
 
 from lxml import etree  # noqa: E402  (python-pptx 의존성)
@@ -50,7 +50,7 @@ def rgb_el(parent_tag, hexv):
 
 def fonts_of(key):
     fs = cur_fonts()  # 슬라이드·덱 글꼴 세트(fontPreset)가 있으면 그 글꼴
-    f = fs.get(key or "body", fs["body"])
+    f = fs.get(font_role(key), fs["body"])  # 역할 이름 정규화(render.js font 와 같은 규칙 - "code" 도 mono)
     return f["latin"], f["ea"]
 
 
