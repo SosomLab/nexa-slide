@@ -1391,7 +1391,7 @@ class H(BaseHTTPRequestHandler):
 
     def api_get_preview(self, _, q):
         with PREVIEW_LOCK:  # 같은 미리보기를 동시에 만들지 않게
-            self.hub_call(hub.preview, (q.get("template") or [None])[0], (q.get("starter") or [None])[0])
+            self.hub_call(hub.preview, (q.get("template") or [None])[0], (q.get("starter") or [None])[0], (q.get("lang") or ["ko"])[0])
 
     def api_post_settings(self, _, q):
         b = self.body_json() or {}
@@ -1918,15 +1918,17 @@ class H(BaseHTTPRequestHandler):
 
     def api_get_slidetypes(self, _, q):
         """슬라이드 유형(studio/slide_types.json) — 목적별 묶음과, 유형마다 그 목적의 예시 내용으로 빌드한 슬라이드(미리보기·추가용)."""
+        from content_i18n import tr
         from layouts import LAYOUTS, SAMPLES, build_slide
         cat = json.loads((STUDIO / "slide_types.json").read_text(encoding="utf-8"))
         part = (q.get("part") or ["day1"])[0]
+        lang = (q.get("lang") or ["ko"])[0]  # 예시 슬라이드의 글 언어(studio/i18n/content.<lang>.json) - 유형 이름·설명은 i18n 필드로 화면이 고른다
         types = []
         for i, t in enumerate(cat["types"]):
             if t["layout"] not in LAYOUTS:
                 continue
             try:
-                s = build_slide(t["layout"], {**SAMPLES.get(t["layout"], {}), **t.get("fields", {})}, part, f"t{i:02d}")
+                s = tr(build_slide(t["layout"], tr({**SAMPLES.get(t["layout"], {}), **t.get("fields", {})}, lang), part, f"t{i:02d}"), lang)  # 레이아웃이 넣는 글(목차·N부·자리 글)도
             except Exception as e:  # noqa: BLE001 — 한 유형이 실패해도 목록은 보인다
                 s = None
                 t = {**t, "error": f"{type(e).__name__}: {e}"}

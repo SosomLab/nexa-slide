@@ -2222,7 +2222,7 @@ ${names}
     $("#addDlg").classList.add("show"); $("#adQ").value = "";
     if (!AD.data) {
       $("#adBody").innerHTML = `<div class="hint">유형을 불러오는 중…</div>`;
-      const r = await api("GET", `/api/slidetypes?part=${encodeURIComponent(S.deck.part || "day1")}`);
+      const r = await api("GET", `/api/slidetypes?part=${encodeURIComponent(S.deck.part || "day1")}&lang=${encodeURIComponent(window.I18N ? I18N.effective() : "ko")}`);  // 예시 글 언어
       AD.data = r.ok ? r.data : { groups: [], types: [] };
     }
     renderAddDlg(); setTimeout(() => $("#adQ").focus(), 30);

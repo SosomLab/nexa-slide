@@ -663,6 +663,7 @@ def main():
     ap.add_argument("--deck", default="intro")
     ap.add_argument("--asset-root", default=".", help="덱 그림 경로의 기준 폴더(작업 공간 기준). 저장소 루트 자산을 쓰려면 ..")
     ap.add_argument("--starter", help="시작용 교안(엔진 starters/ 폴더 이름) — 예: lecture-course")
+    ap.add_argument("--lang", default="ko", help="시작용 내용의 언어 - starters/<이름>/content.<lang>/ 가 있으면 그것을 복사(없으면 content/)")
     ap.add_argument("--force", action="store_true")
     ap.add_argument("--build", action="store_true", help="content → decks 빌드")
     ap.add_argument("--purpose", default="")
@@ -738,10 +739,12 @@ def main():
     write(ws / "nexa.py", LAUNCHER.format(ws=show), overwrite=a.force)
     if st:  # 시작용 교안: content/ 는 작업 공간에, assets/ 는 assetRoot 아래에 복사(있는 파일은 그대로)
         sdir = STARTERS / a.starter
+        from content_i18n import content_dir
         for sub in st.get("copy", ["content"]):
             dest = ws if sub == "content" else ws / cfg.get("assetRoot", ".")
-            for src in sorted((sdir / sub).rglob("*")):
-                dst = dest / src.relative_to(sdir)
+            sroot = content_dir(sdir, a.lang) if sub == "content" else sdir / sub  # 번역본(content.<lang>/)이 있으면 그것을 content/ 로
+            for src in sorted(sroot.rglob("*")):
+                dst = dest / (Path("content") / src.relative_to(sroot) if sub == "content" else src.relative_to(sdir))
                 if src.is_file() and not dst.exists():
                     dst.parent.mkdir(parents=True, exist_ok=True)
                     shutil.copy2(src, dst)
