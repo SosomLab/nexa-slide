@@ -1,5 +1,11 @@
 # 변경 이력
 
+## 0.22.2 - 2026-10-16 · PPT 줄 배치 보정을 글꼴 메트릭으로 자동 계산(엔진 요청 #10)
+
+- **문제**: 편집기의 세로 보정 `pptTextShift` 가 맑은 고딕·Consolas 에서 잰 상수였고 `measuredFor` 가 맞을 때만 적용돼, 기본 세트(Pretendard)·KoPub 등 다른 글꼴에서는 보정이 전혀 없었다 — 타원·상자의 글이 PowerPoint 보다 줄 높이 1.0 에서 2~4px 위, 1.6 에서 4~8px 아래로 어긋남(가정형호스피스 로마자 원, KoPub Bold 28px lineHeight 1).
+- **수정**: `common.ppt_text_shift` 가 역할별 글꼴 파일(`measure.regular`, 작업 공간 `fonts/`·설치 폴더)의 세로 메트릭 C = (winAscent+winDescent)/unitsPerEm 을 읽어 `[0.355, −0.362×C]` 를 `fonts.pptTextShift` 와 각 `fontPresets[*].pptTextShift` 에 넣고, `render.js shift()` 가 역할(body·heading·mono)별로 쓴다. 상수는 Pretendard·KoPub돋움체 Medium/Bold·JetBrains Mono 를 PowerPoint 렌더와 대조해 맞춤(잔차 ±1px, 크기 16~44·줄 높이 1.0~1.6·pad 유무·타원/상자). 글꼴 파일이 없으면 C=1.2 로 계산. 옛 측정 상수(`tokens.json pptTextShift`)는 뺐다.
+- 벤치 `studio/tests/shift_bench.py`(PowerPoint 필요, 수동). 문서 `editor.md`·`configuration.md`·`operation.md`·`templates.md`·`dev/tests.md`.
+
 ## 0.22.1 - 2026-10-15 · 덱 탭 제목 표시 · 덱 복제 · 짧은 해시 id · 시작 덱
 
 - 덱 탭이 **제목**으로 보인다(시작 덱은 ★). 덱 id 는 엔진이 만드는 **짧은 해시 8자**(`deck_admin.new_id`) - 툴팁·메뉴 머리에 표시만. ＋ 는 제목만 묻는다. 오른쪽 클릭 메뉴는 제목 바꾸기 · **복제…**(`deck_admin.copy` - 새 id, content 도 복사) · **시작 덱으로/해제**(`nexa-slide.json` `startDeck`, 편집기가 주소에 덱이 없을 때 처음 여는 덱) · 삭제. "덱 이름(id) 바꾸기"·"새 덱…" 항목은 뺐다(rename 은 CLI 에만).

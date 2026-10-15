@@ -238,7 +238,66 @@ def resolve_tokens(config=None):
         t["fonts"] = _merge(t["fonts"], ov["fonts"])
     t["fonts"].setdefault("heading", t["fonts"]["body"])
     t["fontOverrides"] = ov.get("fonts") or {}  # 슬라이드·덱 글꼴 세트도 같은 순서로 계산하게(render.js presetFonts)
+    # PowerPoint 줄 배치 보정 - 글꼴 파일의 세로 메트릭으로 역할마다 계산해 넣는다(render.js shift 가 fonts.pptTextShift[역할] 을 쓴다). 세트에 직접 적은 값이 있으면 그대로
+    t["fonts"]["pptTextShift"] = ppt_text_shift(t["fonts"])
+    for name, pr in (t.get("fontPresets") or {}).items():
+        if isinstance(pr, dict) and not isinstance(pr.get("pptTextShift"), dict):
+            pf = json.loads(json.dumps(pr))
+            for k in ("body", "mono"):
+                pf.setdefault(k, t["fonts"][k])
+            if ov.get("fonts"):
+                pf = _merge(pf, ov["fonts"])
+            pf.setdefault("heading", pf["body"])
+            pr["pptTextShift"] = ppt_text_shift(pf)
     return t
+
+
+# ---------- PowerPoint 줄 배치 보정(글꼴 메트릭)
+# PowerPoint 의 '정확히' 줄 간격은 줄 상자 안에서 글자를 CSS 와 다르게 놓는다(여분 줄 높이의 대부분을 위에 둔다). 브라우저 글자를
+# shift = size × (SHIFT_A × lineHeight − SHIFT_C × C) px 만큼 내리면 맞는다. C = 글꼴의 (winAscent + winDescent) / unitsPerEm (글꼴 파일에서 읽음).
+# 상수는 Pretendard·KoPub돋움체(Medium·Bold)·JetBrains Mono 를 PowerPoint 렌더와 대조해 맞춘 값(studio/tests/shift_bench.py, 잔차 ±1px, 2026-10-16).
+SHIFT_A, SHIFT_C, SHIFT_C_DEFAULT = 0.355, 0.362, 1.2
+_vmetric = {}
+
+
+def font_vmetric(name):
+    """글꼴 파일(measure 이름)의 (winAscent + winDescent) / unitsPerEm - 없거나 못 읽으면 None. TTF·OTF·TTC 머리만 읽는다(fontTools 불필요)."""
+    if name in _vmetric:
+        return _vmetric[name]
+    val = None
+    try:
+        import struct
+        path = _font_file(name)
+        if path:
+            b = path.read_bytes()
+            off = struct.unpack(">I", b[12:16])[0] if b[:4] == b"ttcf" else 0
+            num = struct.unpack(">H", b[off + 4:off + 6])[0]
+            tabs = {}
+            for i in range(num):
+                tag, _cs, o, _ln = struct.unpack(">4sIII", b[off + 12 + i * 16: off + 12 + (i + 1) * 16])
+                tabs[tag.decode("latin1")] = o
+            upm = struct.unpack(">H", b[tabs["head"] + 18:tabs["head"] + 20])[0]
+            o = tabs["OS/2"]
+            w_asc, w_desc = struct.unpack(">HH", b[o + 74:o + 78])
+            if upm and w_asc + w_desc:
+                val = (w_asc + w_desc) / upm
+    except (OSError, KeyError, struct.error, ValueError):
+        val = None
+    _vmetric[name] = val
+    return val
+
+
+def ppt_text_shift(fonts):
+    """역할별 [a, b] - render.js shift(): size × (a × lineHeight + b). 글꼴 파일을 못 찾으면 C = SHIFT_C_DEFAULT."""
+    out = {}
+    for role in ("body", "heading", "mono"):
+        f = fonts.get(role) or fonts.get("body") or {}
+        ms = f.get("measure") or {}
+        c = font_vmetric(ms.get("regular") or "") if ms else None
+        out[role] = [SHIFT_A, round(-SHIFT_C * (c if c else SHIFT_C_DEFAULT), 4)]
+        if not c:
+            out[role].append("default")  # 메트릭을 못 읽어 기본 C 로 계산했다는 표시
+    return out
 
 
 def preset_fonts(name, t=None):

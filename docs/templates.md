@@ -27,7 +27,7 @@
 ```
 studio/templates/<이름>/
 ├─ template.json      정의(아래)
-├─ tokens.json        색 역할 · 반경 · 글꼴 프리셋(fontPresets) · 코드 색 · PPT 줄 배치 보정
+├─ tokens.json        색 역할 · 반경 · 글꼴 프리셋(fontPresets) · 코드 색 (PPT 줄 배치 보정은 글꼴 메트릭으로 자동)
 └─ design/            디자인 기준 문서(concept.html · tokens.css — gen_tokens_css.py 가 tokens.json 과 값 대조)
 ```
 
