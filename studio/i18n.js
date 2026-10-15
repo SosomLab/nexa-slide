@@ -199,6 +199,11 @@
     "이전 요청까지 모두 찾아보기(편집 화면 위에 뜹니다)": "Browse and search all requests, including older ones (opens over the editor)", "내용·답으로 찾기 - 기본 퍼지(띄어쓰기·한두 글자 차이 허용) · #4 = 슬라이드 4, #4,5,7-10 = 여러 장": "Search text and replies - fuzzy by default (tolerates spacing and a typo or two) · #4 = slide 4, #4,5,7-10 = several slides",
     "대소문자 구분": "Match case", "단어 단위": "Whole word", "정규식": "Regular expression", "찾기 방식 - 기본은 퍼지(띄어쓰기·한두 글자 차이 허용)": "Search mode - fuzzy by default (tolerates spacing and a typo or two)", "정규식 오류:": "Regex error:",
     "상태": "Status", "범위": "Scope",
+    // ---- 서식 줄(종류별)
+    "도형 종류": "Shape", "차트 종류": "Chart type", "아이콘 종류": "Icon", "점 색(기호 글머리)": "Dot color (symbol bullets)", "줄 높이 · 항목 간격 · 하위 크기": "Line height · item gap · sub size",
+    "머리 행 면": "Header fill", "머리 행 글자색": "Header text color", "범례 없음": "No legend", "범례 아래": "Legend bottom", "범례 오른쪽": "Legend right", 
+    "대비 색(안쪽 무늬)": "Contrast color (inner marks)", "투명도 % (100 = 그대로)": "Opacity % (100 = as is)", "자르기 % - 왼쪽·위·오른쪽·아래": "Crop % - left · top · right · bottom", "자르기 없음": "No crop",
+    "링크 지우기": "Remove link", 
     // ---- 편집기 - 남은 글
     "세션 연결 없음 ▾": "No session ▾", "세션 연결됨 ▾": "Session connected ▾", "세션 연결 없음. 눌러서 웹 세션을 시작하거나, 터미널 세션에서 watch_requests.py --stream 을 Monitor 로 실행하면 연결된다": "No session. Click to start a web session, or run watch_requests.py --stream with Monitor in a terminal session to connect",
     "내보내기 - PPTX · PowerPoint 렌더 미리보기": "Export - PPTX · PowerPoint render preview", "최대화 배치 - 노트·개요·검사를 오른쪽 아래로 옮기고 가운데를 슬라이드에 (Ctrl+Shift+M)": "Maximized layout - move notes/outline/check to the bottom right and give the center to the slide (Ctrl+Shift+M)",
