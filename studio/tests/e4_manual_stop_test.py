@@ -105,7 +105,7 @@ try:
     check("takeover → 이전 감시 2 종료", wait_dead(p2.pid, 5), f"p2 alive={procutil.pid_alive(p2.pid)}")
     h3 = hb()
     check("  하트비트는 감시 3(pid)", h3.get("pid") == p3.pid and h3.get("label") == "e4:three" and not h3.get("stopped"), h3)
-    first = p3.stdout.readline().decode("utf-8", "replace")
+    first = "".join(p3.stdout.readline().decode("utf-8", "replace") for _ in range(2))  # takeover 뒤 idle - 드물게 순서가 섞여 두 줄을 본다
     check("  감시 3 첫 이벤트 takeover", '"event": "takeover"' in first, first)
     st, d = admin("GET", BASE + "/api/engine")
     check("  /api/engine state=manual label=e4:three", d["session"].get("state") == "manual" and d["session"].get("label") == "e4:three", d["session"])
