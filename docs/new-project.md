@@ -165,6 +165,8 @@ Start-Process (python3 slides\nexa.py url)
 git add SLIDES.md slides && git commit -m "슬라이드 작업 공간 추가 (nexa-slide)"     # 새로 만든 CLAUDE.md·AGENTS.md 가 있으면 함께
 ```
 
+`slides/nexa.py`·`slides/.claude/commands/`(슬래시 명령 `/nexa-slide-server`)·`slides/.claude/settings.json`·`slides/.env.example` 도 커밋한다 — 다른 PC 에서 clone 한 사람은 `python3 slides/nexa.py engine <엔진 폴더>` 로 엔진 위치만 알려 주면 된다([install.md — clone 이후](install.md#저장소를-받은-뒤-할-일-clone-이후), 시작 페이지 **ⓘ 설정 안내**). `.env`·`nexa-slide.local.json` 은 PC 별 파일이라 커밋하지 않는다.
+
 ### 2.3 Claude 가 이 폴더를 알게 하기
 
 `slides/CLAUDE.md` 에 세션 안내(요청 감시·처리 규약·명령)와 "저장소 자료를 근거로 쓴다" 는 안내가 들어 있다.
@@ -174,6 +176,8 @@ git add SLIDES.md slides && git commit -m "슬라이드 작업 공간 추가 (ne
 ```markdown
 - 슬라이드는 `slides/`(nexa-slide 작업 공간)에서 만든다 — 개념·서버 실행은 `SLIDES.md`. 규칙: @slides/CLAUDE.md
 ```
+
+슬래시 명령 `/nexa-slide-session`(이 작업 공간의 슬라이드 세션)·`/nexa-slide-server`(서버 작업)는 `slides/.claude/commands/` 와 **루트 `.claude/commands/`** 양쪽에 둔다 — Claude Code 는 연 폴더의 명령만 읽으므로, 루트에서 연 VS Code 세션도 CLI 로 `slides/` 에 들어간 세션도 같은 한 줄로 연결된다(루트 판은 `python3 slides/nexa.py …` 를 쓴다).
 
 Claude 가 아닌 AI 도구(Codex·Gemini CLI·Cursor)는 루트 `AGENTS.md` 를 읽는다 — 같은 방식(없을 때만 만들고, 있으면 알림).
 세션 활동 훅(`.claude/settings.json`)은 `slides/` 안에만 있다 — 루트에서 연 세션의 활동도 편집기에 보이게 하려면
@@ -306,6 +310,9 @@ PPTX 는 이미지가 아니라 PowerPoint 기본 도형이라 받은 뒤에도 
 | 요청 감시(세션이 Monitor 로) | `python3 slides/nexa.py watch_requests --stream --takeover` | `python3 slides\nexa.py watch_requests --stream --takeover` |
 | 글꼴 프리셋 | `python3 slides/nexa.py set_fonts modern` | `python3 slides\nexa.py set_fonts modern` |
 | 엔진 업데이트 | `git -C ~/Projects/nexa-slide pull` 후 `nexa.py restart` | `git -C D:\Projects\nexa-slide pull` 후 `nexa.py restart` |
+| 다른 PC 에서 clone 한 뒤(엔진 위치 · 실행기·세션 파일 최신화) | `python3 slides/nexa.py engine ~/Projects/nexa-slide` · `python3 slides/nexa.py update_launcher` | `python3 slides\nexa.py engine D:\Projects\nexa-slide` · `python3 slides\nexa.py update_launcher` |
+| 이 세션을 이 작업 공간의 슬라이드 세션으로(편집기 요청 처리) | `slides/` 에서 연 Claude Code 세션에 `/nexa-slide-session` | 같음 |
+| 서버 작업(엔진 요청 큐)을 이 세션이 맡기(하나뿐) | Claude Code 세션에 `/nexa-slide-server` | 같음 |
 
 ---
 

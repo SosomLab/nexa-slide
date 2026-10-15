@@ -1,8 +1,14 @@
 # 변경 이력
 
-## 0.21.12 - 2026-10-15 · /nexa-engine - 열린 세션에서 한 줄로 서버 작업 맡기
+## 0.21.13 - 2026-10-15 · ⓘ 설정 안내 - clone 이후 할 일 · 슬래시 명령 /nexa-slide-server · /nexa-slide-session
 
-- 슬래시 명령 `/nexa-engine`(엔진 `.claude/commands/nexa-engine.md`, 작업 공간은 `init_workspace`·`update_launcher` 가 `.claude/commands/nexa-engine.md` 를 둠): 이미 열려 있는 Claude Code 세션(터미널·VS Code)에서 입력하면 큐 감시를 Monitor 로 띄우고 요청 처리 절차(엔진 worktree·engine_request 상태)를 따른다. 카드 ⋯ 상자에 안내. 세션 ID 로 밖에서 연결하는 방식은 Claude Code 에 외부 입력 주입 API 가 없어 불가(문서·실험 확인).
+- 슬래시 명령 개명·분리(0.21.12 의 `/nexa-engine` →): **`/nexa-slide-server`** = 서버 작업(엔진 요청 큐) 세션 하나(엔진 저장소·작업 공간 어디서 연 세션이든), **`/nexa-slide-session`** = 그 작업 폴더의 슬라이드 세션(편집기 요청 처리, `watch_requests --stream`). 작업 공간은 `init_workspace`·`update_launcher` 가 두 파일을 작업 공간과 **저장소 루트**(VS Code 를 보통 루트에서 열고 Claude Code 는 cwd 의 명령만 읽으므로, 루트 판은 `python3 slides/nexa.py`) 양쪽에 두고 엔진이 만든 옛 `nexa-engine.md` 는 지운다. 명령 안에 예외 처리: 이미 이 세션이 연결돼 있으면 다시 띄우지 않음, 웹(엔진) 세션이 맡고 있으면 `refused` → [세션 중지] 안내, 다른 터미널 세션이면 물은 뒤 `--takeover`, 서버 꺼짐 → `nexa.py start`, 엔진 못 찾음 → `nexa.py engine <폴더>`, Monitor 만료(`ttl`) → 다시.
+- 시작 페이지 머리 **ⓘ 설정 안내**(최근 작업 카드 ⓘ 도 같음): 엔진·작업 공간 저장소를 받은 뒤 이 PC 에서 할 일을 실제 경로가 채워진 명령(엔진 clone·pip·server.py·git pull·`/nexa-slide-server`, 작업 공간 `nexa.py engine`·`update_launcher`·`start`·`/nexa-slide-session`)과 복사 단추로. 작업 공간 선택 가능.
+- 문서: `install.md` "저장소를 받은 뒤 할 일(clone 이후)" 절(`update_launcher` 가 `.claude/commands/nexa-slide-server.md`·`.claude/settings.json`·`.env.example` 을 자동 생성, 커밋해 둘 파일과 PC 별 파일), `new-project.md` 2.2·명령 요약, `configuration.md`, `home.md`.
+
+## 0.21.12 - 2026-10-15 · /nexa-slide-server - 열린 세션에서 한 줄로 서버 작업 맡기
+
+- 슬래시 명령 `/nexa-slide-server`(엔진 `.claude/commands/nexa-slide-server.md`, 작업 공간은 `init_workspace`·`update_launcher` 가 `.claude/commands/nexa-slide-server.md` 를 둠): 이미 열려 있는 Claude Code 세션(터미널·VS Code)에서 입력하면 큐 감시를 Monitor 로 띄우고 요청 처리 절차(엔진 worktree·engine_request 상태)를 따른다. 카드 ⋯ 상자에 안내. 세션 ID 로 밖에서 연결하는 방식은 Claude Code 에 외부 입력 주입 API 가 없어 불가(문서·실험 확인).
 
 ## 0.21.11 - 2026-10-15 · 서버 작업 ⋯ 메뉴는 항상
 

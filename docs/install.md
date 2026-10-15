@@ -71,3 +71,22 @@ python3 <작업 공간>/nexa.py engine [<엔진 폴더>]     # 이 PC 의 엔진
 
 엔진 위치 우선순위: `.env` 의 `NEXA_SLIDE_HOME`(PC 별, git 제외 — 있으면 가장 먼저, 샘플 `.env.example`) > `nexa-slide.local.json` > 셸 환경변수 `NEXA_SLIDE_HOME` > 이 PC 의 사용자 설정(엔진을 실행하면 기록) > `nexa-slide.json` 의 `engine`.
 여러 PC 에서 같은 저장소를 쓰는 방법은 [configuration.md](configuration.md#여러-pc-에서-쓰기--pc-별-설정-env--nexa-slidelocaljson).
+
+## 저장소를 받은 뒤 할 일 (clone 이후)
+
+시작 페이지 머리의 **ⓘ 설정 안내**(최근 작업 카드의 ⓘ 도 같음)가 아래 명령을 **이 PC 의 실제 경로**로 채워 보여 주고 복사 단추를 둔다.
+
+**엔진 저장소**(`nexa-slide`)를 받은 PC — 위 설치 절차가 전부다(`pip install`, `python3 studio/server.py`).
+서버 작업(엔진 요청 큐)을 맡길 Claude Code 세션은 엔진 저장소에서 열고 `/nexa-slide-server` 를 입력하면 된다 — 슬래시 명령 파일 `.claude/commands/nexa-slide-server.md` 는 저장소에 들어 있어(0.21.12) 따로 둘 것이 없다.
+
+**작업 공간 저장소**(슬라이드 내용)를 다른 PC 에서 받았을 때 — PC 마다 한 번:
+
+| 순서 | 명령 | 하는 일 |
+|---|---|---|
+| ① 엔진 위치 | `python3 <작업 공간>/nexa.py engine <엔진 폴더>` | 이 PC 의 엔진을 `nexa-slide.local.json` 에 기록(PC 별, git 제외). `.env.example` 을 `.env` 로 복사해 `NEXA_SLIDE_HOME=` 을 적어도 된다 — [configuration.md](configuration.md#여러-pc-에서-쓰기--pc-별-설정-env--nexa-slidelocaljson) |
+| ② 실행기·세션 파일 | `python3 <작업 공간>/nexa.py update_launcher` | 실행기 `nexa.py` 를 이 엔진 판으로 바꾸고, **없으면** `.claude/commands/nexa-slide-server.md`·`nexa-slide-session.md`(슬래시 명령 `/nexa-slide-server`·`/nexa-slide-session` — 저장소형이면 **루트 `.claude/commands/` 에도** 같은 명령을 둔다. Claude Code 는 연 폴더(cwd)의 명령만 읽으므로)·`.claude/settings.json`(세션 훅·권한)·`.env.example`·`.gitignore` 항목을 **자동으로 만든다**(복사가 아니라 엔진이 생성 — 있는 파일은 그대로, 설정·내용은 건드리지 않음) |
+| ③ 서버 | `python3 <작업 공간>/nexa.py start` · `status` · `url` · `stop` | 작업 공간 서버(시작 페이지의 [서버 시작]과 같음) |
+| ④ 세션 | 그 폴더(CLI) 또는 **저장소 루트**(VS Code 는 보통 루트에서 연다)에서 연 Claude Code 세션에 **`/nexa-slide-session`** | 이 작업 공간의 슬라이드 세션이 된다(편집기 요청 처리 — `watch_requests --stream` 을 Monitor 로, 규약은 `CLAUDE.md`). 서버 작업(엔진 요청 큐)을 맡기려면 **`/nexa-slide-server`**(하나뿐). 웹 세션이 맡고 있으면 `refused` — 먼저 [세션 중지]; 다른 터미널 세션이면 물은 뒤 `--takeover` |
+
+`init_workspace.py` 로 만든 작업 공간은 ② 가 이미 되어 있다. 저장소 주인이 `nexa.py`·`.claude/commands/`·`.claude/settings.json`·`.env.example` 을 **커밋해 두면** clone 받은 사람은 ① 만 하면 된다
+(`.env`·`nexa-slide.local.json` 은 PC 별 파일이라 `.gitignore` 에 있고 커밋하지 않는다). 엔진이 새 판이 되어 명령·훅이 바뀌었을 때도 ② 를 다시 돌리면 없는 것만 더해진다.
