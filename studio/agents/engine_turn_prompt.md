@@ -26,3 +26,5 @@
 ```json
 {request}
 ```
+
+검증에 쓸 자동 시험: `python3 studio/tests/run_all.py`(기본 묶음, 약 5분 — 허브·화면·세션 수명; `docs/dev/tests.md`). 엔진 화면·서버를 고쳤으면 돌린다.
