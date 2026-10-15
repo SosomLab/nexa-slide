@@ -30,8 +30,11 @@ Monitor
 
 실행기를 쓰는 저장소라면 `python3 <작업 공간>/nexa.py watch_requests --stream`.
 
+**가장 쉬운 방법**: 그 작업 공간 폴더(CLI) 또는 저장소 루트(VS Code)에서 연 Claude Code 세션에 **`/nexa-slide-session`** 한 줄 — 위 Monitor 명령을 모델 ID(`--agent claude --model <자기 모델>`)와 함께 걸고 요청 처리 규약을 따른다(명령 파일은 `init_workspace`/`update_launcher` 가 둔다, [home.md](home.md) 수동 엔진 세션). 웹 세션이 맡고 있으면 `refused` — 시작 페이지·Studio 의 [세션 중지] 뒤 다시. 서버 작업(엔진 요청 큐)은 `/nexa-slide-server`.
+
 - `--stream` 은 기본 **1780초(`--ttl`) 뒤 스스로 끝나며** `{"event": "ttl"}` 한 줄을 낸다. Monitor 가 만료되면 셸만 끝나고
   python 이 남아 하트비트만 쓰는 "가짜 연결"(편집기는 연결됨인데 요청이 어디에도 가지 않음)이 생기기 때문이다(Windows 실측).
+  0.21.14 부터는 감시가 표준 출력의 읽는 쪽(Monitor 를 건 세션)이 닫힌 것을 보고 스스로 끝나므로(`procutil.StdoutWatch` — 몇 초 연속 + 실제 한 줄 쓰기 실패일 때만) 세션·VS Code 가 닫혀도 고아가 남지 않는다. 시작 페이지 카드·Studio 의 [끊기]/[세션 중지]로 밖에서 끝낼 수도 있다.
 - `--takeover`: 같은 작업 공간에 살아 있는 이전 감시(위와 같이 남은 것 포함)를 끝내고 넘겨받는다. 다시 걸 때 붙여 둔다.
 - Monitor 를 쓸 수 없는 환경: 1회 모드(`--stream` 없이)를 Bash 백그라운드로 실행한다. 요청이 생기면 목록을 출력하고 끝나므로, 처리 후 다시 건다.
 - 세션을 닫거나 Monitor 가 만료되면 하트비트가 끊겨 편집기에 몇 초 안에 "세션 연결 없음"이 뜬다. 그동안 남긴 요청은 파일에 남아 있다가 다음 감시 때 전달된다.
@@ -98,7 +101,7 @@ Word(.docx)·Excel(.xlsx/.xlsm)·PDF 첨부는 `nexa.py import_doc <파일>` —
 
 | | 수동 세션(1~5절) | 웹 세션 |
 |---|---|---|
-| 시작 | 터미널에서 Claude Code 를 열고 Monitor 로 `watch_requests --stream` | 허브 최근 작업 [세션 시작] / Studio 세션 칩 ▾ → "웹 세션 시작…"(에이전트·모델 선택, 서버가 꺼져 있으면 허브가 먼저 띄움) |
+| 시작 | Claude Code 세션에 `/nexa-slide-session`(= Monitor 로 `watch_requests --stream --agent claude --model …`) | 허브 최근 작업 [세션 시작] / Studio 세션 칩 ▾ → "웹 세션 시작…"(에이전트·모델 선택, 서버가 꺼져 있으면 허브가 먼저 띄움) |
 | 요청 전달 | Monitor 알림 → 세션이 처리 | 서버가 같은 판정(`requests_core`)으로 묶음을 만들어 `claude -p`(stdin 프롬프트 = `studio/agents/turn_prompt.md` + 요청 JSON)를 실행 |
 | 권한 | 작업 공간 `.claude/settings.json`(사람이 승인 창에서 판단) | 엔진 권한 템플릿(`agents/permissions.json` workspace+web)을 `--settings` 로, `--restricted --permission-mode dontAsk` — 작업 공간 안 Read/Edit/Write 와 `python3 nexa.py …` 만. 물음은 모두 거절. **웹 검색**은 기본 막힘 — 관리자가 전역 `sessionAllowWeb` 을 켜고 시작 창에서 "이 세션에 웹 검색 허용"을 고른 세션(claude 만)에서만 `WebSearch`·`WebFetch` 가 열린다(칩·세션 줄에 "웹 허용", 접근 로그 `session.start:…:web`, 턴 로그에 요청 URL). 그 세션의 턴 프롬프트에는 출처 URL 기록·수집 자료는 작업 공간 **루트** `research/<주제>.md`(`content/` 안이 아님 — 거기는 덱 원본) 보관·검색어에 내부 정보 금지 규칙이 덧붙는다. **git·저장소 루트**도 같은 틀 — 전역 `sessionAllowGit`·`sessionAllowPush`·`sessionRepoRoot` 를 켜고 시작 창에서 고른 세션만 git 기록(`add`·`commit`·`switch`·`merge`…)·push·저장소 루트 문서 읽기·쓰기(`--add-dir`)가 열린다. 강제 push·`reset --hard`·`clean`·`rebase`·`config`·`remote`·`git -C`·`restore` 등은 켜도 거절. 커밋 작성자는 이 PC 의 git 사용자, 메시지 끝에 `Requested-by: <세션 시작 사용자>` 트레일러. git 이 대화형으로 묻지 않게 `GIT_TERMINAL_PROMPT=0`·`GCM_INTERACTIVE=never`·`GIT_MERGE_AUTOEDIT=no` |
 | 저장 | `save_deck` | 같다 — `draft_deck`(사본+줄 번호) → Edit → `save_deck --from`. 원장 `actor.user` = 세션을 시작한 사용자 |
