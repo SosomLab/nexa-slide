@@ -61,7 +61,7 @@ Monitor
 
 **첨부**가 있으면 `attachments: [{path, name, type, size}]` 가 붙는다 — 편집기에서 클립보드 그림(Ctrl+V)·끌어다 놓기·📎 로 올린 파일로, 작업 공간 안 `out/attach/<덱>/…` 에 있다(git 제외).
 세션은 **먼저 Read 로 열어 본다**(그림은 내용을 보고, 글 파일은 읽어서) — 참고 디자인·캡처·손그림·자료. 그림을 슬라이드에 넣는 요청이면 `image` 요소의 `src` 에 그 경로를 그대로 쓴다.
-PPTX 첨부는 Read 로 열리지 않으므로 `nexa.py import_pptx <파일>` 로 꺼낸다(프리셋 도형은 `shape`(덱 `shape` 요소 종류), 단락 글머리는 `[1.]`·`[•]` 로 표시 — 덱에서는 `marker`/`subMarker` 또는 글 앞에 그대로 적으면 자동 감지된다) — `out/import/<이름>/slides.md`(슬라이드별 제목·본문·표·차트 값·발표자 노트, 도형 위치 1280×720 기준)·`slides.json`·`images/`(그림, `src` 에 그대로). 덱으로 자동 변환하지는 않고 세션이 읽어 알맞은 장(`slide_types`)으로 옮긴다.
+PPTX 첨부는 Read 로 열리지 않으므로 `nexa.py import_pptx <파일>` 로 꺼낸다(단순한 PPT 는 `--deck <id>` 로 바로 덱으로 — 글·글머리·표·그림·차트·도형이 원본 위치·크기로 들어오고 색·글꼴은 템플릿 기본, 그 뒤 편집기나 '레이아웃 고치기'로 다듬는다)(프리셋 도형은 `shape`(덱 `shape` 요소 종류), 단락 글머리는 `[1.]`·`[•]` 로 표시 — 덱에서는 `marker`/`subMarker` 또는 글 앞에 그대로 적으면 자동 감지된다) — `out/import/<이름>/slides.md`(슬라이드별 제목·본문·표·차트 값·발표자 노트, 도형 위치 1280×720 기준)·`slides.json`·`images/`(그림, `src` 에 그대로). 덱으로 자동 변환하지는 않고 세션이 읽어 알맞은 장(`slide_types`)으로 옮긴다.
 Word(.docx)·Excel(.xlsx/.xlsm)·PDF 첨부는 `nexa.py import_doc <파일>` — `out/import/<이름>/content.md`(Word: 제목 수준·문단(굵게)·목록 수준·표·각주·그림 / Excel: 시트별 표(날짜 변환, 계산값이 없으면 수식)·병합·숨긴 시트·차트 계열 값 / PDF: 책갈피·쪽별 글·표·그림)·`content.json`·`images/`. Word·Excel 은 추가 설치 없이, PDF 는 PyMuPDF(`pip install pymupdf`)가 있으면 글·표·그림, pypdf 만 있으면 글만. 옛 형식(.doc·.xls·.ppt)은 새 형식으로 저장해 다시 올린다. 입력·출력은 작업 공간 안만(저장소 루트 접근 세션이면 그 루트까지).
 테마를 바꿔 달라는 요청은 `nexa.py set_template [<이름>]`(목록·선택, [templates.md](templates.md)) — 반영에는 서버 재시작이 필요하므로 웹 세션은 `reply` 에 안내만 한다.
 

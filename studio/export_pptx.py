@@ -670,6 +670,120 @@ def do_chart(slide, el, page):
     return gf
 
 
+ICONS = {'check': {'ko': '확인 표시', 'layers': [['M9 16.2L4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z', 'fill']]}, 'close': {'ko': '닫기 ×', 'layers': [['M19 6.4L17.6 5 12 10.6 6.4 5 5 6.4 10.6 12 5 17.6 6.4 19 12 13.4 17.6 19 19 17.6 13.4 12z', 'fill']]}, 'plus': {'ko': '더하기', 'layers': [['M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6z', 'fill']]}, 'minus': {'ko': '빼기', 'layers': [['M19 13H5v-2h14z', 'fill']]}, 'arrowRight': {'ko': '오른쪽 화살', 'layers': [['M4 11v2h12l-5.5 5.5 1.4 1.4L20 12l-8.1-7.9-1.4 1.4L16 11z', 'fill']]}, 'arrowLeft': {'ko': '왼쪽 화살', 'layers': [['M20 11v2H8l5.5 5.5-1.4 1.4L4 12l8.1-7.9 1.4 1.4L8 11z', 'fill']]}, 'arrowUp': {'ko': '위 화살', 'layers': [['M13 20h-2V8l-5.5 5.5-1.4-1.4L12 4l7.9 8.1-1.4 1.4L13 8z', 'fill']]}, 'arrowDown': {'ko': '아래 화살', 'layers': [['M11 4h2v12l5.5-5.5 1.4 1.4L12 20l-7.9-8.1 1.4-1.4L11 16z', 'fill']]}, 'chevronRight': {'ko': '오른쪽 꺾쇠', 'layers': [['M8.6 4.6L7.2 6l6 6-6 6 1.4 1.4L16 12z', 'fill']]}, 'chevronLeft': {'ko': '왼쪽 꺾쇠', 'layers': [['M15.4 4.6L16.8 6l-6 6 6 6-1.4 1.4L8 12z', 'fill']]}, 'play': {'ko': '재생', 'layers': [['M7 4l13 8-13 8z', 'fill']]}, 'pause': {'ko': '일시정지', 'layers': [['M6 4h4v16H6zM14 4h4v16h-4z', 'fill']]}, 'stop': {'ko': '정지', 'layers': [['M5 5h14v14H5z', 'fill']]}, 'info': {'ko': '정보', 'layers': [['M22 12C22 17.523 17.523 22 12 22C6.477 22 2 17.523 2 12C2 6.477 6.477 2 12 2C17.523 2 22 6.477 22 12Z', 'fill'], ['M11 10h2v7h-2zM11 7h2v2h-2z', 'on']]}, 'checkCircle': {'ko': '확인 원', 'layers': [['M22 12C22 17.523 17.523 22 12 22C6.477 22 2 17.523 2 12C2 6.477 6.477 2 12 2C17.523 2 22 6.477 22 12Z', 'fill'], ['M10 15.6l-3.3-3.3 1.4-1.4 1.9 1.9 5.5-5.5 1.4 1.4z', 'on']]}, 'xCircle': {'ko': '취소 원', 'layers': [['M22 12C22 17.523 17.523 22 12 22C6.477 22 2 17.523 2 12C2 6.477 6.477 2 12 2C17.523 2 22 6.477 22 12Z', 'fill'], ['M15.5 7.1L12 10.6 8.5 7.1 7.1 8.5l3.5 3.5-3.5 3.5 1.4 1.4 3.5-3.5 3.5 3.5 1.4-1.4-3.5-3.5 3.5-3.5z', 'on']]}, 'warning': {'ko': '경고', 'layers': [['M12 2L1 21h22z', 'fill'], ['M11 9h2v6h-2zM11 16.5h2v2h-2z', 'on']]}, 'question': {'ko': '물음표', 'layers': [['M22 12C22 17.523 17.523 22 12 22C6.477 22 2 17.523 2 12C2 6.477 6.477 2 12 2C17.523 2 22 6.477 22 12Z', 'fill'], ['M11 16.5h2v2h-2zM12 6c-2.2 0-4 1.6-4 3.8h2c0-1 .9-1.8 2-1.8s2 .7 2 1.6c0 .8-.5 1.1-1.4 1.7-1 .7-1.6 1.3-1.6 2.9v.8h2v-.6c0-.9.3-1.2 1.2-1.8 1-.7 1.8-1.4 1.8-3 0-2.1-1.7-3.6-4-3.6z', 'on']]}, 'home': {'ko': '집', 'layers': [['M12 3l9 8h-3v9h-5v-6h-2v6H6v-9H3z', 'fill']]}, 'user': {'ko': '사람', 'layers': [['M16.5 8C16.5 10.48535 14.48535 12.5 12 12.5C9.51465 12.5 7.5 10.48535 7.5 8C7.5 5.51465 9.51465 3.5 12 3.5C14.48535 3.5 16.5 5.51465 16.5 8Z', 'fill'], ['M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7z', 'fill']]}, 'users': {'ko': '사람들', 'layers': [['M12.8 8C12.8 10.09874 11.09874 11.8 9 11.8C6.901260000000001 11.8 5.2 10.09874 5.2 8C5.2 5.901260000000001 6.901260000000001 4.2 9 4.2C11.09874 4.2 12.8 5.901260000000001 12.8 8Z', 'fill'], ['M2 20c0-3.8 3-6.2 7-6.2s7 2.4 7 6.2z', 'fill'], ['M20 8.5C20 10.1569 18.6569 11.5 17 11.5C15.3431 11.5 14 10.1569 14 8.5C14 6.8431 15.3431 5.5 17 5.5C18.6569 5.5 20 6.8431 20 8.5Z', 'fill'], ['M15.5 13.2c3.7.2 6.5 2.5 6.5 6.8h-4.2c0-2.7-.8-4.9-2.3-6.8z', 'fill']]}, 'mail': {'ko': '메일', 'layers': [['M4 5L20 5C21.1046 5 22 5.8954 22 7L22 17C22 18.1046 21.1046 19 20 19L4 19C2.8954 19 2 18.1046 2 17L2 7C2 5.8954 2.8954 5 4 5Z', 'fill'], ['M4 7.5l8 5.5 8-5.5V9.8l-8 5.4-8-5.4z', 'on']]}, 'doc': {'ko': '문서', 'layers': [['M6 2h8l5 5v15H6z', 'fill'], ['M8 12h8v1.6H8zM8 15.5h8v1.6H8zM13 3.5V8h4.5z', 'on']]}, 'folder': {'ko': '폴더', 'layers': [['M2 5h7l2 2h11v13H2z', 'fill']]}, 'calendar': {'ko': '달력', 'layers': [['M5 4L19 4C20.1046 4 21 4.8954 21 6L21 19C21 20.1046 20.1046 21 19 21L5 21C3.8954 21 3 20.1046 3 19L3 6C3 4.8954 3.8954 4 5 4Z', 'fill'], ['M3 9h18v1.5H3z', 'on'], ['M7 2h2v4H7zM15 2h2v4h-2z', 'fill'], ['M7 12h3v3H7zM11.5 12h3v3h-3zM16 12h3v3h-3z', 'on']]}, 'clock': {'ko': '시계', 'layers': [['M22 12C22 17.523 17.523 22 12 22C6.477 22 2 17.523 2 12C2 6.477 6.477 2 12 2C17.523 2 22 6.477 22 12Z', 'fill'], ['M11 6h2v6.6l4 2.4-1 1.7-5-3z', 'on']]}, 'pin': {'ko': '위치', 'layers': [['M12 2c-4 0-7 3-7 7 0 5 7 13 7 13s7-8 7-13c0-4-3-7-7-7z', 'fill'], ['M14.6 9C14.6 10.43598 13.43598 11.6 12 11.6C10.56402 11.6 9.4 10.43598 9.4 9C9.4 7.56402 10.56402 6.4 12 6.4C13.43598 6.4 14.6 7.56402 14.6 9Z', 'on']]}, 'chat': {'ko': '말풍선', 'layers': [['M3 4h18v12H8l-5 4z', 'fill']]}, 'heart': {'ko': '하트', 'layers': [['M12 21s-8-5.6-8-11.2C4 7 6 5 8.5 5c1.6 0 2.8.8 3.5 2 .7-1.2 1.9-2 3.5-2C18 5 20 7 20 9.8 20 15.4 12 21 12 21z', 'fill']]}, 'bolt': {'ko': '번개', 'layers': [['M13 2L4 14h6l-1 8 9-12h-6z', 'fill']]}, 'search': {'ko': '찾기', 'layers': [['M17 10C17 13.8661 13.8661 17 10 17C6.1339 17 3 13.8661 3 10C3 6.1339 6.1339 3 10 3C13.8661 3 17 6.1339 17 10Z', 'fill'], ['M14.6 10C14.6 12.54058 12.54058 14.6 10 14.6C7.45942 14.6 5.4 12.54058 5.4 10C5.4 7.45942 7.45942 5.4 10 5.4C12.54058 5.4 14.6 7.45942 14.6 10Z', 'on'], ['M14.5 15.9l1.4-1.4L21 19.6 19.6 21z', 'fill']]}, 'star': {'ko': '별', 'layers': [['M12 2.5l2.9 6 6.6.9-4.8 4.6 1.2 6.5L12 17.4 6.1 20.5l1.2-6.5L2.5 9.4l6.6-.9z', 'fill']]}, 'flag': {'ko': '깃발', 'layers': [['M5 2h2v20H5zM7 3h12l-3 4 3 4H7z', 'fill']]}, 'gear': {'ko': '톱니', 'layers': [['M12 2l1.8 2.6 3-.9 .9 3L20.3 8.5 19 11.3l1.3 2.8-2.6 1.8.3 3.1-3.1.3-1.5 2.7L12 20.5l-1.4 1.5-1.5-2.7-3.1-.3.3-3.1-2.6-1.8L5 11.3 3.7 8.5l2.6-1.8-.9-3 3 .9z', 'fill'], ['M15.2 11.5C15.2 13.26736 13.76736 14.7 12 14.7C10.23264 14.7 8.8 13.26736 8.8 11.5C8.8 9.73264 10.23264 8.3 12 8.3C13.76736 8.3 15.2 9.73264 15.2 11.5Z', 'on']]}}
+
+
+def _svg_path_cmds(d):
+    """SVG 경로(M L H V C Q Z, 절대·상대) → [(cmd, [(x, y)…])]. 아이콘 정의에 쓰는 범위만."""
+    import re as _re
+    toks = _re.findall(r"[MLHVCSQZmlhvcsqz]|-?\d*\.?\d+", d)
+    out, i, cx, cy, sx, sy = [], 0, 0.0, 0.0, 0.0, 0.0
+    cmd = None
+    while i < len(toks):
+        t = toks[i]
+        if t.isalpha():
+            cmd = t
+            i += 1
+            if cmd in "Zz":
+                out.append(("Z", []))
+                cx, cy = sx, sy
+            continue
+        rel = cmd.islower()
+        u = cmd.upper()
+        def nxt():
+            nonlocal i
+            v = float(toks[i]); i += 1
+            return v
+        if u == "M":
+            x, y = nxt(), nxt()
+            if rel: x, y = cx + x, cy + y
+            out.append(("M", [(x, y)])); cx, cy, sx, sy = x, y, x, y
+            cmd = "l" if rel else "L"  # 잇따른 좌표는 L
+        elif u == "L":
+            x, y = nxt(), nxt()
+            if rel: x, y = cx + x, cy + y
+            out.append(("L", [(x, y)])); cx, cy = x, y
+        elif u == "H":
+            x = nxt(); x = cx + x if rel else x
+            out.append(("L", [(x, cy)])); cx = x
+        elif u == "V":
+            y = nxt(); y = cy + y if rel else y
+            out.append(("L", [(cx, y)])); cy = y
+        elif u == "C":
+            p = [nxt() for _ in range(6)]
+            if rel: p = [p[0] + cx, p[1] + cy, p[2] + cx, p[3] + cy, p[4] + cx, p[5] + cy]
+            out.append(("C", [(p[0], p[1]), (p[2], p[3]), (p[4], p[5])])); cx, cy = p[4], p[5]
+        elif u == "S":  # 매끄러운 C - 첫 제어점은 앞 C 의 둘째 제어점을 현재점 기준으로 뒤집은 것
+            p = [nxt() for _ in range(4)]
+            if rel: p = [p[0] + cx, p[1] + cy, p[2] + cx, p[3] + cy]
+            prev = out[-1] if out and out[-1][0] == "C" else None
+            c1 = (2 * cx - prev[1][1][0], 2 * cy - prev[1][1][1]) if prev else (cx, cy)
+            out.append(("C", [c1, (p[0], p[1]), (p[2], p[3])])); cx, cy = p[2], p[3]
+        elif u == "Q":
+            p = [nxt() for _ in range(4)]
+            if rel: p = [p[0] + cx, p[1] + cy, p[2] + cx, p[3] + cy]
+            c1 = (cx + 2 / 3 * (p[0] - cx), cy + 2 / 3 * (p[1] - cy)); c2 = (p[2] + 2 / 3 * (p[0] - p[2]), p[3] + 2 / 3 * (p[1] - p[3]))
+            out.append(("C", [c1, c2, (p[2], p[3])])); cx, cy = p[2], p[3]
+        else:
+            i += 1
+    return out
+
+
+def _freeform(slide, x, y, s, d, col, name):
+    """24×24 경로를 s×s px 자리에 custGeom 자유형으로. 채움 col(#hex), 선 없음."""
+    shp = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, E(x), E(y), E(s), E(s))
+    strip_style(shp)
+    sp = shp._element.spPr
+    pg = sp.find(qn("a:prstGeom"))
+    cg = etree.Element(qn("a:custGeom"))
+    for tag in ("a:avLst", "a:gdLst", "a:ahLst", "a:cxnLst"):
+        etree.SubElement(cg, qn(tag))
+    r = etree.SubElement(cg, qn("a:rect")); r.set("l", "0"); r.set("t", "0"); r.set("r", "r"); r.set("b", "b")
+    pl = etree.SubElement(cg, qn("a:pathLst"))
+    path = etree.SubElement(pl, qn("a:path")); path.set("w", "24000"); path.set("h", "24000")
+    U = 1000
+    def pt(parent, p):
+        e = etree.SubElement(parent, qn("a:pt")); e.set("x", str(int(round(p[0] * U)))); e.set("y", str(int(round(p[1] * U))))
+    for cmd, pts in _svg_path_cmds(d):
+        if cmd == "M":
+            pt(etree.SubElement(path, qn("a:moveTo")), pts[0])
+        elif cmd == "L":
+            pt(etree.SubElement(path, qn("a:lnTo")), pts[0])
+        elif cmd == "C":
+            c = etree.SubElement(path, qn("a:cubicBezTo"))
+            for p in pts:
+                pt(c, p)
+        elif cmd == "Z":
+            etree.SubElement(path, qn("a:close"))
+    sp.replace(pg, cg)
+    shape_fill_line(shp, {"fill": col})
+    ln = sp.find(qn("a:ln"))
+    if ln is None:
+        ln = etree.SubElement(sp, qn("a:ln"))
+    for ch in list(ln):
+        ln.remove(ch)
+    etree.SubElement(ln, qn("a:noFill"))
+    shp.name = name
+    return shp
+
+
+def do_icon(slide, el, page):
+    """icon - 내장 아이콘을 custGeom 자유형으로(층마다 도형). 두 층 이상이면 묶음으로 묶는다."""
+    ic = ICONS.get(el.get("icon")) or ICONS["check"]
+    w, h = float(el["w"]), float(el["h"])
+    s = min(w, h)
+    x, y = float(el["x"]) + (w - s) / 2, float(el["y"]) + (h - s) / 2
+    c1, c2 = color(el.get("fill") or "primary"), color(el.get("color") or "white")
+    layers = ic["layers"]
+    if len(layers) == 1:
+        return _freeform(slide, x, y, s, layers[0][0], c1 if layers[0][1] != "on" else c2, f"{el.get('id')} icon")
+    grp = slide.shapes.add_group_shape()
+    host = _GroupHost(grp)
+    for i, (d, tone) in enumerate(layers):
+        _freeform(host, x, y, s, d, c2 if tone == "on" else c1, f"{el.get('id')} icon {i}")
+    return grp
+
+
 class _GroupHost:
     """묶음 안에 그릴 때 핸들러에 slide 대신 준다(핸들러는 slide.shapes 만 쓴다)."""
 
@@ -715,7 +829,7 @@ def do_group(slide, el, page):
 
 HANDLERS = {"rect": do_box, "ellipse": do_box, "pill": do_box, "text": do_box, "image": do_image,
             "line": do_line, "arrow": do_line, "curve": do_curve, "table": do_table, "plan-table": do_table,
-            "code": do_code, "plan": do_plan, "bullets": do_bullets, "shape": do_shape, "group": do_group, "chart": do_chart}
+            "code": do_code, "plan": do_plan, "bullets": do_bullets, "shape": do_shape, "group": do_group, "chart": do_chart, "icon": do_icon}
 
 
 def export(deck, out):
