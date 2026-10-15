@@ -347,6 +347,18 @@
     "프레임 효과 - 원본 파일은 그대로 두고 속성으로만 적용(PPTX 도 같은 효과)": "Frame effect - the original file is untouched; applied as a property (same effect in PPTX)", "프레임 효과 - 원본은 그대로": "Frame effect - original untouched",
     "수준": "Level", "약": "Low", "중": "Mid", "강": "High",
 
+    // ---- 튜토리얼 - 최근 추가된 기능
+    "최근 추가된 기능": "Recently added", "서식 줄은 요소 종류마다 자주 쓰는 설정(글머리 종류·표 행/열·도형 종류·그림 효과·링크·그림자·회전)을 바로 보입니다. 저장은 자동입니다.": "The format bar shows the settings each element type uses most (bullet style · table rows/columns · shape type · image effects · link · shadow · rotation). Saving is automatic.",
+    "모드: 글자를 바로 고치고, 서식 줄로 굵게·색·크기를 바꿉니다.": "mode: edit text in place and use the format bar for bold, color and size.",
+    "\"내보내기\"로 편집 가능한 PPTX·PDF 를 만듭니다(파일 이름은 덱 제목, Windows 에 PowerPoint 가 있으면 렌더 미리보기도).": "\"Export\" makes an editable PPTX or PDF (named after the deck title; with PowerPoint on Windows you also get a render preview).",
+    "은 최근 24시간·미완료 요청만 보이고, [더보기]로 편집 화면 위에 요청 기록 창(퍼지 찾기 · Aa/ab/.* 토글 ·": "shows only the last 24 hours and open requests; [More] opens the request history over the editor (fuzzy search · Aa/ab/.* toggles ·",
+    "슬라이드 지정)이 뜹니다. 엔진 변경으로 넘어간 요청은 \"엔진 요청 #N\" 배지가 붙고 적용되면 자동으로 다시 열립니다.": "to pick slides). Requests handed to engine changes get an \"Engine request #N\" badge and reopen automatically once applied.",
+    "은 덱 제목으로 보이고 오른쪽 클릭으로 복제·시작 덱(★)·제목 바꾸기·삭제를 합니다. ＋ 는 제목만 묻습니다(id 는 저절로).": "show deck titles; right-click to duplicate, set the start deck (★), rename or delete. ＋ asks only for a title (the id is generated).",
+    "에 프레임 효과(부드러운 가장자리·둥근 모서리·원형·액자·빛)를 속성으로 걸 수 있고 원본 파일은 그대로입니다. 그림이 많은 덱은 보일 때 읽습니다.": "can take frame effects (soft edges · rounded corners · circle · frame · glow) as a property; the original file is untouched. Decks with many images load them as they come into view.",
+    "작업 공간 정리·보관": "Workspace tidy · archive", ": 시작 페이지 카드의 🧹 로 산출물·고아 첨부·세션 로그·참조 없는 그림을 정리하고(되돌릴 수 있음) 작업 공간을 zip 으로 보관합니다.": ": the 🧹 on a start-page card cleans outputs, orphan attachments, session logs and unreferenced images (reversible) and archives the workspace as a zip.",
+    ": 기본 메뉴(☰)에서 English 를 고르면 화면 글이 영어로 바뀝니다(슬라이드 안 글은 그대로).": ": pick English in the main menu (☰) to switch the interface (slide content stays as written).",
+    "요청 탭": "Requests tab", "덱 탭": "Deck tabs", 
+
   });
   en.patterns.push(
     [/^엔진 요청 #(\d+)$/, "Engine request #$1"], [/^엔진 요청 #(\d+) 처리됨(\(커밋 [^)]*\))? - 운영 서버에 적용\(재시작\)되면 다시 처리합니다\.$/, "Engine request #$1 done$2 - handled again once applied to the server (restart)."],

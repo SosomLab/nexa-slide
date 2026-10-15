@@ -1,5 +1,11 @@
 # 변경 이력
 
+## 0.22.9 - 2026-10-16 · 견본 내용 영어화(빌드 단계) · 튜토리얼 새 기능 안내
+
+- **견본 내용 언어**: `studio/i18n/content.en.json`(레이아웃 견본·슬라이드 유형 예시·레이아웃이 넣는 자리 글 약 330개) + `content_i18n.tr`. 편집기 슬라이드 추가 창(`/api/slidetypes?lang=`)·시작 페이지 미리 보기(`/api/preview?lang=`, 레이아웃 견본)·`nexa.py layout_samples --lang en` 이 영어 견본을 보인다. 시작용 내용은 `starters/<이름>/content.<lang>/` 가 있을 때만(`init_workspace --lang`) - 번역본은 아직 없어 한국어 그대로(알려진 한계).
+- 튜토리얼에 "최근 추가된 기능" 카드(요청 기록 창·엔진 요청 배지·덱 복제·시작 덱·그림 효과·정리·보관·표시 언어)와 서식 줄·내보내기 설명 갱신.
+- 시험 `content_i18n_test.py`(run_all `content_i18n`). 설계 `docs/dev/i18n.md` 3절.
+
 ## 0.22.8 - 2026-10-16 · 데이터 라벨 i18n 필드(`I18N.pick`) · 시험 실행기 Chrome 포트·종료 보강
 
 - 템플릿(`templates/*/template.json`)·시작용 내용(`starters/*/starter.json`)·슬라이드 유형(`studio/slide_types.json` 묶음·유형)에 **`i18n: {en: {label, description|desc|purpose}}`** 를 넣었다(영어 사전에서 옮김). 서버 목록(`list_templates`·`hub.templates/starters`·`/api/slidetypes`)이 `i18n` 을 그대로 주고, 화면은 **`I18N.pick(obj, "label")`**(언어 파일의 값 → 없으면 원문을 사전으로)로 고른다 - 시작 페이지 템플릿·시작용 내용 카드·선택 상자·미리 보기, 편집기 슬라이드 추가 창·⋯ 메뉴. 데이터를 고칠 때 그 파일의 `i18n` 만 같이 고치면 된다(`docs/dev/i18n.md` 2절). 유형의 `when` 은 화면에 쓰지 않아 비워 둠.

@@ -318,7 +318,7 @@
         색·글꼴·글자 크기는 엔진의 <b>템플릿</b>에 있고, 작업 공간은 이름만 고릅니다. 목적·대상·작성 방향·참고 자료를 적어 두면 Claude 세션이 초안을 쓸 때 기준으로 씁니다.
         <ul><li>자료에 없는 내용은 지어내지 않고 확인 질문으로 남깁니다.</li></ul></div></div>
       <div class="card tstep"><span class="num">3</span><div><h3>Studio 에서 고친다</h3>
-        <ul><li><b>편집</b> 모드: 글자를 바로 고치고, 서식 줄로 굵게·색·크기를 바꿉니다. 저장은 자동입니다.</li>
+        <ul><li><b>편집</b> 모드: 글자를 바로 고치고, 서식 줄로 굵게·색·크기를 바꿉니다. 서식 줄은 요소 종류마다 자주 쓰는 설정(글머리 종류·표 행/열·도형 종류·그림 효과·링크·그림자·회전)을 바로 보입니다. 저장은 자동입니다.</li>
           <li><b>선택</b> 모드: 요소를 눌러 그 자리에 요청 메모를 남깁니다. <b>그리기</b> 모드: 영역을 그려 요청합니다.</li>
           <li>아래 <b>검사</b> 탭: 겹침·넘침·최소 글자 크기·슬라이드 밖을 알려 줍니다.</li></ul></div></div>
       <div class="card tstep"><span class="num">4</span><div><h3>Claude 세션에 요청한다</h3>
@@ -327,8 +327,14 @@
           <li>머리줄 칩이 "세션 연결됨"이 되면, 남긴 메모를 "요청 N개 보내기"로 보냅니다. 처리 결과와 답변은 요청 탭에 돌아옵니다.</li></ul></div></div>
       <div class="card tstep"><span class="num">5</span><div><h3>발표하고 내보낸다</h3>
         <ul><li><kbd>F5</kbd> 처음부터 발표 · <kbd>Shift+F5</kbd> 현재 슬라이드부터 · 발표 중 <kbd>N</kbd> 노트</li>
-          <li>"내보내기"로 편집 가능한 PPTX 를 만듭니다(Windows 에 PowerPoint 가 있으면 렌더 미리보기도).</li>
+          <li>"내보내기"로 편집 가능한 PPTX·PDF 를 만듭니다(파일 이름은 덱 제목, Windows 에 PowerPoint 가 있으면 렌더 미리보기도).</li>
           <li>잘못 고쳤으면 "기록"에서 저장 시점으로 되돌립니다(자동 백업 50개).</li></ul></div></div>
+      <div class="card tstep"><span class="num">+</span><div><h3>최근 추가된 기능</h3>
+        <ul><li><b>요청 탭</b>은 최근 24시간·미완료 요청만 보이고, [더보기]로 편집 화면 위에 요청 기록 창(퍼지 찾기 · Aa/ab/.* 토글 · <code>#4,5,7-10</code> 슬라이드 지정)이 뜹니다. 엔진 변경으로 넘어간 요청은 "엔진 요청 #N" 배지가 붙고 적용되면 자동으로 다시 열립니다.</li>
+          <li><b>덱 탭</b>은 덱 제목으로 보이고 오른쪽 클릭으로 복제·시작 덱(★)·제목 바꾸기·삭제를 합니다. ＋ 는 제목만 묻습니다(id 는 저절로).</li>
+          <li><b>그림</b>에 프레임 효과(부드러운 가장자리·둥근 모서리·원형·액자·빛)를 속성으로 걸 수 있고 원본 파일은 그대로입니다. 그림이 많은 덱은 보일 때 읽습니다.</li>
+          <li><b>작업 공간 정리·보관</b>: 시작 페이지 카드의 🧹 로 산출물·고아 첨부·세션 로그·참조 없는 그림을 정리하고(되돌릴 수 있음) 작업 공간을 zip 으로 보관합니다.</li>
+          <li><b>표시 언어</b>: 기본 메뉴(☰)에서 English 를 고르면 화면 글이 영어로 바뀝니다(슬라이드 안 글은 그대로).</li></ul></div></div>
     </div>
   </section>
 
@@ -1059,7 +1065,7 @@
     PV.data = null; PV.deck = 0; PV.one = -1;
     $("#pvInfo").textContent = "";
     $("#pvBody").innerHTML = '<div class="pv-msg">미리 보기를 만드는 중... (조합마다 처음 한 번은 빌드합니다)</div>';
-    const q = new URLSearchParams({ template: PV.tpl }); if (PV.starter) q.set("starter", PV.starter);
+    const q = new URLSearchParams({ template: PV.tpl, lang: I18N.effective() }); if (PV.starter) q.set("starter", PV.starter);  // 견본 글 언어(시작용 내용은 번역본이 있을 때만)
     let r = null, d;
     try { r = await fetch("/api/preview?" + q, { cache: "no-store" }); d = await r.json(); } catch (e) { d = { error: String(e) }; }
     if (seq !== PV.seq) return;  // 그 사이 다른 조합을 골랐다

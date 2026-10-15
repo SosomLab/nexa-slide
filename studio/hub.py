@@ -682,11 +682,11 @@ def _stamp(template, starter):
     return max((f.stat().st_mtime_ns for f in files if f.is_file()), default=0)
 
 
-def preview_key(template, starter):
-    return f"{template}--{starter or 'layouts'}"
+def preview_key(template, starter, lang="ko"):
+    return f"{template}--{starter or 'layouts'}" + ("" if (lang or "ko") == "ko" else f"--{lang}")
 
 
-def preview(template=None, starter=None):
+def preview(template=None, starter=None, lang="ko"):
     """템플릿 × 시작용 내용을 임시 작업 공간(PREVIEW_ROOT/<템플릿>--<내용>)에 실제로 만들어 빌드한 덱을 돌려준다.
     시작용 내용이 없으면 레이아웃 견본(전 레이아웃 한 장씩). 템플릿이 없으면 시작용 내용이 정한 템플릿.
     엔진·템플릿·내용이 바뀌지 않았으면 전에 만든 것을 그대로 쓴다. 화면은 home.html 이 render.js 로 그린다."""
@@ -696,9 +696,10 @@ def preview(template=None, starter=None):
         template = ((_read_json(STARTERS / starter / "starter.json") or {}).get("template") if starter else None) or "lecture"
     if not re.fullmatch(r"[A-Za-z0-9_-]+", str(template)) or not (TEMPLATES / template / "template.json").is_file():
         raise HubError(f"없는 템플릿: {template}")
-    key = preview_key(template, starter)
+    lang = re.sub(r"[^a-z-]", "", str(lang or "ko").lower()) or "ko"  # 견본 글 언어 - studio/i18n/content.<lang>.json · starters/<이름>/content.<lang>/ (없으면 한국어)
+    key = preview_key(template, starter, lang)
     ws = PREVIEW_ROOT / key
-    stamp = _stamp(template, starter)
+    stamp = _stamp(template, starter) + (f"|{lang}|{(STUDIO / 'i18n' / f'content.{lang}.json').stat().st_mtime_ns if (STUDIO / 'i18n' / f'content.{lang}.json').is_file() else 0}" if lang != "ko" else "")
     meta = _read_json(ws / "preview.json") or {}
     if meta.get("stamp") != stamp:
         if ws.exists():
@@ -707,11 +708,13 @@ def preview(template=None, starter=None):
         args = [STUDIO / "init_workspace.py", ws, "--title", f"{label} 미리보기", "--template", template, "--deck", "layouts", "--no-remember", "--flat"]
         if starter:
             args += ["--starter", starter]
+        if lang != "ko":
+            args += ["--lang", lang]
         code, log = _run(args, None, timeout=60)
         if code != 0:
             raise HubError("미리보기를 만들지 못했다", log=log)
         if not starter:  # 레이아웃 견본 - 레이아웃마다 필드 예시로 한 장씩
-            code, out = _run([STUDIO / "layout_samples.py", "--json"], ws, timeout=60)
+            code, out = _run([STUDIO / "layout_samples.py", "--json", "--lang", lang], ws, timeout=60)
             if code != 0:
                 raise HubError("레이아웃 견본을 읽지 못했다", log=out)
             samples = json.loads(out[out.index("{"):])
@@ -719,6 +722,14 @@ def preview(template=None, starter=None):
                     "slides": [{"title": v["label"], **v["sample"]} for v in samples.values()]}  # 제목 없는 예시는 레이아웃 이름으로
             (ws / "content" / "layouts.json").write_text(json.dumps(deck, ensure_ascii=False, indent=1), encoding="utf-8", newline="\n")
         decks = build_all(ws)
+        if lang != "ko":  # 빌드된 덱의 글(레이아웃이 넣는 목차·N부·자리 글 포함)을 번역 - 사용자 덱이 아닌 미리 보기용 임시 작업 공간이라 괜찮다
+            from content_i18n import tr as _tr
+            dcfg = _read_json(ws / CONFIG_NAME) or {}
+            for d in decks:
+                dp = ws / dcfg.get("decks", "decks") / f"{d}.json"
+                dj = _read_json(dp)
+                if dj:
+                    dp.write_text(json.dumps(_tr(dj, lang), ensure_ascii=False, indent=1), encoding="utf-8", newline="\n")
         code, tok = _run(["-c", "import json,sys; sys.path.insert(0, sys.argv[1]); from common import resolve_tokens; "
                                 "print(json.dumps(resolve_tokens(), ensure_ascii=False))", STUDIO], ws, timeout=60)
         if code != 0 or not decks:
@@ -728,7 +739,7 @@ def preview(template=None, starter=None):
     cfg = _read_json(ws / CONFIG_NAME) or {}
     decks = [_read_json(ws / cfg.get("decks", "decks") / f"{d}.json") for d in meta["decks"]]
     base = "/preview/" + "/".join(Path(key, cfg.get("assetRoot", ".")).as_posix().split("/")).rstrip("/.") + "/"
-    return {"ok": True, "template": template, "starter": starter, "tokens": meta["tokens"], "base": base,
+    return {"ok": True, "template": template, "starter": starter, "lang": lang, "tokens": meta["tokens"], "base": base,
             "decks": [d for d in decks if d]}
 
 
