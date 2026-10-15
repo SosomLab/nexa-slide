@@ -14,7 +14,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from common import (cur_fonts, font_role, use_fonts, CODE_GUTTER_W, CODE_PAD_Y, OUT, REPO, HL_ROLE, bullet_rows, code_lines, code_style, color, fill_spec, load_deck,  # noqa: E402
+from common import (cur_fonts, font_role, use_fonts, CODE_GUTTER_W, CODE_PAD_Y, OUT, REPO, HL_ROLE, bullet_rows, num_hang, code_lines, code_style, color, fill_spec, load_deck,  # noqa: E402
                     pad_of, plan_runs, radius, runs, safe_id, table_grid, tokens)
 
 from lxml import etree  # noqa: E402  (python-pptx 의존성)
@@ -419,21 +419,34 @@ def do_bullets(slide, el, page):
     frame(tf, pad_of(el), el.get("valign", "top"), True)
     size, sub = float(el.get("size", 20)), float(el.get("subSize", 17))
     lh = float(el.get("lineHeight", 1.55))
-    for i, (t, lvl, after) in enumerate(bullet_rows(el)):
+    for i, (t, lvl, after, num) in enumerate(bullet_rows(el)):
         p = tf.paragraphs[0] if i == 0 else tf.add_paragraph()
         sz = size if lvl == 0 else sub
         pPr = para_fmt(p, sz, lh, "left", after)
-        marL, hang = (28, 28) if lvl == 0 else (48, 20)
+        marL0, hang0 = (28, 28) if lvl == 0 else (48, 20)
+        hang = num_hang(num["label"], sz, hang0) if num else hang0
+        marL = marL0 - hang0 + hang
         pPr.set("marL", str(marL * PX))
         pPr.set("indent", str(-hang * PX))
         pPr.set("lvl", "0")
-        bc = etree.SubElement(pPr, qn("a:buClr"))
-        rgb_el(bc, color(el.get("dot", "primary") if lvl == 0 else el.get("subColor", "on-surface-variant")))
-        etree.SubElement(pPr, qn("a:buSzPct")).set("val", "60000" if lvl == 0 else "100000")
-        bf = etree.SubElement(pPr, qn("a:buFont"))
-        bf.set("typeface", "맑은 고딕")
-        etree.SubElement(pPr, qn("a:buChar")).set("char", "●" if lvl == 0 else "–")
         base = color(el.get("color", "on-surface") if lvl == 0 else el.get("subColor", "on-surface-variant"))
+        bc = etree.SubElement(pPr, qn("a:buClr"))
+        if num:  # 글 앞의 번호를 자동 감지 - 번호 글머리(자동 번호 종류가 있으면 buAutoNum, 가. 같은 것은 글자 그대로). 색·크기는 글과 같게
+            rgb_el(bc, base)
+            etree.SubElement(pPr, qn("a:buSzPct")).set("val", "100000")
+            etree.SubElement(pPr, qn("a:buFontTx"))
+            if num.get("scheme"):
+                an = etree.SubElement(pPr, qn("a:buAutoNum"))
+                an.set("type", num["scheme"])
+                an.set("startAt", str(num["start"]))
+            else:
+                etree.SubElement(pPr, qn("a:buChar")).set("char", num["label"])
+        else:
+            rgb_el(bc, color(el.get("dot", "primary") if lvl == 0 else el.get("subColor", "on-surface-variant")))
+            etree.SubElement(pPr, qn("a:buSzPct")).set("val", "60000" if lvl == 0 else "100000")
+            bf = etree.SubElement(pPr, qn("a:buFont"))
+            bf.set("typeface", "맑은 고딕")
+            etree.SubElement(pPr, qn("a:buChar")).set("char", "●" if lvl == 0 else "–")
         for tt, st in runs(t, page):
             if tt:
                 set_run(p.add_run(), tt, sz, st.get("bold", False), color(st.get("color")) if st.get("color") else base, "body")

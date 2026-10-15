@@ -31,7 +31,7 @@
 | `plan` | `text`(DBMS_XPLAN 원문), `size`, `lineHeight`, `fill`, `pad` — `[[값]]` = 경고 강조, `[[ok:값]]` = 개선 강조 | 고정폭 글자, 강조 run = 굵게 + 글자색 + **run 강조색(a:highlight)** |
 | `plan-table` | `columns`, `colW`, `opCol`(들여쓰기 열), `rows[{cells, depth, hl:{열번호: warn/ok}, note}]`, `calloutW` | 표 + 오른쪽 설명 콜아웃(연결선 + 둥근 상자) |
 | `code` | `text`, `lang`(언어 35종 - 아래), `lineNo`(false = 줄 번호 숨김), `size`, `lineHeight`, `start`, `focus`[줄], `show`[[from,to],…] | 그룹 도형: 줄 번호 여백·코드 면·강조 줄 면·테두리·줄 번호 글상자·코드 글상자(run 단위 색·굵게·기울임) |
-| `bullets` | `items`(문자열 또는 `{text, sub:[…]}`), `size`, `subSize`, `lineHeight`, `gap`, `subGap`, `dot`, `color`, `subColor`, `spread`(참이면 **균등 간격** — 행 높이(줄바꿈 수 + 1 줄, 자동 줄바꿈은 세지 않음)를 뺀 나머지를 행 사이에 고르게 나눠 상자 `h` 를 채운다. 원본 PPT 의 "세로 고르게" 글상자용) | 단락 글머리(●/–, 글머리 색) · 뒤 간격 = 단락 뒤 간격 |
+| `bullets` | `items`(문자열 또는 `{text, sub:[…]}`), `size`, `subSize`, `lineHeight`, `gap`, `subGap`, `dot`, `color`, `subColor`, `spread`(참이면 **균등 간격** — 행 높이(줄바꿈 수 + 1 줄, 자동 줄바꿈은 세지 않음)를 뺀 나머지를 행 사이에 고르게 나눠 상자 `h` 를 채운다. 원본 PPT 의 "세로 고르게" 글상자용), `autoNum`(기본 참 — 항목 글 앞의 **번호를 자동 감지**해 ● 대신 그 번호로 표기: `1. ` `1) ` `(1) ` `a. ` `A) ` `①` `가. `(번호 뒤 공백 필요, 두 자리까지 — `2024. 매출`·`1.5배` 는 번호가 아님). 글은 그대로 두고 렌더만 바꾸므로 손으로 적은 번호를 지울 필요가 없다. 번호는 글 색·크기, 내어쓰기는 번호 폭만큼 넓어진다. `false` 면 감지하지 않음) | 단락 글머리(●/–, 글머리 색) · 번호 항목은 PPTX 자동 번호(`a:buAutoNum`, 가. 같은 것은 글자 그대로) · 뒤 간격 = 단락 뒤 간격 |
 
 **인라인 강조**(text·pill·rect·ellipse·table 셀·bullets): `**굵게**`, `==강조==`(CI 적색 굵게), `[[토큰|색 글자]]`, `{page}`(쪽 번호).
 

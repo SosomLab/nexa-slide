@@ -11,7 +11,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from common import DECKS, LANGS, STUDIO, bullet_rows, code_lines, fill_spec, resolve_tokens, plan_runs, runs, table_grid  # noqa: E402
+from common import DECKS, LANGS, STUDIO, bullet_rows, num_hang, code_lines, fill_spec, resolve_tokens, plan_runs, runs, table_grid  # noqa: E402
 
 SAMPLES = [
     {"type": "code", "lang": "python", "text": "def f(x):\n    # 주석\n    return x * 2 + 'a'  # 끝\n"},
@@ -23,6 +23,9 @@ BULLET_SAMPLES = [
     {"type": "bullets", "h": 400, "size": 20, "subSize": 17, "lineHeight": 1.55, "spread": True, "pad": [10, 0, 6, 0],
      "items": ["가\n두 줄", {"text": "나", "sub": ["나-1"]}, "다", "라"]},
     {"type": "bullets", "h": 200, "spread": True, "gap": 20, "items": ["하나"]},
+    # 번호 자동 감지 - 1. · 2) · (3) · a. · B) · ⑤ · 가. 는 번호 글머리, 2024.(연도)·1.5배(공백 없음)·autoNum:false 는 그대로
+    {"type": "bullets", "h": 400, "items": ["1. 첫째", {"text": "2) 둘째", "sub": ["a. 하나", "(3) 둘", "B) 셋"]}, "⑤ 다섯째", "가. 여섯째", "2024. 매출", "1.5배 성장", "10. 열째"]},
+    {"type": "bullets", "h": 200, "autoNum": False, "items": ["1. 그대로"], "spread": True},
 ]
 # 표 글꼴 역할 예제 - font(본문 셀 기본) · colFont(열별, 빈 값은 font, "code" 는 mono, 모르는 값은 body) · 머리 행은 본문 · header 없는 표
 TABLE_SAMPLES = [
@@ -48,7 +51,7 @@ const out = {code: inp.code.map(e => R.codeLines(e).map(l => ({n: l.n, focus: l.
   runs: inp.texts.map(t => R.runs(t, 3).map(([t2, st]) => [t2, {bold: st.bold, color: st.color}])),
   plan: inp.plans.map(p => R.planRuns(p)),
   grid: inp.tables.map(e => { const g = R.tableGrid(e); return {colW: g.colW.map(v => +v.toFixed(3)), rowH: g.rowH.map(v => +v.toFixed(3)), cells: g.cells, callouts: g.callouts.map(c => ({...c, x: +c.x.toFixed(3), y: +c.y.toFixed(3), h: +c.h.toFixed(3), cy: +c.cy.toFixed(3), tx: +c.tx.toFixed(3)}))}; }),
-  bullets: inp.bullets.map(e => R.bulletRows(e).map(([t, lvl, after]) => [t, lvl, +(+after).toFixed(3)])),
+  bullets: inp.bullets.map(e => R.bulletRows(e).map(([t, lvl, after, num]) => [t, lvl, +(+after).toFixed(3), num ? [num.label, num.scheme || "", num.start, R.numHang(num.label, lvl ? +e.subSize || 17 : +e.size || 20, lvl ? 20 : 28)] : null])),
   fills: inp.fills.map(f => R.fillSpec(f))};
 process.stdout.write(JSON.stringify(out));
 """
@@ -110,7 +113,8 @@ def main():
           "runs": [norm_runs(runs(t, 3)) for t in texts],
           "plan": [[list(x) for x in plan_runs(p)] for p in plans],
           "grid": [rnd(table_grid(e)) for e in tables],
-          "bullets": [[[t, lvl, round(float(after), 3)] for t, lvl, after in bullet_rows(e)] for e in bullets],
+          "bullets": [[[t, lvl, round(float(after), 3), [num["label"], num.get("scheme") or "", num["start"], num_hang(num["label"], float(e.get("subSize", 17)) if lvl else float(e.get("size", 20)), 20 if lvl else 28)] if num else None]
+                       for t, lvl, after, num in bullet_rows(e)] for e in bullets],
           "fills": [fill_spec(f) for f in fills]}
     def canon(o):  # 직렬화 차이(정수/실수, 빠진 키/null) 제거
         if isinstance(o, dict):
