@@ -477,7 +477,7 @@ def plan(b):
     starter = b.get("starter") or None
     if starter and (not _supports_starter() or not (STARTERS / starter / "starter.json").is_file()):
         raise HubError(f"없는 시작용 내용: {starter}")
-    name = title or "제목"
+    name = title or re.sub(r"[^\w가-힣 .-]", "", str(b.get("defaultTitle") or ""))[:40].strip() or "제목"  # 비었을 때 자리 글 - 화면 언어대로(영어면 Title)
     slides_dir = str(b.get("slidesDir") or "").strip().strip("/\\") or "slides"
     if not re.fullmatch(r"[^\\/:*?\"<>|]+", slides_dir) or slides_dir.startswith("."):
         raise HubError(f"작업 공간 폴더는 폴더 이름 하나로 적는다(/ \\ : * ? \" < > | 없이, . 으로 시작하지 않게): {slides_dir}")

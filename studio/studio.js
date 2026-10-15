@@ -380,7 +380,7 @@
     return `<div class="thumb${i === S.cur ? " cur" : ""}" data-i="${i}" draggable="true"><span class="num">${i + 1}</span>
       <div class="vp">${Render.renderSlide(s, i + 1)}</div>
       <div class="tools"><button data-act="dup" title="복제">복제</button><button data-act="del" title="삭제">삭제</button></div>
-      <div class="badges">${dr ? `<span class="bd draft" title="보내지 않은 요청 메모">✎ ${dr}</span>` : ""}${op ? `<span class="bd req" title="세션에 보낸 요청(대기)">요청${op}</span>` : ""}${wk ? `<span class="bd work" title="세션 처리 중">처리${wk}</span>` : ""}${chgOf(s.id) ? `<span class="bd chg" title="내 편집이 아닌 변경이 있는 슬라이드 - 변경 탭">변경${chgOf(s.id).size ? " " + chgOf(s.id).size : ""}</span>` : ""}${chkBadge(s.id)}</div></div>`;
+      <div class="badges">${dr ? `<span class="bd draft" title="보내지 않은 요청 메모">✎ ${dr}</span>` : ""}${op ? `<span class="bd req" title="세션에 보낸 요청(대기)">요청${op}</span>` : ""}${wk ? `<span class="bd work" title="세션 처리 중">처리${wk}</span>` : ""}${chgOf(s.id) ? `<span class="bd chg" title="내 편집이 아닌 변경이 있는 슬라이드 - 변경 탭">변경${chgOf(s.id).size || ""}</span>` : ""}${chkBadge(s.id)}</div></div>`;
   }
   function chkBadge(sid) {
     if (!S.check) return "";
@@ -780,7 +780,7 @@
     if (hasFill(el)) h += vsep + sw("fill", "🪣", "채우기", el.fill);
     if (hasStroke(el)) h += sw("stroke", "▢", "테두리", el.stroke);
     if (t === "icon") h += vsep + sw("fill", "🎨", "아이콘 색", el.fill) + sw("color", "◐", "대비 색(안쪽 무늬)", el.color);
-    if (t === "image") h += `${vsep}<input class="num" type="number" min="0" max="100" step="5" data-f="opacity" value="${Math.round((el.opacity == null ? 1 : el.opacity) * 100)}" title="투명도 % (100 = 그대로)"><span class="pt" style="min-width:0">%</span><button class="ib${el.crop && el.crop.some((v) => v) ? " on" : ""}" data-f="crop" title="자르기 % - 왼쪽·위·오른쪽·아래">✂ ▾</button><button class="ib" data-f="imgpick" title="그림 바꾸기 - 새 그림 파일을 올려 이 자리에(폭 유지, 높이는 비율로)">🖼</button>${el.mermaid != null ? `<button class="ib" data-f="mermaid" title="다이어그램 코드 수정 (mermaid)">⌘</button>` : ""}`;
+    if (t === "image") h += `${vsep}<input class="num" type="number" min="0" max="100" step="5" data-f="opacity" value="${Math.round((el.opacity == null ? 1 : el.opacity) * 100)}" title="투명도 % (100 = 그대로)" style="width:58px"><span class="pt" style="min-width:0">%</span><button class="ib${el.crop && el.crop.some((v) => v) ? " on" : ""}" data-f="crop" title="자르기 % - 왼쪽·위·오른쪽·아래">✂ ▾</button><button class="ib" data-f="imgpick" title="그림 바꾸기 - 새 그림 파일을 올려 이 자리에(폭 유지, 높이는 비율로)">🖼</button>${el.mermaid != null ? `<button class="ib" data-f="mermaid" title="다이어그램 코드 수정 (mermaid)">⌘</button>` : ""}`;
     if (t === "group") h += `${vsep}<button class="ib" data-f="ungroup" title="묶음 풀기 (Ctrl+Shift+G) - 자식 ${(el.children || []).length}개를 낱개로">⧈ 풀기</button>`;
     if (isLine(el)) {
       h += `<button class="ib" data-f="color" title="선 색">━<span class="sw" style="background:${swatch(el.color || "on-surface")}"></span></button>
