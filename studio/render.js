@@ -493,6 +493,62 @@
     return `<div class="rs-box" style="${isShape ? boxStyle(el, shape) : ""}padding:${pt}px ${pr}px ${pb}px ${pl}px;justify-content:${JUST[valign]};font-family:${font(el.font)};font-size:${+el.size || 20}px">${hasText ? textLines(el, page, o) : ""}</div>`;
   }
 
+
+  // ---------- 도형(shape) - PowerPoint 기본 도형. 경로·글 영역(rect)은 프리셋의 기본 조정값 기하와 같게(export_pptx 는 prstGeom 으로 내보낸다).
+  //   path(w,h,ss) → SVG 경로(d) · rect → 글 상자 [l,t,r,b] · faces → 면(정육면체 윗면·옆면: 밝게/어둡게) · over → 상자 아래로 더 그릴 비율(설명선 꼬리)
+  const R2 = (v) => Math.round(v * 100) / 100;
+  const P = (...pts) => "M" + pts.map(([x, y]) => `${R2(x)} ${R2(y)}`).join("L") + "Z";
+  const starPts = (w, h, n, inner) => {  // 별 - PowerPoint 처럼 꼭짓점이 상자에 닿게(hf·vf), 안쪽 반지름 = inner × 바깥
+    const cx = w / 2, cy = h * 0.5528, rx = w / 2, ry = h * 0.5528, out = [];
+    for (let i = 0; i < n * 2; i++) { const a = -Math.PI / 2 + (i * Math.PI) / n, r = i % 2 ? inner : 1; out.push([cx + rx * r * Math.cos(a), cy + ry * r * Math.sin(a)]); }
+    return out;
+  };
+  const SHAPES = {
+    triangle: { ko: "삼각형", path: (w, h) => P([w / 2, 0], [w, h], [0, h]), rect: (w, h) => [w / 4, h / 2, (3 * w) / 4, h] },
+    rtTriangle: { ko: "직각 삼각형", path: (w, h) => P([0, 0], [w, h], [0, h]), rect: (w, h) => [w / 12, h / 2, (7 * w) / 12, (11 * h) / 12] },
+    diamond: { ko: "마름모", path: (w, h) => P([w / 2, 0], [w, h / 2], [w / 2, h], [0, h / 2]), rect: (w, h) => [w / 4, h / 4, (3 * w) / 4, (3 * h) / 4] },
+    parallelogram: { ko: "평행사변형", path: (w, h, ss) => { const x = ss / 4; return P([x, 0], [w, 0], [w - x, h], [0, h]); }, rect: (w, h, ss) => [ss / 8, 0, w - ss / 8, h] },
+    trapezoid: { ko: "사다리꼴", path: (w, h, ss) => { const x = ss / 4; return P([0, h], [x, 0], [w - x, 0], [w, h]); }, rect: (w, h, ss) => [ss / 8, 0, w - ss / 8, h] },
+    pentagon: { ko: "오각형", path: (w, h) => P([w / 2, 0], [w, 0.382 * h], [0.809 * w, h], [0.191 * w, h], [0, 0.382 * h]), rect: (w, h) => [0.191 * w, 0.382 * h, 0.809 * w, h] },
+    hexagon: { ko: "육각형", path: (w, h, ss) => { const x = ss / 4; return P([x, 0], [w - x, 0], [w, h / 2], [w - x, h], [x, h], [0, h / 2]); }, rect: (w, h, ss) => [ss / 8, 0, w - ss / 8, h] },
+    octagon: { ko: "팔각형", path: (w, h, ss) => { const x = ss * 0.29289; return P([x, 0], [w - x, 0], [w, x], [w, h - x], [w - x, h], [x, h], [0, h - x], [0, x]); }, rect: (w, h, ss) => { const x = ss * 0.29289 / 2; return [x, x, w - x, h - x]; } },
+    rightArrow: { ko: "오른쪽 화살표", path: (w, h, ss) => { const dx = ss / 2, y = h / 4; return P([0, y], [w - dx, y], [w - dx, 0], [w, h / 2], [w - dx, h], [w - dx, h - y], [0, h - y]); }, rect: (w, h, ss) => [0, h / 4, w - ss / 4, (3 * h) / 4] },
+    leftArrow: { ko: "왼쪽 화살표", path: (w, h, ss) => { const dx = ss / 2, y = h / 4; return P([w, y], [dx, y], [dx, 0], [0, h / 2], [dx, h], [dx, h - y], [w, h - y]); }, rect: (w, h, ss) => [ss / 4, h / 4, w, (3 * h) / 4] },
+    upArrow: { ko: "위쪽 화살표", path: (w, h, ss) => { const dy = ss / 2, x = w / 4; return P([x, h], [x, dy], [0, dy], [w / 2, 0], [w, dy], [w - x, dy], [w - x, h]); }, rect: (w, h, ss) => [w / 4, ss / 4, (3 * w) / 4, h] },
+    downArrow: { ko: "아래쪽 화살표", path: (w, h, ss) => { const dy = ss / 2, x = w / 4; return P([x, 0], [x, h - dy], [0, h - dy], [w / 2, h], [w, h - dy], [w - x, h - dy], [w - x, 0]); }, rect: (w, h, ss) => [w / 4, 0, (3 * w) / 4, h - ss / 4] },
+    leftRightArrow: { ko: "좌우 화살표", path: (w, h, ss) => { const dx = ss / 2, y = h / 4; return P([0, h / 2], [dx, 0], [dx, y], [w - dx, y], [w - dx, 0], [w, h / 2], [w - dx, h], [w - dx, h - y], [dx, h - y], [dx, h]); }, rect: (w, h, ss) => [ss / 4, h / 4, w - ss / 4, (3 * h) / 4] },
+    chevron: { ko: "갈매기형 수장", path: (w, h, ss) => { const x = Math.min(ss / 2, w / 2); return P([0, 0], [w - x, 0], [w, h / 2], [w - x, h], [0, h], [x, h / 2]); }, rect: (w, h, ss) => { const x = Math.min(ss / 2, w / 2); return [x, 0, w - x / 2, h]; } },
+    homePlate: { ko: "오각 화살표", path: (w, h, ss) => { const x = Math.min(ss / 2, w); return P([0, 0], [w - x, 0], [w, h / 2], [w - x, h], [0, h]); }, rect: (w, h, ss) => [0, 0, w - Math.min(ss / 2, w) / 2, h] },
+    star5: { ko: "별", path: (w, h) => P(...starPts(w, h, 5, 0.382)), rect: (w, h) => [0.318 * w, 0.382 * h, 0.682 * w, 0.764 * h] },
+    plus: { ko: "십자형", path: (w, h, ss) => { const x = ss / 4; return P([x, 0], [w - x, 0], [w - x, x], [w, x], [w, h - x], [w - x, h - x], [w - x, h], [x, h], [x, h - x], [0, h - x], [0, x], [x, x]); }, rect: (w, h, ss) => { const x = ss / 4; return [x, x, w - x, h - x]; } },
+    callout: { ko: "사각형 설명선", over: 0.14, path: (w, h) => P([0, 0], [w, 0], [w, h], [0.4167 * w, h], [0.2917 * w, 1.125 * h], [0.1667 * w, h], [0, h]), rect: (w, h) => [0, 0, w, h] },
+    roundCallout: { ko: "모서리가 둥근 설명선", over: 0.14, path: (w, h, ss) => { const r = ss / 6; return `M${R2(r)} 0L${R2(w - r)} 0A${R2(r)} ${R2(r)} 0 0 1 ${R2(w)} ${R2(r)}L${R2(w)} ${R2(h - r)}A${R2(r)} ${R2(r)} 0 0 1 ${R2(w - r)} ${R2(h)}L${R2(0.4167 * w)} ${R2(h)}L${R2(0.2917 * w)} ${R2(1.125 * h)}L${R2(Math.max(r, 0.1667 * w))} ${R2(h)}L${R2(r)} ${R2(h)}A${R2(r)} ${R2(r)} 0 0 1 0 ${R2(h - r)}L0 ${R2(r)}A${R2(r)} ${R2(r)} 0 0 1 ${R2(r)} 0Z`; }, rect: (w, h, ss) => { const r = ss / 6 * 0.29; return [r, r, w - r, h - r]; } },
+    can: { ko: "원기둥", path: (w, h, ss) => { const y = ss / 8, rx = w / 2; return `M0 ${R2(y)}L0 ${R2(h - y)}A${R2(rx)} ${R2(y)} 0 0 0 ${R2(w)} ${R2(h - y)}L${R2(w)} ${R2(y)}A${R2(rx)} ${R2(y)} 0 0 0 0 ${R2(y)}Z`; }, rect: (w, h, ss) => [0, ss / 4, w, h - ss / 8],
+      faces: (w, h, ss) => { const y = ss / 8, rx = w / 2; return [{ d: `M0 ${R2(y)}A${R2(rx)} ${R2(y)} 0 1 1 ${R2(w)} ${R2(y)}A${R2(rx)} ${R2(y)} 0 1 1 0 ${R2(y)}Z`, tint: "rgba(255,255,255,.3)" }]; } },
+    cube: { ko: "정육면체", path: (w, h, ss) => { const y = ss / 4; return P([0, y], [y, 0], [w, 0], [w, h - y], [w - y, h], [0, h]); }, rect: (w, h, ss) => { const y = ss / 4; return [0, y, w - y, h]; },
+      faces: (w, h, ss) => { const y = ss / 4; return [{ d: P([0, y], [y, 0], [w, 0], [w - y, y]), tint: "rgba(255,255,255,.3)" }, { d: P([w - y, y], [w, 0], [w, h - y], [w - y, h]), tint: "rgba(0,0,0,.2)" }]; } },
+  };
+  const shapePath = (name, w, h) => (SHAPES[name] || SHAPES.diamond).path(w, h, Math.min(w, h));
+  const shapeNames = () => Object.keys(SHAPES).map((k) => [k, SHAPES[k].ko]);
+
+  function elShape(el, page) {
+    const w = +el.w, h = +el.h, ss = Math.min(w, h), g = SHAPES[el.shape] || SHAPES.diamond;
+    const d = g.path(w, h, ss), [l, t, r, b] = g.rect(w, h, ss), over = g.over || 0;
+    const fill = el.fill ? fillCss(el.fill) : "transparent", faces = g.faces ? g.faces(w, h, ss) : [];
+    let html = `<div class="rs-shp" style="position:absolute;left:0;top:0;width:${w}px;height:${R2(h * (1 + over))}px;background:${fill};clip-path:path('${d}')"></div>`;
+    for (const f of faces) html += `<div class="rs-shp" style="position:absolute;left:0;top:0;width:${w}px;height:${h}px;background:linear-gradient(${f.tint},${f.tint}),${fill};clip-path:path('${f.d}')"></div>`;
+    if (el.stroke) {
+      const sw = +el.strokeWidth || 1, sc = color(el.stroke);
+      html += `<svg style="position:absolute;left:0;top:0;overflow:visible" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}"><path d="${d}" fill="none" stroke="${sc}" stroke-width="${sw}" stroke-linejoin="round"/>${faces.map((f) => `<path d="${f.d}" fill="none" stroke="${sc}" stroke-width="${sw}" stroke-linejoin="round"/>`).join("")}</svg>`;
+    }
+    const hasText = el.text != null && String(el.text) !== "";
+    if (hasText) {
+      const [pt, pr, pb, pl] = padOf(el);
+      html += `<div class="rs-box" style="position:absolute;left:${R2(l)}px;top:${R2(t)}px;width:${R2(r - l)}px;height:${R2(b - t)}px;right:auto;bottom:auto;padding:${pt}px ${pr}px ${pb}px ${pl}px;justify-content:${JUST[el.valign || "middle"]};font-family:${font(el.font)};font-size:${+el.size || 20}px">${textLines(el, page, { lh: 1.2, bold: false, align: "center", wrap: true })}</div>`;
+    }
+    return html;
+  }
+
   function elImage(el) {
     return `<img class="rs-img" src="${esc(root.RENDER_BASE || "/")}${esc(el.src)}" alt="" draggable="false">`;
   }
@@ -624,6 +680,7 @@
     switch (el.type) {
       case "rect": case "ellipse": case "pill": case "text": inner = elBox(el, page); break;
       case "image": inner = elImage(el); break;
+      case "shape": inner = elShape(el, page); break;
       case "line": case "arrow": inner = elLine(el); break;
       case "curve": inner = elCurve(el); break;
       case "table": case "plan-table": inner = elTable(el, page); break;
@@ -665,7 +722,7 @@
 .rs-cell>.rs-ct{white-space:pre-wrap;word-break:keep-all;flex:1}`;
   }
 
-  const api = { setDeckFonts, presetFonts, fontRole, setTokens, setLangs, langOf, color, colorAlpha, fillSpec, fillCss, radius, runs, plain, hlSQL, hlPython, codeLines, planRuns, tableGrid, bulletRows, bulletNum, numHang, markerNum, numLabel, renderElement, renderSlide, css, esc, lineBox };
+  const api = { setDeckFonts, presetFonts, fontRole, setTokens, setLangs, langOf, color, colorAlpha, fillSpec, fillCss, radius, runs, plain, hlSQL, hlPython, codeLines, planRuns, tableGrid, bulletRows, bulletNum, numHang, markerNum, numLabel, shapePath, shapeNames, renderElement, renderSlide, css, esc, lineBox };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   root.Render = api;
 })(typeof window !== "undefined" ? window : globalThis);
