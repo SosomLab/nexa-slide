@@ -1,0 +1,43 @@
+{
+"base": "http://127.0.0.1:5667",
+"pages": [
+{
+"url": "/studio/#shapetest/1",
+"wait": 2500,
+"steps": [
+{
+"name": "편집기 로드(도형 21개)",
+"js": "const n=document.querySelectorAll('#host .rs-el[data-type=\"shape\"]').length; return n===21 ? true : 'n='+n"
+},
+{
+"name": "＋ 추가 → 삽입 패널의 도형 타일 21칸",
+"js": "document.querySelector('#addBtn').click(); await new Promise(r=>setTimeout(r,300)); const n=document.querySelectorAll('#menu .tile[data-ins^=\"shape:\"]').length; return n===21 ? true : 'tiles='+n"
+},
+{
+"name": "  별 타일 → shape 요소 22개·속성 도형 종류",
+"js": "document.querySelector('#menu .tile[data-ins=\"shape:star5\"]').click(); await new Promise(r=>setTimeout(r,500)); const n=document.querySelectorAll('#host .rs-el[data-type=\"shape\"]').length; const s=document.querySelector('select[data-k=\"shape\"]'); return n===22 && s && s.value==='star5' ? true : 'n='+n+' sel='+(s&&s.value)"
+},
+{
+"name": "  속성 도형 종류 → 정육면체(면 3)",
+"js": "const s=document.querySelector('select[data-k=\"shape\"]'); s.value='cube'; s.dispatchEvent(new Event('change',{bubbles:true})); await new Promise(r=>setTimeout(r,400)); const el=[...document.querySelectorAll('#host .rs-el[data-type=\"shape\"]')].pop(); return el.querySelectorAll('.rs-shp').length===3 ? true : 'faces='+el.querySelectorAll('.rs-shp').length"
+},
+{
+"name": "다이어그램 타일 → 순환(요소 8개)",
+"js": "document.querySelector('#addBtn').click(); await new Promise(r=>setTimeout(r,300)); const n0=document.querySelectorAll('#host .rs-el').length; document.querySelector('#menu .tile[data-ins=\"diagram:cycle\"]').click(); await new Promise(r=>setTimeout(r,600)); const d=document.querySelectorAll('#host .rs-el').length-n0; return d===8 ? true : 'added='+d"
+},
+{
+"name": "  프로세스(갈매기) → shape 4개",
+"js": "document.querySelector('#addBtn').click(); await new Promise(r=>setTimeout(r,300)); const n0=document.querySelectorAll('#host .rs-el[data-type=\"shape\"]').length; document.querySelector('#menu .tile[data-ins=\"diagram:process\"]').click(); await new Promise(r=>setTimeout(r,600)); const d=document.querySelectorAll('#host .rs-el[data-type=\"shape\"]').length-n0; return d===4 ? true : 'added='+d"
+},
+{
+"name": "  차트 타일 → chart 요소 · 아이콘 타일 → icon 요소",
+"js": "document.querySelector('#addBtn').click(); await new Promise(r=>setTimeout(r,300)); document.querySelector('#menu .tile[data-ins=\"chart:column\"]').click(); await new Promise(r=>setTimeout(r,500)); document.querySelector('#addBtn').click(); await new Promise(r=>setTimeout(r,300)); document.querySelector('#menu .tile[data-ins=\"icon:check\"]').click(); await new Promise(r=>setTimeout(r,500)); const c=document.querySelectorAll('#host .rs-el[data-type=\"chart\"] svg').length, i=document.querySelectorAll('#host .rs-el[data-type=\"icon\"] svg').length; return c===1 && i===1 ? true : 'chart='+c+' icon='+i"
+},
+{
+"name": "  실행 취소 5번 → 원래 21개",
+"js": "for (let i=0;i<5;i++) { document.querySelector('#undoBtn').click(); await new Promise(r=>setTimeout(r,150)); } await new Promise(r=>setTimeout(r,400)); const n=document.querySelectorAll('#host .rs-el').length; return n===21 ? true : 'n='+n"
+}
+]
+}
+]
+}
