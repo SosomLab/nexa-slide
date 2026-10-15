@@ -61,5 +61,11 @@
   "parts": {
     "_comment": "구조 부품(layouts.py PARTS) — labels·foot·pageGhost",
     "pageGhost": true
+  },
+  "i18n": {
+    "en": {
+      "label": "Forest - forest green · cream · terracotta",
+      "description": "ESG · annual reports · workshops · non-profits. Cream background, forest-green primary, terracotta secondary, serif titles, large decorative page numbers (recommended in template review gs-tpl-forest)."
+    }
   }
 }

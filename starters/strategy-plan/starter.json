@@ -1,21 +1,27 @@
 {
- "label": "전략·연례 계획 (17장)",
- "description": "비전·전략·연간 계획을 한 흐름으로 — 목표·로드맵·투자. 기본 구성: 표지 — 사진 전면 → 핵심 한 문장 → 진행 순서 → [어디에 있나] → KPI 대시보드 → 추이 — 선 그래프 → 이슈·지표 트리 → [무엇을 고르나] → 선택지 비교(추천 강조) → 사분면 우선순위 → [어떻게 가나] → 로드맵 Now·Next·Later → 마일스톤 → 간트 → 리스크·이슈와 요청 → 다음 행동·부탁 → 끝",
- "template": "proposal",
- "config": {
-  "partLabels": {
-   "day1": "전략 계획",
-   "day2": "전략 계획",
-   "day3": "전략 계획",
-   "apx": "부록"
+  "label": "전략·연례 계획 (17장)",
+  "description": "비전·전략·연간 계획을 한 흐름으로 — 목표·로드맵·투자. 기본 구성: 표지 — 사진 전면 → 핵심 한 문장 → 진행 순서 → [어디에 있나] → KPI 대시보드 → 추이 — 선 그래프 → 이슈·지표 트리 → [무엇을 고르나] → 선택지 비교(추천 강조) → 사분면 우선순위 → [어떻게 가나] → 로드맵 Now·Next·Later → 마일스톤 → 간트 → 리스크·이슈와 요청 → 다음 행동·부탁 → 끝",
+  "template": "proposal",
+  "config": {
+    "partLabels": {
+      "day1": "전략 계획",
+      "day2": "전략 계획",
+      "day3": "전략 계획",
+      "apx": "부록"
+    },
+    "coverBadge": "전략 계획"
   },
-  "coverBadge": "전략 계획"
- },
- "decks": [
-  "plan"
- ],
- "copy": [
-  "content"
- ],
- "source": "템플릿 유형 strategy-plan — docs/research/genspark-skills/05-template-types.md (참고 덱 033, 060, 012, 041)"
+  "decks": [
+    "plan"
+  ],
+  "copy": [
+    "content"
+  ],
+  "source": "템플릿 유형 strategy-plan — docs/research/genspark-skills/05-template-types.md (참고 덱 033, 060, 012, 041)",
+  "i18n": {
+    "en": {
+      "label": "Strategy · annual plan (17 slides)",
+      "description": "Vision · strategy · annual plan in one flow — goals · roadmap · investment. Default outline: Cover — full-bleed photo → Key sentence → Agenda → [Where we are] → KPI dashboard → Trend — line chart → Issue · metric tree → [What we choose] → Option comparison (recommendation highlighted) → Quadrant priorities → [How we get there] → Roadmap Now · Next · Later → Milestones → Gantt → Risks · issues and asks → Next actions · asks → End"
+    }
+  }
 }

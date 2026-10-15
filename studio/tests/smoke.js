@@ -2,7 +2,8 @@
 //   node smoke.js <시나리오.json>   시나리오 = {base, login?: {id, password}, pages: [{url, steps: [{name, js, wait?}]}]}
 //   js 는 페이지 안에서 평가되는 식(await 가능) - 결과가 false 면 FAIL. 콘솔 error/예외가 하나라도 있으면 그 페이지 FAIL.
 const fs = require("fs"), { spawn } = require("child_process");
-const CHROME = "C:/Program Files/Google/Chrome/Application/chrome.exe", PORT = 9333;
+const CHROME = "C:/Program Files/Google/Chrome/Application/chrome.exe";
+const PORT = 9333 + Math.floor(Math.random() * 2000);  // 실행마다 다른 디버그 포트 - 앞선 실행의 Chrome 이 남아 있으면 그 창에 붙어 엉뚱한 상태로 시작하던 것
 const sc = JSON.parse(fs.readFileSync(process.argv[2], "utf8"));
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 let fails = 0;
@@ -66,7 +67,11 @@ async function main() {
       if (errors.length) { fails++; console.log("FAIL 콘솔 오류:", errors.slice(0, 8)); } else console.log("OK   콘솔 오류 없음");
     }
     ws.close();
-  } finally { chrome.kill(); }
+  } finally {
+    // Windows 는 자식 프로세스까지 끝낸다(chrome.kill 만으로는 브라우저 프로세스가 남아 다음 실행을 느리게 하거나 포트를 쥔다)
+    if (process.platform === "win32") { try { require("child_process").spawnSync("taskkill", ["/PID", String(chrome.pid), "/T", "/F"], { stdio: "ignore" }); } catch (e) { /* 무시 */ } }
+    chrome.kill();
+  }
   console.log(fails ? `\n실패 ${fails}` : "\n전부 통과");
   process.exit(fails ? 1 : 0);
 }

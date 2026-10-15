@@ -201,12 +201,14 @@ def update(rid, status=None, by=None, **fields):
         x = next((x for x in d["items"] if x.get("id") == int(rid)), None)
         if not x:
             raise ValueError(f"없는 요청: {rid}")
+        changed = None
         if status:
             if status not in STATUSES:
                 raise ValueError(f"상태는 {'|'.join(STATUSES)}")
             if status != x["status"] and status not in TRANSITIONS.get(x["status"], ()):
                 raise ValueError(f"{x['status']} → {status} 로 바꿀 수 없다")
             if status != x["status"]:
+                changed = status
                 x["status"] = status
                 x["history"].append({"t": _now(), "status": status, "by": by or "?"})
                 if status == "applied":
@@ -220,7 +222,72 @@ def update(rid, status=None, by=None, **fields):
                 x["evidence"] = [str(e) for e in v][:20]
         x["updated"] = _now()
         _write(d)
-        return x
+    if changed in ("done", "applied", "rejected"):  # 잠금 밖에서 - 원 요청(작업 공간)에 알리거나 다시 연다
+        resume_origin(x, changed)
+    return x
+
+
+# ---------- 원 요청(작업 공간 requests.json) 연결·재개 - from.ws·from.deck·from.request 가 있는 세션 요청만
+def _origin_update(ws, deck, rid, fields):
+    """작업 공간 요청 하나를 고친다 - 서버가 떠 있으면 POST /api/requests/<deck>(WRITE_LOCK 안), 아니면 파일을 직접 고친다. 실패하면 False."""
+    import json as _json
+    import urllib.request
+    try:
+        import hub
+        st = hub.server_state(ws)
+        if st.get("running") and st.get("url"):
+            req = urllib.request.Request(f"{st['url'].rstrip('/')}/api/requests/{deck}", data=_json.dumps({"action": "update", "id": rid, **fields}).encode("utf-8"),
+                                         method="POST", headers={"Content-Type": "application/json", "Origin": st["url"].rstrip("/")})
+            with urllib.request.urlopen(req, timeout=20):
+                return True
+        cfg = hub.load_ws_config(ws)
+        rp = Path(ws) / cfg.get("decks", "decks") / f"{deck}.requests.json"
+        items = _json.loads(rp.read_text(encoding="utf-8")) if rp.is_file() else []
+        hit = False
+        for r in items:
+            if r.get("id") == rid:
+                for k, v in fields.items():
+                    if v is None:
+                        r.pop(k, None)
+                    else:
+                        r[k] = v
+                r["updated"] = _now(); hit = True
+        if hit:
+            rp.write_text(_json.dumps(items, ensure_ascii=False, indent=1), encoding="utf-8")
+        return hit
+    except Exception:  # noqa: BLE001 - 연결은 부가 기능, 큐 자체는 이미 바뀌었다
+        return False
+
+
+def _origin_of(item):
+    f = item.get("from") or {}
+    if f.get("kind") == "session" and f.get("ws") and f.get("deck") and f.get("request"):
+        return f["ws"], f["deck"], f["request"]
+    return None
+
+
+def link_origin(item):
+    """add 직후 - 원 요청에 engineRequest(번호)를 적어 편집기 카드에 '엔진 요청 #N' 배지가 보이게."""
+    o = _origin_of(item)
+    return bool(o) and _origin_update(o[0], o[1], o[2], {"engineRequest": int(item["id"])})
+
+
+def resume_origin(item, status):
+    """상태 변화에 따라 원 요청에 알리고(done) 다시 연다(applied) - applied 는 운영 서버에 반영된 뒤이므로 그때 status 를 open 으로 돌려 작업 공간 세션이 이어서 처리한다."""
+    o = _origin_of(item)
+    if not o:
+        return False
+    ws, deck, rid = o
+    n = item["id"]
+    if status == "done":
+        note = f"엔진 요청 #{n} 처리됨" + (f"(커밋 {item.get('commit')})" if item.get("commit") else "") + " - 운영 서버에 적용(재시작)되면 다시 처리합니다."
+        return _origin_update(ws, deck, rid, {"engineNote": note})
+    if status == "applied":
+        note = f"엔진 요청 #{n} 적용됨" + (f"(main {item.get('appliedCommit')})" if item.get("appliedCommit") else "") + " - 다시 처리합니다."
+        return _origin_update(ws, deck, rid, {"status": "open", "engineNote": note})
+    if status == "rejected":
+        return _origin_update(ws, deck, rid, {"engineNote": f"엔진 요청 #{n} 거절됨" + (f" - {item.get('reply')}" if item.get("reply") else "")})
+    return False
 
 
 def next_open():

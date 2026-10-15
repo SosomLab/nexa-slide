@@ -62,5 +62,11 @@
     "_comment": "구조 부품(layouts.py PARTS) — labels·foot·pageGhost",
     "labels": "mono",
     "foot": "band"
+  },
+  "i18n": {
+    "en": {
+      "label": "Editorial - cream · serif · crimson",
+      "description": "Research · cases · reports · proposal arguments. Ivory background, dark navy text, one crimson accent, serif titles, monospace labels, black conclusion strip (recommended in template review gs-tpl-editorial)."
+    }
   }
 }

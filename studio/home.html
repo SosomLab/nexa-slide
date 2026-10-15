@@ -527,12 +527,12 @@
   function renderTpls() {
     const d = H.home;
     $("#fTpls").innerHTML = d.templates.map((t) => `<button type="button" class="tpl${t.name === H.tpl ? " on" : ""}" data-tpl="${esc(t.name)}">
-      <div class="sw">${t.swatches.map((c) => `<i style="background:${c}"></i>`).join("")}</div><b>${esc(t.label)}</b><small>${esc(t.name)}</small></button>`).join("");
+      <div class="sw">${t.swatches.map((c) => `<i style="background:${c}"></i>`).join("")}</div><b>${esc(I18N.pick(t, "label"))}</b><small>${esc(t.name)}</small></button>`).join("");
     if (d.starters.length) {
       $("#starterBox").style.display = "";
       const cur = $("#fStarter").value;  // 템플릿을 다시 그려도 고른 시작용 내용은 그대로(목록을 새로 만들면 첫 항목으로 돌아간다)
       $("#fStarter").innerHTML = '<option value="">빈 시작(표지 · 글머리 · 표 · 정리 · 끝 5장)</option>' +
-        d.starters.map((s) => `<option value="${esc(s.name)}">${esc(s.label)}</option>`).join("");
+        d.starters.map((s) => `<option value="${esc(s.name)}">${esc(I18N.pick(s, "label"))}</option>`).join("");
       $("#fStarter").value = d.starters.some((s) => s.name === cur) ? cur : "";
     }
   }
@@ -1019,14 +1019,14 @@
     const d = H.home;
     $("#tplCards").innerHTML = d.templates.map((t) => `<div class="card tcard">${preview(t)}
       <div class="sw">${t.swatches.map((c) => `<i style="background:${c}"></i>`).join("")}</div>
-      <h3 style="margin:0">${esc(t.label)}</h3><small class="hint" style="margin:0">${esc(t.name)}${t.extends ? ` · ${esc(t.extends)} 바탕` : ""}</small>
-      <p>${esc(t.description)}</p>
+      <h3 style="margin:0">${esc(I18N.pick(t, "label"))}</h3><small class="hint" style="margin:0">${esc(t.name)}${t.extends ? ` · ${esc(t.extends)} 바탕` : ""}</small>
+      <p>${esc(I18N.pick(t, "description"))}</p>
       <div class="acts"><button type="button" class="chip sm primary" data-use="${esc(t.name)}">이 템플릿으로 만들기</button>
       <button type="button" class="chip sm" data-pv-tpl="${esc(t.name)}">${icon("eye", 13)} 미리 보기</button>
       ${t.concept ? `<a class="chip sm" href="${esc(t.concept)}" target="_blank" rel="noopener">디자인 기준 ${icon("ext", 13)}</a>` : ""}</div></div>`).join("");
     $("#starterSec").style.display = d.starters.length ? "" : "none";
-    $("#starterCards").innerHTML = d.starters.map((s) => `<div class="card tcard"><h3 style="margin:0">${esc(s.label)}</h3><small class="hint" style="margin:0">${esc(s.name)}${s.template ? ` · 템플릿 ${esc(s.template)}` : ""}</small>
-      <p>${esc(s.description)}</p><div class="acts"><button type="button" class="chip sm primary" data-starter="${esc(s.name)}">이 내용으로 시작</button>
+    $("#starterCards").innerHTML = d.starters.map((s) => `<div class="card tcard"><h3 style="margin:0">${esc(I18N.pick(s, "label"))}</h3><small class="hint" style="margin:0">${esc(s.name)}${s.template ? ` · 템플릿 ${esc(s.template)}` : ""}</small>
+      <p>${esc(I18N.pick(s, "description"))}</p><div class="acts"><button type="button" class="chip sm primary" data-starter="${esc(s.name)}">이 내용으로 시작</button>
       <button type="button" class="chip sm" data-pv-starter="${esc(s.name)}">${icon("eye", 13)} 미리 보기</button></div></div>`).join("");
   }
   document.addEventListener("click", (e) => {
@@ -1047,9 +1047,9 @@
     const d = H.home;
     PV.starter = starter || "";
     PV.tpl = tpl || (starter && (d.starters.find((x) => x.name === starter) || {}).template) || H.tpl;
-    $("#pvTpl").innerHTML = d.templates.map((t) => `<option value="${esc(t.name)}">${esc(t.label)}</option>`).join("");
+    $("#pvTpl").innerHTML = d.templates.map((t) => `<option value="${esc(t.name)}">${esc(I18N.pick(t, "label"))}</option>`).join("");
     $("#pvStarter").innerHTML = '<option value="">레이아웃 견본(레이아웃마다 한 장)</option>' +
-      d.starters.map((x) => `<option value="${esc(x.name)}">${esc(x.label)}</option>`).join("");
+      d.starters.map((x) => `<option value="${esc(x.name)}">${esc(I18N.pick(x, "label"))}</option>`).join("");
     $("#pvTpl").value = PV.tpl; $("#pvStarter").value = PV.starter;
     $("#pvModal").classList.add("on");
     loadPreview();
@@ -1091,8 +1091,8 @@
         <button type="button" class="chip sm" data-pv-go="1" ${PV.one < n - 1 ? "" : "disabled"}>다음 ▶</button><button type="button" class="chip sm" data-pv-go="list">목록</button></div>
         <div class="pv-vp">${Render.renderSlide(s, PV.one + 1)}</div></div>`;
     }
-    const tl = (H.home.templates.find((t) => t.name === d.template) || {}).label || d.template;
-    const sl = d.starter ? (H.home.starters.find((x) => x.name === d.starter) || {}).label || d.starter : "레이아웃 견본";
+    const tl = I18N.pick(H.home.templates.find((t) => t.name === d.template) || { label: d.template }, "label");
+    const sl = d.starter ? I18N.pick(H.home.starters.find((x) => x.name === d.starter) || { label: d.starter }, "label") : "레이아웃 견본";
     $("#pvInfo").textContent = `${I18N.t(tl)} · ${I18N.t(sl)} · ${I18N.t(`${n}장`)} - ${I18N.t(PV.one < 0 ? "슬라이드를 누르면 크게 봅니다" : "← → 키로 넘깁니다")}`;
     requestAnimationFrame(fitPv);
   }

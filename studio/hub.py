@@ -115,7 +115,7 @@ def templates():
                 v = cs.get(v)
             return None
         sw = [x for x in (c("primary"), c("primary-container"), c("day1"), c("day2"), c("day3"), c("on-surface")) if x]
-        out.append({"name": d.name, "label": t.get("label", d.name), "description": t.get("description", ""),
+        out.append({"name": d.name, "label": t.get("label", d.name), "description": t.get("description", ""), "i18n": t.get("i18n") or {},
                     "extends": t.get("extends"), "swatches": sw,
                     "concept": f"/studio/templates/{d.name}/design/concept.html" if (d / "design" / "concept.html").is_file() else None})
     return out
@@ -129,7 +129,7 @@ def starters():
             st = _read_json(d / "starter.json")
             if st and not st.get("hidden"):  # 숨긴 시작용 내용(검토 대상으로 옮김)은 목록에서 제외
                 out.append({"name": d.name, "label": st.get("label", d.name), "description": st.get("description", ""),
-                            "template": st.get("template")})
+                            "template": st.get("template"), "i18n": st.get("i18n") or {}})
     return out
 
 

@@ -1519,6 +1519,12 @@ class H(BaseHTTPRequestHandler):
                         for k in ("status", "reply", "text"):
                             if k in b:
                                 r[k] = b[k]
+                        for k in ("engineRequest", "engineNote"):  # 엔진 요청 연결(번호)·진행 알림 - engine_requests.link_origin/resume_origin
+                            if k in b:
+                                if b[k] is None or b[k] == "":
+                                    r.pop(k, None)
+                                else:
+                                    r[k] = int(b[k]) if k == "engineRequest" else str(b[k])[:500]
                         r["updated"] = dt.datetime.now().isoformat(timespec="seconds")  # 마지막 진행 시각 - 요청 탭 기본 보기(24시간)의 기준
                         if "attachments" in b:
                             new = self._valid_attachments(i, b.get("attachments"))

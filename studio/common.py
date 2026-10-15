@@ -199,7 +199,7 @@ def list_templates():
         t = json.loads((p / "template.json").read_text(encoding="utf-8"))
         if t.get("hidden") and p.name != TEMPLATE["name"]:
             continue
-        out.append({"name": p.name, "label": t.get("label", p.name)})
+        out.append({"name": p.name, "label": t.get("label", p.name), "i18n": t.get("i18n") or {}})
     return out
 
 

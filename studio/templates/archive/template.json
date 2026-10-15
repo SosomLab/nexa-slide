@@ -56,5 +56,11 @@
   "parts": {
     "_comment": "구조 부품(layouts.py PARTS) — labels·foot·pageGhost",
     "pageGhost": true
+  },
+  "i18n": {
+    "en": {
+      "label": "Archive - paper cream · terracotta",
+      "description": "Case books · retrospectives · travel · hands-on training · stories. Old-paper ivory background, terracotta accent, serif titles, photo plates (approved in template review gs-tpl-archive — replaces the former story)."
+    }
   }
 }

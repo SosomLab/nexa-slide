@@ -42,5 +42,11 @@
       "day3-container": "#E3E8ED",
       "on-day3-container": "#1C252E"
     }
+  },
+  "i18n": {
+    "en": {
+      "label": "RFP · proposal - indigo · gold",
+      "description": "Formal tone for client RFP summaries and bidder proposals. Indigo base + gold secondary; tables, compliance matrices and evaluation criteria take the stage."
+    }
   }
 }

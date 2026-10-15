@@ -42,5 +42,11 @@
       "day3-container": "#EFE5E1",
       "on-day3-container": "#2B1B15"
     }
+  },
+  "i18n": {
+    "en": {
+      "label": "Brief - charcoal · deep teal",
+      "description": "1–2 slide summaries and executive decision requests. Charcoal text with a single deep-teal accent, so the conclusion banner and decision strip are seen first."
+    }
   }
 }

@@ -1394,7 +1394,7 @@ ${names}
   function reqCardHtml(r, k, last, o) {
     const hl = (o && o.hl) || esc, fu = !o || o.fu !== false;
     return `<div class="req ${r.status === "done" ? "done" : ""}${k ? " fu" : ""}" data-rid="${esc(r.id)}">
-        <div class="meta"><span class="st ${esc(r.status || "open")}">${ST[r.status] || "대기"}</span>${k ? `<span class="fu-tag">후속</span>` : `<a href="#" data-goto="${esc(r.slide)}" data-el="${esc(r.element || "")}">슬라이드 ${reqIdx(r.slide) || "?"}${r.elements && r.elements.length > 1 ? ` · ${esc(r.elements[0])} 외 ${r.elements.length - 1}` : r.element ? " · " + esc(r.element) : ""}${r.region ? " · 영역" : ""}</a>`}<span>${esc((r.created || "").replace("T", " "))}</span>${r.updated && r.updated !== r.created ? `<span title="마지막 진행">↻ ${esc(r.updated.replace("T", " "))}</span>` : ""}</div>
+        <div class="meta"><span class="st ${esc(r.status || "open")}">${ST[r.status] || "대기"}</span>${k ? `<span class="fu-tag">후속</span>` : `<a href="#" data-goto="${esc(r.slide)}" data-el="${esc(r.element || "")}">슬라이드 ${reqIdx(r.slide) || "?"}${r.elements && r.elements.length > 1 ? ` · ${esc(r.elements[0])} 외 ${r.elements.length - 1}` : r.element ? " · " + esc(r.element) : ""}${r.region ? " · 영역" : ""}</a>`}<span>${esc((r.created || "").replace("T", " "))}</span>${r.updated && r.updated !== r.created ? `<span title="마지막 진행">↻ ${esc(r.updated.replace("T", " "))}</span>` : ""}${r.engineRequest ? `<a class="fu-tag" href="${esc(BASE.startsWith("/w/") ? `/engine?q=%23${r.engineRequest}` : "#")}" ${BASE.startsWith("/w/") ? 'target="_blank"' : ""} title="${esc(r.engineNote || "엔진 변경 요청으로 넘긴 요청 - 관리자 승인·처리·적용 뒤 자동으로 다시 열린다")}" style="text-decoration:none">엔진 요청 #${r.engineRequest}</a>` : ""}</div>${r.engineNote ? `<div class="hint" style="margin:2px 0 4px">${esc(r.engineNote)}</div>` : ""}
         <div class="txt">${hl(r.text)}</div>${attListHtml(r.attachments, r.id)}${r.reply ? `<div class="reply${r.status !== "done" ? " ask" : ""}"><b>${agentName()}</b> ${hl(r.reply)}</div>` : ""}
         <div class="acts">${r.status === "draft" ? "" : `<button class="chip sm" data-rs="${r.status === "done" ? "open" : "done"}" ${r.status === "done" ? 'title="같은 요청을 세션에 다시 보냅니다(답을 달려면 후속 요청)"' : ""}>${r.status === "done" ? "다시 열기" : "완료로 표시"}</button>`}${fu && last && r.status !== "draft" ? `<button class="chip sm primary" data-fu="1" title="이 요청에 이어서 묻거나 답합니다 - 앞선 요청과 답이 함께 세션에 전달됩니다">후속 요청</button>` : ""}<button class="chip sm" data-rdel="1">삭제</button></div>
         ${fu && last && S.fu === r.id ? fuFormHtml(r) : ""}</div>`;
@@ -2240,15 +2240,15 @@ ${names}
       return;
     }
     const d = AD.data;
-    $("#adGroups").innerHTML = [["", "전체"], ...d.groups.map((g) => [g.id, g.label])].map(([id, l]) =>
+    $("#adGroups").innerHTML = [["", "전체"], ...d.groups.map((g) => [g.id, I18N.pick(g, "label")])].map(([id, l]) =>
       `<button data-adgroup="${id}" class="${AD.group === id ? "on" : ""}">${esc(l)} <small>${id ? d.types.filter((t) => t.group === id).length : d.types.length}</small></button>`).join("");
     const show = d.types.filter((t) => t.slide && (!AD.group || t.group === AD.group) && (!q || `${t.label} ${t.purpose} ${t.layout} ${t.layoutLabel}`.toLowerCase().includes(q)));
     const blankCard = !q || "빈 슬라이드 blank".includes(q) ? `<div class="ad-gt">빈 슬라이드<small>템플릿 기본 항목(로고·쪽번호·바닥 경로)만 - 본문은 직접 추가</small></div>
       <div class="ad-grid"><button class="ad-card" data-adlayout="blank" title="로고·쪽번호·바닥 경로만 있는 빈 장"><div class="ad-vp">${AD.blank ? Render.renderSlide(AD.blank, 1) : ""}</div><b>빈 슬라이드</b><small>로고 · 쪽번호만</small><span class="lay">blank</span></button></div>` : "";
     if (!AD.blank) api("POST", "/api/newslide", { layout: "blank", part: S.deck.part || "day1", id: "blank" }).then((r) => { if (r.ok) { AD.blank = r.data; renderAddDlg(); } });
-    $("#adBody").innerHTML = blankCard + d.groups.filter((g) => show.some((t) => t.group === g.id)).map((g) => `<div class="ad-gt">${esc(g.label)}<small>${esc(g.desc)}</small></div>
-      <div class="ad-grid">${show.filter((t) => t.group === g.id).map((t) => `<button class="ad-card" data-adtype="${esc(t.id)}" title="${esc(t.purpose)}${t.image ? `\n이미지: ${esc(t.image)}` : ""}">
-        <div class="ad-vp">${Render.renderSlide(t.slide, 1)}</div><b>${esc(t.label)}</b><small>${esc(t.purpose)}</small><span class="lay">${esc(t.layout)}${t.image ? " · 사진 자리" : ""}</span></button>`).join("")}</div>`).join("")
+    $("#adBody").innerHTML = blankCard + d.groups.filter((g) => show.some((t) => t.group === g.id)).map((g) => `<div class="ad-gt">${esc(I18N.pick(g, "label"))}<small>${esc(I18N.pick(g, "desc"))}</small></div>
+      <div class="ad-grid">${show.filter((t) => t.group === g.id).map((t) => `<button class="ad-card" data-adtype="${esc(t.id)}" title="${esc(I18N.pick(t, "purpose"))}${t.image ? `\n이미지: ${esc(t.image)}` : ""}">
+        <div class="ad-vp">${Render.renderSlide(t.slide, 1)}</div><b>${esc(I18N.pick(t, "label"))}</b><small>${esc(I18N.pick(t, "purpose"))}</small><span class="lay">${esc(t.layout)}${t.image ? " · 사진 자리" : ""}</span></button>`).join("")}</div>`).join("")
       || `<div class="hint">찾는 유형이 없습니다.</div>`;
     requestAnimationFrame(fitAdd);
   }
@@ -2462,7 +2462,7 @@ ${names}
       { h: "글꼴 세트 - 템플릿 기본" }, ...f.presets.filter((p) => p.source !== "workspace").map((p) => ({ label: `${p.name} - ${p.label}`, on: p.name === f.current, act: () => setFonts(p.name) })),
       ...(f.presets.some((p) => p.source === "workspace") ? [{ h: "글꼴 세트 - 작업 공간 지정(nexa-slide.json)" }, ...f.presets.filter((p) => p.source === "workspace").map((p) => ({ label: `${p.name} - ${p.label}`, on: p.name === f.current, act: () => setFonts(p.name) }))] : []),
       { label: "글꼴 설정 보기·수정…", act: showFonts }, "-",
-      { h: `템플릿: ${S.template ? S.template.label : "-"}` },
+      { h: `템플릿: ${S.template ? I18N.pick(S.template, "label") : "-"}` },
       { label: "코드 언어 이름표 표시", on: LS.get("langTag", "1") === "1", act: () => { LS.set("langTag", LS.get("langTag", "1") === "1" ? "0" : "1"); renderMarks(); renderProps(); } },
       { label: "단축키 보기", key: "?", act: showHelp },
       { label: "편집기 화면 배치 초기화", act: () => { ["mode", "btab", "bfold", "noright", "railW", "rightW", "bottomH", "maxi", "langTag"].forEach((k) => LS.set(k, "")); location.reload(); } },

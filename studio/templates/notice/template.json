@@ -47,5 +47,11 @@
       "r-m": 20,
       "r-l": 32
     }
+  },
+  "i18n": {
+    "en": {
+      "label": "Notice · onboarding - bright orange",
+      "description": "Casual tone for internal notices, welcomes and onboarding. Orange accent + teal · violet · green secondaries, large rounded corners. Cards, photos and big numbers first."
+    }
   }
 }

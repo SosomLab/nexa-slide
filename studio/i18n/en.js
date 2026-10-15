@@ -197,7 +197,7 @@
     "요청 기록": "Request history", "더보기": "More", "최근": "Recent", "최근 24시간에 진행된 요청과 아직 끝나지 않은 요청만 보입니다 - 이전 것은 [더보기]": "Only requests active in the last 24 hours and still-open ones are shown - older ones under [More]",
     "이전 요청까지 모두 찾아보기(편집 화면 위에 뜹니다)": "Browse and search all requests, including older ones (opens over the editor)", "내용·답으로 찾기 - 기본 퍼지(띄어쓰기·한두 글자 차이 허용) · #4 = 슬라이드 4, #4,5,7-10 = 여러 장": "Search text and replies - fuzzy by default (tolerates spacing and a typo or two) · #4 = slide 4, #4,5,7-10 = several slides",
     "대소문자 구분": "Match case", "단어 단위": "Whole word", "정규식": "Regular expression", "찾기 방식 - 기본은 퍼지(띄어쓰기·한두 글자 차이 허용)": "Search mode - fuzzy by default (tolerates spacing and a typo or two)", "정규식 오류:": "Regex error:",
-    "상태": "Status", "범위": "Scope",
+    "상태": "Status", "범위": "Scope", "엔진 변경 요청으로 넘긴 요청 - 관리자 승인·처리·적용 뒤 자동으로 다시 열린다": "Handed to an engine change request - reopened automatically after admin approval, handling and apply",
     // ---- 서식 줄(종류별)
     "도형 종류": "Shape", "차트 종류": "Chart type", "아이콘 종류": "Icon", "점 색(기호 글머리)": "Dot color (symbol bullets)", "줄 높이 · 항목 간격 · 하위 크기": "Line height · item gap · sub size",
     "머리 행 면": "Header fill", "머리 행 글자색": "Header text color", "범례 없음": "No legend", "범례 아래": "Legend bottom", "범례 오른쪽": "Legend right", 
@@ -349,6 +349,8 @@
 
   });
   en.patterns.push(
+    [/^엔진 요청 #(\d+)$/, "Engine request #$1"], [/^엔진 요청 #(\d+) 처리됨(\(커밋 [^)]*\))? - 운영 서버에 적용\(재시작\)되면 다시 처리합니다\.$/, "Engine request #$1 done$2 - handled again once applied to the server (restart)."],
+    [/^엔진 요청 #(\d+) 적용됨(\(main [^)]*\))? - 다시 처리합니다\.$/, "Engine request #$1 applied$2 - handling again."], [/^엔진 요청 #(\d+) 거절됨(.*)$/, "Engine request #$1 rejected$2"],
     [/^(.+) \((\d+)장\) · id (\S+)( · 시작 덱)? - 오른쪽 클릭: 제목·복제·시작 덱·삭제$/, (m, a, b, c, d) => `${a} (${b} slides) · id ${c}${d ? " · start deck" : ""} - right-click: title · duplicate · start deck · delete`],
     [/^(.+) · id (\S+)$/, "$1 · id $2"], [/^만들었습니다: (.*)$/, "Created: $1"], [/^복제했습니다: (.*)$/, "Duplicated: $1"], [/^시작 덱: (.*)$/, "Start deck: $1"], [/^휴지통으로 옮겼습니다: (.*)$/, "Moved to trash: $1"],
     [/^덱 "(.+)" 을 지울까요\? (.*)$/, "Delete deck \"$1\"? It moves to decks/.trash/ together with its requests, history, attachments and content."],
