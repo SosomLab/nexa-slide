@@ -375,7 +375,10 @@
     [/^\s*(\d{1,2})([.)])\s+(?=\S)/, "arabic"], [/^\s*\((\d{1,2})\)\s+(?=\S)/, "arabicBoth"],
     [/^\s*([a-z])([.)])\s+(?=\S)/, "alphaLc"], [/^\s*([A-Z])([.)])\s+(?=\S)/, "alphaUc"],
     [/^\s*([\u2460-\u2473])\s*(?=\S)/, "circle"], [/^\s*([\uac00-\ud7a3])([.)])\s+(?=\S)/, "korean"],
+    [/^\s*([*+\-\u2013\u2014])\s+(?=\S)/, "symbol"],  // * + - – — + 공백 → 그 기호가 글머리
+    [/^\s*([·‧∙ㆍ•●○◦◎■□▪▫◆◇◈▲△▼▽▶►▸▹▷→➜➤➢✓✔✗✘✦✧★☆※◉⦁])\s*(?=\S)/, "symbol"],  // 글머리 기호(공백 없어도)
   ];
+  const BULLET_HEAVY = "●■◆▲▼★◉";  // 글자 크기의 60% 로 그리는 굵은 기호(● 과 같게) - 나머지 기호·번호는 100%
   function bulletNum(text) {
     const s = String(text == null ? "" : text);
     for (const [rx, kind] of NUM_PATTERNS) {
@@ -385,12 +388,13 @@
       if (kind === "arabicBoth") { const n = +m[1]; return { label: `(${n})`, scheme: "arabicParenBoth", start: n, rest }; }
       if (kind === "alphaLc" || kind === "alphaUc") return { label: `${m[1]}${m[2]}`, scheme: (kind === "alphaLc" ? "alphaLc" : "alphaUc") + (m[2] === "." ? "Period" : "ParenR"), start: m[1].toLowerCase().charCodeAt(0) - 96, rest };
       if (kind === "circle") return { label: m[1], scheme: "circleNumDbPlain", start: m[1].charCodeAt(0) - 0x2460 + 1, rest };
+      if (kind === "symbol") return { label: m[1], scheme: null, start: 0, kind: "symbol", rest };  // 글머리 기호 - 글머리 색으로
       return { label: `${m[1]}${m[2]}`, scheme: null, start: 1, rest };
     }
     return null;
   }
   /** 번호 글머리의 내어쓰기 폭 px - 번호가 ●보다 넓으면 넓힌다 (common.num_hang 과 같은 식) */
-  const numHang = (label, size, hang) => Math.max(hang, Math.ceil(size * (0.55 * label.length + 0.25)));
+  const numHang = (label, size, hang) => label.length <= 1 ? hang : Math.max(hang, Math.ceil(size * (0.55 * label.length + 0.25)));
 
   /** bullets → [[글자, 수준, 뒤 간격 px, 번호]] (common.bullet_rows 와 같은 규칙). 번호 = 글 앞의 "1. " 같은 번호를 자동 감지한 {label, scheme, start}(글자에서는 뗀다) 또는 null - autoNum: false 면 감지하지 않는다.
       spread = 균등 간격: 행 높이(줄 수 = 줄바꿈 수 + 1, 자동 줄바꿈은 세지 않음)를 뺀 나머지를 행 사이에 고르게 - 마지막 행 뒤는 0 */
@@ -576,8 +580,10 @@
     const rows = bulletRows(el).map(([t, lvl, after, num]) => {
       const sz = lvl ? sub : size, hang0 = lvl ? 20 : 28, hang = num ? numHang(num.label, sz, hang0) : hang0, marL = (lvl ? 48 : 28) - hang0 + hang;
       const base = color(lvl ? el.subColor || "on-surface-variant" : el.color || "on-surface");
-      const bc = num ? base : color(lvl ? el.subColor || "on-surface-variant" : el.dot || "primary");  // 번호는 글 색(PowerPoint 자동 번호 기본)
-      const bu = `<span class="rs-bu" style="width:${hang}px;font-size:${num || lvl ? 100 : 60}%;color:${bc}">${num ? esc(num.label) : lvl ? "–" : "●"}</span>`;
+      const sym = num && num.kind === "symbol";
+      const bc = num && !sym ? base : color(lvl ? el.subColor || "on-surface-variant" : el.dot || "primary");  // 번호는 글 색(PowerPoint 자동 번호 기본), 기호는 글머리 색
+      const pct = num ? (sym && BULLET_HEAVY.includes(num.label) ? 60 : 100) : lvl ? 100 : 60;
+      const bu = `<span class="rs-bu" style="width:${hang}px;font-size:${pct}%;color:${bc}">${num ? esc(num.label) : lvl ? "–" : "●"}</span>`;
       return `<div class="rs-p" style="position:relative;top:${shift("body", sz, lh)}px;font-size:${sz}px;line-height:${sz * lh}px;padding-left:${marL}px;text-indent:${-hang}px;padding-bottom:${after}px">${bu}${spanRuns(t, page, base, false)}</div>`;
     }).join("");
     return `<div class="rs-box" style="padding:${pt}px ${pr}px ${pb}px ${pl}px;justify-content:${JUST[el.valign || "top"]};font-family:${font("body")}">${rows}</div>`;

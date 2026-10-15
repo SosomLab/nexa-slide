@@ -760,11 +760,15 @@ _NUM_PATTERNS = [  # (정규식, 종류) - 글 앞의 "1. " "1) " "(1) " "a. " "
     (re.compile(r"^\s*([A-Z])([.)])\s+(?=\S)"), "alphaUc"),
     (re.compile(r"^\s*([\u2460-\u2473])\s*(?=\S)"), "circle"),
     (re.compile(r"^\s*([\uac00-\ud7a3])([.)])\s+(?=\S)"), "korean"),
+    (re.compile(r"^\s*([*+\-\u2013\u2014])\s+(?=\S)"), "symbol"),  # * + - – — + 공백 → 그 기호가 글머리
+    (re.compile(r"^\s*([·‧∙ㆍ•●○◦◎■□▪▫◆◇◈▲△▼▽▶►▸▹▷→➜➤➢✓✔✗✘✦✧★☆※◉⦁])\s*(?=\S)"), "symbol"),  # 글머리 기호(공백 없어도)
 ]
+BULLET_HEAVY = "●■◆▲▼★◉"  # 글자 크기의 60% 로 그리는 굵은 기호(● 과 같게) - 나머지 기호·번호는 100%
 
 
 def bullet_num(text):
-    """글 앞의 번호를 떼어 {label, scheme, start, rest} 로. 없으면 None. scheme 은 PPTX a:buAutoNum type(없으면 글자 그대로 buChar)."""
+    """글 앞의 번호(1. · a) · ① …)나 글머리 기호(* - · • ■ …)를 떼어 {label, scheme, start, rest[, kind=symbol]} 로. 없으면 None.
+    scheme 은 PPTX a:buAutoNum type(없으면 글자 그대로 buChar). 기호는 kind=symbol - 글머리 색으로 그린다."""
     s = str(text if text is not None else "")
     for rx, kind in _NUM_PATTERNS:
         m = rx.match(s)
@@ -785,12 +789,16 @@ def bullet_num(text):
         if kind == "circle":
             ch = m.group(1)
             return {"label": ch, "scheme": "circleNumDbPlain", "start": ord(ch) - 0x2460 + 1, "rest": rest}
+        if kind == "symbol":  # 글머리 기호 - 글머리 색(dot/subColor)으로, 번호가 아니라 글자 그대로(buChar)
+            return {"label": m.group(1), "scheme": None, "start": 0, "kind": "symbol", "rest": rest}
         return {"label": f"{m.group(1)}{m.group(2)}", "scheme": None, "start": 1, "rest": rest}  # 가. 나. - 자동 번호 종류가 없어 글자 그대로
     return None
 
 
 def num_hang(label, size, hang):
-    """번호 글머리의 내어쓰기 폭 px - 번호가 ●보다 넓으면 넓힌다(글 시작 위치도 그만큼 밀린다). render.js numHang 과 같은 식."""
+    """번호 글머리의 내어쓰기 폭 px - 번호가 ●보다 넓으면 넓힌다(글 시작 위치도 그만큼 밀린다). 기호(한 글자)는 그대로. render.js numHang 과 같은 식."""
+    if len(label) <= 1:
+        return hang
     return max(hang, math.ceil(size * (0.55 * len(label) + 0.25)))
 
 
