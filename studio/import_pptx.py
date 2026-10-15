@@ -24,7 +24,7 @@ import zipfile
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from common import OUT, WORKSPACE  # noqa: E402
+from common import DECKS, OUT, REPO, WORKSPACE  # noqa: E402
 
 SLIDE_W = 1280  # 덱 좌표계(docs/deck-format.md) - PPTX 폭을 여기에 맞춰 환산
 WEB_EXT = {"png", "jpg", "jpeg", "gif", "svg", "webp"}  # 편집기·PPTX 가 그대로 쓰는 형식 - 나머지는 PNG 로 바꿔 본다
@@ -520,6 +520,99 @@ def selftest(out_dir):
     return 0 if not bad else 1
 
 
+CHART_MAP = {"COLUMN_CLUSTERED": "column", "COLUMN_STACKED": "stackedColumn", "COLUMN_STACKED_100": "stackedColumn", "BAR_CLUSTERED": "bar", "BAR_STACKED": "bar",
+             "LINE": "line", "LINE_MARKERS": "line", "LINE_STACKED": "line", "AREA": "area", "AREA_STACKED": "area", "PIE": "pie", "PIE_EXPLODED": "pie", "DOUGHNUT": "doughnut", "DOUGHNUT_EXPLODED": "doughnut"}
+
+
+def _marker_label(m):
+    """단락 marker(덱 marker 종류)·start → 글 앞에 적을 번호 글자("3." 같은) - 덱의 자동 감지가 받는 꼴"""
+    st, n = m.get("marker"), int(m.get("start") or 1)
+    if not st:
+        return ""
+    if st == "①":
+        return chr(0x2460 + n - 1) if 1 <= n <= 20 else f"({n})"
+    a = chr(96 + n) if 1 <= n <= 26 else str(n)
+    return {"1.": f"{n}.", "1)": f"{n})", "(1)": f"({n})", "a.": f"{a}.", "a)": f"{a})", "A.": f"{a.upper()}.", "A)": f"{a.upper()})"}.get(st, f"{n}.")
+
+
+def to_deck(doc, deck_id, out_dir, title=None):
+    """추출 결과(doc) → 덱 JSON. 글 상자는 text(글머리·수준이 있으면 bullets), 표 → table, 그림 → image(assets/import/<id>/), 차트 → chart, 프리셋 도형 → shape.
+    위치·크기는 box(1280×720 기준) 그대로, 글자 크기는 pt × 4/3. 레이아웃 규칙(디자인 토큰·역할)은 세션이 뒤에 다듬는다."""
+    import shutil
+    import time
+    img_dir = REPO / "assets" / "import" / deck_id
+    slides = []
+    for s in doc["slides"]:
+        els = []
+        n = 0
+
+        def nid():
+            nonlocal n
+            n += 1
+            return f"e{n:02d}"
+        for it in s["shapes"]:
+            k, box = it["kind"], it.get("box") or [40, 40, 400, 100]
+            x, y, w, h = (int(round(v)) for v in box)
+            w, h = max(8, w), max(8, h)
+            if k == "text":
+                ps = it.get("paragraphs") or []
+                size = int(round(float(it["pt"]) * 4 / 3)) if it.get("pt") else (28 if it.get("role") in ("title", "title?") else 20)
+                listy = any(p.get("level", 0) > 0 or p.get("marker") or p.get("bullet") for p in ps) and it.get("role") not in ("title", "title?") and len(ps) > 1
+                if listy:
+                    items = []
+                    for p in ps:
+                        pre = (_marker_label(p) + " ") if p.get("marker") else (f"{p['bullet']} " if p.get("bullet") else "")
+                        t = pre + p["text"]
+                        if p.get("level", 0) > 0 and items:
+                            last = items[-1]
+                            if isinstance(last, str):
+                                items[-1] = last = {"text": last, "sub": []}
+                            last["sub"].append(t)
+                        else:
+                            items.append(t)
+                    els.append({"id": nid(), "type": "bullets", "x": x, "y": y, "w": w, "h": h, "items": items, "size": size, "subSize": max(11, int(size * 0.85))})
+                elif it.get("shape"):
+                    els.append({"id": nid(), "type": "shape", "shape": it["shape"], "x": x, "y": y, "w": w, "h": h, "text": "\n".join(p["text"] for p in ps), "size": size, "fill": "primary-container", "color": "on-primary-container"})
+                else:
+                    el = {"id": nid(), "type": "text", "x": x, "y": y, "w": w, "h": h, "text": "\n".join(p["text"] for p in ps), "size": size}
+                    if it.get("role") in ("title", "title?"):
+                        el["role"] = "title"
+                        el["bold"] = True
+                    if it.get("prst") == "roundRect":
+                        el["fill"] = "surface-container"
+                        el["radius"] = "r-m"
+                    els.append(el)
+            elif k == "table" and it.get("rows"):
+                rows = [[str(c) for c in r] for r in it["rows"]]
+                els.append({"id": nid(), "type": "table", "x": x, "y": y, "w": w, "h": h, "rows": rows, "colW": [1] * max(1, len(rows[0])), "size": 16})
+            elif k == "image" and it.get("file"):
+                src = Path(out_dir) / it["file"]
+                if src.is_file():
+                    img_dir.mkdir(parents=True, exist_ok=True)
+                    dst = img_dir / src.name
+                    if not dst.exists():
+                        shutil.copy2(src, dst)
+                    els.append({"id": nid(), "type": "image", "x": x, "y": y, "w": w, "h": h, "src": dst.resolve().relative_to(REPO.resolve()).as_posix()})
+            elif k == "chart" and it.get("series"):
+                kind = CHART_MAP.get(str(it.get("type") or "").upper(), "column")
+                el = {"id": nid(), "type": "chart", "chart": kind, "x": x, "y": y, "w": w, "h": h, "categories": it.get("categories") or [], "series": [{"name": sr.get("name") or f"계열 {i + 1}", "values": sr.get("values") or []} for i, sr in enumerate(it["series"])], "size": 14}
+                if it.get("title"):
+                    el["title"] = it["title"]
+                els.append(el)
+            elif k == "shape" and it.get("shape"):
+                els.append({"id": nid(), "type": "shape", "shape": it["shape"], "x": x, "y": y, "w": w, "h": h, "text": "", "fill": "primary-container"})
+            elif k == "smartart" and it.get("texts"):
+                els.append({"id": nid(), "type": "bullets", "x": x, "y": y, "w": w, "h": h, "items": list(it["texts"]), "size": 18})
+        sl = {"id": f"s{s['n']:02d}", "layout": "import", "elements": els}
+        if s.get("notes"):
+            sl["notes"] = s["notes"]
+        if s.get("hidden"):
+            sl["hidden"] = True
+        slides.append(sl)
+    return {"id": deck_id, "title": title or Path(doc["source"]).stem, "part": "day1", "version": 1, "updated": time.strftime("%Y-%m-%dT%H:%M:%S"),
+            "source": {"pptx": doc["source"], "importedAt": time.strftime("%Y-%m-%dT%H:%M:%S"), "note": "import_pptx --deck 로 변환 - 위치·크기·글·표·그림·차트는 원본, 색·글꼴은 템플릿 기본"}, "slides": slides}
+
+
 def main():
     for st in (sys.stdout, sys.stderr):
         try:
@@ -532,6 +625,9 @@ def main():
     ap.add_argument("--no-images", action="store_true", help="그림 파일을 쓰지 않는다(목록만)")
     ap.add_argument("--json", action="store_true", help="요약을 JSON 한 줄로")
     ap.add_argument("--selftest", action="store_true", help="견본 PPTX 를 만들어 추출을 점검")
+    ap.add_argument("--deck", help="분석 결과를 바로 덱으로 - decks/<id>.json (영문·숫자·-·_). 글·글머리·표·그림·차트·도형 요소, 그림은 assets/import/<id>/")
+    ap.add_argument("--force", action="store_true", help="--deck: 같은 이름의 덱이 있어도 덮어쓴다")
+    ap.add_argument("--title", help="--deck: 덱 제목(기본 파일 이름)")
     a = ap.parse_args()
     if a.selftest:
         sys.exit(selftest(a.out or (OUT / ".studio" / "import-selftest")))
@@ -539,7 +635,22 @@ def main():
         ap.error("PPTX 파일을 준다")
     src = Path(a.file)
     out = Path(a.out) if a.out else OUT / "import" / src.stem
-    run(src, out, images=not a.no_images, as_json=a.json)
+    doc = run(src, out, images=not a.no_images, as_json=a.json or bool(a.deck))
+    if a.deck:
+        import re as _re
+        if not _re.fullmatch(r"[A-Za-z0-9_-]{1,64}", a.deck):
+            sys.exit("--deck 은 영문·숫자·-·_ 로")
+        dst = DECKS / f"{a.deck}.json"
+        if dst.exists() and not a.force:
+            sys.exit(f"덱이 이미 있다: {dst} - 다른 이름을 주거나 --force")
+        deck = to_deck(doc, a.deck, out, a.title)
+        DECKS.mkdir(parents=True, exist_ok=True)
+        dst.write_text(json.dumps(deck, ensure_ascii=False, indent=1) + "\n", encoding="utf-8", newline="\n")
+        nel = sum(len(s["elements"]) for s in deck["slides"])
+        if a.json:
+            print(json.dumps({"ok": True, "deck": a.deck, "path": _rel(dst), "slides": len(deck["slides"]), "elements": nel}, ensure_ascii=False))
+        else:
+            print(f"덱: {_rel(dst)} (슬라이드 {len(deck['slides'])}장 · 요소 {nel}개) - 편집기에서 열어 다듬거나 세션에 '레이아웃 고치기'를 요청한다. 색·글꼴은 템플릿 기본값")
 
 
 if __name__ == "__main__":

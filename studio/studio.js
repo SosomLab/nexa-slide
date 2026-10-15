@@ -734,7 +734,7 @@
   // ---------------------------------------------------------------- 서식 도구줄(편집 모드 · 요소 선택)
   const TEXTY = new Set(["text", "pill", "rect", "ellipse", "shape"]);
   const SIZED = new Set(["text", "pill", "rect", "ellipse", "shape", "bullets", "table", "plan-table", "code", "plan", "chart"]);
-  const TYPE_KO = { text: "글자", pill: "칩", rect: "상자", ellipse: "원", image: "그림", line: "선", arrow: "화살표", table: "표", "plan-table": "실행계획 표", code: "코드", plan: "실행계획", bullets: "글머리", curve: "곡선", shape: "도형", group: "묶음", chart: "차트" };
+  const TYPE_KO = { text: "글자", pill: "칩", rect: "상자", ellipse: "원", image: "그림", line: "선", arrow: "화살표", table: "표", "plan-table": "실행계획 표", code: "코드", plan: "실행계획", bullets: "글머리", curve: "곡선", shape: "도형", group: "묶음", chart: "차트", icon: "아이콘" };
   const SIZE_PRESETS = [10, 11, 12, 13, 14, 15, 16, 17, 18, 20, 22, 24, 28, 32, 36, 40, 48, 60, 72];
   function defSize(el) { return { pill: 14, code: 15, plan: 14, "plan-table": 15, table: 16 }[el.type] || 20; }
   function swatch(v) { return v ? Render.fillCss(v) : "transparent"; }  // 토큰·#hex(투명도)·그라데이션 객체 모두
@@ -1104,6 +1104,7 @@ ${names}
         ${seg("범례", "legend", { legend: el.legend || (((el.series || []).length > 1 || el.chart === "pie" || el.chart === "doughnut") ? "bottom" : "none") }, [["none", "없음"], ["bottom", "아래"], ["right", "오른쪽"]], "none")}
         ${seg("값 표시", "labels", { labels: el.labels ? "on" : "off" }, [["off", "끔"], ["on", "켬"]], "off")}${seg("눈금선", "grid", { grid: el.grid === false ? "off" : "on" }, [["on", "켬"], ["off", "끔"]], "on")}
         ${num("글자 크기", "size", el)}${num("축 최댓값", "axisMax", el)}<div class="hint">색은 \`colors\` (요소 JSON, 색 토큰 또는 #hex 목록). 빈 값·글자는 없는 값.</div></div>`;
+    if (el.type === "icon") h += `<div class="sec"><h3>아이콘</h3><div class="row"><label>종류</label><select data-k="icon">${Render.iconNames().map(([k, ko]) => `<option value="${k}"${el.icon === k ? " selected" : ""}>${ko}</option>`).join("")}</select></div>${colorRow("아이콘 색", "fill", el)}${colorRow("대비 색", "color", el)}<div class="hint">정사각형으로 그려진다(짧은 변 기준). PPTX 는 자유형 도형이라 PowerPoint 에서 색·크기를 고칠 수 있다.</div></div>`;
     if (el.type === "group") h += `<div class="sec"><h3>묶음 (${(el.children || []).length}개)</h3><div class="row"><button class="chip sm" data-act="ungroup" title="자식을 낱개로 되돌립니다 (Ctrl+Shift+G)">묶음 풀기</button><span class="hint" style="margin:0">${(el.children || []).map((c) => TYPE_KO[c.type] || c.type).join(" · ")}</span></div><div class="hint">자식은 묶음 상자 기준 좌표. 크기를 바꾸면 자식 위치·크기가 비율로 따라간다. 두 번 클릭 편집은 풀어서.</div></div>`;
     if (el.type === "image") h += `<div class="sec"><h3>그림</h3><div class="row"><label>경로</label><input type="text" data-k="src" value="${esc(el.src)}"></div>
         <div class="row"><label>자르기 %</label>${["l", "t", "r", "b"].map((k, i) => `<input type="number" min="0" max="95" step="1" data-crop="${i}" value="${Math.round(((el.crop || [0, 0, 0, 0])[i] || 0) * 100)}" title="${["왼쪽", "위", "오른쪽", "아래"][i]}" style="width:52px">`).join("")}</div>
@@ -1737,7 +1738,7 @@ ${names}
       let x1 = o.x, y1 = o.y, x2 = o.x + o.w, y2 = o.y + o.h; const h = drag.h;
       if (h.includes("w")) x1 = snap(o.x + dx, free); if (h.includes("e")) x2 = snap(o.x + o.w + dx, free);
       if (h.includes("n")) y1 = snap(o.y + dy, free); if (h.includes("s")) y2 = snap(o.y + o.h + dy, free);
-      if (el.type === "image" && h.length === 2) { const ratio = o.w / o.h, w = Math.max(4, x2 - x1), hh = w / ratio; if (h.includes("n")) y1 = y2 - hh; else y2 = y1 + hh; }
+      if ((el.type === "image" || el.type === "icon") && h.length === 2) { const ratio = o.w / o.h, w = Math.max(4, x2 - x1), hh = w / ratio; if (h.includes("n")) y1 = y2 - hh; else y2 = y1 + hh; }
       el.x = Math.round(Math.min(x1, x2 - 4)); el.y = Math.round(Math.min(y1, y2 - 4)); el.w = Math.round(Math.max(4, x2 - x1)); el.h = Math.round(Math.max(4, y2 - y1));
       if (el.type === "group" && o.children) {  // 묶음 크기 조절 - 자식 위치·크기를 비율로(글자 크기는 그대로)
         const sx = el.w / (o.w || 1), sy = el.h / (o.h || 1);
@@ -1836,7 +1837,7 @@ ${names}
       code: { type: "code", x: 64, y: 184, w: 640, h: 0, text: "SELECT d.item_cd\nFROM   trx_demand d\nWHERE  d.tenant_id = :t;", lang: "sql", size: 14, lineHeight: 1.6, radius: "r-m" },
       table: { type: "table", x: 64, y: 184, w: 640, h: 96, rows: [["열 1", "열 2"], ["값", "값"]], colW: [1, 1], size: 16, headFill: `${part}-container`, headColor: `on-${part}-container`, rule: "surface-container-high" },
       image: { type: "image", x: 560, y: 320, w: Math.round(40 * (S.brand.logoRatio || 765 / 237)), h: 40, src: S.brand.logo || "assets/brand/logo.png" },
-    }[kind] || (kind.startsWith("shape:") ? shapeBase(kind.slice(6), part) : kind.startsWith("chart:") ? chartBase(kind.slice(6)) : null);
+    }[kind] || (kind.startsWith("shape:") ? shapeBase(kind.slice(6), part) : kind.startsWith("chart:") ? chartBase(kind.slice(6)) : kind.startsWith("icon:") ? { type: "icon", icon: kind.slice(5), x: 600, y: 320, w: 80, h: 80, fill: part } : null);
     if (!base) return;
     snapshot();
     const el = { id: newElId(s), ...base };
@@ -1982,11 +1983,13 @@ ${names}
   function insertItems() {
     const base = [["text", "T", "글자", "텍스트 text"], ["bullets", "≡", "글머리 목록", "bullets list 번호"], ["pill", "◖◗", "칩", "pill badge 태그"], ["rect", "▭", "상자", "사각형 rect box"], ["ellipse", "◯", "원", "타원 circle"], ["arrow", "→", "화살표", "선 line connector"]];
     const data = [["table", "▦", "표", "table 격자"], ["code", "{ }", "코드", "code sql"]].concat(CHART_KINDS.map(([k, i, l]) => [`chart:${k}`, i, l, `차트 chart ${k}`]));
+    const icons = Render.iconNames().map(([k, ko]) => [`icon:${k}`, `<svg viewBox="0 0 24 24" width="22" height="22"><g>${(Render.ICONS ? Render.ICONS[k] : null) ? "" : ""}</g>${iconSvgInner(k)}</svg>`, ko, `아이콘 icon ${k}`]);
     const media = [["imgfile", "🖼", "그림 파일…", "image photo 사진 업로드"], ["image", "🏷", "로고", "brand logo"], ["mermaid", "⤳", "다이어그램 코드…", "mermaid flowchart sequence 코드"]];
     const shapes = Render.shapeNames().map(([k, ko]) => [`shape:${k}`, `<svg viewBox="-2 -2 52 40" width="34" height="26"><path d="${Render.shapePath(k, 48, 36)}" fill="currentColor"/></svg>`, ko, `도형 shape ${k}`]);
     const diagrams = DIAGRAMS.map(([k, i, l]) => [`diagram:${k}`, i, l, `다이어그램 diagram smartart ${k}`]);
-    return [["기본", base], ["데이터", data], ["미디어", media], ["도형", shapes], ["다이어그램", diagrams]];
+    return [["기본", base], ["데이터", data], ["미디어", media], ["도형", shapes], ["아이콘", icons], ["다이어그램", diagrams]];
   }
+  function iconSvgInner(k) { const el = { type: "icon", icon: k, w: 24, h: 24, fill: "primary", color: "white" }; const m = Render.renderElement(el, 1).match(/<g[^>]*>([\s\S]*?)<\/g>/); return m ? `<g>${m[1]}</g>` : ""; }
   function runInsert(kind) {
     if (kind === "imgfile") return imagePick(null);
     if (kind === "mermaid") return mermaidDialog(null);
