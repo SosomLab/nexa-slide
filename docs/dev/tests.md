@@ -17,6 +17,7 @@ NEXA_TEST_DIR=/tmp/nexa-tests python3 studio/tests/run_all.py   # 산출물 자�
 | e4 | `e4_manual_stop_test.py` | 수동 세션 수명 - 읽는 쪽이 닫히면 종료(`procutil.StdoutWatch`), `--takeover` 가 이전 감시를 끝냄, 웹 [끊기](`/api/engine/session stop`), 작업 공간 `watch_requests` 도 같음 | |
 | englist | `englist_test.py` | 서버 작업 카드 최근 5건·`total`, `GET /api/engine/requests?q=`·`?status=`, `/engine` 페이지(검색·강조·상태 칩·펼치기·거절·삭제) | Node, Chrome |
 | editor | `editor_ui_test.py` + `scenarios/*.json` | 편집기 UI — 시험용 작업 공간(덱 4개)을 만들어 작업 공간 서버(5667)를 띄우고 시나리오를 돌린다: 그림 삽입(API·Ctrl+V·끌어다 놓기), 삽입 패널(도형·다이어그램·차트·아이콘 타일), 표 행·열 단추·글머리 감지 스위치, 묶기/풀기, 링크·그림자·자르기 속성·발표자 보기, 명령 팔레트·접는 절·스마트 가이드, 글꼴 세트 선택 상자 넘침, 요청 기록 창(퍼지·단어 단위·정규식 토글) | Node, Chrome |
+| tidy | `tidy_test.py` | 작업 공간 정리·보관(`tidy.py`) — 산출물·참조 없는 그림(백업 참조 표시)·고아 첨부·세션 로그·백업 보고, clean(옮김)·restore·purge, archive zip 제외 규칙, 작업 공간 서버 `/api/tidy`, 요청 첨부 삭제(discard·update) | - |
 | race | `race_test.py` | 서버 동시 시작 경쟁(`START_LOCK`) | |
 | c4 | `c4_doc_test.py` | 웹 세션이 첨부 Word·Excel·PDF 를 읽어 답하는 실제 턴. 표본 문서 `real.xlsx`·`report.pdf` 는 저장소에 없다 — `NEXA_TEST_DOCS=<폴더>` 로 주고, 없으면 SKIP | claude CLI(`--sessions`) |
 | thread | `thread_test.py` | 후속 요청(대화) 문맥(`thread_context`)·턴 프롬프트 | smoke 가 만든 데모 작업 공간 |

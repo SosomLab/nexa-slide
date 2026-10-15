@@ -158,6 +158,8 @@ LAUNCHER = '''# -*- coding: utf-8 -*-
     python3 {ws}/nexa.py import_pptx <파일.pptx>                    # PPTX 의 글·표·차트·노트·그림 꺼내기 → out/import/<이름>/
     python3 {ws}/nexa.py import_doc <파일>                          # Word·Excel·PDF 의 글·표·시트·그림 꺼내기 → out/import/<이름>/
     python3 {ws}/nexa.py deck list|create|rename|retitle|delete       # 덱 관리(추가·이름·제목·삭제) - 편집기 덱 탭 ＋·오른쪽 클릭과 같다
+    python3 {ws}/nexa.py tidy [--apply] [--only output,attach,log]    # 정리 - 산출물·고아 첨부·세션 로그·참조 없는 그림·백업 보고(--apply 로 out/.tidy/ 에 옮김, --purge 비움)
+    python3 {ws}/nexa.py archive [--all] [--out <zip>]               # 작업 공간 통째로 zip 보관(기본: 산출물·백업·PC 전용 설정 제외)
     python3 {ws}/nexa.py watch_requests --stream --takeover         # Claude 세션 요청 감시(Monitor 로 실행)
     python3 {ws}/nexa.py engine [<엔진 폴더> | --clear]              # 이 PC 의 엔진 위치 보기 · 정하기(nexa-slide.local.json)
     python3 {ws}/nexa.py update_launcher                            # 이 실행기를 엔진의 최신 판으로

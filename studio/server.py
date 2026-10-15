@@ -309,7 +309,7 @@ def activity():
     return {"watcher": w, "othersBusy": sum(1 for x in out if x is not w and x["state"] == "busy"), "sessions": len(out)}
 
 
-ENGINE_UI = ("index.html", "studio.js", "render.js", "menu.js", "fonts.css", "i18n.js", "i18n/en.js")
+ENGINE_UI = ("index.html", "studio.js", "render.js", "menu.js", "fonts.css", "i18n.js", "i18n/en.js", "i18n/en.pages.js", "i18n/en.review.js")
 
 
 def workspace_stamp():
@@ -1090,6 +1090,10 @@ class H(BaseHTTPRequestHandler):
                     return any(v and kw in str(v).lower() for v in vals)
                 items = [x for x in items if hit(x)]
             return self.send_json({"ok": True, "items": items, "counts": engine_requests.counts(), "total": len(engine_requests.load())})
+        if what == "tidy":  # 엔진 요청 첨부 정리 보고(관리자) - 큐에 없는 요청의 attach/<id>/, 하루 넘게 요청에 붙지 않은 _new/ 파일
+            if self.role != "admin":
+                return self.err(403, "관리자만")
+            return self.send_json({"ok": True, **engine_requests.tidy_scan()})
         if what == "session":
             if WS_ENGINE is None:
                 return self.err(503, "엔진 세션 관리자가 없다")
@@ -1139,6 +1143,13 @@ class H(BaseHTTPRequestHandler):
         import engine_requests
         b = self.body_json() or {}
         who = self.user or "local"
+        if what == "tidy":  # {action: clean} - 보고된 첨부를 지운다(관리자)
+            if self.role != "admin":
+                self._event = "engine.tidy.denied"
+                return self.err(403, "관리자만")
+            r = engine_requests.tidy_clean()
+            self._event = "engine.tidy"
+            return self.send_json({"ok": True, **r})
         if what == "requests":
             act = b.get("action")
             try:
@@ -1371,6 +1382,44 @@ class H(BaseHTTPRequestHandler):
         atomic_write(STATE / "flush.json", dumps({"deck": i, "at": dt.datetime.now().isoformat(timespec="seconds")}))
         self.send_json({"ok": True, "session": session_status()})
 
+    # ---------- 작업 공간 관리(정리·보관) - studio/tidy.py. 허브 관리자(중계) 또는 작업 공간 서버 로컬 직접 접속만 ----------
+    def _tidy_ok(self):
+        if HUB:
+            self.err(404, "작업 공간 서버에서"); return False
+        if not self._can_allow_web():
+            self._event = "tidy.denied"; self.err(403, "관리자만"); return False
+        return True
+
+    def api_get_tidy(self, _, q):
+        """정리 대상 보고 {items, summary, tidy(옮겨 둔 것), total}."""
+        if not self._tidy_ok():
+            return
+        import tidy
+        self.send_json({"ok": True, **tidy.scan()})
+
+    def api_post_tidy(self, _, q):
+        """{action: clean, categories: [...], paths: [...], includeKept} → out/.tidy/<시각>/ 로 옮김 · {action: purge} · {action: restore, stamp} · {action: archive, all, out}."""
+        if not self._tidy_ok():
+            return
+        import tidy
+        b = self.body_json() or {}
+        act = b.get("action")
+        try:
+            if act == "clean":
+                r = tidy.clean(b.get("categories") or [], b.get("paths") or [], bool(b.get("includeKept")))
+            elif act == "purge":
+                r = tidy.purge()
+            elif act == "restore":
+                r = tidy.restore(str(b.get("stamp") or ""))
+            elif act == "archive":
+                r = tidy.archive(bool(b.get("all")), b.get("out") or None)
+            else:
+                return self.err(400, "action = clean|purge|restore|archive")
+        except (ValueError, OSError) as e:
+            return self.err(400, str(e))
+        self._event = f"tidy.{act}"
+        self.send_json({"ok": True, **r, "report": tidy.scan()})
+
     # ---------- 요청 메모 ----------
     def _reqs(self, i):
         p = req_path(i)
@@ -1414,8 +1463,11 @@ class H(BaseHTTPRequestHandler):
                 for r in items:
                     if r.get("status") == "draft" and (not b.get("slide") or r.get("slide") == b.get("slide")):
                         r["status"], r["updated"] = "open", dt.datetime.now().isoformat(timespec="seconds")
-            elif act == "discard":  # 초안 지우기(현재 슬라이드 또는 전체)
-                items = [r for r in items if not (r.get("status") == "draft" and (not b.get("slide") or r.get("slide") == b.get("slide")))]
+            elif act == "discard":  # 초안 지우기(현재 슬라이드 또는 전체) - 첨부도 같이
+                gone = [r for r in items if r.get("status") == "draft" and (not b.get("slide") or r.get("slide") == b.get("slide"))]
+                for r in gone:
+                    self._drop_attachments(i, r)
+                items = [r for r in items if r not in gone]
             elif act == "delete":
                 for r in items:
                     if r.get("id") == b.get("id"):
@@ -1429,7 +1481,10 @@ class H(BaseHTTPRequestHandler):
                                 r[k] = b[k]
                         r["updated"] = dt.datetime.now().isoformat(timespec="seconds")  # 마지막 진행 시각 - 요청 탭 기본 보기(24시간)의 기준
                         if "attachments" in b:
-                            r["attachments"] = self._valid_attachments(i, b.get("attachments"))
+                            new = self._valid_attachments(i, b.get("attachments"))
+                            keep = {Path(str(a.get("path") or "")).name for a in new}
+                            self._drop_attachments(i, {"attachments": [a for a in (r.get("attachments") or []) if Path(str(a.get("path") or "")).name not in keep]})  # 빠진 첨부 파일은 지운다
+                            r["attachments"] = new
             else:
                 return self.err(400, "action = add|update|delete|send|discard")
             atomic_write(req_path(i), dumps(items))

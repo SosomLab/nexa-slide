@@ -175,6 +175,16 @@ python3 'C:\Users\me\Documents\NexaSlide\신제품-소개\nexa.py' start
 저장소 루트를 열면 루트 표식 `.nexa-slide.json` 의 `workspace`(없으면 `slides/`, 그것도 없으면 바로 아래 작업 공간 폴더)를 연다
 (폴더 고르기 창도 저장소 루트에 "작업 공간" 표시).
 
+### 작업 공간 관리 — 정리·보관
+
+작업 공간 카드의 **🧹**(허브 관리자, 또는 작업 공간 서버에 직접 접속한 운영자)를 누르면 **정리·보관 창**이 뜬다(`studio/tidy.py`, 작업 공간 서버 `GET/POST /api/tidy` - 허브에서는 중계 `/w/<id>/api/tidy`, 서버가 꺼져 있으면 카드의 [시작]으로 먼저).
+
+- **정리 대상**(범주마다 체크, 기본은 산출물·고아 첨부·세션 로그): **산출물** = `out/*.pptx·*.pdf·*.fonts.json`, `out/<덱>/slide-NN.png`(렌더), `out/import/`, Chrome 프로필 - 다시 만들 수 있다. **고아 첨부** = `out/attach/<덱>/` 중 그 덱의 요청이 참조하지 않는 파일, 없는 덱의 첨부 폴더. **세션 로그** = `out/.studio/sessions/`, 1MB 넘는 `server.log`(비움). **참조 없는 그림** = `assets/images`·`assets/import` 중 어느 덱(`decks/*.json`)·내용(`content/*.json`)·브랜드 설정도 쓰지 않는 그림(mermaid `.mmd` 는 `.png` 의 짝으로 같이) - 백업·휴지통의 덱이 참조하는 그림은 "백업 참조"로 표시하고 기본으로 남긴다. **백업·휴지통** = `decks/.history/`·`decks/.trash/` - 되돌리기·되살리기에 쓰이므로 기본은 두고, 지우려면 확인을 받는다. 실행 중 상태 파일(`out/.studio/server.json`·`session.json` 등)·`nexa-slide.json`·`.env`·`.git` 은 건드리지 않는다.
+- **정리**는 지우지 않고 `out/.tidy/<시각>/` 에 같은 경로로 **옮겨 둔다**(되돌리기: `nexa.py tidy restore --stamp <시각>`). **[비우기]** 가 완전히 지운다.
+- **압축 보관**: 작업 공간(저장소 루트 표식 `.nexa-slide.json` 이 있으면 루트째)을 `<기준 폴더>/_archive/<제목>-<시각>.zip` 으로. 기본은 `out/`(요청 첨부 `out/attach` 는 포함)·`decks/.history`·`decks/.trash`·`.env`·`nexa-slide.local.json`·`.git` 제외(`.gitignore` 와 같은 기준), "전부 넣기"는 `.git` 과 실행 상태 파일만 뺀다. 보관 뒤 카드의 ✕ 로 목록에서 빼고 폴더를 지우면 된다(폴더 삭제는 사용자가 - 서버는 작업 공간 폴더 자체를 지우지 않는다).
+- CLI: `python3 nexa.py tidy`(보고) · `tidy --apply [--only output,attach,log,image,backup] [--include-kept]` · `tidy --purge` · `tidy restore --stamp …` · `nexa.py archive [--all] [--out <zip>]`.
+- **원인 쪽 수정**: 요청 초안 지우기(`discard`)·첨부 바꾸기(`update`)가 이제 파일도 지우고, 엔진 요청 삭제(`engine_requests.remove`)가 `attach/<id>/` 를 지운다. 허브의 엔진 요청 첨부는 `GET/POST /api/engine/tidy`(관리자) - 큐에 없는 요청의 첨부 폴더와 하루 넘게 요청에 붙지 않은 `attach/_new/` 파일.
+
 ## 기본 메뉴
 
 Studio 와 시작 페이지 머리줄 **왼쪽 위 메뉴 단추(☰)** 로 왼쪽 서랍을 연다(GitHub 방식, `studio/menu.js`).

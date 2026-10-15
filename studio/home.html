@@ -441,6 +441,20 @@
   <div class="mb"><p class="hint" style="margin-top:0">서버가 이 작업 공간에서 AI 를 턴마다 실행해 편집기 요청을 처리합니다. 쓰기 범위는 그 작업 공간 폴더뿐이며 <code>nexa.py</code> 명령만 허용됩니다.</p><div id="sessBody"></div><div id="sessErr"></div></div>
   <div class="mf"><button type="button" class="chip" data-close>취소</button><button type="button" class="chip primary" id="sessGo">시작</button></div>
 </div></div>
+<!-- 작업 공간 관리 - 정리·보관 -->
+<div class="modal-back" id="tidyModal"><div class="modal" style="width:min(720px,100%)">
+  <div class="mh"><h3>정리·보관 — <span id="tidyTitle"></span></h3><button type="button" class="ib" data-close>✕</button></div>
+  <div class="mb"><div id="tidyBody"></div><div id="tidyErr"></div></div>
+  <div class="mf"><button type="button" class="chip" data-close>닫기</button></div>
+</div></div>
+<style>
+  .td-cat { border: 1px solid var(--line); border-radius: 10px; padding: 6px 10px; margin-top: 6px; }
+  .td-cat summary { cursor: pointer; list-style: none; display: flex; align-items: center; gap: 4px; flex-wrap: wrap; font-size: 13px; }
+  .td-cat summary::-webkit-details-marker { display: none; } .td-cat summary label { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
+  .td-list { max-height: 180px; overflow: auto; margin-top: 6px; font-size: 12px; }
+  .td-it { display: flex; gap: 8px; padding: 2px 0 2px 22px; } .td-it .p { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-family: Consolas, monospace; } .td-it .s { color: var(--ink2); flex: none; }
+  .td-it.kept .p { color: var(--ink2); }
+</style>
 <!-- 설정 안내 - 저장소를 받은 뒤 할 일(실제 경로가 채워진 명령) -->
 <div class="modal-back" id="infoModal"><div class="modal" style="width:min(760px,100%)">
   <div class="mh"><h3>설정 안내 — 저장소를 받은 뒤 할 일</h3><button type="button" class="ib" data-close>✕</button></div>
@@ -640,11 +654,12 @@
   // ---------- 최근 ----------
   function renderRecent() {
     const q = $("#rFind").value.toLowerCase();
+    const admin = !!(H.home.user && H.home.user.role === "admin"), mode = H.home.mode;
     const list = H.home.recent.filter((r) => !q || `${r.title} ${r.path}`.toLowerCase().includes(q));
     $("#recent").innerHTML = list.length ? list.map((r) => `<div class="ritem">
       <span class="av" style="background:${color(r.path)}">${esc((r.title || "?").trim().charAt(0).toUpperCase())}</span>
       <div class="rb"><div style="display:flex;align-items:flex-start;gap:6px"><div class="t" style="flex:1;min-width:0" data-open="${esc(r.path)}" title="${esc(r.path)}"><b>${esc(r.title || r.path)}</b><small>${esc(r.path)}</small></div>
-          <button type="button" class="ib" data-info="${esc(r.path)}" title="이 작업 공간을 다른 PC 에서 받았을 때 할 일(명령·복사)" style="height:24px;min-width:24px;padding:0 4px;font-size:14px">ⓘ</button><button type="button" class="ib" data-forget="${esc(r.path)}" title="목록에서 빼기(폴더는 그대로)" style="height:24px;min-width:24px;padding:0 4px">${icon("x", 14)}</button></div>
+          <button type="button" class="ib" data-info="${esc(r.path)}" title="이 작업 공간을 다른 PC 에서 받았을 때 할 일(명령·복사)" style="height:24px;min-width:24px;padding:0 4px;font-size:14px">ⓘ</button>${r.workspace && r.exists && (admin || mode !== "hub") ? `<button type="button" class="ib" data-tidy="${esc(r.id || "")}" data-path="${esc(r.path)}" data-title="${esc(r.title || r.path)}" title="정리·보관 - 산출물·고아 첨부·세션 로그·참조 없는 그림 정리, 작업 공간 zip 보관" style="height:24px;min-width:24px;padding:0 4px;font-size:13px">🧹</button>` : ""}<button type="button" class="ib" data-forget="${esc(r.path)}" title="목록에서 빼기(폴더는 그대로)" style="height:24px;min-width:24px;padding:0 4px">${icon("x", 14)}</button></div>
         <div class="rm">${!r.exists ? '<span class="badge">폴더 없음</span>' : r.workspace ? `${r.git ? `<span class="badge git">git</span>` : ""}<span class="badge">덱 ${r.decks.length}</span>${svc(r)}` : '<span class="badge">작업 공간 아님</span>'}</div>
         ${r.workspace ? sessLine(r) : ""}</div></div>`).join("")
       : `<div class="empty">${q ? "찾는 작업이 없습니다" : "아직 연 작업이 없습니다. 새로 만들거나 폴더를 열어 보세요."}</div>`;
@@ -936,10 +951,54 @@
       await load();
       return;
     }
+    const td = e.target.closest("[data-tidy]"); if (td) { e.stopPropagation(); openTidy(td.dataset.tidy, td.dataset.path, td.dataset.title); return; }
     const f = e.target.closest("[data-forget]"); if (!f) return;
     e.stopPropagation();
     await post("/api/project", { action: "forget", path: f.dataset.forget }); await load();
   });
+
+  // ---------- 작업 공간 관리 - 정리·보관(작업 공간 서버의 /api/tidy, 허브에서는 중계 /w/<id>/api/tidy) ----------
+  const TD = { id: "", path: "", title: "", rep: null };
+  const tdBase = () => (H.home.mode === "hub" ? `/w/${encodeURIComponent(TD.id)}` : "");
+  const fmtSize = (n) => (n < 1024 ? `${n}B` : n < 1048576 ? `${(n / 1024).toFixed(1)}KB` : n < 1073741824 ? `${(n / 1048576).toFixed(1)}MB` : `${(n / 1073741824).toFixed(2)}GB`);
+  async function openTidy(id, path, title) {
+    TD.id = id; TD.path = path; TD.title = title; TD.rep = null;
+    $("#tidyTitle").textContent = title || path;
+    $("#tidyBody").innerHTML = '<div class="hint">정리 대상을 살피는 중…</div>'; $("#tidyErr").innerHTML = "";
+    $("#tidyModal").classList.add("on");
+    let d; try { const r = await fetch(tdBase() + "/api/tidy", { cache: "no-store", headers: { Accept: "application/json" } }); d = await r.json(); if (NexaMenu.auth401(r, d)) return; if (!r.ok) d = { error: d.error || r.status }; } catch (e) { d = { error: String(e) }; }
+    if (!d || !d.ok) { $("#tidyBody").innerHTML = `<div class="warn">${esc(d && d.error || "읽지 못했습니다")}${H.home.mode === "hub" ? "<br>작업 공간 서버가 응답하지 않으면 카드의 [시작]으로 먼저 띄우세요." : ""}</div>`; return; }
+    TD.rep = d; drawTidy();
+  }
+  function drawTidy() {
+    const d = TD.rep; if (!d) return;
+    const cats = ["output", "attach", "log", "image", "backup"], dflt = new Set(["output", "attach", "log"]);
+    const by = {}; d.items.forEach((it) => { (by[it.category] = by[it.category] || []).push(it); });
+    $("#tidyBody").innerHTML = `<div class="hint" style="margin-top:0">폴더 <code>${esc(d.workspace)}</code> · 정리 대상 ${d.items.length}개 · ${fmtSize(d.total)}. 지운 파일은 <code>out/.tidy/</code> 에 옮겨 두므로 되돌릴 수 있고, [비우기]로 완전히 지웁니다.</div>
+      ${cats.map((c) => { const s = d.summary[c] || { count: 0, size: 0 }, list = by[c] || []; return `<details class="td-cat"${list.length && dflt.has(c) ? " open" : ""}><summary><label><input type="checkbox" data-tcat="${c}" ${list.length ? "" : "disabled"} ${list.length && dflt.has(c) ? "checked" : ""}> <b>${esc(d.categories[c])}</b> <span class="hint" style="margin:0">${s.count}개 · ${fmtSize(s.size)}</span></label>${c === "backup" ? '<span class="hint" style="margin:0 0 0 8px">되돌리기·되살리기에 쓰이므로 보통은 두세요</span>' : c === "image" ? '<span class="hint" style="margin:0 0 0 8px">백업이 참조하는 그림(표시)은 기본으로 남깁니다</span>' : ""}</summary>
+        <div class="td-list">${list.map((it) => `<div class="td-it${it.kept ? " kept" : ""}"><span class="p" title="${esc(it.reason)}">${esc(it.path)}${it.dir ? "/" : ""}${it.kept ? ' <span class="badge">백업 참조</span>' : ""}</span><span class="s">${fmtSize(it.size)}</span></div>`).join("") || '<div class="hint" style="margin:4px 0 0 22px">없음</div>'}</div></details>`; }).join("")}
+      <div class="row" style="margin-top:10px;gap:6px;flex-wrap:wrap"><button type="button" class="chip primary" id="tidyClean">고른 범주 정리</button>${d.tidy && d.tidy.count ? `<button type="button" class="chip" id="tidyPurge" title="out/.tidy/ 에 옮겨 둔 것을 완전히 지웁니다">비우기 (${d.tidy.count}건 · ${fmtSize(d.tidy.size)})</button>` : ""}<span style="flex:1"></span><button type="button" class="chip" id="tidyReload">↻ 다시 살피기</button></div>
+      <div style="margin-top:16px;border-top:1px solid var(--line);padding-top:10px"><b style="font-size:13px">압축 보관</b>
+        <div class="hint">작업 공간(저장소 루트 표식이 있으면 루트째)을 zip 하나로 만듭니다 - 기본은 산출물(out/)·백업(.history)·휴지통·PC 전용 설정(.env·nexa-slide.local.json)·.git 제외, 요청 첨부(out/attach)는 포함. 보관 뒤 카드의 ✕ 로 목록에서 빼고 폴더를 지우면 공간이 비워집니다.</div>
+        <div class="row" style="gap:6px;flex-wrap:wrap"><label class="hint" style="margin:0;display:flex;align-items:center;gap:6px"><input type="checkbox" id="tidyAll"> 산출물·백업까지 전부 넣기</label><button type="button" class="chip" id="tidyArchive">zip 으로 보관</button><span class="hint" id="tidyZip" style="margin:0"></span></div></div>`;
+    $("#tidyClean").onclick = async () => {
+      const cats = [...$$("#tidyBody [data-tcat]:checked")].map((x) => x.dataset.tcat);
+      if (!cats.length) { toast("정리할 범주를 고르세요"); return; }
+      if (cats.includes("backup") && !confirm("백업·휴지통을 지우면 되돌리기·되살리기를 할 수 없습니다. 계속할까요?")) return;
+      const r = await post(tdBase() + "/api/tidy", { action: "clean", categories: cats });
+      if (!r.ok) { $("#tidyErr").innerHTML = `<div class="warn">${esc(r.data.error || "정리하지 못했습니다")}</div>`; return; }
+      toast(`정리: ${r.data.moved}개 · ${fmtSize(r.data.size)} → ${r.data.dest || "(없음)"}`); TD.rep = { ok: true, ...r.data.report }; drawTidy();
+    };
+    const pg = $("#tidyPurge"); if (pg) pg.onclick = async () => { if (!confirm("옮겨 둔 정리 파일을 완전히 지울까요? 되돌릴 수 없습니다.")) return; const r = await post(tdBase() + "/api/tidy", { action: "purge" }); if (r.ok) { toast(`비움 ${fmtSize(r.data.purged)}`); TD.rep = { ok: true, ...r.data.report }; drawTidy(); } else toast(r.data.error || "비우지 못했습니다", 5000); };
+    $("#tidyReload").onclick = () => openTidy(TD.id, TD.path, TD.title);
+    $("#tidyArchive").onclick = async () => {
+      const b = $("#tidyArchive"); b.disabled = true; b.textContent = "보관하는 중…";
+      const r = await post(tdBase() + "/api/tidy", { action: "archive", all: $("#tidyAll").checked });
+      b.disabled = false; b.textContent = "zip 으로 보관";
+      if (!r.ok) { $("#tidyErr").innerHTML = `<div class="warn">${esc(r.data.error || "보관하지 못했습니다")}</div>`; return; }
+      $("#tidyZip").innerHTML = `보관함: <code>${esc(r.data.zip)}</code> (${r.data.files}개 · ${fmtSize(r.data.size)} → ${fmtSize(r.data.zipSize)})`; toast("zip 으로 보관했습니다");
+    };
+  }
 
   // ---------- 데모 ----------
   $("#demoGo").onclick = async () => {

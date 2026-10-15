@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """헤드리스 클릭 스모크 - 격리 허브(5799, worktree 엔진)를 띄우고 관리자로 로그인해 시작 페이지·Studio(중계)의 주요 버튼을 눌러 본다(콘솔 오류 0). smoke.js 를 쓴다."""
 import json
-import os, os, subprocess, sys, time
+import os, subprocess, sys, tempfile, time
 from pathlib import Path
 for _s in (sys.stdout, sys.stderr): _s.reconfigure(encoding="utf-8", errors="replace")
 HERE = Path(__file__).resolve().parent
