@@ -747,6 +747,22 @@ def text_width(s, size_px, bold=False, mono=False):
     return w
 
 
+def text_pad_effective(el, default=0):
+    """글 영역 여백 = max(pad, PowerPoint 도형 글 영역 들여넣기) (위, 오, 아, 왼) - render.js elBox·export_pptx.text_pad 와 같은 규칙.
+    타원 = 폭·높이 × 0.14645, 둥근 사각형·칩 = 반경 × 0.29289, fill 없는 text 는 pad 그대로."""
+    t, r, b, l = pad_of(el, default)
+    kind = el.get("type")
+    if kind == "text" and not el.get("fill"):
+        return (t, r, b, l)
+    w, h = float(el.get("w", 0)), float(el.get("h", 0))
+    if kind == "ellipse":
+        ix, iy = w * 0.14645, h * 0.14645
+    else:
+        rad = min(w, h) / 2 if kind == "pill" else radius(el.get("radius"), w, h)
+        ix = iy = 0.29289 * rad
+    return (max(t, iy), max(r, ix), max(b, iy), max(l, ix))
+
+
 def pad_of(el, default=0):
     """pad(숫자 또는 [위, 오, 아, 왼]) → 네 값 튜플 (render.js padOf 와 같은 규칙)"""
     p = el.get("pad", default)

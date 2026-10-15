@@ -82,7 +82,8 @@ def text_extent(el):
     wrap = el["wrap"] if "wrap" in el else t in ("text", "rect", "shape")
     align = el.get("align") or ("center" if t in ("pill", "ellipse", "shape") else "left")
     valign = el.get("valign") or ("top" if t == "text" else "middle")
-    pt, pr, pb, pl = _pad(el)
+    from common import text_pad_effective
+    pt, pr, pb, pl = text_pad_effective(el)  # 도형 글 영역 들여넣기 포함(편집기·PPTX 와 같다)
     ox = oy = 0
     bw, bh = el["w"], el["h"]
     if t == "shape":  # 도형의 글 영역(프리셋 글 상자) - 상자 전체가 아니다

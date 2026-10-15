@@ -25,6 +25,6 @@ NEXA_TEST_DIR=/tmp/nexa-tests python3 studio/tests/run_all.py   # 산출물 자�
 
 **헤드리스 실행기 `smoke.js`**: `node smoke.js <시나리오.json>` — `{base, login?, pages: [{url, wait?, steps: [{name, js}]}]}`. `js` 는 페이지 안에서 평가되는 식(`await` 가능, `return` 이 있으면 그대로) — `false` 면 FAIL, 문자열은 설명으로 출력(OK). 콘솔 error/예외가 하나라도 있으면 그 페이지 FAIL. Chrome 경로는 파일 머리의 `CHROME`, 디버그 포트 9333.
 
-렌더 동일성은 별도: `python3 studio/check_parity.py -W example`(render.js ↔ common/export_pptx), `python3 studio/export_pptx.py --selftest --workspace example`, PowerPoint 가 있으면 `render_pptx.ps1`·`compare.py` 로 픽셀 대조([mechanism.md](../mechanism.md)).
+렌더 동일성은 별도: `python3 studio/check_parity.py -W example`(render.js ↔ common/export_pptx), `python3 studio/export_pptx.py --selftest --workspace example`, PowerPoint 가 있으면 `render_pptx.ps1`·`compare.py` 로 픽셀 대조([mechanism.md](../mechanism.md)). 줄바꿈 대조는 `pwsh -File studio/lines_pptx.ps1 -Pptx out/<덱>.pptx`(PowerPoint COM 으로 글 상자마다 실제 줄 수를 JSON 으로) 와 브라우저의 `.rs-p` 높이/줄 높이를 비교한다.
 
 시험을 더하려면: `studio/tests/<이름>_test.py` 를 만들고(머리는 `e4_manual_stop_test.py` 를 본뜬다 — `STUDIO = parents[1]`, `WORK`/`USER`/`PROJ`, `check()`), `run_all.py` 의 `TESTS` 에 한 줄 넣는다.

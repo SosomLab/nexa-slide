@@ -485,10 +485,20 @@
     return s;
   }
 
+  /** PowerPoint 기본 도형의 글 영역 들여넣기 - 타원 = 폭·높이 × 0.14645, 둥근 사각형·칩 = 반경 × 0.29289 (export_pptx.text_pad 와 같다). 글 상자(fill 없는 text)는 0 */
+  function shapeInset(el, shape, isShape) {
+    if (!isShape) return [0, 0];
+    const w = +el.w, h = +el.h;
+    if (shape === "ellipse") return [w * 0.14645, h * 0.14645];
+    const r = shape === "pill" ? Math.min(w, h) / 2 : radius(el.radius, w, h);
+    return [0.29289 * r, 0.29289 * r];
+  }
   function elBox(el, page) {
-    const t = el.type, [pt, pr, pb, pl] = padOf(el);
+    const t = el.type, pad0 = padOf(el);
     const shape = t === "text" ? "rect" : t;
     const isShape = t !== "text" || el.fill;
+    const [ix, iy] = shapeInset(el, shape, isShape);  // 편집기 글 영역 = PowerPoint 와 같게(여백은 max(pad, 들여넣기)) - 줄바꿈이 같아진다
+    const [pt, pr, pb, pl] = [Math.max(pad0[0], iy), Math.max(pad0[1], ix), Math.max(pad0[2], iy), Math.max(pad0[3], ix)];
     const valign = el.valign || (t === "text" ? "top" : "middle");
     const o = { lh: (t === "text" ? 1.4 : 1.2), bold: t === "pill", align: t === "pill" || t === "ellipse" ? "center" : "left", wrap: t === "text" || t === "rect" };
     const hasText = el.text != null && String(el.text) !== "";
