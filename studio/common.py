@@ -8,6 +8,7 @@ render.js 에 같은 규칙이 JS로 있다. 한쪽을 고치면 다른 쪽도 �
 """
 import json
 import os
+import math
 import re
 import sys
 from pathlib import Path
@@ -751,24 +752,75 @@ def pad_of(el, default=0):
     return tuple(p[:4])
 
 
+# ---------- 글머리 번호 자동 감지 (render.js bulletNum 과 같은 규칙) ----------
+_NUM_PATTERNS = [  # (정규식, 종류) - 글 앞의 "1. " "1) " "(1) " "a. " "A) " "①" "가. " + 공백 → 글머리 대신 번호. 두 자리까지(2024. 같은 연도는 제외), "1.5배" 처럼 공백 없는 것은 제외
+    (re.compile(r"^\s*(\d{1,2})([.)])\s+(?=\S)"), "arabic"),
+    (re.compile(r"^\s*\((\d{1,2})\)\s+(?=\S)"), "arabicBoth"),
+    (re.compile(r"^\s*([a-z])([.)])\s+(?=\S)"), "alphaLc"),
+    (re.compile(r"^\s*([A-Z])([.)])\s+(?=\S)"), "alphaUc"),
+    (re.compile(r"^\s*([\u2460-\u2473])\s*(?=\S)"), "circle"),
+    (re.compile(r"^\s*([\uac00-\ud7a3])([.)])\s+(?=\S)"), "korean"),
+]
+
+
+def bullet_num(text):
+    """글 앞의 번호를 떼어 {label, scheme, start, rest} 로. 없으면 None. scheme 은 PPTX a:buAutoNum type(없으면 글자 그대로 buChar)."""
+    s = str(text if text is not None else "")
+    for rx, kind in _NUM_PATTERNS:
+        m = rx.match(s)
+        if not m:
+            continue
+        rest = s[m.end():]
+        if kind == "arabic":
+            n, sep = int(m.group(1)), m.group(2)
+            return {"label": f"{n}{sep}", "scheme": "arabicPeriod" if sep == "." else "arabicParenR", "start": n, "rest": rest}
+        if kind == "arabicBoth":
+            n = int(m.group(1))
+            return {"label": f"({n})", "scheme": "arabicParenBoth", "start": n, "rest": rest}
+        if kind in ("alphaLc", "alphaUc"):
+            ch, sep = m.group(1), m.group(2)
+            start = ord(ch.lower()) - 96
+            scheme = ("alphaLc" if kind == "alphaLc" else "alphaUc") + ("Period" if sep == "." else "ParenR")
+            return {"label": f"{ch}{sep}", "scheme": scheme, "start": start, "rest": rest}
+        if kind == "circle":
+            ch = m.group(1)
+            return {"label": ch, "scheme": "circleNumDbPlain", "start": ord(ch) - 0x2460 + 1, "rest": rest}
+        return {"label": f"{m.group(1)}{m.group(2)}", "scheme": None, "start": 1, "rest": rest}  # 가. 나. - 자동 번호 종류가 없어 글자 그대로
+    return None
+
+
+def num_hang(label, size, hang):
+    """번호 글머리의 내어쓰기 폭 px - 번호가 ●보다 넓으면 넓힌다(글 시작 위치도 그만큼 밀린다). render.js numHang 과 같은 식."""
+    return max(hang, math.ceil(size * (0.55 * len(label) + 0.25)))
+
+
 # ---------- 글머리(bullets) → 행 (render.js bulletRows 와 같은 규칙) ----------
 def bullet_rows(el):
-    """bullets → [[글자, 수준, 뒤 간격 px]]. gap(항목 사이)·subGap(하위 사이).
+    """bullets → [[글자, 수준, 뒤 간격 px, 번호]]. gap(항목 사이)·subGap(하위 사이).
+    번호 = 글 앞의 "1. " 같은 번호를 자동 감지한 {label, scheme, start}(글자에서는 뗀다) 또는 None - autoNum: false 면 감지하지 않는다.
     spread 가 참이면 균등 간격 - 행 높이(줄 수 = 줄바꿈 수 + 1, 자동 줄바꿈은 세지 않음)를 뺀 나머지를 행 사이에 고르게 나눠
     상자 높이를 채운다(원본 PPT 의 "세로 고르게" 글상자를 옮길 때). 마지막 행 뒤는 0."""
     gap, sub_gap = el.get("gap", 14), el.get("subGap", 6)
+    auto = el.get("autoNum", True) is not False
     rows = []
+
+    def row(text, lvl, after):
+        num = bullet_num(text) if auto else None
+        if num:
+            text = num.pop("rest")
+        return [text, lvl, after, num]
+
     for it in el.get("items", []):
         if isinstance(it, str):
             it = {"text": it}
         subs = it.get("sub", []) or []
-        rows.append([it.get("text", ""), 0, sub_gap if subs else gap])
+        rows.append(row(it.get("text", ""), 0, sub_gap if subs else gap))
         for k, s in enumerate(subs):
-            rows.append([s, 1, sub_gap if k < len(subs) - 1 else gap])
+            rows.append(row(s, 1, sub_gap if k < len(subs) - 1 else gap))
     if el.get("spread") and len(rows) > 1:
         size, sub, lh = float(el.get("size", 20)), float(el.get("subSize", 17)), float(el.get("lineHeight", 1.55))
         pt, _, pb, _ = pad_of(el)
-        used = sum((sub if lvl else size) * lh * (str(t).count("\n") + 1) for t, lvl, _ in rows)
+        used = sum((sub if lvl else size) * lh * (str(t).count("\n") + 1) for t, lvl, _, _ in rows)
         g = max(0.0, (float(el["h"]) - pt - pb - used) / (len(rows) - 1))
         for i, r in enumerate(rows):
             r[2] = g if i < len(rows) - 1 else 0

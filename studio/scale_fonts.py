@@ -32,7 +32,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from common import CELL_PADX, CODE_PAD_Y, DECKS, bullet_rows, code_lines, load_deck, pad_of, safe_id, table_grid, use_fonts  # noqa: E402
+from common import CELL_PADX, CODE_PAD_Y, DECKS, bullet_rows, num_hang, code_lines, load_deck, pad_of, safe_id, table_grid, use_fonts  # noqa: E402
 from check_layout import W, H, _wrap_count, text_extent  # noqa: E402
 
 FIXED_ROLES = ("crumb", "page", "footnotes", "decor")  # 바닥·장식 부품 — 고르지 않으면 크기를 바꾸지 않고, 자리는 언제나 그대로
@@ -105,9 +105,10 @@ def fit_el(el):
         pt, pr, pb, pl = pad_of(el)
         rows = bullet_rows({**el, "spread": False})  # 균등 간격이라도 보통 간격만큼은 들어가게
         need = pt + pb
-        for i, (text, lvl, after) in enumerate(rows):
+        for i, (text, lvl, after, num) in enumerate(rows):
             sz = sub if lvl else size
-            need += _lines(text, sz, False, False, el["w"] - pl - pr - (48 if lvl else 28)) * sz * lh
+            hang0 = 20 if lvl else 28
+            need += _lines(text, sz, False, False, el["w"] - pl - pr - (48 if lvl else 28) - ((num_hang(num["label"], sz, hang0) - hang0) if num else 0)) * sz * lh
             need += after if i < len(rows) - 1 else 0
         if need > el["h"] + 1:
             dh = math.ceil(need) - el["h"]

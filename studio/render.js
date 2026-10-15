@@ -369,15 +369,39 @@
     return { x: el.x, y: el.y, tw, colW, rowH, cells, rule: el.rule || "surface-container-high", size: el.size || 16, callouts };
   }
 
-  /** bullets → [[글자, 수준, 뒤 간격 px]] (common.bullet_rows 와 같은 규칙).
+  /** 글 앞의 번호("1. " "1) " "(1) " "a. " "A) " "①" "가. " + 공백)를 떼어 {label, scheme, start, rest} - 없으면 null (common.bullet_num 과 같은 규칙).
+      두 자리까지(2024. 같은 연도 제외), "1.5배" 처럼 공백 없는 것 제외. scheme 은 PPTX 자동 번호 종류(없으면 글자 그대로). */
+  const NUM_PATTERNS = [
+    [/^\s*(\d{1,2})([.)])\s+(?=\S)/, "arabic"], [/^\s*\((\d{1,2})\)\s+(?=\S)/, "arabicBoth"],
+    [/^\s*([a-z])([.)])\s+(?=\S)/, "alphaLc"], [/^\s*([A-Z])([.)])\s+(?=\S)/, "alphaUc"],
+    [/^\s*([\u2460-\u2473])\s*(?=\S)/, "circle"], [/^\s*([\uac00-\ud7a3])([.)])\s+(?=\S)/, "korean"],
+  ];
+  function bulletNum(text) {
+    const s = String(text == null ? "" : text);
+    for (const [rx, kind] of NUM_PATTERNS) {
+      const m = rx.exec(s); if (!m) continue;
+      const rest = s.slice(m[0].length);
+      if (kind === "arabic") { const n = +m[1]; return { label: `${n}${m[2]}`, scheme: m[2] === "." ? "arabicPeriod" : "arabicParenR", start: n, rest }; }
+      if (kind === "arabicBoth") { const n = +m[1]; return { label: `(${n})`, scheme: "arabicParenBoth", start: n, rest }; }
+      if (kind === "alphaLc" || kind === "alphaUc") return { label: `${m[1]}${m[2]}`, scheme: (kind === "alphaLc" ? "alphaLc" : "alphaUc") + (m[2] === "." ? "Period" : "ParenR"), start: m[1].toLowerCase().charCodeAt(0) - 96, rest };
+      if (kind === "circle") return { label: m[1], scheme: "circleNumDbPlain", start: m[1].charCodeAt(0) - 0x2460 + 1, rest };
+      return { label: `${m[1]}${m[2]}`, scheme: null, start: 1, rest };
+    }
+    return null;
+  }
+  /** 번호 글머리의 내어쓰기 폭 px - 번호가 ●보다 넓으면 넓힌다 (common.num_hang 과 같은 식) */
+  const numHang = (label, size, hang) => Math.max(hang, Math.ceil(size * (0.55 * label.length + 0.25)));
+
+  /** bullets → [[글자, 수준, 뒤 간격 px, 번호]] (common.bullet_rows 와 같은 규칙). 번호 = 글 앞의 "1. " 같은 번호를 자동 감지한 {label, scheme, start}(글자에서는 뗀다) 또는 null - autoNum: false 면 감지하지 않는다.
       spread = 균등 간격: 행 높이(줄 수 = 줄바꿈 수 + 1, 자동 줄바꿈은 세지 않음)를 뺀 나머지를 행 사이에 고르게 - 마지막 행 뒤는 0 */
   function bulletRows(el) {
-    const gap = el.gap == null ? 14 : el.gap, sub = el.subGap == null ? 6 : el.subGap, rows = [];
+    const gap = el.gap == null ? 14 : el.gap, sub = el.subGap == null ? 6 : el.subGap, rows = [], auto = el.autoNum !== false;
+    const row = (text, lvl, after) => { const num = auto ? bulletNum(text) : null; if (num) { text = num.rest; delete num.rest; } return [text, lvl, after, num]; };
     for (let it of el.items || []) {
       if (typeof it === "string") it = { text: it };
       const subs = it.sub || [];
-      rows.push([it.text || "", 0, subs.length ? sub : gap]);
-      subs.forEach((s, k) => rows.push([s, 1, k < subs.length - 1 ? sub : gap]));
+      rows.push(row(it.text || "", 0, subs.length ? sub : gap));
+      subs.forEach((s, k) => rows.push(row(s, 1, k < subs.length - 1 ? sub : gap)));
     }
     if (el.spread && rows.length > 1) {
       const size = +el.size || 20, subSz = +el.subSize || 17, lh = +(el.lineHeight || 1.55), [pt, , pb] = padOf(el);
@@ -549,11 +573,11 @@
   function elBullets(el, page) {
     const size = +el.size || 20, sub = +el.subSize || 17, lh = +(el.lineHeight || 1.55);
     const [pt, pr, pb, pl] = padOf(el);
-    const rows = bulletRows(el).map(([t, lvl, after]) => {
-      const sz = lvl ? sub : size, marL = lvl ? 48 : 28, hang = lvl ? 20 : 28;
+    const rows = bulletRows(el).map(([t, lvl, after, num]) => {
+      const sz = lvl ? sub : size, hang0 = lvl ? 20 : 28, hang = num ? numHang(num.label, sz, hang0) : hang0, marL = (lvl ? 48 : 28) - hang0 + hang;
       const base = color(lvl ? el.subColor || "on-surface-variant" : el.color || "on-surface");
-      const bc = color(lvl ? el.subColor || "on-surface-variant" : el.dot || "primary");
-      const bu = `<span class="rs-bu" style="width:${hang}px;font-size:${lvl ? 100 : 60}%;color:${bc}">${lvl ? "–" : "●"}</span>`;
+      const bc = num ? base : color(lvl ? el.subColor || "on-surface-variant" : el.dot || "primary");  // 번호는 글 색(PowerPoint 자동 번호 기본)
+      const bu = `<span class="rs-bu" style="width:${hang}px;font-size:${num || lvl ? 100 : 60}%;color:${bc}">${num ? esc(num.label) : lvl ? "–" : "●"}</span>`;
       return `<div class="rs-p" style="position:relative;top:${shift("body", sz, lh)}px;font-size:${sz}px;line-height:${sz * lh}px;padding-left:${marL}px;text-indent:${-hang}px;padding-bottom:${after}px">${bu}${spanRuns(t, page, base, false)}</div>`;
     }).join("");
     return `<div class="rs-box" style="padding:${pt}px ${pr}px ${pb}px ${pl}px;justify-content:${JUST[el.valign || "top"]};font-family:${font("body")}">${rows}</div>`;
@@ -612,7 +636,7 @@
 .rs-cell>.rs-ct{white-space:pre-wrap;word-break:keep-all;flex:1}`;
   }
 
-  const api = { setDeckFonts, presetFonts, fontRole, setTokens, setLangs, langOf, color, colorAlpha, fillSpec, fillCss, radius, runs, plain, hlSQL, hlPython, codeLines, planRuns, tableGrid, bulletRows, renderElement, renderSlide, css, esc, lineBox };
+  const api = { setDeckFonts, presetFonts, fontRole, setTokens, setLangs, langOf, color, colorAlpha, fillSpec, fillCss, radius, runs, plain, hlSQL, hlPython, codeLines, planRuns, tableGrid, bulletRows, bulletNum, numHang, renderElement, renderSlide, css, esc, lineBox };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   root.Render = api;
 })(typeof window !== "undefined" ? window : globalThis);
