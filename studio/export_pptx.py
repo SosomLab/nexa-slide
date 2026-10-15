@@ -14,7 +14,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from common import (cur_fonts, font_role, use_fonts, CODE_GUTTER_W, CODE_PAD_Y, OUT, REPO, HL_ROLE, bullet_rows, num_hang, code_lines, code_style, color, fill_spec, load_deck,  # noqa: E402
+from common import (cur_fonts, font_role, use_fonts, BULLET_HEAVY, CODE_GUTTER_W, CODE_PAD_Y, OUT, REPO, HL_ROLE, bullet_rows, num_hang, code_lines, code_style, color, fill_spec, load_deck,  # noqa: E402
                     pad_of, plan_runs, radius, runs, safe_id, table_grid, tokens)
 
 from lxml import etree  # noqa: E402  (python-pptx 의존성)
@@ -431,7 +431,13 @@ def do_bullets(slide, el, page):
         pPr.set("lvl", "0")
         base = color(el.get("color", "on-surface") if lvl == 0 else el.get("subColor", "on-surface-variant"))
         bc = etree.SubElement(pPr, qn("a:buClr"))
-        if num:  # 글 앞의 번호를 자동 감지 - 번호 글머리(자동 번호 종류가 있으면 buAutoNum, 가. 같은 것은 글자 그대로). 색·크기는 글과 같게
+        if num and num.get("kind") == "symbol":  # 글 앞의 글머리 기호(* - · • ■ …) - 그 기호를 글머리로, 색은 글머리 색, 굵은 기호는 60%
+            rgb_el(bc, color(el.get("dot", "primary") if lvl == 0 else el.get("subColor", "on-surface-variant")))
+            etree.SubElement(pPr, qn("a:buSzPct")).set("val", "60000" if num["label"] in BULLET_HEAVY else "100000")
+            bf = etree.SubElement(pPr, qn("a:buFont"))
+            bf.set("typeface", "맑은 고딕")
+            etree.SubElement(pPr, qn("a:buChar")).set("char", num["label"])
+        elif num:  # 글 앞의 번호를 자동 감지 - 번호 글머리(자동 번호 종류가 있으면 buAutoNum, 가. 같은 것은 글자 그대로). 색·크기는 글과 같게
             rgb_el(bc, base)
             etree.SubElement(pPr, qn("a:buSzPct")).set("val", "100000")
             etree.SubElement(pPr, qn("a:buFontTx"))
