@@ -16,6 +16,8 @@ description: 이 세션이 nexa-slide 서버 작업(엔진 요청 큐)을 맡는
 
 **2. 연결되면** 시작 페이지 서버 작업 카드가 "수동 세션 · <이름>" 으로 바뀐다. 사용자에게 "연결됨 · 승인된 요청 n건 대기" 를 한 줄로 알린다 - 연결 직후 첫 줄 `{"event":"idle","connected":true,"open":n,"triage":n}` 이 온다.
 
+Monitor 에 `{"event": "ping"}` 한 줄이 드물게 오면 무시한다(파이프 상태 확인용).
+
 **3. Monitor 알림** `{"event":"request","item":{id,title,body,from,evidence,attachments,…}}` 이 오면 처리한다 — 규칙은 `studio/agents/engine_turn_prompt.md` 와 같다:
    - 작업은 엔진 **worktree** `.claude/worktrees/engine-dev`(브랜치 `engine-dev`)에서. 없으면 `git worktree add .claude/worktrees/engine-dev engine-dev`(브랜치도 없으면 `-b engine-dev main`). 운영 트리(main)는 직접 고치지 않는다.
    - `python studio/engine_request.py status <id> working --by "<이름>"` → 구현 → 검증(`check_parity.py -W example`·관련 py_compile·시험) → worktree 에서 커밋(`engine-request #<id>`) → `status <id> done --commit <해시> --branch engine-dev --test "…" --reply "…"`. 할 수 없으면 `rejected`(이유) 또는 `open` + reply(질문).

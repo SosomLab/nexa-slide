@@ -72,9 +72,10 @@ def main():
     if a.stream:  # 연결 직후 한 줄 - Monitor 를 건 세션이 "연결됨 · 대기 n건" 을 바로 알 수 있게(요청은 아래 루프가 이어서 낸다)
         c0 = q.counts()
         print(json.dumps({"event": "idle", "connected": True, "label": a.label, "open": c0.get("open", 0), "triage": c0.get("triage", 0)}, ensure_ascii=False), flush=True)
+    sw = procutil.StdoutWatch()
     try:
         while True:
-            if procutil.stdout_closed():  # Monitor 를 건 세션이 닫혔다 - 고아로 남지 않게 끝낸다(finally 가 stopped 를 쓴다)
+            if sw.closed():  # Monitor 를 건 세션이 닫혔다(몇 초 연속 + 실제 쓰기 실패로 확인) - 고아로 남지 않게 끝낸다(finally 가 stopped 를 쓴다)
                 return 0
             _beat(hb)
             c = q.counts()
