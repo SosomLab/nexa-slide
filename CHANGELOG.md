@@ -1,5 +1,9 @@
 # 변경 이력
 
+## 0.21.12 - 2026-10-15 · /nexa-engine - 열린 세션에서 한 줄로 서버 작업 맡기
+
+- 슬래시 명령 `/nexa-engine`(엔진 `.claude/commands/nexa-engine.md`, 작업 공간은 `init_workspace`·`update_launcher` 가 `.claude/commands/nexa-engine.md` 를 둠): 이미 열려 있는 Claude Code 세션(터미널·VS Code)에서 입력하면 큐 감시를 Monitor 로 띄우고 요청 처리 절차(엔진 worktree·engine_request 상태)를 따른다. 카드 ⋯ 상자에 안내. 세션 ID 로 밖에서 연결하는 방식은 Claude Code 에 외부 입력 주입 API 가 없어 불가(문서·실험 확인).
+
 ## 0.21.11 - 2026-10-15 · 서버 작업 ⋯ 메뉴는 항상
 
 - 서버 작업 카드의 ⋯(터미널 세션으로 맡기기)가 웹 엔진 세션이 켜져 있으면 숨겨져 연결 방법을 찾을 수 없던 것 — 관리자에게 항상 보이고, 웹 세션이 켜져 있으면 "먼저 [세션 중지]"를, 수동 세션이면 누가 맡고 있는지를 상자 위에 알린다.

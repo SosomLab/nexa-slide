@@ -15,7 +15,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from common import CONFIG, WORKSPACE  # noqa: E402
 from paths import ROOT_MARKER, write_root_marker  # noqa: E402
-from init_workspace import LAUNCHER, ensure_claude_settings, ensure_env_files, ensure_gitignore  # noqa: E402
+from init_workspace import ensure_claude_commands, LAUNCHER, ensure_claude_settings, ensure_env_files, ensure_gitignore  # noqa: E402
 
 
 def main():
@@ -35,6 +35,8 @@ def main():
         print(f"저장소 표식을 두었다: {root / ROOT_MARKER} (workspace = {WORKSPACE.name})")
     for name in ensure_env_files(WORKSPACE):
         print(f"{name} 를 두었다: {WORKSPACE / name}" + (" — NEXA_SLIDE_HOME 에 이 엔진 위치(가장 먼저 쓰인다)" if name == ".env" else " — 샘플(커밋)"))
+    if ensure_claude_commands(WORKSPACE):
+        print("추가: .claude/commands/nexa-engine.md - 이 폴더의 Claude Code 세션에서 /nexa-engine 으로 서버 작업 큐를 맡을 수 있다")
     if ensure_claude_settings(WORKSPACE):  # AI 세션 권한(쓰기 범위 = 이 폴더, 명령은 nexa.py 만) - 없는 키만 더한다
         print(f".claude/settings.json 에 훅·권한을 더했다: {WORKSPACE / '.claude' / 'settings.json'}")
     print(f"엔진 위치 확인: python3 {f} engine")

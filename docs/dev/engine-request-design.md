@@ -164,6 +164,8 @@
 
 `studio/watch_engine_requests.py --stream`(Monitor) — 터미널 세션이 큐를 맡는다. 하트비트 `hub/engine/.studio/session.json`(kind=manual, label·pid·cwd·user), 1초마다 쓰고 끝나면 `stopped`. open 요청이 생기거나 바뀌면(`updated` 기준) `{"event":"request","item":{id,title,body,from,evidence,attachments,…},"open":n,"triage":n}`. 웹 엔진 세션(kind=engine)이 살아 있으면 `refused`(web-engine-session), 다른 수동 감시가 살아 있으면 `--takeover`. 허브 `/api/engine`·`/api/engine/notice`·`/api/home(/live)` 는 WS_ENGINE 이 꺼져 있을 때 이 하트비트를 보고 `state=manual` 로 알리며, `EngineProfile.check_start` 가 거절한다. 작업 공간(common)에 묶이지 않도록 `requests_core` 를 쓰지 않는다. 승인(triage→open)은 여전히 관리자가 카드에서 한다.
 
+**열린 세션 연결(2026-10-15, 0.21.12)**: 사용자는 "세션 ID 를 입력해 이미 열린 CLI·VS Code 세션을 직접 연결"을 원했다. 조사 결과 Claude Code 는 밖에서 실행 중인 세션에 입력을 밀어넣는 지원 API 가 없다(`claude --help` 에 send/attach 없음, `claude agents --json` 은 읽기 전용, 세션 간 파이프 `\\.\pipe\LOCAL\cc-msg-*` 는 와이어 형식 비공개·외부 발신은 승인 대기 — 인증+추측 메시지 실험은 무응답). 그래서 **세션 쪽에서 한 줄**로 맡는 슬래시 명령 `/nexa-engine` 을 뒀다 — 엔진 `.claude/commands/nexa-engine.md`(gitignore 에서 `.claude/commands/` 만 추적), 작업 공간은 `init_workspace.ensure_claude_commands`(새 작업 공간·`update_launcher`)가 `nexa.py watch_engine_requests --stream` 을 띄우는 판을 둔다. 카드 ⋯ 상자가 안내한다. 세션 ID 입력 방식은 Claude Code 가 공개 API 를 내놓을 때 다시 본다.
+
 남은 것(E 후속): Studio 요청 탭의 "엔진 요청 #N" 배지와 적용 뒤 원 요청 자동 재개(E-2 일부), 전체 작업 공간 PPTX XML 회귀(검증 ④)를 세션 규약에 자동화, `server-admin.md` 적용 절차(병합+재시작 한 묶음), `mechanism.md` 그림.
 
 ## 11. 검토 기록
