@@ -101,22 +101,24 @@
 
   // ---------- 인라인 강조 ----------
   const MARK = /\*\*(.+?)\*\*|==(.+?)==|\[\[([#\w-]+)\|(.+?)\]\]|__(.+?)__|(?<![\w*])\*([^*\s](?:[^*]*?[^*\s])?)\*(?![\w*])/g;  // **굵게** ==강조== [[색|글]] __밑줄__ *기울임*
-  function runs(text, page) {
+  function runs(text, page, base) {
+    // 강조는 겹쳐 쓸 수 있다 - 안쪽 글을 다시 풀어 바깥 스타일과 합친다(예: [[s1|**굵은 색 글자**]], **[[s1|색]]**). common.runs 와 같은 규칙
     let s = String(text == null ? "" : text);
     if (page != null) s = s.split("{page}").join(String(page));
-    const out = []; let pos = 0, m;
-    MARK.lastIndex = 0;
-    while ((m = MARK.exec(s))) {
-      if (m.index > pos) out.push([s.slice(pos, m.index), {}]);
-      if (m[1] !== undefined) out.push([m[1], { bold: true }]);
-      else if (m[2] !== undefined) out.push([m[2], { bold: true, color: "primary" }]);
-      else if (m[5] !== undefined) out.push([m[5], { underline: true }]);
-      else if (m[6] !== undefined) out.push([m[6], { italic: true }]);
-      else out.push([m[4], { color: m[3] }]);
-      pos = MARK.lastIndex;
+    const b = base || {}, out = [], re = new RegExp(MARK.source, "g");  // 재귀마다 새 정규식(lastIndex 공유 안 함)
+    let pos = 0, m;
+    const push = (t, st) => { for (const r of runs(t, null, { ...b, ...st })) out.push(r); };
+    while ((m = re.exec(s))) {
+      if (m.index > pos) out.push([s.slice(pos, m.index), { ...b }]);
+      if (m[1] !== undefined) push(m[1], { bold: true });
+      else if (m[2] !== undefined) push(m[2], { bold: true, color: "primary" });
+      else if (m[5] !== undefined) push(m[5], { underline: true });
+      else if (m[6] !== undefined) push(m[6], { italic: true });
+      else push(m[4], { color: m[3] });
+      pos = re.lastIndex;
     }
-    if (pos < s.length) out.push([s.slice(pos), {}]);
-    return out.length ? out : [["", {}]];
+    if (pos < s.length) out.push([s.slice(pos), { ...b }]);
+    return out.length ? out : [["", { ...b }]];
   }
   const plain = (s) => runs(s).map((r) => r[0]).join("");
 

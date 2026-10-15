@@ -1,5 +1,10 @@
 # 변경 이력
 
+## 0.22.4 - 2026-10-16 · 인라인 강조 겹치기(엔진 요청 #12)
+
+- `**굵게**`·`==강조==`·`[[토큰|색]]`·`__밑줄__`·`*기울임*` 을 **겹쳐** 쓸 수 있다 — `[[s1|**굵은 색 글자**]]`, `**[[s1|색]]**` 처럼 안쪽 표기를 다시 풀어 바깥 스타일과 합친다(`render.js runs`·`common.runs` 재귀, 같은 규칙). 전에는 안쪽 기호가 글자로 남았다.
+- 시험 `runs_test.py`(run_all `runs`): 겹친 표기 8가지를 Python·render.js 양쪽에서 같은 결과로. 문서 `deck-format.md`.
+
 ## 0.22.3 - 2026-10-16 · 그림 프레임 효과(엔진 요청 #11)
 
 - 그림(`image`) 요소에 **프레임 효과** `effect`(`softEdge` 부드러운 가장자리 · `round` 둥근 모서리 · `circle` 원형 · `frame` 흰 테두리+그림자 · `glow` 빛) 와 `effectLevel`(1~3, 기본 2), `effectColor`(glow 색, 기본 primary). 원본 파일은 바꾸지 않고 속성으로만 적용된다. 편집기(`render.js effectCss`: mask·border-radius·border·box-shadow)와 PPTX(`export_pptx.apply_effect`: `a:softEdge`·`a:glow`·`prstGeom roundRect/ellipse`·`a:ln`+그림자)가 같은 수치(`EFFECT_PX`).

@@ -452,28 +452,33 @@ def radius(value, w, h):
 _MARK = re.compile(r"\*\*(.+?)\*\*|==(.+?)==|\[\[([#\w-]+)\|(.+?)\]\]|__(.+?)__|(?<![\w*])\*([^*\s](?:[^*]*?[^*\s])?)\*(?![\w*])")  # **굵게** ==강조== [[색|글]] __밑줄__ *기울임* (render.js MARK 와 같다)
 
 
-def runs(text, page=None):
-    """'a **b** ==c== [[s1|d]] __u__ *i*' → [(글자, {'bold'|'color'|'underline'|'italic'})] (줄바꿈은 호출자가 먼저 나눈다)."""
+def runs(text, page=None, base=None):
+    """'a **b** ==c== [[s1|d]] __u__ *i*' → [(글자, {'bold'|'color'|'underline'|'italic'})] (줄바꿈은 호출자가 먼저 나눈다).
+    강조는 겹쳐 쓸 수 있다 - 안쪽 글을 다시 풀어 바깥 스타일과 합친다(예: [[s1|**굵은 색 글자**]], **[[s1|색]]**). render.js runs 와 같은 규칙."""
     if page is not None:
         text = text.replace("{page}", str(page))
+    b = dict(base or {})
     out, pos = [], 0
+
+    def push(t, st):
+        out.extend(runs(t, None, {**b, **st}))
     for m in _MARK.finditer(text):
         if m.start() > pos:
-            out.append((text[pos:m.start()], {}))
+            out.append((text[pos:m.start()], dict(b)))
         if m.group(1) is not None:
-            out.append((m.group(1), {"bold": True}))
+            push(m.group(1), {"bold": True})
         elif m.group(2) is not None:
-            out.append((m.group(2), {"bold": True, "color": "primary"}))
+            push(m.group(2), {"bold": True, "color": "primary"})
         elif m.group(5) is not None:
-            out.append((m.group(5), {"underline": True}))
+            push(m.group(5), {"underline": True})
         elif m.group(6) is not None:
-            out.append((m.group(6), {"italic": True}))
+            push(m.group(6), {"italic": True})
         else:
-            out.append((m.group(4), {"color": m.group(3)}))
+            push(m.group(4), {"color": m.group(3)})
         pos = m.end()
     if pos < len(text):
-        out.append((text[pos:], {}))
-    return out or [("", {})]
+        out.append((text[pos:], dict(b)))
+    return out or [("", dict(b))]
 
 
 def plain(text):
