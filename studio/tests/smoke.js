@@ -48,7 +48,7 @@ async function main() {
         if (s.wait) await sleep(s.wait);
         const ok = !err && v !== false;
         if (!ok) fails++;
-        console.log(`${ok ? "OK  " : "FAIL"} ${s.name}${err ? " - " + err : v === false ? "" : typeof v === "string" && v.length < 200 ? " → " + v : ""}`);
+        console.log(`${ok ? "OK  " : "FAIL"} ${s.name}${err ? " - " + err : v === false ? "" : typeof v === "string" && (s.dump || v.length < 200) ? " → " + v : ""}`);
       }
       await sleep(500);
       if (errors.length) { fails++; console.log("FAIL 콘솔 오류:", errors.slice(0, 8)); } else console.log("OK   콘솔 오류 없음");
