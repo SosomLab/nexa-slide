@@ -382,6 +382,8 @@ def table(b, f):
     el = {"type": "table", "x": 64, "y": 180, "w": 1152, "h": sum(rh) if isinstance(rh, list) else rh * len(rows), "rows": rows,
           "colW": f.get("colW", [1] * len(f["header"])), "header": True, "headFill": b.dcc, "headColor": b.dco,
           "size": 16, "rule": "surface-container-high", "colFont": f.get("colFont")}
+    if f.get("font"):  # 본문 셀 글꼴 역할(body·heading·mono) - colFont 가 비어 있는 열에 적용
+        el["font"] = f["font"]
     if isinstance(rh, list):
         el["rowH"] = rh
     b.add(el)

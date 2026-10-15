@@ -24,6 +24,12 @@ BULLET_SAMPLES = [
      "items": ["가\n두 줄", {"text": "나", "sub": ["나-1"]}, "다", "라"]},
     {"type": "bullets", "h": 200, "spread": True, "gap": 20, "items": ["하나"]},
 ]
+# 표 글꼴 역할 예제 - font(본문 셀 기본) · colFont(열별, 빈 값은 font, "code" 는 mono, 모르는 값은 body) · 머리 행은 본문 · header 없는 표
+TABLE_SAMPLES = [
+    {"type": "table", "x": 0, "y": 0, "w": 600, "h": 120, "rows": [["a", "b", "c", "d"], ["1", "2", "3", "4"]], "font": "mono", "colFont": ["body", "", "code", "x"]},
+    {"type": "table", "x": 0, "y": 0, "w": 600, "h": 120, "rows": [["a", "b"], ["1", "2"]], "font": "heading", "header": False},
+    {"type": "table", "x": 0, "y": 0, "w": 600, "h": 120, "rows": [["a", "b"], ["1", "2"]], "colFont": None},
+]
 # 채우기(fill) 예제 - 토큰 · #hex · #hexAA(투명도) · 색+alpha · 그라데이션(각도·정지점 순서·고른 간격·토큰·잘못된 값)
 FILL_SAMPLES = [
     "primary", "#002F7B", "#002F7B80", "#002F7B00", "#12345", "no-such-token", {"color": "primary", "alpha": 0.5}, {"color": "#002F7BFF", "alpha": "0.25"},
@@ -65,7 +71,7 @@ def main():
     ids = sys.argv[1:] or [p.stem for p in DECKS.glob("*.json") if not p.name.endswith(".requests.json")]
     # 언어별 하이라이트 예제(tests/fixtures/code_samples.json - 35개 언어·별칭·줄 번호 끔·이모지)
     extra = STUDIO.parent / "tests" / "fixtures" / "code_samples.json"
-    code, texts, plans, tables = list(SAMPLES) + (json.loads(extra.read_text(encoding="utf-8")) if extra.is_file() else []), [], [], []
+    code, texts, plans, tables = list(SAMPLES) + (json.loads(extra.read_text(encoding="utf-8")) if extra.is_file() else []), [], [], list(TABLE_SAMPLES)
     bullets = list(BULLET_SAMPLES)
     for i in ids:
         for s in json.loads((DECKS / f"{i}.json").read_text(encoding="utf-8"))["slides"]:
