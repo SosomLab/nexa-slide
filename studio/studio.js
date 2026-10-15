@@ -780,7 +780,7 @@
     if (hasFill(el)) h += vsep + sw("fill", "🪣", "채우기", el.fill);
     if (hasStroke(el)) h += sw("stroke", "▢", "테두리", el.stroke);
     if (t === "icon") h += vsep + sw("fill", "🎨", "아이콘 색", el.fill) + sw("color", "◐", "대비 색(안쪽 무늬)", el.color);
-    if (t === "image") h += `${vsep}<input class="num" type="number" min="0" max="100" step="5" data-f="opacity" value="${Math.round((el.opacity == null ? 1 : el.opacity) * 100)}" title="투명도 % (100 = 그대로)" style="width:58px"><span class="pt" style="min-width:0">%</span><button class="ib${el.crop && el.crop.some((v) => v) ? " on" : ""}" data-f="crop" title="자르기 % - 왼쪽·위·오른쪽·아래">✂ ▾</button><button class="ib" data-f="imgpick" title="그림 바꾸기 - 새 그림 파일을 올려 이 자리에(폭 유지, 높이는 비율로)">🖼</button>${el.mermaid != null ? `<button class="ib" data-f="mermaid" title="다이어그램 코드 수정 (mermaid)">⌘</button>` : ""}`;
+    if (t === "image") h += `${vsep}<input class="num" type="number" min="0" max="100" step="5" data-f="opacity" value="${Math.round((el.opacity == null ? 1 : el.opacity) * 100)}" title="투명도 % (100 = 그대로)" style="width:58px"><span class="pt" style="min-width:0">%</span><button class="ib${el.crop && el.crop.some((v) => v) ? " on" : ""}" data-f="crop" title="자르기 % - 왼쪽·위·오른쪽·아래">✂ ▾</button>${sel("effect", "프레임 효과 - 원본은 그대로", EFFECTS, el.effect || "")}<button class="ib" data-f="imgpick" title="그림 바꾸기 - 새 그림 파일을 올려 이 자리에(폭 유지, 높이는 비율로)">🖼</button>${el.mermaid != null ? `<button class="ib" data-f="mermaid" title="다이어그램 코드 수정 (mermaid)">⌘</button>` : ""}`;
     if (t === "group") h += `${vsep}<button class="ib" data-f="ungroup" title="묶음 풀기 (Ctrl+Shift+G) - 자식 ${(el.children || []).length}개를 낱개로">⧈ 풀기</button>`;
     if (isLine(el)) {
       h += `<button class="ib" data-f="color" title="선 색">━<span class="sw" style="background:${swatch(el.color || "on-surface")}"></span></button>
@@ -912,7 +912,7 @@
       if (f === "size") mutate((x) => { x.size = Math.max(6, Math.min(400, +t.value || defSize(x))); }, (x) => SIZED.has(x.type));
       if (f === "width") mutate((x) => { x.width = +t.value || 2; }, isLine);
       if (f === "font") mutate((x) => { if (t.value === "body") delete x.font; else x.font = t.value; }, (x) => TEXTY.has(x.type) || x.type === "table" || x.type === "bullets");
-      if (f === "shape" || f === "chart" || f === "icon") mutate((x) => setProp(x, f, t.value), same);
+      if (f === "shape" || f === "chart" || f === "icon" || f === "effect") mutate((x) => setProp(x, f, t.value), same);
       if (f === "opacity") { const o = Math.max(0, Math.min(100, +t.value || 0)) / 100; mutate((x) => { if (o < 1) x.opacity = o; else delete x.opacity; }, (x) => x.type === "image"); }
       return;
     }
@@ -1192,7 +1192,8 @@ ${names}
     if (el.type === "group") h += `<div class="sec"><h3>묶음 (${(el.children || []).length}개)</h3><div class="row"><button class="chip sm" data-act="ungroup" title="자식을 낱개로 되돌립니다 (Ctrl+Shift+G)">묶음 풀기</button><span class="hint" style="margin:0">${(el.children || []).map((c) => TYPE_KO[c.type] || c.type).join(" · ")}</span></div><div class="hint">자식은 묶음 상자 기준 좌표. 크기를 바꾸면 자식 위치·크기가 비율로 따라간다. 두 번 클릭 편집은 풀어서.</div></div>`;
     if (el.type === "image") h += `<div class="sec"><h3>그림</h3><div class="row"><label>경로</label><input type="text" data-k="src" value="${esc(el.src)}"></div>
         <div class="row"><label>자르기 %</label>${["l", "t", "r", "b"].map((k, i) => `<input type="number" min="0" max="95" step="1" data-crop="${i}" value="${Math.round(((el.crop || [0, 0, 0, 0])[i] || 0) * 100)}" title="${["왼쪽", "위", "오른쪽", "아래"][i]}" style="width:52px">`).join("")}</div>
-        <div class="row"><label>투명도 %</label><input type="number" min="0" max="100" step="5" data-opacity="1" value="${Math.round((el.opacity == null ? 1 : el.opacity) * 100)}" title="100 = 그대로" style="width:70px">${seg("그림자", "shadow", { shadow: el.shadow ? "on" : "off" }, [["off", "없음"], ["on", "있음"]], "off").replace('<div class="row">', '<span class="row" style="margin:0">').replace(/<\/div>$/, "</span>")}</div><div class="row"><button class="chip sm" data-imgpick="1" title="새 그림 파일을 올려 이 자리에 바꿔 넣습니다(폭 유지, 높이는 비율로)">그림 바꾸기…</button>${el.mermaid != null ? `<button class="chip sm" data-mermaid="1" title="mermaid 코드를 고쳐 다시 그립니다(폭 유지)">다이어그램 코드 수정…</button>` : ""}<span class="hint" style="margin:0">assetRoot 기준 경로 · 모서리 핸들은 비율 유지</span></div></div>`;
+        <div class="row"><label>투명도 %</label><input type="number" min="0" max="100" step="5" data-opacity="1" value="${Math.round((el.opacity == null ? 1 : el.opacity) * 100)}" title="100 = 그대로" style="width:70px">${seg("그림자", "shadow", { shadow: el.shadow ? "on" : "off" }, [["off", "없음"], ["on", "있음"]], "off").replace('<div class="row">', '<span class="row" style="margin:0">').replace(/<\/div>$/, "</span>")}</div><div class="row"><label>효과</label><select data-k="effect" title="프레임 효과 - 원본 파일은 그대로 두고 속성으로만 적용(PPTX 도 같은 효과)">${EFFECTS.map(([k, l]) => `<option value="${k}"${(el.effect || "") === k ? " selected" : ""}>${l}</option>`).join("")}</select>${el.effect ? seg("수준", "effectLevel", { effectLevel: String(el.effectLevel || 2) }, [["1", "약"], ["2", "중"], ["3", "강"]], "2").replace('<div class="row">', '<span class="row" style="margin:0 0 0 6px">').replace(/<\/div>$/, "</span>") : ""}</div>
+        <div class="row"><button class="chip sm" data-imgpick="1" title="새 그림 파일을 올려 이 자리에 바꿔 넣습니다(폭 유지, 높이는 비율로)">그림 바꾸기…</button>${el.mermaid != null ? `<button class="chip sm" data-mermaid="1" title="mermaid 코드를 고쳐 다시 그립니다(폭 유지)">다이어그램 코드 수정…</button>` : ""}<span class="hint" style="margin:0">assetRoot 기준 경로 · 모서리 핸들은 비율 유지</span></div></div>`;
     if (isLine(el)) h += `<div class="sec"><h3>선</h3>${colorRow("색", "color", el)}${num("두께(px)", "width", el, 0.5)}
         ${seg("머리", "head", el, [["none", "없음"], ["end", "끝"], ["start", "시작"], ["both", "양쪽"]], el.type === "arrow" ? "end" : "none")}
         ${seg("점선", "dash", el, [["solid", "실선"], ["dash", "파선"], ["dot", "점선"]], "solid")}</div>`;
@@ -1244,7 +1245,7 @@ ${names}
     toast(`클립보드에 복사했습니다 (${t.split("\n").length}줄)`);
   }
   function setProp(el, k, v) {
-    if (["x", "y", "w", "h", "x1", "y1", "x2", "y2", "size", "subSize", "lineHeight", "width", "gap", "start", "rot"].includes(k)) { if (v === "" || v == null || (k === "rot" && +v === 0)) delete el[k]; else el[k] = +v; }
+    if (["x", "y", "w", "h", "x1", "y1", "x2", "y2", "size", "subSize", "lineHeight", "width", "gap", "start", "rot", "effectLevel"].includes(k)) { if (v === "" || v == null || (k === "rot" && +v === 0)) delete el[k]; else el[k] = +v; }
     else if (k === "locked") { if (v) el.locked = true; else delete el.locked; }
     else if (k === "bold") el.bold = v === "1";
     else if (k === "autoNum") { if (v === "off") el.autoNum = false; else delete el.autoNum; }  // 글 앞 번호·기호 감지(기본 켬)
@@ -1255,7 +1256,7 @@ ${names}
     else if (k === "axisMax") { if (v === "" || v == null || +v <= 0) delete el.axisMax; else el.axisMax = +v; }
     else if (k === "title") { const t = String(v || "").trim(); if (t) el.title = t; else delete el.title; }
     else if (k === "link") { const t = String(v || "").trim(); if (t) el.link = t; else delete el.link; }
-    else if (v === "" && ["fill", "stroke", "radius"].includes(k)) delete el[k];
+    else if (v === "" && ["fill", "stroke", "radius", "effect"].includes(k)) delete el[k];
     else el[k] = v;
     if (isLine(el)) Object.assign(el, Render.lineBox(el));
   }
@@ -2039,6 +2040,7 @@ ${names}
     setSelection(ids); afterChange();
   }
   // ---- 그림 삽입: 파일 고르기(＋ 추가 → 그림 파일…) · 편집기에서 Ctrl+V(클립보드 그림) · 캔버스에 끌어다 놓기 → /api/image(작업 공간 assets/images/) → image 요소
+  const EFFECTS = [["", "없음"], ["softEdge", "부드러운 가장자리"], ["round", "둥근 모서리"], ["circle", "원형"], ["frame", "액자(흰 테두리·그림자)"], ["glow", "빛(글로우)"]];  // render.js effectCss · export_pptx.apply_effect
   const IMG_MAX = [640, 400];  // 처음 넣을 때 최대 크기(비율 유지) - 큰 사진이 슬라이드를 덮지 않게
   function imageSize(dataUrl) { return new Promise((res) => { const im = new Image(); im.onload = () => res([im.naturalWidth || 1, im.naturalHeight || 1]); im.onerror = () => res([320, 200]); im.src = dataUrl; }); }
   async function addImageFiles(files, at) {

@@ -1,5 +1,10 @@
 # 변경 이력
 
+## 0.22.3 - 2026-10-16 · 그림 프레임 효과(엔진 요청 #11)
+
+- 그림(`image`) 요소에 **프레임 효과** `effect`(`softEdge` 부드러운 가장자리 · `round` 둥근 모서리 · `circle` 원형 · `frame` 흰 테두리+그림자 · `glow` 빛) 와 `effectLevel`(1~3, 기본 2), `effectColor`(glow 색, 기본 primary). 원본 파일은 바꾸지 않고 속성으로만 적용된다. 편집기(`render.js effectCss`: mask·border-radius·border·box-shadow)와 PPTX(`export_pptx.apply_effect`: `a:softEdge`·`a:glow`·`prstGeom roundRect/ellipse`·`a:ln`+그림자)가 같은 수치(`EFFECT_PX`).
+- 속성 탭 "효과" 선택 상자 + 수준 세그, 서식 줄의 그림 효과 선택 상자. 시험 `effect_test.py`(run_all `effect`)·`ftb_test` 단계. 문서 `deck-format.md`·`editor.md`(오래된 "회전·그림자·투명도 미지원" 한계 문구도 고침).
+
 ## 0.22.2 - 2026-10-16 · PPT 줄 배치 보정을 글꼴 메트릭으로 자동 계산(엔진 요청 #10)
 
 - **문제**: 편집기의 세로 보정 `pptTextShift` 가 맑은 고딕·Consolas 에서 잰 상수였고 `measuredFor` 가 맞을 때만 적용돼, 기본 세트(Pretendard)·KoPub 등 다른 글꼴에서는 보정이 전혀 없었다 — 타원·상자의 글이 PowerPoint 보다 줄 높이 1.0 에서 2~4px 위, 1.6 에서 4~8px 아래로 어긋남(가정형호스피스 로마자 원, KoPub Bold 28px lineHeight 1).

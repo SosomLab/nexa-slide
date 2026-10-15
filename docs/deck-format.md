@@ -24,7 +24,7 @@
 | `ellipse` | `fill`, `stroke`, (선택) `text`·글자 필드 | 타원 |
 | `pill` | `fill`, `color`, `text`, `size`, `bold`(기본 굵게) | 둥근 사각형(반경 = 높이/2) + 가운데 글자 |
 | `text` | `text`, `size`, `bold`, `color`, `align`(left/center/right), `valign`(top/middle/bottom), `font`(body/heading/mono — `code` 는 mono 로 받음), `lineHeight`, `wrap`, (선택) `fill`·`radius`·`pad`[위,오,아,왼] | 글상자(자동 맞춤 끔, 여백 0) / fill 이 있으면 글자 있는 도형 |
-| `image` | `src`(`assetRoot` 기준 경로) | 그림 |
+| `image` | `src`(`assetRoot` 기준 경로) · `crop`·`opacity` · `effect`(`softEdge`·`round`·`circle`·`frame`·`glow`) + `effectLevel`(1~3, 기본 2) + `effectColor`(glow 색, 기본 primary) - 프레임 효과는 원본 파일을 바꾸지 않는다 | 그림 |
 | `line`·`arrow` | `x1`,`y1`,`x2`,`y2`, `color`, `width`, `head`(none/end/start/both), `dash`(solid/dash/dot) | 연결선 + 화살 머리(XML tailEnd/headEnd, lg) |
 | `curve` | `points`(요소 상자 기준 [[x,y],…]), `color`, `width`, `head`(end/none) | 자유형 꺾은선(채우기 없음) + 끝 화살 머리 — 반원 되돌이 화살표 등 |
 | `table` | `rows`(2차원, 첫 행 머리), `colW`(비율), (선택) `rowH`(행별 비율 - 머리 행부터, `h` 에 맞춰 나눔. 합을 `h` 와 같게 두면 px 그대로. 없으면 고르게), `header`, `headFill`, `headColor`, `size`, `font`(본문 셀 글꼴 역할 body/heading/mono, 기본 body), `colFont`(열별 역할 배열 `["body", "mono", …]` — 값은 `font` 와 같은 body/heading/mono, `code` 는 mono 로 받음, 빈 문자열·null·모자란 열은 `font`. 머리 행은 항상 본문 글꼴), `align`, `rule` | 표(스타일 없음, 머리 행 채우기, 본문 행 아래 선) · 행 높이 = `rowH` |
