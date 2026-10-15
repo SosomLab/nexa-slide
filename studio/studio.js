@@ -1038,19 +1038,21 @@ ${names}
 설치하고 계속할까요?`)) doExport(true, true);
       return;
     }
-    const fn = embed ? `${S.id}-fonts.pptx` : `${S.id}.pptx`;
+    const fn = (r.ok && r.data.name) || exportName(embed ? "-fonts.pptx" : ".pptx");  // 받는 파일 이름은 덱 제목(서버가 정한 이름 우선)
     if (r.ok) {
       const a = $("#dl"); a.href = BASE + r.data.url; a.setAttribute("download", fn); a.style.display = ""; a.textContent = `⬇ ${fn}`;
       toast(embed ? `글꼴을 넣은 PPTX 를 만들었습니다 - 글꼴 ${(r.data.typefaces || []).join(", ")} · ${r.data.sizeKB}KB` : "PPTX 를 만들었습니다 - ⬇ 로 받기 (쓴 글꼴은 out/" + S.id + ".fonts.json 에 기록)", 5000);
     }
     else toast("내보내기 실패: " + (r.data && (r.data.error + " " + (r.data.log || "")) || r.status), 6000);
   }
+  /** 내보내기 파일 이름 = 덱 제목(파일 이름에 못 쓰는 글자는 공백으로) + 꼬리 - 저장 자체는 out/<id>… 이고 받을 때 이 이름이 된다(server.export_name 과 같은 규칙) */
+  const exportName = (suffix) => ((S.deck && S.deck.title) || S.id).replace(/[\/:*?"<>|\u0000-\u001f]+/g, " ").replace(/\s+/g, " ").trim().slice(0, 120) + suffix;
   async function doExportPdf() {
     const b = $("#exportBtn"); b.disabled = true; b.innerHTML = `<span class="spin"></span> PDF 만드는 중`;
     if (S.dirty) await save();
     const r = await api("POST", `/api/export/${S.id}?pdf=1`);
     b.disabled = false; b.textContent = "내보내기 ▾";
-    if (r.ok) { const a = $("#dl"); a.href = BASE + r.data.url; a.setAttribute("download", `${S.id}.pdf`); a.style.display = ""; a.textContent = `⬇ ${S.id}.pdf`; toast(`PDF 를 만들었습니다(${r.data.via === "powerpoint" ? "PowerPoint" : "Chrome"}) - ⬇ 로 받기`, 5000); }
+    if (r.ok) { const fn = r.data.name || exportName(".pdf"); const a = $("#dl"); a.href = BASE + r.data.url; a.setAttribute("download", fn); a.style.display = ""; a.textContent = `⬇ ${fn}`; toast(`PDF 를 만들었습니다(${r.data.via === "powerpoint" ? "PowerPoint" : "Chrome"}) - ⬇ 로 받기`, 5000); }
     else toast("PDF 내보내기 실패: " + (r.data && (r.data.error + " " + (r.data.log || "")) || r.status), 8000);
   }
   function exportMenu(btn) {
