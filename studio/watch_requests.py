@@ -95,7 +95,10 @@ def main():
         while True:
             if a.stream and sw is not None and sw.closed():  # Monitor 를 건 세션이 닫혔다(몇 초 연속 + 실제 쓰기 실패로 확인) - 고아로 남지 않게 끝낸다
                 return
-            heartbeat(hb)
+            try:
+                heartbeat(hb)
+            except OSError as e:  # 하트비트 한 번 못 써도 감시는 계속
+                print(f"하트비트 쓰기 실패(계속): {e}", file=sys.stderr, flush=True)
             batch, reason = tracker.poll()
             if batch:
                 if a.stream:
@@ -109,8 +112,10 @@ def main():
                                  ensure_ascii=False), flush=True)
                 return
             time.sleep(a.interval)
-    except (KeyboardInterrupt, BrokenPipeError, OSError):
+    except KeyboardInterrupt:
         pass
+    except (BrokenPipeError, OSError) as e:
+        print(f"감시 종료(출력 오류): {e}", file=sys.stderr, flush=True)
     finally:
         heartbeat(hb, stopped=True)
 

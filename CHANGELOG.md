@@ -1,5 +1,11 @@
 # 변경 이력
 
+## 0.21.25 - 2026-10-15 · 밑줄·기울임 · 회전·뒤집기 · 감시 하트비트 쓰기 재시도
+
+- 인라인 강조에 **`__밑줄__`**·**`*기울임*`** 추가(편집기·PPTX 동일, `runs()` 양쪽 — 표 셀·글머리·도형 글 포함). `docs/deck-format.md`.
+- 요소 **회전·뒤집기**: `rot`(도, 시계 방향, 중심 기준)·`flipH`·`flipV` — 편집기는 CSS transform(뒤집은 뒤 회전), PPTX 는 `a:xfrm` rot·flipH·flipV(PowerPoint 와 같은 뜻). 속성 "위치·크기" 아래 회전 칸과 ⇋ 좌우·⇅ 상하 단추(text·pill·rect·ellipse·shape·image).
+- 수동 감시(`watch_engine_requests`·`watch_requests`)의 하트비트 쓰기가 Windows 파일 공유 충돌(허브가 읽는 순간 `PermissionError`)로 조용히 끝나던 것 — 바꿔치기를 잠깐 뒤 다시(최대 10회), 한 번 실패해도 감시는 계속, 출력 오류로 끝날 때는 stderr 에 이유를 남긴다.
+
 ## 0.21.24 - 2026-10-15 · 표 행·열 단추 · 글머리 감지 스위치 · import_pptx 도형·글머리 · 적용 커밋 필드
 
 - 편집기 표 속성 **＋행 −행 ＋열 −열**(머리 행·첫 열은 남김, `colW`·`colFont` 같이 맞춤). 글머리 속성 **글 앞 번호·기호 감지 켬/끔**(`autoNum`).

@@ -29,6 +29,12 @@ def _beat(hb, stopped=False):
     q.HEARTBEAT.parent.mkdir(parents=True, exist_ok=True)
     tmp = q.HEARTBEAT.with_name(q.HEARTBEAT.name + f".{os.getpid()}.tmp")
     tmp.write_text(json.dumps({**hb, "ts": time.time(), "last_seen": time.strftime("%Y-%m-%dT%H:%M:%S"), **({"stopped": True} if stopped else {})}, ensure_ascii=False), encoding="utf-8")
+    for _ in range(10):  # Windows 는 허브가 읽는 순간 바꿔치기가 PermissionError - 잠깐 뒤 다시
+        try:
+            os.replace(tmp, q.HEARTBEAT)
+            return
+        except PermissionError:
+            time.sleep(0.03)
     os.replace(tmp, q.HEARTBEAT)
 
 
@@ -77,7 +83,10 @@ def main():
         while True:
             if sw.closed():  # Monitor 를 건 세션이 닫혔다(몇 초 연속 + 실제 쓰기 실패로 확인) - 고아로 남지 않게 끝낸다(finally 가 stopped 를 쓴다)
                 return 0
-            _beat(hb)
+            try:
+                _beat(hb)
+            except OSError as e:  # 하트비트 한 번 못 써도 감시는 계속(다음 초에 다시)
+                print(f"하트비트 쓰기 실패(계속): {e}", file=sys.stderr, flush=True)
             c = q.counts()
             fresh = []
             for x in q.load():
@@ -96,7 +105,10 @@ def main():
                 print(json.dumps({"event": "expired", "ttl": ttl, "hint": "다시 실행하면 이어진다"}, ensure_ascii=False), flush=True)
                 return 0
             time.sleep(INTERVAL)
-    except (KeyboardInterrupt, BrokenPipeError, OSError):
+    except KeyboardInterrupt:
+        return 0
+    except (BrokenPipeError, OSError) as e:  # 표준 출력(Monitor 파이프)이 끊긴 것 - 조용히 끝내되 이유는 stderr 에
+        print(f"감시 종료(출력 오류): {e}", file=sys.stderr, flush=True)
         return 0
     finally:
         try:

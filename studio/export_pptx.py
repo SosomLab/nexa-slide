@@ -54,7 +54,7 @@ def fonts_of(key):
     return f["latin"], f["ea"]
 
 
-def set_run(r, text, size, bold=False, col="#000000", font="body", highlight=None, italic=False):
+def set_run(r, text, size, bold=False, col="#000000", font="body", highlight=None, italic=False, underline=False):
     """run 서식을 XML로 직접 쓴다(순서: solidFill → highlight → latin → ea → cs)."""
     r.text = text
     rPr = r._r.get_or_add_rPr()
@@ -65,6 +65,8 @@ def set_run(r, text, size, bold=False, col="#000000", font="body", highlight=Non
     rPr.set("sz", str(hpt(size)))
     rPr.set("b", "1" if bold else "0")
     rPr.set("i", "1" if italic else "0")
+    if underline:
+        rPr.set("u", "sng")
     rPr.set("dirty", "0")
     sf = etree.SubElement(rPr, qn("a:solidFill"))
     rgb_el(sf, col or "#000000")
@@ -124,7 +126,7 @@ def fill_markup_text(tf, el, page, default_color="on-surface"):
         para_fmt(p, size, lh, el.get("align", "center" if el["type"] in ("pill", "ellipse") else "left"))
         for t, st in runs(line, page):
             if t:
-                set_run(p.add_run(), t, size, st.get("bold", bold), color(st.get("color")) if st.get("color") else base, font)
+                set_run(p.add_run(), t, size, st.get("bold", bold), color(st.get("color")) if st.get("color") else base, font, italic=st.get("italic", False), underline=st.get("underline", False))
         end_para(p, size)
 
 
@@ -242,6 +244,27 @@ def do_shape(slide, el, page):
     return shp
 
 
+def apply_xfrm(shp, el):
+    """요소의 rot(도, 시계 방향)·flipH·flipV 를 도형 xfrm 에(선·표는 제외). render.js 는 같은 값을 CSS transform 으로 그린다."""
+    if el.get("type") in ("line", "arrow", "curve", "table", "plan-table") or not (el.get("rot") or el.get("flipH") or el.get("flipV")):
+        return
+    try:
+        xfrm = shp._element.find(f".//{{{NS_A}}}xfrm")
+    except Exception:  # noqa: BLE001
+        return
+    if xfrm is None:
+        return
+    if el.get("rot"):
+        xfrm.set("rot", str(int(round(float(el["rot"]) * 60000))))
+    if el.get("flipH"):
+        xfrm.set("flipH", "1")
+    if el.get("flipV"):
+        xfrm.set("flipV", "1")
+
+
+NS_A = "http://schemas.openxmlformats.org/drawingml/2006/main"
+
+
 def do_image(slide, el, page):
     p = REPO / el["src"]
     if not p.exists():
@@ -338,7 +361,7 @@ def do_table(slide, el, page):
             for t, st in runs(c["text"], page):
                 if t:
                     set_run(p.add_run(), t, size, st.get("bold", c["bold"]),
-                            color(st.get("color") or c["color"]), c["font"])
+                            color(st.get("color") or c["color"]), c["font"], italic=st.get("italic", False), underline=st.get("underline", False))
             end_para(p, size)
             tcPr = cell._tc.get_or_add_tcPr()
             for ch in list(tcPr):
@@ -482,7 +505,7 @@ def do_bullets(slide, el, page):
             etree.SubElement(pPr, qn("a:buChar")).set("char", "●" if lvl == 0 else "–")
         for tt, st in runs(t, page):
             if tt:
-                set_run(p.add_run(), tt, sz, st.get("bold", False), color(st.get("color")) if st.get("color") else base, "body")
+                set_run(p.add_run(), tt, sz, st.get("bold", False), color(st.get("color")) if st.get("color") else base, "body", italic=st.get("italic", False), underline=st.get("underline", False))
         end_para(p, sz)
     return shp
 
@@ -511,6 +534,7 @@ def export(deck, out):
             res = h(slide, el, n)
             for shp in (res if isinstance(res, list) else [res]):
                 if shp is not None:
+                    apply_xfrm(shp, el)
                     shp.name = f"{el.get('id')} {el.get('type')}"
         if s.get("notes"):
             slide.notes_slide.notes_text_frame.text = s["notes"]

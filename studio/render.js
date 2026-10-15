@@ -106,7 +106,7 @@
   const font = (k) => { const fs = FO || (T && T.fonts), r = fontRole(k); return (fs && (fs[r] || fs.body) ? (fs[r] || fs.body).css : "'Malgun Gothic', sans-serif").replace(/"/g, "'"); };
 
   // ---------- 인라인 강조 ----------
-  const MARK = /\*\*(.+?)\*\*|==(.+?)==|\[\[([#\w-]+)\|(.+?)\]\]/g;
+  const MARK = /\*\*(.+?)\*\*|==(.+?)==|\[\[([#\w-]+)\|(.+?)\]\]|__(.+?)__|(?<![\w*])\*([^*\s](?:[^*]*?[^*\s])?)\*(?![\w*])/g;  // **굵게** ==강조== [[색|글]] __밑줄__ *기울임*
   function runs(text, page) {
     let s = String(text == null ? "" : text);
     if (page != null) s = s.split("{page}").join(String(page));
@@ -116,6 +116,8 @@
       if (m.index > pos) out.push([s.slice(pos, m.index), {}]);
       if (m[1] !== undefined) out.push([m[1], { bold: true }]);
       else if (m[2] !== undefined) out.push([m[2], { bold: true, color: "primary" }]);
+      else if (m[5] !== undefined) out.push([m[5], { underline: true }]);
+      else if (m[6] !== undefined) out.push([m[6], { italic: true }]);
       else out.push([m[4], { color: m[3] }]);
       pos = MARK.lastIndex;
     }
@@ -445,7 +447,7 @@
       if (!t) return "";
       const c = st.color ? color(st.color) : base;
       const b = st.bold !== undefined ? st.bold : bold;
-      return `<span style="color:${c};font-weight:${b ? 700 : 400}">${esc(t)}</span>`;
+      return `<span style="color:${c};font-weight:${b ? 700 : 400}${st.italic ? ";font-style:italic" : ""}${st.underline ? ";text-decoration:underline" : ""}">${esc(t)}</span>`;
     }).join("");
   }
   function padOf(el, d) {
@@ -674,6 +676,7 @@
     return { ...el, x: Math.min(el.x1, el.x2), y: Math.min(el.y1, el.y2), w: Math.abs(el.x2 - el.x1), h: Math.abs(el.y2 - el.y1) };
   }
 
+  const isLineType = (t) => t === "line" || t === "arrow" || t === "curve";
   function renderElement(el0, page) {
     const el = (el0.type === "line" || el0.type === "arrow") ? lineBox(el0) : el0;
     let inner = "";
@@ -689,7 +692,8 @@
       case "bullets": inner = elBullets(el, page); break;
       default: inner = `<div class="rs-box" style="outline:1px dashed red">? ${esc(el.type)}</div>`;
     }
-    return `<div class="rs-el" data-id="${esc(el.id)}" data-type="${esc(el.type)}" style="left:${el.x}px;top:${el.y}px;width:${el.w}px;height:${el.h}px">${inner}</div>`;
+    const xf = !isLineType(el.type) && (el.rot || el.flipH || el.flipV) ? `;transform:${el.rot ? `rotate(${+el.rot}deg) ` : ""}${el.flipH ? "scaleX(-1) " : ""}${el.flipV ? "scaleY(-1)" : ""};transform-origin:center center` : "";  // PPT 처럼 중심 기준 - 뒤집은 뒤 회전
+    return `<div class="rs-el" data-id="${esc(el.id)}" data-type="${esc(el.type)}"${el.flipH && !isLineType(el.type) ? ' data-fliph="1"' : ""} style="left:${el.x}px;top:${el.y}px;width:${el.w}px;height:${el.h}px${xf}">${inner}</div>`;  // 좌우 뒤집기는 글은 읽히게(PowerPoint 와 같다) - css 의 [data-fliph] .rs-box
   }
 
   function sorted(els) {
@@ -708,7 +712,7 @@
     const vars = T ? Object.keys(T.colors).map((k) => `--${k}:${color(k)};`).join("") : "";
     return `:root{${vars}}
 .rs-slide{position:relative;width:1280px;height:720px;overflow:hidden;font-family:${font("body")};color:${color("on-surface")};-webkit-font-smoothing:antialiased;text-rendering:geometricPrecision;font-kerning:none;font-variant-ligatures:none}
-.rs-el{position:absolute;box-sizing:border-box}
+.rs-el{position:absolute;box-sizing:border-box}.rs-el[data-fliph] .rs-box{transform:scaleX(-1)}
 .rs-box{position:absolute;inset:0;box-sizing:border-box;display:flex;flex-direction:column;overflow:visible}
 .rs-p{white-space:pre-wrap;word-break:keep-all;overflow-wrap:break-word;margin:0;flex:none}
 .rs-nw{display:flex;white-space:pre;align-items:center}
