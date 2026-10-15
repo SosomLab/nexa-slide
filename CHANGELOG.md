@@ -6,6 +6,7 @@
 - 작업 공간 서버 **`GET/POST /api/tidy`**(허브 관리자 중계 또는 로컬 직접 접속) · 시작 페이지 카드 **🧹 정리·보관 창**(범주 체크·목록·[고른 범주 정리]·[비우기]·[zip 으로 보관]).
 - 원인 쪽: 요청 `discard`·`update` 가 첨부 파일을 지우고, 엔진 요청 `remove` 가 `attach/<id>/` 를 지운다. 허브 `GET/POST /api/engine/tidy`(관리자) - 큐에 없는 요청의 첨부·하루 넘은 `_new/` 파일.
 - 시험 `studio/tests/tidy_test.py`(run_all `tidy`). 문서 `docs/home.md` "작업 공간 관리", `docs/dev/tests.md`.
+- 시험 기반: `smoke.js` 가 페이지 이동 뒤 문서·편집기 슬라이드가 그려질 때까지 기다린다(묶음 실행에서 `tbl_test` 가 가끔 너무 일찍 돌던 것) · `smoke_run.py` 단독 실행 시 `tempfile` 누락 수정 · 엔진 갱신 표식(`ENGINE_UI`)에 언어 파일(`en.js`·`en.pages.js`·`en.review.js`) 포함.
 
 ## 0.21.42 - 2026-10-15 · 다국어 체계 - 언어 파일 분리(`studio/i18n/en.js`) · 검사·스캔 도구 · 설계 문서
 

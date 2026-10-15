@@ -32,7 +32,17 @@ async function main() {
       return r.result.result.value;
     };
     await send("Runtime.enable"); await send("Log.enable"); await send("Page.enable");
-    const nav = async (url) => { await send("Page.navigate", { url }); await sleep(1500); };
+    // 이동 뒤 문서가 다 읽히고(readyState) 편집기면 슬라이드가 그려질 때까지 기다린다(부하가 큰 묶음 실행에서 첫 단계가 너무 일찍 돌던 것) - 최대 20초
+    const nav = async (url) => {
+      await send("Page.navigate", { url }); await sleep(800);
+      for (let i = 0; i < 40; i++) {
+        let ready = false;
+        try { ready = await evalJs(`document.readyState === "complete" && (!document.querySelector("#host") || !!document.querySelector("#host .rs-slide, #host .empty, #host .rs-el"))`); } catch (e) { ready = false; }
+        if (ready) break;
+        await sleep(500);
+      }
+      await sleep(700);
+    };
     if (sc.login) {
       await nav(sc.base + "/login");
       const ok = await evalJs(`(await fetch("/api/auth/login", {method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify(${JSON.stringify(sc.login)})})).ok`);
