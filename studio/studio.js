@@ -728,8 +728,8 @@
 
   // ---------------------------------------------------------------- 서식 도구줄(편집 모드 · 요소 선택)
   const TEXTY = new Set(["text", "pill", "rect", "ellipse", "shape"]);
-  const SIZED = new Set(["text", "pill", "rect", "ellipse", "shape", "bullets", "table", "plan-table", "code", "plan"]);
-  const TYPE_KO = { text: "글자", pill: "칩", rect: "상자", ellipse: "원", image: "그림", line: "선", arrow: "화살표", table: "표", "plan-table": "실행계획 표", code: "코드", plan: "실행계획", bullets: "글머리", curve: "곡선", shape: "도형", group: "묶음" };
+  const SIZED = new Set(["text", "pill", "rect", "ellipse", "shape", "bullets", "table", "plan-table", "code", "plan", "chart"]);
+  const TYPE_KO = { text: "글자", pill: "칩", rect: "상자", ellipse: "원", image: "그림", line: "선", arrow: "화살표", table: "표", "plan-table": "실행계획 표", code: "코드", plan: "실행계획", bullets: "글머리", curve: "곡선", shape: "도형", group: "묶음", chart: "차트" };
   const SIZE_PRESETS = [10, 11, 12, 13, 14, 15, 16, 17, 18, 20, 22, 24, 28, 32, 36, 40, 48, 60, 72];
   function defSize(el) { return { pill: 14, code: 15, plan: 14, "plan-table": 15, table: 16 }[el.type] || 20; }
   function swatch(v) { return v ? Render.fillCss(v) : "transparent"; }  // 토큰·#hex(투명도)·그라데이션 객체 모두
@@ -965,10 +965,19 @@ ${names}
     }
     else toast("내보내기 실패: " + (r.data && (r.data.error + " " + (r.data.log || "")) || r.status), 6000);
   }
+  async function doExportPdf() {
+    const b = $("#exportBtn"); b.disabled = true; b.innerHTML = `<span class="spin"></span> PDF 만드는 중`;
+    if (S.dirty) await save();
+    const r = await api("POST", `/api/export/${S.id}?pdf=1`);
+    b.disabled = false; b.textContent = "내보내기 ▾";
+    if (r.ok) { const a = $("#dl"); a.href = BASE + r.data.url; a.setAttribute("download", `${S.id}.pdf`); a.style.display = ""; a.textContent = `⬇ ${S.id}.pdf`; toast(`PDF 를 만들었습니다(${r.data.via === "powerpoint" ? "PowerPoint" : "Chrome"}) - ⬇ 로 받기`, 5000); }
+    else toast("PDF 내보내기 실패: " + (r.data && (r.data.error + " " + (r.data.log || "")) || r.status), 8000);
+  }
   function exportMenu(btn) {
     openMenu(btn, [
       { icon: "📄", label: "PPTX 내보내기 (편집 가능한 도형)", act: () => doExport() },
       { icon: "🔤", label: "PPTX 내보내기 - 글꼴 포함 (PowerPoint 필요)", act: () => doExport(true) },
+      { icon: "🧾", label: "PDF 내보내기 (PowerPoint 또는 Chrome)", act: () => doExportPdf() },
       { icon: "📋", label: "쓴 글꼴 기록 보기 (마지막 내보내기)", act: () => window.open(`${BASE}/out/${S.id}.fonts.json`, "_blank") },
       { icon: "❓", label: "글꼴 받기·설치 안내", act: () => window.open(`${BASE}/studio/fonts.html`, "_blank") },
       { icon: "🖼", label: S.preview ? "PowerPoint 렌더 미리보기 닫기" : "PowerPoint 렌더 미리보기 (나란히)", act: togglePreview },
@@ -1065,6 +1074,7 @@ ${names}
       h += `<div class="hint multi-hint"><b>${n}개 선택</b> - 아래 값은 주 선택(${esc(el.id)}) 기준. 고치면 같은 종류 ${same}개에 함께 적용(위치·크기는 선이 아닌 모든 요소, 잠금은 전체, 글자 내용은 주 선택만).</div>`; }
     const grid = (keys) => `<div class="xywh">${keys.map((k) => `<div class="f"><label>${k}</label><input type="number" data-k="${k}" value="${el[k]}" title="${k} (px)"></div>`).join("")}</div>`;
     h += `<h3>위치·크기 <span class="hint">px · 슬라이드 1280×720</span></h3>${grid(isLine(el) ? ["x1", "y1", "x2", "y2"] : ["x", "y", "w", "h"])}
+      ${!isLine(el) ? `<div class="row" style="margin-top:6px"><label>링크</label><input type="text" data-k="link" value="${esc(el.link || "")}" placeholder="https://… · #3(슬라이드 번호) · #s07(슬라이드 id)" title="발표 화면에서 누르면 이동(새 탭 또는 슬라이드). PPTX 도 같은 링크"></div>` : ""}
       ${!isLine(el) && !["table", "plan-table", "bullets", "code", "plan"].includes(el.type) ? `<div class="row" style="margin-top:6px"><label>회전(°)</label><input type="number" step="1" data-k="rot" value="${el.rot || 0}" title="시계 방향, 중심 기준 - PPT 와 같다" style="width:70px"><button class="chip sm${el.flipH ? " on" : ""}" data-flip="H" title="좌우 뒤집기">⇋ 좌우</button><button class="chip sm${el.flipV ? " on" : ""}" data-flip="V" title="상하 뒤집기">⇅ 상하</button></div>` : ""}
       <h3 style="margin-top:10px">순서</h3><div class="zrow"><button class="pbtn" data-z="back" title="맨 뒤로 보내기 (Alt+Ctrl+[)">⇊ 맨 뒤</button><button class="pbtn" data-z="bwd" title="뒤로 보내기 (Ctrl+[)">↓ 뒤로</button><button class="pbtn" data-z="fwd" title="앞으로 가져오기 (Ctrl+])">↑ 앞으로</button><button class="pbtn" data-z="front" title="맨 앞으로 가져오기 (Alt+Ctrl+])">⇈ 맨 앞</button></div></div>`;
     if (TEXTY.has(el.type)) {
@@ -1079,10 +1089,20 @@ ${names}
     if (["rect", "ellipse", "pill", "text", "plan", "shape"].includes(el.type)) {
       h += `<div class="sec"><h3>면·테두리</h3>${colorRow("채우기", "fill", el, el.type === "text")}
         ${el.type !== "ellipse" && el.type !== "pill" && el.type !== "shape" ? `<div class="row"><label>모서리</label><select data-k="radius">${["", "r-s", "r-m", "r-l", "r-full"].map((r) => `<option value="${r}"${(el.radius || "") === r ? " selected" : ""}>${r || "없음"}</option>`).join("")}${typeof el.radius === "number" ? `<option selected value="${el.radius}">${el.radius}px</option>` : ""}</select></div>` : ""}
-        ${colorRow("테두리", "stroke", el, true)}</div>`;
+        ${colorRow("테두리", "stroke", el, true)}
+        ${seg("그림자", "shadow", { shadow: el.shadow ? "on" : "off" }, [["off", "없음"], ["on", "있음"]], "off")}</div>`;
     }
+    if (el.type === "chart") h += `<div class="sec"><h3>차트 <span class="hint">PPTX 는 PowerPoint 차트(편집 가능)</span></h3>
+        ${seg("종류", "chart", el, CHART_KINDS.map(([k, , l]) => [k, l]), "column")}
+        <div class="row"><label>제목</label><input type="text" data-k="title" value="${esc(el.title || "")}" placeholder="(없음)"></div>
+        <h3 style="margin-top:8px">데이터 - 첫 줄 = 범주 | 계열 이름…, 다음 줄 = 범주 | 값…</h3><textarea data-chart="1" style="min-height:120px;font-family:Consolas,monospace;font-size:13px">${esc(chartToText(el))}</textarea>
+        ${seg("범례", "legend", { legend: el.legend || (((el.series || []).length > 1 || el.chart === "pie" || el.chart === "doughnut") ? "bottom" : "none") }, [["none", "없음"], ["bottom", "아래"], ["right", "오른쪽"]], "none")}
+        ${seg("값 표시", "labels", { labels: el.labels ? "on" : "off" }, [["off", "끔"], ["on", "켬"]], "off")}${seg("눈금선", "grid", { grid: el.grid === false ? "off" : "on" }, [["on", "켬"], ["off", "끔"]], "on")}
+        ${num("글자 크기", "size", el)}${num("축 최댓값", "axisMax", el)}<div class="hint">색은 \`colors\` (요소 JSON, 색 토큰 또는 #hex 목록). 빈 값·글자는 없는 값.</div></div>`;
     if (el.type === "group") h += `<div class="sec"><h3>묶음 (${(el.children || []).length}개)</h3><div class="row"><button class="chip sm" data-act="ungroup" title="자식을 낱개로 되돌립니다 (Ctrl+Shift+G)">묶음 풀기</button><span class="hint" style="margin:0">${(el.children || []).map((c) => TYPE_KO[c.type] || c.type).join(" · ")}</span></div><div class="hint">자식은 묶음 상자 기준 좌표. 크기를 바꾸면 자식 위치·크기가 비율로 따라간다. 두 번 클릭 편집은 풀어서.</div></div>`;
-    if (el.type === "image") h += `<div class="sec"><h3>그림</h3><div class="row"><label>경로</label><input type="text" data-k="src" value="${esc(el.src)}"></div><div class="row"><button class="chip sm" data-imgpick="1" title="새 그림 파일을 올려 이 자리에 바꿔 넣습니다(폭 유지, 높이는 비율로)">그림 바꾸기…</button>${el.mermaid != null ? `<button class="chip sm" data-mermaid="1" title="mermaid 코드를 고쳐 다시 그립니다(폭 유지)">다이어그램 코드 수정…</button>` : ""}<span class="hint" style="margin:0">assetRoot 기준 경로 · 모서리 핸들은 비율 유지</span></div></div>`;
+    if (el.type === "image") h += `<div class="sec"><h3>그림</h3><div class="row"><label>경로</label><input type="text" data-k="src" value="${esc(el.src)}"></div>
+        <div class="row"><label>자르기 %</label>${["l", "t", "r", "b"].map((k, i) => `<input type="number" min="0" max="95" step="1" data-crop="${i}" value="${Math.round(((el.crop || [0, 0, 0, 0])[i] || 0) * 100)}" title="${["왼쪽", "위", "오른쪽", "아래"][i]}" style="width:52px">`).join("")}</div>
+        <div class="row"><label>투명도 %</label><input type="number" min="0" max="100" step="5" data-opacity="1" value="${Math.round((el.opacity == null ? 1 : el.opacity) * 100)}" title="100 = 그대로" style="width:70px">${seg("그림자", "shadow", { shadow: el.shadow ? "on" : "off" }, [["off", "없음"], ["on", "있음"]], "off").replace('<div class="row">', '<span class="row" style="margin:0">').replace(/<\/div>$/, "</span>")}</div><div class="row"><button class="chip sm" data-imgpick="1" title="새 그림 파일을 올려 이 자리에 바꿔 넣습니다(폭 유지, 높이는 비율로)">그림 바꾸기…</button>${el.mermaid != null ? `<button class="chip sm" data-mermaid="1" title="mermaid 코드를 고쳐 다시 그립니다(폭 유지)">다이어그램 코드 수정…</button>` : ""}<span class="hint" style="margin:0">assetRoot 기준 경로 · 모서리 핸들은 비율 유지</span></div></div>`;
     if (isLine(el)) h += `<div class="sec"><h3>선</h3>${colorRow("색", "color", el)}${num("두께(px)", "width", el, 0.5)}
         ${seg("머리", "head", el, [["none", "없음"], ["end", "끝"], ["start", "시작"], ["both", "양쪽"]], el.type === "arrow" ? "end" : "none")}
         ${seg("점선", "dash", el, [["solid", "실선"], ["dash", "파선"], ["dot", "점선"]], "solid")}</div>`;
@@ -1138,6 +1158,13 @@ ${names}
     else if (k === "locked") { if (v) el.locked = true; else delete el.locked; }
     else if (k === "bold") el.bold = v === "1";
     else if (k === "autoNum") { if (v === "off") el.autoNum = false; else delete el.autoNum; }  // 글 앞 번호·기호 감지(기본 켬)
+    else if (k === "shadow") { if (v === "on") el.shadow = el.shadow || true; else delete el.shadow; }
+    else if (k === "labels") { if (v === "on") el.labels = true; else delete el.labels; }
+    else if (k === "grid") { if (v === "off") el.grid = false; else delete el.grid; }
+    else if (k === "legend") { if (v === "none" && !((el.series || []).length > 1 || el.chart === "pie" || el.chart === "doughnut")) delete el.legend; else el.legend = v; }
+    else if (k === "axisMax") { if (v === "" || v == null || +v <= 0) delete el.axisMax; else el.axisMax = +v; }
+    else if (k === "title") { const t = String(v || "").trim(); if (t) el.title = t; else delete el.title; }
+    else if (k === "link") { const t = String(v || "").trim(); if (t) el.link = t; else delete el.link; }
     else if (v === "" && ["fill", "stroke", "radius"].includes(k)) delete el[k];
     else el[k] = v;
     if (isLine(el)) Object.assign(el, Render.lineBox(el));
@@ -1170,7 +1197,10 @@ ${names}
         if (a.some(Boolean)) el.colFont = a; else delete el.colFont;
       }
       else { const a = t.value.split(/[,\s]+/).filter(Boolean).map(Number).filter((x) => !isNaN(x)); if (a.length) el[t.dataset.list] = a; else delete el[t.dataset.list]; }
-    } else if (t.dataset.merge) { const a = t.value.split(";").map((x) => x.split(",").map((v) => parseInt(v, 10))).filter((m) => m.length === 4 && m.every((v) => !isNaN(v))); if (a.length) el.merge = a; else delete el.merge; }
+    } else if (t.dataset.chart) { textToChart(t.value, el); }
+    else if (t.dataset.crop != null) { const c = (el.crop || [0, 0, 0, 0]).slice(); c[+t.dataset.crop] = Math.max(0, Math.min(95, +t.value || 0)) / 100; if (c.some((v) => v)) el.crop = c; else delete el.crop; }
+    else if (t.dataset.opacity) { const o = Math.max(0, Math.min(100, +t.value || 0)) / 100; if (o < 1) el.opacity = o; else delete el.opacity; }
+    else if (t.dataset.merge) { const a = t.value.split(";").map((x) => x.split(",").map((v) => parseInt(v, 10))).filter((m) => m.length === 4 && m.every((v) => !isNaN(v))); if (a.length) el.merge = a; else delete el.merge; }
     else if (t.dataset.bul) el.items = textToBullets(t.value);
     else if (t.dataset.tbl) el.rows = textToTable(t.value);
     afterChange();
@@ -1585,6 +1615,11 @@ ${names}
   function present(fromCur) {
     const P = $("#present"); P.classList.add("show");
     S.pIdx = fromCur ? S.cur : 0; S.pStart = Date.now();
+    try {  // 발표자 보기(presenter.html)와 쪽 맞추기
+      if (S.pch) S.pch.close();
+      S.pch = new BroadcastChannel("nexa-present:" + S.id);
+      S.pch.onmessage = (e) => { const d = e.data || {}; if (typeof d.goto === "number") { S.pIdx = Math.max(0, Math.min(S.deck.slides.length - 1, d.goto)); renderPresent(); } else if (d.hello) S.pch.postMessage({ idx: S.pIdx }); };
+    } catch (e) { S.pch = null; }
     if (P.requestFullscreen) P.requestFullscreen().catch(() => {});
     renderPresent();
   }
@@ -1597,8 +1632,16 @@ ${names}
     $("#presentNotes").textContent = s.notes || "(노트 없음)";
     const sec = Math.floor((Date.now() - S.pStart) / 1000);
     $("#presentInfo").textContent = `${S.pIdx + 1} / ${S.deck.slides.length} · ${String(Math.floor(sec / 60)).padStart(2, "0")}:${String(sec % 60).padStart(2, "0")}`;
+    if (S.pch) S.pch.postMessage({ idx: S.pIdx });
   }
-  function endPresent() { $("#present").classList.remove("show"); if (document.fullscreenElement) document.exitFullscreen().catch(() => {}); goSlide(S.pIdx); }
+  function openPresenter() { window.open(`${BASE}/studio/presenter.html?deck=${encodeURIComponent(S.id)}&n=${S.pIdx + 1}`, "nexa-presenter", "width=1100,height=680"); }
+  /** 요소 링크(link) - "#3" 은 3번 슬라이드, "#<슬라이드 id>", 그 밖은 주소(새 탭). 발표 화면에서 누르면 */
+  function followLink(v) {
+    if (!v) return false;
+    if (v.startsWith("#")) { const key = v.slice(1); const n = /^\d+$/.test(key) ? +key : S.deck.slides.findIndex((s) => s.id === key) + 1; if (n >= 1 && n <= S.deck.slides.length) { S.pIdx = n - 1; renderPresent(); return true; } toast(`없는 슬라이드: ${v}`); return true; }
+    window.open(v, "_blank", "noopener"); return true;
+  }
+  function endPresent() { if (S.pch) { try { S.pch.close(); } catch (e) { /* 무시 */ } S.pch = null; } $("#present").classList.remove("show"); if (document.fullscreenElement) document.exitFullscreen().catch(() => {}); goSlide(S.pIdx); }
   function presentKey(e) {
     const k = e.key;
     if (k === "Escape") { endPresent(); return; }
@@ -1606,6 +1649,7 @@ ${names}
     else if (["ArrowLeft", "ArrowUp", "PageUp", "Backspace"].includes(k)) S.pIdx = Math.max(0, S.pIdx - 1);
     else if (k === "Home") S.pIdx = 0; else if (k === "End") S.pIdx = S.deck.slides.length - 1;
     else if (k.toLowerCase() === "n") $("#present").classList.toggle("notes");
+    else if (k.toLowerCase() === "p") openPresenter();
     else return;
     e.preventDefault(); renderPresent();
   }
@@ -1773,7 +1817,7 @@ ${names}
       code: { type: "code", x: 64, y: 184, w: 640, h: 0, text: "SELECT d.item_cd\nFROM   trx_demand d\nWHERE  d.tenant_id = :t;", lang: "sql", size: 14, lineHeight: 1.6, radius: "r-m" },
       table: { type: "table", x: 64, y: 184, w: 640, h: 96, rows: [["열 1", "열 2"], ["값", "값"]], colW: [1, 1], size: 16, headFill: `${part}-container`, headColor: `on-${part}-container`, rule: "surface-container-high" },
       image: { type: "image", x: 560, y: 320, w: Math.round(40 * (S.brand.logoRatio || 765 / 237)), h: 40, src: S.brand.logo || "assets/brand/logo.png" },
-    }[kind] || (kind.startsWith("shape:") ? shapeBase(kind.slice(6), part) : null);
+    }[kind] || (kind.startsWith("shape:") ? shapeBase(kind.slice(6), part) : kind.startsWith("chart:") ? chartBase(kind.slice(6)) : null);
     if (!base) return;
     snapshot();
     const el = { id: newElId(s), ...base };
@@ -1783,6 +1827,22 @@ ${names}
   }
   // 도형 기본 크기(PowerPoint 처럼 종류마다) - 채우기는 장 색, 글은 비워 둔다(두 번 클릭해 쓴다)
   const SHAPE_SIZE = { rightArrow: [200, 90], leftArrow: [200, 90], upArrow: [90, 200], downArrow: [90, 200], leftRightArrow: [240, 90], chevron: [160, 80], homePlate: [160, 80], callout: [200, 110], roundCallout: [200, 110], can: [120, 150], cube: [140, 140], star5: [140, 140], plus: [120, 120] };
+  // 차트 기본 데이터 - 범주 4개 · 계열 2개(원형은 1개)
+  const CHART_KINDS = [["column", "▮▮", "세로 막대"], ["stackedColumn", "▮", "누적 세로 막대"], ["bar", "▬", "가로 막대"], ["line", "⟋", "꺾은선"], ["area", "◢", "영역"], ["pie", "◔", "원형"], ["doughnut", "◎", "도넛"]];
+  function chartBase(kind) {
+    const pie = kind === "pie" || kind === "doughnut";
+    return { type: "chart", chart: kind, x: 340, y: 180, w: 600, h: 360, size: 14, categories: ["1분기", "2분기", "3분기", "4분기"],
+      series: pie ? [{ name: "비중", values: [35, 25, 25, 15] }] : [{ name: "계열 1", values: [120, 150, 110, 180] }, { name: "계열 2", values: [80, 95, 130, 140] }], labels: pie };
+  }
+  function chartMenu(btn) { openMenu(btn, [{ h: "차트" }, ...CHART_KINDS.map(([k, i, l]) => ({ icon: i, label: l, act: () => addEl("chart:" + k) }))]); }
+  const chartToText = (el) => ["범주 | " + (el.series || []).map((s) => s.name || "").join(" | "), ...(el.categories || []).map((c, i) => [c, ...(el.series || []).map((s) => (s.values || [])[i] == null ? "" : (s.values || [])[i])].join(" | "))].join("\n");
+  function textToChart(t, el) {  // 첫 줄 = "범주 | 계열 이름…", 다음 줄들 = "범주 | 값…" (빈 값 = 없음)
+    const rows = t.split("\n").map((l) => l.split(CELL_SPLIT).map((x) => x.trim())).filter((r) => r.some(Boolean));
+    if (!rows.length) return;
+    const head = rows[0], names = head.slice(1);
+    el.series = names.map((nm, j) => ({ name: nm || `계열 ${j + 1}`, values: rows.slice(1).map((r) => (r[j + 1] === "" || r[j + 1] == null || isNaN(+r[j + 1]) ? null : +r[j + 1])) }));
+    el.categories = rows.slice(1).map((r) => r[0] || "");
+  }
   function shapeBase(shape, part) {
     const [w, h] = SHAPE_SIZE[shape] || [160, 120];
     return { type: "shape", shape, x: Math.round(640 - w / 2), y: Math.round(360 - h / 2), w, h, fill: `${part}-container`, color: `on-${part}-container`, text: "", size: 18 };
@@ -1901,7 +1961,7 @@ ${names}
   }
   function addMenu(btn) {
     openMenu(btn, [["text", "T", "글자"], ["bullets", "≡", "글머리 목록"], ["pill", "◖◗", "칩"], ["rect", "▭", "상자"], ["ellipse", "◯", "원"], ["arrow", "→", "화살표"], ["table", "▦", "표 (2×2)"], ["code", "{ }", "코드"], ["image", "🖼", "로고"]]
-      .map(([k, i, l]) => ({ icon: i, label: l, act: () => addEl(k) })).concat([{ icon: "🖼", label: "그림 파일…", act: () => imagePick(null) }, { icon: "⤳", label: "다이어그램 코드(mermaid)…", act: () => mermaidDialog(null) }, "-", { icon: "◇", label: "도형…", keep: true, act: () => shapeMenu(btn) }, { icon: "⬡", label: "다이어그램…", keep: true, act: () => diagramMenu(btn) }]));
+      .map(([k, i, l]) => ({ icon: i, label: l, act: () => addEl(k) })).concat([{ icon: "📊", label: "차트…", keep: true, act: () => chartMenu(btn) }, { icon: "🖼", label: "그림 파일…", act: () => imagePick(null) }, { icon: "⤳", label: "다이어그램 코드(mermaid)…", act: () => mermaidDialog(null) }, "-", { icon: "◇", label: "도형…", keep: true, act: () => shapeMenu(btn) }, { icon: "⬡", label: "다이어그램…", keep: true, act: () => diagramMenu(btn) }]));
   }
   function goSlide(i) { if (!S.deck) return; S.cur = Math.max(0, Math.min(S.deck.slides.length - 1, i)); S.sel = null; S.chkBox = S.chkBox && S.chkBox.slide === slide().id ? S.chkBox : null; closeMemo(); renderAll(); ensureThumbVisible(S.cur); }
   function dupSlide(i) { snapshot(); const c = clone(S.deck.slides[i]); c.id = newSlideId(); S.deck.slides.splice(i + 1, 0, c); S.cur = i + 1; S.sel = null; afterChange(true); }
@@ -2314,7 +2374,7 @@ ${names}
     $("#tab-hist").addEventListener("click", onHistClick);
     $("#notesTa").addEventListener("input", onNotes);
     // 발표 · 도움말
-    $("#present").addEventListener("click", (e) => { S.pIdx = Math.min(S.deck.slides.length - 1, S.pIdx + (e.clientX < innerWidth / 3 ? -1 : 1)); S.pIdx = Math.max(0, S.pIdx); renderPresent(); });
+    $("#present").addEventListener("click", (e) => { const ln = e.target.closest("[data-link]"); if (ln && followLink(ln.dataset.link)) return; S.pIdx = Math.min(S.deck.slides.length - 1, S.pIdx + (e.clientX < innerWidth / 3 ? -1 : 1)); S.pIdx = Math.max(0, S.pIdx); renderPresent(); });
     document.addEventListener("fullscreenchange", () => { if (!document.fullscreenElement && $("#present").classList.contains("show")) endPresent(); });
     setInterval(() => { if ($("#present").classList.contains("show")) renderPresent(); }, 1000);
     $("#help").addEventListener("click", () => $("#help").classList.remove("show"));

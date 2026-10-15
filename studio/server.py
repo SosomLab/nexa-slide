@@ -1610,7 +1610,37 @@ class H(BaseHTTPRequestHandler):
         f = OUT / f"{i}.pptx"
         if code != 0 or not f.exists():
             return self.send_json({"ok": False, "error": "export 실패", "log": log}, 500)
+        if (q.get("pdf") or ["0"])[0] == "1":  # PDF - PowerPoint(Windows, pwsh)가 있으면 PPTX 를 PDF 로, 없으면 Chrome/Edge 헤드리스로 print.html 을 인쇄
+            pdf = OUT / f"{i}.pdf"
+            via, err = self._export_pdf(i, f, pdf)
+            if not pdf.exists():
+                return self.send_json({"ok": False, "error": "PDF 를 만들지 못했다: " + err, "log": log}, 500)
+            return self.send_json({"ok": True, "path": str(pdf), "url": f"/out/{i}.pdf?v={ver(pdf)}", "via": via, "log": log})
         self.send_json({"ok": True, "path": str(f), "url": f"/out/{i}.pptx?v={ver(f)}", "log": log})
+
+    def _export_pdf(self, i, pptx, pdf):
+        """(방법, 오류). PowerPoint COM(render_pptx.ps1 -Pdf) → 없으면 Chrome/Edge --print-to-pdf(print.html, 슬라이드마다 한 쪽)."""
+        import shutil
+        err = []
+        pwsh = shutil.which("pwsh") or shutil.which("powershell")
+        if os.name == "nt" and pwsh:
+            code, log = run([pwsh, "-NoProfile", "-File", str(STUDIO / "render_pptx.ps1"), "-Pptx", str(pptx), "-OutDir", str(OUT / i), "-Pdf", str(pdf), "-NoPng"], 300)
+            if code == 0 and pdf.exists():
+                return "powerpoint", ""
+            err.append("PowerPoint: " + (log.strip().splitlines() or ["?"])[-1][:200])
+        browsers = [r"C:\Program Files\Google\Chrome\Application\chrome.exe", r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe",
+                    r"C:\Program Files\Microsoft\Edge\Application\msedge.exe", "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"]
+        br = next((b for b in browsers if Path(b).exists()), None) or shutil.which("chrome") or shutil.which("google-chrome") or shutil.which("msedge") or shutil.which("chromium")
+        if br:
+            url = f"http://127.0.0.1:{self.server.server_port}/studio/print.html?deck={i}"
+            prof = OUT / ".chrome-profile-pdf"
+            code, log = run([br, "--headless=new", "--disable-gpu", "--no-sandbox", f"--user-data-dir={prof}", "--no-pdf-header-footer", "--virtual-time-budget=10000", f"--print-to-pdf={pdf}", url], 180)
+            if pdf.exists():
+                return "chrome", ""
+            err.append("Chrome: " + (log.strip().splitlines() or ["?"])[-1][:200])
+        else:
+            err.append("PowerPoint(pwsh)도 Chrome/Edge 도 없다")
+        return "", " / ".join(err)
 
     # ---------- 글꼴 프리셋 ----------
     def fonts_info(self):

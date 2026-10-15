@@ -1,5 +1,15 @@
 # 변경 이력
 
+## 0.21.30 - 2026-10-15 · 차트 요소
+
+- 새 요소 `chart`(세로·누적 세로·가로 막대, 꺾은선, 영역, 원형, 도넛): 편집기는 데이터에서 SVG 로(축 눈금 1·2·5 단위, 범례 아래/오른쪽, 값 표시, 눈금선, 색 팔레트), PPTX 는 PowerPoint 원래 차트(python-pptx `add_chart` — 같은 색·범례·값 표시·눈금·gapWidth 80, 편집 가능). ＋ 추가 → 차트…, 속성 "차트" 절(종류·제목·데이터 표·범례·값 표시·눈금선·글자 크기·축 최댓값). `docs/deck-format.md`.
+
+## 0.21.29 - 2026-10-15 · 하이퍼링크 · 그림자 · 그림 자르기·투명도 · 발표자 보기 · PDF 내보내기
+
+- 요소 `link`(주소·`#번호`·`#슬라이드 id`): 속성 "링크" 칸, 발표 화면에서 눌러 이동, PPTX click_action. `shadow`(기본 또는 {blur,dx,dy,color,alpha}): 속성 "그림자" 스위치, 편집기 drop-shadow ↔ PPTX outerShdw. 그림 `crop`(왼·위·오른·아래 %)·`opacity`: 속성 칸, PPTX crop·alphaModFix.
+- **발표자 보기** `studio/presenter.html`(발표 모드에서 **P**): 지금·다음 슬라이드·노트·경과 시간, BroadcastChannel 로 발표 화면과 쪽을 맞춤.
+- **PDF 내보내기**(내보내기 ▾): PowerPoint(pwsh, `render_pptx.ps1 -Pdf`)가 있으면 PPTX → PDF, 없으면 Chrome/Edge 헤드리스가 `studio/print.html`(슬라이드마다 한 쪽 1280×720)을 인쇄. `POST /api/export/<id>?pdf=1` → `/out/<id>.pdf`.
+
 ## 0.21.28 - 2026-10-15 · 편집기 패널 넘침 방지
 
 - 속성·요청·기록·변경 패널에서 자식이 부모(절·행·패널)를 벗어나지 않게 — 긴 선택지(글꼴 세트·덱 글꼴 세트·색)는 칸 안에서 가로 스크롤, 그 밖의 긴 글·코드·표는 절 안에서 스크롤 또는 줄바꿈(`.sec`·`.row`·`.panel` 공통 규칙).
