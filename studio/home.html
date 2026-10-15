@@ -703,7 +703,7 @@
       const att = (x.attachments || []).map((a, i) => `<a class="a" href="${esc(a.url)}" data-lb="${x.id}:${i}" title="${esc(a.name)}">${/\.(png|jpe?g|gif|webp|svg)$/i.test(a.name) ? `<img src="${esc(a.url)}" alt="" loading="lazy">` : "📄"}<span class="n">${esc(a.name)}</span></a>`).join("");
       return `<div class="ritem" style="padding:6px 8px"><div class="rb"><div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap"><span class="badge ${x.status === "working" ? "run" : x.status === "done" ? "ok" : ""}">${ST_KO[x.status] || x.status}</span><b style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(x.body || "")}">#${x.id} ${esc(x.title)}</b><span style="display:flex;gap:4px;flex:none">${acts}</span></div>
         <small class="hint" style="display:block">${esc(f.kind === "session" ? "세션" : f.kind || "")}${f.user ? ` · ${esc(f.user)}` : ""}${f.wsId ? ` · ${esc(f.wsId)}` : ""}${x.commit ? ` · ${esc(x.commit)}` : ""} · ${fmtT(x.updated)}${x.reply ? ` — ${esc(x.reply.slice(0, 120))}` : ""}</small>${att ? `<div class="att ro">${att}</div>` : ""}</div></div>`;
-    }).join("") : `<div class="empty">엔진 변경 요청이 없습니다. 작업 공간 세션이 엔진 한계를 만나면 여기로 넘기고, 직접 적을 수도 있습니다.</div>`;
+    }).join("") + (d.total > items.length ? `<div class="row" style="justify-content:center;padding:6px 0 2px"><a class="chip sm" href="/engine" title="전체 목록 · 검색 · 상태별 조회">더 보기 (전체 ${d.total}건)</a></div>` : "") : `<div class="empty">엔진 변경 요청이 없습니다. 작업 공간 세션이 엔진 한계를 만나면 여기로 넘기고, 직접 적을 수도 있습니다.</div>`;
   }
   // 요청 양식 첨부 - 클립보드 그림(Ctrl+V)·끌어다 놓기·＋ 첨부 → /api/engine/attach(_new/) → 큐에 넣을 때 그 요청 폴더로
   const ER = { att: [], busy: 0 };

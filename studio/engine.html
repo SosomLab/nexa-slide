@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>nexa-slide 서버 작업 목록</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="/studio/fonts.css">
+<script src="/studio/i18n.js"></script>
+<script src="/studio/menu.js"></script>
+<script src="/studio/lightbox.js"></script>
+<!-- 서버 작업(엔진 요청 큐) 전체 목록(/engine) - 시작 페이지 카드는 최근 5건만, 나머지는 여기서 검색·상태별 조회·관리자 조작. 허브에서만. -->
+<style>
+  :root { --p: #A91F24; --pc: #FFDAD6; --onpc: #410004; --bg: #F4F1F1; --card: #fff; --tone: #F2EFEF; --tone2: #ECE8E8; --ink: #1F1B1B; --ink2: #534343; --line: #D8C2C0; --ok: #146C2E; --okc: #C4EED0; --warn: #7D5700; --warnc: #FFDEA6; --err: #BA1A1A; --font: "Pretendard", "Malgun Gothic", system-ui, sans-serif; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.5 var(--font); }
+  header { display: flex; align-items: center; gap: 12px; padding: 10px 16px; background: var(--card); border-bottom: 1px solid var(--line); }
+  header h1 { font-size: 15px; margin: 0; flex: 1; }
+  header a { color: var(--ink2); font-size: 13px; text-decoration: none; }
+  main { max-width: 1000px; margin: 20px auto; padding: 0 16px; display: grid; gap: 14px; }
+  .card { background: var(--card); border-radius: 14px; padding: 14px 18px; box-shadow: 0 1px 2px rgba(0,0,0,.08); }
+  .bar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .bar input[type=search] { flex: 1; min-width: 220px; height: 34px; border: 1px solid var(--line); border-radius: 10px; padding: 0 12px; font: inherit; background: var(--card); }
+  .chip { border: 0; background: var(--tone); border-radius: 999px; padding: 5px 12px; font: inherit; font-size: 13px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; }
+  .chip:hover { background: var(--tone2); }
+  .chip.on { background: var(--p); color: #fff; font-weight: 700; }
+  .chip.primary { background: var(--p); color: #fff; font-weight: 700; }
+  .chip .n { background: rgba(0,0,0,.08); border-radius: 999px; padding: 0 6px; font-size: 11px; }
+  .chip.on .n { background: rgba(255,255,255,.25); }
+  .ib { border: 0; background: transparent; cursor: pointer; border-radius: 8px; padding: 2px 6px; color: var(--ink2); }
+  .ib:hover { background: var(--tone2); }
+  .list { display: grid; gap: 4px; }
+  .it { display: grid; grid-template-columns: 1fr auto; gap: 6px 12px; padding: 10px 12px; border-radius: 12px; border: 1px solid transparent; }
+  .it:hover { background: var(--tone); }
+  .it.open { border-color: var(--line); background: var(--card); }
+  .it .t { font-weight: 700; cursor: pointer; }
+  .it .t small { font-weight: 400; color: var(--ink2); }
+  .it .meta { color: var(--ink2); font-size: 12.5px; }
+  .it .body { white-space: pre-wrap; word-break: break-word; margin-top: 6px; font-size: 13.5px; }
+  .it .reply { white-space: pre-wrap; word-break: break-word; margin-top: 6px; padding: 8px 10px; background: var(--tone); border-radius: 10px; font-size: 13.5px; }
+  .it .reply b { color: var(--ink2); font-weight: 600; }
+  .it .acts { display: flex; gap: 4px; align-items: flex-start; flex-wrap: wrap; justify-content: flex-end; }
+  .badge { display: inline-block; border-radius: 999px; padding: 1px 8px; font-size: 11.5px; background: var(--tone2); color: var(--ink2); margin-right: 4px; vertical-align: middle; }
+  .badge.run { background: var(--warnc); color: var(--warn); }
+  .badge.ok { background: var(--okc); color: var(--ok); }
+  .badge.err { background: var(--pc); color: var(--onpc); }
+  .att { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
+  .att .a { display: inline-flex; align-items: center; gap: 4px; border: 1px solid var(--line); border-radius: 8px; padding: 2px 6px; font-size: 12px; color: var(--ink); text-decoration: none; max-width: 240px; }
+  .att .a img { height: 28px; width: auto; border-radius: 4px; }
+  .att .a .n { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .empty { color: var(--ink2); padding: 20px; text-align: center; }
+  .hint { color: var(--ink2); font-size: 12.5px; }
+  .more { display: flex; justify-content: center; padding: 8px; }
+  mark { background: #FFF2A8; padding: 0 1px; border-radius: 2px; }
+</style>
+</head>
+<body>
+<header><button id="menuBtn" type="button"></button><h1>서버 작업 목록 <span class="hint" id="count"></span></h1><a href="/studio/home.html#start">← 시작 페이지</a></header>
+<main>
+  <div class="card">
+    <div class="bar">
+      <input type="search" id="q" placeholder="제목·내용·답·요청자·커밋·번호로 찾기 (예: 글머리, #9, kiros33)" autocomplete="off">
+      <span id="filters"></span>
+      <button type="button" class="chip" id="reload" title="다시 읽기">↻</button>
+    </div>
+    <div class="hint" style="margin-top:6px">최근 것이 위. 제목을 누르면 내용·답·첨부를 펼칩니다. 관리자는 승인·거절·적용됨·삭제를 여기서도 할 수 있습니다.</div>
+  </div>
+  <div class="card"><div class="list" id="list"></div><div class="more" id="more" style="display:none"><button type="button" class="chip" id="moreBtn">더 보기</button></div></div>
+</main>
+<script>
+(async () => {
+  const { esc, post, toast } = NexaMenu; NexaMenu.mount(document.getElementById("menuBtn"));
+  const $ = (s) => document.querySelector(s);
+  const ST_KO = { triage: "승인 대기", open: "대기", working: "처리 중", done: "완료(적용 대기)", rejected: "거절", applied: "적용됨" };
+  const ORDER = ["triage", "open", "working", "done", "rejected", "applied"];
+  const PAGE = 30;
+  const S = { items: [], admin: false, q: "", status: "", shown: PAGE, open: new Set() };
+  const fmtT = (iso) => { const m = /^(\d{4})-(\d\d)-(\d\d)T(\d\d:\d\d)/.exec(iso || ""); return m ? `${m[1]}-${m[2]}-${m[3]} ${m[4]}` : (iso || ""); };
+  const hl = (s) => { const t = esc(String(s == null ? "" : s)); if (!S.q) return t; const re = new RegExp(S.q.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "gi"); return t.replace(re, (m) => `<mark>${m}</mark>`); };
+  async function load() {
+    const r = await fetch("/api/engine/requests", { cache: "no-store" }); const d = await r.json();
+    if (!d.ok) { $("#list").innerHTML = `<div class="empty">${esc(d.error || "읽지 못했습니다")}</div>`; return; }
+    S.items = (d.items || []).slice().sort((a, b) => b.id - a.id);
+    const n = await fetch("/api/engine/notice", { cache: "no-store" }).then((x) => x.json()).catch(() => ({}));
+    S.admin = !!n.admin;
+    render();
+  }
+  function matches(x) {
+    if (S.status && x.status !== S.status) return false;
+    if (!S.q) return true;
+    const q = S.q.toLowerCase(), f = x.from || {};
+    if (/^#?\d+$/.test(S.q) && String(x.id) === S.q.replace("#", "")) return true;
+    return [x.title, x.body, x.reply, x.commit, x.appliedCommit, x.branch, f.user, f.wsId, f.ws, x.test, ...(x.evidence || []), ...((x.attachments || []).map((a) => a.name))].some((v) => v && String(v).toLowerCase().includes(q));
+  }
+  function render() {
+    const counts = {}; S.items.forEach((x) => { counts[x.status] = (counts[x.status] || 0) + 1; });
+    $("#filters").innerHTML = [["", "전체", S.items.length], ...ORDER.map((k) => [k, ST_KO[k], counts[k] || 0])].filter(([k, , c]) => !k || c).map(([k, t, c]) => `<button type="button" class="chip${S.status === k ? " on" : ""}" data-st="${k}">${t} <span class="n">${c}</span></button>`).join("");
+    const list = S.items.filter(matches);
+    $("#count").textContent = S.q || S.status ? `${list.length} / ${S.items.length}건` : `${S.items.length}건`;
+    const show = list.slice(0, S.shown);
+    $("#list").innerHTML = show.length ? show.map((x) => {
+      const f = x.from || {}, isOpen = S.open.has(x.id) || !!S.q;
+      const acts = S.admin ? [x.status === "triage" ? `<button type="button" class="chip" data-er="open" data-id="${x.id}">승인</button>` : "",
+        x.status === "done" ? `<button type="button" class="chip" data-er="applied" data-id="${x.id}" title="main 에 병합·재시작한 뒤">적용됨</button>` : "",
+        ["triage", "open", "done"].includes(x.status) ? `<button type="button" class="chip" data-er="rejected" data-id="${x.id}">거절</button>` : "",
+        ["rejected", "applied"].includes(x.status) ? `<button type="button" class="ib" data-er="remove" data-id="${x.id}" title="목록에서 지우기">✕</button>` : ""].join("") : "";
+      const att = (x.attachments || []).map((a, i) => `<a class="a" href="${esc(a.url)}" data-lb="${x.id}:${i}" title="${esc(a.name)}">${/\.(png|jpe?g|gif|webp|svg)$/i.test(a.name) ? `<img src="${esc(a.url)}" alt="" loading="lazy">` : "📄"}<span class="n">${esc(a.name)}</span></a>`).join("");
+      const badge = `<span class="badge ${x.status === "working" ? "run" : x.status === "done" || x.status === "applied" ? "ok" : x.status === "rejected" ? "err" : ""}">${ST_KO[x.status] || x.status}</span>`;
+      const meta = [f.kind === "session" ? "세션" : f.kind || "", f.user, f.wsId, x.branch ? `${x.branch} ${x.commit || ""}`.trim() : x.commit, x.appliedCommit ? `적용 ${x.appliedCommit}` : "", `만듦 ${fmtT(x.created)}`, x.updated && x.updated !== x.created ? `갱신 ${fmtT(x.updated)}` : ""].filter(Boolean).map(esc).join(" · ");
+      return `<div class="it${isOpen ? " open" : ""}" data-id="${x.id}"><div><div class="t" data-toggle="${x.id}">${badge}#${x.id} ${hl(x.title)} <small>${isOpen ? "▴" : "▾"}</small></div><div class="meta">${meta}</div>
+        ${isOpen ? `${x.body ? `<div class="body">${hl(x.body)}</div>` : ""}${att ? `<div class="att">${att}</div>` : ""}${x.reply ? `<div class="reply"><b>답</b> · ${hl(x.reply)}</div>` : ""}${x.test ? `<div class="hint" style="margin-top:4px">검증 · ${hl(x.test)}</div>` : ""}` : ""}</div><div class="acts">${acts}</div></div>`;
+    }).join("") : `<div class="empty">${S.items.length ? "찾는 요청이 없습니다" : "엔진 변경 요청이 없습니다"}</div>`;
+    $("#more").style.display = list.length > S.shown ? "" : "none";
+    $("#moreBtn").textContent = `더 보기 (${Math.min(PAGE, list.length - S.shown)}건 더 · 남은 ${list.length - S.shown}건)`;
+  }
+  $("#q").addEventListener("input", () => { S.q = $("#q").value.trim(); S.shown = PAGE; render(); });
+  $("#reload").onclick = load;
+  $("#moreBtn").onclick = () => { S.shown += PAGE; render(); };
+  document.addEventListener("click", async (e) => {
+    const st = e.target.closest("[data-st]"); if (st) { S.status = st.dataset.st; S.shown = PAGE; render(); return; }
+    const tg = e.target.closest("[data-toggle]"); if (tg) { const id = +tg.dataset.toggle; if (S.open.has(id)) S.open.delete(id); else S.open.add(id); render(); return; }
+    const lb = e.target.closest("[data-lb]"); if (lb) { e.preventDefault(); const [id, i] = lb.dataset.lb.split(":"); const x = S.items.find((r) => String(r.id) === id); if (x) NexaLightbox.open(x.attachments.map((a) => ({ url: a.url, name: a.name, size: a.size })), +i, { title: `#${x.id} ${x.title}` }); return; }
+    const er = e.target.closest("[data-er]");
+    if (er) {
+      const act = er.dataset.er, id = +er.dataset.id;
+      if (act === "rejected" && !confirm(`#${id} 를 거절할까요?`)) return;
+      let applied = null;
+      if (act === "applied") { applied = (prompt(`#${id} 의 커밋을 main 에 병합하고 서버를 재시작했나요? 적용됨으로 표시합니다.\n병합 커밋(main) 해시:`, "") || "").trim(); if (!applied) return; }
+      if (act === "remove" && !confirm(`#${id} 를 목록에서 지울까요?`)) return;
+      const r = act === "remove" ? await post("/api/engine/requests", { action: "remove", id }) : await post("/api/engine/requests", { action: "status", id, status: act, ...(applied ? { appliedCommit: applied } : {}) });
+      if (!r.ok) toast((r.data && r.data.error) || "처리하지 못했습니다", 5000); else toast(`#${id} → ${act === "remove" ? "삭제" : ST_KO[act] || act}`);
+      load();
+    }
+  });
+  const u = new URLSearchParams(location.search);
+  if (u.get("q")) { S.q = u.get("q"); $("#q").value = S.q; }
+  if (u.get("status")) S.status = u.get("status");
+  await load();
+})();
+</script>
+</body>
+</html>

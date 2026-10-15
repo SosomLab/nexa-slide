@@ -669,6 +669,10 @@ class H(BaseHTTPRequestHandler):
             self.send_header("Location", "/studio/" if has_decks() else "/studio/home.html")
             self.end_headers()
             return
+        if path == "/engine":  # 서버 작업(엔진 요청 큐) 전체 목록·검색 페이지 - 허브에서만(로그인은 authenticate 가 이미 확인)
+            if not HUB:
+                return self.err(404, "허브(시작 페이지)에서")
+            path = "/studio/engine.html"
         if path in ("/login", "/setup", "/account"):  # 인증 페이지(CSS·JS 내장 - 다른 정적 파일 없이 뜬다). 허브에서만 뜻이 있다
             if not HUB:
                 return self.err(404, "작업 공간 서버에는 로그인이 없다 - 허브(시작 페이지)에서")
@@ -1073,10 +1077,19 @@ class H(BaseHTTPRequestHandler):
         if not HUB:
             return self.err(404, "허브(시작 페이지)에서")
         import engine_requests
-        if what == "requests":
+        if what == "requests":  # ?status=<상태>&q=<검색어>(제목·내용·답·요청자·커밋·#번호) - 전체 목록 페이지(/engine)와 CLI
             st = (q.get("status") or [None])[0]
+            kw = ((q.get("q") or [""])[0] or "").strip().lower()
             items = [x for x in engine_requests.load() if not st or x.get("status") == st]
-            return self.send_json({"ok": True, "items": items, "counts": engine_requests.counts()})
+            if kw:
+                def hit(x):
+                    if kw.lstrip("#").isdigit() and str(x.get("id")) == kw.lstrip("#"):
+                        return True
+                    f = x.get("from") or {}
+                    vals = [x.get("title"), x.get("body"), x.get("reply"), x.get("commit"), x.get("appliedCommit"), x.get("branch"), x.get("test"), f.get("user"), f.get("wsId"), f.get("ws")] + list(x.get("evidence") or [])
+                    return any(v and kw in str(v).lower() for v in vals)
+                items = [x for x in items if hit(x)]
+            return self.send_json({"ok": True, "items": items, "counts": engine_requests.counts(), "total": len(engine_requests.load())})
         if what == "session":
             if WS_ENGINE is None:
                 return self.err(503, "엔진 세션 관리자가 없다")
@@ -1109,12 +1122,13 @@ class H(BaseHTTPRequestHandler):
             if hb.get("connected") and hb.get("kind") == "manual":
                 info = {**info, "state": "manual", "kind": "manual", "label": hb.get("label"), "pid": hb.get("pid"), "startedBy": hb.get("user"), "startedAt": hb.get("started"), "cwd": hb.get("cwd"),
                         "agent": hb.get("agent"), "model": hb.get("model"), "sessionId": hb.get("sessionId"), "entry": hb.get("entry")}  # 감시가 --agent/--model·CLAUDE_CODE_* 로 담은 것
-        recent = sorted(engine_requests.load(), key=lambda x: -x["id"])[:8]
+        allq = engine_requests.load()
+        recent = sorted(allq, key=lambda x: -x["id"])[:5]  # 카드는 최근 5건 - 나머지는 /engine(전체 목록·검색)
         for x in recent:  # 첨부 - 화면의 축소판·링크용(허브 /api/engine/attach/<id>/<파일> 로 본다)
             att = engine_requests.attach_files(x["id"])
             if att:
                 x["attachments"] = [{"name": a["name"], "size": a["size"], "url": f"/api/engine/attach/{x['id']}/{a['name']}"} for a in att]
-        return self.send_json({"ok": True, "session": info, "counts": engine_requests.counts(), "recent": recent, "git": info.get("git") or {},
+        return self.send_json({"ok": True, "session": info, "counts": engine_requests.counts(), "recent": recent, "total": len(allq), "git": info.get("git") or {},
                                "startRequest": engine_requests.start_request(), "sessionOff": info.get("state", "off") == "off"})  # manual 도 켜진 것
 
     def api_post_engine(self, what, q):
@@ -1452,6 +1466,39 @@ class H(BaseHTTPRequestHandler):
                     p.unlink(missing_ok=True)
             except OSError:
                 pass
+
+    IMAGE_TYPES = {"image/png": ".png", "image/jpeg": ".jpg", "image/gif": ".gif", "image/webp": ".webp", "image/svg+xml": ".svg"}
+
+    def api_post_image(self, _, q):
+        """편집기 그림 삽입 - {name, type, data(base64)} → 작업 공간 그림 폴더(assetRoot/assets/images/<날짜-시각>-<이름>)에 저장하고 {src} 를 돌려준다(src = assetRoot 기준, image 요소의 src)."""
+        import base64
+        if HUB:
+            return self.err(404, "작업 공간 서버에서")
+        b = self.body_json() or {}
+        ctype = str(b.get("type") or "").split(";")[0].strip().lower()
+        name = str(b.get("name") or "")[:120]
+        ext = self.IMAGE_TYPES.get(ctype) or (Path(name).suffix.lower() if Path(name).suffix.lower() in self.IMAGE_TYPES.values() else None)
+        if not ext:
+            return self.err(400, f"그림 파일만(png·jpg·gif·webp·svg): {ctype or name or '?'}")
+        try:
+            data = base64.b64decode(str(b.get("data") or ""), validate=True)
+        except (ValueError, TypeError):
+            return self.err(400, "data 는 base64")
+        if not data:
+            return self.err(400, "내용 없음")
+        if len(data) > self.ATTACH_MAX:
+            return self.err(413, f"너무 크다({len(data) // 1024 // 1024}MB > {self.ATTACH_MAX // 1024 // 1024}MB)")
+        stem = re.sub(r"[^\w가-힣.-]+", "_", Path(name).stem)[:40].strip("._") or "image"
+        d = ASSET_ROOT / "assets" / "images"
+        d.mkdir(parents=True, exist_ok=True)
+        p = d / f"{dt.datetime.now().strftime('%Y%m%d-%H%M%S')}-{stem}{ext}"
+        n = 1
+        while p.exists():
+            n += 1
+            p = d / f"{p.stem.rsplit('-', 1)[0] if n > 2 else p.stem}-{n}{ext}"
+        p.write_bytes(data)
+        self._event = f"image:{p.name}"
+        self.send_json({"ok": True, "src": p.resolve().relative_to(ASSET_ROOT.resolve()).as_posix(), "name": p.name, "size": len(data)})
 
     def api_post_attach(self, i, q):
         """{name, type, data(base64)} → 파일로 저장하고 {path, name, type, size, url} 을 돌려준다. 요청을 add 할 때 attachments 로 넘긴다."""

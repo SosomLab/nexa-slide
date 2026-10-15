@@ -1057,7 +1057,7 @@ ${names}
         ${el.type !== "ellipse" && el.type !== "pill" && el.type !== "shape" ? `<div class="row"><label>모서리</label><select data-k="radius">${["", "r-s", "r-m", "r-l", "r-full"].map((r) => `<option value="${r}"${(el.radius || "") === r ? " selected" : ""}>${r || "없음"}</option>`).join("")}${typeof el.radius === "number" ? `<option selected value="${el.radius}">${el.radius}px</option>` : ""}</select></div>` : ""}
         ${colorRow("테두리", "stroke", el, true)}</div>`;
     }
-    if (el.type === "image") h += `<div class="sec"><h3>그림</h3><div class="row"><label>경로</label><input type="text" data-k="src" value="${esc(el.src)}"></div><div class="hint">assetRoot 기준 경로. 모서리 핸들은 비율 유지.</div></div>`;
+    if (el.type === "image") h += `<div class="sec"><h3>그림</h3><div class="row"><label>경로</label><input type="text" data-k="src" value="${esc(el.src)}"></div><div class="row"><button class="chip sm" data-imgpick="1" title="새 그림 파일을 올려 이 자리에 바꿔 넣습니다(폭 유지, 높이는 비율로)">그림 바꾸기…</button><span class="hint" style="margin:0">assetRoot 기준 경로 · 모서리 핸들은 비율 유지</span></div></div>`;
     if (isLine(el)) h += `<div class="sec"><h3>선</h3>${colorRow("색", "color", el)}${num("두께(px)", "width", el, 0.5)}
         ${seg("머리", "head", el, [["none", "없음"], ["end", "끝"], ["start", "시작"], ["both", "양쪽"]], el.type === "arrow" ? "end" : "none")}
         ${seg("점선", "dash", el, [["solid", "실선"], ["dash", "파선"], ["dot", "점선"]], "solid")}</div>`;
@@ -1172,6 +1172,7 @@ ${names}
     if (b.dataset.z && el) { zorder(b.dataset.z); return; }
     if (b.dataset.fit === "code" && el) { snapshot(); el.h = Math.round(24 + Render.codeLines(el).length * (el.size || 15) * (el.lineHeight || 1.6)); afterChange(); return; }
     if (b.dataset.conv && el) { snapshot(); convertEl(el, b.dataset.conv); afterChange(); return; }
+    if (b.dataset.imgpick && el && el.type === "image") { imagePick(el); return; }
     if (b.id === "applyJson" && el) {
       try {
         const nv = JSON.parse($("#elJson").value);
@@ -1775,9 +1776,60 @@ ${names}
     const ids = out.map((o) => { const el = { id: newElId(s), ...o }; if (isLine(el)) Object.assign(el, Render.lineBox(el)); s.elements.push(el); return el.id; });
     setSelection(ids); afterChange();
   }
+  // ---- 그림 삽입: 파일 고르기(＋ 추가 → 그림 파일…) · 편집기에서 Ctrl+V(클립보드 그림) · 캔버스에 끌어다 놓기 → /api/image(작업 공간 assets/images/) → image 요소
+  const IMG_MAX = [640, 400];  // 처음 넣을 때 최대 크기(비율 유지) - 큰 사진이 슬라이드를 덮지 않게
+  function imageSize(dataUrl) { return new Promise((res) => { const im = new Image(); im.onload = () => res([im.naturalWidth || 1, im.naturalHeight || 1]); im.onerror = () => res([320, 200]); im.src = dataUrl; }); }
+  async function addImageFiles(files, at) {
+    const s = slide(); if (!s) return;
+    const list = [...files].filter((f) => f && f.size && /^image\//.test(f.type || ""));
+    if (!list.length) { toast("그림 파일(png·jpg·gif·webp·svg)만 넣을 수 있습니다", 4000); return; }
+    const ids = []; let k = 0;
+    for (const f of list) {
+      const dataUrl = await new Promise((res, rej) => { const rd = new FileReader(); rd.onload = () => res(String(rd.result)); rd.onerror = rej; rd.readAsDataURL(f); }).catch(() => null);
+      if (!dataUrl) { toast("파일을 읽지 못했습니다"); continue; }
+      const [nw, nh] = await imageSize(dataUrl);
+      const name = f.name && f.name !== "image.png" ? f.name : `clip-${new Date().toISOString().slice(11, 19).replace(/:/g, "")}.${(f.type.split("/")[1] || "png").replace("jpeg", "jpg").replace("svg+xml", "svg")}`;
+      const r = await api("POST", "/api/image", { name, type: f.type, data: dataUrl.split(",")[1] || "" });
+      if (!r.ok) { toast("그림을 올리지 못했습니다: " + ((r.data && r.data.error) || r.status), 5000); continue; }
+      const sc = Math.min(1, IMG_MAX[0] / nw, IMG_MAX[1] / nh), w = Math.max(8, Math.round(nw * sc)), h = Math.max(8, Math.round(nh * sc));
+      const cx = at ? at.x : 640, cy = at ? at.y : 360;
+      if (!ids.length) snapshot();
+      const el = { id: newElId(s), type: "image", x: Math.round(Math.max(0, Math.min(1280 - w, cx - w / 2 + k * 24))), y: Math.round(Math.max(0, Math.min(720 - h, cy - h / 2 + k * 24))), w, h, src: r.data.src };
+      s.elements.push(el); ids.push(el.id); k++;
+    }
+    if (ids.length) { setSelection(ids); afterChange(); toast(`그림 ${ids.length}개를 넣었습니다 - assets/images/`); }
+  }
+  function imagePick(replaceEl) {
+    const f = $("#imgFile"); if (!f) return;
+    f.onchange = async () => {
+      const files = [...f.files]; f.value = "";
+      if (replaceEl) {  // 속성 [그림 바꾸기…] - 같은 자리에 새 그림(폭 유지, 높이는 비율로)
+        const file = files.find((x) => /^image\//.test(x.type || "")); if (!file) return;
+        const dataUrl = await new Promise((res) => { const rd = new FileReader(); rd.onload = () => res(String(rd.result)); rd.readAsDataURL(file); });
+        const [nw, nh] = await imageSize(dataUrl);
+        const r = await api("POST", "/api/image", { name: file.name, type: file.type, data: dataUrl.split(",")[1] || "" });
+        if (!r.ok) { toast("그림을 올리지 못했습니다: " + ((r.data && r.data.error) || r.status), 5000); return; }
+        snapshot(); replaceEl.src = r.data.src; replaceEl.h = Math.max(8, Math.round(replaceEl.w * nh / nw)); afterChange();
+      } else addImageFiles(files, null);
+    };
+    f.click();
+  }
+  function wireImageDrop() {  // 캔버스에 그림 파일 끌어다 놓기(놓은 자리에) · 편집기 어디서나 Ctrl+V 그림(글 편집·메모·요청 입력 중이 아닐 때)
+    const st = $("#stageWrap") || $("#stage"); if (!st) return;
+    st.addEventListener("dragover", (e) => { if ([...e.dataTransfer.types].includes("Files")) { e.preventDefault(); st.classList.add("dropping"); } });
+    st.addEventListener("dragleave", () => st.classList.remove("dropping"));
+    st.addEventListener("drop", (e) => { st.classList.remove("dropping"); if (!e.dataTransfer.files.length) return; e.preventDefault(); e.stopPropagation(); addImageFiles(e.dataTransfer.files, toSlide(e)); });
+    document.addEventListener("paste", (e) => {
+      const t = e.target, tag = (t && t.tagName) || "";
+      if (tag === "INPUT" || tag === "TEXTAREA" || (t && t.isContentEditable) || (t && t.closest && t.closest("#memo, #tab-reqs, .popover, .modal-back"))) return;  // 글 입력·메모·요청 양식은 제 처리기가 맡는다
+      const files = []; for (const it of (e.clipboardData && e.clipboardData.items) || []) if (it.kind === "file") { const f = it.getAsFile(); if (f && /^image\//.test(f.type || "")) files.push(f); }
+      if (!files.length) return;
+      e.preventDefault(); addImageFiles(files, null);
+    });
+  }
   function addMenu(btn) {
     openMenu(btn, [["text", "T", "글자"], ["bullets", "≡", "글머리 목록"], ["pill", "◖◗", "칩"], ["rect", "▭", "상자"], ["ellipse", "◯", "원"], ["arrow", "→", "화살표"], ["table", "▦", "표 (2×2)"], ["code", "{ }", "코드"], ["image", "🖼", "로고"]]
-      .map(([k, i, l]) => ({ icon: i, label: l, act: () => addEl(k) })).concat(["-", { icon: "◇", label: "도형…", keep: true, act: () => shapeMenu(btn) }, { icon: "⬡", label: "다이어그램…", keep: true, act: () => diagramMenu(btn) }]));
+      .map(([k, i, l]) => ({ icon: i, label: l, act: () => addEl(k) })).concat([{ icon: "🖼", label: "그림 파일…", act: () => imagePick(null) }, "-", { icon: "◇", label: "도형…", keep: true, act: () => shapeMenu(btn) }, { icon: "⬡", label: "다이어그램…", keep: true, act: () => diagramMenu(btn) }]));
   }
   function goSlide(i) { if (!S.deck) return; S.cur = Math.max(0, Math.min(S.deck.slides.length - 1, i)); S.sel = null; S.chkBox = S.chkBox && S.chkBox.slide === slide().id ? S.chkBox : null; closeMemo(); renderAll(); ensureThumbVisible(S.cur); }
   function dupSlide(i) { snapshot(); const c = clone(S.deck.slides[i]); c.id = newSlideId(); S.deck.slides.splice(i + 1, 0, c); S.cur = i + 1; S.sel = null; afterChange(true); }
@@ -2107,6 +2159,7 @@ ${names}
     $$("#modeSeg [data-mode]").forEach((b) => (b.onclick = () => setMode(b.dataset.mode)));
     $$("#drawTools [data-tool]").forEach((b) => (b.onclick = () => setTool(b.dataset.tool)));
     $("#addBtn").onclick = (e) => addMenu(e.currentTarget);
+    wireImageDrop();
     $("#chkBtn").onclick = () => { S.chkOnlySlide = true; setBtab("check"); renderCheck(); };
     $("#aiFixBtn").onclick = aiFix; $("#aiPolishBtn").onclick = aiPolish;
     // 서식 줄
