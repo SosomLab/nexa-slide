@@ -191,14 +191,15 @@
   .org.o-mine { background: var(--okc); color: var(--ok); } .org.o-editor { background: #CDEFE6; color: #00695C; } .org.o-claude { background: var(--infoc); color: var(--info); }
   .org.o-build { background: var(--warnc); color: var(--warn); } .org.o-external { background: var(--tone2); color: var(--ink2); }
   .org.inf { outline: 1px dashed currentColor; outline-offset: -1px; }
-  .chg-tbl { width: 100%; border-collapse: collapse; font-size: 12px; table-layout: fixed; }
-  .chg-tbl td { overflow: hidden; text-overflow: ellipsis; }
+  /* 목록 전체를 가로로 넘긴다(.hscroll) - 제목 칸은 자르지 않는다. 요소 목록(.ellist)과 같은 규칙 */
+  .hscroll { overflow-x: auto; overflow-y: hidden; max-width: 100%; }
+  .chg-tbl { width: max-content; min-width: 100%; border-collapse: collapse; font-size: 12px; }
   /* 제목 칸을 최대로 - 번호·출처·시각은 내용에 맞는 최소 폭 */
   .chg-tbl col.n { width: 24px; } .chg-tbl col.o { width: 50px; } .chg-tbl col.a { width: 40px; }
   .chg-tbl td.o, .chg-tbl td.a { padding-left: 2px; padding-right: 2px; text-align: right; } .chg-tbl td.n { padding-left: 2px; }
   .chg-tbl .org { padding: 1px 5px; } .chg-tbl tr { cursor: pointer; } .chg-tbl tr:hover { background: var(--tone); }
   .chg-tbl td { padding: 4px 6px; border-bottom: 1px solid var(--tone2); vertical-align: top; white-space: nowrap; }
-  .chg-tbl td.n { color: var(--ink2); width: 24px; } .chg-tbl td.t { overflow: hidden; text-overflow: ellipsis; }
+  .chg-tbl td.n { color: var(--ink2); width: 24px; }
   /* 변경 탭 머리 - 설명(ⓘ 토글) · 출처 필터 칩 · 동작 단추(균등 폭) */
   .chg-top { display: flex; align-items: center; gap: 6px; } .chg-top h3 { flex: 1; margin: 0; }
   .chg-ibtn { width: 28px; height: 28px; min-width: 28px; padding: 0; border-radius: 50%; color: var(--ink2); }
@@ -339,8 +340,8 @@
   .row input:focus, .row select:focus, .sec textarea:focus { outline: 2px solid var(--pc); outline-offset: -1px; border-color: var(--p); }
   .row input[type=text] { flex: 1; min-width: 0; }
   .row select { min-width: 0; max-width: 100%; }  /* 긴 선택지(글꼴 세트·색)가 패널을 벗어나지 않게 - 보이는 글은 잘리고 목록은 전부 */
-  .row .scrollx { flex: 1; min-width: 0; max-width: 100%; overflow-x: auto; overflow-y: hidden; padding-bottom: 2px; }  /* 가로로 넘겨 전체를 볼 수 있는 칸 */
-  .row .scrollx > select { max-width: none; width: max-content; min-width: 100%; }
+  .row select.ell { flex: 1; width: 0; text-overflow: ellipsis; }  /* 긴 선택지(글꼴 세트) - 칸 안에서 말줄임, 전체는 아래 .sub 보조 글줄과 툴팁·펼친 목록에서 */
+  .sub { margin: -2px 0 8px 66px; font-size: 11.5px; line-height: 1.4; color: var(--ink2); word-break: break-word; }  /* 선택 상자 아래 보조 글줄 - label 폭 60 + 간격 6 */
   .sec textarea { width: 100%; min-height: 90px; resize: vertical; font-family: Consolas, "Malgun Gothic", monospace; font-size: 12px; }
   .sec .chip.sm, .sec .pbtn { border: 1px solid var(--line); background: #fff; color: var(--ink); border-radius: 8px; padding: 4px 10px; font-size: 12.5px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; }
   .sec .chip.sm:hover, .sec .pbtn:hover { background: var(--tone); border-color: var(--ink2); }
@@ -364,8 +365,9 @@
   .finfo b { color: var(--ink); }
   .sw { width: 16px; height: 16px; border-radius: 5px; display: inline-block; box-shadow: inset 0 0 0 1px rgba(0,0,0,.15); flex: none; }
   .colorSel { flex: 1; min-width: 0; }
-  .ellist { max-height: 220px; overflow-y: auto; }
-  .ellist div { padding: 3px 8px; border-radius: 8px; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  /* 목록(여러 줄)은 줄을 자르지 않고 목록 전체를 가로로 넘긴다 - 줄마다 말줄임 대신 스크롤 하나(요소 목록·최근 수정 대상 같은 긴 이름 목록의 공통 규칙) */
+  .ellist { max-height: 220px; overflow: auto; }
+  .ellist div { padding: 3px 8px; border-radius: 8px; cursor: pointer; white-space: nowrap; width: max-content; min-width: 100%; box-sizing: border-box; }
   .ellist div:hover { background: #fff; }
   .ellist div.on { background: var(--pc); }
   .hint { color: var(--ink2); font-size: 12px; margin: 4px 0; }

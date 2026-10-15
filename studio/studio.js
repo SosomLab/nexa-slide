@@ -255,7 +255,7 @@
       <button class="chip sm" data-chg-seen="1" title="최근 변경까지 확인한 것으로 - 모든 묶음을 미표시로 바꾼다(묶음마다 '표시'로 다시 볼 수 있다)">확인함</button>
       <button class="chip sm" data-chg-recent="1" title="가장 최근 변경 묶음 3개를 표시한다(내 편집 포함) - 묶음마다 '표시'를 누르는 것과 같다">최근 3개 표시</button>
       <button class="chip sm${S.chgOff ? " on" : ""}" data-chg-off="1" title="${S.chgOff ? "변경 표시를 다시 켠다(묶음별 표시 상태는 그대로)" : "변경 기록을 보지 않고 작업 - 배지·점선을 모두 감춘다(묶음별 표시 상태는 그대로)"}">${S.chgOff ? "표시 켜기" : "표시 끄기"}</button></div></div>
-      ${recent.length ? `<div class="sec"><h3>최근 수정 대상</h3><table class="chg-tbl"><colgroup><col class="n"><col><col class="o"><col class="a"></colgroup>${recent.map((r) => { const k = [r.kind === "수정" ? "" : r.kind, ...(r.kinds || []), ...(r.extra || [])].filter(Boolean).join("·"); return `<tr data-csid="${esc(r.sid)}"><td class="n">${r.idx + 1}</td><td class="t" title="${esc(r.title || "")}${k ? ` - ${esc(k)}` : ""}">${esc(r.title || "")}</td><td class="o">${orgBadge(r)}</td><td class="hint a" title="${esc(r.ts || "")} (${esc(ago(r.ts))})">${esc(ago(r.ts).replace(/ 전$/, ""))}</td></tr>`; }).join("")}</table></div>` : ""}
+      ${recent.length ? `<div class="sec"><h3>최근 수정 대상</h3><div class="hscroll"><table class="chg-tbl"><colgroup><col class="n"><col><col class="o"><col class="a"></colgroup>${recent.map((r) => { const k = [r.kind === "수정" ? "" : r.kind, ...(r.kinds || []), ...(r.extra || [])].filter(Boolean).join("·"); return `<tr data-csid="${esc(r.sid)}"><td class="n">${r.idx + 1}</td><td class="t" title="${esc(r.title || "")}${k ? ` - ${esc(k)}` : ""}">${esc(r.title || "")}</td><td class="o">${orgBadge(r)}</td><td class="hint a" title="${esc(r.ts || "")} (${esc(ago(r.ts))})">${esc(ago(r.ts).replace(/ 전$/, ""))}</td></tr>`; }).join("")}</table></div></div>` : ""}
       ${list.length ? list.map(groupHtml).join("") + (S.chgMore ? `<div class="row" style="justify-content:center;margin:8px 0"><button class="chip sm" data-chg-more="1">더 보기</button></div>` : `<div class="hint" style="text-align:center;margin:8px 0">원장의 시작</div>`)
         : `<div class="hint">${S.changes.length ? "이 필터에 해당하는 변경이 없습니다." : "아직 기록된 변경이 없습니다."}</div>`}`;
   }
@@ -739,34 +739,62 @@
   function defSize(el) { return { pill: 14, code: 15, plan: 14, "plan-table": 15, table: 16 }[el.type] || 20; }
   function swatch(v) { return v ? Render.fillCss(v) : "transparent"; }  // 토큰·#hex(투명도)·그라데이션 객체 모두
   const fillLabel = (v) => !v ? "없음" : typeof v === "object" ? "그라데이션·투명도 (요소 JSON 에서 고침)" : v;
+  // 서식 줄 - 요소 종류마다 자주 쓰는 설정을 바로 고친다(속성 탭과 같은 값). 종류별 "종류" 선택 → 글자 → 면·테두리/종류별 설정 → 공통(링크·그림자·회전) → 복제·삭제·잠금·위치·메모
+  const ROTATABLE = (x) => !isLine(x) && !["table", "plan-table", "bullets", "code", "plan"].includes(x.type);
+  const hasShadow = (x) => hasFill(x) || x.type === "image";
   function renderFtb() {
     const F = $("#ftb"), el = selEl();
     if (S.mode !== "edit" || !el || S.editing) { F.classList.remove("show"); F.innerHTML = ""; return; }
-    const lk = !!el.locked; let h = "";
-    if (SIZED.has(el.type)) {
+    const lk = !!el.locked, t = el.type; let h = "";
+    const sel = (f, title, opts, cur) => `<select data-f="${f}" title="${title}">${opts.map(([k, l]) => `<option value="${esc(k)}"${cur === k ? " selected" : ""}>${esc(l)}</option>`).join("")}</select>`;
+    const sw = (f, icon, title, v, dflt) => `<button class="ib" data-f="${f}" title="${title} - ${esc(fillLabel(v))}">${icon}<span class="sw" style="background:${swatch(v || dflt)}"></span></button>`;
+    const vsep = `<span class="vsep"></span>`;
+    if (t === "shape") h += sel("shape", "도형 종류", Render.shapeNames(), el.shape);
+    if (t === "chart") h += sel("chart", "차트 종류", CHART_KINDS.map(([k, , l]) => [k, l]), el.chart || "column");
+    if (t === "icon") h += sel("icon", "아이콘 종류", Render.iconNames(), el.icon);
+    if (SIZED.has(t)) {
       const sz = el.size || defSize(el);
-      if (TEXTY.has(el.type) || el.type === "table") h += `<select data-f="font" title="글꼴 역할 - 세트의 본문·제목·고정폭 글꼴 중 어느 것을 쓰는지${el.type === "table" ? " (표 본문 셀 - 열별 글꼴 colFont 가 없는 열)" : ""}"><option value="body"${!el.font || el.font === "body" ? " selected" : ""}>본문 글꼴</option><option value="heading"${el.font === "heading" ? " selected" : ""}>제목 글꼴</option><option value="mono"${el.font === "mono" ? " selected" : ""}>고정폭(코드)</option></select>`;
+      if (TEXTY.has(t) || t === "table" || t === "bullets") h += `<select data-f="font" title="글꼴 역할 - 세트의 본문·제목·고정폭 글꼴 중 어느 것을 쓰는지${t === "table" ? " (표 본문 셀 - 열별 글꼴 colFont 가 없는 열)" : ""}"><option value="body"${!el.font || el.font === "body" ? " selected" : ""}>본문 글꼴</option><option value="heading"${el.font === "heading" ? " selected" : ""}>제목 글꼴</option><option value="mono"${el.font === "mono" ? " selected" : ""}>고정폭(코드)</option></select>`;
       h += `<input class="num" type="number" min="6" max="400" step="1" data-f="size" value="${sz}" title="글자 크기(px) - PPT pt = px × 0.75">
         <button class="ib" data-f="sizePreset" title="크기 프리셋">▾</button><span class="pt" title="PowerPoint 글자 크기">${+(sz * 0.75).toFixed(2)}pt</span>`;
-      if (TEXTY.has(el.type) || el.type === "bullets") h += `<button class="ib" data-f="color" title="글자색 - ${esc(el.color || "기본")}"><b style="text-decoration:underline;text-decoration-color:${swatch(el.color || "on-surface")};text-decoration-thickness:3px">A</b></button>`;
-      if (TEXTY.has(el.type)) {
-        const bold = el.bold === undefined ? el.type === "pill" : !!el.bold;
-        h += `<span class="vsep"></span><button class="ib${bold ? " on" : ""}" data-f="bold" title="굵게 (Ctrl+B)"><b>B</b></button>`;
-        const al = el.align || (el.type === "pill" || el.type === "ellipse" || el.type === "shape" ? "center" : "left");
-        h += `<span class="vsep"></span>` + [["left", "⯇≡", "왼쪽"], ["center", "≡", "가운데"], ["right", "≡⯈", "오른쪽"]].map(([k, i, t]) => `<button class="ib${al === k ? " on" : ""}" data-f="align" data-v="${k}" title="${t} 정렬">${i}</button>`).join("");
+      if (TEXTY.has(t) || t === "bullets") h += `<button class="ib" data-f="color" title="글자색 - ${esc(el.color || "기본")}"><b style="text-decoration:underline;text-decoration-color:${swatch(el.color || "on-surface")};text-decoration-thickness:3px">A</b></button>`;
+      if (TEXTY.has(t)) {
+        const bold = el.bold === undefined ? t === "pill" : !!el.bold;
+        h += `${vsep}<button class="ib${bold ? " on" : ""}" data-f="bold" title="굵게 (Ctrl+B)"><b>B</b></button>`;
+        const al = el.align || (t === "pill" || t === "ellipse" || t === "shape" ? "center" : "left");
+        h += vsep + [["left", "⯇≡", "왼쪽"], ["center", "≡", "가운데"], ["right", "≡⯈", "오른쪽"]].map(([k, i, tt]) => `<button class="ib${al === k ? " on" : ""}" data-f="align" data-v="${k}" title="${tt} 정렬">${i}</button>`).join("");
         h += `<button class="ib" data-f="spacing" title="줄 간격·세로 정렬">↕ ▾</button>`;
+        if (t === "text") h += `<button class="ib" data-f="conv" data-v="bullets" title="글머리 목록으로 바꾸기 - 줄마다 항목(앞에 공백 두 칸 = 하위 항목, 글 앞의 번호·기호는 자동 감지)">≡</button>`;
+      }
+      if (t === "bullets") {
+        h += `${vsep}<button class="ib" data-f="marker" title="글머리 종류 - 항목 ${esc(el.marker || "●")} · 하위 ${esc(el.subMarker || "–")} (글 앞에 직접 적은 번호·기호가 우선)">${esc(el.marker === "none" ? "없음" : el.marker || "●")} ▾</button>` + sw("dot", "●", "점 색(기호 글머리)", el.dot, "primary")
+          + `<button class="ib" data-f="spacing" title="줄 높이 · 항목 간격 · 하위 크기">↕ ▾</button><button class="ib" data-f="conv" data-v="text" title="글자 상자로 바꾸기 - 항목을 줄로 펼침(하위 항목은 앞에 공백 두 칸)">T</button>`;
+      }
+      if (t === "table") h += vsep + [["row+", "＋행", "맨 아래에 행 추가"], ["row-", "－행", "맨 아래 행 지우기"], ["col+", "＋열", "맨 오른쪽에 열 추가"], ["col-", "－열", "맨 오른쪽 열 지우기"]].map(([k, l, tt]) => `<button class="ib" data-f="tblop" data-v="${k}" title="${tt}">${l}</button>`).join("")
+        + `<span class="pt" title="행 × 열">${(el.rows || []).length}×${((el.rows || [])[0] || []).length}</span>` + sw("headFill", "▀", "머리 행 면", el.headFill, "surface-container-high") + sw("headColor", "A", "머리 행 글자색", el.headColor, "on-surface");
+      if (t === "chart") {
+        const lg = el.legend || (((el.series || []).length > 1 || el.chart === "pie" || el.chart === "doughnut") ? "bottom" : "none");
+        h += `${vsep}<button class="ib" data-f="legend" title="범례 - 누를 때마다 바뀜 (없음 → 아래 → 오른쪽)">${{ none: "범례 없음", bottom: "범례 아래", right: "범례 오른쪽" }[lg]}</button><button class="ib${el.labels ? " on" : ""}" data-f="labels" title="값 표시">값</button><button class="ib${el.grid === false ? "" : " on"}" data-f="grid" title="눈금선">▦</button>`;
       }
     }
-    if (["rect", "ellipse", "pill", "text", "plan", "shape"].includes(el.type)) h += `<span class="vsep"></span><button class="ib" data-f="fill" title="채우기 - ${esc(fillLabel(el.fill))}">🪣<span class="sw" style="background:${swatch(el.fill)}"></span></button>`;
-    if (["rect", "ellipse", "pill", "text", "shape"].includes(el.type)) h += `<button class="ib" data-f="stroke" title="테두리 - ${esc(el.stroke || "없음")}">▢<span class="sw" style="background:${swatch(el.stroke)}"></span></button>`;
+    if (hasFill(el)) h += vsep + sw("fill", "🪣", "채우기", el.fill);
+    if (hasStroke(el)) h += sw("stroke", "▢", "테두리", el.stroke);
+    if (t === "icon") h += vsep + sw("fill", "🎨", "아이콘 색", el.fill) + sw("color", "◐", "대비 색(안쪽 무늬)", el.color);
+    if (t === "image") h += `${vsep}<input class="num" type="number" min="0" max="100" step="5" data-f="opacity" value="${Math.round((el.opacity == null ? 1 : el.opacity) * 100)}" title="투명도 % (100 = 그대로)"><span class="pt" style="min-width:0">%</span><button class="ib${el.crop && el.crop.some((v) => v) ? " on" : ""}" data-f="crop" title="자르기 % - 왼쪽·위·오른쪽·아래">✂ ▾</button><button class="ib" data-f="imgpick" title="그림 바꾸기 - 새 그림 파일을 올려 이 자리에(폭 유지, 높이는 비율로)">🖼</button>${el.mermaid != null ? `<button class="ib" data-f="mermaid" title="다이어그램 코드 수정 (mermaid)">⌘</button>` : ""}`;
+    if (t === "group") h += `${vsep}<button class="ib" data-f="ungroup" title="묶음 풀기 (Ctrl+Shift+G) - 자식 ${(el.children || []).length}개를 낱개로">⧈ 풀기</button>`;
     if (isLine(el)) {
       h += `<button class="ib" data-f="color" title="선 색">━<span class="sw" style="background:${swatch(el.color || "on-surface")}"></span></button>
         <input class="num" type="number" min="0.5" max="20" step="0.5" data-f="width" value="${el.width || 2}" title="두께(px)">
         <button class="ib" data-f="head" title="화살 머리 - 누를 때마다 바뀜">${{ none: "-", end: "→", start: "←", both: "↔" }[el.head || (el.type === "arrow" ? "end" : "none")]}</button>
         <button class="ib" data-f="dash" title="선 모양 - 누를 때마다 바뀜">${{ solid: "실선", dash: "파선", dot: "점선" }[el.dash || "solid"]}</button>`;
     }
-    if (el.type === "code") h += `<span class="vsep"></span><button class="ib" data-f="lang" title="코드 언어 - ${el.lang ? esc(langLabel(Render.langOf(el))) : "지정 안 함(SQL 색)"}">${el.lang ? esc(langLabel(Render.langOf(el))) : "언어"} ▾</button><button class="ib" data-f="copy" title="코드를 클립보드에 복사">📋</button>`;
-    h += `<span class="vsep"></span><button class="ib" data-f="dup" title="복제 (Ctrl+D)">⧉</button>
+    if (t === "code") h += `${vsep}<button class="ib" data-f="lang" title="코드 언어 - ${el.lang ? esc(langLabel(Render.langOf(el))) : "지정 안 함(SQL 색)"}">${el.lang ? esc(langLabel(Render.langOf(el))) : "언어"} ▾</button><button class="ib${el.lineNo === false ? "" : " on"}" data-f="lineno" title="줄 번호">#</button><button class="ib" data-f="copy" title="코드를 클립보드에 복사">📋</button>`;
+    // 공통 - 링크(선 제외) · 그림자(면이 있는 것·그림) · 회전·뒤집기
+    if (!isLine(el) || hasShadow(el) || ROTATABLE(el)) h += vsep;
+    if (!isLine(el)) h += `<button class="ib${el.link ? " on" : ""}" data-f="link" title="링크 - ${esc(el.link || "없음")} (발표 화면에서 누르면 이동 · PPTX 도 같음)">🔗</button>`;
+    if (hasShadow(el)) h += `<button class="ib${el.shadow ? " on" : ""}" data-f="shadow" title="그림자">◱</button>`;
+    if (ROTATABLE(el)) h += `<button class="ib${el.rot || el.flipH || el.flipV ? " on" : ""}" data-f="rot" title="회전·뒤집기 - 지금 ${el.rot || 0}°${el.flipH ? " · 좌우" : ""}${el.flipV ? " · 상하" : ""}">↻ ▾</button>`;
+    h += `${vsep}<button class="ib" data-f="dup" title="복제 (Ctrl+D)">⧉</button>
       <button class="ib" data-f="del" title="삭제 (Delete)" ${lk ? "disabled" : ""}>🗑</button>
       <button class="ib${lk ? " on" : ""}" data-f="lock" title="잠금 - 끌기·삭제 막기">🔒</button>
       <button class="ib" data-f="pos" title="위치 조정 - 정렬·순서·크기·좌표">✥ ▾</button>
@@ -879,13 +907,60 @@
   function onFtb(e) {
     const t = e.target.closest("[data-f]"); if (!t) return;
     const f = t.dataset.f, el = selEl(); if (!el) return;
+    const same = (x) => x.type === el.type;
     if (e.type === "change") {
       if (f === "size") mutate((x) => { x.size = Math.max(6, Math.min(400, +t.value || defSize(x))); }, (x) => SIZED.has(x.type));
       if (f === "width") mutate((x) => { x.width = +t.value || 2; }, isLine);
-      if (f === "font") mutate((x) => { if (t.value === "body") delete x.font; else x.font = t.value; }, (x) => TEXTY.has(x.type) || x.type === "table");
+      if (f === "font") mutate((x) => { if (t.value === "body") delete x.font; else x.font = t.value; }, (x) => TEXTY.has(x.type) || x.type === "table" || x.type === "bullets");
+      if (f === "shape" || f === "chart" || f === "icon") mutate((x) => setProp(x, f, t.value), same);
+      if (f === "opacity") { const o = Math.max(0, Math.min(100, +t.value || 0)) / 100; mutate((x) => { if (o < 1) x.opacity = o; else delete x.opacity; }, (x) => x.type === "image"); }
       return;
     }
     if (t.tagName === "INPUT" || t.tagName === "SELECT") return;
+    // ---- 종류별
+    if (f === "dot") palette(t, el.dot, true, (c) => mutate((x) => { if (c) x.dot = c; else delete x.dot; }, (x) => x.type === "bullets"));
+    if (f === "headFill") palette(t, el.headFill, true, (c) => mutate((x) => { if (c) x.headFill = c; else delete x.headFill; }, (x) => x.type === "table"));
+    if (f === "headColor") palette(t, el.headColor, true, (c) => mutate((x) => { if (c) x.headColor = c; else delete x.headColor; }, (x) => x.type === "table"));
+    if (f === "marker") openMenu(t, [
+      { h: "항목" }, { html: `<div class="pal" style="grid-template-columns:repeat(6,auto)">${MARKER_OPTS.map(([k, l]) => `<button data-mk="${esc(k)}" class="${(el.marker || "●") === k ? " on" : ""}" style="width:auto;min-width:22px;padding:0 5px;background:#fff;font:12px var(--font)" title="${esc(l)}">${esc(l)}</button>`).join("")}</div>`, bind: (n) => n.addEventListener("click", (ev) => { const b = ev.target.closest("[data-mk]"); if (b) { closeMenu(); mutate((x) => setProp(x, "marker", b.dataset.mk), (x) => x.type === "bullets"); } }) },
+      { h: "하위 항목" }, { html: `<div class="pal" style="grid-template-columns:repeat(6,auto)">${SUB_MARKER_OPTS.map(([k, l]) => `<button data-smk="${esc(k)}" class="${(el.subMarker || "–") === k ? " on" : ""}" style="width:auto;min-width:22px;padding:0 5px;background:#fff;font:12px var(--font)" title="${esc(l)}">${esc(l)}</button>`).join("")}</div>`, bind: (n) => n.addEventListener("click", (ev) => { const b = ev.target.closest("[data-smk]"); if (b) { closeMenu(); mutate((x) => setProp(x, "subMarker", b.dataset.smk), (x) => x.type === "bullets"); } }) }, "-",
+      { label: "글 앞 번호·기호 감지", on: el.autoNum !== false, act: () => mutate((x) => setProp(x, "autoNum", x.autoNum === false ? "on" : "off"), (x) => x.type === "bullets") },
+    ]);
+    if (f === "spacing" && el.type === "bullets") {
+      const lh = el.lineHeight || 1.4, gap = el.gap == null ? 14 : el.gap, sub = el.subSize || Math.round((el.size || defSize(el)) * 0.85);
+      openMenu(t, [
+        { h: `줄 높이 (지금 ${lh})` }, ...[1.0, 1.2, 1.3, 1.4, 1.5, 1.6, 1.8].map((v) => ({ label: String(v), on: Math.abs(lh - v) < 0.001, act: () => mutate((x) => { x.lineHeight = v; }, (x) => x.type === "bullets") })), "-",
+        { h: `항목 간격 px (지금 ${gap})` }, ...[0, 6, 10, 14, 20, 28, 35, 44].map((v) => ({ label: String(v), on: gap === v, act: () => mutate((x) => { x.gap = v; }, (x) => x.type === "bullets") })), "-",
+        { h: `하위 크기 px (지금 ${el.subSize || `자동 ${sub}`})` }, ...[-6, -4, -2, 0].map((d) => { const v = (el.size || defSize(el)) + d; return { label: `${v}${d ? ` (${d})` : " (같게)"}`, on: el.subSize === v, act: () => mutate((x) => { x.subSize = v; }, (x) => x.type === "bullets") }; }), { label: "자동", on: !el.subSize, act: () => mutate((x) => { delete x.subSize; }, (x) => x.type === "bullets") },
+      ]);
+      return;
+    }
+    if (f === "tblop") { snapshot(); tableOp(el, t.dataset.v); afterChange(); }
+    if (f === "legend") { const o = ["none", "bottom", "right"], cur = el.legend || (((el.series || []).length > 1 || el.chart === "pie" || el.chart === "doughnut") ? "bottom" : "none"); const v = o[(o.indexOf(cur) + 1) % 3]; mutate((x) => setProp(x, "legend", v), same); }
+    if (f === "labels") { const v = el.labels ? "off" : "on"; mutate((x) => setProp(x, "labels", v), same); }
+    if (f === "grid") { const v = el.grid === false ? "on" : "off"; mutate((x) => setProp(x, "grid", v), same); }
+    if (f === "crop") {
+      const c = (el.crop || [0, 0, 0, 0]).map((v) => Math.round((v || 0) * 100));
+      openMenu(t, [{ h: "자르기 % (왼쪽 · 위 · 오른쪽 · 아래)" }, { html: `<div style="display:flex;gap:4px;padding:4px 10px;align-items:center">${c.map((v, i) => `<input type="number" min="0" max="95" step="1" data-ci="${i}" value="${v}" title="${["왼쪽", "위", "오른쪽", "아래"][i]}" style="width:52px;border:1px solid var(--line);border-radius:6px;padding:3px 4px">`).join("")}<button class="chip sm primary" data-capply="1">적용</button></div>`,
+        bind: (n) => { n.querySelector("[data-capply]").onclick = () => { const nv = [...n.querySelectorAll("[data-ci]")].map((i) => Math.max(0, Math.min(95, +i.value || 0)) / 100); closeMenu(); mutate((x) => { if (nv.some((v) => v)) x.crop = nv; else delete x.crop; }, (x) => x.type === "image"); }; n.addEventListener("keydown", (ev) => { if (ev.key === "Enter") n.querySelector("[data-capply]").click(); ev.stopPropagation(); }); } },
+        "-", { label: "자르기 없음", disabled: !c.some(Boolean), act: () => mutate((x) => { delete x.crop; }, (x) => x.type === "image") }]);
+    }
+    if (f === "imgpick") imagePick(el);
+    if (f === "mermaid") mermaidDialog(el);
+    if (f === "ungroup") ungroupSel();
+    if (f === "lineno") { const on = el.lineNo === false; mutate((x) => { if (on) delete x.lineNo; else x.lineNo = false; }, (x) => x.type === "code"); }
+    if (f === "conv") { snapshot(); convertEl(el, t.dataset.v); afterChange(); }
+    // ---- 공통
+    if (f === "shadow") { const v = el.shadow ? "off" : "on"; mutate((x) => setProp(x, "shadow", v), hasShadow); }
+    if (f === "link") openMenu(t, [{ h: "링크 - https://… · #3(슬라이드 번호) · #s07(슬라이드 id)" }, { html: `<div style="display:flex;gap:6px;padding:4px 10px"><input type="text" data-lk="1" value="${esc(el.link || "")}" placeholder="https://… · #3 · #s07" style="width:240px;border:1px solid var(--line);border-radius:6px;padding:4px 6px"><button class="chip sm primary" data-lapply="1">적용</button></div>`,
+      bind: (n) => { const i = n.querySelector("[data-lk]"); n.querySelector("[data-lapply]").onclick = () => { const v = i.value; closeMenu(); mutate((x) => setProp(x, "link", v), (x) => !isLine(x)); }; i.addEventListener("keydown", (ev) => { if (ev.key === "Enter") n.querySelector("[data-lapply]").click(); ev.stopPropagation(); }); setTimeout(() => i.focus(), 20); } },
+      "-", { label: "링크 지우기", disabled: !el.link, act: () => mutate((x) => { delete x.link; }, (x) => !isLine(x)) }]);
+    if (f === "rot") openMenu(t, [
+      { h: `회전 (지금 ${el.rot || 0}°) - 시계 방향, 중심 기준` }, ...[0, 90, 180, 270].map((v) => ({ label: `${v}°`, on: (el.rot || 0) === v, act: () => mutate((x) => setProp(x, "rot", v), ROTATABLE) })),
+      { label: "+15°", act: () => mutate((x) => setProp(x, "rot", ((x.rot || 0) + 15) % 360), ROTATABLE) }, { label: "−15°", act: () => mutate((x) => setProp(x, "rot", ((x.rot || 0) - 15 + 360) % 360), ROTATABLE) }, "-",
+      { icon: "⇋", label: "좌우 뒤집기", on: !!el.flipH, act: () => mutate((x) => { if (x.flipH) delete x.flipH; else x.flipH = true; }, ROTATABLE) },
+      { icon: "⇅", label: "상하 뒤집기", on: !!el.flipV, act: () => mutate((x) => { if (x.flipV) delete x.flipV; else x.flipV = true; }, ROTATABLE) },
+    ]);
     if (f === "sizePreset") openMenu(t, SIZE_PRESETS.map((v) => ({ label: `${v}px · ${+(v * 0.75).toFixed(2)}pt`, on: (el.size || defSize(el)) === v, act: () => mutate((x) => { x.size = v; }, (x) => SIZED.has(x.type)) })));
     if (f === "color") palette(t, el.color, false, (c) => mutate((x) => { x.color = c; }, hasColor));
     if (f === "fill") palette(t, el.fill, true, (c) => mutate((x) => { if (c) x.fill = c; else delete x.fill; }, hasFill));
@@ -1061,6 +1136,15 @@ ${names}
       ? `<br>열별(colFont) · ${el.colFont.map((f, j) => `${j + 1} ${ROLE[Render.fontRole(f || el.font)]}`).join(" · ")} · 머리 행 본문` : "";
     return `<div class="finfo" title="이 요소에 실제로 적용되는 글꼴 - 역할·세트·크기">적용 글꼴 · ${ROLE[fi.role] || fi.role} · <b>${esc(fi.latin || "?")}</b>${fi.ea && fi.ea !== fi.latin ? ` + ${esc(fi.ea)}(한글)` : ""} · ${px}px = ${pt}pt${bold ? " · 굵게" : ""}${heavy}<br>${esc(fi.from)}${fi.css ? ` · CSS ${esc(fi.css)}` : ""}${cols}${miss.length ? `<br><span style="color:var(--warn)">이 브라우저에 없음: ${esc(miss.join(", "))} - 대체 글꼴로 보이는 중(PPTX 는 받는 PC 의 글꼴)</span>` : ""}</div>`;
   }
+  /** 글꼴 세트 선택 줄 - 선택 상자는 세트 이름만(폭 안에서 말줄임), 그 아래 보조 글줄에 고른 세트의 글꼴 구성을 줄바꿈으로 전부 보인다(Material "supporting text" 꼴). 목록(펼침)은 브라우저가 내용 폭대로 그린다.
+      cur = 고른 세트 이름(빈 값 = 기본), dflt = 기본일 때 실제로 쓰이는 세트 이름 */
+  function fontSetRow(label, attr, cur, dfltLabel, dflt, scope) {
+    const presets = (S.fonts && S.fonts.presets) || [];
+    const eff = presets.find((p) => p.name === (cur || dflt));
+    const sub = eff ? `${cur ? "" : `${esc(eff.name)} · `}${esc(eff.label)}` : (cur ? esc(cur) : "기본 글꼴");
+    return `<div class="row"><label>${label}</label><select class="ell" ${attr} title="${esc(scope)} - ${esc(eff ? `${eff.name}: ${eff.label}` : "기본")}"><option value="">${dfltLabel}</option>${presets.map((p) => `<option value="${esc(p.name)}"${cur === p.name ? " selected" : ""}>${esc(p.name)} · ${esc(p.label)}</option>`).join("")}</select></div>
+      <div class="sub" title="${esc(scope)}">${sub}</div>`;
+  }
   function renderProps() {
     const P = $("#tab-props"), s = slide();
     if (!s) { P.innerHTML = ""; return; }
@@ -1069,8 +1153,8 @@ ${names}
     if (!el) {
       P.innerHTML = `<div class="sec"><h3>슬라이드 ${S.cur + 1} · ${esc(s.id)} · 레이아웃 ${esc(s.layout || "-")}</h3>
         <div class="row"><label>배경</label><select class="colorSel" data-slide="bg">${colorOptions(s.bg || "surface")}</select></div>
-        <div class="row"><label>글꼴 세트</label><div class="scrollx"><select data-slide="fontPreset"><option value="">(덱 기본${S.deck.fontPreset ? ` - ${esc(S.deck.fontPreset)}` : ""})</option>${((S.fonts && S.fonts.presets) || []).map((p) => `<option value="${esc(p.name)}"${s.fontPreset === p.name ? " selected" : ""}>${esc(p.name)} - ${esc(p.label)}</option>`).join("")}</select></div></div>
-        <div class="row"><label>덱 글꼴 세트</label><div class="scrollx"><select data-deckfont="1"><option value="">(작업 공간 - ${esc((S.fonts && S.fonts.current) || "기본")})</option>${((S.fonts && S.fonts.presets) || []).map((p) => `<option value="${esc(p.name)}"${S.deck.fontPreset === p.name ? " selected" : ""}>${esc(p.name)} - ${esc(p.label)}</option>`).join("")}</select></div></div>
+        ${fontSetRow("글꼴 세트", 'data-slide="fontPreset"', s.fontPreset, `(덱 기본${S.deck.fontPreset ? ` - ${esc(S.deck.fontPreset)}` : ""})`, S.deck.fontPreset || (S.fonts && S.fonts.current), "이 슬라이드만")}
+        ${fontSetRow("덱 글꼴 세트", 'data-deckfont="1"', S.deck.fontPreset, `(작업 공간 - ${esc((S.fonts && S.fonts.current) || "기본")})`, S.fonts && S.fonts.current, "덱 전체")}
         <div class="hint">요소를 누르면 위 서식 줄과 여기서 고칠 수 있다. 색은 토큰 이름으로 고른다(색의 의미 유지).</div></div>${list}`;
       return;
     }
@@ -1212,6 +1296,15 @@ ${names}
     afterChange();
   }
   document.addEventListener("toggle", (e) => { const d = e.target; if (d && d.matches && d.matches("details.fold[data-fold]")) LS.set("fold-" + d.dataset.fold, d.open ? "1" : "0"); }, true);
+  function tableOp(el, op) {  // 표 행·열 더하기·빼기(머리 행·첫 열은 남긴다) - 속성 탭·서식 줄이 같이 쓴다(snapshot·afterChange 는 부르는 쪽)
+    if (!el || el.type !== "table") return;
+    const rows = el.rows || [], nc = (rows[0] || []).length;
+    if (op === "row+") rows.push(Array.from({ length: nc }, () => ""));
+    else if (op === "row-" && rows.length > 2) rows.pop();
+    else if (op === "col+") { rows.forEach((r) => r.push("")); if (el.colW) el.colW.push(1); if (el.colFont) el.colFont.push(""); }
+    else if (op === "col-" && nc > 1) { rows.forEach((r) => r.pop()); if (el.colW && el.colW.length > nc - 1) el.colW.pop(); if (el.colFont && el.colFont.length > nc - 1) el.colFont.pop(); }
+    el.rows = rows;
+  }
   function onPropClick(e) {
     const b = e.target.closest("button, [data-sel]"); if (!b) return;
     const el = selEl(), s = slide();
@@ -1242,15 +1335,7 @@ ${names}
     if (b.dataset.imgpick && el && el.type === "image") { imagePick(el); return; }
     if (b.dataset.mermaid && el && el.type === "image") { mermaidDialog(el); return; }
     if (b.dataset.flip && el) { snapshot(); const k = "flip" + b.dataset.flip; selEls().forEach((x) => { if (x[k]) delete x[k]; else x[k] = true; }); afterChange(); return; }
-    if (b.dataset.tblop && el && el.type === "table") {  // 표 행·열 더하기·빼기(머리 행·첫 열은 남긴다)
-      const op = b.dataset.tblop, rows = el.rows || [], nc = (rows[0] || []).length;
-      snapshot();
-      if (op === "row+") rows.push(Array.from({ length: nc }, () => ""));
-      else if (op === "row-" && rows.length > 2) rows.pop();
-      else if (op === "col+") { rows.forEach((r) => r.push("")); if (el.colW) el.colW.push(1); if (el.colFont) el.colFont.push(""); }
-      else if (op === "col-" && nc > 1) { rows.forEach((r) => r.pop()); if (el.colW && el.colW.length > nc - 1) el.colW.pop(); if (el.colFont && el.colFont.length > nc - 1) el.colFont.pop(); }
-      el.rows = rows; afterChange(); return;
-    }
+    if (b.dataset.tblop && el && el.type === "table") { snapshot(); tableOp(el, b.dataset.tblop); afterChange(); return; }
     if (b.id === "applyJson" && el) {
       try {
         const nv = JSON.parse($("#elJson").value);
