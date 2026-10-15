@@ -1107,7 +1107,8 @@ class H(BaseHTTPRequestHandler):
         if info.get("state", "off") == "off":  # 웹 엔진 세션이 없으면 수동 엔진 세션(watch_engine_requests)의 하트비트를 본다
             hb = engine_requests.session_state()
             if hb.get("connected") and hb.get("kind") == "manual":
-                info = {**info, "state": "manual", "kind": "manual", "label": hb.get("label"), "pid": hb.get("pid"), "startedBy": hb.get("user"), "startedAt": hb.get("started"), "cwd": hb.get("cwd")}
+                info = {**info, "state": "manual", "kind": "manual", "label": hb.get("label"), "pid": hb.get("pid"), "startedBy": hb.get("user"), "startedAt": hb.get("started"), "cwd": hb.get("cwd"),
+                        "agent": hb.get("agent"), "model": hb.get("model"), "sessionId": hb.get("sessionId"), "entry": hb.get("entry")}  # 감시가 --agent/--model·CLAUDE_CODE_* 로 담은 것
         recent = sorted(engine_requests.load(), key=lambda x: -x["id"])[:8]
         for x in recent:  # 첨부 - 화면의 축소판·링크용(허브 /api/engine/attach/<id>/<파일> 로 본다)
             att = engine_requests.attach_files(x["id"])

@@ -45,6 +45,8 @@ def main():
     ap.add_argument("--stream", action="store_true", help="끝나지 않고 처리할 요청이 생길 때마다 JSON 한 줄")
     ap.add_argument("--label", default=os.environ.get("NEXA_SLIDE_SESSION") or "Claude Code")
     ap.add_argument("--takeover", action="store_true", help="살아 있는 이전 수동 감시를 넘겨받는다(웹 엔진 세션은 넘겨받지 않는다)")
+    ap.add_argument("--agent", default=None, help="이 감시를 띄운 AI(claude·codex …) - 카드에 표시. 기본: Claude Code 안이면 claude")
+    ap.add_argument("--model", default=None, help="그 세션의 모델 ID(예: claude-fable-5-1) - 카드에 표시. 기본: NEXA_SLIDE_MODEL/ANTHROPIC_MODEL")
     ap.add_argument("--ttl", type=float, default=None, help="이 초 뒤 스스로 끝남(--stream 기본 1780, 0=끝없이)")
     a = ap.parse_args()
     cur = q.session_state()
@@ -62,10 +64,14 @@ def main():
             return 2
         print(json.dumps({"event": "takeover", "pid": cur.get("pid"), "label": cur.get("label")}, ensure_ascii=False), flush=True)
     hb = {"pid": os.getpid(), "label": a.label, "mode": "stream" if a.stream else "once", "interval": INTERVAL, "kind": "manual",
-          "started": time.strftime("%Y-%m-%dT%H:%M:%S"), "cwd": os.getcwd(), "user": os.environ.get("NEXA_SLIDE_USER") or os.environ.get("USERNAME") or "local"}
+          "started": time.strftime("%Y-%m-%dT%H:%M:%S"), "cwd": os.getcwd(), "user": os.environ.get("NEXA_SLIDE_USER") or os.environ.get("USERNAME") or "local",
+          **procutil.session_meta(a.agent, a.model)}  # agent·model·sessionId·entry - 카드에 모델·세션 ID
     ttl = a.ttl if a.ttl is not None else (1780 if a.stream else 0)
     t0 = time.time()
     emitted = {}  # id → updated(변경이 있으면 다시 알린다)
+    if a.stream:  # 연결 직후 한 줄 - Monitor 를 건 세션이 "연결됨 · 대기 n건" 을 바로 알 수 있게(요청은 아래 루프가 이어서 낸다)
+        c0 = q.counts()
+        print(json.dumps({"event": "idle", "connected": True, "label": a.label, "open": c0.get("open", 0), "triage": c0.get("triage", 0)}, ensure_ascii=False), flush=True)
     try:
         while True:
             if procutil.stdout_closed():  # Monitor 를 건 세션이 닫혔다 - 고아로 남지 않게 끝낸다(finally 가 stopped 를 쓴다)
