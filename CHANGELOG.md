@@ -1,5 +1,11 @@
 # 변경 이력
 
+## 0.21.10 - 2026-10-15 · 표 글꼴 역할 적용 · 표 유형 선택 (engine-request #7·#8)
+
+- 표(table) 요소의 `font`·`colFont`(열별) 글꼴 역할이 렌더·PPTX·편집기에 적용되지 않던 것 — 글꼴 역할 정규화(`fontRole`/`font_role`: body·heading·mono, "code" 는 mono)를 두고 표 본문 셀 = `colFont[열]` > `el.font` > 본문(머리 행은 본문)으로 통일. `check_layout` 글자 폭 측정·`layouts` table 레이아웃(content 의 font 전달)도 같은 규칙. 속성 패널 "적용 글꼴"이 표를 무조건 코드로 보이던 것 수정, 열별 역할 표시, 서식 줄 글꼴 선택을 표에도.
+- 표 속성에 **유형** 선택(일반 = 본문 글꼴 · 코드 = 고정폭 · 제목 글꼴)과 열별 글꼴 입력. `docs/deck-format.md`(font·colFont 값 형식)·`editor.md`·`fonts.md`.
+- 엔진 개발 세션(engine-request #7·#8)이 만들어 main 에 병합·적용. 검증: `check_parity`(표 글꼴 역할 예제 3개 포함) 모두 같음 · `export_pptx --selftest` · 스모크.
+
 ## 0.21.9 - 2026-10-15 · 요소 목록 클릭 때 목록이 움직이지 않게 · 토스트 위치
 
 - 서버 작업 요청 양식의 내용 칸: Enter = 큐에 넣기, Shift+Enter = 줄바꿈(편집기 요청 칸과 같게).
