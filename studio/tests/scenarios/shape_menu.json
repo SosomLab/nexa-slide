@@ -34,8 +34,8 @@
 "js": "document.querySelector('#addBtn').click(); await new Promise(r=>setTimeout(r,300)); document.querySelector('#menu .tile[data-ins=\"chart:column\"]').click(); await new Promise(r=>setTimeout(r,500)); document.querySelector('#addBtn').click(); await new Promise(r=>setTimeout(r,300)); document.querySelector('#menu .tile[data-ins=\"icon:check\"]').click(); await new Promise(r=>setTimeout(r,500)); const c=document.querySelectorAll('#host .rs-el[data-type=\"chart\"] svg').length, i=document.querySelectorAll('#host .rs-el[data-type=\"icon\"] svg').length; return c===1 && i===1 ? true : 'chart='+c+' icon='+i"
 },
 {
-"name": "  실행 취소 5번 → 원래 21개",
-"js": "for (let i=0;i<5;i++) { document.querySelector('#undoBtn').click(); await new Promise(r=>setTimeout(r,150)); } await new Promise(r=>setTimeout(r,400)); const n=document.querySelectorAll('#host .rs-el').length; return n===21 ? true : 'n='+n"
+"name": "  실행 취소 6번(별·정육면체·순환·프로세스·차트·아이콘) → 원래 21개",
+"js": "for (let i=0;i<6;i++) { document.querySelector('#undoBtn').click(); await new Promise(r=>setTimeout(r,150)); } await new Promise(r=>setTimeout(r,400)); const n=document.querySelectorAll('#host .rs-el').length; return n===21 ? true : 'n='+n"
 }
 ]
 }

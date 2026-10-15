@@ -56,7 +56,7 @@ async function main() {
         let v, err = null;
         try { v = await evalJs(s.js); } catch (e) { err = e.message; }
         if (s.wait) await sleep(s.wait);
-        const ok = !err && v !== false;
+        const ok = !err && v !== false && !(typeof v === "string" && !s.dump);  // 단계가 돌려준 글은 실패 사유(dump 단계만 결과 글)
         if (!ok) fails++;
         console.log(`${ok ? "OK  " : "FAIL"} ${s.name}${err ? " - " + err : v === false ? "" : typeof v === "string" && (s.dump || v.length < 200) ? " → " + v : ""}`);
       }

@@ -318,7 +318,7 @@
       if (ids !== W.ids && !v.deckIds.includes(S.id)) {
         notice(`지금 보고 있는 덱(${S.id}) 파일이 없어졌습니다.`, [{ act: "reload", label: "새로 고침", primary: true }]);
       } else if (added.length) {
-        notice(`새 덱 ${added.length}개가 생겼습니다 - ${added.map((d) => `${d.id}(${d.slides}장)`).join(", ")}. 위 덱 탭에도 추가했습니다.`,
+        notice(`새 덱 ${added.length}개가 생겼습니다 - ${added.map((d) => `${d.title || d.id}(${d.slides}장)`).join(", ")}. 위 덱 탭에도 추가했습니다.`,
           added.slice(0, 6).map((d, i) => ({ act: "open", arg: d.id, label: `${d.id} 열기`, primary: i === 0 })));
       }
       W.ids = ids; W.decksVer = v.decksVer;
@@ -343,32 +343,32 @@
     location.hash = `${S.id}/${S.cur + 1}`;
   }
   function renderDeckTabs() {
-    $("#deckTabs").innerHTML = S.decks.map((d) => `<button data-deck="${esc(d.id)}" class="${d.id === S.id ? "on" : ""}" title="${esc(d.title)} (${d.slides}장) - 오른쪽 클릭: 제목·이름 바꾸기·삭제">${esc(d.id)}</button>`).join("")
-      + `<button data-deckadd="1" class="add" title="새 덱 만들기(덱 관리: 오른쪽 클릭 메뉴)">＋</button>`;
+    // 탭에는 제목(시작 덱은 ★), id 는 엔진이 만든 짧은 해시라 툴팁·메뉴 머리에만 보인다
+    $("#deckTabs").innerHTML = S.decks.map((d) => `<button data-deck="${esc(d.id)}" class="${d.id === S.id ? "on" : ""}${d.start ? " start" : ""}" title="${esc(d.title)} (${d.slides}장) · id ${esc(d.id)}${d.start ? " · 시작 덱" : ""} - 오른쪽 클릭: 제목·복제·시작 덱·삭제">${d.start ? "★ " : ""}${esc(d.title || d.id)}</button>`).join("")
+      + `<button data-deckadd="1" class="add" title="새 덱 만들기 - 제목만 적으면 id 는 저절로">＋</button>`;
   }
   // ---------------------------------------------------------------- 덱 관리 - 추가·이름(id)·제목·삭제(휴지통). 서버 /api/decks = CLI `nexa.py deck …`
   async function deckAdmin(body, okMsg) {
     const r = await api("POST", "/api/decks", body);
     if (!r.ok) { toast("덱 관리 실패: " + ((r.data && r.data.error) || r.status), 6000); return null; }
-    S.decks = (r.data.decks || []).map((d) => ({ id: d.id, title: d.title, slides: d.slides })); renderDeckTabs();
+    S.decks = (r.data.decks || []).map((d) => ({ id: d.id, title: d.title, slides: d.slides, start: !!d.start })); renderDeckTabs();
     if (okMsg) toast(okMsg, 4000);
     return r.data;
   }
   async function deckCreate() {
-    const id = (prompt("새 덱 이름(파일 이름 - 영문·숫자·-·_)", "") || "").trim(); if (!id) return;
-    const title = (prompt("덱 제목", id) || "").trim() || id;
-    const d = await deckAdmin({ action: "create", id, title }, `덱 ${id} 을 만들었습니다(표지 1장)`);
-    if (d) { if (S.dirty) await save(); await loadDeck(id); }
+    const title = (prompt("새 덱 제목", "") || "").trim(); if (!title) return;
+    const d = await deckAdmin({ action: "create", title }, `만들었습니다: ${title}`);
+    if (d) { if (S.dirty) await save(); await loadDeck(d.id); }
   }
   function deckMenu(e, id) {
     e.preventDefault();
     const d = S.decks.find((x) => x.id === id) || { id, title: id };
     openMenu({ x: e.clientX, y: e.clientY }, [
-      { h: `${d.id} · ${d.title}` },
+      { h: `${d.title} · id ${d.id}` },
       { label: "제목 바꾸기…", act: async () => { const t = (prompt("덱 제목", d.title) || "").trim(); if (!t || t === d.title) return; const r = await deckAdmin({ action: "retitle", id, title: t }, "제목을 바꿨습니다"); if (r && S.id === id) { S.deck.title = t; S.savedJson = deckJson(); } } },
-      { label: "덱 이름(id) 바꾸기…", act: async () => { const n = (prompt("새 덱 이름(파일 이름 - 영문·숫자·-·_). 요청·기록·첨부·content 도 함께 옮깁니다", id) || "").trim(); if (!n || n === id) return; if (S.dirty && S.id === id) await save(); const r = await deckAdmin({ action: "rename", id, newId: n }, `${id} → ${n} 으로 바꿨습니다`); if (r && S.id === id) await loadDeck(n); } },
-      { label: "새 덱…", act: deckCreate }, "-",
-      { label: "덱 삭제(휴지통)…", act: async () => { if (!confirm(`덱 ${id} 을 지울까요? decks/.trash/ 로 옮겨지며 요청·기록·첨부·content 도 같이 갑니다.`)) return; const r = await deckAdmin({ action: "delete", id }, `${id} 을 휴지통으로 옮겼습니다(${(r0 => r0)("decks/.trash/")})`); if (r && S.id === id) { const next = S.decks[0]; if (next) await loadDeck(next.id); else location.href = BASE + "/studio/home.html"; } } },
+      { label: "복제…", act: async () => { const t = (prompt("복제한 덱의 제목", `${d.title} (복사)`) || "").trim(); if (!t) return; if (S.dirty && S.id === id) await save(); const r = await deckAdmin({ action: "copy", id, title: t }, `복제했습니다: ${t}`); if (r) await loadDeck(r.id); } },
+      { label: d.start ? "시작 덱 해제" : "시작 덱으로", on: !!d.start, act: async () => { await deckAdmin({ action: "start", id: d.start ? "" : id }, d.start ? "시작 덱을 해제했습니다" : `시작 덱: ${d.title}`); } }, "-",
+      { label: "덱 삭제(휴지통)…", act: async () => { if (!confirm(`덱 "${d.title}" 을 지울까요? decks/.trash/ 로 옮겨지며 요청·기록·첨부·content 도 같이 갑니다.`)) return; const r = await deckAdmin({ action: "delete", id }, `휴지통으로 옮겼습니다: ${d.title}`); if (r && S.id === id) { const next = S.decks[0]; if (next) await loadDeck(next.id); else location.href = BASE + "/studio/home.html"; } } },
     ]);
   }
   const reqsOf = (sid, st) => {  // 썸네일 배지 - 후속 요청은 thread 단위로 하나만 센다
@@ -2492,7 +2492,7 @@ ${names}
     setBtab(S.btab); if (LS.get("bfold", "0") === "1") toggleBottom();
     if (!S.decks.length) { location.replace("/studio/home.html"); return; }  // 작업할 덱이 없으면 시작 페이지
     const [hid, hn] = decodeURIComponent(location.hash.slice(1)).split("/");
-    await loadDeck(S.decks.some((d) => d.id === hid) ? hid : S.decks[0].id);
+    await loadDeck(S.decks.some((d) => d.id === hid) ? hid : (S.decks.find((d) => d.start) || S.decks[0]).id);  // 주소의 덱 > 시작 덱(★) > 첫 덱
     if (hn) { goSlide(+hn - 1); revealThumb(S.cur, true); }
     window.addEventListener("load", () => revealThumb(S.cur, true), { once: true });
     window.addEventListener("hashchange", async () => {
