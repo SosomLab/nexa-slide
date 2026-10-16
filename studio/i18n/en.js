@@ -9,6 +9,11 @@
   Object.assign(en.dict, {
     // ---- 튜토리얼 "최근 추가된 기능" 0.22.13 항목(페이지 영역이지만 함께 추가 - en.pages.js 에 같은 키를 두지 않는다)
     "PowerPoint 기능 보강": "PowerPoint feature upgrades", ": 글 안에 ": ": inline ", " 첨자 · ": " scripts · ", " 글자 링크, 숨김 슬라이드·구분(섹션), 도형 테두리 점선, 액자 색, 표 셀별 채움·테두리·격자, 차트에 누적 가로·100% 누적·콤보(막대+선, 보조 축)·축 제목·숫자 형식 - 모두 PPTX 로 그대로 나갑니다.": " text links, hidden slides and sections, dashed shape borders, frame color, per-cell table fills, borders and grids, and charts with stacked bar, 100% stacked, combo (bar + line, secondary axis), axis titles and number formats - all exported to PPTX as is.",
+    // ---- 0.22.18 표 P3·그림 톤·도형 효과
+    "끌어서 표 이동 (표 안은 셀 선택 · Alt+끌기도 이동)": "Drag to move the table (inside = cell selection · Alt+drag also moves)", "끌어서 표 이동": "Drag to move the table", "끌어서 열 폭 조절": "Drag to resize column", "끌어서 행 높이 조절": "Drag to resize row",
+    "↕ 글에 맞춤": "↕ Fit to text", "글 양에 맞춰 행 높이를 다시 나눈다(표 높이도 바뀜)": "Re-divide row heights by text amount (table height changes too)", "열·행 경계를 끌어 폭·높이 조절": "Drag column/row borders to resize", "행 높이를 글에 맞춤": "Fit row heights to text",
+    "줄무늬": "Banding", "한 줄 걸러": "Every other row", "톤": "Tone", "원본": "Original", "흑백": "Grayscale", "흐리게": "Blur", "어둡게": "Darken", "세피아": "Sepia", "빛": "Glow", "빛 색": "Glow color",
+    "클릭 = 셀 · 끌기/Shift = 범위 · Ctrl = 더하기 · 두 번 클릭 = 셀 글 편집 · Tab = 다음 셀 · Delete = 비우기 · Esc = 셀 선택 해제. 표 이동은 바깥 점선 띠·✥ 손잡이·Alt+끌기, 위·왼쪽 띠는 열·행 선택, 경계를 끌면 폭·높이. 렌더 표에 글자 서식을 넣으면 표 객체로 바뀝니다.": "Click = cell · drag/Shift = range · Ctrl = add · double-click = edit cell · Tab = next cell · Delete = clear · Esc = clear selection. Move the table with the outer dotted band, the ✥ grip or Alt+drag; top/left strips select columns/rows; drag borders to resize. Text formatting on a rendered table converts it to a table object.",
     // ---- 0.22.17 표 객체·셀 선택
     "표 객체": "Table object", "표 객체로 변환": "Convert to table object", "렌더 표로 변환": "Convert to rendered table", "⇄ 표 객체로 변환": "⇄ Convert to table object", "⇄ 렌더 표로 변환": "⇄ Convert to rendered table", "⇄ 객체": "⇄ Object", "⇄ 렌더": "⇄ Rendered",
     "표 객체로 - 셀마다 서식(색·굵게·크기·세로·여백·테두리)을 가질 수 있고 글·채움·병합은 그대로": "To table object - each cell can carry formatting (color, bold, size, vertical, padding, borders); text, fills and merges are kept",
@@ -17,7 +22,7 @@
     "셀 채우기": "Cell fill", "셀 글자색": "Cell text color", "셀 테두리 ▾": "Cell borders ▾", "병합 / 풀기": "Merge / unmerge", "고른 셀 아래에 행": "Row below selected cells", "고른 행 지우기": "Delete selected rows", "고른 셀 오른쪽에 열": "Column right of selected cells", "고른 열 지우기": "Delete selected columns", "셀 선택 해제 (Esc)": "Clear cell selection (Esc)",
     "셀 글자 크기(px) - 비우면 표 기본": "Cell font size (px) - empty = table default", "셀 테두리 - 고른 셀에": "Cell borders - selected cells", "모든 변": "All sides", "위·아래": "Top · bottom", "왼쪽·오른쪽": "Left · right", "굵은 선(2px) 위": "Thick (2px) top", "테두리 지우기": "Clear borders",
     "머리 행": "Header row",
-    "표 객체 - 줄 = 행, 칸은 \" | \" (셀 서식은 남음)": "Table object - line = row, \" | \" = cell (cell formatting is kept)", "클릭 = 셀 · 끌기/Shift = 범위 · Ctrl = 더하기 · 두 번 클릭 = 셀 글 편집 · Tab = 다음 셀 · Delete = 비우기 · Esc = 셀 선택 해제. 렌더 표에 글자 서식을 넣으면 표 객체로 바뀝니다.": "Click = cell · drag/Shift = range · Ctrl = add · double-click = edit cell · Tab = next cell · Delete = clear · Esc = clear selection. Text formatting on a rendered table converts it to a table object.",
+    "표 객체 - 줄 = 행, 칸은 \" | \" (셀 서식은 남음)": "Table object - line = row, \" | \" = cell (cell formatting is kept)", 
     "마지막 행·열은 지울 수 없습니다": "The last row or column cannot be deleted", "병합/풀기 - 왼쪽 위 셀의 글만 남고 덮인 셀은 가려집니다": "Merge/unmerge - only the top-left cell's text stays; covered cells are hidden",
     "셀 서식을 넣기 위해 표 객체로 바꿨습니다(서식·글은 그대로)": "Converted to a table object for cell formatting (formatting and text kept)",
     // ---- 0.22.16 덱 탭

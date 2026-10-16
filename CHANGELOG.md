@@ -1,5 +1,14 @@
 # 변경 이력
 
+## 0.22.18 - 2026-10-16 · 표 이동 손잡이·행/열 띠·경계 끌기·행 높이 맞춤·줄무늬 · 그림 톤 · 도형 광선/부드러운 가장자리
+
+- **표 이동**(사용자 지적 - 표 안이 셀 선택이 되자 옮기기 어려움): PowerPoint 처럼 **바깥 점선 띠(10px)와 왼쪽 위 ✥ 손잡이**를 끌면 표가 움직이고, **Alt+끌기**도 이동. 표 안은 셀 선택(가장자리 여유 2px).
+- **행/열 띠**: 표 위·왼쪽의 얇은 띠를 누르면 열·행 전체 선택(끌면 여러 줄, Shift 범위, Ctrl 더하기). **경계 끌기**: 안쪽 열·행 경계를 끌어 이웃 열 폭·행 높이를 바꾼다(표 크기는 그대로, `colW`·`rowH`/`cols[].w`·`rows[].h`). **↕ 글에 맞춤**(서식 줄·속성): 셀 글 양을 재서 행 높이를 다시 나누고 표 높이를 맞춘다.
+- **줄무늬** `banding`(렌더 표)·`style.banding`(표 객체): 본문 둘째 행부터 한 줄 걸러 `bandFill`(기본 `surface-container`) - 두 렌더러·PPTX 같은 규칙.
+- **그림 톤** `tone`: 흑백(`a:grayscl`)·흐리게(`a:blur`)·어둡게(`a:lum`)·세피아(`a:duotone`) - 편집기 CSS filter, 속성 "톤".
+- **도형 광선·부드러운 가장자리**: rect·ellipse·pill·text·shape 에 `effect: glow|softEdge`(+`effectLevel`·`effectColor`) - 속성 "효과", PPTX `a:effectLst`.
+- 시나리오 `ux6_test`.
+
 ## 0.22.17 - 2026-10-16 · 표 객체(table-obj) · 캔버스 셀 선택·셀 편집·셀 서식 · 렌더 표 ↔ 표 객체 상호 변환
 
 `docs/dev/table-model-design.md` 를 사용자 방향(렌더 표는 유지하고 표 객체를 따로 두되 서로 변환)으로 구현. 편집기 시나리오 `ux5_test`, 시험 `tableobj_test`, `check_parity` 에 표 객체·변환 왕복 예제.

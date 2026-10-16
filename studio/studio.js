@@ -514,7 +514,7 @@
     }
     const b = boxOf(el), hs = 11 / scale, bw = 2 / scale;
     let h = `<div class="selbox${el.locked ? " locked" : ""}${S.mode === "pick" ? " pick" : ""}" style="left:${b.x - bw}px;top:${b.y - bw}px;width:${b.w + 2 * bw}px;height:${b.h + 2 * bw}px;border-width:${bw * (S.mode === "pick" ? 1.5 : 1)}px"></div>`;
-    if (isTbl(el)) h += cellSelHtml(el);
+    if (isTbl(el)) h += cellSelHtml(el) + gutterHtml(el);
     if (!el.locked && S.mode === "edit") {
       const pts = isLine(el) ? [["p1", el.x1, el.y1], ["p2", el.x2, el.y2]]
         : [["nw", b.x, b.y], ["n", b.x + b.w / 2, b.y], ["ne", b.x + b.w, b.y], ["e", b.x + b.w, b.y + b.h / 2],
@@ -843,7 +843,7 @@
         const st = el.type === "table" ? el : (el.style || {}), [nr, nc] = tblDims(el);
         h += vsep + [["row+", "＋행", "맨 아래에 행 추가"], ["row-", "－행", "맨 아래 행 지우기"], ["col+", "＋열", "맨 오른쪽에 열 추가"], ["col-", "－열", "맨 오른쪽 열 지우기"]].map(([k, l, tt]) => `<button class="ib" data-f="tblop" data-v="${k}" title="${tt}">${l}</button>`).join("")
           + `<span class="pt" title="행 × 열">${nr}×${nc}</span>` + sw("headFill", "▀", "머리 행 면", st.headFill, "surface-container-high") + sw("headColor", "A", "머리 행 글자색", st.headColor, "on-surface")
-          + `<button class="ib" data-f="tconv" title="${el.type === "table" ? "표 객체로 변환 - 셀마다 서식(색·굵게·크기·세로·여백·테두리)을 가질 수 있다" : "렌더 표로 변환 - 셀·행 단위 글자 서식은 버린다"}">${el.type === "table" ? "⇄ 객체" : "⇄ 렌더"}</button>`;
+          + `<button class="ib" data-f="tfit" title="행 높이를 글에 맞춤">↕</button><button class="ib" data-f="tconv" title="${el.type === "table" ? "표 객체로 변환 - 셀마다 서식(색·굵게·크기·세로·여백·테두리)을 가질 수 있다" : "렌더 표로 변환 - 셀·행 단위 글자 서식은 버린다"}">${el.type === "table" ? "⇄ 객체" : "⇄ 렌더"}</button>`;
       }
       if (t === "chart") {
         const lg = el.legend || (((el.series || []).length > 1 || el.chart === "pie" || el.chart === "doughnut") ? "bottom" : "none");
@@ -996,6 +996,7 @@
     const stOf = (x) => (x.type === "table-obj" ? (x.style = x.style || {}) : x);
     if (f === "headFill") palette(t, (stOf(el)).headFill, true, (c) => mutate((x) => { const o = stOf(x); if (c) o.headFill = c; else delete o.headFill; }, isTbl));
     if (f === "headColor") palette(t, (stOf(el)).headColor, true, (c) => mutate((x) => { const o = stOf(x); if (c) o.headColor = c; else delete o.headColor; }, isTbl));
+    if (f === "tfit") { snapshot(); fitRows(el); afterChange(); return; }
     if (f === "tconv") { snapshot(); if (el.type === "table") ensureObj(el, "표 객체로 바꿨습니다 - 셀을 눌러 서식을 넣을 수 있습니다 (Ctrl+Z 로 되돌리기)"); else objToTableEl(el); afterChange(); return; }
     if (f === "cfill") palette(t, cellProp(el, "fill"), true, (c) => cellApply("fill", c || null));
     if (f === "ccolor") palette(t, cellProp(el, "color"), true, (c) => cellApply("color", c || null));
@@ -1279,7 +1280,8 @@ ${names}
       h += `<div class="sec"><h3>면·테두리</h3>${colorRow("채우기", "fill", el, el.type === "text")}
         ${el.type !== "ellipse" && el.type !== "pill" && el.type !== "shape" ? `<div class="row"><label>모서리</label><select data-k="radius">${["", "r-s", "r-m", "r-l", "r-full"].map((r) => `<option value="${r}"${(el.radius || "") === r ? " selected" : ""}>${r || "없음"}</option>`).join("")}${typeof el.radius === "number" ? `<option selected value="${el.radius}">${el.radius}px</option>` : ""}</select></div>` : ""}
         ${colorRow("테두리", "stroke", el, true)}${el.stroke ? `<div class="row"><label>테두리 선</label><input type="number" min="0.5" max="20" step="0.5" data-k="strokeWidth" value="${el.strokeWidth || 1}" title="두께(px)" style="width:60px">${seg("", "strokeDash", el, [["solid", "실선"], ["dash", "파선"], ["dot", "점선"]], "solid").replace('<div class="row">', '<span class="row" style="margin:0 0 0 6px">').replace(/<\/div>$/, "</span>")}</div>` : ""}
-        ${seg("그림자", "shadow", { shadow: el.shadow ? "on" : "off" }, [["off", "없음"], ["on", "있음"]], "off")}</div>`;
+        ${seg("그림자", "shadow", { shadow: el.shadow ? "on" : "off" }, [["off", "없음"], ["on", "있음"]], "off")}
+        ${el.type !== "plan" ? `<div class="row"><label>효과</label>${seg("", "effect", { effect: el.effect === "glow" || el.effect === "softEdge" ? el.effect : "" }, [["", "없음"], ["glow", "빛"], ["softEdge", "부드러운 가장자리"]], "").replace('<div class="row">', '<span class="row" style="margin:0">').replace(/<\/div>$/, "</span>")}${el.effect === "glow" || el.effect === "softEdge" ? seg("", "effectLevel", { effectLevel: String(el.effectLevel || 2) }, [["1", "약"], ["2", "중"], ["3", "강"]], "2").replace('<div class="row">', '<span class="row" style="margin:0 0 0 6px">').replace(/<\/div>$/, "</span>") : ""}</div>${el.effect === "glow" ? colorRow("빛 색", "effectColor", el, true) : ""}` : ""}</div>`;
     }
     if (el.type === "chart") h += `<div class="sec"><h3>차트 <span class="hint">PPTX 는 PowerPoint 차트(편집 가능)</span></h3>
         ${seg("종류", "chart", el, CHART_KINDS.map(([k, , l]) => [k, l]), "column")}
@@ -1300,7 +1302,7 @@ ${names}
     if (el.type === "image") h += `<div class="sec"><h3>그림</h3><div class="row"><label>경로</label><input type="text" data-k="src" value="${esc(el.src)}"></div>
         <div class="row"><label title="대체 텍스트(접근성)">대체 글</label><input type="text" data-k="alt" value="${esc(el.alt || "")}" placeholder="그림을 설명하는 한 문장(접근성 · PPTX 대체 텍스트)"></div>
         <div class="row"><label>자르기 %</label>${["l", "t", "r", "b"].map((k, i) => `<input type="number" min="0" max="95" step="1" data-crop="${i}" value="${Math.round(((el.crop || [0, 0, 0, 0])[i] || 0) * 100)}" title="${["왼쪽", "위", "오른쪽", "아래"][i]}" style="width:52px">`).join("")}</div>
-        <div class="row"><label>투명도 %</label><input type="number" min="0" max="100" step="5" data-opacity="1" value="${Math.round((el.opacity == null ? 1 : el.opacity) * 100)}" title="100 = 그대로" style="width:70px">${seg("그림자", "shadow", { shadow: el.shadow ? "on" : "off" }, [["off", "없음"], ["on", "있음"]], "off").replace('<div class="row">', '<span class="row" style="margin:0">').replace(/<\/div>$/, "</span>")}</div><div class="row"><label>효과</label><select data-k="effect" title="프레임 효과 - 원본 파일은 그대로 두고 속성으로만 적용(PPTX 도 같은 효과)">${EFFECTS.map(([k, l]) => `<option value="${k}"${(el.effect || "") === k ? " selected" : ""}>${l}</option>`).join("")}</select>${el.effect ? seg("수준", "effectLevel", { effectLevel: String(el.effectLevel || 2) }, [["1", "약"], ["2", "중"], ["3", "강"]], "2").replace('<div class="row">', '<span class="row" style="margin:0 0 0 6px">').replace(/<\/div>$/, "</span>") : ""}</div>${el.effect === "frame" ? `${colorRow("테두리 색", "frameColor", el, true)}<div class="row"><label>테두리 px</label><input type="number" min="1" max="40" step="1" data-k="frameWidth" value="${el.frameWidth == null ? "" : el.frameWidth}" placeholder="수준 기본" title="액자 두께 - 비우면 수준(약 3·중 6·강 10)" style="width:70px"></div>` : ""}
+        <div class="row"><label>투명도 %</label><input type="number" min="0" max="100" step="5" data-opacity="1" value="${Math.round((el.opacity == null ? 1 : el.opacity) * 100)}" title="100 = 그대로" style="width:70px">${seg("그림자", "shadow", { shadow: el.shadow ? "on" : "off" }, [["off", "없음"], ["on", "있음"]], "off").replace('<div class="row">', '<span class="row" style="margin:0">').replace(/<\/div>$/, "</span>")}</div>${seg("톤", "tone", el, [["", "원본"], ["gray", "흑백"], ["blur", "흐리게"], ["dim", "어둡게"], ["sepia", "세피아"]], "")}<div class="row"><label>효과</label><select data-k="effect" title="프레임 효과 - 원본 파일은 그대로 두고 속성으로만 적용(PPTX 도 같은 효과)">${EFFECTS.map(([k, l]) => `<option value="${k}"${(el.effect || "") === k ? " selected" : ""}>${l}</option>`).join("")}</select>${el.effect ? seg("수준", "effectLevel", { effectLevel: String(el.effectLevel || 2) }, [["1", "약"], ["2", "중"], ["3", "강"]], "2").replace('<div class="row">', '<span class="row" style="margin:0 0 0 6px">').replace(/<\/div>$/, "</span>") : ""}</div>${el.effect === "frame" ? `${colorRow("테두리 색", "frameColor", el, true)}<div class="row"><label>테두리 px</label><input type="number" min="1" max="40" step="1" data-k="frameWidth" value="${el.frameWidth == null ? "" : el.frameWidth}" placeholder="수준 기본" title="액자 두께 - 비우면 수준(약 3·중 6·강 10)" style="width:70px"></div>` : ""}
         <div class="row"><button class="chip sm" data-imgpick="1" title="새 그림 파일을 올려 이 자리에 바꿔 넣습니다(폭 유지, 높이는 비율로)">그림 바꾸기</button>${el.mermaid != null ? `<button class="chip sm" data-mermaid="1" title="mermaid 코드를 고쳐 다시 그립니다(폭 유지)">다이어그램 코드 수정</button>` : ""}<span class="hint" style="margin:0">assetRoot 기준 경로 · 모서리 핸들은 비율 유지</span></div></div>`;
     if (isLine(el)) h += `<div class="sec"><h3>선</h3>${colorRow("색", "color", el)}${num("두께(px)", "width", el, 0.5)}
         ${seg("머리", "head", el, [["none", "없음"], ["end", "끝"], ["start", "시작"], ["both", "양쪽"]], el.type === "arrow" ? "end" : "none")}
@@ -1328,7 +1330,7 @@ ${names}
     if (isTbl(el) && S.cell && S.cell.id === el.id) {  // 고른 셀
       const n = S.cell.set.size, a = S.cell.anchor;
       h += `<div class="sec"><h3>셀 ${n}개 <span class="hint">주 셀 (${a[0] + 1},${a[1] + 1}) · 서식 줄에서 채움·색·굵게·정렬·테두리·병합·행/열</span></h3>
-        <div class="hint">클릭 = 셀 · 끌기/Shift = 범위 · Ctrl = 더하기 · 두 번 클릭 = 셀 글 편집 · Tab = 다음 셀 · Delete = 비우기 · Esc = 셀 선택 해제. 렌더 표에 글자 서식을 넣으면 표 객체로 바뀝니다.</div></div>`;
+        <div class="hint">클릭 = 셀 · 끌기/Shift = 범위 · Ctrl = 더하기 · 두 번 클릭 = 셀 글 편집 · Tab = 다음 셀 · Delete = 비우기 · Esc = 셀 선택 해제. 표 이동은 바깥 점선 띠·✥ 손잡이·Alt+끌기, 위·왼쪽 띠는 열·행 선택, 경계를 끌면 폭·높이. 렌더 표에 글자 서식을 넣으면 표 객체로 바뀝니다.</div></div>`;
     }
     if (el.type === "table-obj") {
       const st = el.style || {}, [nr, nc] = tblDims(el);
@@ -1336,7 +1338,8 @@ ${names}
         <div class="row"><label>행·열</label><button class="chip sm" data-tblop="row+" title="맨 아래에 행 추가">＋행</button><button class="chip sm" data-tblop="row-" title="맨 아래 행 지우기">－행</button><button class="chip sm" data-tblop="col+" title="맨 오른쪽에 열 추가">＋열</button><button class="chip sm" data-tblop="col-" title="맨 오른쪽 열 지우기">－열</button><span class="hint" style="margin:0">${nr}×${nc}</span></div>
         <div class="row"><label>열 비율</label><input type="text" data-objcols="1" value="${esc((el.cols || []).map((c) => (c && typeof c === "object" ? c.w == null ? 1 : c.w : c)).join(", "))}" placeholder="예: 2, 1, 1"></div>
         ${num("크기(px)", "style.size", { "style.size": st.size })}${colorRow("머리 면", "style.headFill", { "style.headFill": st.headFill })}${colorRow("머리 글자", "style.headColor", { "style.headColor": st.headColor })}${colorRow("선 색", "style.rule", { "style.rule": st.rule })}
-        ${seg("격자", "style.gridLines", { "style.gridLines": st.gridLines ? "on" : "off" }, [["off", "가로선만"], ["on", "모든 칸"]], "off")}${seg("머리 행", "style.header", { "style.header": st.header === false ? "off" : "on" }, [["on", "있음"], ["off", "없음"]], "on")}
+        ${seg("격자", "style.gridLines", { "style.gridLines": st.gridLines ? "on" : "off" }, [["off", "가로선만"], ["on", "모든 칸"]], "off")}${seg("머리 행", "style.header", { "style.header": st.header === false ? "off" : "on" }, [["on", "있음"], ["off", "없음"]], "on")}${seg("줄무늬", "style.banding", { "style.banding": st.banding ? "on" : "off" }, [["off", "없음"], ["on", "한 줄 걸러"]], "off")}
+        <div class="row"><label>행 높이</label><button class="chip sm" data-act="tfit" title="글 양에 맞춰 행 높이를 다시 나눈다(표 높이도 바뀜)">↕ 글에 맞춤</button><span class="hint" style="margin:0">열·행 경계를 끌어 폭·높이 조절</span></div>
         <div class="row"><button class="chip sm" data-act="totable" title="렌더 표로 - 셀·행 단위 글자 서식은 버린다">⇄ 렌더 표로 변환</button><span class="hint" style="margin:0">표 안을 눌러 셀을 고르면 셀 서식을 넣을 수 있다</span></div></div>`;
     }
     if (el.type === "table") h += `<div class="sec"><h3>표 - 줄 = 행, 칸은 " | " 로 구분 (첫 행 = 머리)</h3>${fontInfoHtml(el)}<textarea data-tbl="1" style="min-height:140px">${esc(tableToText(el.rows))}</textarea>
@@ -1345,7 +1348,8 @@ ${names}
         <div class="row"><label>셀 병합</label><input type="text" data-merge="1" value="${esc((el.merge || []).map((m) => m.join(",")).join("; "))}" placeholder="행,열,행수,열수; … (0부터 · 예: 0,0,1,2; 1,1,2,1)" title="왼쪽 위 셀이 행수×열수를 차지한다. 머리 행도 0행. 겹치면 앞 것만"></div>
         <div class="row"><label>셀 채움</label><input type="text" data-cellfill="1" value="${esc((el.cellFill || []).map((m) => m.map((v) => (v == null ? "*" : v)).join(",")).join("; "))}" placeholder="행,열,색; … (* = 줄 전체 · 예: 2,*,s1; 1,3,primary-container)" title="셀 바탕색 - 색은 토큰 이름(#hex 도 됨). 행이나 열에 * 를 쓰면 그 줄 전체. 머리 행도 0행. PPTX 셀 채움과 같다"></div>
         <div class="row"><label>셀 테두리</label><input type="text" data-borders="1" value="${esc((el.borders || []).map((m) => m.map((v) => (v == null ? "*" : v)).join(",")).join("; "))}" placeholder="행,열,변,색,두께; … (변 = T B L R 조합 · 예: 3,*,T,primary,2)" title="셀 테두리 - 변은 T(위) B(아래) L(왼) R(오른) 조합, 색·두께는 선택(기본 rule 색 1px). * = 그 줄 전체. 합계 행 위 굵은 선 = 행,*,T,색,2"></div>
-        ${seg("격자", "gridLines", { gridLines: el.gridLines ? "on" : "off" }, [["off", "가로선만"], ["on", "모든 칸"]], "off")}
+        ${seg("격자", "gridLines", { gridLines: el.gridLines ? "on" : "off" }, [["off", "가로선만"], ["on", "모든 칸"]], "off")}${seg("줄무늬", "banding", { banding: el.banding ? "on" : "off" }, [["off", "없음"], ["on", "한 줄 걸러"]], "off")}
+        <div class="row"><label>행 높이</label><button class="chip sm" data-act="tfit" title="글 양에 맞춰 행 높이를 다시 나눈다(표 높이도 바뀜)">↕ 글에 맞춤</button><span class="hint" style="margin:0">열·행 경계를 끌어 폭·높이 조절</span></div>
         <div class="row"><label>열 비율</label><input type="text" data-list="colW" value="${esc((el.colW || []).join(", "))}"></div>
         <div class="row"><label>행 비율</label><input type="text" data-list="rowH" value="${esc((el.rowH || []).join(", "))}" placeholder="비우면 고르게 · 예: 44, 46, 70"></div>
         ${num("크기(px)", "size", el)}${colorRow("머리 면", "headFill", el)}${colorRow("머리 글자", "headColor", el)}
@@ -1374,9 +1378,10 @@ ${names}
     if (["x", "y", "w", "h", "x1", "y1", "x2", "y2", "size", "subSize", "lineHeight", "width", "gap", "start", "rot", "effectLevel", "strokeWidth", "frameWidth"].includes(k)) { if (v === "" || v == null || (k === "rot" && +v === 0)) delete el[k]; else el[k] = +v; }
     else if (k === "strokeDash") { if (v && v !== "solid") el.strokeDash = v; else delete el.strokeDash; }
     else if (k === "gridLines") { if (v === "on") el.gridLines = true; else delete el.gridLines; }  // 표 격자(모든 칸 테두리)
+    else if (k === "banding") { if (v === "on") el.banding = true; else delete el.banding; }
     else if (k.startsWith("style.")) {  // 표 객체의 style.* (크기·머리 면·머리 글자·선 색·격자·머리 행)
       const kk = k.slice(6); el.style = el.style || {};
-      if (kk === "gridLines") { if (v === "on") el.style.gridLines = true; else delete el.style.gridLines; }
+      if (kk === "gridLines" || kk === "banding") { if (v === "on") el.style[kk] = true; else delete el.style[kk]; }
       else if (kk === "header") { if (v === "off") el.style.header = false; else delete el.style.header; }
       else if (v === "" || v == null) delete el.style[kk]; else el.style[kk] = kk === "size" ? +v : v;
       if (!Object.keys(el.style).length) delete el.style;
@@ -1394,7 +1399,7 @@ ${names}
     else if (k === "secondaryAxis") { if (v === "on") el.secondaryAxis = true; else delete el.secondaryAxis; }
     else if (k === "title") { const t = String(v || "").trim(); if (t) el.title = t; else delete el.title; }
     else if (k === "link") { const t = String(v || "").trim(); if (t) el.link = t; else delete el.link; }
-    else if (v === "" && ["fill", "stroke", "radius", "effect", "frameColor"].includes(k)) delete el[k];
+    else if (v === "" && ["fill", "stroke", "radius", "effect", "frameColor", "tone"].includes(k)) delete el[k];
     else el[k] = v;
     if (isLine(el)) Object.assign(el, Render.lineBox(el));
   }
@@ -1565,6 +1570,53 @@ ${names}
     }
     return true;
   }
+  /** 행 높이를 글 양에 맞춤 - 셀마다 숨은 상자로 높이를 재서(글꼴·크기·폭 같게) 행 최대값 + 위아래 여백 */
+  function fitRows(el) {
+    const { g, nr, nc } = cellGeom(el); if (!nr) return;
+    const probe = document.createElement("div"); probe.style.cssText = "position:absolute;left:-9999px;top:0;visibility:hidden;white-space:pre-wrap;word-break:keep-all;overflow-wrap:break-word;line-height:1.4"; document.body.appendChild(probe);
+    const mg = Render.tableMerges(g.merge ? { merge: g.merge } : el, nr, nc), heights = [];
+    for (let i = 0; i < nr; i++) {
+      let hmax = 0;
+      for (let j = 0; j < nc; j++) {
+        if (mg.skip.has(cellKey(i, j))) continue;
+        const c = g.cells[i][j], sz = +c.size || +g.size || 16, pad = c.pad != null ? padOf({ pad: c.pad }) : [0, 14, 0, 14], sp = mg.span.get(cellKey(i, j)) || [1, 1];
+        if (sp[0] > 1) continue;  // 세로 병합 셀은 한 행 높이로 치지 않는다
+        const w = g.colW.slice(j, j + sp[1]).reduce((a, b) => a + b, 0) - pad[1] - pad[3];
+        probe.style.width = Math.max(10, w) + "px"; probe.style.fontSize = sz + "px"; probe.style.fontFamily = Render.css ? "" : ""; probe.style.fontWeight = c.bold ? "700" : "400";
+        probe.innerHTML = Render.renderElement({ id: "p", type: "text", x: 0, y: 0, w: Math.max(10, w), h: 10, text: c.text, size: sz, lineHeight: 1.4, font: c.font }, 1);
+        const box = probe.querySelector(".rs-box"); if (box) { box.style.position = "static"; box.style.height = "auto"; }
+        hmax = Math.max(hmax, (box ? box.scrollHeight : sz * 1.4) + pad[0] + pad[2] + 8);
+      }
+      heights.push(Math.max(Math.round(hmax), 24));
+    }
+    probe.remove();
+    const total = heights.reduce((a, b) => a + b, 0);
+    if (el.type === "table") el.rowH = heights; else { const rows = objRows(el); el.rows = rows; rows.forEach((r, i) => { r.h = heights[i]; }); }
+    el.h = total;
+    toast(`행 높이를 글에 맞췄습니다 - 표 높이 ${total}px (Ctrl+Z 로 되돌리기)`);
+  }
+  /** 경계 끌기 - 이웃한 두 열(행)의 폭(높이)을 바꾼다(표 전체 크기는 그대로). xs·ys 는 시작 때의 px 경계 */
+  function applyBoundary(el, axis, idx, pos, g0) {
+    const arr = axis === "c" ? g0.xs : g0.ys, lo = arr[idx - 1] + 16, hi = arr[idx + 1] - 16;
+    const np = Math.max(lo, Math.min(hi, pos));
+    const sizes = []; for (let k = 0; k < arr.length - 1; k++) sizes.push(k === idx - 1 ? np - arr[k] : k === idx ? arr[k + 1] - np : arr[k + 1] - arr[k]);
+    const vals = sizes.map((v) => Math.round(v * 10) / 10);
+    if (axis === "c") { if (el.type === "table") el.colW = vals; else { el.cols = (el.cols || []).map((c) => (c && typeof c === "object" ? c : { w: c })); while (el.cols.length < vals.length) el.cols.push({ w: 1 }); vals.forEach((v, j) => { el.cols[j].w = v; }); } }
+    else if (el.type === "table") el.rowH = vals; else { const rows = objRows(el); el.rows = rows; vals.forEach((v, i) => { if (rows[i]) rows[i].h = v; }); }
+  }
+  function gutterHtml(el) {  // 표가 고른 상태 - 위쪽 열 띠·왼쪽 행 띠(누르면 열·행 전체 선택), 안쪽 경계 손잡이(끌면 폭·높이)
+    if (S.mode !== "edit" || el.locked) return "";
+    const { xs, ys, nr, nc } = cellGeom(el), t = 12 / scale, hw = 7 / scale, mb = 10 / scale, off = mb + 4 / scale; let h = "";
+    // 이동 - 표 바깥 점선 테두리 띠(10px)와 왼쪽 위 ✥ 손잡이를 끌면 표가 움직인다(표 안은 셀 선택, Alt+끌기도 이동)
+    const band = (x, y, w, hh) => `<div class="tmove" title="끌어서 표 이동 (표 안은 셀 선택 · Alt+끌기도 이동)" style="left:${x}px;top:${y}px;width:${w}px;height:${hh}px"></div>`;
+    h += band(el.x - mb, el.y - mb, el.w + 2 * mb, mb) + band(el.x - mb, el.y + el.h, el.w + 2 * mb, mb) + band(el.x - mb, el.y, mb, el.h) + band(el.x + el.w, el.y, mb, el.h);
+    h += `<div class="tgrip tmove" title="끌어서 표 이동" style="left:${el.x - off - 22 / scale}px;top:${el.y - off - 22 / scale}px;width:${22 / scale}px;height:${22 / scale}px;font-size:${13 / scale}px">✥</div>`;
+    for (let j = 0; j < nc; j++) h += `<div class="tgut col" data-c="${j}" title="열 ${j + 1} 선택 (Shift 범위 · Ctrl 더하기)" style="left:${el.x + xs[j] + 1}px;top:${el.y - off - t}px;width:${xs[j + 1] - xs[j] - 2}px;height:${t}px"></div>`;
+    for (let i = 0; i < nr; i++) h += `<div class="tgut row" data-r="${i}" title="행 ${i + 1} 선택 (Shift 범위 · Ctrl 더하기)" style="left:${el.x - off - t}px;top:${el.y + ys[i] + 1}px;width:${t}px;height:${ys[i + 1] - ys[i] - 2}px"></div>`;
+    for (let j = 1; j < nc; j++) h += `<div class="tbnd col" data-c="${j}" title="끌어서 열 폭 조절" style="left:${el.x + xs[j] - hw / 2}px;top:${el.y}px;width:${hw}px;height:${el.h}px"></div>`;
+    for (let i = 1; i < nr; i++) h += `<div class="tbnd row" data-r="${i}" title="끌어서 행 높이 조절" style="left:${el.x}px;top:${el.y + ys[i] - hw / 2}px;width:${el.w}px;height:${hw}px"></div>`;
+    return h;
+  }
   function cellRowCol(op) {  // 서식 줄 - 고른 셀 기준 행·열 삽입·삭제
     const el = selEl(); if (!el || !S.cell) return;
     const cells = cellList(), rs = [...new Set(cells.map((x) => x[0]))], cs = [...new Set(cells.map((x) => x[1]))];
@@ -1638,6 +1690,7 @@ ${names}
     if (b.dataset.act === "dupEl") dupEl();
     if (b.dataset.act === "ungroup") ungroupSel();
     if (b.dataset.act === "charttbl" && el && el.type === "chart") { openChartTable(el); return; }
+    if (b.dataset.act === "tfit" && el && isTbl(el)) { snapshot(); fitRows(el); afterChange(); return; }
     if (b.dataset.act === "toobj" && el && el.type === "table") { snapshot(); ensureObj(el, "표 객체로 바꿨습니다 - 표 안을 눌러 셀 서식을 넣을 수 있습니다 (Ctrl+Z 로 되돌리기)"); afterChange(); return; }
     if (b.dataset.act === "totable" && el && el.type === "table-obj") { snapshot(); objToTableEl(el); afterChange(); return; }
     if (b.dataset.act === "delEl") delEl();
@@ -2137,10 +2190,26 @@ ${names}
       fmtPasteTo([node.dataset.id]); select(node.dataset.id); return;
     }
     if (hd && !isMulti()) { const el = selEl(); if (!el) return; drag = { mode: "resize", h: hd.dataset.h, el, orig: clone(el), p0: p, moved: false, before: deckJson() }; e.preventDefault(); return; }
+    {  // 표 이동 띠·✥ 손잡이 - 표를 끌어 옮긴다(안쪽은 셀 선택이라 바깥 띠로)
+      const mv = e.target.closest(".tmove"), tsel0 = selEl();
+      if (mv && tsel0 && isTbl(tsel0) && !isMulti() && !tsel0.locked) { drag = { mode: "move", el: tsel0, els: [tsel0], origs: [clone(tsel0)], orig: clone(tsel0), p0: p, moved: false, before: deckJson() }; e.preventDefault(); return; }
+    }
+    {  // 표 띠·경계 손잡이(선택 표시 위의 요소) - 행/열 전체 선택 · 경계 끌기
+      const gut = e.target.closest(".tgut"), bnd = e.target.closest(".tbnd"), tsel = selEl();
+      if ((gut || bnd) && tsel && isTbl(tsel) && !isMulti()) {
+        if (bnd) { drag = { mode: "tres", el: tsel, axis: bnd.dataset.c != null ? "c" : "r", idx: +(bnd.dataset.c != null ? bnd.dataset.c : bnd.dataset.r), p0: p, g0: cellGeom(tsel), moved: false, before: deckJson() }; e.preventDefault(); return; }
+        const { nr, nc } = cellGeom(tsel), axis = gut.dataset.c != null ? "c" : "r", idx = +(gut.dataset.c != null ? gut.dataset.c : gut.dataset.r);
+        const lineCells = (k) => (axis === "c" ? Array.from({ length: nr }, (_, i) => [i, k]) : Array.from({ length: nc }, (_, j) => [k, j]));
+        if (e.ctrlKey || e.metaKey) { const set = new Set(S.cell && S.cell.id === tsel.id ? S.cell.set : []); lineCells(idx).forEach(([r, c]) => set.add(cellKey(r, c))); S.cell = { id: tsel.id, set, anchor: lineCells(idx)[0], line: [axis, idx] }; drawSel(); renderFtb(); renderProps(); }
+        else if (e.shiftKey && S.cell && S.cell.id === tsel.id && S.cell.line && S.cell.line[0] === axis) { const a = S.cell.line[1], cells = []; for (let k = Math.min(a, idx); k <= Math.max(a, idx); k++) cells.push(...lineCells(k)); S.cell = { id: tsel.id, set: new Set(cells.map(([r, c]) => cellKey(r, c))), anchor: lineCells(a)[0], line: [axis, a] }; drawSel(); renderFtb(); renderProps(); }
+        else { S.cell = { id: tsel.id, set: new Set(lineCells(idx).map(([r, c]) => cellKey(r, c))), anchor: lineCells(idx)[0], line: [axis, idx] }; drawSel(); renderFtb(); renderProps(); drag = { mode: "gutsel", el: tsel, axis, a: idx, moved: false }; }
+        e.preventDefault(); return;
+      }
+    }
     {  // 이미 고른 표 안을 누르면 셀 선택(가장자리 6px 안쪽은 표 이동) - Shift 범위 · Ctrl 더하기/빼기 · 끌면 범위
       const n0 = topEl(e.target), t0 = n0 && !isMulti() && S.sel === n0.dataset.id ? elById(n0.dataset.id) : null;
-      if (t0 && isTbl(t0) && !t0.locked) {
-        const rc = cellAt(t0, p), edge = 6 / scale, lx = p.x - t0.x, ly = p.y - t0.y;
+      if (t0 && isTbl(t0) && !t0.locked && !e.altKey) {  // Alt+끌기는 표 이동
+        const rc = cellAt(t0, p), edge = 2 / scale, lx = p.x - t0.x, ly = p.y - t0.y;
         if (rc && lx > edge && ly > edge && lx < t0.w - edge && ly < t0.h - edge) {
           if (e.ctrlKey || e.metaKey) { const set = new Set(S.cell && S.cell.id === t0.id ? S.cell.set : []); const k = cellKey(rc[0], rc[1]); const was = set.has(k); if (was) set.delete(k); else set.add(k); S.cell = { id: t0.id, set, anchor: was ? (S.cell && S.cell.anchor && set.has(cellKey(...S.cell.anchor)) ? S.cell.anchor : ([...set][0] || rc).toString().split(",").map(Number)) : rc }; drawSel(); renderFtb(); renderProps(); }
           else if (e.shiftKey && S.cell && S.cell.id === t0.id) setCells(t0, cellRect(S.cell.anchor, rc), S.cell.anchor);
@@ -2165,6 +2234,8 @@ ${names}
     if (S.pan) { const vp = $("#vpEdit"); vp.scrollLeft = S.pan.l - (e.clientX - S.pan.x); vp.scrollTop = S.pan.t - (e.clientY - S.pan.y); return; }
     if (S.drawing && S.drawing.p0) { drawMove(e); return; }
     if (!drag) return;
+    if (drag.mode === "tres") { const p = toSlide(e); drag.moved = true; applyBoundary(drag.el, drag.axis, drag.idx, drag.axis === "c" ? p.x - drag.el.x : p.y - drag.el.y, drag.g0); renderCanvas(); drawSel(); return; }
+    if (drag.mode === "gutsel") { const p = toSlide(e), rc = cellAt(drag.el, p); if (!rc) return; const { nr, nc } = cellGeom(drag.el), k = drag.axis === "c" ? rc[1] : rc[0]; const cells = []; for (let q = Math.min(drag.a, k); q <= Math.max(drag.a, k); q++) { if (drag.axis === "c") for (let i = 0; i < nr; i++) cells.push([i, q]); else for (let j = 0; j < nc; j++) cells.push([q, j]); } S.cell = { id: drag.el.id, set: new Set(cells.map(([r, c]) => cellKey(r, c))), anchor: S.cell.anchor, line: [drag.axis, drag.a] }; drawSel(); return; }
     if (drag.mode === "cellsel") { const rc = cellAt(drag.el, toSlide(e)); if (rc && (rc[0] !== drag.a[0] || rc[1] !== drag.a[1] || drag.moved)) { drag.moved = true; S.cell = { id: drag.el.id, set: new Set(cellRect(drag.a, rc).map(([r, c]) => cellKey(r, c))), anchor: drag.a, cur: rc }; drawSel(); } return; }
     const p = toSlide(e), dx = p.x - drag.p0.x, dy = p.y - drag.p0.y, free = e.shiftKey, el = drag.el, o = drag.orig;
     if (!drag.moved && Math.hypot(dx, dy) * scale < 3) return;
@@ -2215,7 +2286,7 @@ ${names}
     if (S.drawing && S.drawing.p0) { drawUp(); return; }
     if (!drag) return;
     const d = drag; drag = null;
-    if (d.mode === "cellsel") { renderFtb(); renderProps(); return; }
+    if (d.mode === "cellsel" || d.mode === "gutsel") { renderFtb(); renderProps(); return; }
     if (d.mode === "marquee") {
       if (!d.moved) { if (!d.base.length) select(null); else drawSel(); return; }
       const m = d.box, s = slide();  // 상자 안에 완전히 들어간 요소(잠긴 요소 포함 - 이동은 안 됨)

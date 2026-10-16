@@ -491,6 +491,15 @@
   #presentLaser { position: absolute; width: 14px; height: 14px; margin: -7px 0 0 -7px; border-radius: 50%; background: #ff3b30; box-shadow: 0 0 10px 4px rgba(255,59,48,.6); pointer-events: none; display: none; z-index: 4; }
   #present.laser { cursor: none; }
   #notesChips { display: flex; gap: 6px; padding: 4px 6px 0; }
+  .tmove { position: absolute; pointer-events: auto; cursor: move; }
+  .tmove:hover { background: rgba(169,31,36,.12); }
+  .tgrip { background: var(--p); color: #fff; border-radius: 6px; display: flex; align-items: center; justify-content: center; box-shadow: var(--sh1); }
+  .tgrip:hover { background: var(--p); filter: brightness(1.15); }
+  .tgut { position: absolute; box-sizing: border-box; background: var(--tone); border: 1px solid var(--line); border-radius: 3px; pointer-events: auto; cursor: pointer; }
+  .tgut:hover { background: var(--pc); border-color: var(--p); }
+  .tbnd { position: absolute; pointer-events: auto; z-index: 2; }
+  .tbnd.col { cursor: col-resize; } .tbnd.row { cursor: row-resize; }
+  .tbnd:hover { background: rgba(169,31,36,.25); }
   .cellsel { position: absolute; box-sizing: border-box; background: rgba(169,31,36,.10); outline: 2px solid var(--p); outline-offset: -1px; pointer-events: none; }
   .editor.cell { box-sizing: border-box; }
   .ovwarn { position: absolute; z-index: 4; background: var(--err); color: #fff; font-size: 11px; line-height: 1.3; padding: 2px 8px; border-radius: 6px; pointer-events: none; white-space: nowrap; transform: translateY(4px); }
