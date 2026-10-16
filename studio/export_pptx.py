@@ -702,7 +702,11 @@ def do_bullets(slide, el, page):
 
 
 CHART_TYPES = {"column": XL_CHART_TYPE.COLUMN_CLUSTERED, "stackedColumn": XL_CHART_TYPE.COLUMN_STACKED, "bar": XL_CHART_TYPE.BAR_CLUSTERED,
-               "line": XL_CHART_TYPE.LINE_MARKERS, "area": XL_CHART_TYPE.AREA, "pie": XL_CHART_TYPE.PIE, "doughnut": XL_CHART_TYPE.DOUGHNUT}
+               "line": XL_CHART_TYPE.LINE_MARKERS, "area": XL_CHART_TYPE.AREA, "pie": XL_CHART_TYPE.PIE, "doughnut": XL_CHART_TYPE.DOUGHNUT,
+               # 0.22.13 - 누적 가로 · 100% 누적(세로·가로) · 콤보(막대 + 선, 선 계열은 _combo 가 c:lineChart 로 옮긴다)
+               "stackedBar": XL_CHART_TYPE.BAR_STACKED, "stackedColumn100": XL_CHART_TYPE.COLUMN_STACKED_100, "stackedBar100": XL_CHART_TYPE.BAR_STACKED_100, "combo": XL_CHART_TYPE.COLUMN_CLUSTERED}
+CHART_STACKED = {"stackedColumn", "stackedBar", "stackedColumn100", "stackedBar100"}
+CHART_PCT = {"stackedColumn100", "stackedBar100"}
 CHART_PALETTE = ["primary", "#4C7A9E", "#E0A458", "#7BAE7F", "#B57BA6", "#8C8C8C", "#D97B66", "#5FA8A3"]  # render.js CHART_PALETTE 와 같다
 
 
@@ -716,9 +720,107 @@ def _chart_axis(mx, mn):
     return math.ceil(hi / step) * step, math.floor(lo / step) * step, step
 
 
+def _combo_lines(el, series):
+    """콤보에서 선으로 그릴 계열 번호(render.js comboLines 와 같은 규칙) - lineSeries = 이름 또는 0부터 번호(배열·하나), 기본 = 마지막 계열. 없거나 전부 선이면 마지막만."""
+    if (el.get("chart") or "column") != "combo" or len(series) < 2:
+        return set()
+    raw = el.get("lineSeries")
+    if raw is None or raw == "":
+        return {len(series) - 1}
+    raw = raw if isinstance(raw, list) else [raw]
+    out = set()
+    names = [nm for nm, _ in series]
+    for v in raw:
+        sv = str(v).strip()
+        if sv in names:
+            out.add(names.index(sv))
+        elif sv.isdigit() and int(sv) < len(series):
+            out.add(int(sv))
+    return out if out and len(out) < len(series) else {len(series) - 1}
+
+
+def _combo(chart, line_idx, secondary):
+    """콤보 - 묶은 세로 막대로 만든 차트의 선 계열(c:ser)을 새 c:lineChart 로 옮긴다(데이터는 같은 내장 워크북). secondary 면 보조 축(오른챡 c:valAx, 숨긴 c:catAx)."""
+    import copy
+    pa = chart._chartSpace.chart.plotArea
+    bar = pa.find(qn("c:barChart"))
+    if bar is None:
+        return
+    sers = bar.findall(qn("c:ser"))
+    ax_ids = [a.get("val") for a in bar.findall(qn("c:axId"))]
+    line = etree.Element(qn("c:lineChart"))
+    etree.SubElement(line, qn("c:grouping")).set("val", "standard")
+    etree.SubElement(line, qn("c:varyColors")).set("val", "0")
+    moved = 0
+    for i, ser in enumerate(sers):
+        if i not in line_idx:
+            continue
+        bar.remove(ser)
+        for x in ser.findall(qn("c:invertIfNegative")):
+            ser.remove(x)
+        mk = etree.Element(qn("c:marker"))
+        etree.SubElement(mk, qn("c:symbol")).set("val", "circle")
+        etree.SubElement(mk, qn("c:size")).set("val", "6")
+        cat = ser.find(qn("c:cat"))
+        if cat is not None:
+            cat.addprevious(mk)
+        else:
+            ser.append(mk)
+        etree.SubElement(ser, qn("c:smooth")).set("val", "0")
+        line.append(ser)
+        moved += 1
+    if not moved:
+        return
+    etree.SubElement(line, qn("c:marker")).set("val", "1")
+    bar.addnext(line)
+    if secondary:
+        cat_ax, val_ax = pa.find(qn("c:catAx")), pa.find(qn("c:valAx"))
+        c2, v2 = copy.deepcopy(cat_ax), copy.deepcopy(val_ax)
+        cid, vid = "500100", "500200"
+        c2.find(qn("c:axId")).set("val", cid)
+        c2.find(qn("c:crossAx")).set("val", vid)
+        c2.find(qn("c:delete")).set("val", "1")
+        v2.find(qn("c:axId")).set("val", vid)
+        v2.find(qn("c:crossAx")).set("val", cid)
+        v2.find(qn("c:axPos")).set("val", "r")
+        for g in v2.findall(qn("c:majorGridlines")) + v2.findall(qn("c:title")) + v2.findall(qn("c:numFmt")):
+            v2.remove(g)
+        cr = v2.find(qn("c:crosses"))
+        if cr is not None:
+            cr.set("val", "max")
+        sc = v2.find(qn("c:scaling"))
+        for ch in list(sc):
+            if ch.tag != qn("c:orientation"):
+                sc.remove(ch)
+        val_ax.addnext(c2)
+        c2.addnext(v2)
+        ax_ids = [cid, vid]
+    for a in ax_ids:
+        etree.SubElement(line, qn("c:axId")).set("val", a)
+
+
+def _axis_title(ax, text, size):
+    ax.has_title = True
+    tf = ax.axis_title.text_frame
+    tf.text = str(text)
+    r = tf.paragraphs[0].runs[0]
+    r.font.size = Pt(size * 0.75 * 0.9)
+    r.font.bold = False
+
+
+def _num_fmt(tick_labels, fmt):
+    if fmt:
+        tick_labels.number_format = str(fmt)
+        tick_labels.number_format_is_linked = False
+
+
 def do_chart(slide, el, page):
-    """chart - PowerPoint 차트(편집 가능). 색·범례·데이터 레이블·눈금은 render.js elChart 와 같은 규칙, 그림은 PowerPoint 가 그린다."""
+    """chart - PowerPoint 차트(편집 가능). 색·범례·데이터 레이블·눈금은 render.js elChart 와 같은 규칙, 그림은 PowerPoint 가 그린다.
+    종류: column stackedColumn bar line area pie doughnut + stackedBar stackedColumn100 stackedBar100 combo(막대 + 선 lineSeries, secondaryAxis 보조 축).
+    축 제목 axisTitle(값)·catTitle(범주)·axisTitle2(보조), 숫자 형식 numFmt·numFmt2(Excel 식 - 눈금·값 표시), axisMax·axisMax2."""
     kind = el.get("chart") or "column"
+    if kind not in CHART_TYPES:
+        kind = "column"
     cats = [str(c if c is not None else "") for c in el.get("categories") or []]
     series = [(str(s.get("name") or f"계열 {i + 1}"), [(None if v in (None, "") else float(v)) for v in (s.get("values") or [])]) for i, s in enumerate(el.get("series") or []) if isinstance(s, dict)]
     n = max([len(cats)] + [len(v) for _, v in series] + [0])
@@ -728,12 +830,17 @@ def do_chart(slide, el, page):
         print(f"  ! {el.get('id')}: 차트 데이터 없음")
         return None
     pie = kind in ("pie", "doughnut")
+    stacked, pct = kind in CHART_STACKED, kind in CHART_PCT
+    lines = _combo_lines(el, series)
+    sec = bool(lines) and bool(el.get("secondaryAxis"))
     cd = CategoryChartData()
     cd.categories = cats
     for nm, v in (series[:1] if pie else series):
         cd.add_series(nm, [0 if x is None else x for x in v] if pie else v)
     gf = slide.shapes.add_chart(CHART_TYPES.get(kind, XL_CHART_TYPE.COLUMN_CLUSTERED), E(el["x"]), E(el["y"]), E(el["w"]), E(el["h"]), cd)
     ch = gf.chart
+    if lines:
+        _combo(ch, lines, sec)
     size = float(el.get("size", 14))
     ch.font.size = Pt(size * 0.75)
     ch.font.name = fonts_of("body")[0]  # 본문 글꼴(글꼴 세트)
@@ -750,51 +857,90 @@ def do_chart(slide, el, page):
         ch.chart_title.text_frame.text = str(el["title"])
         ch.chart_title.text_frame.paragraphs[0].runs[0].font.size = Pt(size * 0.75 * 1.15)
         ch.chart_title.text_frame.paragraphs[0].runs[0].font.bold = True
-    plot = ch.plots[0]
-    plot.has_data_labels = bool(el.get("labels"))
-    if plot.has_data_labels:
-        plot.data_labels.font.size = Pt(size * 0.75 * 0.85)
-        if pie:
-            plot.data_labels.show_percentage = True
-            plot.data_labels.show_value = False
-            plot.data_labels.number_format = "0%"
-            plot.data_labels.number_format_is_linked = False
-    if kind in ("column", "bar", "stackedColumn"):
+    fmt1, fmt2 = str(el.get("numFmt") or ""), str(el.get("numFmt2") or "")
+    plots = list(ch.plots)
+    for k, plot in enumerate(plots):
+        plot.has_data_labels = bool(el.get("labels"))
+        if plot.has_data_labels:
+            plot.data_labels.font.size = Pt(size * 0.75 * 0.85)
+            if pie:
+                plot.data_labels.show_percentage = True
+                plot.data_labels.show_value = False
+                plot.data_labels.number_format = "0%"
+                plot.data_labels.number_format_is_linked = False
+            else:
+                f = fmt2 if (k == 1 and sec) else fmt1
+                if f:
+                    plot.data_labels.number_format = f
+                    plot.data_labels.number_format_is_linked = False
+    plot = plots[0]
+    if kind in ("column", "bar", "combo") or stacked:
         plot.gap_width = 80
-        if kind == "stackedColumn":
+        if stacked:
             plot.overlap = 100
     cols = el.get("colors") or []
+
     def rgb(i):
         return RGBColor.from_string((color(cols[i] if i < len(cols) and cols[i] else CHART_PALETTE[i % len(CHART_PALETTE)]) or "#888888")[1:])
+
+    def style_line(s, i):
+        s.format.line.color.rgb = rgb(i)
+        s.format.line.width = Pt(2)
+        s.smooth = False
+        s.marker.format.fill.solid()
+        s.marker.format.fill.fore_color.rgb = rgb(i)
+
+    bar_idx = [i for i in range(len(series)) if i not in lines]
     for i, s in enumerate(plot.series):
+        si = bar_idx[i] if lines else i  # 콤보는 막대 plot 에 선 계열이 빠져 있다 - 원래 번호로 색
         if pie:
             for j, pt in enumerate(s.points):
                 pt.format.fill.solid()
                 pt.format.fill.fore_color.rgb = rgb(j)
                 pt.format.line.color.rgb = RGBColor(0xFF, 0xFF, 0xFF)
-        elif kind in ("line",):
-            s.format.line.color.rgb = rgb(i)
-            s.format.line.width = Pt(2)
-            s.smooth = False
-            s.marker.format.fill.solid()
-            s.marker.format.fill.fore_color.rgb = rgb(i)
+        elif kind == "line":
+            style_line(s, si)
         else:
             s.format.fill.solid()
-            s.format.fill.fore_color.rgb = rgb(i)
+            s.format.fill.fore_color.rgb = rgb(si)
+    if lines and len(plots) > 1:
+        for s, si in zip(plots[1].series, sorted(lines)):
+            style_line(s, si)
     if not pie:
-        va, ca = ch.value_axis, ch.category_axis
+        from pptx.chart.axis import ValueAxis
+        v_axes = ch._chartSpace.chart.plotArea.findall(qn("c:valAx"))
+        va, ca = ValueAxis(v_axes[0]), ch.category_axis  # 주 값 축 = 첫 valAx(python-pptx value_axis 는 축이 둘이면 둘째를 고른다 - XY 차트용)
         va.has_major_gridlines = el.get("grid") is not False
         va.tick_labels.font.size = Pt(size * 0.75 * 0.85)
         ca.tick_labels.font.size = Pt(size * 0.75 * 0.9)
-        vals = [v for _, vv in series for v in vv if v is not None]
-        if kind == "stackedColumn":
-            vals = [sum(max(0.0, vv[i] or 0.0) for _, vv in series) for i in range(n)]
-        mx, mn, step = _chart_axis(max(vals + [0]), min(vals + [0]))
-        va.maximum_scale = float(el["axisMax"]) if el.get("axisMax") else mx
-        va.minimum_scale = mn
-        va.major_unit = step
+        _num_fmt(va.tick_labels, fmt1)
+        if not pct:  # 100% 누적은 PowerPoint 가 0~100% 로 맞춘다
+            prim = bar_idx if sec else range(len(series))
+            vals = [v for i in prim for v in series[i][1] if v is not None]
+            if stacked:
+                vals = [sum(max(0.0, series[i][1][k] or 0.0) for i in prim) for k in range(n)]
+            mx, mn, step = _chart_axis(max(vals + [0]), min(vals + [0]))
+            va.maximum_scale = float(el["axisMax"]) if el.get("axisMax") else mx
+            va.minimum_scale = mn
+            va.major_unit = step
         if va.has_major_gridlines:
             va.major_gridlines.format.line.color.rgb = RGBColor.from_string((color("outline-variant") or "#DDDDDD")[1:])
+        if el.get("axisTitle"):
+            _axis_title(va, el["axisTitle"], size)
+        if el.get("catTitle"):
+            _axis_title(ca, el["catTitle"], size)
+        if sec:
+            if len(v_axes) > 1:
+                va2 = ValueAxis(v_axes[-1])
+                va2.tick_labels.font.size = Pt(size * 0.75 * 0.85)
+                _num_fmt(va2.tick_labels, fmt2)
+                lv = [v for i in sorted(lines) for v in series[i][1] if v is not None]
+                mx2, mn2, step2 = _chart_axis(max(lv + [0]), min(lv + [0]))
+                va2.maximum_scale = float(el["axisMax2"]) if el.get("axisMax2") else mx2
+                va2.minimum_scale = mn2
+                va2.major_unit = step2
+                if el.get("axisTitle2"):
+                    _axis_title(va2, el["axisTitle2"], size)
     return gf
 
 

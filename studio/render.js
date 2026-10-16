@@ -612,6 +612,18 @@
     return { max: Math.ceil(hi / step) * step, min: Math.floor(lo / step) * step, step };
   }
   const chartNum = (v) => (Math.abs(v) >= 1000 ? v.toLocaleString("en-US") : String(Math.round(v * 100) / 100));
+  /** 숫자 형식(numFmt, Excel 식 - PPTX 는 같은 문자열을 formatCode 로 쓴다): "#,##0" "0" "0.0" "0%" "#,##0.0" + 앞뒤 글자('#,##0"억"' 또는 '#,##0억'). 없으면 chartNum */
+  function chartFmt(v, fmt) {
+    if (v == null) return "";
+    if (!fmt) return chartNum(v);
+    const m = /^([^#0]*)([#,0]*)(?:\.(0+))?(%?)([^#0]*)$/.exec(String(fmt).replace(/"/g, ""));
+    if (!m) return chartNum(v);
+    const [, pre, intp, dec, pct, suf] = m;
+    const x = pct ? v * 100 : v, d = dec ? dec.length : 0;
+    let s = Math.abs(x).toFixed(d);
+    if (intp.includes(",")) { const [a, b] = s.split("."); s = a.replace(/\B(?=(\d{3})+(?!\d))/g, ",") + (b ? "." + b : ""); }
+    return (x < 0 ? "-" : "") + pre + s + pct + suf;
+  }
   function chartData(el) {
     const cats = (el.categories || []).map((c) => String(c == null ? "" : c));
     const series = (el.series || []).map((s, i) => ({ name: String((s && s.name) || `계열 ${i + 1}`), values: ((s && s.values) || []).map((v) => (v == null || v === "" || isNaN(+v) ? null : +v)) }));
@@ -620,23 +632,41 @@
     series.forEach((s) => { while (s.values.length < n) s.values.push(null); });
     return { cats, series, n };
   }
+  const CHART_H = new Set(["bar", "stackedBar", "stackedBar100"]), CHART_STK = new Set(["stackedColumn", "stackedBar", "stackedColumn100", "stackedBar100"]), CHART_PCT = new Set(["stackedColumn100", "stackedBar100"]);
+  /** 콤보(combo) - 선으로 그릴 계열 번호 집합. lineSeries = 계열 이름 또는 0부터 번호(배열 또는 하나), 기본 = 마지막 계열. export_pptx._combo_lines 와 같은 규칙 */
+  function comboLines(el, series) {
+    if ((el.chart || "column") !== "combo" || series.length < 2) return new Set();
+    const raw = el.lineSeries == null || el.lineSeries === "" ? null : Array.isArray(el.lineSeries) ? el.lineSeries : [el.lineSeries];
+    if (!raw) return new Set([series.length - 1]);
+    const out = new Set();
+    for (const v of raw) {
+      const byName = series.findIndex((s) => s.name === String(v));
+      if (byName >= 0) out.add(byName);
+      else if (/^\d+$/.test(String(v).trim()) && +v < series.length) out.add(+v);
+    }
+    return out.size && out.size < series.length ? out : new Set([series.length - 1]);  // 없거나 전부 선이면 마지막만 선
+  }
   function elChart(el, page) {
     const w = +el.w, h = +el.h, kind = el.chart || "column", size = +el.size || 14, fam = font("body"), ink = color("on-surface"), ink2 = color("on-surface-variant"), rule = color("outline-variant") || "#ddd";
     const { cats, series, n } = chartData(el);
-    const legend = el.legend === undefined ? (series.length > 1 || kind === "pie" || kind === "doughnut" ? "bottom" : "none") : el.legend;
-    const labels = !!el.labels, stacked = kind === "stackedColumn", pie = kind === "pie" || kind === "doughnut", horiz = kind === "bar";
+    const pie = kind === "pie" || kind === "doughnut";
+    const legend = el.legend === undefined ? (series.length > 1 || pie ? "bottom" : "none") : el.legend;
+    const labels = !!el.labels, stacked = CHART_STK.has(kind), pct = CHART_PCT.has(kind), horiz = CHART_H.has(kind), lines = comboLines(el, series);
+    const sec = lines.size > 0 && !!el.secondaryAxis;  // 보조 축(오른쪽) - 콤보의 선 계열
+    const afmt = el.numFmt || (pct ? "0%" : ""), lfmt = el.numFmt || "", afmt2 = el.numFmt2 || "", lfmt2 = el.numFmt2 || "";  // 축 눈금·값 표시 형식(보조 축은 2)
     let out = "", top = 6, bottom = h - 6, left = 6, right = w - 6;
-    const T = (x, y, t, o = {}) => `<text x="${R2(x)}" y="${R2(y)}" font-family="${fam}" font-size="${o.size || size}" fill="${o.fill || ink}" text-anchor="${o.anchor || "start"}" dominant-baseline="${o.base || "middle"}"${o.bold ? ' font-weight="700"' : ""}>${esc(t)}</text>`;
+    const T = (x, y, t, o = {}) => `<text x="${R2(x)}" y="${R2(y)}" font-family="${fam}" font-size="${o.size || size}" fill="${o.fill || ink}" text-anchor="${o.anchor || "start"}" dominant-baseline="${o.base || "middle"}"${o.bold ? ' font-weight="700"' : ""}${o.rot ? ` transform="rotate(${o.rot} ${R2(x)} ${R2(y)})"` : ""}>${esc(t)}</text>`;
     if (el.title) { out += T(w / 2, top + size * 0.8, String(el.title), { anchor: "middle", size: size * 1.15, bold: true }); top += size * 1.9; }
-    if (legend === "bottom" && series.length) {  // 범례 - 아래 한 줄(원형은 범주)
+    const mark = (x, y, c, i) => (lines.has(i) ? `<line x1="${R2(x)}" y1="${R2(y)}" x2="${R2(x + size * 0.8)}" y2="${R2(y)}" stroke="${c}" stroke-width="2.5"/><circle cx="${R2(x + size * 0.4)}" cy="${R2(y)}" r="3" fill="${c}"/>` : `<rect x="${R2(x)}" y="${R2(y - size * 0.4)}" width="${R2(size * 0.8)}" height="${R2(size * 0.8)}" rx="2" fill="${c}"/>`);
+    if (legend === "bottom" && series.length) {  // 범례 - 아래 한 줄(원형은 범주, 콤보의 선 계열은 선 표식)
       const items = pie ? cats.map((c, i) => [c, chartColor(el, i)]) : series.map((s, i) => [s.name, chartColor(el, i)]);
       const est = items.reduce((a, [t]) => a + t.length * size * 0.62 + size * 1.6 + 12, 0); let x = Math.max(left, (w - est) / 2); const y = bottom - size * 0.6;
-      items.forEach(([t, c]) => { out += `<rect x="${R2(x)}" y="${R2(y - size * 0.4)}" width="${R2(size * 0.8)}" height="${R2(size * 0.8)}" rx="2" fill="${c}"/>`; out += T(x + size * 1.1, y, t, { size: size * 0.9, fill: ink2 }); x += t.length * size * 0.62 + size * 1.6 + 12; });
+      items.forEach(([t, c], i) => { out += mark(x, y, c, pie ? -1 : i); out += T(x + size * 1.1, y, t, { size: size * 0.9, fill: ink2 }); x += t.length * size * 0.62 + size * 1.6 + 12; });
       bottom -= size * 1.8;
     } else if (legend === "right" && series.length) {
       const items = pie ? cats.map((c, i) => [c, chartColor(el, i)]) : series.map((s, i) => [s.name, chartColor(el, i)]);
       const lw = Math.max(...items.map(([t]) => t.length * size * 0.62)) + size * 1.6 + 8; const x = right - lw; let y = top + size;
-      items.forEach(([t, c]) => { out += `<rect x="${R2(x)}" y="${R2(y - size * 0.4)}" width="${R2(size * 0.8)}" height="${R2(size * 0.8)}" rx="2" fill="${c}"/>`; out += T(x + size * 1.1, y, t, { size: size * 0.9, fill: ink2 }); y += size * 1.5; });
+      items.forEach(([t, c], i) => { out += mark(x, y, c, pie ? -1 : i); out += T(x + size * 1.1, y, t, { size: size * 0.9, fill: ink2 }); y += size * 1.5; });
       right = x - 8;
     }
     if (pie) {
@@ -655,54 +685,73 @@
       });
       return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" style="position:absolute;left:0;top:0">${out}</svg>`;
     }
-    // 세로/가로 막대 · 선 · 영역 - 축과 눈금
-    const sums = stacked ? cats.map((_, i) => series.reduce((a, s) => a + Math.max(0, s.values[i] || 0), 0)) : [];
-    const allv = stacked ? sums : series.flatMap((s) => s.values.filter((v) => v != null));
-    const ax = chartAxis(Math.max(0, ...allv), Math.min(0, ...allv));
-    if (el.axisMax != null && +el.axisMax > 0) ax.max = +el.axisMax;
-    const ticks = []; for (let v = ax.min; v <= ax.max + 1e-9; v += ax.step) ticks.push(Math.round(v * 1e6) / 1e6);
-    const lab = (v) => chartNum(v), axW = Math.max(...ticks.map((v) => lab(v).length)) * size * 0.6 + 8, catH = size * 1.5;
-    const px0 = horiz ? left + Math.max(...cats.map((c) => c.length)) * size * 0.62 + 8 : left + axW, py1 = horiz ? bottom - catH : bottom - catH, px1 = right - 4, py0 = top + 4;
+    // 세로/가로 막대 · 누적(100%) · 선 · 영역 · 콤보 - 축과 눈금. 100% 누적은 범주 합 대비 비율(축 0~100%, 값 표시는 원래 값)
+    const barIdx = series.map((_, i) => i).filter((i) => !lines.has(i)), lineIdx = [...lines].sort((a, b) => a - b), primIdx = sec ? barIdx : series.map((_, i) => i);
+    const sums = cats.map((_, i) => barIdx.reduce((a, si) => a + Math.max(0, series[si].values[i] || 0), 0));
+    const val = (si, i) => { const v = series[si].values[i]; return v == null ? null : pct ? (sums[i] ? Math.max(0, v) / sums[i] : 0) : v; };
+    const allv = stacked ? (pct ? [1] : sums) : primIdx.flatMap((si) => series[si].values.filter((v) => v != null));
+    const ax = pct ? { max: 1, min: 0, step: 0.2 } : chartAxis(Math.max(0, ...allv), Math.min(0, ...allv));
+    if (!pct && el.axisMax != null && +el.axisMax > 0) ax.max = +el.axisMax;
+    const lv2 = lineIdx.flatMap((si) => series[si].values.filter((v) => v != null)), ax2 = sec ? chartAxis(Math.max(0, ...lv2), Math.min(0, ...lv2)) : null;
+    if (ax2 && el.axisMax2 != null && +el.axisMax2 > 0) ax2.max = +el.axisMax2;
+    const tk = (a) => { const t = []; for (let v = a.min; v <= a.max + 1e-9; v += a.step) t.push(Math.round(v * 1e6) / 1e6); return t; };
+    const ticks = tk(ax), ticks2 = ax2 ? tk(ax2) : [];
+    const lab = (v) => chartFmt(v, afmt), lab2 = (v) => chartFmt(v, afmt2), catH = size * 1.5;
+    const axW = Math.max(...ticks.map((v) => lab(v).length)) * size * 0.6 + 8, ax2W = ax2 ? Math.max(...ticks2.map((v) => lab2(v).length)) * size * 0.6 + 8 : 0;
+    const tl = el.axisTitle ? size * 1.3 : 0, tc = el.catTitle ? size * 1.3 : 0, tr = ax2 && el.axisTitle2 ? size * 1.3 : 0;  // 축 제목 자리(값 축 = 왼쪽 세로, 범주 축 = 아래, 보조 축 = 오른쪽 세로; 가로 막대는 값·범주 자리가 바뀜)
+    const px0 = (horiz ? left + Math.max(...cats.map((c) => c.length)) * size * 0.62 + 8 : left + axW) + (horiz ? tc : tl), py1 = bottom - catH - (horiz ? tl : tc), px1 = right - 4 - ax2W - tr, py0 = top + 4;
     const pw = px1 - px0, ph = py1 - py0;
     const vx = (v) => px0 + ((v - ax.min) / (ax.max - ax.min || 1)) * pw, vy = (v) => py1 - ((v - ax.min) / (ax.max - ax.min || 1)) * ph;
+    const vy2 = ax2 ? (v) => py1 - ((v - ax2.min) / (ax2.max - ax2.min || 1)) * ph : vy;
     ticks.forEach((v) => {
       if (horiz) { const x = vx(v); if (el.grid !== false) out += `<line x1="${R2(x)}" y1="${R2(py0)}" x2="${R2(x)}" y2="${R2(py1)}" stroke="${rule}" stroke-width="1"/>`; out += T(x, py1 + catH / 2, lab(v), { anchor: "middle", size: size * 0.85, fill: ink2 }); }
       else { const y = vy(v); if (el.grid !== false) out += `<line x1="${R2(px0)}" y1="${R2(y)}" x2="${R2(px1)}" y2="${R2(y)}" stroke="${rule}" stroke-width="1"/>`; out += T(px0 - 6, y, lab(v), { anchor: "end", size: size * 0.85, fill: ink2 }); }
     });
+    if (ax2) { ticks2.forEach((v) => { out += T(px1 + 6, vy2(v), lab2(v), { size: size * 0.85, fill: ink2 }); }); out += `<line x1="${R2(px1)}" y1="${R2(py0)}" x2="${R2(px1)}" y2="${R2(py1)}" stroke="${ink2}" stroke-width="1"/>`; }
     out += horiz ? `<line x1="${R2(px0)}" y1="${R2(py0)}" x2="${R2(px0)}" y2="${R2(py1)}" stroke="${ink2}" stroke-width="1"/>` : `<line x1="${R2(px0)}" y1="${R2(vy(0))}" x2="${R2(px1)}" y2="${R2(vy(0))}" stroke="${ink2}" stroke-width="1"/>`;
-    const slot = horiz ? ph / Math.max(1, n) : pw / Math.max(1, n), gw = slot / 1.8, ns = Math.max(1, series.length);  // gap 80% (PowerPoint gapWidth 80 과 같다)
+    const tO = { anchor: "middle", size: size * 0.9, fill: ink2 };
+    if (el.axisTitle) out += horiz ? T((px0 + px1) / 2, bottom - size * 0.55, String(el.axisTitle), tO) : T(left + size * 0.6, (py0 + py1) / 2, String(el.axisTitle), { ...tO, rot: -90 });
+    if (el.catTitle) out += horiz ? T(left + size * 0.6, (py0 + py1) / 2, String(el.catTitle), { ...tO, rot: -90 }) : T((px0 + px1) / 2, bottom - size * 0.55, String(el.catTitle), tO);
+    if (ax2 && el.axisTitle2) out += T(right - size * 0.6, (py0 + py1) / 2, String(el.axisTitle2), { ...tO, rot: 90 });
+    const slot = horiz ? ph / Math.max(1, n) : pw / Math.max(1, n), gw = slot / 1.8, nb = Math.max(1, barIdx.length);  // gap 80% (PowerPoint gapWidth 80 과 같다)
     cats.forEach((c, i) => { if (horiz) out += T(px0 - 6, py1 - slot * (i + 0.5), c, { anchor: "end", size: size * 0.9 }); else out += T(px0 + slot * (i + 0.5), py1 + catH / 2, c, { anchor: "middle", size: size * 0.9 }); });
-    if (kind === "line" || kind === "area") {
-      series.forEach((s, si) => {
-        const pts = s.values.map((v, i) => (v == null ? null : [px0 + slot * (i + 0.5), vy(v)]));
-        const segs = pts.filter(Boolean), c = chartColor(el, si);
-        if (kind === "area" && segs.length) out += `<path d="M${R2(segs[0][0])} ${R2(vy(0))}${segs.map((p) => `L${R2(p[0])} ${R2(p[1])}`).join("")}L${R2(segs[segs.length - 1][0])} ${R2(vy(0))}Z" fill="${c}" fill-opacity=".3"/>`;
-        out += `<polyline points="${segs.map((p) => `${R2(p[0])},${R2(p[1])}`).join(" ")}" fill="none" stroke="${c}" stroke-width="2.5" stroke-linejoin="round"/>`;
-        segs.forEach((p) => { out += `<circle cx="${R2(p[0])}" cy="${R2(p[1])}" r="3.5" fill="${c}"/>`; });
-        if (labels) pts.forEach((p, i) => { if (p) out += T(p[0], p[1] - size * 0.8, chartNum(s.values[i]), { anchor: "middle", size: size * 0.85, fill: ink2 }); });
-      });
-    } else {
+    const drawLine = (si, yfn, fmt, area) => {
+      const s = series[si], pts = s.values.map((v, i) => (v == null ? null : [px0 + slot * (i + 0.5), yfn(v)]));
+      const segs = pts.filter(Boolean), c = chartColor(el, si);
+      if (area && segs.length) out += `<path d="M${R2(segs[0][0])} ${R2(yfn(0))}${segs.map((p) => `L${R2(p[0])} ${R2(p[1])}`).join("")}L${R2(segs[segs.length - 1][0])} ${R2(yfn(0))}Z" fill="${c}" fill-opacity=".3"/>`;
+      out += `<polyline points="${segs.map((p) => `${R2(p[0])},${R2(p[1])}`).join(" ")}" fill="none" stroke="${c}" stroke-width="2.5" stroke-linejoin="round"/>`;
+      segs.forEach((p) => { out += `<circle cx="${R2(p[0])}" cy="${R2(p[1])}" r="3.5" fill="${c}"/>`; });
+      if (labels) pts.forEach((p, i) => { if (p) out += T(p[0], p[1] - size * 0.8, chartFmt(s.values[i], fmt), { anchor: "middle", size: size * 0.85, fill: ink2 }); });
+    };
+    if (kind === "line" || kind === "area") series.forEach((_, si) => drawLine(si, vy, lfmt, kind === "area"));
+    else {
       cats.forEach((_, i) => {
         let acc = 0;
-        series.forEach((s, si) => {
-          const v = s.values[i]; if (v == null) return;
-          const c = chartColor(el, si);
-          if (stacked) {
+        barIdx.forEach((si, bi) => {
+          const v = val(si, i); if (v == null) return;
+          const c = chartColor(el, si), vl = chartFmt(series[si].values[i], lfmt);
+          if (stacked && horiz) {
+            const v0 = acc, v1 = acc + Math.max(0, v); acc = v1;
+            const y = py1 - slot * (i + 0.5) - gw / 2, x0 = vx(v0), x1 = vx(v1);
+            out += `<rect x="${R2(x0)}" y="${R2(y)}" width="${R2(Math.max(0, x1 - x0))}" height="${R2(gw)}" fill="${c}"/>`;
+            if (labels && v) out += T((x0 + x1) / 2, y + gw / 2, vl, { anchor: "middle", size: size * 0.85, fill: "#fff", bold: true });
+          } else if (stacked) {
             const v0 = acc, v1 = acc + Math.max(0, v); acc = v1;
             const x = px0 + slot * (i + 0.5) - gw / 2, y = vy(v1), hh = vy(v0) - vy(v1);
             out += `<rect x="${R2(x)}" y="${R2(y)}" width="${R2(gw)}" height="${R2(Math.max(0, hh))}" fill="${c}"/>`;
-            if (labels && v) out += T(x + gw / 2, y + hh / 2, chartNum(v), { anchor: "middle", size: size * 0.85, fill: "#fff", bold: true });
+            if (labels && v) out += T(x + gw / 2, y + hh / 2, vl, { anchor: "middle", size: size * 0.85, fill: "#fff", bold: true });
           } else if (horiz) {
-            const bw = gw / ns, y = py1 - slot * (i + 0.5) - gw / 2 + bw * si, x0 = vx(Math.min(0, v)), x1 = vx(Math.max(0, v));
+            const bw = gw / nb, y = py1 - slot * (i + 0.5) - gw / 2 + bw * bi, x0 = vx(Math.min(0, v)), x1 = vx(Math.max(0, v));
             out += `<rect x="${R2(x0)}" y="${R2(y)}" width="${R2(x1 - x0)}" height="${R2(bw)}" fill="${c}"/>`;
-            if (labels) out += T(x1 + 4, y + bw / 2, chartNum(v), { size: size * 0.85, fill: ink2 });
+            if (labels) out += T(x1 + 4, y + bw / 2, vl, { size: size * 0.85, fill: ink2 });
           } else {
-            const bw = gw / ns, x = px0 + slot * (i + 0.5) - gw / 2 + bw * si, y0 = vy(Math.max(0, v)), y1 = vy(Math.min(0, v));
+            const bw = gw / nb, x = px0 + slot * (i + 0.5) - gw / 2 + bw * bi, y0 = vy(Math.max(0, v)), y1 = vy(Math.min(0, v));
             out += `<rect x="${R2(x)}" y="${R2(y0)}" width="${R2(bw)}" height="${R2(y1 - y0)}" fill="${c}"/>`;
-            if (labels) out += T(x + bw / 2, y0 - size * 0.7, chartNum(v), { anchor: "middle", size: size * 0.85, fill: ink2 });
+            if (labels) out += T(x + bw / 2, y0 - size * 0.7, vl, { anchor: "middle", size: size * 0.85, fill: ink2 });
           }
         });
       });
+      lineIdx.forEach((si) => drawLine(si, sec ? vy2 : vy, sec ? lfmt2 : lfmt, false));
     }
     return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" style="position:absolute;left:0;top:0">${out}</svg>`;
   }
@@ -940,7 +989,7 @@
 .rs-cell>.rs-ct{white-space:pre-wrap;word-break:keep-all;flex:1}`;
   }
 
-  const api = { setLazy, setDeckFonts, presetFonts, fontRole, setTokens, setLangs, langOf, color, colorAlpha, fillSpec, fillCss, radius, runs, plain, hlSQL, hlPython, codeLines, planRuns, tableGrid, tableMerges, chartAxis, chartData, iconNames, bulletRows, bulletNum, numHang, markerNum, numLabel, shapePath, shapeNames, renderElement, renderSlide, css, esc, lineBox };
+  const api = { setLazy, setDeckFonts, presetFonts, fontRole, setTokens, setLangs, langOf, color, colorAlpha, fillSpec, fillCss, radius, runs, plain, hlSQL, hlPython, codeLines, planRuns, tableGrid, tableMerges, chartAxis, chartData, chartFmt, comboLines, iconNames, bulletRows, bulletNum, numHang, markerNum, numLabel, shapePath, shapeNames, renderElement, renderSlide, css, esc, lineBox };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   root.Render = api;
 })(typeof window !== "undefined" ? window : globalThis);

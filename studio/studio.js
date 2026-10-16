@@ -1192,7 +1192,14 @@ ${names}
         <h3 style="margin-top:8px">데이터 - 첫 줄 = 범주 | 계열 이름…, 다음 줄 = 범주 | 값…</h3><textarea data-chart="1" style="min-height:120px;font-family:Consolas,monospace;font-size:13px">${esc(chartToText(el))}</textarea>
         ${seg("범례", "legend", { legend: el.legend || (((el.series || []).length > 1 || el.chart === "pie" || el.chart === "doughnut") ? "bottom" : "none") }, [["none", "없음"], ["bottom", "아래"], ["right", "오른쪽"]], "none")}
         ${seg("값 표시", "labels", { labels: el.labels ? "on" : "off" }, [["off", "끔"], ["on", "켬"]], "off")}${seg("눈금선", "grid", { grid: el.grid === false ? "off" : "on" }, [["on", "켬"], ["off", "끔"]], "on")}
-        ${num("글자 크기", "size", el)}${num("축 최댓값", "axisMax", el)}<div class="hint">색은 \`colors\` (요소 JSON, 색 토큰 또는 #hex 목록). 빈 값·글자는 없는 값.</div></div>`;
+        ${num("글자 크기", "size", el)}${el.chart === "pie" || el.chart === "doughnut" ? "" : `${num("축 최댓값", "axisMax", el)}
+        <div class="row"><label>값 축 제목</label><input type="text" data-k="axisTitle" value="${esc(el.axisTitle || "")}" placeholder="(없음) 예: 억 원"></div>
+        <div class="row"><label>범주 축 제목</label><input type="text" data-k="catTitle" value="${esc(el.catTitle || "")}" placeholder="(없음) 예: 분기"></div>
+        <div class="row"><label>숫자 형식</label><input type="text" data-k="numFmt" value="${esc(el.numFmt || "")}" placeholder="#,##0 · 0.0 · 0% · #,##0&quot;억&quot;" title="눈금·값 표시의 숫자 형식(Excel 식) - PPTX 는 같은 형식 코드. 100% 누적은 비우면 0%"></div>`}
+        ${el.chart === "combo" ? `<div class="row"><label>선 계열</label><input type="text" data-k="lineSeries" value="${esc(Array.isArray(el.lineSeries) ? el.lineSeries.join(", ") : el.lineSeries == null ? "" : el.lineSeries)}" placeholder="계열 이름 또는 번호(0부터), 쉼표로 - 비우면 마지막 계열" title="선으로 그릴 계열 - 나머지는 막대"></div>
+        ${seg("보조 축", "secondaryAxis", { secondaryAxis: el.secondaryAxis ? "on" : "off" }, [["off", "없음"], ["on", "선은 오른쪽 축"]], "off")}
+        ${el.secondaryAxis ? `<div class="row"><label>보조 축 제목</label><input type="text" data-k="axisTitle2" value="${esc(el.axisTitle2 || "")}" placeholder="(없음)"></div><div class="row"><label>보조 숫자 형식</label><input type="text" data-k="numFmt2" value="${esc(el.numFmt2 || "")}" placeholder="0% · #,##0"></div>${num("보조 축 최댓값", "axisMax2", el)}` : ""}` : ""}
+        <div class="hint">색은 \`colors\` (요소 JSON, 색 토큰 또는 #hex 목록). 빈 값·글자는 없는 값. 데이터는 종류가 바뀌어도 그대로.</div></div>`;
     if (el.type === "icon") h += `<div class="sec"><h3>아이콘</h3><div class="row"><label>종류</label><select data-k="icon">${Render.iconNames().map(([k, ko]) => `<option value="${k}"${el.icon === k ? " selected" : ""}>${ko}</option>`).join("")}</select></div>${colorRow("아이콘 색", "fill", el)}${colorRow("대비 색", "color", el)}<div class="hint">정사각형으로 그려진다(짧은 변 기준). PPTX 는 자유형 도형이라 PowerPoint 에서 색·크기를 고칠 수 있다.</div></div>`;
     if (el.type === "group") h += `<div class="sec"><h3>묶음 (${(el.children || []).length}개)</h3><div class="row"><button class="chip sm" data-act="ungroup" title="자식을 낱개로 되돌립니다 (Ctrl+Shift+G)">묶음 풀기</button><span class="hint" style="margin:0">${(el.children || []).map((c) => TYPE_KO[c.type] || c.type).join(" · ")}</span></div><div class="hint">자식은 묶음 상자 기준 좌표. 크기를 바꾸면 자식 위치·크기가 비율로 따라간다. 두 번 클릭 편집은 풀어서.</div></div>`;
     if (el.type === "image") h += `<div class="sec"><h3>그림</h3><div class="row"><label>경로</label><input type="text" data-k="src" value="${esc(el.src)}"></div>
@@ -1263,7 +1270,10 @@ ${names}
     else if (k === "labels") { if (v === "on") el.labels = true; else delete el.labels; }
     else if (k === "grid") { if (v === "off") el.grid = false; else delete el.grid; }
     else if (k === "legend") { if (v === "none" && !((el.series || []).length > 1 || el.chart === "pie" || el.chart === "doughnut")) delete el.legend; else el.legend = v; }
-    else if (k === "axisMax") { if (v === "" || v == null || +v <= 0) delete el.axisMax; else el.axisMax = +v; }
+    else if (k === "axisMax" || k === "axisMax2") { if (v === "" || v == null || +v <= 0) delete el[k]; else el[k] = +v; }
+    else if (["axisTitle", "catTitle", "axisTitle2", "numFmt", "numFmt2"].includes(k)) { const t = String(v || "").trim(); if (t) el[k] = t; else delete el[k]; }  // 차트 축 제목·숫자 형식
+    else if (k === "lineSeries") { const a = String(v || "").split(",").map((x) => x.trim()).filter(Boolean).map((x) => (/^\d+$/.test(x) ? +x : x)); if (a.length) el.lineSeries = a; else delete el.lineSeries; }  // 콤보 선 계열(이름 또는 번호)
+    else if (k === "secondaryAxis") { if (v === "on") el.secondaryAxis = true; else delete el.secondaryAxis; }
     else if (k === "title") { const t = String(v || "").trim(); if (t) el.title = t; else delete el.title; }
     else if (k === "link") { const t = String(v || "").trim(); if (t) el.link = t; else delete el.link; }
     else if (v === "" && ["fill", "stroke", "radius", "effect", "frameColor"].includes(k)) delete el[k];
@@ -2009,11 +2019,12 @@ ${names}
   // 도형 기본 크기(PowerPoint 처럼 종류마다) - 채우기는 장 색, 글은 비워 둔다(두 번 클릭해 쓴다)
   const SHAPE_SIZE = { rightArrow: [200, 90], leftArrow: [200, 90], upArrow: [90, 200], downArrow: [90, 200], leftRightArrow: [240, 90], chevron: [160, 80], homePlate: [160, 80], callout: [200, 110], roundCallout: [200, 110], can: [120, 150], cube: [140, 140], star5: [140, 140], plus: [120, 120] };
   // 차트 기본 데이터 - 범주 4개 · 계열 2개(원형은 1개)
-  const CHART_KINDS = [["column", "▮▮", "세로 막대"], ["stackedColumn", "▮", "누적 세로 막대"], ["bar", "▬", "가로 막대"], ["line", "⟋", "꺾은선"], ["area", "◢", "영역"], ["pie", "◔", "원형"], ["doughnut", "◎", "도넛"]];
+  const CHART_KINDS = [["column", "▮▮", "세로 막대"], ["stackedColumn", "▮", "누적 세로 막대"], ["stackedColumn100", "▮%", "100% 누적 세로"], ["bar", "▬", "가로 막대"], ["stackedBar", "▬▬", "누적 가로 막대"], ["stackedBar100", "▬%", "100% 누적 가로"], ["line", "⟋", "꺾은선"], ["area", "◢", "영역"], ["combo", "▮⟋", "콤보(막대 + 선)"], ["pie", "◔", "원형"], ["doughnut", "◎", "도넛"]];  // render.js elChart · export_pptx.CHART_TYPES
   function chartBase(kind) {
     const pie = kind === "pie" || kind === "doughnut";
     return { type: "chart", chart: kind, x: 340, y: 180, w: 600, h: 360, size: 14, categories: ["1분기", "2분기", "3분기", "4분기"],
-      series: pie ? [{ name: "비중", values: [35, 25, 25, 15] }] : [{ name: "계열 1", values: [120, 150, 110, 180] }, { name: "계열 2", values: [80, 95, 130, 140] }], labels: pie };
+      series: pie ? [{ name: "비중", values: [35, 25, 25, 15] }] : kind === "combo" ? [{ name: "매출", values: [120, 150, 110, 180] }, { name: "성장률", values: [0.05, 0.25, -0.27, 0.64] }] : [{ name: "계열 1", values: [120, 150, 110, 180] }, { name: "계열 2", values: [80, 95, 130, 140] }], labels: pie,
+      ...(kind === "combo" ? { lineSeries: ["성장률"], secondaryAxis: true, numFmt2: "0%" } : {}) };  // 콤보 기본 = 마지막 계열을 보조 축의 선으로
   }
   function chartMenu(btn) { openMenu(btn, [{ h: "차트" }, ...CHART_KINDS.map(([k, i, l]) => ({ icon: i, label: l, act: () => addEl("chart:" + k) }))]); }
   const chartToText = (el) => ["범주 | " + (el.series || []).map((s) => s.name || "").join(" | "), ...(el.categories || []).map((c, i) => [c, ...(el.series || []).map((s) => (s.values || [])[i] == null ? "" : (s.values || [])[i])].join(" | "))].join("\n");

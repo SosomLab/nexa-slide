@@ -7,6 +7,15 @@
   const en = (L.en = L.en || { name: "English", dict: {}, patterns: [] });
   const t = (s) => (window.I18N ? window.I18N.t(s) : s);
   Object.assign(en.dict, {
+    // ---- 튜토리얼 "최근 추가된 기능" 0.22.13 항목(페이지 영역이지만 함께 추가 - en.pages.js 에 같은 키를 두지 않는다)
+    "PowerPoint 기능 보강": "PowerPoint feature upgrades", ": 글 안에 ": ": inline ", " 첨자 · ": " scripts · ", " 글자 링크, 숨김 슬라이드·구분(섹션), 도형 테두리 점선, 액자 색, 표 셀별 채움·테두리·격자, 차트에 누적 가로·100% 누적·콤보(막대+선, 보조 축)·축 제목·숫자 형식 - 모두 PPTX 로 그대로 나갑니다.": " text links, hidden slides and sections, dashed shape borders, frame color, per-cell table fills, borders and grids, and charts with stacked bar, 100% stacked, combo (bar + line, secondary axis), axis titles and number formats - all exported to PPTX as is.",
+    // ---- 0.22.13 차트 - 누적 가로·100% 누적·콤보·보조 축·축 제목·숫자 형식
+    "100% 누적 세로": "100% stacked column", "누적 가로 막대": "Stacked bar", "100% 누적 가로": "100% stacked bar", "콤보(막대 + 선)": "Combo (bar + line)",
+    "값 축 제목": "Value axis title", "범주 축 제목": "Category axis title", "숫자 형식": "Number format", "(없음) 예: 억 원": "(none) e.g. $M", "(없음) 예: 분기": "(none) e.g. Quarter",
+    "눈금·값 표시의 숫자 형식(Excel 식) - PPTX 는 같은 형식 코드. 100% 누적은 비우면 0%": "Number format for ticks and labels (Excel style) - PPTX uses the same format code. 100% stacked defaults to 0%",
+    "선 계열": "Line series", "계열 이름 또는 번호(0부터), 쉼표로 - 비우면 마지막 계열": "Series names or 0-based numbers, comma separated - empty = last series", "선으로 그릴 계열 - 나머지는 막대": "Series drawn as lines - the rest are bars",
+    "보조 축": "Secondary axis", "선은 오른쏙 축": "Lines on right axis", "선은 오른쪽 축": "Lines on right axis", "보조 축 제목": "Secondary axis title", "보조 숫자 형식": "Secondary number format", "보조 축 최댓값": "Secondary axis max",
+    "색은 `colors` (요소 JSON, 색 토큰 또는 #hex 목록). 빈 값·글자는 없는 값. 데이터는 종류가 바뀌어도 그대로.": "Colors via `colors` (element JSON, tokens or #hex list). Empty cells and text = no value. Data stays when the kind changes.",
     // ---- 0.22.12 표 셀별 채움·테두리·격자
     "셀 채움": "Cell fill", "셀 테두리": "Cell borders", "격자": "Grid", "가로선만": "Rows only", "모든 칸": "All cells",
     "행,열,색; … (* = 줄 전체 · 예: 2,*,s1; 1,3,primary-container)": "row,col,color; … (* = whole line · e.g. 2,*,s1; 1,3,primary-container)",

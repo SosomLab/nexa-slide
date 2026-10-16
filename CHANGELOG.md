@@ -1,5 +1,13 @@
 # 변경 이력
 
+## 0.22.13 - 2026-10-16 · 차트 - 누적 가로·100% 누적·콤보(보조 축)·축 제목·숫자 형식
+
+PowerPoint 차트와 호환되는 수준으로(모두 네이티브 `c:chart`, PowerPoint 에서 편집 가능), 데이터 입력은 기존 `범주 | 계열…` 표 그대로(사용자 지시).
+
+- 종류 추가: `stackedBar`(누적 가로) · `stackedColumn100`·`stackedBar100`(100% 누적 — 축 0~100%, 값 표시는 원래 값) · `combo`(막대 + 선: `lineSeries` 로 선 계열 지정(이름·번호, 기본 마지막), `secondaryAxis` 면 선은 오른쪽 보조 축 — PPTX 는 `c:barChart` + `c:lineChart`, 보조 축은 둘째 `c:valAx`(crosses max), 데이터는 같은 내장 워크북). 편집기 ＋ 추가 → 차트… 11종, 서식 줄 종류 상자, 속성 "선 계열"·"보조 축".
+- 축 제목 `axisTitle`(값)·`catTitle`(범주)·`axisTitle2`(보조) · 숫자 형식 `numFmt`·`numFmt2`(Excel 식 `#,##0` `0.0` `0%` `#,##0"억"` — 편집기 `chartFmt`, PPTX `formatCode`, 눈금과 값 표시 모두) · `axisMax2`.
+- 주 값 축 선택 수정: python-pptx `value_axis` 는 값 축이 둘이면 둘째를 고르므로 첫 `c:valAx` 를 직접 쓴다. 시험 `chart_test`(PPTX XML: barDir·grouping·lineChart·둘째 valAx·축 제목·formatCode, render.js: 가로 누적·100%·콤보 선·보조 축 눈금·축 제목 회전).
+
 ## 0.22.12 - 2026-10-16 · 표 셀별 채움·테두리·격자
 
 - 표 `cellFill`(셀·행·열 바탕색) · `borders`(셀·행·열의 변별 선 - 색·두께) · `gridLines`(모든 칸 격자) - `common.table_cell_styles` ↔ `render.tableCellStyles`(`check_parity` 표 예제 2개 추가), PPTX 셀 채움·`a:lnT/B/L/R`. 편집기 표 속성에 "셀 채움"·"셀 테두리"(`행,열,…; …`, `*` = 줄 전체)·"격자" 칸. 상태 표·합계 행(위 굵은 선)·열 구분선용. `docstruct_test` 에 표 확인 추가.
