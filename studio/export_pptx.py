@@ -57,8 +57,14 @@ def fonts_of(key):
     return f["latin"], f["ea"]
 
 
-def set_run(r, text, size, bold=False, col="#000000", font="body", highlight=None, italic=False, underline=False):
-    """run 서식을 XML로 직접 쓴다(순서: solidFill → highlight → latin → ea → cs)."""
+_RUN_LINKS = []  # (rPr, 링크, 슬라이드 part) - 글자 단위 링크([[link:…|글]])는 슬라이드가 모두 만들어진 뒤 건다(뒤 슬라이드로도 가게)
+_CUR = {"part": None}  # 지금 그리는 슬라이드의 part(export 루프가 바꾼다)
+
+
+def set_run(r, text, size, bold=False, col="#000000", font="body", highlight=None, italic=False, underline=False, st=None):
+    """run 서식을 XML로 직접 쓴다(순서: solidFill → highlight → latin → ea → cs → hlinkClick).
+    st = common.runs 의 스타일 사전 - strike(취소선 sngStrike) · sup/sub(baseline ±) · bg(형광펜 = a:highlight) · link(글자 링크 - 밑줄, 색은 글자색 유지)."""
+    st = st or {}
     r.text = text
     rPr = r._r.get_or_add_rPr()
     for c in list(rPr):
@@ -68,11 +74,19 @@ def set_run(r, text, size, bold=False, col="#000000", font="body", highlight=Non
     rPr.set("sz", str(hpt(size)))
     rPr.set("b", "1" if bold else "0")
     rPr.set("i", "1" if italic else "0")
-    if underline:
+    if underline or st.get("link"):
         rPr.set("u", "sng")
+    if st.get("strike"):
+        rPr.set("strike", "sngStrike")
+    if st.get("sup"):
+        rPr.set("baseline", "30000")  # 위첨자(render.js spanRuns 와 같은 모양 - 글자 65%, 올림)
+    elif st.get("sub"):
+        rPr.set("baseline", "-25000")
     rPr.set("dirty", "0")
     sf = etree.SubElement(rPr, qn("a:solidFill"))
     rgb_el(sf, col or "#000000")
+    if not highlight and st.get("bg"):
+        highlight = color(st["bg"])
     if highlight:
         hl = etree.SubElement(rPr, qn("a:highlight"))
         rgb_el(hl, highlight)
@@ -80,6 +94,39 @@ def set_run(r, text, size, bold=False, col="#000000", font="body", highlight=Non
     etree.SubElement(rPr, qn("a:latin")).set("typeface", latin)
     etree.SubElement(rPr, qn("a:ea")).set("typeface", ea)
     etree.SubElement(rPr, qn("a:cs")).set("typeface", latin)
+    if st.get("link"):
+        _RUN_LINKS.append((rPr, str(st["link"]).strip(), _CUR["part"]))
+
+
+def apply_run_links(prs, index):
+    """글자 단위 링크 - URL 은 외부 관계 + hlinkClick, '#3'·'#<슬라이드 id>' 는 슬라이드 관계 + ppaction://hlinksldjump.
+    hlinkClr val=tx(Office 2019+ 확장) 로 글자색을 유지한다 - 이전 PowerPoint 는 테마 링크색(파랑)으로 보일 수 있다."""
+    from pptx.opc.constants import RELATIONSHIP_TYPE as RT
+    for rPr, v, part in _RUN_LINKS:
+        if part is None or not v:
+            continue
+        try:
+            if v.startswith("#"):
+                key = v[1:]
+                n = int(key) if key.isdigit() else index.get(key)
+                if not (n and 1 <= n <= len(prs.slides)):
+                    print(f"  ! 글자 링크 - 없는 슬라이드 {v}")
+                    continue
+                rid = part.relate_to(prs.slides[n - 1].part, RT.SLIDE)
+                h = rPr.get_or_add_hlinkClick()
+                h.set(qn("r:id"), rid)
+                h.set("action", "ppaction://hlinksldjump")
+            else:
+                rid = part.relate_to(v, RT.HYPERLINK, is_external=True)
+                h = rPr.get_or_add_hlinkClick()
+                h.set(qn("r:id"), rid)
+            ns = "http://schemas.microsoft.com/office/drawing/2018/hyperlinkcolor"
+            ext = etree.SubElement(etree.SubElement(h, qn("a:extLst")), qn("a:ext"))
+            ext.set("uri", "{A12FA001-AC4F-418D-AE19-62706E023703}")
+            etree.SubElement(ext, f"{{{ns}}}hlinkClr", nsmap={"ahyp": ns}).set("val", "tx")
+        except Exception as e:  # noqa: BLE001
+            print(f"  ! 글자 링크를 걸지 못함 {v} - {e}")
+    _RUN_LINKS.clear()
 
 
 def end_para(p, size):
@@ -129,7 +176,7 @@ def fill_markup_text(tf, el, page, default_color="on-surface"):
         para_fmt(p, size, lh, el.get("align", "center" if el["type"] in ("pill", "ellipse") else "left"))
         for t, st in runs(line, page):
             if t:
-                set_run(p.add_run(), t, size, st.get("bold", bold), color(st.get("color")) if st.get("color") else base, font, italic=st.get("italic", False), underline=st.get("underline", False))
+                set_run(p.add_run(), t, size, st.get("bold", bold), color(st.get("color")) if st.get("color") else base, font, italic=st.get("italic", False), underline=st.get("underline", False), st=st)
         end_para(p, size)
 
 
@@ -170,6 +217,10 @@ def shape_fill_line(shape, el):
     if el.get("stroke"):
         shape.line.color.rgb = RGBColor.from_string(color(el["stroke"])[1:])
         shape.line.width = E(el.get("strokeWidth", 1))
+        d = el.get("strokeDash")
+        if d and d != "solid":  # 도형 테두리 점선·파선(render.js strokeDashSvg 와 같은 간격 - 선 요소의 dash 와 같은 값)
+            from pptx.enum.dml import MSO_LINE_DASH_STYLE
+            shape.line.dash_style = MSO_LINE_DASH_STYLE.ROUND_DOT if d == "dot" else MSO_LINE_DASH_STYLE.DASH
     else:
         shape.line.fill.background()
 
@@ -300,9 +351,10 @@ def apply_effect(pic, el):
             m = max(1.0, min(float(el["w"]), float(el["h"])))
             etree.SubElement(av, qn("a:gd")).set("name", "adj"); av[0].set("fmla", f"val {int(min(50000, 100000 * px / m))}")
         return
-    if e == "frame":
-        pic.line.width = Pt(px * 0.75)
-        pic.line.color.rgb = RGBColor(0xFF, 0xFF, 0xFF)
+    if e == "frame":  # 액자 - 테두리 두께(frameWidth, 기본 = 수준)·색(frameColor, 기본 흰색) + 기본 그림자 (render.js effectCss 와 같다)
+        fw = float(el.get("frameWidth") or px)
+        pic.line.width = Pt(fw * 0.75)
+        pic.line.color.rgb = RGBColor.from_string((color(el.get("frameColor") or "#FFFFFF") or "#FFFFFF")[1:])
         if not el.get("shadow"):
             apply_shadow(pic, {**el, "shadow": {"blur": 6, "dx": 0, "dy": 2, "alpha": 0.3}})
         return
@@ -355,12 +407,45 @@ def apply_xfrm(shp, el):
 NS_A = "http://schemas.openxmlformats.org/drawingml/2006/main"
 
 
+_PNG_1PX = bytes.fromhex("89504e470d0a1a0a0000000d49484452000000010000000108060000001f15c4890000000d4944415478da63f8cfc0f01f0005000201e4ae07ea0000000049454e44ae426082")  # 1×1 투명
+
+
+def _svg_fallback_png(svg_path):
+    """SVG 의 대체 PNG - 옆에 같은 이름의 .png 가 있으면 그것(편집기가 올릴 때 만들어 둘 수 있다), 없으면 1×1 투명(PowerPoint 2016 이전은 빈 그림)."""
+    alt = svg_path.with_suffix(".png")
+    if alt.is_file():
+        return alt.read_bytes()
+    return _PNG_1PX
+
+
+def add_svg_picture(slide, path, x, y, w, h):
+    """SVG 그림 - PowerPoint 2016+ 의 svgBlip 확장(a:blip 안 asvg:svgBlip). 본 blip 은 대체 PNG(_svg_fallback_png). Pillow 가 SVG 를 못 읽어 add_picture 로는 실패한다."""
+    import io
+    from pptx.opc.constants import RELATIONSHIP_TYPE as RT
+    from pptx.opc.package import Part
+    from pptx.opc.packuri import PackURI
+    pic = slide.shapes.add_picture(io.BytesIO(_svg_fallback_png(path)), x, y, w, h)
+    pkg = slide.part.package
+    partname = pkg.next_partname("/ppt/media/image%d.svg")
+    part = Part(PackURI(str(partname)), "image/svg+xml", pkg, path.read_bytes())
+    rid = slide.part.relate_to(part, RT.IMAGE)
+    blip = pic._element.find(f".//{{{NS_A}}}blip")
+    ns = "http://schemas.microsoft.com/office/drawing/2016/SVG/main"
+    ext = etree.SubElement(etree.SubElement(blip, qn("a:extLst")), qn("a:ext"))
+    ext.set("uri", "{96DAC541-7B7A-43D3-8B79-37D633B846F1}")
+    etree.SubElement(ext, f"{{{ns}}}svgBlip", nsmap={"asvg": ns}).set(qn("r:embed"), rid)
+    return pic
+
+
 def do_image(slide, el, page):
     p = REPO / el["src"]
     if not p.exists():
         print(f"  ! 이미지 없음: {el['src']}")
         return None
-    pic = slide.shapes.add_picture(str(p), E(el["x"]), E(el["y"]), E(el["w"]), E(el["h"]))
+    if p.suffix.lower() == ".svg":
+        pic = add_svg_picture(slide, p, E(el["x"]), E(el["y"]), E(el["w"]), E(el["h"]))
+    else:
+        pic = slide.shapes.add_picture(str(p), E(el["x"]), E(el["y"]), E(el["w"]), E(el["h"]))
     c = el.get("crop")
     if isinstance(c, (list, tuple)) and len(c) == 4 and any(c):  # [왼, 위, 오른, 아래] 비율 - render.js elImage 와 같다
         l, t, r, b = (max(0.0, min(0.95, float(v or 0))) for v in c)
@@ -461,17 +546,17 @@ def do_table(slide, el, page):
             for t, st in runs(c["text"], page):
                 if t:
                     set_run(p.add_run(), t, size, st.get("bold", c["bold"]),
-                            color(st.get("color") or c["color"]), c["font"], italic=st.get("italic", False), underline=st.get("underline", False))
+                            color(st.get("color") or c["color"]), c["font"], italic=st.get("italic", False), underline=st.get("underline", False), st=st)
             end_para(p, size)
             tcPr = cell._tc.get_or_add_tcPr()
             for ch in list(tcPr):
                 tcPr.remove(ch)
             tcPr.set("anchor", "ctr")
-            _cell_border(tcPr, "L")
-            _cell_border(tcPr, "R")
-            _cell_border(tcPr, "T")
             is_head = i == 0 and (el.get("type") == "plan-table" or el.get("header", True))
-            _cell_border(tcPr, "B", None if is_head else g["rule"], 1)
+            bd = c.get("bd") or {}  # 셀별 테두리(common.table_cell_styles) - 없으면 본문 행 아래 선만(render.js elTable 과 같다)
+            for side, dflt in (("L", None), ("R", None), ("T", None), ("B", None if is_head else [g["rule"], 1])):
+                v = bd.get(side) or dflt
+                _cell_border(tcPr, side, v[0] if v else None, float(v[1]) if v else 1)
             if c["fill"]:
                 sf = etree.SubElement(tcPr, qn("a:solidFill"))
                 rgb_el(sf, color(c["fill"]))
@@ -611,13 +696,17 @@ def do_bullets(slide, el, page):
             etree.SubElement(pPr, qn("a:buChar")).set("char", "●" if lvl == 0 else "–")
         for tt, st in runs(t, page):
             if tt:
-                set_run(p.add_run(), tt, sz, st.get("bold", False), color(st.get("color")) if st.get("color") else base, "body", italic=st.get("italic", False), underline=st.get("underline", False))
+                set_run(p.add_run(), tt, sz, st.get("bold", False), color(st.get("color")) if st.get("color") else base, "body", italic=st.get("italic", False), underline=st.get("underline", False), st=st)
         end_para(p, sz)
     return shp
 
 
 CHART_TYPES = {"column": XL_CHART_TYPE.COLUMN_CLUSTERED, "stackedColumn": XL_CHART_TYPE.COLUMN_STACKED, "bar": XL_CHART_TYPE.BAR_CLUSTERED,
-               "line": XL_CHART_TYPE.LINE_MARKERS, "area": XL_CHART_TYPE.AREA, "pie": XL_CHART_TYPE.PIE, "doughnut": XL_CHART_TYPE.DOUGHNUT}
+               "line": XL_CHART_TYPE.LINE_MARKERS, "area": XL_CHART_TYPE.AREA, "pie": XL_CHART_TYPE.PIE, "doughnut": XL_CHART_TYPE.DOUGHNUT,
+               # 0.22.13 - 누적 가로 · 100% 누적(세로·가로) · 콤보(막대 + 선, 선 계열은 _combo 가 c:lineChart 로 옮긴다)
+               "stackedBar": XL_CHART_TYPE.BAR_STACKED, "stackedColumn100": XL_CHART_TYPE.COLUMN_STACKED_100, "stackedBar100": XL_CHART_TYPE.BAR_STACKED_100, "combo": XL_CHART_TYPE.COLUMN_CLUSTERED}
+CHART_STACKED = {"stackedColumn", "stackedBar", "stackedColumn100", "stackedBar100"}
+CHART_PCT = {"stackedColumn100", "stackedBar100"}
 CHART_PALETTE = ["primary", "#4C7A9E", "#E0A458", "#7BAE7F", "#B57BA6", "#8C8C8C", "#D97B66", "#5FA8A3"]  # render.js CHART_PALETTE 와 같다
 
 
@@ -631,9 +720,107 @@ def _chart_axis(mx, mn):
     return math.ceil(hi / step) * step, math.floor(lo / step) * step, step
 
 
+def _combo_lines(el, series):
+    """콤보에서 선으로 그릴 계열 번호(render.js comboLines 와 같은 규칙) - lineSeries = 이름 또는 0부터 번호(배열·하나), 기본 = 마지막 계열. 없거나 전부 선이면 마지막만."""
+    if (el.get("chart") or "column") != "combo" or len(series) < 2:
+        return set()
+    raw = el.get("lineSeries")
+    if raw is None or raw == "":
+        return {len(series) - 1}
+    raw = raw if isinstance(raw, list) else [raw]
+    out = set()
+    names = [nm for nm, _ in series]
+    for v in raw:
+        sv = str(v).strip()
+        if sv in names:
+            out.add(names.index(sv))
+        elif sv.isdigit() and int(sv) < len(series):
+            out.add(int(sv))
+    return out if out and len(out) < len(series) else {len(series) - 1}
+
+
+def _combo(chart, line_idx, secondary):
+    """콤보 - 묶은 세로 막대로 만든 차트의 선 계열(c:ser)을 새 c:lineChart 로 옮긴다(데이터는 같은 내장 워크북). secondary 면 보조 축(오른챡 c:valAx, 숨긴 c:catAx)."""
+    import copy
+    pa = chart._chartSpace.chart.plotArea
+    bar = pa.find(qn("c:barChart"))
+    if bar is None:
+        return
+    sers = bar.findall(qn("c:ser"))
+    ax_ids = [a.get("val") for a in bar.findall(qn("c:axId"))]
+    line = etree.Element(qn("c:lineChart"))
+    etree.SubElement(line, qn("c:grouping")).set("val", "standard")
+    etree.SubElement(line, qn("c:varyColors")).set("val", "0")
+    moved = 0
+    for i, ser in enumerate(sers):
+        if i not in line_idx:
+            continue
+        bar.remove(ser)
+        for x in ser.findall(qn("c:invertIfNegative")):
+            ser.remove(x)
+        mk = etree.Element(qn("c:marker"))
+        etree.SubElement(mk, qn("c:symbol")).set("val", "circle")
+        etree.SubElement(mk, qn("c:size")).set("val", "6")
+        cat = ser.find(qn("c:cat"))
+        if cat is not None:
+            cat.addprevious(mk)
+        else:
+            ser.append(mk)
+        etree.SubElement(ser, qn("c:smooth")).set("val", "0")
+        line.append(ser)
+        moved += 1
+    if not moved:
+        return
+    etree.SubElement(line, qn("c:marker")).set("val", "1")
+    bar.addnext(line)
+    if secondary:
+        cat_ax, val_ax = pa.find(qn("c:catAx")), pa.find(qn("c:valAx"))
+        c2, v2 = copy.deepcopy(cat_ax), copy.deepcopy(val_ax)
+        cid, vid = "500100", "500200"
+        c2.find(qn("c:axId")).set("val", cid)
+        c2.find(qn("c:crossAx")).set("val", vid)
+        c2.find(qn("c:delete")).set("val", "1")
+        v2.find(qn("c:axId")).set("val", vid)
+        v2.find(qn("c:crossAx")).set("val", cid)
+        v2.find(qn("c:axPos")).set("val", "r")
+        for g in v2.findall(qn("c:majorGridlines")) + v2.findall(qn("c:title")) + v2.findall(qn("c:numFmt")):
+            v2.remove(g)
+        cr = v2.find(qn("c:crosses"))
+        if cr is not None:
+            cr.set("val", "max")
+        sc = v2.find(qn("c:scaling"))
+        for ch in list(sc):
+            if ch.tag != qn("c:orientation"):
+                sc.remove(ch)
+        val_ax.addnext(c2)
+        c2.addnext(v2)
+        ax_ids = [cid, vid]
+    for a in ax_ids:
+        etree.SubElement(line, qn("c:axId")).set("val", a)
+
+
+def _axis_title(ax, text, size):
+    ax.has_title = True
+    tf = ax.axis_title.text_frame
+    tf.text = str(text)
+    r = tf.paragraphs[0].runs[0]
+    r.font.size = Pt(size * 0.75 * 0.9)
+    r.font.bold = False
+
+
+def _num_fmt(tick_labels, fmt):
+    if fmt:
+        tick_labels.number_format = str(fmt)
+        tick_labels.number_format_is_linked = False
+
+
 def do_chart(slide, el, page):
-    """chart - PowerPoint 차트(편집 가능). 색·범례·데이터 레이블·눈금은 render.js elChart 와 같은 규칙, 그림은 PowerPoint 가 그린다."""
+    """chart - PowerPoint 차트(편집 가능). 색·범례·데이터 레이블·눈금은 render.js elChart 와 같은 규칙, 그림은 PowerPoint 가 그린다.
+    종류: column stackedColumn bar line area pie doughnut + stackedBar stackedColumn100 stackedBar100 combo(막대 + 선 lineSeries, secondaryAxis 보조 축).
+    축 제목 axisTitle(값)·catTitle(범주)·axisTitle2(보조), 숫자 형식 numFmt·numFmt2(Excel 식 - 눈금·값 표시), axisMax·axisMax2."""
     kind = el.get("chart") or "column"
+    if kind not in CHART_TYPES:
+        kind = "column"
     cats = [str(c if c is not None else "") for c in el.get("categories") or []]
     series = [(str(s.get("name") or f"계열 {i + 1}"), [(None if v in (None, "") else float(v)) for v in (s.get("values") or [])]) for i, s in enumerate(el.get("series") or []) if isinstance(s, dict)]
     n = max([len(cats)] + [len(v) for _, v in series] + [0])
@@ -643,12 +830,17 @@ def do_chart(slide, el, page):
         print(f"  ! {el.get('id')}: 차트 데이터 없음")
         return None
     pie = kind in ("pie", "doughnut")
+    stacked, pct = kind in CHART_STACKED, kind in CHART_PCT
+    lines = _combo_lines(el, series)
+    sec = bool(lines) and bool(el.get("secondaryAxis"))
     cd = CategoryChartData()
     cd.categories = cats
     for nm, v in (series[:1] if pie else series):
         cd.add_series(nm, [0 if x is None else x for x in v] if pie else v)
     gf = slide.shapes.add_chart(CHART_TYPES.get(kind, XL_CHART_TYPE.COLUMN_CLUSTERED), E(el["x"]), E(el["y"]), E(el["w"]), E(el["h"]), cd)
     ch = gf.chart
+    if lines:
+        _combo(ch, lines, sec)
     size = float(el.get("size", 14))
     ch.font.size = Pt(size * 0.75)
     ch.font.name = fonts_of("body")[0]  # 본문 글꼴(글꼴 세트)
@@ -665,51 +857,90 @@ def do_chart(slide, el, page):
         ch.chart_title.text_frame.text = str(el["title"])
         ch.chart_title.text_frame.paragraphs[0].runs[0].font.size = Pt(size * 0.75 * 1.15)
         ch.chart_title.text_frame.paragraphs[0].runs[0].font.bold = True
-    plot = ch.plots[0]
-    plot.has_data_labels = bool(el.get("labels"))
-    if plot.has_data_labels:
-        plot.data_labels.font.size = Pt(size * 0.75 * 0.85)
-        if pie:
-            plot.data_labels.show_percentage = True
-            plot.data_labels.show_value = False
-            plot.data_labels.number_format = "0%"
-            plot.data_labels.number_format_is_linked = False
-    if kind in ("column", "bar", "stackedColumn"):
+    fmt1, fmt2 = str(el.get("numFmt") or ""), str(el.get("numFmt2") or "")
+    plots = list(ch.plots)
+    for k, plot in enumerate(plots):
+        plot.has_data_labels = bool(el.get("labels"))
+        if plot.has_data_labels:
+            plot.data_labels.font.size = Pt(size * 0.75 * 0.85)
+            if pie:
+                plot.data_labels.show_percentage = True
+                plot.data_labels.show_value = False
+                plot.data_labels.number_format = "0%"
+                plot.data_labels.number_format_is_linked = False
+            else:
+                f = fmt2 if (k == 1 and sec) else fmt1
+                if f:
+                    plot.data_labels.number_format = f
+                    plot.data_labels.number_format_is_linked = False
+    plot = plots[0]
+    if kind in ("column", "bar", "combo") or stacked:
         plot.gap_width = 80
-        if kind == "stackedColumn":
+        if stacked:
             plot.overlap = 100
     cols = el.get("colors") or []
+
     def rgb(i):
         return RGBColor.from_string((color(cols[i] if i < len(cols) and cols[i] else CHART_PALETTE[i % len(CHART_PALETTE)]) or "#888888")[1:])
+
+    def style_line(s, i):
+        s.format.line.color.rgb = rgb(i)
+        s.format.line.width = Pt(2)
+        s.smooth = False
+        s.marker.format.fill.solid()
+        s.marker.format.fill.fore_color.rgb = rgb(i)
+
+    bar_idx = [i for i in range(len(series)) if i not in lines]
     for i, s in enumerate(plot.series):
+        si = bar_idx[i] if lines else i  # 콤보는 막대 plot 에 선 계열이 빠져 있다 - 원래 번호로 색
         if pie:
             for j, pt in enumerate(s.points):
                 pt.format.fill.solid()
                 pt.format.fill.fore_color.rgb = rgb(j)
                 pt.format.line.color.rgb = RGBColor(0xFF, 0xFF, 0xFF)
-        elif kind in ("line",):
-            s.format.line.color.rgb = rgb(i)
-            s.format.line.width = Pt(2)
-            s.smooth = False
-            s.marker.format.fill.solid()
-            s.marker.format.fill.fore_color.rgb = rgb(i)
+        elif kind == "line":
+            style_line(s, si)
         else:
             s.format.fill.solid()
-            s.format.fill.fore_color.rgb = rgb(i)
+            s.format.fill.fore_color.rgb = rgb(si)
+    if lines and len(plots) > 1:
+        for s, si in zip(plots[1].series, sorted(lines)):
+            style_line(s, si)
     if not pie:
-        va, ca = ch.value_axis, ch.category_axis
+        from pptx.chart.axis import ValueAxis
+        v_axes = ch._chartSpace.chart.plotArea.findall(qn("c:valAx"))
+        va, ca = ValueAxis(v_axes[0]), ch.category_axis  # 주 값 축 = 첫 valAx(python-pptx value_axis 는 축이 둘이면 둘째를 고른다 - XY 차트용)
         va.has_major_gridlines = el.get("grid") is not False
         va.tick_labels.font.size = Pt(size * 0.75 * 0.85)
         ca.tick_labels.font.size = Pt(size * 0.75 * 0.9)
-        vals = [v for _, vv in series for v in vv if v is not None]
-        if kind == "stackedColumn":
-            vals = [sum(max(0.0, vv[i] or 0.0) for _, vv in series) for i in range(n)]
-        mx, mn, step = _chart_axis(max(vals + [0]), min(vals + [0]))
-        va.maximum_scale = float(el["axisMax"]) if el.get("axisMax") else mx
-        va.minimum_scale = mn
-        va.major_unit = step
+        _num_fmt(va.tick_labels, fmt1)
+        if not pct:  # 100% 누적은 PowerPoint 가 0~100% 로 맞춘다
+            prim = bar_idx if sec else range(len(series))
+            vals = [v for i in prim for v in series[i][1] if v is not None]
+            if stacked:
+                vals = [sum(max(0.0, series[i][1][k] or 0.0) for i in prim) for k in range(n)]
+            mx, mn, step = _chart_axis(max(vals + [0]), min(vals + [0]))
+            va.maximum_scale = float(el["axisMax"]) if el.get("axisMax") else mx
+            va.minimum_scale = mn
+            va.major_unit = step
         if va.has_major_gridlines:
             va.major_gridlines.format.line.color.rgb = RGBColor.from_string((color("outline-variant") or "#DDDDDD")[1:])
+        if el.get("axisTitle"):
+            _axis_title(va, el["axisTitle"], size)
+        if el.get("catTitle"):
+            _axis_title(ca, el["catTitle"], size)
+        if sec:
+            if len(v_axes) > 1:
+                va2 = ValueAxis(v_axes[-1])
+                va2.tick_labels.font.size = Pt(size * 0.75 * 0.85)
+                _num_fmt(va2.tick_labels, fmt2)
+                lv = [v for i in sorted(lines) for v in series[i][1] if v is not None]
+                mx2, mn2, step2 = _chart_axis(max(lv + [0]), min(lv + [0]))
+                va2.maximum_scale = float(el["axisMax2"]) if el.get("axisMax2") else mx2
+                va2.minimum_scale = mn2
+                va2.major_unit = step2
+                if el.get("axisTitle2"):
+                    _axis_title(va2, el["axisTitle2"], size)
     return gf
 
 
@@ -875,6 +1106,70 @@ HANDLERS = {"rect": do_box, "ellipse": do_box, "pill": do_box, "text": do_box, "
             "code": do_code, "plan": do_plan, "bullets": do_bullets, "shape": do_shape, "group": do_group, "chart": do_chart, "icon": do_icon}
 
 
+def slide_title(s):
+    """슬라이드 제목 글(섹션 이름용) - role=title 요소, 없으면 글자가 가장 큰 글 요소의 첫 줄."""
+    from common import plain
+    els = [e for e in s.get("elements", []) if e.get("type") in ("text", "rect", "pill", "shape") and str(e.get("text") or "").strip()]
+    e = next((e for e in els if e.get("role") == "title"), None) or (max(els, key=lambda e: float(e.get("size") or 0)) if els else None)
+    return plain(str(e.get("text")).split("\n")[0]).strip() if e else ""
+
+
+def apply_sections(prs, deck):
+    """PowerPoint 구분(섹션, p14:sectionLst) - 슬라이드의 `section`(이름) 또는 장 표지(layout=chapter, 이름 = 제목)에서 새 구분이 시작된다.
+    하나도 없으면 만들지 않는다. 첫 슬라이드가 시작이 아니면 덱 제목으로 첫 구분을 둔다."""
+    import uuid
+    starts = []
+    for i, s in enumerate(deck["slides"]):
+        name = s.get("section")
+        if name is None and s.get("layout") == "chapter":
+            name = slide_title(s) or f"{i + 1}"
+        if name not in (None, False, ""):
+            starts.append((i, str(name)))
+    if not starts:
+        return 0
+    if starts[0][0] != 0:
+        starts.insert(0, (0, str(deck.get("title") or "시작")))
+    ids = [sid.id for sid in prs.slides._sldIdLst]
+    pres = prs.part._element
+    ext_lst = pres.find(qn("p:extLst"))
+    if ext_lst is None:
+        ext_lst = etree.SubElement(pres, qn("p:extLst"))
+    ns = "http://schemas.microsoft.com/office/powerpoint/2010/main"
+    ext = etree.SubElement(ext_lst, qn("p:ext"))
+    ext.set("uri", "{521415D9-36F7-43E2-AB2F-B90AF26B5E84}")
+    lst = etree.SubElement(ext, f"{{{ns}}}sectionLst", nsmap={"p14": ns})
+    for k, (i, name) in enumerate(starts):
+        end = starts[k + 1][0] if k + 1 < len(starts) else len(ids)
+        sec = etree.SubElement(lst, f"{{{ns}}}section")
+        sec.set("name", name[:255])
+        sec.set("id", "{" + str(uuid.uuid4()).upper() + "}")
+        sl = etree.SubElement(sec, f"{{{ns}}}sldIdLst")
+        for sid in ids[i:end]:
+            etree.SubElement(sl, f"{{{ns}}}sldId").set("id", str(sid))
+    return len(starts)
+
+
+def apply_doc_props(prs, deck):
+    """문서 속성(core.xml) - 제목 = 덱 제목(없으면 작업 공간 제목), 작성자 = 작업 공간 author(없으면 brand.name), 만든/고친 시각 = 지금."""
+    import datetime
+    try:
+        from common import read_config
+        cfg = read_config() or {}
+    except Exception:  # noqa: BLE001
+        cfg = {}
+    cp = prs.core_properties
+    cp.title = str(deck.get("title") or cfg.get("title") or deck.get("id") or "")[:255]
+    author = str(cfg.get("author") or (cfg.get("brand") or {}).get("name") or "")[:255]
+    cp.author = author
+    cp.last_modified_by = author or "nexa-slide"
+    if cfg.get("title"):
+        cp.subject = str(cfg["title"])[:255]
+    cp.comments = "nexa-slide"
+    now = datetime.datetime.now()
+    cp.created = cp.modified = now
+    cp.revision = 1
+
+
 def export(deck, out):
     prs = Presentation()
     prs.slide_width, prs.slide_height = E(1280), E(720)
@@ -882,9 +1177,11 @@ def export(deck, out):
     counts = []
     links = []  # (도형, 요소) - 슬라이드가 다 만들어진 뒤 걸어야 뒤 슬라이드로도 갈 수 있다
     sid_index = {s.get("id"): i for i, s in enumerate(deck["slides"], 1)}
+    _RUN_LINKS.clear()
     for n, s in enumerate(deck["slides"], 1):
         use_fonts(s.get("fontPreset") or deck.get("fontPreset"))  # 슬라이드 > 덱 > 작업 공간
         slide = prs.slides.add_slide(blank)
+        _CUR["part"] = slide.part
         slide.background.fill.solid()
         slide.background.fill.fore_color.rgb = RGBColor.from_string(color(s.get("bg", "surface"))[1:])
         els = sorted(enumerate(s.get("elements", [])), key=lambda t: (t[1].get("z", 0), t[0]))
@@ -904,9 +1201,14 @@ def export(deck, out):
                     shp.name = f"{el.get('id')} {el.get('type')}"
         if s.get("notes"):
             slide.notes_slide.notes_text_frame.text = s["notes"]
+        if s.get("hidden"):  # 숨김 슬라이드(show=0) - 편집기 발표·인쇄도 건너뛴다
+            slide._element.set("show", "0")
         counts.append(len(slide.shapes))
     for shp, el in links:
         apply_link(shp, el, prs.slides, sid_index)
+    apply_run_links(prs, sid_index)
+    apply_sections(prs, deck)
+    apply_doc_props(prs, deck)
     out.parent.mkdir(parents=True, exist_ok=True)
     prs.save(str(out))
     return counts

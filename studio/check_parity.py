@@ -39,6 +39,10 @@ TABLE_SAMPLES = [
     {"type": "table", "x": 0, "y": 0, "w": 600, "h": 120, "rows": [["a", "b", "c", "d"], ["1", "2", "3", "4"]], "font": "mono", "colFont": ["body", "", "code", "x"]},
     {"type": "table", "x": 0, "y": 0, "w": 600, "h": 120, "rows": [["a", "b"], ["1", "2"]], "font": "heading", "header": False},
     {"type": "table", "x": 0, "y": 0, "w": 600, "h": 120, "rows": [["a", "b"], ["1", "2"]], "colFont": None},
+    # 셀별 채움·테두리·격자(0.22.12) - cellFill(행 전체·한 칸·잘못된 좌표) · borders(변 조합·색·두께, 열 전체) · gridLines
+    {"type": "table", "x": 0, "y": 0, "w": 600, "h": 180, "rows": [["a", "b", "c"], ["1", "2", "3"], ["4", "5", "6"]], "cellFill": [[1, None, "s1"], [2, 2, "#FF0000"], ["x", 0, "s2"], [0, 9, "s3"]],
+     "borders": [[2, "*", "T", "primary", 2], [None, 1, "lr"], [1, 1, "B"], [None, None, "Q"]]},
+    {"type": "table", "x": 0, "y": 0, "w": 600, "h": 120, "rows": [["a", "b"], ["1", "2"]], "gridLines": True, "borders": [[1, 0, "B", "s1", 3]], "header": False},
 ]
 # 채우기(fill) 예제 - 토큰 · #hex · #hexAA(투명도) · 색+alpha · 그라데이션(각도·정지점 순서·고른 간격·토큰·잘못된 값)
 FILL_SAMPLES = [
@@ -55,7 +59,7 @@ const R = require(process.argv[1]);
 const inp = JSON.parse(require('fs').readFileSync(0, 'utf8'));
 R.setTokens(inp.tokens); R.setLangs(inp.langs);
 const out = {code: inp.code.map(e => R.codeLines(e).map(l => ({n: l.n, focus: l.focus, gap: l.gap, runs: l.runs}))),
-  runs: inp.texts.map(t => R.runs(t, 3).map(([t2, st]) => [t2, {bold: st.bold, color: st.color}])),
+  runs: inp.texts.map(t => R.runs(t, 3).map(([t2, st]) => [t2, Object.fromEntries(Object.entries(st).filter(([k, v]) => v))])),
   plan: inp.plans.map(p => R.planRuns(p)),
   grid: inp.tables.map(e => { const g = R.tableGrid(e); return {colW: g.colW.map(v => +v.toFixed(3)), rowH: g.rowH.map(v => +v.toFixed(3)), cells: g.cells, callouts: g.callouts.map(c => ({...c, x: +c.x.toFixed(3), y: +c.y.toFixed(3), h: +c.h.toFixed(3), cy: +c.cy.toFixed(3), tx: +c.tx.toFixed(3)}))}; }),
   bullets: inp.bullets.map(e => R.bulletRows(e).map(([t, lvl, after, num]) => [t, lvl, +(+after).toFixed(3), num ? [num.label, num.scheme || "", num.start, num.kind || "", R.numHang(num.label, lvl ? +e.subSize || 17 : +e.size || 20, lvl ? 20 : 28)] : null])),
@@ -110,7 +114,7 @@ def main():
     js = json.loads(r.stdout.decode("utf-8"))
 
     def norm_runs(rs):
-        return [[t, {"bold": st.get("bold"), "color": st.get("color")}] for t, st in rs]
+        return [[t, {k: v for k, v in st.items() if v}] for t, st in rs]  # bold·color·underline·italic·strike·sup·sub·link·bg
 
     def rnd(g):
         return {"colW": [round(v, 3) for v in g["colW"]], "rowH": [round(v, 3) for v in g["rowH"]], "cells": g["cells"],

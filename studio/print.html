@@ -31,7 +31,7 @@
   try { Render.setLangs(await (await fetch("code_langs.json")).json()); } catch (e) { /* 없으면 SQL 만 */ }
   Render.setDeckFonts && Render.setDeckFonts(deck.fontPreset);
   document.getElementById("rs-css").textContent = Render.css();
-  document.getElementById("root").innerHTML = deck.slides.map((s, i) => `<div class="pg">${Render.renderSlide(s, i + 1)}</div>`).join("");
+  document.getElementById("root").innerHTML = deck.slides.map((s, i) => (s.hidden ? "" : `<div class="pg">${Render.renderSlide(s, i + 1)}</div>`)).join("");  // 숨김 슬라이드는 인쇄·PDF 에서 건너뜀(쪽 번호는 원래 번호)
   await document.fonts.ready;
   document.body.dataset.ready = "1";
 })();

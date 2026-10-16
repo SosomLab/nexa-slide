@@ -20,6 +20,9 @@ NEXA_TEST_DIR=/tmp/nexa-tests python3 studio/tests/run_all.py   # 산출물 자�
 | tidy | `tidy_test.py` | 작업 공간 정리·보관(`tidy.py`) — 산출물·참조 없는 그림(백업 참조 표시)·고아 첨부·세션 로그·백업 보고, clean(옮김)·restore·purge, archive zip 제외 규칙, 작업 공간 서버 `/api/tidy`, 요청 첨부 삭제(discard·update) | - |
 | deck | `deck_test.py` | 덱 관리(`deck_admin`) — 짧은 해시 id 생성, 복제(content 포함), 시작 덱(`startDeck`)·목록 ★, 작업 공간 서버 `/api/decks` copy·start | - |
 | (수동) shift_bench | `shift_bench.py <작업 공간> <preset|->` | 글 세로 위치 대조 — 상자·타원(흰 글)을 크기×줄 높이로 깔고 PowerPoint 렌더와 브라우저 캡처의 글자 세로 중심 차이를 재 `shift = size×(a×lh+b)` 를 맞춘다(보정이 맞으면 a≈0·b≈0, 잔차 ±1px) | PowerPoint, Chrome, Pillow |
+| runs · effect | `runs_test.py` · `effect_test.py` | 인라인 강조 겹치기(`common.runs` ↔ `render.runs`, 취소선·첨자·형광펜·글자 링크 포함) · 그림 프레임 효과 PPTX XML·CSS | Node |
+| docstruct | `docstruct_test.py` | 0.22.11~12 - 숨김 슬라이드(`show=0`)·구분(섹션 `p14:sectionLst`)·문서 속성·도형 테두리 점선(`prstDash`)·액자 색·SVG 그림(`svgBlip`)·글 표기 PPTX XML, 표 셀별 채움·테두리·격자 PPTX·render.js | Node |
+| chart | `chart_test.py` | 0.22.13 - 누적 가로·100% 누적·콤보(`c:lineChart`, 보조 축 둘째 `c:valAx`)·축 제목·숫자 형식(`formatCode`) PPTX XML, render.js 같은 종류 SVG·`chartFmt`·`comboLines` | Node |
 | race | `race_test.py` | 서버 동시 시작 경쟁(`START_LOCK`) | |
 | c4 | `c4_doc_test.py` | 웹 세션이 첨부 Word·Excel·PDF 를 읽어 답하는 실제 턴. 표본 문서 `real.xlsx`·`report.pdf` 는 저장소에 없다 — `NEXA_TEST_DOCS=<폴더>` 로 주고, 없으면 SKIP | claude CLI(`--sessions`) |
 | thread | `thread_test.py` | 후속 요청(대화) 문맥(`thread_context`)·턴 프롬프트 | smoke 가 만든 데모 작업 공간 |

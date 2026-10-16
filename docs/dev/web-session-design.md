@@ -262,7 +262,10 @@ B-1·B-2 는 기존 동작을 바꾸지 않는다. B-3 부터 새 기능. 각 �
 | 데이터 라벨 `i18n` 필드 + `I18N.pick`(템플릿·시작용 내용·슬라이드 유형) | 완료(0.22.8) |
 | 견본 내용 영어화(빌드 단계): `content.en.json`·`content_i18n.tr` - 슬라이드 추가 창 예시·미리 보기 레이아웃 견본·`layout_samples --lang` · 튜토리얼 "최근 추가된 기능" | 완료(0.22.9), `content_i18n_test` |
 | 시작용 내용 24종 영어 사전(`content.en.starters1~3.json` 1,251개, `init_workspace --lang en`·미리 보기가 사전으로 번역) · 슬라이드 유형 `i18n.en.when` 43개 | 완료(0.22.10), `content_i18n_test`(26개 파일 한글 0) |
-| PPTX 미구현 기능 목록(`docs/dev/pptx-feature-gap.md`) - 적용 대상 판단용 | 작성(0.22.10), 사용자 판단 대기 |
+| PPTX 미구현 기능 목록(`docs/dev/pptx-feature-gap.md`) - 적용 대상 판단용 | 작성(0.22.10) → 사용자 "진행" 지시로 후보 전부 구현 |
+| **PPT 기능 보강 1**: 글 표기 4종(`~~취소~~` `^{위}`·`_{아래}` `[[bg:…]]` `[[link:…]]`) · 숨김 슬라이드·구분(섹션)·문서 속성 · 도형 테두리 점선·액자 색 · SVG 그림 PPTX(svgBlip) · 표·차트 묶기 금지 | 완료(0.22.11), `docstruct_test`·`runs_test`·`check_parity` |
+| **PPT 기능 보강 2**: 표 `cellFill`·`borders`·`gridLines` | 완료(0.22.12), `docstruct_test`·`check_parity` 표 예제 |
+| **PPT 기능 보강 3**: 차트 누적 가로·100% 누적·콤보(`lineSeries`·`secondaryAxis`)·축 제목·숫자 형식 - 모두 네이티브 PowerPoint 차트, 데이터 입력 방식 동일(사용자 조건) | 완료(0.22.13), `chart_test`, PowerPoint 렌더 확인 |
 | 시험 실행기: `smoke.js` 문자열 반환 = 실패, 페이지 로드 대기, `ignoreErrors`; 숨은 실패 3건 수정 | 완료(0.22.1·0.22.0) - 편집기 UI 묶음은 부하 시 가끔 Chrome 연결 실패로 흔들림(재실행하면 통과) |
 | codex 어댑터 | 미확인(설치·로그인 환경 없음, `openai-codex.md` 5절) |
 

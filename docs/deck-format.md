@@ -9,6 +9,8 @@
   "slides": [ { "id": "s01", "layout": "cover", "notes": "발표자 노트", "bg": "surface", "elements": [ … ] } ] }
 ```
 
+슬라이드 필드: `id` · `layout` · `notes`(발표자 노트) · `bg`(배경 토큰) · `fontPreset`(이 장의 글꼴 세트) · `hidden`(참이면 **숨김 슬라이드** - 편집기 발표·인쇄·PDF 에서 건너뛰고 PPTX 는 `show="0"`, 썸네일 배지 "숨김") · `section`(**PPTX 구분(섹션)** 이름 - 이 슬라이드부터 새 구분. 장 표지 레이아웃 `chapter` 는 비워도 제목으로 자동, 하나도 없으면 구분을 만들지 않음) - 0.22.11. 덱의 `title` 은 PPTX 문서 속성 제목(작성자 = 작업 공간 `author`, 없으면 `brand.name`)으로 들어간다.
+
 **단위**: 좌표·크기·글자 크기 모두 **px (슬라이드 1280×720 기준)**. PPT 변환 시 EMU = px × 9525, pt = px × 0.75.
 색은 토큰 이름(`primary`, `day1-container`, `s3` …) 또는 `#RRGGBB`. 반경은 px 또는 `r-s`/`r-m`/`r-l`/`r-full`.
 
@@ -20,18 +22,19 @@
 
 | type | 필드 | PPT 변환 |
 |---|---|---|
-| `rect` | `fill`, `radius`, `stroke`, `strokeWidth`, (선택) `text`·글자 필드 | 사각형/둥근 사각형(반경 = adjustments) |
+| `rect` | `fill`, `radius`, `stroke`, `strokeWidth`, `strokeDash`(`solid`·`dash`·`dot` - 테두리 점선·파선, ellipse·pill·text·shape 도 같음, 0.22.11), (선택) `text`·글자 필드 | 사각형/둥근 사각형(반경 = adjustments), 점선 = `a:prstDash` |
 | `ellipse` | `fill`, `stroke`, (선택) `text`·글자 필드 | 타원 |
 | `pill` | `fill`, `color`, `text`, `size`, `bold`(기본 굵게) | 둥근 사각형(반경 = 높이/2) + 가운데 글자 |
 | `text` | `text`, `size`, `bold`, `color`, `align`(left/center/right), `valign`(top/middle/bottom), `font`(body/heading/mono — `code` 는 mono 로 받음), `lineHeight`, `wrap`, (선택) `fill`·`radius`·`pad`[위,오,아,왼] | 글상자(자동 맞춤 끔, 여백 0) / fill 이 있으면 글자 있는 도형 |
-| `image` | `src`(`assetRoot` 기준 경로) · `crop`·`opacity` · `effect`(`softEdge`·`round`·`circle`·`frame`·`glow`) + `effectLevel`(1~3, 기본 2) + `effectColor`(glow 색, 기본 primary) - 프레임 효과는 원본 파일을 바꾸지 않는다 | 그림 |
+| `image` | `src`(`assetRoot` 기준 경로) · `crop`·`opacity` · `effect`(`softEdge`·`round`·`circle`·`frame`·`glow`) + `effectLevel`(1~3, 기본 2) + `effectColor`(glow 색, 기본 primary) + `frameColor`·`frameWidth`(액자 `frame` 의 테두리 색·두께 px, 기본 흰색·수준값, 0.22.11) - 프레임 효과는 원본 파일을 바꾸지 않는다 | 그림. `.svg` 는 PowerPoint 2016+ 의 SVG 그림(`asvg:svgBlip`)으로 넣고 대체 PNG 는 옆에 같은 이름 `.png` 가 있으면 그것, 없으면 1×1 투명(이전 버전은 빈 그림) |
 | `line`·`arrow` | `x1`,`y1`,`x2`,`y2`, `color`, `width`, `head`(none/end/start/both), `dash`(solid/dash/dot) | 연결선 + 화살 머리(XML tailEnd/headEnd, lg) |
 | `curve` | `points`(요소 상자 기준 [[x,y],…]), `color`, `width`, `head`(end/none) | 자유형 꺾은선(채우기 없음) + 끝 화살 머리 — 반원 되돌이 화살표 등 |
 | `table` | `rows`(2차원, 첫 행 머리), `colW`(비율), (선택) `rowH`(행별 비율 - 머리 행부터, `h` 에 맞춰 나눔. 합을 `h` 와 같게 두면 px 그대로. 없으면 고르게), `header`, `headFill`, `headColor`, `size`, `font`(본문 셀 글꼴 역할 body/heading/mono, 기본 body), `colFont`(열별 역할 배열 `["body", "mono", …]` — 값은 `font` 와 같은 body/heading/mono, `code` 는 mono 로 받음, 빈 문자열·null·모자란 열은 `font`. 머리 행은 항상 본문 글꼴), `align`, `rule` | 표(스타일 없음, 머리 행 채우기, 본문 행 아래 선) · 행 높이 = `rowH` |
 | `plan` | `text`(DBMS_XPLAN 원문), `size`, `lineHeight`, `fill`, `pad` — `[[값]]` = 경고 강조, `[[ok:값]]` = 개선 강조 | 고정폭 글자, 강조 run = 굵게 + 글자색 + **run 강조색(a:highlight)** |
 | `table` 추가 | `merge`: `[[행, 열, 행수, 열수], …]`(0부터, 머리 행 포함 — 왼쪽 위 셀이 그 영역을 차지하고 덮인 셀은 그리지 않는다, 겹치면 앞 것만, 표 밖은 잘라냄). PPTX 는 셀 병합으로 | 편집기 표 속성 "셀 병합" 칸 |
+| `table` 추가(0.22.12) | `cellFill`: `[[행, 열, 색], …]`(행·열에 `null`/`"*"` = 그 줄 전체 — 상태 표·합계 행 바탕) · `borders`: `[[행, 열, 변, 색?, 두께?], …]`(변 = `T` `B` `L` `R` 조합, 색 기본 `rule`, 두께 px 기본 1 — 합계 행 위 굵은 선 `[3, "*", "T", "primary", 2]`, 열 구분선 `[null, 1, "LR"]`) · `gridLines`: 참이면 모든 칸 격자(rule 색 1px — 각 칸 아래·오른쪽 + 첫 행 위·첫 열 왼쪽, 겹치지 않게). 기본은 본문 행 아래 선만(`rule`) | 편집기 표 속성 "셀 채움"·"셀 테두리"·"격자". PPTX 는 셀 채움(`a:solidFill`)·셀별 `a:lnT/B/L/R`(`common.table_cell_styles` ↔ `render.tableCellStyles`, `check_parity`) |
 | `image` 추가 | `mermaid`: 이 그림을 그린 mermaid 코드(편집기 ＋ 추가 → 다이어그램 코드(mermaid)… · 속성 [다이어그램 코드 수정…]). PNG 는 `assets/images/diagram-*.png`, 코드는 옆 `.mmd` | Node(npx) 필요 |
-| `chart` | `chart`(`column` `stackedColumn` `bar` `line` `area` `pie` `doughnut`), `categories[]`, `series[{name, values[]}]`(원형은 첫 계열), `title`, `legend`(`none`·`bottom`·`right`, 기본: 계열 2개 이상·원형이면 아래), `labels`(값 표시), `grid`(눈금선, 기본 켬), `axisMax`, `size`(글자 px, 기본 14), `colors[]`(토큰·#hex) | 편집기는 SVG, PPTX 는 **PowerPoint 차트**(편집 가능 — 색·범례·값 표시·눈금 규칙은 같되 그림은 PowerPoint 가 그린다). 편집기 ＋ 추가 → 차트…, 속성 데이터 칸(`범주 \| 계열…`) |
+| `chart` | `chart`(`column` `stackedColumn` `stackedColumn100` `bar` `stackedBar` `stackedBar100` `line` `area` `combo` `pie` `doughnut` — 0.22.13 에 누적 가로·100% 누적·콤보), `categories[]`, `series[{name, values[]}]`(원형은 첫 계열), `title`, `legend`(`none`·`bottom`·`right`, 기본: 계열 2개 이상·원형이면 아래), `labels`(값 표시), `grid`(눈금선, 기본 켬), `axisMax`, `size`(글자 px, 기본 14), `colors[]`(토큰·#hex) · **축 제목** `axisTitle`(값 축)·`catTitle`(범주 축) · **숫자 형식** `numFmt`(Excel 식 `#,##0` `0.0` `0%` `#,##0"억"` — 눈금·값 표시, 100% 누적 기본 `0%`) · **콤보** `lineSeries`(선으로 그릴 계열 이름 또는 0부터 번호, 배열·하나, 기본 마지막 계열) · `secondaryAxis`(참이면 선 계열은 오른쪽 보조 축) · `axisTitle2`·`numFmt2`·`axisMax2`(보조 축) | 편집기는 SVG, PPTX 는 **PowerPoint 차트**(편집 가능 — 색·범례·값 표시·눈금 규칙은 같되 그림은 PowerPoint 가 그린다; 콤보는 `c:barChart` + `c:lineChart`(보조 축은 둘째 `c:valAx`), 데이터는 같은 내장 워크북). 편집기 ＋ 추가 → 차트…, 속성 데이터 칸(`범주 \| 계열…`)은 모든 종류 공통 |
 | `icon` | `icon`(내장 아이콘 이름 — check close plus minus arrowRight/Left/Up/Down chevronRight/Left play pause stop info checkCircle xCircle warning question home user users mail doc folder calendar clock pin chat heart bolt search star flag gear), `fill`(아이콘 색, 기본 primary), `color`(대비 색, 기본 white) | 짧은 변 기준 정사각형. 편집기는 SVG, PPTX 는 custGeom 자유형(층마다 도형, 둘 이상이면 묶음) |
 | `group` | `children`(요소 배열 — 좌표는 묶음 상자 `x,y` 기준), `x,y,w,h`, `rot`·`flipH`·`flipV`(묶음 전체) | PPTX 묶음 도형(grpSp). 편집기 Ctrl+G 묶기 / Ctrl+Shift+G 풀기(풀면 새 id), 크기 조절은 자식을 비율로. 표·묶음은 묶음 안에 넣지 않는다 |
 | `plan-table` | `columns`, `colW`, `opCol`(들여쓰기 열), `rows[{cells, depth, hl:{열번호: warn/ok}, note}]`, `calloutW` | 표 + 오른쪽 설명 콜아웃(연결선 + 둥근 상자) |
@@ -39,7 +42,7 @@
 | `code` | `text`, `lang`(언어 35종 - 아래), `lineNo`(false = 줄 번호 숨김), `size`, `lineHeight`, `start`, `focus`[줄], `show`[[from,to],…] | 그룹 도형: 줄 번호 여백·코드 면·강조 줄 면·테두리·줄 번호 글상자·코드 글상자(run 단위 색·굵게·기울임) |
 | `bullets` | `items`(문자열 또는 `{text, sub:[…]}`), `size`, `subSize`, `lineHeight`, `gap`, `subGap`, `dot`, `color`, `subColor`, `spread`(참이면 **균등 간격** — 행 높이(줄바꿈 수 + 1 줄, 자동 줄바꿈은 세지 않음)를 뺀 나머지를 행 사이에 고르게 나눠 상자 `h` 를 채운다. 원본 PPT 의 "세로 고르게" 글상자용), `autoNum`(기본 참 — 항목 글 앞의 **번호를 자동 감지**해 ● 대신 그 번호로 표기: `1. ` `1) ` `(1) ` `a. ` `A) ` `①` `가. `(번호 뒤 공백 필요, 두 자리까지 — `2024. 매출`·`1.5배` 는 번호가 아님). **글머리 기호**도 감지: `* ` `- ` `+ `(공백 필요)와 `· • ● ○ ◦ ■ □ ▪ ◆ ◇ ▲ ▶ ► → ➤ ✓ ✔ ✗ ★ ☆ ※` 등(공백 없어도) — 그 기호를 글머리 색으로 ● 자리에 그린다(● ■ ◆ ▲ ▼ ★ 은 60% 크기). `marker`(항목, 기본 `●`)·`subMarker`(하위, 기본 `–`) = **글머리 종류**: 기호 한 글자, 번호 매기기 `1.` `1)` `(1)` `a.` `a)` `A.` `A)` `①` `가.`(순번 자동 — 하위는 상위 항목마다 1부터, PPTX 자동 번호), `none`(글머리 없음, 내어쓰기도 없음). 글 앞에 적은 번호·기호가 있으면 그것이 우선. 편집기 속성 "글머리 종류"에서 고른다. 글은 그대로 두고 렌더만 바꾸므로 손으로 적은 번호를 지울 필요가 없다. 번호는 글 색·크기, 내어쓰기는 번호 폭만큼 넓어진다. `false` 면 감지하지 않음) | 단락 글머리(●/–, 글머리 색) · 번호 항목은 PPTX 자동 번호(`a:buAutoNum`, 가. 같은 것은 글자 그대로) · 뒤 간격 = 단락 뒤 간격 |
 
-**인라인 강조**(text·pill·rect·ellipse·shape·table 셀·bullets): `**굵게**`, `==강조==`(CI 적색 굵게), `[[토큰|색 글자]]`, `__밑줄__`, `*기울임*`(한 글자 이상, 앞뒤에 글자·공백 없이), `{page}`(쪽 번호). 강조는 **겹쳐** 쓸 수 있다 — `[[s1|**굵은 색 글자**]]`, `**[[s1|색]] 굵게**`, `**==강조== 안__밑줄__**` 처럼 안쪽 표기를 다시 풀어 바깥 스타일과 합친다(편집기·PPTX 같음).
+**인라인 강조**(text·pill·rect·ellipse·shape·table 셀·bullets): `**굵게**`, `==강조==`(CI 적색 굵게), `[[토큰|색 글자]]`, `__밑줄__`, `*기울임*`(한 글자 이상, 앞뒤에 글자·공백 없이), `{page}`(쪽 번호). 0.22.11 부터: `~~취소선~~`(PPTX `strike`), `^{위첨자}`·`_{아래첨자}`(글자 65%, PPTX `baseline` ±), `[[bg:토큰|형광펜]]`(글자 배경 = PPTX run 강조색 `a:highlight` — PowerPoint 2019/365 에서 보임), `[[link:https://…|글]]`·`[[link:#3|글]]`·`[[link:#s07|글]]`(글자 단위 링크 — 밑줄, 글자색 유지(Office 2019+ `hlinkClr`, 이전 버전은 테마 링크색), 발표 화면에서 누르면 이동). 강조는 **겹쳐** 쓸 수 있다 — `[[s1|**굵은 색 글자**]]`, `**[[s1|색]] 굵게**`, `**==강조== 안__밑줄__**` 처럼 안쪽 표기를 다시 풀어 바깥 스타일과 합친다(편집기·PPTX 같음, `runs_test`·`check_parity`).
 
 **링크**(선 제외 모든 요소): `link` — `https://…`(새 탭) · `#3`(3번 슬라이드) · `#<슬라이드 id>`. 발표 화면에서 누르면 이동, PPTX 는 click_action(hlinkClick). **그림자**: `shadow: true` 또는 `{blur, dx, dy, color, alpha}`(기본 6·2·3·검정·0.3 — 편집기 drop-shadow, PPTX outerShdw). **그림 자르기·투명도**(image): `crop: [왼, 위, 오른, 아래]`(0~0.95 비율, PowerPoint crop 과 같은 뜻), `opacity`(0~1).
 

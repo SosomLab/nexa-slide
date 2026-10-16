@@ -449,11 +449,14 @@ def radius(value, w, h):
 
 
 # ---------- 인라인 강조 ----------
-_MARK = re.compile(r"\*\*(.+?)\*\*|==(.+?)==|\[\[([#\w-]+)\|(.+?)\]\]|__(.+?)__|(?<![\w*])\*([^*\s](?:[^*]*?[^*\s])?)\*(?![\w*])")  # **굵게** ==강조== [[색|글]] __밑줄__ *기울임* (render.js MARK 와 같다)
+_MARK = re.compile(r"\*\*(.+?)\*\*|==(.+?)==|\[\[([#\w-]+)\|(.+?)\]\]|__(.+?)__|(?<![\w*])\*([^*\s](?:[^*]*?[^*\s])?)\*(?![\w*])"
+                   r"|~~(.+?)~~|\^\{(.+?)\}|_\{(.+?)\}|\[\[(?:link|url):(\S+?)\|(.+?)\]\]|\[\[bg:([#\w-]+)\|(.+?)\]\]")
+# **굵게** ==강조== [[색|글]] __밑줄__ *기울임* ~~취소선~~ ^{위첨자} _{아래첨자} [[link:url|글]](글자 링크, #3 = 슬라이드) [[bg:색|글]](형광펜 배경) (render.js MARK 와 같다)
 
 
 def runs(text, page=None, base=None):
-    """'a **b** ==c== [[s1|d]] __u__ *i*' → [(글자, {'bold'|'color'|'underline'|'italic'})] (줄바꿈은 호출자가 먼저 나눈다).
+    """'a **b** ==c== [[s1|d]] __u__ *i* ~~s~~ ^{2} _{2} [[link:u|l]] [[bg:s1|h]]'
+    → [(글자, {'bold'|'color'|'underline'|'italic'|'strike'|'sup'|'sub'|'link'|'bg'})] (줄바꿈은 호출자가 먼저 나눈다).
     강조는 겹쳐 쓸 수 있다 - 안쪽 글을 다시 풀어 바깥 스타일과 합친다(예: [[s1|**굵은 색 글자**]], **[[s1|색]]**). render.js runs 와 같은 규칙."""
     if page is not None:
         text = text.replace("{page}", str(page))
@@ -473,6 +476,16 @@ def runs(text, page=None, base=None):
             push(m.group(5), {"underline": True})
         elif m.group(6) is not None:
             push(m.group(6), {"italic": True})
+        elif m.group(7) is not None:
+            push(m.group(7), {"strike": True})
+        elif m.group(8) is not None:
+            push(m.group(8), {"sup": True})
+        elif m.group(9) is not None:
+            push(m.group(9), {"sub": True})
+        elif m.group(11) is not None:
+            push(m.group(11), {"link": m.group(10)})
+        elif m.group(13) is not None:
+            push(m.group(13), {"bg": m.group(12)})
         else:
             push(m.group(4), {"color": m.group(3)})
         pos = m.end()
@@ -1051,50 +1064,74 @@ def table_merges(el, nr, nc):
     return span, skip
 
 
-def table_merges(el, nr, nc):
-    """표 merge → (span{(r,c): (rows, cols)}, skip{(r,c)}) - 왼쪽 위 셀이 rows×cols 를 차지하고 나머지는 그리지 않는다. render.js tableMerges 와 같은 규칙."""
-    span, skip = {}, set()
-    for m in el.get("merge") or []:
-        try:
-            r, c, rs, cs = (int(v) for v in list(m)[:4])
-        except (TypeError, ValueError):
-            continue
-        if r < 0 or c < 0 or r >= nr or c >= nc:
-            continue
-        rs, cs = max(1, min(rs, nr - r)), max(1, min(cs, nc - c))
-        if rs == 1 and cs == 1:
-            continue
-        cells = {(r + i, c + j) for i in range(rs) for j in range(cs)}
-        if any(k in skip or k in span for k in cells):
-            continue  # 앞의 병합과 겹치면 무시
-        span[(r, c)] = (rs, cs)
-        skip |= cells - {(r, c)}
-    return span, skip
+def _tidx(v):
+    """셀 좌표 - None·'*'·'' = 전체(줄 전체), 그 밖은 정수. 못 읽으면 False."""
+    if v is None or v in ("*", ""):
+        return None
+    try:
+        return int(v)
+    except (TypeError, ValueError):
+        return False
 
 
-def table_merges(el, nr, nc):
-    """표 merge → (span{(r,c): (rows, cols)}, skip{(r,c)}) - 왼쪽 위 셀이 rows×cols 를 차지하고 나머지는 그리지 않는다. render.js tableMerges 와 같은 규칙."""
-    span, skip = {}, set()
-    for m in el.get("merge") or []:
+def table_cell_styles(el, cells, nc):
+    """셀별 채움·테두리(0.22.12) - render.js tableCellStyles 와 같은 규칙.
+    cellFill: [[행, 열, 색], …] (행·열에 null/'*' = 그 줄 전체) → cells[r][c].fill
+    gridLines: 참이면 모든 칸에 격자(rule 색 1px - 각 칸의 아래·오른쏙, 첫 행 위, 첫 열 왼쪽만 그려 겹치지 않게)
+    borders: [[행, 열, 변(T·B·L·R 조합), 색?, 두께?], …] → cells[r][c].bd = {변: [색, 두께]} (gridLines 위에 덮어씀). bd 는 있을 때만 둔다."""
+    nr = len(cells)
+    for f in el.get("cellFill") or []:
         try:
-            r, c, rs, cs = (int(v) for v in list(m)[:4])
+            r, c, col = list(f)[:3]
         except (TypeError, ValueError):
             continue
-        if r < 0 or c < 0 or r >= nr or c >= nc:
+        r, c = _tidx(r), _tidx(c)
+        if r is False or c is False or not col:
             continue
-        rs, cs = max(1, min(rs, nr - r)), max(1, min(cs, nc - c))
-        if rs == 1 and cs == 1:
+        for i in range(nr):
+            if r is not None and i != r:
+                continue
+            for j in range(nc):
+                if c is None or j == c:
+                    cells[i][j]["fill"] = col
+    rule = el.get("rule", "surface-container-high")
+    bds = {}
+    if el.get("gridLines"):
+        for i in range(nr):
+            for j in range(nc):
+                d = {"B": [rule, 1], "R": [rule, 1]}
+                if i == 0:
+                    d["T"] = [rule, 1]
+                if j == 0:
+                    d["L"] = [rule, 1]
+                bds[(i, j)] = d
+    for b in el.get("borders") or []:
+        try:
+            b = list(b)
+            r, c, sides = _tidx(b[0]), _tidx(b[1]), str(b[2] or "").upper()
+            col = b[3] if len(b) > 3 and b[3] else rule
+            w = float(b[4]) if len(b) > 4 and b[4] not in (None, "") else 1
+        except (TypeError, ValueError, IndexError):
             continue
-        cells = {(r + i, c + j) for i in range(rs) for j in range(cs)}
-        if any(k in skip or k in span for k in cells):
-            continue  # 앞의 병합과 겹치면 무시
-        span[(r, c)] = (rs, cs)
-        skip |= cells - {(r, c)}
-    return span, skip
+        if r is False or c is False or not sides:
+            continue
+        for i in range(nr):
+            if r is not None and i != r:
+                continue
+            for j in range(nc):
+                if c is not None and j != c:
+                    continue
+                d = bds.setdefault((i, j), {})
+                for sd in sides:
+                    if sd in "TBLR":
+                        d[sd] = [col, w]
+    for (i, j), d in bds.items():
+        if d:
+            cells[i][j]["bd"] = d
 
 
 def table_grid(el):
-    """반환: {x, y, tw, colW(px), rowH(px), cells[r][c]{text,fill,color,bold,align,font}, rule, callouts[]}"""
+    """반환: {x, y, tw, colW(px), rowH(px), cells[r][c]{text,fill,color,bold,align,font,bd?}, rule, callouts[]}"""
     is_plan = el.get("type") == "plan-table"
     if is_plan:
         cols = el.get("columns", [])
@@ -1155,6 +1192,7 @@ def table_grid(el):
                            "align": (aligns[j] if j < len(aligns) and aligns[j] else "left"),
                            "font": "body" if hd else font_role(fonts[j] if j < len(fonts) and fonts[j] else def_font)}
                           for j in range(nc)])
+    table_cell_styles(el, cells, nc)
     callouts = []
     if is_plan and cw:
         size = el.get("size", 15)
