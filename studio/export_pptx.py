@@ -332,8 +332,11 @@ def apply_effect(pic, el):
     """그림 프레임 효과 effect(softEdge·round·circle·frame·glow) · effectLevel 1~3 - 원본 파일은 그대로, 도형 속성으로만.
     softEdge/glow → a:effectLst(그림자 뒤에 덧붙임), round/circle → prstGeom, frame → 흰 테두리(a:ln) + 기본 그림자."""
     e = el.get("effect")
-    if not e or el.get("type") != "image" or pic is None:
+    if not e or pic is None:
         return
+    if el.get("type") != "image":  # 도형(rect·ellipse·pill·text·shape)은 광선·부드러운 가장자리만(render.js 와 같다)
+        if el.get("type") not in ("rect", "ellipse", "pill", "text", "shape") or e not in ("softEdge", "glow"):
+            return
     lv = max(1, min(3, int(el.get("effectLevel") or 2)))
     px = EFFECT_PX.get(e, (0, 0, 0))[lv - 1]
     sp = pic._element.spPr
@@ -455,10 +458,26 @@ def do_image(slide, el, page):
     except AttributeError:
         pass
     op = el.get("opacity")
-    if op is not None and float(op) < 1:
-        blip = pic._element.find(f".//{{{NS_A}}}blip")
-        if blip is not None:
-            etree.SubElement(blip, qn("a:alphaModFix")).set("amt", str(int(max(0.0, min(1.0, float(op))) * 100000)))
+    blip = pic._element.find(f".//{{{NS_A}}}blip")
+    if op is not None and float(op) < 1 and blip is not None:
+        etree.SubElement(blip, qn("a:alphaModFix")).set("amt", str(int(max(0.0, min(1.0, float(op))) * 100000)))
+    tone = el.get("tone")  # 톤 - 흑백 a:grayscl · 흐리게 a:blur · 어둡게 a:lum(밝기 -50%) · 세피아 a:duotone 대신 lum+grayscl 근사 (render.js TONE)
+    if tone and blip is not None:
+        if tone == "gray":
+            etree.SubElement(blip, qn("a:grayscl"))
+        elif tone == "blur":  # PowerPoint 는 blip 의 a:blur 를 그리지 않는다 → 예술 효과 확장(a14:artisticBlur) - PowerPoint 2010+
+            ns = "http://schemas.microsoft.com/office/drawing/2010/main"
+            ext = etree.SubElement(etree.SubElement(blip, qn("a:extLst")), qn("a:ext"))
+            ext.set("uri", "{BEBA8EAE-BF5A-486C-A8C5-ECC9F3942E4B}")
+            props = etree.SubElement(ext, f"{{{ns}}}imgProps", nsmap={"a14": ns})
+            layer = etree.SubElement(props, f"{{{ns}}}imgLayer"); layer.set(qn("r:embed"), blip.get(qn("r:embed")))
+            etree.SubElement(etree.SubElement(layer, f"{{{ns}}}imgEffect"), f"{{{ns}}}artisticBlur").set("radius", "20")
+        elif tone == "dim":
+            etree.SubElement(blip, qn("a:lum")).set("bright", "-50000")
+        elif tone == "sepia":
+            etree.SubElement(blip, qn("a:grayscl"))
+            dt = etree.SubElement(blip, qn("a:duotone"))
+            rgb_el(dt, "#2B1D0E"); rgb_el(dt, "#F3E6CF")
     return pic
 
 

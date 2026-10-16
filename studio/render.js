@@ -310,6 +310,7 @@
       if (r === false || c === false || !col) continue;
       for (let i = 0; i < nr; i++) { if (r != null && i !== r) continue; for (let j = 0; j < nc; j++) if (c == null || j === c) cells[i][j].fill = col; }
     }
+    if (el.banding) { let k = 0; for (let i = 0; i < nr; i++) { if (cells[i] && cells[i][0] && cells[i][0].head) continue; if (k % 2 === 1) for (let j = 0; j < nc; j++) if (!cells[i][j].fill) cells[i][j].fill = el.bandFill || "surface-container"; k++; } }
     const rule = el.rule || "surface-container-high", bds = new Map();
     if (el.gridLines) for (let i = 0; i < nr; i++) for (let j = 0; j < nc; j++) { const d = { B: [rule, 1], R: [rule, 1] }; if (i === 0) d.T = [rule, 1]; if (j === 0) d.L = [rule, 1]; bds.set(`${i},${j}`, d); }
     for (const b of el.borders || []) {
@@ -352,7 +353,7 @@
       cells.push(row);
     });
     const rule = st.rule || el.rule || "surface-container-high";
-    tableCellStyles({ cellFill: el.cellFill, borders: el.borders, gridLines: st.gridLines != null ? st.gridLines : el.gridLines, rule }, cells, nc);
+    tableCellStyles({ cellFill: el.cellFill, borders: el.borders, gridLines: st.gridLines != null ? st.gridLines : el.gridLines, rule, banding: st.banding != null ? st.banding : el.banding, bandFill: st.bandFill != null ? st.bandFill : el.bandFill }, cells, nc);
     return { x: el.x, y: el.y, tw: el.w, colW, rowH, cells, rule, size: st.size || 16, callouts: [], merge };
   }
   /** 렌더 표 → 표 객체 (common.table_to_obj 와 같다) */
@@ -596,6 +597,11 @@
     let s = `border-radius:${r};`;
     if (el.fill) s += `background:${fillCss(el.fill)};`;
     if (el.stroke && !dashArray(el.strokeDash, 1)) s += `box-shadow:inset 0 0 0 ${el.strokeWidth || 1}px ${color(el.stroke)};`;  // 점선·파선은 strokeDashSvg 가 그린다
+    if (el.effect === "glow" || el.effect === "softEdge") {  // 도형 효과(0.22.18) - 그림과 같은 수치(effectPx), 광선은 테두리 그림자와 같이
+      const px = effectPx(el);
+      if (el.effect === "glow") { const c = color(el.effectColor || "primary"); s += (el.stroke && !dashArray(el.strokeDash, 1) ? s.includes("box-shadow:") ? "" : "" : ""); s = s.replace(/box-shadow:([^;]*);/, (m, v) => `box-shadow:${v},0 0 ${px}px ${Math.round(px / 2)}px ${c}99;`); if (!s.includes("box-shadow:")) s += `box-shadow:0 0 ${px}px ${Math.round(px / 2)}px ${c}99;`; }
+      else s += `-webkit-mask-image:linear-gradient(to right,transparent,#000 ${px}px,#000 calc(100% - ${px}px),transparent),linear-gradient(to bottom,transparent,#000 ${px}px,#000 calc(100% - ${px}px),transparent);-webkit-mask-composite:source-in;mask-image:linear-gradient(to right,transparent,#000 ${px}px,#000 calc(100% - ${px}px),transparent),linear-gradient(to bottom,transparent,#000 ${px}px,#000 calc(100% - ${px}px),transparent);mask-composite:intersect;`;
+    }
     return s;
   }
   /** 선 모양 dash(solid·dash·dot) → SVG stroke-dasharray (선 요소 lineSvg 와 같은 간격, PPTX prstDash dash·sysDot) */
@@ -866,7 +872,8 @@
   function setLazy(v) { LAZY = !!v; }
   const IMG_ATTR = () => (LAZY ? ' loading="lazy" decoding="async"' : ' decoding="sync"');
   function elImage(el) {
-    const src = `${esc(root.RENDER_BASE || "/")}${esc(el.src)}`, op = el.opacity != null && el.opacity !== 1 ? `opacity:${+el.opacity};` : "";
+    const TONE = { gray: "grayscale(1)", blur: "blur(4px)", dim: "brightness(.5)", sepia: "sepia(.8)" };  // export_pptx.do_image 의 a:grayscl·a:blur·a:lum 과 같은 뜻
+    const src = `${esc(root.RENDER_BASE || "/")}${esc(el.src)}`, op = (el.opacity != null && el.opacity !== 1 ? `opacity:${+el.opacity};` : "") + (TONE[el.tone] ? `filter:${TONE[el.tone]};` : "");
     const c = Array.isArray(el.crop) && el.crop.some((v) => v) ? el.crop.map((v) => Math.max(0, Math.min(0.95, +v || 0))) : null;
     const fx = effectCss(el);
     const wrap = (inner) => (fx ? `<div class="rs-fx" style="position:absolute;inset:0;${fx}">${inner}</div>` : inner);
@@ -1041,7 +1048,10 @@
       case "bullets": inner = elBullets(el, page); break;
       default: inner = `<div class="rs-box" style="outline:1px dashed red">? ${esc(el.type)}</div>`;
     }
-    const sh = el.shadow && !isLineType(el.type) ? shadowCss(el.shadow) : "";
+    const fl = []; if (el.shadow && !isLineType(el.type)) fl.push(shadowCss(el.shadow).replace(";filter:", ""));
+    if (el.type === "shape" && el.effect === "glow") { const px = effectPx(el), c = color(el.effectColor || "primary"); fl.push(`drop-shadow(0 0 ${Math.round(px / 2)}px ${c}) drop-shadow(0 0 ${Math.round(px / 2)}px ${c}99)`); }  // 도형(경로)은 상자가 아니라 경로를 따라 빛나게
+    let sh = fl.length ? `;filter:${fl.join(" ")}` : "";
+    if (el.type === "shape" && el.effect === "softEdge") { const px = effectPx(el); sh += `;-webkit-mask-image:linear-gradient(to right,transparent,#000 ${px}px,#000 calc(100% - ${px}px),transparent),linear-gradient(to bottom,transparent,#000 ${px}px,#000 calc(100% - ${px}px),transparent);-webkit-mask-composite:source-in;mask-image:linear-gradient(to right,transparent,#000 ${px}px,#000 calc(100% - ${px}px),transparent),linear-gradient(to bottom,transparent,#000 ${px}px,#000 calc(100% - ${px}px),transparent);mask-composite:intersect`; }
     const xf = !isLineType(el.type) && (el.rot || el.flipH || el.flipV) ? `;transform:${el.rot ? `rotate(${+el.rot}deg) ` : ""}${el.flipH ? "scaleX(-1) " : ""}${el.flipV ? "scaleY(-1)" : ""};transform-origin:center center` : "";  // PPT 처럼 중심 기준 - 뒤집은 뒤 회전
     return `<div class="rs-el" data-id="${esc(el.id)}" data-type="${esc(el.type)}"${el.flipH && !isLineType(el.type) ? ' data-fliph="1"' : ""} style="left:${el.x}px;top:${el.y}px;width:${el.w}px;height:${el.h}px${xf}${sh}"${el.link ? ` data-link="${esc(String(el.link))}"` : ""}>${inner}</div>`;  // 좌우 뒤집기는 글은 읽히게(PowerPoint 와 같다) - css 의 [data-fliph] .rs-box
   }

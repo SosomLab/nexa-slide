@@ -1094,6 +1094,16 @@ def table_cell_styles(el, cells, nc):
             for j in range(nc):
                 if c is None or j == c:
                     cells[i][j]["fill"] = col
+    if el.get("banding"):  # 줄무늬 - 본문 둘째 행부터 한 줄 걸러 바탕(셀 채움이 없을 때만). 머리 행 뒤 첫 본문 행은 비움
+        k = 0
+        for i in range(nr):
+            if cells[i] and cells[i][0].get("head"):
+                continue
+            if k % 2 == 1:
+                for j in range(nc):
+                    if not cells[i][j].get("fill"):
+                        cells[i][j]["fill"] = el.get("bandFill") or "surface-container"
+            k += 1
     rule = el.get("rule", "surface-container-high")
     bds = {}
     if el.get("gridLines"):
@@ -1190,7 +1200,8 @@ def table_obj_grid(el):
                     pass
         cells.append(row)
     rule = st.get("rule", el.get("rule", "surface-container-high"))
-    table_cell_styles({"cellFill": el.get("cellFill"), "borders": el.get("borders"), "gridLines": st.get("gridLines", el.get("gridLines")), "rule": rule}, cells, nc)
+    table_cell_styles({"cellFill": el.get("cellFill"), "borders": el.get("borders"), "gridLines": st.get("gridLines", el.get("gridLines")), "rule": rule,
+                       "banding": st.get("banding", el.get("banding")), "bandFill": st.get("bandFill", el.get("bandFill"))}, cells, nc)
     return {"x": el["x"], "y": el["y"], "tw": el["w"], "colW": colW, "rowH": rowH, "cells": cells, "rule": rule,
             "size": st.get("size", 16), "callouts": [], "merge": merge}
 

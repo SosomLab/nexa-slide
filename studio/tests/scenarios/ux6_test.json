@@ -1,0 +1,41 @@
+{
+ "base": "http://127.0.0.1:5667",
+ "pages": [
+  {
+   "url": "/studio/#tbl2test/1",
+   "wait": 2500,
+   "steps": [
+    {
+     "name": "표 선택 → 이동 띠 4개·✥ 손잡이·열 띠 2·행 띠 2·경계 손잡이 2",
+     "js": "document.querySelector('[data-sel=\"e01\"]').click(); await new Promise(r=>setTimeout(r,300)); const q=(s)=>document.querySelectorAll('#ov '+s).length; return q('.tmove')===5 && q('.tgrip')===1 && q('.tgut.col')===2 && q('.tgut.row')===2 && q('.tbnd')===2 ? true : 'move='+q('.tmove')+' gut='+q('.tgut.col')+'/'+q('.tgut.row')+' bnd='+q('.tbnd')"
+    },
+    {
+     "name": "✥ 손잡이 끌기 → 표 x·y 이동",
+     "js": "const el0=JSON.parse(document.querySelector('#elJson').value); const g=document.querySelector('#ov .tgrip'); const r=g.getBoundingClientRect(); g.dispatchEvent(new PointerEvent('pointerdown',{bubbles:true,clientX:r.left+5,clientY:r.top+5,button:0,pointerId:1,isPrimary:true})); window.dispatchEvent(new PointerEvent('pointermove',{bubbles:true,clientX:r.left+85,clientY:r.top+45,pointerId:1})); window.dispatchEvent(new PointerEvent('pointerup',{bubbles:true,pointerId:1})); await new Promise(r2=>setTimeout(r2,400)); const el=JSON.parse(document.querySelector('#elJson').value); return el.x>el0.x+20 && el.y>el0.y+10 ? true : 'x '+el0.x+'→'+el.x+' y '+el0.y+'→'+el.y"
+    },
+    {
+     "name": "열 띠 클릭 → 열 전체(2셀) 선택 · 행 띠 Shift 범위",
+     "js": "const c=document.querySelector('#ov .tgut.col[data-c=\"1\"]'); const r=c.getBoundingClientRect(); c.dispatchEvent(new PointerEvent('pointerdown',{bubbles:true,clientX:r.left+r.width/2,clientY:r.top+r.height/2,button:0,pointerId:1,isPrimary:true})); window.dispatchEvent(new PointerEvent('pointerup',{bubbles:true,pointerId:1})); await new Promise(r2=>setTimeout(r2,300)); const a=document.querySelectorAll('#ov .cellsel').length; const rw=document.querySelector('#ov .tgut.row[data-r=\"0\"]'); const rr=rw.getBoundingClientRect(); rw.dispatchEvent(new PointerEvent('pointerdown',{bubbles:true,clientX:rr.left+rr.width/2,clientY:rr.top+rr.height/2,button:0,pointerId:1,isPrimary:true})); window.dispatchEvent(new PointerEvent('pointerup',{bubbles:true,pointerId:1})); await new Promise(r2=>setTimeout(r2,300)); const b=document.querySelectorAll('#ov .cellsel').length; return a===2 && b===2 ? true : 'col='+a+' row='+b"
+    },
+    {
+     "name": "열 경계 끌기 → colW 비율 변경(첫 열 넓어짐)",
+     "js": "document.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true})); await new Promise(r=>setTimeout(r,200)); const b=document.querySelector('#ov .tbnd.col'); const r=b.getBoundingClientRect(); b.dispatchEvent(new PointerEvent('pointerdown',{bubbles:true,clientX:r.left+r.width/2,clientY:r.top+40,button:0,pointerId:1,isPrimary:true})); window.dispatchEvent(new PointerEvent('pointermove',{bubbles:true,clientX:r.left+r.width/2+60,clientY:r.top+40,pointerId:1})); window.dispatchEvent(new PointerEvent('pointerup',{bubbles:true,pointerId:1})); await new Promise(r2=>setTimeout(r2,400)); const el=JSON.parse(document.querySelector('#elJson').value); return el.colW && el.colW[0]>el.colW[1]+30 ? true : 'colW='+JSON.stringify(el.colW)"
+    },
+    {
+     "name": "줄무늬 켬 → 둘째 본문 행 바탕 · ↕ 글에 맞춤 → rowH 생김",
+     "js": "document.querySelector('[data-sel=\"e01\"]').click(); await new Promise(r=>setTimeout(r,300)); document.querySelector('#ftb [data-f=\"tblop\"][data-v=\"row+\"]').click(); await new Promise(r=>setTimeout(r,300)); const sg=document.querySelector('#tab-props .seg[data-k=\"banding\"] button[data-v=\"on\"]'); if(!sg) return 'no banding seg'; sg.click(); await new Promise(r=>setTimeout(r,300)); const cells=document.querySelectorAll('#host .rs-el[data-id=\"e01\"] .rs-cell'); const banded=[...cells].slice(4,6).every(c=>c.style.background); document.querySelector('#tab-props [data-act=\"tfit\"]').click(); await new Promise(r=>setTimeout(r,400)); const el=JSON.parse(document.querySelector('#elJson').value); return banded && Array.isArray(el.rowH) && el.rowH.length===3 ? true : 'banded='+banded+' rowH='+JSON.stringify(el.rowH)"
+    }
+   ]
+  },
+  {
+   "url": "/studio/#fxtest/1",
+   "wait": 2500,
+   "steps": [
+    {
+     "name": "그림 톤 흑백 → img filter grayscale · 상자 효과 빛 → box-shadow",
+     "js": "document.querySelector('[data-sel=\"e05\"]').click(); await new Promise(r=>setTimeout(r,300)); const sg=document.querySelector('#tab-props .seg[data-k=\"tone\"] button[data-v=\"gray\"]'); if(!sg) return 'no tone seg'; sg.click(); await new Promise(r=>setTimeout(r,300)); const img=document.querySelector('#host .rs-el[data-id=\"e05\"] img'); const ok1=/grayscale/.test(img.style.filter+' '+img.parentElement.style.filter); document.querySelector('[data-sel=\"e02\"]').click(); await new Promise(r=>setTimeout(r,300)); const g=document.querySelector('#tab-props .seg[data-k=\"effect\"] button[data-v=\"glow\"]'); if(!g) return 'no effect seg'; g.click(); await new Promise(r=>setTimeout(r,300)); const box=document.querySelector('#host .rs-el[data-id=\"e02\"] .rs-box'); return ok1 && /box-shadow/.test(box.getAttribute('style')) && /0 0 16px/.test(box.getAttribute('style')) ? true : 'gray='+ok1+' style='+(box.getAttribute('style')||'').slice(0,120)"
+    }
+   ]
+  }
+ ]
+}
