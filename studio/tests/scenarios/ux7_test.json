@@ -20,6 +20,10 @@
     {
      "name": "  Ctrl+Z → 원래 순서",
      "js": "document.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true})); document.dispatchEvent(new KeyboardEvent('keydown',{key:'z',ctrlKey:true,bubbles:true})); await new Promise(r=>setTimeout(r,400)); const el=JSON.parse(document.querySelector('#elJson').value); return el.rows[0].join('|')===window.__ux7b ? true : el.rows[0].join('|')+' vs '+window.__ux7b"
+    },
+    {
+     "name": "빈 셀 더블클릭 → 편집 상자가 block · 캐럿이 왼쪽 여백 안쪽 · 위 여백 = (행 높이 - 줄 높이)/2",
+     "js": "document.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true})); await new Promise(r=>setTimeout(r,200)); document.querySelector('[data-sel=\"e01\"]').click(); await new Promise(r=>setTimeout(r,300)); const n=document.querySelector('#host .rs-el[data-id=\"e01\"]'); let el=JSON.parse(document.querySelector('#elJson').value); const nc=el.rows[0].length; let ri=el.rows.findIndex(r=>r.every(v=>!String(v||'').trim())); if(ri<0) return 'no empty row'; const cells=n.querySelectorAll('.rs-cell'); const c=cells[ri*nc]; const r=c.getBoundingClientRect(); n.dispatchEvent(new MouseEvent('dblclick',{bubbles:true,clientX:r.left+r.width/2,clientY:r.top+r.height/2})); await new Promise(r2=>setTimeout(r2,300)); const ed=document.querySelector('#stage .editor.cell'); if(!ed) return 'no cell editor'; const cs=getComputedStyle(ed); const disp=cs.display, padL=parseFloat(cs.paddingLeft), padT=parseFloat(cs.paddingTop), lh=parseFloat(cs.lineHeight), bh=parseFloat(ed.style.minHeight); const er=ed.getBoundingClientRect(); const sc=er.width/parseFloat(ed.style.width); const sel=getSelection(); let cx=null; if(sel.rangeCount){ const rg=sel.getRangeAt(0); const rr=rg.getClientRects()[0]||rg.getBoundingClientRect(); if(rr.height>0) cx=rr.left; } const exp=Math.max(0,(bh-lh)/2); const ok=disp==='block' && padL>=14 && Math.abs(padT-exp)<1 && (cx==null || cx>=er.left+13*sc); ed.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true})); await new Promise(r2=>setTimeout(r2,200)); return ok ? true : 'display='+disp+' padL='+padL+' padT='+padT+' exp='+exp+' caretX='+cx+' edL='+er.left+' sc='+sc"
     }
    ]
   }

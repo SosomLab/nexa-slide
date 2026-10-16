@@ -2367,8 +2367,12 @@ ${names}
     setCells(el, [rc], rc);
     const ed = document.createElement("div"); ed.className = "editor cell"; ed.setAttribute("contenteditable", "plaintext-only");
     if (ed.contentEditable !== "plaintext-only") ed.setAttribute("contenteditable", "true");
-    const sz = +cell.size || +g.size || 16, mono = cell.font === "mono";
-    Object.assign(ed.style, { left: bx + "px", top: by + "px", width: bw + "px", minHeight: bh + "px", fontSize: sz + "px", lineHeight: 1.4, padding: "0 14px", display: "flex", alignItems: "center", fontFamily: mono ? "Consolas, 'Malgun Gothic', monospace" : "'Malgun Gothic', sans-serif" });
+    const sz = +cell.size || +g.size || 16, mono = cell.font === "mono", lh = Math.round(sz * 1.4);
+    // flex 로 세로 가운데를 맞추면 빈 상자에서 Chrome 이 캐럿을 여백 밖(왼쪽 끝)에 그린다(사용자 지적) - 블록으로 두고 위 여백을 계산해 맞춘다
+    const pad = cell.pad != null ? (typeof cell.pad === "number" ? [cell.pad, cell.pad, cell.pad, cell.pad] : [...cell.pad, 0, 0, 0, 0].slice(0, 4)) : [0, 14, 0, 14];
+    const lines = raw ? raw.split("\n").length : 1, th = lh * lines, va = cell.valign || "middle";
+    const pt = va === "top" ? pad[0] : Math.max(pad[0], va === "bottom" ? bh - th - pad[2] : (bh - th) / 2);
+    Object.assign(ed.style, { left: bx + "px", top: by + "px", width: bw + "px", minHeight: bh + "px", fontSize: sz + "px", lineHeight: lh + "px", padding: `${pt}px ${pad[1]}px ${pad[2]}px ${pad[3]}px`, display: "block", textAlign: cell.align || "left", fontFamily: mono ? "Consolas, 'Malgun Gothic', monospace" : "'Malgun Gothic', sans-serif" });
     ed.textContent = raw; ed.spellcheck = true;
     $("#stage").appendChild(ed);
     S.editing = { el, ed, before: deckJson(), cell: rc };
