@@ -743,11 +743,19 @@ def main():
         for sub in st.get("copy", ["content"]):
             dest = ws if sub == "content" else ws / cfg.get("assetRoot", ".")
             sroot = content_dir(sdir, a.lang) if sub == "content" else sdir / sub  # 번역본(content.<lang>/)이 있으면 그것을 content/ 로
+            translate = sub == "content" and a.lang != "ko" and sroot.name == "content"  # 번역본 폴더가 없으면 사전(content.<lang>*.json)으로 번역해 복사
             for src in sorted(sroot.rglob("*")):
                 dst = dest / (Path("content") / src.relative_to(sroot) if sub == "content" else src.relative_to(sdir))
                 if src.is_file() and not dst.exists():
                     dst.parent.mkdir(parents=True, exist_ok=True)
-                    shutil.copy2(src, dst)
+                    if translate and src.suffix == ".json":
+                        from content_i18n import tr as _tr
+                        try:
+                            dst.write_text(json.dumps(_tr(json.loads(src.read_text(encoding="utf-8")), a.lang), ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
+                        except (OSError, ValueError):
+                            shutil.copy2(src, dst)
+                    else:
+                        shutil.copy2(src, dst)
                     made.append(rel(dst, top))
     else:
         write(ws / "content" / f"{a.deck}.json", json.dumps(starter(a.deck, cfg.get("title", ws.name)), ensure_ascii=False, indent=1) + "\n")

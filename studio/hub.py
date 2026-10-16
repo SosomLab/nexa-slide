@@ -520,6 +520,9 @@ def plan(b):
         args += ["--deck", deck]
     if starter:
         args += ["--starter", starter]
+        lang = re.sub(r"[^a-z]", "", str(b.get("lang") or "ko").lower())[:5]
+        if lang and lang != "ko":  # 화면 언어가 영어면 시작용 내용도 영어로(번역본 폴더 또는 사전) - 0.22.10
+            args += ["--lang", lang]
     if slides_dir != "slides":
         args += ["--slides-dir", slides_dir]
     args += ["--port", port, "--build"]

@@ -1,5 +1,12 @@
 # 변경 이력
 
+## 0.22.10 - 2026-10-16 · 시작용 내용 24종 영어 번역 · 슬라이드 유형 `when` 영어 · PPTX 미구현 기능 목록
+
+- **시작용 내용 번역본**: `studio/i18n/content.en.starters1~3.json`(시작용 내용 24종의 글 1,251개 - 보고·제안·RFP·회고·온보딩·강의 교안 등). `content_i18n.load_map` 이 `content.<lang>.json` 과 `content.<lang>.*.json` 을 합쳐 쓰므로 `init_workspace --starter … --lang en` 과 시작 페이지 미리 보기·**새로 만들기**(영어 표시일 때 `lang` → `--lang en`)가 번역본 폴더(`content.en/`) 없이도 사전으로 번역해 복사한다(번역본 폴더가 있으면 그것이 우선). 시험 `content_i18n_test` 에 "26개 파일 한글 없음"·`init_workspace --lang en` 확인 추가.
+- 슬라이드 유형 43개에 `i18n.en.when`(언제 쓰는지) 추가 - 검토 페이지·`I18N.pick(type, "when")`.
+- `docs/dev/pptx-feature-gap.md`: PowerPoint 에서 동작하지만 엔진(편집기·PPTX 내보내기)에 아직 없는 기능 목록 - 적용 대상 판단용(2026-10-16 코드 조사).
+- 진행 현황: 정리·보관 창(🧹) 운영 작업 공간 확인, 그림 프레임 효과(#11) 사용자 PowerPoint 확인.
+
 ## 0.22.9 - 2026-10-16 · 견본 내용 영어화(빌드 단계) · 튜토리얼 새 기능 안내
 
 - **견본 내용 언어**: `studio/i18n/content.en.json`(레이아웃 견본·슬라이드 유형 예시·레이아웃이 넣는 자리 글 약 330개) + `content_i18n.tr`. 편집기 슬라이드 추가 창(`/api/slidetypes?lang=`)·시작 페이지 미리 보기(`/api/preview?lang=`, 레이아웃 견본)·`nexa.py layout_samples --lang en` 이 영어 견본을 보인다. 시작용 내용은 `starters/<이름>/content.<lang>/` 가 있을 때만(`init_workspace --lang`) - 번역본은 아직 없어 한국어 그대로(알려진 한계).
