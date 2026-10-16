@@ -9,6 +9,10 @@
   Object.assign(en.dict, {
     // ---- 튜토리얼 "최근 추가된 기능" 0.22.13 항목(페이지 영역이지만 함께 추가 - en.pages.js 에 같은 키를 두지 않는다)
     "PowerPoint 기능 보강": "PowerPoint feature upgrades", ": 글 안에 ": ": inline ", " 첨자 · ": " scripts · ", " 글자 링크, 숨김 슬라이드·구분(섹션), 도형 테두리 점선, 액자 색, 표 셀별 채움·테두리·격자, 차트에 누적 가로·100% 누적·콤보(막대+선, 보조 축)·축 제목·숫자 형식 - 모두 PPTX 로 그대로 나갑니다.": " text links, hidden slides and sections, dashed shape borders, frame color, per-cell table fills, borders and grids, and charts with stacked bar, 100% stacked, combo (bar + line, secondary axis), axis titles and number formats - all exported to PPTX as is.",
+    // ---- 0.22.21 노트 패널 재배치
+    "지우기": "Clear", "비어 있음": "empty", "노트를 비웠습니다 (Ctrl+Z 로 되돌리기)": "Notes cleared (Ctrl+Z to undo)", "이 슬라이드의 노트를 비웁니다 (Ctrl+Z 로 되돌리기)": "Clear this slide's notes (Ctrl+Z to undo)",
+    "이 슬라이드에서 말할 내용 - PPTX 노트·발표자 보기에 들어간다": "What to say on this slide - goes into PPTX notes and presenter view",
+    "PPTX 로 내보내면 슬라이드 노트로, 발표자 보기(F5 → 발표자)에서는 아래 글로 보인다": "Exported as slide notes in PPTX; shown below the slide in presenter view (F5 → presenter)",
     // ---- 0.22.19 표 오른쪽 클릭 메뉴·띠 끌어 행/열 옮기기
     "행 위에 삽입": "Insert row above", "행 아래에 삽입": "Insert row below", "열 왼쪽에 삽입": "Insert column left", "열 오른쪽에 삽입": "Insert column right",
     "셀 서식 지우기": "Clear cell formatting", "셀 글 편집": "Edit cell text", "행 전체 선택": "Select whole row", "열 전체 선택": "Select whole column", "표 전체 선택": "Select whole table",
@@ -455,7 +459,7 @@
     [/^줄 (높이|간격) \(지금 (.+)\)$/, (m, a, b) => `Line ${a === "높이" ? "height" : "spacing"} (now ${b})`], [/^항목 간격 px \(지금 (.+)\)$/, "Item gap px (now $1)"], [/^하위 크기 px \(지금 (.+)\)$/, (m, a) => `Sub size px (now ${a.replace("자동", "auto")})`],
     [/^(\d+) \((-\d+)\)$/, "$1 ($2)"], [/^코드 언어 - (.+)$/, "Code language - $1"],
     [/^슬라이드 (\d+) 전체에 대한 요청 - 예: (.*) \(Enter = 남기기, Shift\+Enter = 줄바꿈\)$/, "Request for all of slide $1 - e.g. split this table into two slides (Enter = save, Shift+Enter = newline)"],
-    [/^이 슬라이드 \((\d+)\)$/, "This slide ($1)"], [/^전체 \((\d+)\)$/, "All ($1)"], [/^· (\d+)자$/, "· $1 chars"], [/^레이아웃 (\S+)$/, "layout $1"], [/^템플릿 (\S+)$/, "template $1"], [/^최소 (.+)$/, "min $1"], [/^덱 전체 (.*)$/, "Whole deck $1"],
+    [/^이 슬라이드 \((\d+)\)$/, "This slide ($1)"], [/^전체 \((\d+)\)$/, "All ($1)"], [/^(\d+)자$/, "$1 chars"], [/^· (\d+)자$/, "· $1 chars"], [/^레이아웃 (\S+)$/, "layout $1"], [/^템플릿 (\S+)$/, "template $1"], [/^최소 (.+)$/, "min $1"], [/^덱 전체 (.*)$/, "Whole deck $1"],
     [/^\(작업 공간 - (.+)\)$/, "(workspace - $1)"], [/^\(덱 (\d+)개\)$/, "($1 decks)"], [/^요소 \((\d+)\) - 가려진 요소도 여기서 선택$/, "Elements ($1) - hidden elements can be selected here too"],
     [/^오늘 (\d\d:\d\d)$/, "today $1"], [/^만들 위치: (.*)$/, "Location: $1"], [/^복사 위치: (.*)$/, "Copy location: $1"], [/^(.+) · lecture 바탕$/, "$1 · based on lecture"], [/^(.+) · 템플릿 (\S+)$/, "$1 · template $2"],
     [/^슬라이드 (\d+)(.*)$/, "Slide $1$2"], [/^포트 (\d+)(.*)$/, "Port $1$2"], [/^덱 (\d+)$/, "$1 decks"], [/^요청 (\d+)개 보내기$/, "Send $1 requests"], [/^초안 (\d+)개 보내기$/, "Send $1 drafts"],

@@ -2122,13 +2122,18 @@ ${names}
     if (!$("#notesChips") || !$("#notesChips").children.length) notesChips();
     const s = slide(), n = s ? s.notes || "" : "";
     if (document.activeElement !== $("#notesTa")) $("#notesTa").value = n;
+    notesInfoSync(n);
+  }
+  function notesInfoSync(n) {  // 아래 탭 배지·패널 제목 옆 글자 수·지우기 칩 표시를 한 번에
     $("#notesInfo").textContent = n ? `· ${n.length}자` : "· 비어 있음";
+    if ($("#notesInfo2")) $("#notesInfo2").textContent = n ? `${n.length}자` : "비어 있음";
+    if ($("#notesClr")) $("#notesClr").style.display = n ? "" : "none";
   }
   let notesSnap = false, notesT = 0;
   function onNotes() {
     const s = slide(); if (!s) return;
     if (!notesSnap) { snapshot(); notesSnap = true; }
-    s.notes = $("#notesTa").value; $("#notesInfo").textContent = s.notes ? `· ${s.notes.length}자` : "· 비어 있음"; S.dirty = true; setStatus("dirty", "저장 대기");
+    s.notes = $("#notesTa").value; notesInfoSync(s.notes); S.dirty = true; setStatus("dirty", "저장 대기");
     clearTimeout(notesT); notesT = setTimeout(() => { notesSnap = false; }, 1500);
     scheduleSave();
   }
@@ -2786,8 +2791,9 @@ ${names}
   // ---- 노트 탭 칩 - 세션이 노트만 채우게(본문 불변)
   function notesChips() {
     const host = $("#notesChips"); if (!host) return;
-    host.innerHTML = `<button class="chip sm" data-nq="one" title="세션이 이 슬라이드의 발표자 노트를 씁니다 - 본문은 바꾸지 않음">✨ 이 장 노트 쓰기</button><button class="chip sm" data-nq="all" title="세션이 노트가 빈 모든 슬라이드의 노트를 씁니다">✨ 빈 노트 모두 쓰기</button>`;
+    host.innerHTML = `<button class="chip sm" data-nq="one" title="세션이 이 슬라이드의 발표자 노트를 씁니다 - 본문은 바꾸지 않음">✨ 이 장 노트 쓰기</button><button class="chip sm" data-nq="all" title="세션이 노트가 빈 모든 슬라이드의 노트를 씁니다">✨ 빈 노트 모두 쓰기</button><button class="chip sm ghost" id="notesClr" data-nq="clear" title="이 슬라이드의 노트를 비웁니다 (Ctrl+Z 로 되돌리기)">지우기</button>`;
     host.onclick = (e) => { const b = e.target.closest("[data-nq]"); if (!b) return;
+      if (b.dataset.nq === "clear") { const s = slide(); if (!s || !s.notes) return; snapshot(); s.notes = ""; $("#notesTa").value = ""; S.dirty = true; setStatus("dirty", "저장 대기"); renderNotes(); scheduleSave(); toast("노트를 비웠습니다 (Ctrl+Z 로 되돌리기)"); return; }
       if (b.dataset.nq === "one") quickRequest("이 슬라이드의 발표자 노트(notes)를 써 줘 - 본문·요소는 바꾸지 말고 노트만 채울 것. 발표자가 말할 흐름(도입 → 핵심 → 근거 → 다음 장 연결)을 3~6문장으로, 원문(각주 근거)의 의미는 바꾸지 말 것.");
       else quickRequest("이 덱에서 발표자 노트(notes)가 비어 있는 모든 슬라이드의 노트를 써 줘 - 본문·요소는 바꾸지 말고 노트만 채울 것. 장마다 발표자가 말할 흐름을 3~6문장으로, 원문의 의미는 바꾸지 말 것."); };
   }
@@ -3194,7 +3200,7 @@ ${names}
     const r = await api("GET", "/api/decks"); S.decks = r.ok ? r.data : [];
     if (LS.get("noright", "0") === "1") document.body.classList.add("noright");
     // 기본 배치(0.17.2): 왼쪽 226 · 오른쪽 392 · 노트는 아래. 이 배치가 바뀌면 LAYOUT_VER 를 올려 저장된 크기·최대화를 한 번 비운다
-    const LAYOUT_VER = "2";
+    const LAYOUT_VER = "3";  // 3: 아래 패널 기본 높이 132(노트 패널 재배치)
     if (LS.get("layoutVer", "") !== LAYOUT_VER) { ["railW", "rightW", "bottomH", "maxi"].forEach((k) => LS.set(k, "")); LS.set("layoutVer", LAYOUT_VER); }
     for (const [k, v] of [["railW", "--railW"], ["rightW", "--rightW"], ["bottomH", "--bottomH"]]) { const n = +LS.get(k, 0); if (n) document.documentElement.style.setProperty(v, n + "px"); }
     setMode(["edit", "pick", "draw"].includes(S.mode) ? S.mode : "edit"); setTool("rect");
@@ -3305,7 +3311,7 @@ ${names}
     };
     splitter($("#railSplit"), "--railW", "railW", "x", 1, () => 120, () => Math.min(480, innerWidth * 0.35), () => left.getBoundingClientRect().width);
     splitter($("#rightSplit"), "--rightW", "rightW", "x", -1, () => 240, () => Math.min(720, innerWidth * 0.5), () => $("#right").getBoundingClientRect().width);
-    splitter($("#bottomSplit"), "--bottomH", "bottomH", "y", -1, () => 48, () => Math.max(120, innerHeight * 0.55), () => $("#bottom .bpanel.on") ? $("#bottom .bpanel.on").getBoundingClientRect().height : 98);
+    splitter($("#bottomSplit"), "--bottomH", "bottomH", "y", -1, () => 72, () => Math.max(132, innerHeight * 0.55), () => $("#bottom .bpanel.on") ? $("#bottom .bpanel.on").getBoundingClientRect().height : 132);
     // 그 밖의 크기 변화(창 크기·패널 접기·오른쪽 패널 숨기기)도 같은 방식으로 다시 맞춘다
     if (window.ResizeObserver) { let rT = 0; new ResizeObserver(() => { clearTimeout(rT); rT = setTimeout(() => { fitThumbs(); fitStage(); }, 30); }).observe($("#vpEdit")); }
     // 캔버스

@@ -296,7 +296,7 @@
   body.splitting { user-select: none; }
   #bottom.fold #bottomSplit { display: none; }
   #bottom.fold .bpanel { display: none; }
-  .bpanel { display: none; padding: 8px 12px 10px; overflow-y: auto; height: var(--bottomH, 98px); }
+  .bpanel { display: none; padding: 10px 12px; overflow-y: auto; height: var(--bottomH, 132px); }
   .bpanel.on { display: block; }
   #notesTa { width: 100%; height: 100%; border: 0; background: var(--tone); border-radius: 10px; padding: 8px 12px; resize: none; font-family: var(--font); font-size: 14px; line-height: 1.6; }
   #outlineList div { padding: 3px 8px; border-radius: 8px; cursor: pointer; display: flex; gap: 8px; }
@@ -490,7 +490,14 @@
   #present.pen #presentInk { pointer-events: auto; cursor: crosshair; }
   #presentLaser { position: absolute; width: 14px; height: 14px; margin: -7px 0 0 -7px; border-radius: 50%; background: #ff3b30; box-shadow: 0 0 10px 4px rgba(255,59,48,.6); pointer-events: none; display: none; z-index: 4; }
   #present.laser { cursor: none; }
-  #notesChips { display: flex; gap: 6px; padding: 4px 6px 0; }
+  /* 노트 패널 - 위 줄(제목·글자 수 | ✨ 쓰기 칩·지우기) + 아래 입력 칸이 남은 높이를 다 쓴다(사용자 지적 - 칩과 입력 칸이 너무 붙어 있었음) */
+  #bp-notes.on { display: flex; flex-direction: column; gap: 8px; }
+  #notesBar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; min-height: 26px; }
+  #notesBar .nlbl { font-size: 12.5px; font-weight: 600; color: var(--ink2); margin-right: auto; white-space: nowrap; display: inline-flex; gap: 6px; align-items: center; }
+  #notesBar .nlbl .hint { font-weight: 400; }
+  #notesChips { display: flex; gap: 8px; padding: 0; flex-wrap: wrap; }
+  #notesChips .chip.sm.ghost { background: transparent; border: 1px solid var(--line); color: var(--ink2); }
+  #notesTa { flex: 1; min-height: 56px; height: auto; }
   .tmove { position: absolute; pointer-events: auto; cursor: move; }
   .tmove:hover { background: rgba(169,31,36,.12); }
   .tgrip { background: var(--p); color: #fff; border-radius: 6px; display: flex; align-items: center; justify-content: center; box-shadow: var(--sh1); }
@@ -620,7 +627,10 @@
         <div class="viewport" id="vpPng"><div id="pngWrap"></div></div></div>
     </div>
     <div id="bottom"><div id="bottomSplit" title="끌어서 높이 조절 · 두 번 눌러 처음 높이"></div>
-      <div class="bpanel on" id="bp-notes"><div id="notesChips"></div><textarea id="notesTa" spellcheck="true" placeholder="이 슬라이드의 발표자 노트 - PPTX 슬라이드 노트로 들어간다"></textarea></div>
+      <div class="bpanel on" id="bp-notes">
+        <div id="notesBar"><span class="nlbl" title="PPTX 로 내보내면 슬라이드 노트로, 발표자 보기(F5 → 발표자)에서는 아래 글로 보인다">발표자 노트 <span class="hint" id="notesInfo2"></span></span><div id="notesChips"></div></div>
+        <textarea id="notesTa" spellcheck="true" placeholder="이 슬라이드에서 말할 내용 - PPTX 노트·발표자 보기에 들어간다"></textarea>
+      </div>
       <div class="bpanel" id="bp-outline"><div id="outlineList"></div></div>
       <div class="bpanel" id="bp-check"></div>
     </div>
