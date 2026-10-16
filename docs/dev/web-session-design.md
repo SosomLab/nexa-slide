@@ -226,7 +226,7 @@ B-1·B-2 는 기존 동작을 바꾸지 않는다. B-3 부터 새 기능. 각 �
 - 기동 잠금 `e677ff0`: `service.py start` 에 `out/.studio/start.lock`(FileLock), 서버는 bind 뒤 `server.json` 의 다른 살아 있는 서버를 보면 물러남 — 허브 중계 자동 기동과 `nexa.py restart` 의 경합.
 - 후속 요청 `148b8a7`(0.19.1): 완료된 요청에 사용자가 답할 길이 없던 문제(세션이 질문하며 `done`, "다시 열기"는 같은 text 를 다시 보낼 뿐). 요청에 `parent`·`thread`(뿌리 id)를 두고 대상은 물려받으며 원 요청은 그대로, `requests_core.brief()` 가 같은 thread 의 앞선 요청·답을 `context`(최근 6개·항목당 800자·첨부 경로)로 붙인다. `turn_prompt.md` 에 context 규칙과 "묻는 reply 면 done 금지", `WorkspaceProfile.reconcile` 이 질문으로 끝나는 reply 인데 `done` 이면 `warn` 이벤트(상태는 바꾸지 않음, `QUESTION_RX`). 결정: 선택지 자동 버튼은 두지 않는다(단순하게).
 
-### 14.1 진행 현황 (2026-10-16 갱신)
+### 14.1 진행 현황 (2026-10-16 갱신 · 0.22.18)
 
 | 단계 | 상태 |
 |---|---|
@@ -273,9 +273,9 @@ B-1·B-2 는 기존 동작을 바꾸지 않는다. B-3 부터 새 기능. 각 �
 | 시험 실행기: `smoke.js` 문자열 반환 = 실패, 페이지 로드 대기, `ignoreErrors`; 숨은 실패 3건 수정 | 완료(0.22.1·0.22.0) - 편집기 UI 묶음은 부하 시 가끔 Chrome 연결 실패로 흔들림(재실행하면 통과) |
 | codex 어댑터 | 미확인(설치·로그인 환경 없음, `openai-codex.md` 5절) |
 
-운영: 허브 5599·SQL 교재 5600·가정형호스피스 5603 이 `c2b807a`(0.22.6)로 재시작됨(0.22.8 ff43785 로 재시작됨 · 0.22.9 는 다음 재시작 때)(협업 세션 nexa-slide-f4 가 병합 알림마다 턴 없을 때 바로 재시작하고 결과를 알린다 - 사용자 지시). 서버 작업 큐는 개발 세션이 `/nexa-slide-server` 수동 세션으로 맡고 있고, 승인된 엔진 요청 #10~#12 를 이 흐름으로 처리했다(worktree `D:\Projects\kiros33\_wt
+운영: 허브 5599 는 `f459b65`(0.22.16), SQL 교재 5600·가정형호스피스 5603 은 `0ade63a`(0.22.18)로 재시작됨(2026-10-16, 협업 세션)(협업 세션 nexa-slide-f4 가 병합 알림마다 턴 없을 때 바로 재시작하고 결과를 알린다 - 사용자 지시). 서버 작업 큐는 개발 세션이 `/nexa-slide-server` 수동 세션으로 맡고 있고, 승인된 엔진 요청 #10~#12 를 이 흐름으로 처리했다(worktree `D:\Projects\kiros33\_wt
 exa-slide-dev` 브랜치 `dev/engine-requests` → `--no-ff` main → push → 알림). 운영 작업 공간 두 곳의 명령 파일 커밋은 저장소 주인 판단(미커밋).
-남은 것: 웹 검색 허용 운영 시험, codex 확인, PPTX 미구현 기능의 보류 항목·다른 제작 도구·MS Office 대비 추가 구현 후보 결정(`docs/dev/pptx-feature-gap.md`·`docs/dev/feature-comparison.md`), 편집기 UI 시험 묶음의 간헐 실패(tbl_test·ux_test 가 가끔 같이 실패 - 원인 미확정, 재실행하면 통과). 편집기 기능의 세부 한계는 **알려진 한계로 확정**(`docs/editor.md` 마지막 절, 2026-10-15).
+남은 것: 웹 검색 허용 운영 시험, codex 확인, 기능 목록의 보류·정책 판단 항목(`docs/dev/pptx-feature-gap.md`·`docs/dev/feature-comparison.md` - 사용자 안내선·3단계 글머리·회사 템플릿 마법사·공유 링크·댓글·실시간 반영·연결선 도형 붙임·텍스트 자동 맞춤·마스터/테마·수식), 편집기 UI 시험 묶음의 간헐 실패(tbl_test·ux_test 가 가끔 같이 실패 - 원인 미확정, 재실행하면 통과). 편집기 기능의 세부 한계는 **알려진 한계로 확정**(`docs/editor.md` 마지막 절, 2026-10-15).
 
 ## 15. 검토 기록
 
