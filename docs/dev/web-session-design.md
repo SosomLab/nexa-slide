@@ -276,7 +276,7 @@ B-1·B-2 는 기존 동작을 바꾸지 않는다. B-3 부터 새 기능. 각 �
 | codex 어댑터 | 미확인(설치·로그인 환경 없음, `openai-codex.md` 5절) |
 
 운영: 허브 5599 는 `f459b65`(0.22.16), SQL 교재 5600·가정형호스피스 5603 은 `0ade63a`(0.22.18)로 재시작됨(2026-10-16, 협업 세션) - 0.22.19~0.22.21 은 정적 파일만 바뀌어 재시작 없이 새로 고침으로 반영(main `ad1e6dc`)(협업 세션 nexa-slide-f4 가 병합 알림마다 턴 없을 때 바로 재시작하고 결과를 알린다 - 사용자 지시). 서버 작업 큐는 개발 세션이 `/nexa-slide-server` 수동 세션으로 맡고 있고, 승인된 엔진 요청 #10~#12 를 이 흐름으로 처리했다(worktree `D:\Projects\kiros33\_wt
-exa-slide-dev` 브랜치 `dev/engine-requests` → `--no-ff` main → push → 알림). 운영 작업 공간 두 곳의 명령 파일 커밋은 저장소 주인 판단(미커밋).
+exa-slide-dev` 브랜치 `dev/engine-requests` → `--no-ff` main → push → 알림). 운영 작업 공간 두 곳의 명령 파일 커밋은 저장소 주인 판단(미커밋). 작업 규칙(2026-10-16, `CLAUDE.md`): 저장소는 바깥(다른 세션·사람·기기)에서도 고쳐지므로 개발 시작·병합 전마다 `git fetch` → `git status` → `git log HEAD..origin/main` 으로 확인하고 새 커밋은 작업 브랜치에 먼저 받는다. 병합·push 뒤 작업 브랜치를 main 에 맞춰 push 한다.
 남은 것: 웹 검색 허용 운영 시험, codex 확인, 기능 목록의 보류·정책 판단 항목(`docs/dev/pptx-feature-gap.md`·`docs/dev/feature-comparison.md` - 사용자 안내선·3단계 글머리·회사 템플릿 마법사·공유 링크·댓글·실시간 반영·연결선 도형 붙임·텍스트 자동 맞춤·마스터/테마·수식), 편집기 UI 시험 묶음의 간헐 실패(tbl_test·ux_test 가 가끔 같이 실패 - 원인 미확정, 재실행하면 통과). 편집기 기능의 세부 한계는 **알려진 한계로 확정**(`docs/editor.md` 마지막 절, 2026-10-15).
 
 ## 15. 검토 기록
