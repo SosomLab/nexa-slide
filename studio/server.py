@@ -1713,19 +1713,23 @@ class H(BaseHTTPRequestHandler):
         if code != 0 or not f.exists():
             return self.send_json({"ok": False, "error": "export 실패", "log": log}, 500)
         if (q.get("pdf") or ["0"])[0] == "1":  # PDF - PowerPoint(Windows, pwsh)가 있으면 PPTX 를 PDF 로, 없으면 Chrome/Edge 헤드리스로 print.html 을 인쇄
-            pdf = OUT / f"{i}.pdf"
-            via, err = self._export_pdf(i, f, pdf)
+            layout = (q.get("layout") or [""])[0]
+            layout = layout if layout in ("notes", "h2", "h3", "h6") else ""  # 유인물(쪽당 2·3·6장)·노트 페이지는 Chrome 으로만(print.html?layout=)
+            tag = {"notes": "-notes", "h2": "-handout2", "h3": "-handout3", "h6": "-handout6"}.get(layout, "")
+            pdf = OUT / f"{i}{tag}.pdf"
+            via, err = self._export_pdf(i, f, pdf, layout)
             if not pdf.exists():
                 return self.send_json({"ok": False, "error": "PDF 를 만들지 못했다: " + err, "log": log}, 500)
-            return self.send_json({"ok": True, "path": str(pdf), "url": f"/out/{i}.pdf?v={ver(pdf)}", "via": via, "log": log, "name": export_name(i, ".pdf")})
+            return self.send_json({"ok": True, "path": str(pdf), "url": f"/out/{i}{tag}.pdf?v={ver(pdf)}", "via": via, "log": log, "name": export_name(i, f"{tag}.pdf")})
         self.send_json({"ok": True, "path": str(f), "url": f"/out/{i}.pptx?v={ver(f)}", "log": log, "name": export_name(i, ".pptx")})
 
-    def _export_pdf(self, i, pptx, pdf):
-        """(방법, 오류). PowerPoint COM(render_pptx.ps1 -Pdf) → 없으면 Chrome/Edge --print-to-pdf(print.html, 슬라이드마다 한 쪽)."""
+    def _export_pdf(self, i, pptx, pdf, layout=""):
+        """(방법, 오류). PowerPoint COM(render_pptx.ps1 -Pdf) → 없으면 Chrome/Edge --print-to-pdf(print.html, 슬라이드마다 한 쪽).
+        layout(notes·h2·h3·h6 = 노트 페이지·유인물)은 print.html 이 그리므로 Chrome 만 쓴다."""
         import shutil
         err = []
         pwsh = shutil.which("pwsh") or shutil.which("powershell")
-        if os.name == "nt" and pwsh:
+        if os.name == "nt" and pwsh and not layout:
             code, log = run([pwsh, "-NoProfile", "-File", str(STUDIO / "render_pptx.ps1"), "-Pptx", str(pptx), "-OutDir", str(OUT / i), "-Pdf", str(pdf), "-NoPng"], 300)
             if code == 0 and pdf.exists():
                 return "powerpoint", ""
@@ -1734,7 +1738,7 @@ class H(BaseHTTPRequestHandler):
                     r"C:\Program Files\Microsoft\Edge\Application\msedge.exe", "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"]
         br = next((b for b in browsers if Path(b).exists()), None) or shutil.which("chrome") or shutil.which("google-chrome") or shutil.which("msedge") or shutil.which("chromium")
         if br:
-            url = f"http://127.0.0.1:{self.server.server_port}/studio/print.html?deck={i}"
+            url = f"http://127.0.0.1:{self.server.server_port}/studio/print.html?deck={i}" + (f"&layout={layout}" if layout else "")
             prof = OUT / ".chrome-profile-pdf"
             code, log = run([br, "--headless=new", "--disable-gpu", "--no-sandbox", f"--user-data-dir={prof}", "--no-pdf-header-footer", "--virtual-time-budget=10000", f"--print-to-pdf={pdf}", url], 180)
             if pdf.exists():

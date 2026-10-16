@@ -895,7 +895,7 @@
     if (!d || !d.ok) { $("#sessBody").innerHTML = '<div class="warn">에이전트 상태를 읽지 못했습니다</div>'; return; }
     const cur = agentDef || d.agent, model = modelDef || d.model;
     const opt = (n) => { const a = d.agents[n]; const ok = a.installed && a.loggedIn; return `<option value="${n}" ${n === cur ? "selected" : ""} ${ok ? "" : "disabled"}>${esc(a.label)}${a.verified ? "" : " (미확인)"}${ok ? "" : a.installed ? " - 로그인 안 됨" : " - 미설치"}</option>`; };
-    const models = (n) => (d.models[n] || []).map((m) => `<option value="${esc(m)}" ${m === model ? "selected" : ""}>${esc(m)}</option>`).join("") + `<option value="__custom">직접 입력…</option>`;
+    const models = (n) => (d.models[n] || []).map((m) => `<option value="${esc(m)}" ${m === model ? "selected" : ""}>${esc(m)}</option>`).join("") + `<option value="__custom">직접 입력</option>`;
     $("#sessBody").innerHTML = `<label class="f">에이전트</label><select id="smAgent">${opt("claude")}${opt("codex")}</select><div class="hint" id="smHint">${esc(d.agents[cur].hint || "")}</div>
       <label class="f">모델 <span class="hint">(기본 ${esc(model)}${modelDef ? " — 작업 공간" : ` — ${esc(d.sources.model)}`})</span></label>
       <div class="row"><select id="smModel">${models(cur)}</select><input type="text" id="smModelText" placeholder="모델 ID 직접 입력" style="display:none"></div>

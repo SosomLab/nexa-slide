@@ -785,9 +785,10 @@
     const c = Array.isArray(el.crop) && el.crop.some((v) => v) ? el.crop.map((v) => Math.max(0, Math.min(0.95, +v || 0))) : null;
     const fx = effectCss(el);
     const wrap = (inner) => (fx ? `<div class="rs-fx" style="position:absolute;inset:0;${fx}">${inner}</div>` : inner);
-    if (!c) return wrap(`<img class="rs-img" src="${src}" alt="" draggable="false"${IMG_ATTR()}${op ? ` style="${op}"` : ""}>`);
+    const alt = esc(el.alt || "");
+    if (!c) return wrap(`<img class="rs-img" src="${src}" alt="${alt}" draggable="false"${IMG_ATTR()}${op ? ` style="${op}"` : ""}>`);
     const [l, t, r, b] = c, W = el.w / Math.max(0.05, 1 - l - r), H = el.h / Math.max(0.05, 1 - t - b);  // 자르기 - 원본을 키워 상자 밖은 감춘다(PowerPoint crop 과 같은 뜻, 비율은 상자 비율)
-    return wrap(`<div style="position:absolute;inset:0;overflow:hidden;${op}"><img class="rs-img" src="${src}" alt="" draggable="false"${IMG_ATTR()} style="position:absolute;left:${R2(-l * W)}px;top:${R2(-t * H)}px;width:${R2(W)}px;height:${R2(H)}px;object-fit:fill"></div>`);
+    return wrap(`<div style="position:absolute;inset:0;overflow:hidden;${op}"><img class="rs-img" src="${src}" alt="${alt}" draggable="false"${IMG_ATTR()} style="position:absolute;left:${R2(-l * W)}px;top:${R2(-t * H)}px;width:${R2(W)}px;height:${R2(H)}px;object-fit:fill"></div>`);
   }
 
   /** 선·화살표: 요소 상자(x,y,w,h) 기준 SVG. 화살 머리 = 선 두께 × 5 (PPT 'lg') */

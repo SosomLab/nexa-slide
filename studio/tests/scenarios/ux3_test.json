@@ -1,0 +1,45 @@
+{
+ "base": "http://127.0.0.1:5667",
+ "pages": [
+  {
+   "url": "/studio/#tbltest/1",
+   "wait": 2500,
+   "steps": [
+    {
+     "name": "유형 바꾸기(글머리 유형) → 옛 글머리 항목이 새 장에 옮겨짐",
+     "js": "window.__items=JSON.stringify(['1. 첫째','2. 둘째']); document.querySelectorAll('#left .thumb')[0].dispatchEvent(new MouseEvent('contextmenu',{bubbles:true,clientX:100,clientY:100})); await new Promise(r=>setTimeout(r,200)); const it=[...document.querySelectorAll('.menu button')].find(x=>x.textContent.trim().startsWith('유형 바꾸기')); if(!it) return 'no menu'; it.click(); for(let i=0;i<40;i++){ if(document.querySelector('#adBody [data-adtype]')) break; await new Promise(r=>setTimeout(r,250)); } const card=[...document.querySelectorAll('#adBody [data-adtype]')].find(b=>/bullets|글머리/.test(b.dataset.adtype+' '+b.textContent)); if(!card) return 'no bullets type'; card.click(); await new Promise(r=>setTimeout(r,600)); const bl=document.querySelector('#host .rs-el[data-type=\"bullets\"]'); return bl && bl.textContent.includes('첫째') && bl.textContent.includes('둘째') ? true : 'bullets='+(bl?bl.textContent.slice(0,40):'none')"
+    },
+    {
+     "name": "Ctrl+Z 되돌림 → 표·글머리 원래대로",
+     "js": "document.dispatchEvent(new KeyboardEvent('keydown',{key:'z',ctrlKey:true,bubbles:true})); await new Promise(r=>setTimeout(r,400)); return document.querySelector('#host .rs-el[data-type=\"table\"]') ? true : 'no table'"
+    },
+    {
+     "name": "섹션 - 슬라이드 속성에 섹션 이름 입력 → 레일에 구분 머리 · 누르면 접힘",
+     "js": "document.querySelectorAll('#left .thumb')[0].click(); await new Promise(r=>setTimeout(r,300)); document.querySelector('#host').dispatchEvent(new PointerEvent('pointerdown',{bubbles:true,button:0,pointerId:1})); const sel=document.querySelector('#stage'); window.__sel=sel; const inp=document.querySelector('input[data-slide=\"section\"]'); if(!inp) return 'no section input (요소 선택 해제 필요)'; inp.value='1부'; inp.dispatchEvent(new Event('change',{bubbles:true})); await new Promise(r=>setTimeout(r,400)); const h=document.querySelector('#left .sechead'); if(!h) return 'no sechead'; h.click(); await new Promise(r=>setTimeout(r,300)); const folded=document.querySelector('#left .sechead.fold'); return folded ? true : 'not folded'"
+    },
+    {
+     "name": "  다시 누르면 펼침 · 섹션 지우면 머리 사라짐",
+     "js": "document.querySelector('#left .sechead').click(); await new Promise(r=>setTimeout(r,300)); const open=!document.querySelector('#left .sechead.fold'); const inp=document.querySelector('input[data-slide=\"section\"]'); inp.value=''; inp.dispatchEvent(new Event('change',{bubbles:true})); await new Promise(r=>setTimeout(r,400)); return open && !document.querySelector('#left .sechead') ? true : 'open='+open"
+    }
+   ]
+  },
+  {
+   "url": "/studio/#fxtest/1",
+   "wait": 2500,
+   "steps": [
+    {
+     "name": "자동 정리 - e01 을 슬라이드 밖(x=1250)으로 → 검사 → ⚒ 자동 정리 → 안으로",
+     "js": "document.querySelector('[data-sel=\"e01\"]').click(); await new Promise(r=>setTimeout(r,300)); const x=document.querySelector('#tab-props input[data-k=\"x\"]'); x.value='1250'; x.dispatchEvent(new Event('change',{bubbles:true})); await new Promise(r=>setTimeout(r,300)); document.querySelector('#chkBtn').click(); for(let i=0;i<30;i++){ if(document.querySelector('#chkTidy')) break; await new Promise(r=>setTimeout(r,300)); } const b=document.querySelector('#chkTidy'); if(!b) return 'no tidy button'; b.click(); await new Promise(r=>setTimeout(r,2500)); const nx=+document.querySelector('#tab-props input[data-k=\"x\"]').value; return nx<=180 ? true : 'x='+nx"
+    },
+    {
+     "name": "입력 중 넘침 경고 - e01 글자 편집에 긴 글 → .ovwarn 표시",
+     "js": "document.querySelector('[data-sel=\"e01\"]').click(); await new Promise(r=>setTimeout(r,300)); document.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',bubbles:true})); await new Promise(r=>setTimeout(r,300)); const ed=document.querySelector('#stage .editor'); if(!ed) return 'no editor'; ed.textContent='긴 글 '.repeat(120); ed.dispatchEvent(new Event('input',{bubbles:true})); await new Promise(r=>setTimeout(r,200)); const w=document.querySelector('#stage .ovwarn'); const shown=w && w.style.display!=='none' && w.textContent.includes('넘침'); document.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true})); ed.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true})); await new Promise(r=>setTimeout(r,300)); return shown && !document.querySelector('#stage .ovwarn') ? true : 'shown='+shown+' left='+!!document.querySelector('#stage .ovwarn')"
+    },
+    {
+     "name": "차트 데이터 표 - ＋ 추가 차트 → ▦ 표로 편집 → ＋ 행 → 적용 → 범주 5개",
+     "js": "document.dispatchEvent(new KeyboardEvent('keydown',{key:'z',ctrlKey:true,bubbles:true})); await new Promise(r=>setTimeout(r,200)); document.querySelector('#addBtn').click(); await new Promise(r=>setTimeout(r,300)); const tile=document.querySelector('.menu .tile[data-ins=\"chart:column\"]'); if(!tile) return 'no chart tile'; tile.click(); await new Promise(r=>setTimeout(r,500)); const b=document.querySelector('#tab-props [data-act=\"charttbl\"]'); if(!b) return 'no charttbl'; b.click(); await new Promise(r=>setTimeout(r,300)); const rows0=document.querySelectorAll('#chartDlg tbody tr').length; document.querySelector('#chartDlg [data-ca=\"row\"]').click(); await new Promise(r=>setTimeout(r,200)); const cells=document.querySelectorAll('#chartDlg tbody tr:last-child td'); cells[1].textContent='77'; document.querySelector('#chartDlg [data-ca=\"ok\"]').click(); await new Promise(r=>setTimeout(r,400)); const ta=document.querySelector('#tab-props textarea[data-chart]'); const lines=ta?ta.value.split('\\n').length:0; return rows0===5 && lines===6 && ta.value.includes('77') && !document.querySelector('#chartDlg') ? true : 'rows0='+rows0+' lines='+lines"
+    }
+   ]
+  }
+ ]
+}

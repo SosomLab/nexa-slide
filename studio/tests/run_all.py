@@ -31,6 +31,7 @@ TESTS = [  # (이름, 실행, 설명, claude 필요)
     ("content_i18n", [sys.executable, "content_i18n_test.py"], "견본 내용 언어(content_i18n) - layout_samples --lang en · /api/slidetypes?lang=en · tr()", False),
     ("runs", [sys.executable, "runs_test.py"], "인라인 강조 겹치기(runs) - Python·render.js 같은 결과", False),
     ("effect", [sys.executable, "effect_test.py"], "그림 프레임 효과(effect·effectLevel) - PPTX XML(softEdge·glow·roundRect·ellipse·테두리)·render.js CSS", False),
+    ("uxpack", [sys.executable, "uxpack_test.py"], "편집 편의 묶음(0.22.14) - 검사 대비·대체 텍스트, PPTX descr, 유인물·노트 PDF(Chrome)", False),
     ("chart", [sys.executable, "chart_test.py"], "차트(0.22.13) - 누적 가로·100% 누적·콤보(보조 축)·축 제목·숫자 형식 PPTX XML·render.js", False),
     ("docstruct", [sys.executable, "docstruct_test.py"], "문서 구조·마무리(0.22.11) - 숨김·섹션·문서 속성·테두리 점선·액자 색·SVG·글 표기(취소선·첨자·형광펜·글자 링크) PPTX XML·render.js", False),
     ("race", [sys.executable, "race_test.py"], "서버 시작 경쟁(잠금)", False),

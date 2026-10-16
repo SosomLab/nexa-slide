@@ -1,0 +1,73 @@
+# 표 - 셀 선택 편집과 PowerPoint 식 중첩 모델 (검토·설계)
+
+2026-10-16, 0.22.16 기준. 사용자 질문: (1) 캔버스에서 표의 셀을 클릭·드래그·Ctrl+클릭으로 여러 개 고를 수 있나, (2) 지금의 "내용 기반 한 방향 렌더" 표를 **표 → 행 → 셀**의 중첩 객체(셀마다 속성과 값)인 PowerPoint 표 구조로 발전시킬 수 있나. 결론: **둘 다 가능**하고, 렌더 파이프라인의 절반은 이미 그 모양이다. 아래는 지금 구조, 제안 모델, 단계와 비용, 위험.
+
+## 1. 지금 구조
+
+- 데이터: `rows: string[][]`(첫 행 = 머리) + 표 단위 속성(`colW` `rowH` `size` `font` `colFont` `align` `headFill` `headColor` `rule`) + **덧씌우기 목록**(`merge` 0.21.27, `cellFill`·`borders`·`gridLines` 0.22.12). 셀은 객체가 아니라 문자열이고, 셀별 속성은 좌표 목록으로 바깥에 둔다.
+- 렌더: `common.table_grid` ↔ `render.tableGrid`(동일성 검사)가 이것을 **셀 객체 격자** `cells[r][c] = {text, fill, color, bold, align, font, bd}` 로 풀어낸 뒤, 편집기(`elTable` - 셀마다 `.rs-cell` 절대 배치)와 PPTX(`do_table` - `a:tc` 마다 채움·테두리·run)가 그린다. 즉 **"풀어낸 격자"가 이미 PowerPoint 의 tbl → tr → tc 와 같은 모양**이다. 빠진 것은 입력 쪽(셀마다 값·속성을 직접 갖는 모델)과 편집기 상호작용(셀 선택)뿐이다.
+- 편집: 표를 두 번 클릭하면 `줄 = 행, " | " = 칸` 글 전체를 한 상자에서 고친다. 속성 탭의 셀 병합·셀 채움·셀 테두리 칸은 `행,열,…` 좌표를 손으로 적는다(0.22.12 - 기능은 있으나 UX 가 낮음).
+- 쓰는 쪽: AI 세션(`rows` 글로 표를 쓴다), `content_i18n.tr`(문자열이면 번역), 찾기/바꾸기(`textSlots` 가 `rows[i][j]`), `import_pptx`(PPTX 표 → `rows`), 레이아웃(`layouts.py` 가 `rows` 생성), `check_layout`(표 높이 추정).
+
+## 2. 셀 선택·편집(캔버스) - 가능, 모델 변경 없이도 된다
+
+편집기는 포인터 좌표 → 슬라이드 좌표(`toSlide`)를 이미 알고, `tableGrid` 가 `colW`·`rowH`(px)를 주므로 **DOM 을 바꾸지 않고도** 어느 셀인지 계산할 수 있다(병합은 `tableMerges` 의 span/skip 으로 보정).
+
+| 상호작용 | 동작 | 비고 |
+|---|---|---|
+| 표가 선택된 상태에서 셀 클릭 | 그 셀 하나 선택(`S.cellSel = {el, cells:[[r,c]], anchor}`) - 셀에 테두리 강조 | 표 자체 선택(이동·크기)은 지금처럼 첫 클릭 |
+| 셀에서 끌기 | 사각 범위 선택(anchor~현재 셀) | 표 밖으로 나가면 범위 끝 |
+| Shift+클릭 | anchor 부터 그 셀까지 범위 | 요소 목록의 Shift 와 같은 규칙 |
+| Ctrl+클릭 | 셀 더하기/빼기(불연속) | 불연속 선택엔 병합·범위 채움 같은 범위 동작은 끔 |
+| 행 번호 띠·열 머리 띠 클릭(표 선택 시 왼쪽·위에 얇게 표시) | 행 전체·열 전체 선택, 끌면 여러 행·열 | 열 경계를 끌면 `colW` 조절(보너스) |
+| 두 번 클릭 | **그 셀만** 글 편집(지금은 표 전체 글) | Tab/Shift+Tab·Enter/Shift+Enter 로 옆·아래 셀로 이동하며 계속 편집, Esc 끝 |
+| Delete | 고른 셀 비우기 | |
+| Ctrl+C / Ctrl+V | 탭 구분 글로 복사 / 붙여넣기(Excel 호환 - 0.22.14 의 탭 구분 읽기 재사용) | 붙여넣는 범위가 표를 넘으면 행·열 자동 추가 |
+| 서식 줄(셀 선택 시) | 🪣 채우기 · A 글자색 · B 굵게 · 정렬 3 · ▢ 테두리(변 고르기) · ⊞ 병합/풀기 · ＋행 위/아래 · ＋열 왼쪽/오른쪽 · －행 · －열 | 지금 서식 줄의 "표" 묶음을 셀 선택이면 이것으로 바꾼다 |
+| 속성 탭 | 고른 셀의 속성(채움·색·굵게·정렬·세로·글꼴·크기·여백·테두리) | 좌표 입력 칸은 "고급"으로 내린다 |
+
+이 단계는 **데이터 모델을 바꾸지 않고** 구현할 수 있다 - 서식 줄이 쓰는 곳은 기존 `cellFill`·`borders`·`merge` 에 더해 셀별 글자 속성용 희소 맵 하나(`cellStyle: {"r,c": {color, bold, align, font, size, valign}}`)면 된다. 다만 좌표 목록이 셋 이상 겹쳐 쌓이므로 바로 3절의 모델로 가는 편이 깨끗하다.
+
+## 3. PowerPoint 식 중첩 모델 - 제안
+
+PowerPoint 의 표는 `a:tbl`(표 속성·`a:gridCol` 열 폭) → `a:tr`(행 높이) → `a:tc`(gridSpan·rowSpan·hMerge·vMerge, `a:tcPr` 채움·테두리·여백·세로 정렬, `a:txBody` 단락·run)이다. 이것을 덱 JSON 으로 옮기되, **지금 쓰는 간결형(`rows: string[][]`)은 그대로 받아들이고 서로 변환**한다.
+
+```json
+{ "type": "table", "x": 64, "y": 184, "w": 640, "h": 160,
+  "cols": [{ "w": 2, "font": "mono", "align": "right" }, { "w": 1 }],          // 열 기본값(폭 비율·글꼴·정렬) - 지금의 colW·colFont·align 을 합친 것
+  "rows": [
+    { "h": 44, "header": true, "cells": ["항목", "값"] },                       // 행 객체: 높이·머리 여부·채움 등 행 기본값 + 셀 배열
+    ["매출", "10"],                                                           // 간결형 행(문자열 배열)도 그대로 허용
+    { "cells": [ { "v": "합계", "bold": true, "fill": "primary-container", "bd": { "T": ["primary", 2] } },
+                 { "v": "15", "align": "right", "color": "primary", "size": 18, "valign": "bottom", "pad": [0, 14, 0, 14] } ] }
+  ],
+  "merge": [[0, 0, 1, 2]],                                                  // 병합은 지금 형식 유지(셀 `span: [rs, cs]` 로도 쓸 수 있게 받음)
+  "style": { "headFill": "surface-container-high", "headColor": "on-surface", "rule": "surface-container-high", "gridLines": false, "size": 16, "font": "body" }  // 표 기본값(지금의 표 단위 필드 - 평평하게 둬도 같은 뜻)
+}
+```
+
+- **셀 값**은 `v`(문자열 - 지금과 같은 인라인 표기 지원), **셀 속성**은 `fill color bold italic align valign font size pad bd span`. 행 객체는 `h header fill color bold font size` 기본값, 열 객체는 `w font align`. 우선순위: 셀 > 행 > 열 > 표 > 템플릿 기본(머리 행은 `header` 행 기본값으로 표현되므로 `headFill`·`headColor` 는 "header 행의 기본 fill·color" 로 흡수).
+- **정규화 한 곳**: `common.norm_table(el)` ↔ `render.normTable(el)` 이 간결형·혼합형을 모두 완전형(행 객체·셀 객체)으로 펴고, `table_grid`/`tableGrid` 는 완전형만 받는다(동일성 검사 대상). `cellFill`·`borders`·`colFont`·`colW`·`rowH`·`align` 같은 **지금 필드는 정규화에서 흡수**(= 하위 호환, 문서는 "옛 형식"으로 표기).
+- **되돌려 쓰기**: 편집기가 저장할 때 `compact_table` 이 "속성이 하나도 없는 행은 문자열 배열, 속성 없는 셀은 문자열"로 줄인다. 그래서 세션이 글로 쓴 표, 레이아웃이 만든 표, 번역·찾기/바꾸기가 다루는 표는 지금과 같은 모양을 유지하고, 사용자가 셀 서식을 넣은 곳만 객체가 된다.
+- **PPTX**: `do_table` 은 완전형 셀의 `fill`·`bd`·`pad`·`valign`·run(색·굵게·크기·글꼴)을 그대로 `a:tcPr`·`a:rPr` 로. `import_pptx` 는 거꾸로 `a:tcPr` 채움·테두리·병합·run 서식을 셀 객체로 읽어 **PowerPoint 표의 서식이 덱으로 들어온다**(지금은 글만).
+- **세션 규약**: `docs/claude-session.md`·작업 공간 `CLAUDE.md` 에 "표는 간결형으로 쓰고, 셀 서식은 셀 객체 `{v, …}` 로만" 한 줄.
+
+## 4. 단계·비용(의견)
+
+| 단계 | 내용 | 크기 | 산출 |
+|---|---|---|---|
+| P1 셀 선택·편집 | 2절 전부(클릭·끌기·Shift/Ctrl·행/열 띠·셀 단위 두 번 클릭·Tab 이동·Delete·탭 구분 복사/붙여넣기·셀 서식 줄). 데이터는 기존 덧씌우기 + `cellStyle` 희소 맵 | M~L (1~2일) | 시나리오 `tblcell_test`, `docs/editor.md` |
+| P2 중첩 모델 | 3절 - 정규화·되돌려 쓰기·두 렌더러 리졸버·`check_parity` 예제·`export_pptx`·`import_pptx` 서식 읽기·`deck-format.md`·세션 규약. P1 의 `cellStyle` 을 셀 객체로 흡수 | L (2~3일) | `tablemodel_test`(간결형↔완전형 왕복, 우선순위, PPTX XML) |
+| P3 마무리 | 열 경계 끌어 폭 조절, 행 높이 자동 맞춤(글 양), 셀 분할, 행·열 위치 지정 삽입·이동, 표 스타일(줄무늬 한 번에) | M (1~2일) | |
+
+P1 을 먼저 하면 셀 서식 UX 가 바로 좋아지고, P2 는 그 위에서 데이터 표현만 정리한다. P2 를 먼저 하면 P1 의 저장 코드가 한 번에 깨끗해진다 - **P2 → P1 순서**가 작업량은 조금 적다(희소 맵을 안 거침). 어느 쪽이든 합계 4~6일.
+
+## 5. 위험·확인할 것
+
+- **두 렌더러 동일성**: 리졸버를 두 언어로 똑같이 유지해야 한다(지금도 그렇다) - `check_parity` 에 완전형·혼합형·우선순위 예제를 넣어 잡는다.
+- **세션·번역·찾기**: 간결형을 유지하므로 영향 없음. 셀 객체의 `v` 는 `content_i18n.tr` 가 문자열이면 번역하므로 그대로 되고, `textSlots`(찾기/바꾸기)만 `v` 를 읽도록 한 줄 추가.
+- **check_layout 표 높이**: 셀 크기·여백이 셀마다 달라지면 행 높이 추정(`row_heights`)이 셀 최대값을 봐야 한다.
+- **옛 덱**: 정규화가 옛 필드를 흡수하므로 그대로 열린다. 저장 때 되돌려 쓰기는 옛 필드(`cellFill` 등)를 셀 객체로 바꿔 쓰므로, 한 번 저장한 뒤의 파일은 새 모양이 된다(변경 원장에 남는다).
+- **PowerPoint 와 다른 점**: 셀 안 여러 단락·단락별 정렬은 넣지 않는다(셀 값은 줄바꿈 가능한 글 하나). 대각선·셀 3D 는 제외.
+
+결정하면 엔진 요청으로 등록해 P1·P2 순서를 정하고 진행한다.

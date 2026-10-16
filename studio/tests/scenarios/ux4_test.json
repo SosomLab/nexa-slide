@@ -1,0 +1,31 @@
+{
+ "base": "http://127.0.0.1:5667",
+ "pages": [
+  {
+   "url": "/studio/#fxtest/1",
+   "wait": 2500,
+   "steps": [
+    {
+     "name": "덱 탭 - 긴 제목은 20em 에서 말줄임(CSS) · 스크롤바 없음",
+     "js": "const b=document.querySelector('#deckTabs button[data-deck]'); const cs=getComputedStyle(b); const t=getComputedStyle(document.querySelector('#deckTabs')); return cs.textOverflow==='ellipsis' && cs.maxWidth.endsWith('px') && parseFloat(cs.maxWidth)>200 && t.scrollbarWidth==='none' ? true : 'overflow='+cs.textOverflow+' max='+cs.maxWidth+' sb='+t.scrollbarWidth"
+    },
+    {
+     "name": "☰ 덱 목록 - 덱마다 항목 · 지금 덱 ✓ · 맨 아래 새 덱",
+     "js": "document.querySelector('#deckList').click(); await new Promise(r=>setTimeout(r,200)); const items=[...document.querySelectorAll('.menu button')].map(x=>x.textContent.trim()); const n=document.querySelectorAll('#deckTabs button[data-deck]').length; const ok=items.filter(x=>!x.startsWith('새 덱')).length===n && items.some(x=>x.startsWith('✓')) && items[items.length-1]==='새 덱'; document.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true})); document.querySelectorAll('.menu').forEach(m=>m.remove()); return ok ? true : JSON.stringify(items).slice(0,200)"
+    },
+    {
+     "name": "☰ 목록에서 다른 덱 고르면 이동",
+     "js": "const cur=document.querySelector('#deckTabs button.on').dataset.deck; document.querySelector('#deckList').click(); await new Promise(r=>setTimeout(r,200)); const it=[...document.querySelectorAll('.menu button')].find(x=>!x.textContent.trim().startsWith('✓') && !x.textContent.trim().startsWith('새 덱')); if(!it) return 'no other deck'; it.click(); await new Promise(r=>setTimeout(r,1200)); const now=document.querySelector('#deckTabs button.on').dataset.deck; return now!==cur ? true : 'same deck'"
+    },
+    {
+     "name": "덱 탭 오른쪽 클릭 - 새 덱 · 제목 바꾸기 · 복제 · 덱 삭제(휴지통) (줄임표 없음)",
+     "js": "const b=document.querySelector('#deckTabs button[data-deck]'); const r=b.getBoundingClientRect(); b.dispatchEvent(new MouseEvent('contextmenu',{bubbles:true,clientX:r.left+5,clientY:r.top+5})); await new Promise(r2=>setTimeout(r2,200)); const items=[...document.querySelectorAll('.menu button')].map(x=>x.textContent.trim()); document.querySelectorAll('.menu').forEach(m=>m.remove()); const need=['새 덱','제목 바꾸기','복제','덱 삭제(휴지통)']; const miss=need.filter(k=>!items.includes(k)); const dots=items.filter(x=>x.includes('…')); return !miss.length && !dots.length ? true : 'miss='+miss+' dots='+dots"
+    },
+    {
+     "name": "썸네일·요소 메뉴·내보내기 메뉴에 줄임표 없음",
+     "js": "const t=document.querySelectorAll('#left .thumb')[0]; const r=t.getBoundingClientRect(); t.dispatchEvent(new MouseEvent('contextmenu',{bubbles:true,clientX:r.left+40,clientY:r.top+40})); await new Promise(r2=>setTimeout(r2,200)); let items=[...document.querySelectorAll('.menu button')].map(x=>x.textContent.trim()); document.querySelectorAll('.menu').forEach(m=>m.remove()); document.querySelector('#exportBtn').click(); await new Promise(r2=>setTimeout(r2,200)); items=items.concat([...document.querySelectorAll('.menu button')].map(x=>x.textContent.trim())); document.querySelectorAll('.menu').forEach(m=>m.remove()); const dots=items.filter(x=>x.includes('…')); return !dots.length && items.some(x=>x.startsWith('유형 바꾸기')) ? true : 'dots='+dots"
+    }
+   ]
+  }
+ ]
+}
