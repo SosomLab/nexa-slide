@@ -31,6 +31,7 @@ TESTS = [  # (이름, 실행, 설명, claude 필요)
     ("content_i18n", [sys.executable, "content_i18n_test.py"], "견본 내용 언어(content_i18n) - layout_samples --lang en · /api/slidetypes?lang=en · tr()", False),
     ("runs", [sys.executable, "runs_test.py"], "인라인 강조 겹치기(runs) - Python·render.js 같은 결과", False),
     ("effect", [sys.executable, "effect_test.py"], "그림 프레임 효과(effect·effectLevel) - PPTX XML(softEdge·glow·roundRect·ellipse·테두리)·render.js CSS", False),
+    ("docstruct", [sys.executable, "docstruct_test.py"], "문서 구조·마무리(0.22.11) - 숨김·섹션·문서 속성·테두리 점선·액자 색·SVG·글 표기(취소선·첨자·형광펜·글자 링크) PPTX XML·render.js", False),
     ("race", [sys.executable, "race_test.py"], "서버 시작 경쟁(잠금)", False),
     ("c4", [sys.executable, "c4_doc_test.py"], "웹 세션이 첨부 Word·Excel·PDF 를 읽어 답하는 실제 턴(claude · 표본 문서 NEXA_TEST_DOCS)", True),
     ("thread", [sys.executable, "thread_test.py"], "후속 요청(대화) 문맥·턴 프롬프트", False),

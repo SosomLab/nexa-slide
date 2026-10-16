@@ -100,7 +100,8 @@
   const font = (k) => { const fs = FO || (T && T.fonts), r = fontRole(k); return (fs && (fs[r] || fs.body) ? (fs[r] || fs.body).css : "'Malgun Gothic', sans-serif").replace(/"/g, "'"); };
 
   // ---------- 인라인 강조 ----------
-  const MARK = /\*\*(.+?)\*\*|==(.+?)==|\[\[([#\w-]+)\|(.+?)\]\]|__(.+?)__|(?<![\w*])\*([^*\s](?:[^*]*?[^*\s])?)\*(?![\w*])/g;  // **굵게** ==강조== [[색|글]] __밑줄__ *기울임*
+  const MARK = /\*\*(.+?)\*\*|==(.+?)==|\[\[([#\w-]+)\|(.+?)\]\]|__(.+?)__|(?<![\w*])\*([^*\s](?:[^*]*?[^*\s])?)\*(?![\w*])|~~(.+?)~~|\^\{(.+?)\}|_\{(.+?)\}|\[\[(?:link|url):(\S+?)\|(.+?)\]\]|\[\[bg:([#\w-]+)\|(.+?)\]\]/g;
+  // **굵게** ==강조== [[색|글]] __밑줄__ *기울임* ~~취소선~~ ^{위첨자} _{아래첨자} [[link:url|글]](글자 링크, #3 = 슬라이드) [[bg:색|글]](형광펜 배경) - common._MARK 와 같다
   function runs(text, page, base) {
     // 강조는 겹쳐 쓸 수 있다 - 안쪽 글을 다시 풀어 바깥 스타일과 합친다(예: [[s1|**굵은 색 글자**]], **[[s1|색]]**). common.runs 와 같은 규칙
     let s = String(text == null ? "" : text);
@@ -114,6 +115,11 @@
       else if (m[2] !== undefined) push(m[2], { bold: true, color: "primary" });
       else if (m[5] !== undefined) push(m[5], { underline: true });
       else if (m[6] !== undefined) push(m[6], { italic: true });
+      else if (m[7] !== undefined) push(m[7], { strike: true });
+      else if (m[8] !== undefined) push(m[8], { sup: true });
+      else if (m[9] !== undefined) push(m[9], { sub: true });
+      else if (m[11] !== undefined) push(m[11], { link: m[10] });
+      else if (m[13] !== undefined) push(m[13], { bg: m[12] });
       else push(m[4], { color: m[3] });
       pos = re.lastIndex;
     }
@@ -293,6 +299,27 @@
     const tot = r.reduce((a, b) => a + b, 0);
     return r.map((v) => (el.h * v) / tot);
   }
+  /** 셀 좌표 - null·'*'·'' = 그 줄 전체, 그 밖은 정수. 못 읽으면 false (common._tidx 와 같다) */
+  const tidx = (v) => (v == null || v === "*" || v === "" ? null : isNaN(parseInt(v, 10)) ? false : parseInt(v, 10));
+  /** 셀별 채움·테두리(0.22.12) - common.table_cell_styles 와 같은 규칙. cellFill [[행,열,색]] · gridLines(격자) · borders [[행,열,변,색?,두께?]] → cells[r][c].fill / .bd = {T|B|L|R: [색, 두께]} */
+  function tableCellStyles(el, cells, nc) {
+    const nr = cells.length;
+    for (const f of el.cellFill || []) {
+      if (!Array.isArray(f) || f.length < 3) continue;
+      const r = tidx(f[0]), c = tidx(f[1]), col = f[2];
+      if (r === false || c === false || !col) continue;
+      for (let i = 0; i < nr; i++) { if (r != null && i !== r) continue; for (let j = 0; j < nc; j++) if (c == null || j === c) cells[i][j].fill = col; }
+    }
+    const rule = el.rule || "surface-container-high", bds = new Map();
+    if (el.gridLines) for (let i = 0; i < nr; i++) for (let j = 0; j < nc; j++) { const d = { B: [rule, 1], R: [rule, 1] }; if (i === 0) d.T = [rule, 1]; if (j === 0) d.L = [rule, 1]; bds.set(`${i},${j}`, d); }
+    for (const b of el.borders || []) {
+      if (!Array.isArray(b) || b.length < 3) continue;
+      const r = tidx(b[0]), c = tidx(b[1]), sides = String(b[2] || "").toUpperCase(), col = b.length > 3 && b[3] ? b[3] : rule, w = b.length > 4 && b[4] != null && b[4] !== "" && !isNaN(+b[4]) ? +b[4] : 1;
+      if (r === false || c === false || !sides) continue;
+      for (let i = 0; i < nr; i++) { if (r != null && i !== r) continue; for (let j = 0; j < nc; j++) { if (c != null && j !== c) continue; const k = `${i},${j}`; const d = bds.get(k) || {}; for (const sd of sides) if ("TBLR".includes(sd)) d[sd] = [col, w]; bds.set(k, d); } }
+    }
+    for (const [k, d] of bds) { if (Object.keys(d).length) { const [i, j] = k.split(",").map(Number); cells[i][j].bd = d; } }
+  }
   function tableGrid(el) {
     const isPlan = el.type === "plan-table";
     let cols, n, tw, cw = 0, body = [];
@@ -348,6 +375,7 @@
         })));
       });
     }
+    tableCellStyles(el, cells, nc);
     const callouts = [];
     if (isPlan && cw) {
       const size = el.size || 15;
@@ -443,7 +471,12 @@
       if (!t) return "";
       const c = st.color ? color(st.color) : base;
       const b = st.bold !== undefined ? st.bold : bold;
-      return `<span style="color:${c};font-weight:${b ? 700 : 400}${st.italic ? ";font-style:italic" : ""}${st.underline ? ";text-decoration:underline" : ""}">${esc(t)}</span>`;
+      const deco = [st.underline || st.link ? "underline" : "", st.strike ? "line-through" : ""].filter(Boolean).join(" ");
+      // 위·아래 첨자: 글자 65%, 기준선에서 ±(PowerPoint baseline 30000/-25000 과 같은 모양) - 줄 높이는 바꾸지 않는다(line-height 0)
+      const pos = st.sup ? ";font-size:65%;line-height:0;position:relative;top:-0.45em" : st.sub ? ";font-size:65%;line-height:0;position:relative;top:0.2em" : "";
+      const bg = st.bg ? `;background:${color(st.bg)};border-radius:2px;padding:0 .08em;margin:0 -.08em` : "";
+      const span = `<span style="color:${c};font-weight:${b ? 700 : 400}${st.italic ? ";font-style:italic" : ""}${deco ? `;text-decoration:${deco}` : ""}${pos}${bg}">${esc(t)}</span>`;
+      return st.link ? `<a class="rs-a" data-link="${esc(String(st.link))}" style="color:inherit;text-decoration:none">${span}</a>` : span;  // href 없음 - 발표 화면의 [data-link] 처리기(followLink)가 이동(요소 링크와 같다), 편집 중 눌러도 안 움직인다
     }).join("");
   }
   function padOf(el, d) {
@@ -477,8 +510,19 @@
     else r = radius(el.radius, w, h) + "px";
     let s = `border-radius:${r};`;
     if (el.fill) s += `background:${fillCss(el.fill)};`;
-    if (el.stroke) s += `box-shadow:inset 0 0 0 ${el.strokeWidth || 1}px ${color(el.stroke)};`;
+    if (el.stroke && !dashArray(el.strokeDash, 1)) s += `box-shadow:inset 0 0 0 ${el.strokeWidth || 1}px ${color(el.stroke)};`;  // 점선·파선은 strokeDashSvg 가 그린다
     return s;
+  }
+  /** 선 모양 dash(solid·dash·dot) → SVG stroke-dasharray (선 요소 lineSvg 와 같은 간격, PPTX prstDash dash·sysDot) */
+  const dashArray = (d, w) => (d === "dot" ? `${w} ${w}` : d && d !== "solid" ? `${w * 4} ${w * 3}` : "");
+  /** 도형(rect·pill·ellipse·글 상자) 테두리의 점선·파선 - box-shadow 는 점선을 못 그려 안쪽 선 자리에 SVG 로 */
+  function strokeDashSvg(el, shape) {
+    const sw = +el.strokeWidth || 1, da = dashArray(el.strokeDash, sw);
+    if (!el.stroke || !da) return "";
+    const w = +el.w, h = +el.h, sc = color(el.stroke), hf = sw / 2;
+    const g = shape === "ellipse" ? `<ellipse cx="${R2(w / 2)}" cy="${R2(h / 2)}" rx="${R2(w / 2 - hf)}" ry="${R2(h / 2 - hf)}"`
+      : `<rect x="${R2(hf)}" y="${R2(hf)}" width="${R2(w - sw)}" height="${R2(h - sw)}" rx="${R2(Math.max(0, (shape === "pill" ? Math.min(w, h) / 2 : radius(el.radius, w, h)) - hf))}"`;
+    return `<svg class="rs-svg" style="left:0;top:0" width="${w}" height="${h}">${g} fill="none" stroke="${sc}" stroke-width="${sw}" stroke-dasharray="${da}"/></svg>`;
   }
 
   /** PowerPoint 기본 도형의 글 영역 들여넣기 - 타원 = 폭·높이 × 0.14645, 둥근 사각형·칩 = 반경 × 0.29289 (export_pptx.text_pad 와 같다). 글 상자(fill 없는 text)는 0 */
@@ -498,7 +542,7 @@
     const valign = el.valign || (t === "text" ? "top" : "middle");
     const o = { lh: (t === "text" ? 1.4 : 1.2), bold: t === "pill", align: t === "pill" || t === "ellipse" ? "center" : "left", wrap: t === "text" || t === "rect" };
     const hasText = el.text != null && String(el.text) !== "";
-    return `<div class="rs-box" style="${isShape ? boxStyle(el, shape) : ""}padding:${pt}px ${pr}px ${pb}px ${pl}px;justify-content:${JUST[valign]};font-family:${font(el.font)};font-size:${+el.size || 20}px">${hasText ? textLines(el, page, o) : ""}</div>`;
+    return `<div class="rs-box" style="${isShape ? boxStyle(el, shape) : ""}padding:${pt}px ${pr}px ${pb}px ${pl}px;justify-content:${JUST[valign]};font-family:${font(el.font)};font-size:${+el.size || 20}px">${hasText ? textLines(el, page, o) : ""}</div>${isShape ? strokeDashSvg(el, shape) : ""}`;
   }
 
 
@@ -546,8 +590,8 @@
     let html = `<div class="rs-shp" style="position:absolute;left:0;top:0;width:${w}px;height:${R2(h * (1 + over))}px;background:${fill};clip-path:path('${d}')"></div>`;
     for (const f of faces) html += `<div class="rs-shp" style="position:absolute;left:0;top:0;width:${w}px;height:${h}px;background:linear-gradient(${f.tint},${f.tint}),${fill};clip-path:path('${f.d}')"></div>`;
     if (el.stroke) {
-      const sw = +el.strokeWidth || 1, sc = color(el.stroke);
-      html += `<svg style="position:absolute;left:0;top:0;overflow:visible" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}"><path d="${d}" fill="none" stroke="${sc}" stroke-width="${sw}" stroke-linejoin="round"/>${faces.map((f) => `<path d="${f.d}" fill="none" stroke="${sc}" stroke-width="${sw}" stroke-linejoin="round"/>`).join("")}</svg>`;
+      const sw = +el.strokeWidth || 1, sc = color(el.stroke), da = dashArray(el.strokeDash, sw), dd = da ? ` stroke-dasharray="${da}"` : "";
+      html += `<svg style="position:absolute;left:0;top:0;overflow:visible" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}"><path d="${d}" fill="none" stroke="${sc}" stroke-width="${sw}" stroke-linejoin="round"${dd}/>${faces.map((f) => `<path d="${f.d}" fill="none" stroke="${sc}" stroke-width="${sw}" stroke-linejoin="round"${dd}/>`).join("")}</svg>`;
     }
     const hasText = el.text != null && String(el.text) !== "";
     if (hasText) {
@@ -680,7 +724,7 @@
     if (e === "softEdge") return `-webkit-mask-image:linear-gradient(to right,transparent,#000 ${px}px,#000 calc(100% - ${px}px),transparent),linear-gradient(to bottom,transparent,#000 ${px}px,#000 calc(100% - ${px}px),transparent);-webkit-mask-composite:source-in;mask-image:linear-gradient(to right,transparent,#000 ${px}px,#000 calc(100% - ${px}px),transparent),linear-gradient(to bottom,transparent,#000 ${px}px,#000 calc(100% - ${px}px),transparent);mask-composite:intersect;`;
     if (e === "round") return `border-radius:${px}px;overflow:hidden;`;
     if (e === "circle") return "border-radius:50%;overflow:hidden;";
-    if (e === "frame") return `border:${px}px solid #fff;box-sizing:border-box;box-shadow:0 2px 6px rgba(0,0,0,.3);overflow:hidden;`;
+    if (e === "frame") return `border:${+el.frameWidth || px}px solid ${el.frameColor ? color(el.frameColor) : "#fff"};box-sizing:border-box;box-shadow:0 2px 6px rgba(0,0,0,.3);overflow:hidden;`;  // 액자 - 두께 frameWidth(기본 = 수준)·색 frameColor(기본 흰색)
     if (e === "glow") { const c = color(el.effectColor || "primary"); return `box-shadow:0 0 ${px}px ${Math.round(px / 2)}px ${c}99;`; }
     return "";
   }
@@ -752,36 +796,6 @@
     }
     return { span, skip };
   }
-  /** 표 merge → {span: Map("r,c" → [rows, cols]), skip: Set("r,c")} (common.table_merges 와 같은 규칙) */
-  function tableMerges(el, nr, nc) {
-    const span = new Map(), skip = new Set();
-    for (const m of el.merge || []) {
-      if (!Array.isArray(m) || m.length < 4) continue;
-      let [r, c, rs, cs] = m.map((v) => parseInt(v, 10));
-      if ([r, c, rs, cs].some((v) => isNaN(v)) || r < 0 || c < 0 || r >= nr || c >= nc) continue;
-      rs = Math.max(1, Math.min(rs, nr - r)); cs = Math.max(1, Math.min(cs, nc - c));
-      if (rs === 1 && cs === 1) continue;
-      const cells = []; for (let i = 0; i < rs; i++) for (let j = 0; j < cs; j++) cells.push(`${r + i},${c + j}`);
-      if (cells.some((k) => skip.has(k) || span.has(k))) continue;
-      span.set(`${r},${c}`, [rs, cs]); cells.slice(1).forEach((k) => skip.add(k));
-    }
-    return { span, skip };
-  }
-  /** 표 merge → {span: Map("r,c" → [rows, cols]), skip: Set("r,c")} (common.table_merges 와 같은 규칙) */
-  function tableMerges(el, nr, nc) {
-    const span = new Map(), skip = new Set();
-    for (const m of el.merge || []) {
-      if (!Array.isArray(m) || m.length < 4) continue;
-      let [r, c, rs, cs] = m.map((v) => parseInt(v, 10));
-      if ([r, c, rs, cs].some((v) => isNaN(v)) || r < 0 || c < 0 || r >= nr || c >= nc) continue;
-      rs = Math.max(1, Math.min(rs, nr - r)); cs = Math.max(1, Math.min(cs, nc - c));
-      if (rs === 1 && cs === 1) continue;
-      const cells = []; for (let i = 0; i < rs; i++) for (let j = 0; j < cs; j++) cells.push(`${r + i},${c + j}`);
-      if (cells.some((k) => skip.has(k) || span.has(k))) continue;
-      span.set(`${r},${c}`, [rs, cs]); cells.slice(1).forEach((k) => skip.add(k));
-    }
-    return { span, skip };
-  }
   function elTable(el, page) {
     const g = tableGrid(el);
     let html = "", y = 0;
@@ -793,7 +807,9 @@
         const sp = mg.span.get(`${i},${j}`);
         if (mg.skip.has(`${i},${j}`)) { x += g.colW[j]; return; }  // 병합에 덮인 셀
         const w = sp ? g.colW.slice(j, j + sp[1]).reduce((a, b) => a + b, 0) : g.colW[j], h = sp ? g.rowH.slice(i, i + sp[0]).reduce((a, b) => a + b, 0) : g.rowH[i];
-        const bb = isHead ? "" : `border-bottom:1px solid ${color(g.rule)};`;
+        const bd = c.bd || {}, SIDE = { T: "top", B: "bottom", L: "left", R: "right" };
+        const side = (k, dflt) => { const v = bd[k] || dflt; return v ? `border-${SIDE[k]}:${v[1]}px solid ${color(v[0])};` : ""; };
+        const bb = side("T") + side("B", isHead ? null : [g.rule, 1]) + side("L") + side("R");  // 기본 = 본문 행 아래 선(rule), 셀별 bd 가 덮어씀(export_pptx.do_table 과 같다)
         html += `<div class="rs-cell" style="left:${x}px;top:${y}px;width:${w}px;height:${h}px;${c.fill ? `background:${color(c.fill)};` : ""}${bb}justify-content:${HJUST[c.align] || "flex-start"};font-family:${font(c.font)};font-size:${size}px;line-height:${size * 1.4}px;text-align:${c.align}">` +
           `<div class="rs-ct" style="position:relative;top:${shift(c.font, size, 1.4)}px">${spanRuns(c.text, page, color(c.color), c.bold) || "&#8203;"}</div></div>`;
         x += g.colW[j];

@@ -39,6 +39,7 @@ def fixture():
     decks = {
         "numtest": {"title": "번호", "slides": [{"id": "s1", "elements": [{"id": "e01", "type": "text", "x": 60, "y": 40, "w": 600, "h": 40, "text": "제목", "size": 24}, {"id": "e02", "type": "bullets", "x": 60, "y": 120, "w": 560, "h": 300, "size": 20, "items": ["1. 첫째", "2. 둘째"]}]}]},
         "tbltest": {"title": "표·글머리", "slides": [{"id": "s1", "elements": [{"id": "e01", "type": "table", "x": 60, "y": 60, "w": 500, "h": 100, "rows": [["열 1", "열 2"], ["값", "값"]], "colW": [1, 1], "size": 16}, {"id": "e02", "type": "bullets", "x": 60, "y": 300, "w": 500, "h": 200, "size": 20, "items": ["1. 첫째", "2. 둘째"]}]}]},
+        "grptest": {"title": "묶음", "slides": [{"id": "s1", "elements": [{"id": "e01", "type": "text", "x": 60, "y": 60, "w": 400, "h": 60, "text": "글", "size": 20}, {"id": "e02", "type": "rect", "x": 60, "y": 200, "w": 300, "h": 100, "fill": "surface-container"}]}]},
         "shapetest": {"title": "도형", "slides": [{"id": "s1", "elements": [{"id": f"e{i + 1:02d}", "type": "shape", "shape": n, "x": 40 + (i % 7) * 170, "y": 40 + (i // 7) * 200, "w": 150, "h": 110, "text": "가", "size": 14, "fill": "primary-container"} for i, n in enumerate(SHAPES)]}]},
         "fxtest": {"title": "효과", "slides": [{"id": "s1", "elements": [
             {"id": "e01", "type": "text", "x": 60, "y": 30, "w": 1100, "h": 40, "text": "효과", "size": 22},

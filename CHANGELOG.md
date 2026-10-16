@@ -1,5 +1,20 @@
 # 변경 이력
 
+## 0.22.12 - 2026-10-16 · 표 셀별 채움·테두리·격자
+
+- 표 `cellFill`(셀·행·열 바탕색) · `borders`(셀·행·열의 변별 선 - 색·두께) · `gridLines`(모든 칸 격자) - `common.table_cell_styles` ↔ `render.tableCellStyles`(`check_parity` 표 예제 2개 추가), PPTX 셀 채움·`a:lnT/B/L/R`. 편집기 표 속성에 "셀 채움"·"셀 테두리"(`행,열,…; …`, `*` = 줄 전체)·"격자" 칸. 상태 표·합계 행(위 굵은 선)·열 구분선용. `docstruct_test` 에 표 확인 추가.
+- 정리: `common.table_merges`·`render.tableMerges` 가 세 번 정의돼 있던 것을 하나로.
+
+## 0.22.11 - 2026-10-16 · 글 표기 4종 · 숨김 슬라이드·구분(섹션)·문서 속성 · 테두리 점선·액자 색 · SVG 그림 PPTX
+
+PowerPoint 미구현 기능 목록(`docs/dev/pptx-feature-gap.md`)의 "후보" 중 글 표기·문서 구조·도형·그림 묶음(사용자 "진행" 지시). 편집기(`render.js`)·PPTX(`common.py`·`export_pptx.py`) 같은 규칙, `runs_test`·`check_parity`·새 시험 `docstruct_test`.
+
+- **인라인 표기**(text·pill·rect·ellipse·shape·표 셀·글머리): `~~취소선~~`(PPTX `strike`), `^{위첨자}`·`_{아래첨자}`(글자 65%, `baseline` ±), `[[bg:토큰|형광펜]]`(글자 배경 = run 강조색 `a:highlight`), `[[link:https://…|글]]`·`[[link:#3|글]]`·`[[link:#s07|글]]`(글자 단위 링크 - 밑줄, 글자색 유지 `hlinkClr`(Office 2019+), 발표 화면에서 누르면 이동). 겹쳐 쓸 수 있다. 속성 탭 힌트·사전 갱신.
+- **숨김 슬라이드** `hidden`: 속성 탭(슬라이드) 스위치, 썸네일 배지, 발표·인쇄·PDF 건너뜀(`pStep`), PPTX `show="0"`. **구분(섹션)** `section`: 속성 탭 입력, 장 표지(`chapter`) 레이아웃은 제목으로 자동 → PPTX `p14:sectionLst`. **문서 속성**: 제목 = 덱 제목, 작성자 = 작업 공간 `author`(없으면 `brand.name`).
+- **도형 테두리 점선·파선** `strokeDash`(rect·ellipse·pill·text·shape; 속성 "테두리 선" 두께·실선/파선/점선) - 편집기는 SVG 점선, PPTX `prstDash`. **액자 색·두께** `frameColor`·`frameWidth`(그림 `frame` 효과, 속성에 테두리 색·px).
+- **SVG 그림 내보내기**: 지금까지 `add_picture` 가 SVG 를 읽지 못해 실패했다(결함) → PowerPoint 2016+ `asvg:svgBlip` 으로 넣고 대체 PNG(옆 같은 이름 `.png`, 없으면 1×1 투명).
+- 표·차트는 묶기(Ctrl+G) 대상에서 막고 안내한다(PPTX 묶음에 넣지 못해 조용히 빠지던 것).
+
 ## 0.22.10 - 2026-10-16 · 시작용 내용 24종 영어 번역 · 슬라이드 유형 `when` 영어 · PPTX 미구현 기능 목록
 
 - **시작용 내용 번역본**: `studio/i18n/content.en.starters1~3.json`(시작용 내용 24종의 글 1,251개 - 보고·제안·RFP·회고·온보딩·강의 교안 등). `content_i18n.load_map` 이 `content.<lang>.json` 과 `content.<lang>.*.json` 을 합쳐 쓰므로 `init_workspace --starter … --lang en` 과 시작 페이지 미리 보기·**새로 만들기**(영어 표시일 때 `lang` → `--lang en`)가 번역본 폴더(`content.en/`) 없이도 사전으로 번역해 복사한다(번역본 폴더가 있으면 그것이 우선). 시험 `content_i18n_test` 에 "26개 파일 한글 없음"·`init_workspace --lang en` 확인 추가.

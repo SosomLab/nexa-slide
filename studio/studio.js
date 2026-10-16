@@ -380,7 +380,7 @@
     return `<div class="thumb${i === S.cur ? " cur" : ""}" data-i="${i}" draggable="true"><span class="num">${i + 1}</span>
       <div class="vp">${Render.renderSlide(s, i + 1)}</div>
       <div class="tools"><button data-act="dup" title="복제">복제</button><button data-act="del" title="삭제">삭제</button></div>
-      <div class="badges">${dr ? `<span class="bd draft" title="보내지 않은 요청 메모">✎ ${dr}</span>` : ""}${op ? `<span class="bd req" title="세션에 보낸 요청(대기)">요청${op}</span>` : ""}${wk ? `<span class="bd work" title="세션 처리 중">처리${wk}</span>` : ""}${chgOf(s.id) ? `<span class="bd chg" title="내 편집이 아닌 변경이 있는 슬라이드 - 변경 탭">변경${chgOf(s.id).size || ""}</span>` : ""}${chkBadge(s.id)}</div></div>`;
+      <div class="badges">${s.hidden ? `<span class="bd hid" title="숨김 슬라이드 - 발표·인쇄에서 건너뜀">숨김</span>` : ""}${dr ? `<span class="bd draft" title="보내지 않은 요청 메모">✎ ${dr}</span>` : ""}${op ? `<span class="bd req" title="세션에 보낸 요청(대기)">요청${op}</span>` : ""}${wk ? `<span class="bd work" title="세션 처리 중">처리${wk}</span>` : ""}${chgOf(s.id) ? `<span class="bd chg" title="내 편집이 아닌 변경이 있는 슬라이드 - 변경 탭">변경${chgOf(s.id).size || ""}</span>` : ""}${chkBadge(s.id)}</div></div>`;
   }
   function chkBadge(sid) {
     if (!S.check) return "";
@@ -451,6 +451,7 @@
     const s = slide(); if (!s) return;
     const els = selEls().filter((x) => !x.locked && x.type !== "group");
     if (els.length < 2) { toast("잠기지 않은 요소를 2개 이상 고르세요(묶음은 다시 묶지 않습니다)"); return; }
+    if (els.some((x) => ["table", "plan-table", "chart"].includes(x.type))) { toast("표·차트는 묶을 수 없습니다 - PPTX 묶음에 넣지 못합니다"); return; }
     const bs = els.map(boxOf), x = Math.min(...bs.map((b) => b.x)), y = Math.min(...bs.map((b) => b.y)), w = Math.max(...bs.map((b) => b.x + b.w)) - x, h = Math.max(...bs.map((b) => b.y + b.h)) - y;
     snapshot();
     const kids = els.map((el) => { const c = clone(el); if (isLine(c)) { c.x1 -= x; c.x2 -= x; c.y1 -= y; c.y2 -= y; Object.assign(c, Render.lineBox(c)); } else { c.x -= x; c.y -= y; } return c; });
@@ -1157,6 +1158,8 @@ ${names}
         <div class="row"><label>배경</label><select class="colorSel" data-slide="bg">${colorOptions(s.bg || "surface")}</select></div>
         ${fontSetRow("글꼴 세트", 'data-slide="fontPreset"', s.fontPreset, `(덱 기본${S.deck.fontPreset ? ` - ${esc(S.deck.fontPreset)}` : ""})`, S.deck.fontPreset || (S.fonts && S.fonts.current), "이 슬라이드만")}
         ${fontSetRow("덱 글꼴 세트", 'data-deckfont="1"', S.deck.fontPreset, `(작업 공간 - ${esc((S.fonts && S.fonts.current) || "기본")})`, S.fonts && S.fonts.current, "덱 전체")}
+        <div class="row"><label>구분(섹션)</label><input type="text" data-slide="section" value="${esc(s.section || "")}" placeholder="${s.layout === "chapter" ? "장 표지 - 제목으로 자동" : "(없음)"}" title="PPTX 구분(섹션) 이름 - 이 슬라이드부터 새 구분이 시작된다. 장 표지(chapter) 레이아웃은 비워도 제목으로 자동"></div>
+        <div class="row"><label class="switch" title="발표·인쇄·PDF 에서 건너뛰고 PPTX 에서는 숨김 슬라이드가 된다"><input type="checkbox" data-slide="hidden" ${s.hidden ? "checked" : ""}><span class="track"></span>숨김 슬라이드</label></div>
         <div class="hint">요소를 누르면 위 서식 줄과 여기서 고칠 수 있다. 색은 토큰 이름으로 고른다(색의 의미 유지).</div></div>${list}`;
       return;
     }
@@ -1169,7 +1172,7 @@ ${names}
       ${!isLine(el) && !["table", "plan-table", "bullets", "code", "plan"].includes(el.type) ? `<div class="row" style="margin-top:6px"><label>회전(°)</label><input type="number" step="1" data-k="rot" value="${el.rot || 0}" title="시계 방향, 중심 기준 - PPT 와 같다" style="width:70px"><button class="chip sm${el.flipH ? " on" : ""}" data-flip="H" title="좌우 뒤집기">⇋ 좌우</button><button class="chip sm${el.flipV ? " on" : ""}" data-flip="V" title="상하 뒤집기">⇅ 상하</button></div>` : ""}
       <h3 style="margin-top:10px">순서</h3><div class="zrow"><button class="pbtn" data-z="back" title="맨 뒤로 보내기 (Alt+Ctrl+[)">⇊ 맨 뒤</button><button class="pbtn" data-z="bwd" title="뒤로 보내기 (Ctrl+[)">↓ 뒤로</button><button class="pbtn" data-z="fwd" title="앞으로 가져오기 (Ctrl+])">↑ 앞으로</button><button class="pbtn" data-z="front" title="맨 앞으로 가져오기 (Alt+Ctrl+])">⇈ 맨 앞</button></div></div>`;
     if (TEXTY.has(el.type)) {
-      h += `${el.type === "text" ? `<div class="row" style="margin:0 0 6px"><button class="chip sm" data-conv="bullets" title="줄마다 항목인 글머리 목록으로 바꿉니다(앞에 공백 두 칸 = 하위 항목, 글 앞의 번호·기호는 자동 감지)">≡ 글머리 목록으로 바꾸기</button></div>` : ""}<div class="sec"><h3>글자 <span class="hint" title="인라인 강조 표기">**굵게** · ==강조== · [[토큰|색]] · {page}</span></h3><textarea data-k="text" style="min-height:70px;font-family:var(--font);font-size:13px">${esc(el.text || "")}</textarea>
+      h += `${el.type === "text" ? `<div class="row" style="margin:0 0 6px"><button class="chip sm" data-conv="bullets" title="줄마다 항목인 글머리 목록으로 바꿉니다(앞에 공백 두 칸 = 하위 항목, 글 앞의 번호·기호는 자동 감지)">≡ 글머리 목록으로 바꾸기</button></div>` : ""}<div class="sec"><h3>글자 <span class="hint" title="인라인 강조 표기 - 겹쳐 쓸 수 있다. __밑줄__ · *기울임* · [[link:#3|글]] 은 슬라이드 링크">**굵게** · ==강조== · [[토큰|색]] · ~~취소~~ · ^{위}_{아래} · [[bg:토큰|형광]] · [[link:url|글]] · {page}</span></h3><textarea data-k="text" style="min-height:70px;font-family:var(--font);font-size:13px">${esc(el.text || "")}</textarea>
         <div class="row"><label>크기</label><input type="number" step="1" data-k="size" value="${el.size == null ? "" : el.size}" title="px (PPT = px × 0.75 pt)"><span class="hint" style="margin:0">px</span><span class="seg" data-k="bold" style="margin-left:auto"><button data-v="0" class="${(el.bold === undefined ? el.type === "pill" : el.bold) ? "" : "on"}">보통</button><button data-v="1" class="${(el.bold === undefined ? el.type === "pill" : el.bold) ? "on" : ""}" style="font-weight:700">굵게</button></span></div>
         ${seg("정렬", "align", el, [["left", "⇤ 왼쪽"], ["center", "↔ 가운데"], ["right", "⇥ 오른쪽"]], el.type === "pill" || el.type === "ellipse" ? "center" : "left")}
         ${seg("세로", "valign", el, [["top", "⤒ 위"], ["middle", "↕ 가운데"], ["bottom", "⤓ 아래"]], el.type === "text" ? "top" : "middle")}
@@ -1180,7 +1183,7 @@ ${names}
     if (["rect", "ellipse", "pill", "text", "plan", "shape"].includes(el.type)) {
       h += `<div class="sec"><h3>면·테두리</h3>${colorRow("채우기", "fill", el, el.type === "text")}
         ${el.type !== "ellipse" && el.type !== "pill" && el.type !== "shape" ? `<div class="row"><label>모서리</label><select data-k="radius">${["", "r-s", "r-m", "r-l", "r-full"].map((r) => `<option value="${r}"${(el.radius || "") === r ? " selected" : ""}>${r || "없음"}</option>`).join("")}${typeof el.radius === "number" ? `<option selected value="${el.radius}">${el.radius}px</option>` : ""}</select></div>` : ""}
-        ${colorRow("테두리", "stroke", el, true)}
+        ${colorRow("테두리", "stroke", el, true)}${el.stroke ? `<div class="row"><label>테두리 선</label><input type="number" min="0.5" max="20" step="0.5" data-k="strokeWidth" value="${el.strokeWidth || 1}" title="두께(px)" style="width:60px">${seg("", "strokeDash", el, [["solid", "실선"], ["dash", "파선"], ["dot", "점선"]], "solid").replace('<div class="row">', '<span class="row" style="margin:0 0 0 6px">').replace(/<\/div>$/, "</span>")}</div>` : ""}
         ${seg("그림자", "shadow", { shadow: el.shadow ? "on" : "off" }, [["off", "없음"], ["on", "있음"]], "off")}</div>`;
     }
     if (el.type === "chart") h += `<div class="sec"><h3>차트 <span class="hint">PPTX 는 PowerPoint 차트(편집 가능)</span></h3>
@@ -1194,7 +1197,7 @@ ${names}
     if (el.type === "group") h += `<div class="sec"><h3>묶음 (${(el.children || []).length}개)</h3><div class="row"><button class="chip sm" data-act="ungroup" title="자식을 낱개로 되돌립니다 (Ctrl+Shift+G)">묶음 풀기</button><span class="hint" style="margin:0">${(el.children || []).map((c) => TYPE_KO[c.type] || c.type).join(" · ")}</span></div><div class="hint">자식은 묶음 상자 기준 좌표. 크기를 바꾸면 자식 위치·크기가 비율로 따라간다. 두 번 클릭 편집은 풀어서.</div></div>`;
     if (el.type === "image") h += `<div class="sec"><h3>그림</h3><div class="row"><label>경로</label><input type="text" data-k="src" value="${esc(el.src)}"></div>
         <div class="row"><label>자르기 %</label>${["l", "t", "r", "b"].map((k, i) => `<input type="number" min="0" max="95" step="1" data-crop="${i}" value="${Math.round(((el.crop || [0, 0, 0, 0])[i] || 0) * 100)}" title="${["왼쪽", "위", "오른쪽", "아래"][i]}" style="width:52px">`).join("")}</div>
-        <div class="row"><label>투명도 %</label><input type="number" min="0" max="100" step="5" data-opacity="1" value="${Math.round((el.opacity == null ? 1 : el.opacity) * 100)}" title="100 = 그대로" style="width:70px">${seg("그림자", "shadow", { shadow: el.shadow ? "on" : "off" }, [["off", "없음"], ["on", "있음"]], "off").replace('<div class="row">', '<span class="row" style="margin:0">').replace(/<\/div>$/, "</span>")}</div><div class="row"><label>효과</label><select data-k="effect" title="프레임 효과 - 원본 파일은 그대로 두고 속성으로만 적용(PPTX 도 같은 효과)">${EFFECTS.map(([k, l]) => `<option value="${k}"${(el.effect || "") === k ? " selected" : ""}>${l}</option>`).join("")}</select>${el.effect ? seg("수준", "effectLevel", { effectLevel: String(el.effectLevel || 2) }, [["1", "약"], ["2", "중"], ["3", "강"]], "2").replace('<div class="row">', '<span class="row" style="margin:0 0 0 6px">').replace(/<\/div>$/, "</span>") : ""}</div>
+        <div class="row"><label>투명도 %</label><input type="number" min="0" max="100" step="5" data-opacity="1" value="${Math.round((el.opacity == null ? 1 : el.opacity) * 100)}" title="100 = 그대로" style="width:70px">${seg("그림자", "shadow", { shadow: el.shadow ? "on" : "off" }, [["off", "없음"], ["on", "있음"]], "off").replace('<div class="row">', '<span class="row" style="margin:0">').replace(/<\/div>$/, "</span>")}</div><div class="row"><label>효과</label><select data-k="effect" title="프레임 효과 - 원본 파일은 그대로 두고 속성으로만 적용(PPTX 도 같은 효과)">${EFFECTS.map(([k, l]) => `<option value="${k}"${(el.effect || "") === k ? " selected" : ""}>${l}</option>`).join("")}</select>${el.effect ? seg("수준", "effectLevel", { effectLevel: String(el.effectLevel || 2) }, [["1", "약"], ["2", "중"], ["3", "강"]], "2").replace('<div class="row">', '<span class="row" style="margin:0 0 0 6px">').replace(/<\/div>$/, "</span>") : ""}</div>${el.effect === "frame" ? `${colorRow("테두리 색", "frameColor", el, true)}<div class="row"><label>테두리 px</label><input type="number" min="1" max="40" step="1" data-k="frameWidth" value="${el.frameWidth == null ? "" : el.frameWidth}" placeholder="수준 기본" title="액자 두께 - 비우면 수준(약 3·중 6·강 10)" style="width:70px"></div>` : ""}
         <div class="row"><button class="chip sm" data-imgpick="1" title="새 그림 파일을 올려 이 자리에 바꿔 넣습니다(폭 유지, 높이는 비율로)">그림 바꾸기…</button>${el.mermaid != null ? `<button class="chip sm" data-mermaid="1" title="mermaid 코드를 고쳐 다시 그립니다(폭 유지)">다이어그램 코드 수정…</button>` : ""}<span class="hint" style="margin:0">assetRoot 기준 경로 · 모서리 핸들은 비율 유지</span></div></div>`;
     if (isLine(el)) h += `<div class="sec"><h3>선</h3>${colorRow("색", "color", el)}${num("두께(px)", "width", el, 0.5)}
         ${seg("머리", "head", el, [["none", "없음"], ["end", "끝"], ["start", "시작"], ["both", "양쪽"]], el.type === "arrow" ? "end" : "none")}
@@ -1222,6 +1225,9 @@ ${names}
     if (el.type === "table") h += `<div class="sec"><h3>표 - 줄 = 행, 칸은 " | " 로 구분 (첫 행 = 머리)</h3>${fontInfoHtml(el)}<textarea data-tbl="1" style="min-height:140px">${esc(tableToText(el.rows))}</textarea>
         <div class="row"><label>행·열</label><button class="chip sm" data-tblop="row+" title="맨 아래에 행 추가">＋행</button><button class="chip sm" data-tblop="row-" title="맨 아래 행 지우기">－행</button><button class="chip sm" data-tblop="col+" title="맨 오른쪽에 열 추가">＋열</button><button class="chip sm" data-tblop="col-" title="맨 오른쪽 열 지우기">－열</button><span class="hint" style="margin:0">${(el.rows || []).length}×${((el.rows || [])[0] || []).length}</span></div>
         <div class="row"><label>셀 병합</label><input type="text" data-merge="1" value="${esc((el.merge || []).map((m) => m.join(",")).join("; "))}" placeholder="행,열,행수,열수; … (0부터 · 예: 0,0,1,2; 1,1,2,1)" title="왼쪽 위 셀이 행수×열수를 차지한다. 머리 행도 0행. 겹치면 앞 것만"></div>
+        <div class="row"><label>셀 채움</label><input type="text" data-cellfill="1" value="${esc((el.cellFill || []).map((m) => m.map((v) => (v == null ? "*" : v)).join(",")).join("; "))}" placeholder="행,열,색; … (* = 줄 전체 · 예: 2,*,s1; 1,3,primary-container)" title="셀 바탕색 - 색은 토큰 이름(#hex 도 됨). 행이나 열에 * 를 쓰면 그 줄 전체. 머리 행도 0행. PPTX 셀 채움과 같다"></div>
+        <div class="row"><label>셀 테두리</label><input type="text" data-borders="1" value="${esc((el.borders || []).map((m) => m.map((v) => (v == null ? "*" : v)).join(",")).join("; "))}" placeholder="행,열,변,색,두께; … (변 = T B L R 조합 · 예: 3,*,T,primary,2)" title="셀 테두리 - 변은 T(위) B(아래) L(왼) R(오른) 조합, 색·두께는 선택(기본 rule 색 1px). * = 그 줄 전체. 합계 행 위 굵은 선 = 행,*,T,색,2"></div>
+        ${seg("격자", "gridLines", { gridLines: el.gridLines ? "on" : "off" }, [["off", "가로선만"], ["on", "모든 칸"]], "off")}
         <div class="row"><label>열 비율</label><input type="text" data-list="colW" value="${esc((el.colW || []).join(", "))}"></div>
         <div class="row"><label>행 비율</label><input type="text" data-list="rowH" value="${esc((el.rowH || []).join(", "))}" placeholder="비우면 고르게 · 예: 44, 46, 70"></div>
         ${num("크기(px)", "size", el)}${colorRow("머리 면", "headFill", el)}${colorRow("머리 글자", "headColor", el)}
@@ -1247,7 +1253,9 @@ ${names}
     toast(`클립보드에 복사했습니다 (${t.split("\n").length}줄)`);
   }
   function setProp(el, k, v) {
-    if (["x", "y", "w", "h", "x1", "y1", "x2", "y2", "size", "subSize", "lineHeight", "width", "gap", "start", "rot", "effectLevel"].includes(k)) { if (v === "" || v == null || (k === "rot" && +v === 0)) delete el[k]; else el[k] = +v; }
+    if (["x", "y", "w", "h", "x1", "y1", "x2", "y2", "size", "subSize", "lineHeight", "width", "gap", "start", "rot", "effectLevel", "strokeWidth", "frameWidth"].includes(k)) { if (v === "" || v == null || (k === "rot" && +v === 0)) delete el[k]; else el[k] = +v; }
+    else if (k === "strokeDash") { if (v && v !== "solid") el.strokeDash = v; else delete el.strokeDash; }
+    else if (k === "gridLines") { if (v === "on") el.gridLines = true; else delete el.gridLines; }  // 표 격자(모든 칸 테두리)
     else if (k === "locked") { if (v) el.locked = true; else delete el.locked; }
     else if (k === "bold") el.bold = v === "1";
     else if (k === "autoNum") { if (v === "off") el.autoNum = false; else delete el.autoNum; }  // 글 앞 번호·기호 감지(기본 켬)
@@ -1258,7 +1266,7 @@ ${names}
     else if (k === "axisMax") { if (v === "" || v == null || +v <= 0) delete el.axisMax; else el.axisMax = +v; }
     else if (k === "title") { const t = String(v || "").trim(); if (t) el.title = t; else delete el.title; }
     else if (k === "link") { const t = String(v || "").trim(); if (t) el.link = t; else delete el.link; }
-    else if (v === "" && ["fill", "stroke", "radius", "effect"].includes(k)) delete el[k];
+    else if (v === "" && ["fill", "stroke", "radius", "effect", "frameColor"].includes(k)) delete el[k];
     else el[k] = v;
     if (isLine(el)) Object.assign(el, Render.lineBox(el));
   }
@@ -1266,6 +1274,8 @@ ${names}
     const t = e.target, el = selEl(), s = slide();
     if (t.dataset.slide === "bg") { snapshot(); s.bg = t.value; afterChange(); return; }
     if (t.dataset.slide === "fontPreset") { snapshot(); if (t.value) s.fontPreset = t.value; else delete s.fontPreset; afterChange(true); return; }  // 이 장만
+    if (t.dataset.slide === "section") { snapshot(); const v = t.value.trim(); if (v) s.section = v; else delete s.section; afterChange(true); return; }  // PPTX 구분(섹션) 시작
+    if (t.dataset.slide === "hidden") { snapshot(); if (t.checked) s.hidden = true; else delete s.hidden; afterChange(true); return; }
     if (t.dataset.deckfont) { snapshot(); if (t.value) S.deck.fontPreset = t.value; else delete S.deck.fontPreset; Render.setDeckFonts(S.deck.fontPreset); afterChange(true); return; }  // 덱 전체
     if (!el || t.id === "elJson") return;
     if (t.dataset.linenosw && el) { const on = t.checked; mutate((x) => { if (on) delete x.lineNo; else x.lineNo = false; }, (x) => x.type === "code"); return; }
@@ -1294,6 +1304,12 @@ ${names}
     else if (t.dataset.crop != null) { const c = (el.crop || [0, 0, 0, 0]).slice(); c[+t.dataset.crop] = Math.max(0, Math.min(95, +t.value || 0)) / 100; if (c.some((v) => v)) el.crop = c; else delete el.crop; }
     else if (t.dataset.opacity) { const o = Math.max(0, Math.min(100, +t.value || 0)) / 100; if (o < 1) el.opacity = o; else delete el.opacity; }
     else if (t.dataset.merge) { const a = t.value.split(";").map((x) => x.split(",").map((v) => parseInt(v, 10))).filter((m) => m.length === 4 && m.every((v) => !isNaN(v))); if (a.length) el.merge = a; else delete el.merge; }
+    else if (t.dataset.cellfill || t.dataset.borders) {  // 셀 채움 "행,열,색; …" · 셀 테두리 "행,열,변,색,두께; …" (* 또는 빈 칸 = 줄 전체)
+      const ix = (v) => (v === "*" || v === "" ? null : parseInt(v, 10)), okIx = (v) => v == null || !isNaN(v);
+      const rows = t.value.split(";").map((x) => x.split(",").map((v) => v.trim())).filter((m) => m.length >= 3 && m[2]);
+      if (t.dataset.cellfill) { const a = rows.map((m) => [ix(m[0]), ix(m[1]), m[2]]).filter((m) => okIx(m[0]) && okIx(m[1])); if (a.length) el.cellFill = a; else delete el.cellFill; }
+      else { const a = rows.filter((m) => /^[TBLRtblr]+$/.test(m[2])).map((m) => { const o = [ix(m[0]), ix(m[1]), m[2].toUpperCase()]; if (m[3] || (m[4] && !isNaN(+m[4]))) o.push(m[3] || ""); if (m[4] && !isNaN(+m[4])) o.push(+m[4]); return o; }).filter((m) => okIx(m[0]) && okIx(m[1])); if (a.length) el.borders = a; else delete el.borders; }
+    }
     else if (t.dataset.bul) el.items = textToBullets(t.value);
     else if (t.dataset.tbl) el.rows = textToTable(t.value);
     afterChange();
@@ -1782,6 +1798,12 @@ ${names}
   }
   function openPresenter() { window.open(`${BASE}/studio/presenter.html?deck=${encodeURIComponent(S.id)}&n=${S.pIdx + 1}`, "nexa-presenter", "width=1100,height=680"); }
   /** 요소 링크(link) - "#3" 은 3번 슬라이드, "#<슬라이드 id>", 그 밖은 주소(새 탭). 발표 화면에서 누르면 */
+  /** 발표 화면 이동 - 숨김 슬라이드(hidden)는 건너뛴다. 끝이면 그대로 */
+  function pStep(d) {
+    const n = S.deck.slides.length; let i = S.pIdx;
+    do { i += d; } while (i >= 0 && i < n && S.deck.slides[i].hidden);
+    if (i >= 0 && i < n) S.pIdx = i; else S.pIdx = Math.max(0, Math.min(n - 1, S.pIdx));
+  }
   function followLink(v) {
     if (!v) return false;
     if (v.startsWith("#")) { const key = v.slice(1); const n = /^\d+$/.test(key) ? +key : S.deck.slides.findIndex((s) => s.id === key) + 1; if (n >= 1 && n <= S.deck.slides.length) { S.pIdx = n - 1; renderPresent(); return true; } toast(`없는 슬라이드: ${v}`); return true; }
@@ -1791,9 +1813,9 @@ ${names}
   function presentKey(e) {
     const k = e.key;
     if (k === "Escape") { endPresent(); return; }
-    if (["ArrowRight", "ArrowDown", "PageDown", " ", "Enter"].includes(k)) S.pIdx = Math.min(S.deck.slides.length - 1, S.pIdx + 1);
-    else if (["ArrowLeft", "ArrowUp", "PageUp", "Backspace"].includes(k)) S.pIdx = Math.max(0, S.pIdx - 1);
-    else if (k === "Home") S.pIdx = 0; else if (k === "End") S.pIdx = S.deck.slides.length - 1;
+    if (["ArrowRight", "ArrowDown", "PageDown", " ", "Enter"].includes(k)) pStep(1);
+    else if (["ArrowLeft", "ArrowUp", "PageUp", "Backspace"].includes(k)) pStep(-1);
+    else if (k === "Home") { S.pIdx = -1; pStep(1); } else if (k === "End") { S.pIdx = S.deck.slides.length; pStep(-1); }
     else if (k.toLowerCase() === "n") $("#present").classList.toggle("notes");
     else if (k.toLowerCase() === "p") openPresenter();
     else return;
@@ -2629,7 +2651,7 @@ ${names}
     $("#tab-hist").addEventListener("click", onHistClick);
     $("#notesTa").addEventListener("input", onNotes);
     // 발표 · 도움말
-    $("#present").addEventListener("click", (e) => { const ln = e.target.closest("[data-link]"); if (ln && followLink(ln.dataset.link)) return; S.pIdx = Math.min(S.deck.slides.length - 1, S.pIdx + (e.clientX < innerWidth / 3 ? -1 : 1)); S.pIdx = Math.max(0, S.pIdx); renderPresent(); });
+    $("#present").addEventListener("click", (e) => { const ln = e.target.closest("[data-link]"); if (ln && followLink(ln.dataset.link)) return; pStep(e.clientX < innerWidth / 3 ? -1 : 1); renderPresent(); });
     document.addEventListener("fullscreenchange", () => { if (!document.fullscreenElement && $("#present").classList.contains("show")) endPresent(); });
     setInterval(() => { if ($("#present").classList.contains("show")) renderPresent(); }, 1000);
     $("#help").addEventListener("click", () => $("#help").classList.remove("show"));
