@@ -46,8 +46,16 @@
   header img.logo { height: 24px; }
   header h1 { font-size: 14px; margin: 0 4px 0 2px; font-weight: 700; white-space: nowrap; }
   header .sp { flex: 1; }
-  #deckTabs { display: flex; gap: 4px; overflow-x: auto; max-width: 46vw; scrollbar-width: thin; }
-  #deckTabs button { border: 0; background: none; border-radius: 10px; padding: 6px 12px; white-space: nowrap; color: var(--ink2); }
+  #deckBar { display: flex; align-items: center; gap: 2px; max-width: 46vw; min-width: 0; }
+  #deckList { border: 0; background: var(--tone); border-radius: 8px; padding: 5px 9px; color: var(--ink2); font-size: 14px; flex: none; }
+  #deckList:hover { background: var(--line); }
+  #deckBar .dk-arrow { border: 0; background: none; border-radius: 8px; padding: 4px 4px; color: var(--ink2); font-size: 18px; line-height: 1; flex: none; display: none; }
+  #deckBar.scroll .dk-arrow { display: inline-block; }
+  #deckBar .dk-arrow:hover { background: var(--tone); } #deckBar .dk-arrow:disabled { opacity: .3; }
+  #deckTabs { display: flex; gap: 4px; overflow-x: auto; min-width: 0; scrollbar-width: none; cursor: grab; user-select: none; }
+  #deckTabs::-webkit-scrollbar { display: none; }
+  #deckTabs.dragging { cursor: grabbing; }
+  #deckTabs button { border: 0; background: none; border-radius: 10px; padding: 6px 12px; white-space: nowrap; color: var(--ink2); max-width: 20em; overflow: hidden; text-overflow: ellipsis; flex: none; }  /* 긴 제목은 앞에서부터 20em(한글 약 20자·영문 약 40자)까지, 끝은 … */
   #deckTabs button:hover { background: var(--tone); }
   #deckTabs button.on { background: var(--pc); color: var(--onpc); font-weight: 700; }
   #deckTabs button.add { padding: 6px 8px; color: var(--ink2); font-weight: 700; }
@@ -337,7 +345,7 @@
   .sec h3 { margin: 0 0 8px; font-size: 11.5px; letter-spacing: .02em; color: var(--ink2); font-weight: 700; text-transform: uppercase; display: flex; align-items: center; gap: 6px; }
   .sec h3 .hint { font-weight: 400; text-transform: none; letter-spacing: 0; margin: 0 0 0 auto; }
   .row { display: flex; gap: 6px; align-items: center; margin: 6px 0; flex-wrap: wrap; }
-  .row > label { width: 60px; color: var(--ink2); flex: none; font-size: 12px; }
+  .row > label { width: 64px; color: var(--ink2); flex: none; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .row input[type=number] { width: 70px; }
   .row input, .row select, .sec textarea { border: 1px solid var(--line); border-radius: 8px; background: #fff; padding: 5px 8px; font: inherit; font-size: 13px; }
   .row input:focus, .row select:focus, .sec textarea:focus { outline: 2px solid var(--pc); outline-offset: -1px; border-color: var(--p); }
@@ -399,7 +407,7 @@
   .chk { background: var(--tone); border-radius: 12px; padding: 7px 10px; margin-bottom: 6px; cursor: pointer; }
   .chk:hover { background: var(--tone2); }
   .chk .sev { border-radius: 999px; padding: 0 8px; font-weight: 700; font-size: 11px; }
-  .chk .sev.ERROR { background: var(--err); color: #fff; } .chk .sev.WARNING { background: var(--warnc); color: var(--warn); }
+  .chk .sev.ERROR { background: var(--err); color: #fff; } .chk .sev.WARNING { background: var(--warnc); color: var(--warn); } .chk .sev.INFO { background: var(--tone); color: var(--muted); }
   .chk .rule { font-family: Consolas, monospace; font-size: 11px; color: var(--ink2); }
   .chk .msg { margin-top: 3px; white-space: pre-wrap; word-break: break-all; }
   .hist { display: flex; gap: 8px; align-items: center; padding: 6px 8px; border-radius: 10px; }
@@ -460,11 +468,45 @@
   .menu .insq { width: 100%; box-sizing: border-box; border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px; font: inherit; font-size: 13px; margin: 2px 0 6px; }
   .menu .insq:focus { outline: 2px solid var(--pc); border-color: var(--p); }
   .menu .instiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(72px, 1fr)); gap: 4px; padding: 0 2px 6px; }
-  .menu .tile { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; width: auto; height: 60px; border: 1px solid transparent; border-radius: 10px; padding: 4px 2px; background: var(--tone); color: var(--ink); }
+  .menu .tile { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; width: auto; height: 64px; border: 1px solid transparent; border-radius: 10px; padding: 4px 2px; background: var(--tone); color: var(--ink); }
   .menu .tile:hover { border-color: var(--p); background: #fff; }
   .menu .tile .ic { font-size: 18px; line-height: 1; color: var(--p); display: flex; align-items: center; height: 26px; }
-  .menu .tile .lb { font-size: 11px; color: var(--ink2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
-  #cmdpal { position: fixed; inset: 0; background: rgba(0,0,0,.25); z-index: 70; display: flex; align-items: flex-start; justify-content: center; padding-top: 12vh; }
+  .menu .tile .lb { font-size: 11px; line-height: 1.15; color: var(--ink2); overflow: hidden; max-width: 100%; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; text-align: center; word-break: keep-all; }
+  #cmdpal, #findDlg, #impDlg { position: fixed; inset: 0; background: rgba(0,0,0,.25); z-index: 70; display: flex; align-items: flex-start; justify-content: center; padding-top: 12vh; }
+  #findDlg .box, #impDlg .box { width: min(640px, 92vw); max-height: 76vh; background: #fff; border-radius: 14px; box-shadow: 0 12px 40px rgba(0,0,0,.3); display: flex; flex-direction: column; overflow: hidden; padding: 12px 14px; box-sizing: border-box; }
+  #findDlg .fr, #impDlg .fr { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
+  #findDlg .fr input[type=search], #findDlg .fr input[type=text], #impDlg select { flex: 1; min-width: 0; border: 1px solid var(--line); border-radius: 8px; padding: 7px 10px; font: inherit; font-size: 14px; }
+  #findDlg .fchk { display: inline-flex; gap: 4px; align-items: center; font-size: 12px; white-space: nowrap; }
+  #findDlg .list, #impDlg .list { flex: 1; overflow-y: auto; border: 1px solid var(--line); border-radius: 8px; min-height: 120px; }
+  #findDlg .it, #impDlg .it { display: flex; gap: 10px; align-items: baseline; padding: 6px 10px; border-bottom: 1px solid var(--line); cursor: pointer; font-size: 13px; }
+  #findDlg .it.on, #findDlg .it:hover, #impDlg .it:hover { background: var(--tone); }
+  #findDlg .it .g, #impDlg .it .g { color: var(--muted); font-size: 12px; white-space: nowrap; min-width: 90px; }
+  #findDlg .it .l, #impDlg .it .l { flex: 1; min-width: 0; white-space: pre-wrap; word-break: break-word; }
+  #findDlg mark { background: #ffe58a; padding: 0 1px; border-radius: 2px; }
+  #findDlg .acts, #impDlg .acts { display: flex; gap: 6px; align-items: center; justify-content: flex-end; margin-top: 10px; }
+  #findDlg .acts .hint, #impDlg .acts .hint { margin: 0 auto 0 0; }
+  body.fmt-paint #host .rs-el { cursor: cell; }
+  #presentInk { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 3; }
+  #present.pen #presentInk { pointer-events: auto; cursor: crosshair; }
+  #presentLaser { position: absolute; width: 14px; height: 14px; margin: -7px 0 0 -7px; border-radius: 50%; background: #ff3b30; box-shadow: 0 0 10px 4px rgba(255,59,48,.6); pointer-events: none; display: none; z-index: 4; }
+  #present.laser { cursor: none; }
+  #notesChips { display: flex; gap: 6px; padding: 4px 6px 0; }
+  .ovwarn { position: absolute; z-index: 4; background: var(--err); color: #fff; font-size: 11px; line-height: 1.3; padding: 2px 8px; border-radius: 6px; pointer-events: none; white-space: nowrap; transform: translateY(4px); }
+  #left .sechead { display: flex; align-items: center; gap: 6px; margin: 6px 0 6px 20px; padding: 3px 8px; border-radius: 8px; background: var(--tone); color: var(--ink2); font-size: 12px; cursor: pointer; user-select: none; }
+  #left .sechead:hover { background: var(--line); }
+  #left .sechead .nm { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 700; }
+  #left .sechead .cnt { font-size: 11px; }
+  #left .thumb.secfold { display: none; }
+  #chartDlg { position: fixed; inset: 0; background: rgba(0,0,0,.25); z-index: 70; display: flex; align-items: flex-start; justify-content: center; padding-top: 12vh; }
+  #chartDlg .box { width: min(760px, 94vw); max-height: 76vh; background: #fff; border-radius: 14px; box-shadow: 0 12px 40px rgba(0,0,0,.3); display: flex; flex-direction: column; overflow: hidden; padding: 12px 14px; box-sizing: border-box; }
+  #chartDlg .box h3 { display: flex; align-items: baseline; gap: 8px; font-size: 14px; }
+  #chartDlg .list { flex: 1; overflow: auto; border: 1px solid var(--line); border-radius: 8px; }
+  #chartDlg .ctbl { border-collapse: collapse; min-width: 100%; font-size: 13px; }
+  #chartDlg .ctbl td { border: 1px solid var(--line); padding: 5px 10px; min-width: 70px; outline: none; }
+  #chartDlg .ctbl td:focus { box-shadow: inset 0 0 0 2px var(--p); }
+  #chartDlg .ctbl td.h { background: var(--tone); font-weight: 700; }
+  #chartDlg .ctbl td.corner { color: var(--ink2); font-weight: 400; }
+  #chartDlg .acts { display: flex; gap: 6px; align-items: center; margin-top: 10px; }
   #cmdpal .box { width: min(560px, 92vw); background: #fff; border-radius: 14px; box-shadow: 0 12px 40px rgba(0,0,0,.3); overflow: hidden; }
   #cmdpal input { width: 100%; box-sizing: border-box; border: 0; border-bottom: 1px solid var(--line); padding: 14px 16px; font: inherit; font-size: 15px; outline: none; }
   #cmdpal .list { max-height: 50vh; overflow-y: auto; padding: 6px; }
@@ -501,7 +543,7 @@
   <button id="menuBtn" type="button"></button>
   <img class="logo" id="brandLogo" alt="" style="display:none">
   <h1 id="appTitle">nexa-slide</h1>
-  <nav id="deckTabs" title="덱(장) - 누르면 바뀐다"></nav>
+  <div id="deckBar"><button id="deckList" title="덱 목록 - 골라서 이동 · 새 덱">☰</button><button id="deckPrev" class="dk-arrow" title="앞의 덱 탭 보기">‹</button><nav id="deckTabs" title="덱(장) - 누르면 바뀐다 · 끌어서 좌우 이동"></nav><button id="deckNext" class="dk-arrow" title="뒤의 덱 탭 보기">›</button></div>
   <span class="sp"></span>
   <span id="status" class="chip sm">불러오는 중</span>
   <span id="fontChip" class="chip sm" style="display:none;background:#D6E3FF;color:#0B2E6B;cursor:pointer"></span>
@@ -553,7 +595,7 @@
           <div id="stageWrap"><div id="stage"><div id="host"></div><div id="marks"></div><svg id="draw" viewBox="0 0 1280 720"></svg><div id="ov"></div></div></div>
         </div>
         <div id="memo"><div class="tt"><b id="memoTitle">요청</b><span id="memoTarget"></span></div>
-          <textarea id="memoTa" maxlength="2000" placeholder="무엇을 바꿀까요? (Enter = 추가, Shift+Enter = 줄바꿈 · 그림은 Ctrl+V 로 붙여 넣기)"></textarea>
+          <textarea id="memoTa" maxlength="2000" spellcheck="true" placeholder="무엇을 바꿀까요? (Enter = 추가, Shift+Enter = 줄바꿈 · 그림은 Ctrl+V 로 붙여 넣기)"></textarea>
           <div class="att" id="memoAtt"></div>
           <div class="quick" id="memoQuick"></div>
           <div class="acts"><span class="mcnt" id="memoCnt">0 / 2000</span><button class="att-btn" data-attach="memo" title="그림 붙여넣기(Ctrl+V) · 끌어다 놓기 · 파일 고르기"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 11.5l-8.5 8.5a5 5 0 0 1-7-7l9-9a3.3 3.3 0 0 1 4.7 4.7l-9 9a1.6 1.6 0 0 1-2.3-2.3l8-8"/></svg>＋ 첨부</button><button class="chip sm" id="memoCancel">취소</button><button class="chip sm primary" id="memoOk" disabled>추가</button></div></div>
@@ -565,7 +607,7 @@
         <div class="viewport" id="vpPng"><div id="pngWrap"></div></div></div>
     </div>
     <div id="bottom"><div id="bottomSplit" title="끌어서 높이 조절 · 두 번 눌러 처음 높이"></div>
-      <div class="bpanel on" id="bp-notes"><textarea id="notesTa" placeholder="이 슬라이드의 발표자 노트 - PPTX 슬라이드 노트로 들어간다"></textarea></div>
+      <div class="bpanel on" id="bp-notes"><div id="notesChips"></div><textarea id="notesTa" spellcheck="true" placeholder="이 슬라이드의 발표자 노트 - PPTX 슬라이드 노트로 들어간다"></textarea></div>
       <div class="bpanel" id="bp-outline"><div id="outlineList"></div></div>
       <div class="bpanel" id="bp-check"></div>
     </div>

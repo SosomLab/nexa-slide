@@ -346,6 +346,18 @@
     // 탭에는 제목(시작 덱은 ★), id 는 엔진이 만든 짧은 해시라 툴팁·메뉴 머리에만 보인다
     $("#deckTabs").innerHTML = S.decks.map((d) => `<button data-deck="${esc(d.id)}" class="${d.id === S.id ? "on" : ""}${d.start ? " start" : ""}" title="${esc(d.title)} (${d.slides}장) · id ${esc(d.id)}${d.start ? " · 시작 덱" : ""} - 오른쪽 클릭: 제목·복제·시작 덱·삭제">${d.start ? "★ " : ""}${esc(d.title || d.id)}</button>`).join("")
       + `<button data-deckadd="1" class="add" title="새 덱 만들기 - 제목만 적으면 id 는 저절로">＋</button>`;
+    requestAnimationFrame(deckTabsFit);
+  }
+  /** 덱 탭이 넘치면 ‹ › 화살표를 보이고, 지금 덱 탭이 보이게 */
+  function deckTabsFit() {
+    const T = $("#deckTabs"), B = $("#deckBar"); if (!T || !B) return;
+    B.classList.toggle("scroll", T.scrollWidth > T.clientWidth + 2);
+    const on = T.querySelector("button.on"); if (on && !deckDrag.moved) { const l = on.offsetLeft, r = l + on.offsetWidth; if (l < T.scrollLeft) T.scrollLeft = l - 8; else if (r > T.scrollLeft + T.clientWidth) T.scrollLeft = r - T.clientWidth + 8; }
+    $("#deckPrev").disabled = T.scrollLeft <= 0; $("#deckNext").disabled = T.scrollLeft + T.clientWidth >= T.scrollWidth - 1;
+  }
+  const deckDrag = { x: 0, l: 0, moved: false, down: false };
+  function deckListMenu(btn) {  // ☰ 덱 목록 - 골라서 이동, ★ 시작 덱, ✓ 지금 덱, 맨 아래 새 덱
+    openMenu(btn, [{ h: `덱 ${S.decks.length}개` }, ...S.decks.map((d) => ({ label: `${d.start ? "★ " : ""}${d.title} (${d.slides}장)`, on: d.id === S.id, act: () => switchDeck(d.id) })), "-", { label: "새 덱", act: () => deckCreate() }]);
   }
   // ---------------------------------------------------------------- 덱 관리 - 추가·이름(id)·제목·삭제(휴지통). 서버 /api/decks = CLI `nexa.py deck …`
   async function deckAdmin(body, okMsg) {
@@ -365,10 +377,11 @@
     const d = S.decks.find((x) => x.id === id) || { id, title: id };
     openMenu({ x: e.clientX, y: e.clientY }, [
       { h: `${d.title} · id ${d.id}` },
-      { label: "제목 바꾸기…", act: async () => { const t = (prompt("덱 제목", d.title) || "").trim(); if (!t || t === d.title) return; const r = await deckAdmin({ action: "retitle", id, title: t }, "제목을 바꿨습니다"); if (r && S.id === id) { S.deck.title = t; S.savedJson = deckJson(); } } },
-      { label: "복제…", act: async () => { const t = (prompt("복제한 덱의 제목", `${d.title} (복사)`) || "").trim(); if (!t) return; if (S.dirty && S.id === id) await save(); const r = await deckAdmin({ action: "copy", id, title: t }, `복제했습니다: ${t}`); if (r) await loadDeck(r.id); } },
+      { label: "새 덱", act: () => deckCreate() }, "-",
+      { label: "제목 바꾸기", act: async () => { const t = (prompt("덱 제목", d.title) || "").trim(); if (!t || t === d.title) return; const r = await deckAdmin({ action: "retitle", id, title: t }, "제목을 바꿨습니다"); if (r && S.id === id) { S.deck.title = t; S.savedJson = deckJson(); } } },
+      { label: "복제", act: async () => { const t = (prompt("복제한 덱의 제목", `${d.title} (복사)`) || "").trim(); if (!t) return; if (S.dirty && S.id === id) await save(); const r = await deckAdmin({ action: "copy", id, title: t }, `복제했습니다: ${t}`); if (r) await loadDeck(r.id); } },
       { label: d.start ? "시작 덱 해제" : "시작 덱으로", on: !!d.start, act: async () => { await deckAdmin({ action: "start", id: d.start ? "" : id }, d.start ? "시작 덱을 해제했습니다" : `시작 덱: ${d.title}`); } }, "-",
-      { label: "덱 삭제(휴지통)…", act: async () => { if (!confirm(`덱 "${d.title}" 을 지울까요? decks/.trash/ 로 옮겨지며 요청·기록·첨부·content 도 같이 갑니다.`)) return; const r = await deckAdmin({ action: "delete", id }, `휴지통으로 옮겼습니다: ${d.title}`); if (r && S.id === id) { const next = S.decks[0]; if (next) await loadDeck(next.id); else location.href = BASE + "/studio/home.html"; } } },
+      { label: "덱 삭제(휴지통)", act: async () => { if (!confirm(`덱 "${d.title}" 을 지울까요? decks/.trash/ 로 옮겨지며 요청·기록·첨부·content 도 같이 갑니다.`)) return; const r = await deckAdmin({ action: "delete", id }, `휴지통으로 옮겼습니다: ${d.title}`); if (r && S.id === id) { const next = S.decks[0]; if (next) await loadDeck(next.id); else location.href = BASE + "/studio/home.html"; } } },
     ]);
   }
   const reqsOf = (sid, st) => {  // 썸네일 배지 - 후속 요청은 thread 단위로 하나만 센다
@@ -384,15 +397,32 @@
   }
   function chkBadge(sid) {
     if (!S.check) return "";
-    const its = S.check.issues.filter((x) => x.slide === sid); if (!its.length) return "";
+    const its = S.check.issues.filter((x) => x.slide === sid && x.severity !== "INFO"); if (!its.length) return "";
     const e = its.filter((x) => x.severity === "ERROR").length;
     return `<span class="bd chk${e ? " err" : ""}" title="레이아웃 검사 - ERROR ${e} · WARNING ${its.length - e}">⚠ ${its.length}</span>`;
   }
   function fitThumbs() { $$("#left .thumb .vp").forEach((v) => { v.firstElementChild.style.transform = `scale(${v.clientWidth / SW})`; }); }
+  /** 레일의 구분(섹션) - 슬라이드 section 필드 또는 장 표지(chapter) 레이아웃에서 시작. 접힌 구분은 브라우저에 기억(덱별) */
+  const secName = (s) => (s.section ? String(s.section) : s.layout === "chapter" ? slideTitle(s) : "");
+  const secFoldKey = () => "secfold-" + S.id;
+  const secFolded = () => { try { return new Set(JSON.parse(LS.get(secFoldKey(), "") || "[]")); } catch (e) { return new Set(); } };
+  function toggleSec(i) { const f = secFolded(); if (f.has(i)) f.delete(i); else f.add(i); LS.set(secFoldKey(), JSON.stringify([...f])); renderThumbs(); }
   function renderThumbs() {
-    const L = $("#left"), top = L.scrollTop;
-    $$("#left .thumb, #addSlide").forEach((x) => x.remove());
-    L.insertAdjacentHTML("beforeend", S.deck.slides.map(thumbHtml).join("") + `<button class="chip" id="addSlide">＋ 새 슬라이드</button>`);
+    const L = $("#left"), top = L.scrollTop, folded = secFolded();
+    $$("#left .thumb, #addSlide, #left .sechead").forEach((x) => x.remove());
+    let html = "", fold = false, start = -1, n = 0;
+    S.deck.slides.forEach((s, i) => {
+      const name = secName(s);
+      if (name) {
+        if (start >= 0 && fold) html = html.replace("__SECN__", String(n));
+        fold = folded.has(i); start = i; n = 0;
+        html += `<div class="sechead${fold ? " fold" : ""}" data-sec="${i}" title="${fold ? "펼치기" : "접기"} - PPTX 구분(섹션)과 같다"><span class="tri">${fold ? "▸" : "▾"}</span><span class="nm">${esc(name)}</span>${fold ? `<span class="cnt">__SECN__장</span>` : ""}</div>`;
+      }
+      if (start >= 0) n++;
+      html += thumbHtml(s, i).replace('class="thumb', `class="thumb${fold && i !== S.cur ? " secfold" : ""}`);
+    });
+    if (start >= 0 && fold) html = html.replace("__SECN__", String(n));
+    L.insertAdjacentHTML("beforeend", html + `<button class="chip" id="addSlide">＋ 새 슬라이드</button>`);
     fitThumbs(); L.scrollTop = top;
   }
   function ensureThumbVisible(i) {
@@ -567,7 +597,7 @@
 
   // ---------------------------------------------------------------- 메모 팝오버
   const QUICK = {
-    text: ["다듬기", "더 길게", "더 짧게", "검증"], bullets: ["항목 줄이기", "두 장으로 나누기", "글자 크게"],
+    text: ["다듬기", "더 길게", "더 짧게", "비즈니스 어투로", "영어로 번역", "다른 표현 2안", "검증"], bullets: ["항목 줄이기", "더 짧게", "두 장으로 나누기", "비즈니스 어투로", "글자 크게"],
     table: ["두 장으로 나누기", "열 너비 맞추기", "글자 크게"], "plan-table": ["설명 다듬기", "글자 크게"],
     code: ["강조 줄 다시", "주석 정리", "글자 크게"], plan: ["강조 다시", "글자 크게"],
     pill: ["문구 바꾸기", "색 맞추기"], rect: ["정렬 맞추기", "꾸미기", "크기 맞추기"], ellipse: ["정렬 맞추기", "꾸미기"],
@@ -693,9 +723,9 @@
     toast(S.session && S.session.connected ? "세션에 바로 요청했습니다" : "요청을 남겼습니다 - 세션이 연결되면 전달됩니다", 3000);
   }
   function aiFix() {
-    const s = slide(), its = S.check ? S.check.issues.filter((x) => x.slide === s.id) : [];
+    const s = slide(), its = S.check ? S.check.issues.filter((x) => x.slide === s.id && x.severity !== "INFO") : [];
     if (!its.length) { toast("이 슬라이드는 검사 결과가 없습니다"); return; }
-    quickRequest(`이 슬라이드의 레이아웃 검사 결과를 고쳐 줘 - 기존 디자인·구성은 유지하고, 요소를 지워서 경고를 없애지 말 것.\n` +
+    quickRequest(`이 슬라이드의 레이아웃 검사 결과를 고쳐 줘 (검사 ${its.length}건) - 기존 디자인·구성은 유지하고, 요소를 지워서 경고를 없애지 말 것.\n` +
       its.map((x) => `- ${x.severity} ${x.rule}: ${x.message}`).join("\n"));
   }
   function aiPolish() { quickRequest("이 슬라이드를 다듬어 줘 - 기존 스타일·레이아웃 규칙은 유지하고, 내용 논리·문장 길이·정렬·여백만 정리. 원문(각주 근거)의 의미는 바꾸지 말 것."); }
@@ -743,6 +773,31 @@
   // 서식 줄 - 요소 종류마다 자주 쓰는 설정을 바로 고친다(속성 탭과 같은 값). 종류별 "종류" 선택 → 글자 → 면·테두리/종류별 설정 → 공통(링크·그림자·회전) → 복제·삭제·잠금·위치·메모
   const ROTATABLE = (x) => !isLine(x) && !["table", "plan-table", "bullets", "code", "plan"].includes(x.type);
   const hasShadow = (x) => hasFill(x) || x.type === "image";
+  // 서식 복사(🖌) - 요소 종류마다 "서식"으로 치는 키. 복사한 뒤 다른 요소를 클릭하면 같은 종류의 키만 옮긴다(없는 값은 지움). Ctrl+Shift+C / Ctrl+Shift+V 도 같다
+  const STYLE_KEYS = (x) => {
+    if (isLine(x) || x.type === "curve") return ["color", "width", "dash", "head"];
+    if (x.type === "bullets") return ["size", "subSize", "lineHeight", "color", "subColor", "dot", "marker", "subMarker", "gap", "subGap", "spread", "pad", "shadow"];
+    if (x.type === "table") return ["size", "font", "colFont", "headFill", "headColor", "rule", "gridLines", "shadow"];
+    if (x.type === "image") return ["effect", "effectLevel", "effectColor", "frameColor", "frameWidth", "opacity", "shadow"];
+    if (x.type === "chart") return ["size", "legend", "labels", "grid", "colors", "numFmt", "numFmt2"];
+    if (x.type === "icon") return ["fill", "color", "shadow"];
+    if (x.type === "code") return ["size", "lineHeight", "lineNo", "radius"];
+    if (x.type === "plan") return ["size", "lineHeight", "fill", "color", "pad", "radius"];
+    return ["size", "bold", "color", "font", "align", "valign", "lineHeight", "wrap", "fill", "stroke", "strokeWidth", "strokeDash", "radius", "shadow", "pad"];  // text·pill·rect·ellipse·shape
+  };
+  const pickStyle = (x) => { const o = { _type: x.type }; for (const k of STYLE_KEYS(x)) if (x[k] !== undefined) o[k] = clone(x[k]); return o; };
+  function applyStyle(x, st) {  // 같은 종류끼리는 전부, 다른 종류끼리는 공통 키만(글자류 ↔ 글머리 등)
+    const keys = STYLE_KEYS(x), src = STYLE_KEYS({ type: st._type });
+    let n = 0;
+    for (const k of keys) { if (!src.includes(k)) continue; if (st[k] === undefined) { if (x[k] !== undefined) { delete x[k]; n++; } } else { x[k] = clone(st[k]); n++; } }
+    return n;
+  }
+  function fmtCopy(sticky) { const el = selEl(); if (!el) return; S.fmt = pickStyle(el); S.fmtSticky = !!sticky; document.body.classList.add("fmt-paint"); renderFtb(); toast(sticky ? "서식 복사 - 요소를 눌러 계속 적용, Esc 로 끝" : "서식 복사 - 적용할 요소를 누르세요 (Esc 취소)"); }
+  function fmtEnd() { S.fmt = null; S.fmtSticky = false; document.body.classList.remove("fmt-paint"); renderFtb(); }
+  function fmtPasteTo(ids) { if (!S.fmt) return; const els = ids.map((id) => elById(id)).filter((x) => x && !x.locked); if (!els.length) return; snapshot(); let n = 0; els.forEach((x) => { n += applyStyle(x, S.fmt); }); afterChange(); toast(`서식을 적용했습니다 (${els.length}개 요소 · ${n}항목)`); if (!S.fmtSticky) fmtEnd(); }
+  const defStyleKey = (t) => "defstyle-" + t;
+  function setDefStyle(el) { LS.set(defStyleKey(el.type), JSON.stringify(pickStyle(el))); toast(`${TYPE_KO[el.type] || el.type} 요소의 기본 서식으로 기억했습니다 - 새로 넣을 때 적용(이 브라우저)`); }
+  function defStyleOf(t) { try { return JSON.parse(LS.get(defStyleKey(t), "") || "null"); } catch (e) { return null; } }
   function renderFtb() {
     const F = $("#ftb"), el = selEl();
     if (S.mode !== "edit" || !el || S.editing) { F.classList.remove("show"); F.innerHTML = ""; return; }
@@ -792,6 +847,7 @@
     if (t === "code") h += `${vsep}<button class="ib" data-f="lang" title="코드 언어 - ${el.lang ? esc(langLabel(Render.langOf(el))) : "지정 안 함(SQL 색)"}">${el.lang ? esc(langLabel(Render.langOf(el))) : "언어"} ▾</button><button class="ib${el.lineNo === false ? "" : " on"}" data-f="lineno" title="줄 번호">#</button><button class="ib" data-f="copy" title="코드를 클립보드에 복사">📋</button>`;
     // 공통 - 링크(선 제외) · 그림자(면이 있는 것·그림) · 회전·뒤집기
     if (!isLine(el) || hasShadow(el) || ROTATABLE(el)) h += vsep;
+    h += `<button class="ib${S.fmt ? " on" : ""}" data-f="fmtcopy" title="서식 복사 - 누른 뒤 적용할 요소를 클릭 (Ctrl+Shift+C 복사 · Ctrl+Shift+V 적용 · 두 번 클릭 = 여러 요소에 계속)">🖌</button>`;
     if (!isLine(el)) h += `<button class="ib${el.link ? " on" : ""}" data-f="link" title="링크 - ${esc(el.link || "없음")} (발표 화면에서 누르면 이동 · PPTX 도 같음)">🔗</button>`;
     if (hasShadow(el)) h += `<button class="ib${el.shadow ? " on" : ""}" data-f="shadow" title="그림자">◱</button>`;
     if (ROTATABLE(el)) h += `<button class="ib${el.rot || el.flipH || el.flipV ? " on" : ""}" data-f="rot" title="회전·뒤집기 - 지금 ${el.rot || 0}°${el.flipH ? " · 좌우" : ""}${el.flipV ? " · 상하" : ""}">↻ ▾</button>`;
@@ -977,6 +1033,7 @@
     }
     if (f === "head") { const o = ["none", "end", "start", "both"], v = o[(o.indexOf(el.head || (el.type === "arrow" ? "end" : "none")) + 1) % 4]; mutate((x) => { x.head = v; }, isLine); }
     if (f === "dash") { const o = ["solid", "dash", "dot"], v = o[(o.indexOf(el.dash || "solid") + 1) % 3]; mutate((x) => { x.dash = v; }, isLine); }
+    if (f === "fmtcopy") { if (S.fmt) fmtEnd(); else fmtCopy(e.detail >= 2); }
     if (f === "copy") copyText(el.text || "");
     if (f === "lang") langMenu(t);
     if (f === "dup") dupEl();
@@ -1001,7 +1058,9 @@
       { label: "삭제", key: "Delete", disabled: lk, act: () => delEl() }, "-",
       { label: "앞으로 가져오기", key: "Ctrl+]", act: () => zorder("fwd") }, { label: "뒤로 보내기", key: "Ctrl+[", act: () => zorder("bwd") },
       { label: "맨 앞으로", key: "Alt+Ctrl+]", act: () => zorder("front") }, { label: "맨 뒤로", key: "Alt+Ctrl+[", act: () => zorder("back") }, "-",
-      { label: "글자 편집", key: "Enter", act: () => startEdit(el) },
+      { label: "글자 편집", key: "Enter", act: () => startEdit(el) }, "-",
+      { label: "서식 복사", key: "Ctrl+Shift+C", act: () => fmtCopy(false) }, ...(S.fmt ? [{ label: "서식 적용", key: "Ctrl+Shift+V", act: () => fmtPasteTo(selIds()) }] : []),
+      { label: `이 서식을 새 ${TYPE_KO[el.type] || el.type} 요소의 기본으로`, act: () => setDefStyle(el) }, ...(defStyleOf(el.type) ? [{ label: `${TYPE_KO[el.type] || el.type} 기본 서식 지우기`, act: () => { LS.set(defStyleKey(el.type), ""); toast("기본 서식을 지웠습니다"); } }] : []), "-",
       { label: isMulti() ? `이 요소 ${selIds().length}개에 요청 메모` : "이 요소에 요청 메모", act: () => openMemo({ element: el.id, elements: selIds() }) },
     ]);
   }
@@ -1048,10 +1107,10 @@ ${names}
   }
   /** 내보내기 파일 이름 = 덱 제목(파일 이름에 못 쓰는 글자는 공백으로) + 꼬리 - 저장 자체는 out/<id>… 이고 받을 때 이 이름이 된다(server.export_name 과 같은 규칙) */
   const exportName = (suffix) => ((S.deck && S.deck.title) || S.id).replace(/[\/:*?"<>|\u0000-\u001f]+/g, " ").replace(/\s+/g, " ").trim().slice(0, 120) + suffix;
-  async function doExportPdf() {
+  async function doExportPdf(layout) {  // layout: 없음 = 슬라이드마다 한 쪽 · notes = 노트 페이지 · h2·h3·h6 = 유인물(쪽당 2·3·6장)
     const b = $("#exportBtn"); b.disabled = true; b.innerHTML = `<span class="spin"></span> PDF 만드는 중`;
     if (S.dirty) await save();
-    const r = await api("POST", `/api/export/${S.id}?pdf=1`);
+    const r = await api("POST", `/api/export/${S.id}?pdf=1${layout ? `&layout=${layout}` : ""}`);
     b.disabled = false; b.textContent = "내보내기 ▾";
     if (r.ok) { const fn = r.data.name || exportName(".pdf"); const a = $("#dl"); a.href = BASE + r.data.url; a.setAttribute("download", fn); a.style.display = ""; a.textContent = `⬇ ${fn}`; toast(`PDF 를 만들었습니다(${r.data.via === "powerpoint" ? "PowerPoint" : "Chrome"}) - ⬇ 로 받기`, 5000); }
     else toast("PDF 내보내기 실패: " + (r.data && (r.data.error + " " + (r.data.log || "")) || r.status), 8000);
@@ -1059,8 +1118,11 @@ ${names}
   function exportMenu(btn) {
     openMenu(btn, [
       { icon: "📄", label: "PPTX 내보내기 (편집 가능한 도형)", act: () => doExport() },
-      { icon: "🔤", label: "PPTX 내보내기 - 글꼴 포함 (PowerPoint 필요)", act: () => doExport(true) },
+      { icon: "🔤", label: "PPTX 내보내기 - 글꼴 포함 (PowerPoint 필요)", act: () => doExport(true) }, "-",
       { icon: "🧾", label: "PDF 내보내기 (PowerPoint 또는 Chrome)", act: () => doExportPdf() },
+      { icon: "📑", label: "유인물 PDF - 쪽당 3장 + 메모 줄", act: () => doExportPdf("h3") },
+      { icon: "📑", label: "유인물 PDF - 쪽당 6장", act: () => doExportPdf("h6") },
+      { icon: "📝", label: "노트 페이지 PDF - 슬라이드 + 발표자 노트", act: () => doExportPdf("notes") }, "-",
       { icon: "📋", label: "쓴 글꼴 기록 보기 (마지막 내보내기)", act: () => window.open(`${BASE}/out/${S.id}.fonts.json`, "_blank") },
       { icon: "❓", label: "글꼴 받기·설치 안내", act: () => window.open(`${BASE}/studio/fonts.html`, "_blank") },
       { icon: "🖼", label: S.preview ? "PowerPoint 렌더 미리보기 닫기" : "PowerPoint 렌더 미리보기 (나란히)", act: togglePreview },
@@ -1116,7 +1178,8 @@ ${names}
   }
   const CELL_SPLIT = /\s*\|\s*(?![^[]*\]\])/;
   const tableToText = (rows) => (rows || []).map((r) => r.join(" | ")).join("\n");
-  const textToTable = (t) => t.split("\n").filter((l) => l.trim()).map((l) => l.split(CELL_SPLIT));
+  const splitCells = (l) => (l.includes("\t") ? l.split("\t").map((x) => x.trim()) : l.split(CELL_SPLIT));  // Excel 에서 붙여 넣은 줄(탭 구분)도 칸으로
+  const textToTable = (t) => t.split("\n").filter((l) => l.trim()).map(splitCells);
   const showToText = (sh) => (sh || []).map(([a, b]) => (a === b ? `${a}` : `${a}-${b}`)).join(", ");
   function textToShow(t) { const out = []; for (const p of t.split(/[,\s]+/).filter(Boolean)) { const m = p.match(/^(\d+)(?:-(\d+))?$/); if (m) out.push([+m[1], +(m[2] || m[1])]); } return out; }
 
@@ -1156,9 +1219,9 @@ ${names}
     if (!el) {
       P.innerHTML = `<div class="sec"><h3>슬라이드 ${S.cur + 1} · ${esc(s.id)} · 레이아웃 ${esc(s.layout || "-")}</h3>
         <div class="row"><label>배경</label><select class="colorSel" data-slide="bg">${colorOptions(s.bg || "surface")}</select></div>
-        ${fontSetRow("글꼴 세트", 'data-slide="fontPreset"', s.fontPreset, `(덱 기본${S.deck.fontPreset ? ` - ${esc(S.deck.fontPreset)}` : ""})`, S.deck.fontPreset || (S.fonts && S.fonts.current), "이 슬라이드만")}
-        ${fontSetRow("덱 글꼴 세트", 'data-deckfont="1"', S.deck.fontPreset, `(작업 공간 - ${esc((S.fonts && S.fonts.current) || "기본")})`, S.fonts && S.fonts.current, "덱 전체")}
-        <div class="row"><label>구분(섹션)</label><input type="text" data-slide="section" value="${esc(s.section || "")}" placeholder="${s.layout === "chapter" ? "장 표지 - 제목으로 자동" : "(없음)"}" title="PPTX 구분(섹션) 이름 - 이 슬라이드부터 새 구분이 시작된다. 장 표지(chapter) 레이아웃은 비워도 제목으로 자동"></div>
+        ${fontSetRow("이 장 글꼴", 'data-slide="fontPreset"', s.fontPreset, `(덱 기본${S.deck.fontPreset ? ` - ${esc(S.deck.fontPreset)}` : ""})`, S.deck.fontPreset || (S.fonts && S.fonts.current), "이 슬라이드만")}
+        ${fontSetRow("덱 글꼴", 'data-deckfont="1"', S.deck.fontPreset, `(작업 공간 - ${esc((S.fonts && S.fonts.current) || "기본")})`, S.fonts && S.fonts.current, "덱 전체")}
+        <div class="row"><label title="PPTX 구분(섹션)">섹션</label><input type="text" data-slide="section" value="${esc(s.section || "")}" placeholder="${s.layout === "chapter" ? "장 표지 - 제목으로 자동" : "(없음)"}" title="PPTX 구분(섹션) 이름 - 이 슬라이드부터 새 구분이 시작된다. 장 표지(chapter) 레이아웃은 비워도 제목으로 자동"></div>
         <div class="row"><label class="switch" title="발표·인쇄·PDF 에서 건너뛰고 PPTX 에서는 숨김 슬라이드가 된다"><input type="checkbox" data-slide="hidden" ${s.hidden ? "checked" : ""}><span class="track"></span>숨김 슬라이드</label></div>
         <div class="hint">요소를 누르면 위 서식 줄과 여기서 고칠 수 있다. 색은 토큰 이름으로 고른다(색의 의미 유지).</div></div>${list}`;
       return;
@@ -1172,7 +1235,7 @@ ${names}
       ${!isLine(el) && !["table", "plan-table", "bullets", "code", "plan"].includes(el.type) ? `<div class="row" style="margin-top:6px"><label>회전(°)</label><input type="number" step="1" data-k="rot" value="${el.rot || 0}" title="시계 방향, 중심 기준 - PPT 와 같다" style="width:70px"><button class="chip sm${el.flipH ? " on" : ""}" data-flip="H" title="좌우 뒤집기">⇋ 좌우</button><button class="chip sm${el.flipV ? " on" : ""}" data-flip="V" title="상하 뒤집기">⇅ 상하</button></div>` : ""}
       <h3 style="margin-top:10px">순서</h3><div class="zrow"><button class="pbtn" data-z="back" title="맨 뒤로 보내기 (Alt+Ctrl+[)">⇊ 맨 뒤</button><button class="pbtn" data-z="bwd" title="뒤로 보내기 (Ctrl+[)">↓ 뒤로</button><button class="pbtn" data-z="fwd" title="앞으로 가져오기 (Ctrl+])">↑ 앞으로</button><button class="pbtn" data-z="front" title="맨 앞으로 가져오기 (Alt+Ctrl+])">⇈ 맨 앞</button></div></div>`;
     if (TEXTY.has(el.type)) {
-      h += `${el.type === "text" ? `<div class="row" style="margin:0 0 6px"><button class="chip sm" data-conv="bullets" title="줄마다 항목인 글머리 목록으로 바꿉니다(앞에 공백 두 칸 = 하위 항목, 글 앞의 번호·기호는 자동 감지)">≡ 글머리 목록으로 바꾸기</button></div>` : ""}<div class="sec"><h3>글자 <span class="hint" title="인라인 강조 표기 - 겹쳐 쓸 수 있다. __밑줄__ · *기울임* · [[link:#3|글]] 은 슬라이드 링크">**굵게** · ==강조== · [[토큰|색]] · ~~취소~~ · ^{위}_{아래} · [[bg:토큰|형광]] · [[link:url|글]] · {page}</span></h3><textarea data-k="text" style="min-height:70px;font-family:var(--font);font-size:13px">${esc(el.text || "")}</textarea>
+      h += `${el.type === "text" ? `<div class="row" style="margin:0 0 6px"><button class="chip sm" data-conv="bullets" title="줄마다 항목인 글머리 목록으로 바꿉니다(앞에 공백 두 칸 = 하위 항목, 글 앞의 번호·기호는 자동 감지)">≡ 글머리 목록으로 바꾸기</button></div>` : ""}<div class="sec"><h3>글자 <span class="hint" style="cursor:help" title="인라인 표기(겹쳐 쓸 수 있다): **굵게** · ==강조== · [[토큰|색]] · __밑줄__ · *기울임* · ~~취소~~ · ^{위}_{아래} · [[bg:토큰|형광]] · [[link:url|글]]·[[link:#3|글]] · {page}">**굵게** · ==강조== · [[토큰|색]] … ⓘ</span></h3><textarea data-k="text" style="min-height:70px;font-family:var(--font);font-size:13px">${esc(el.text || "")}</textarea>
         <div class="row"><label>크기</label><input type="number" step="1" data-k="size" value="${el.size == null ? "" : el.size}" title="px (PPT = px × 0.75 pt)"><span class="hint" style="margin:0">px</span><span class="seg" data-k="bold" style="margin-left:auto"><button data-v="0" class="${(el.bold === undefined ? el.type === "pill" : el.bold) ? "" : "on"}">보통</button><button data-v="1" class="${(el.bold === undefined ? el.type === "pill" : el.bold) ? "on" : ""}" style="font-weight:700">굵게</button></span></div>
         ${seg("정렬", "align", el, [["left", "⇤ 왼쪽"], ["center", "↔ 가운데"], ["right", "⇥ 오른쪽"]], el.type === "pill" || el.type === "ellipse" ? "center" : "left")}
         ${seg("세로", "valign", el, [["top", "⤒ 위"], ["middle", "↕ 가운데"], ["bottom", "⤓ 아래"]], el.type === "text" ? "top" : "middle")}
@@ -1189,23 +1252,24 @@ ${names}
     if (el.type === "chart") h += `<div class="sec"><h3>차트 <span class="hint">PPTX 는 PowerPoint 차트(편집 가능)</span></h3>
         ${seg("종류", "chart", el, CHART_KINDS.map(([k, , l]) => [k, l]), "column")}
         <div class="row"><label>제목</label><input type="text" data-k="title" value="${esc(el.title || "")}" placeholder="(없음)"></div>
-        <h3 style="margin-top:8px">데이터 - 첫 줄 = 범주 | 계열 이름…, 다음 줄 = 범주 | 값…</h3><textarea data-chart="1" style="min-height:120px;font-family:Consolas,monospace;font-size:13px">${esc(chartToText(el))}</textarea>
+        <h3 style="margin-top:8px">데이터 - 첫 줄 = 범주 | 계열 이름…, 다음 줄 = 범주 | 값… <button class="chip sm" data-act="charttbl" style="margin-left:auto" title="표 격자에서 셀을 고쳐 쓴다(행·열 추가, Excel 붙여넣기)">▦ 표로 편집</button></h3><textarea data-chart="1" style="min-height:120px;font-family:Consolas,monospace;font-size:13px" title="Excel 에서 복사한 탭 구분 줄도 됩니다">${esc(chartToText(el))}</textarea>
         ${seg("범례", "legend", { legend: el.legend || (((el.series || []).length > 1 || el.chart === "pie" || el.chart === "doughnut") ? "bottom" : "none") }, [["none", "없음"], ["bottom", "아래"], ["right", "오른쪽"]], "none")}
         ${seg("값 표시", "labels", { labels: el.labels ? "on" : "off" }, [["off", "끔"], ["on", "켬"]], "off")}${seg("눈금선", "grid", { grid: el.grid === false ? "off" : "on" }, [["on", "켬"], ["off", "끔"]], "on")}
         ${num("글자 크기", "size", el)}${el.chart === "pie" || el.chart === "doughnut" ? "" : `${num("축 최댓값", "axisMax", el)}
-        <div class="row"><label>값 축 제목</label><input type="text" data-k="axisTitle" value="${esc(el.axisTitle || "")}" placeholder="(없음) 예: 억 원"></div>
-        <div class="row"><label>범주 축 제목</label><input type="text" data-k="catTitle" value="${esc(el.catTitle || "")}" placeholder="(없음) 예: 분기"></div>
+        <div class="row"><label>값축 제목</label><input type="text" data-k="axisTitle" value="${esc(el.axisTitle || "")}" placeholder="(없음) 예: 억 원"></div>
+        <div class="row"><label>범주 제목</label><input type="text" data-k="catTitle" value="${esc(el.catTitle || "")}" placeholder="(없음) 예: 분기"></div>
         <div class="row"><label>숫자 형식</label><input type="text" data-k="numFmt" value="${esc(el.numFmt || "")}" placeholder="#,##0 · 0.0 · 0% · #,##0&quot;억&quot;" title="눈금·값 표시의 숫자 형식(Excel 식) - PPTX 는 같은 형식 코드. 100% 누적은 비우면 0%"></div>`}
         ${el.chart === "combo" ? `<div class="row"><label>선 계열</label><input type="text" data-k="lineSeries" value="${esc(Array.isArray(el.lineSeries) ? el.lineSeries.join(", ") : el.lineSeries == null ? "" : el.lineSeries)}" placeholder="계열 이름 또는 번호(0부터), 쉼표로 - 비우면 마지막 계열" title="선으로 그릴 계열 - 나머지는 막대"></div>
         ${seg("보조 축", "secondaryAxis", { secondaryAxis: el.secondaryAxis ? "on" : "off" }, [["off", "없음"], ["on", "선은 오른쪽 축"]], "off")}
-        ${el.secondaryAxis ? `<div class="row"><label>보조 축 제목</label><input type="text" data-k="axisTitle2" value="${esc(el.axisTitle2 || "")}" placeholder="(없음)"></div><div class="row"><label>보조 숫자 형식</label><input type="text" data-k="numFmt2" value="${esc(el.numFmt2 || "")}" placeholder="0% · #,##0"></div>${num("보조 축 최댓값", "axisMax2", el)}` : ""}` : ""}
+        ${el.secondaryAxis ? `<div class="row"><label>보조 제목</label><input type="text" data-k="axisTitle2" value="${esc(el.axisTitle2 || "")}" placeholder="(없음)"></div><div class="row"><label>보조 형식</label><input type="text" data-k="numFmt2" value="${esc(el.numFmt2 || "")}" placeholder="0% · #,##0"></div>${num("보조 축 최댓값", "axisMax2", el)}` : ""}` : ""}
         <div class="hint">색은 \`colors\` (요소 JSON, 색 토큰 또는 #hex 목록). 빈 값·글자는 없는 값. 데이터는 종류가 바뀌어도 그대로.</div></div>`;
     if (el.type === "icon") h += `<div class="sec"><h3>아이콘</h3><div class="row"><label>종류</label><select data-k="icon">${Render.iconNames().map(([k, ko]) => `<option value="${k}"${el.icon === k ? " selected" : ""}>${ko}</option>`).join("")}</select></div>${colorRow("아이콘 색", "fill", el)}${colorRow("대비 색", "color", el)}<div class="hint">정사각형으로 그려진다(짧은 변 기준). PPTX 는 자유형 도형이라 PowerPoint 에서 색·크기를 고칠 수 있다.</div></div>`;
     if (el.type === "group") h += `<div class="sec"><h3>묶음 (${(el.children || []).length}개)</h3><div class="row"><button class="chip sm" data-act="ungroup" title="자식을 낱개로 되돌립니다 (Ctrl+Shift+G)">묶음 풀기</button><span class="hint" style="margin:0">${(el.children || []).map((c) => TYPE_KO[c.type] || c.type).join(" · ")}</span></div><div class="hint">자식은 묶음 상자 기준 좌표. 크기를 바꾸면 자식 위치·크기가 비율로 따라간다. 두 번 클릭 편집은 풀어서.</div></div>`;
     if (el.type === "image") h += `<div class="sec"><h3>그림</h3><div class="row"><label>경로</label><input type="text" data-k="src" value="${esc(el.src)}"></div>
+        <div class="row"><label title="대체 텍스트(접근성)">대체 글</label><input type="text" data-k="alt" value="${esc(el.alt || "")}" placeholder="그림을 설명하는 한 문장(접근성 · PPTX 대체 텍스트)"></div>
         <div class="row"><label>자르기 %</label>${["l", "t", "r", "b"].map((k, i) => `<input type="number" min="0" max="95" step="1" data-crop="${i}" value="${Math.round(((el.crop || [0, 0, 0, 0])[i] || 0) * 100)}" title="${["왼쪽", "위", "오른쪽", "아래"][i]}" style="width:52px">`).join("")}</div>
         <div class="row"><label>투명도 %</label><input type="number" min="0" max="100" step="5" data-opacity="1" value="${Math.round((el.opacity == null ? 1 : el.opacity) * 100)}" title="100 = 그대로" style="width:70px">${seg("그림자", "shadow", { shadow: el.shadow ? "on" : "off" }, [["off", "없음"], ["on", "있음"]], "off").replace('<div class="row">', '<span class="row" style="margin:0">').replace(/<\/div>$/, "</span>")}</div><div class="row"><label>효과</label><select data-k="effect" title="프레임 효과 - 원본 파일은 그대로 두고 속성으로만 적용(PPTX 도 같은 효과)">${EFFECTS.map(([k, l]) => `<option value="${k}"${(el.effect || "") === k ? " selected" : ""}>${l}</option>`).join("")}</select>${el.effect ? seg("수준", "effectLevel", { effectLevel: String(el.effectLevel || 2) }, [["1", "약"], ["2", "중"], ["3", "강"]], "2").replace('<div class="row">', '<span class="row" style="margin:0 0 0 6px">').replace(/<\/div>$/, "</span>") : ""}</div>${el.effect === "frame" ? `${colorRow("테두리 색", "frameColor", el, true)}<div class="row"><label>테두리 px</label><input type="number" min="1" max="40" step="1" data-k="frameWidth" value="${el.frameWidth == null ? "" : el.frameWidth}" placeholder="수준 기본" title="액자 두께 - 비우면 수준(약 3·중 6·강 10)" style="width:70px"></div>` : ""}
-        <div class="row"><button class="chip sm" data-imgpick="1" title="새 그림 파일을 올려 이 자리에 바꿔 넣습니다(폭 유지, 높이는 비율로)">그림 바꾸기…</button>${el.mermaid != null ? `<button class="chip sm" data-mermaid="1" title="mermaid 코드를 고쳐 다시 그립니다(폭 유지)">다이어그램 코드 수정…</button>` : ""}<span class="hint" style="margin:0">assetRoot 기준 경로 · 모서리 핸들은 비율 유지</span></div></div>`;
+        <div class="row"><button class="chip sm" data-imgpick="1" title="새 그림 파일을 올려 이 자리에 바꿔 넣습니다(폭 유지, 높이는 비율로)">그림 바꾸기</button>${el.mermaid != null ? `<button class="chip sm" data-mermaid="1" title="mermaid 코드를 고쳐 다시 그립니다(폭 유지)">다이어그램 코드 수정</button>` : ""}<span class="hint" style="margin:0">assetRoot 기준 경로 · 모서리 핸들은 비율 유지</span></div></div>`;
     if (isLine(el)) h += `<div class="sec"><h3>선</h3>${colorRow("색", "color", el)}${num("두께(px)", "width", el, 0.5)}
         ${seg("머리", "head", el, [["none", "없음"], ["end", "끝"], ["start", "시작"], ["both", "양쪽"]], el.type === "arrow" ? "end" : "none")}
         ${seg("점선", "dash", el, [["solid", "실선"], ["dash", "파선"], ["dot", "점선"]], "solid")}</div>`;
@@ -1271,7 +1335,7 @@ ${names}
     else if (k === "grid") { if (v === "off") el.grid = false; else delete el.grid; }
     else if (k === "legend") { if (v === "none" && !((el.series || []).length > 1 || el.chart === "pie" || el.chart === "doughnut")) delete el.legend; else el.legend = v; }
     else if (k === "axisMax" || k === "axisMax2") { if (v === "" || v == null || +v <= 0) delete el[k]; else el[k] = +v; }
-    else if (["axisTitle", "catTitle", "axisTitle2", "numFmt", "numFmt2"].includes(k)) { const t = String(v || "").trim(); if (t) el[k] = t; else delete el[k]; }  // 차트 축 제목·숫자 형식
+    else if (["axisTitle", "catTitle", "axisTitle2", "numFmt", "numFmt2", "alt"].includes(k)) { const t = String(v || "").trim(); if (t) el[k] = t; else delete el[k]; }  // 차트 축 제목·숫자 형식
     else if (k === "lineSeries") { const a = String(v || "").split(",").map((x) => x.trim()).filter(Boolean).map((x) => (/^\d+$/.test(x) ? +x : x)); if (a.length) el.lineSeries = a; else delete el.lineSeries; }  // 콤보 선 계열(이름 또는 번호)
     else if (k === "secondaryAxis") { if (v === "on") el.secondaryAxis = true; else delete el.secondaryAxis; }
     else if (k === "title") { const t = String(v || "").trim(); if (t) el.title = t; else delete el.title; }
@@ -1377,6 +1441,7 @@ ${names}
     }
     if (b.dataset.act === "dupEl") dupEl();
     if (b.dataset.act === "ungroup") ungroupSel();
+    if (b.dataset.act === "charttbl" && el && el.type === "chart") { openChartTable(el); return; }
     if (b.dataset.act === "delEl") delEl();
     if (b.dataset.act === "reqEl") openMemo({ element: el.id });
   }
@@ -1417,11 +1482,16 @@ ${names}
   const reqRecent = (r) => r.status !== "done" || Date.now() - Date.parse(r.updated || r.created || "") < DAY_MS;
   const reqIdx = (sid) => S.deck.slides.findIndex((x) => x.id === sid) + 1;
   /** 요청 카드 한 장 - 요청 탭과 기록 창이 같이 쓴다. hl = 찾기 강조 함수, fu = 후속 요청 단추·입력칸 */
+  function chkDelta(r) {  // 레이아웃 고치기 요청 - 보낼 때 검사 건수(글에 적힘) → 완료 뒤 지금 건수
+    const m = /레이아웃 검사 결과를 고쳐 줘 \(검사 (\d+)건\)/.exec(r.text || ""); if (!m || r.status !== "done" || !S.check) return "";
+    const now = S.check.issues.filter((x) => x.slide === r.slide).length, b = +m[1];
+    return `<div class="hint" style="margin:2px 0 0"><span class="bd ${now < b ? "work" : now > b ? "chk err" : "chk"}" style="margin:0">검사 ${b} → ${now}건${now > b ? " · 늘었음" : now === 0 ? " · 해결" : ""}</span></div>`;
+  }
   function reqCardHtml(r, k, last, o) {
     const hl = (o && o.hl) || esc, fu = !o || o.fu !== false;
     return `<div class="req ${r.status === "done" ? "done" : ""}${k ? " fu" : ""}" data-rid="${esc(r.id)}">
         <div class="meta"><span class="st ${esc(r.status || "open")}">${ST[r.status] || "대기"}</span>${k ? `<span class="fu-tag">후속</span>` : `<a href="#" data-goto="${esc(r.slide)}" data-el="${esc(r.element || "")}">슬라이드 ${reqIdx(r.slide) || "?"}${r.elements && r.elements.length > 1 ? ` · ${esc(r.elements[0])} 외 ${r.elements.length - 1}` : r.element ? " · " + esc(r.element) : ""}${r.region ? " · 영역" : ""}</a>`}<span>${esc((r.created || "").replace("T", " "))}</span>${r.updated && r.updated !== r.created ? `<span title="마지막 진행">↻ ${esc(r.updated.replace("T", " "))}</span>` : ""}${r.engineRequest ? `<a class="fu-tag" href="${esc(BASE.startsWith("/w/") ? `/engine?q=%23${r.engineRequest}` : "#")}" ${BASE.startsWith("/w/") ? 'target="_blank"' : ""} title="${esc(r.engineNote || "엔진 변경 요청으로 넘긴 요청 - 관리자 승인·처리·적용 뒤 자동으로 다시 열린다")}" style="text-decoration:none">엔진 요청 #${r.engineRequest}</a>` : ""}</div>${r.engineNote ? `<div class="hint" style="margin:2px 0 4px">${esc(r.engineNote)}</div>` : ""}
-        <div class="txt">${hl(r.text)}</div>${attListHtml(r.attachments, r.id)}${r.reply ? `<div class="reply${r.status !== "done" ? " ask" : ""}"><b>${agentName()}</b> ${hl(r.reply)}</div>` : ""}
+        <div class="txt">${hl(r.text)}</div>${chkDelta(r)}${attListHtml(r.attachments, r.id)}${r.reply ? `<div class="reply${r.status !== "done" ? " ask" : ""}"><b>${agentName()}</b> ${hl(r.reply)}</div>` : ""}
         <div class="acts">${r.status === "draft" ? "" : `<button class="chip sm" data-rs="${r.status === "done" ? "open" : "done"}" ${r.status === "done" ? 'title="같은 요청을 세션에 다시 보냅니다(답을 달려면 후속 요청)"' : ""}>${r.status === "done" ? "다시 열기" : "완료로 표시"}</button>`}${fu && last && r.status !== "draft" ? `<button class="chip sm primary" data-fu="1" title="이 요청에 이어서 묻거나 답합니다 - 앞선 요청과 답이 함께 세션에 전달됩니다">후속 요청</button>` : ""}<button class="chip sm" data-rdel="1">삭제</button></div>
         ${fu && last && S.fu === r.id ? fuFormHtml(r) : ""}</div>`;
   }
@@ -1439,7 +1509,7 @@ ${names}
       <div class="att" id="reqAtt"></div>
       <div class="row"><button class="chip sm primary" id="reqAdd">메모 남기기</button><button class="att-btn" data-attach="tab" title="그림 붙여넣기(Ctrl+V) · 끌어다 놓기 · 파일 고르기"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 11.5l-8.5 8.5a5 5 0 0 1-7-7l9-9a3.3 3.3 0 0 1 4.7 4.7l-9 9a1.6 1.6 0 0 1-2.3-2.3l8-8"/></svg>＋ 첨부</button>${drafts ? `<button class="chip sm" id="reqSend">초안 ${drafts}개 보내기</button>` : ""}</div>
       <div class="hint">${S.session && S.session.connected ? (S.session.kind === "web" ? (S.session.state === "running" ? `웹 세션이 처리 중(턴 ${S.session.turn || "?"}) - 새로 보낸 요청은 이 턴이 끝난 뒤 바로 처리된다` : "웹 세션 대기 중 - 보낸 요청은 바로 처리된다") : "세션 연결됨 - 보낸 요청은 바로 전달된다") : `세션 연결 없음 - 보낸 요청은 저장되고, 세션이 감시를 시작하면 전달된다${sessOffNote()}`}</div>
-      ${!(S.session && S.session.connected) && S.reqs.some((r) => r.status === "open") ? `<div class="warn" style="font-size:12px;margin-top:6px">세션이 꺼져 있어 대기 요청 ${S.reqs.filter((r) => r.status === "open").length}건이 처리되지 않습니다 - <a href="#" data-sess-start>웹 세션 시작…</a></div>` : ""}</div>
+      ${!(S.session && S.session.connected) && S.reqs.some((r) => r.status === "open") ? `<div class="warn" style="font-size:12px;margin-top:6px">세션이 꺼져 있어 대기 요청 ${S.reqs.filter((r) => r.status === "open").length}건이 처리되지 않습니다 - <a href="#" data-sess-start>웹 세션 시작</a></div>` : ""}</div>
       <div class="row" style="align-items:center"><span class="seg" id="reqFilter"><button data-v="1" class="${S.reqOnlySlide ? "on" : ""}">이 슬라이드</button><button data-v="0" class="${S.reqOnlySlide ? "" : "on"}">최근 (${recent.length})</button></span><span style="flex:1"></span><button class="chip sm" id="reqMore" title="이전 요청까지 모두 찾아보기(편집 화면 위에 뜹니다)">더보기${older ? ` · 이전 ${older}` : ""}</button></div>
       ${older ? `<div class="hint" style="font-size:11.5px;margin:2px 0 6px">최근 24시간에 진행된 요청과 아직 끝나지 않은 요청만 보입니다 - 이전 것은 [더보기]</div>` : ""}
       ${list.length ? reqThreadsHtml(list) : `<div class="hint">요청이 없다.</div>`}`;
@@ -1536,12 +1606,12 @@ ${names}
     const cnts = [$("#chkCnt"), $("#chkCnt2")];
     if (!c) { C.innerHTML = `<div class="hint">검사 중…</div>`; cnts.forEach((x) => (x.style.display = "none")); return; }
     const s = slide(), mine = c.issues.filter((x) => s && x.slide === s.id);
-    const tot = mine.length;
+    const tot = mine.filter((x) => x.severity !== "INFO").length;  // INFO(대체 텍스트 없음 등)는 목록에만, 건수 배지에는 안 센다
     cnts.forEach((x) => { x.textContent = tot; x.style.display = tot ? "" : "none"; x.style.background = mine.some((i) => i.severity === "ERROR") ? "var(--err)" : "var(--warn)"; });
     const list = S.chkOnlySlide ? mine : c.issues;
     C.innerHTML = `<div class="row" style="margin-top:0"><b>레이아웃 검사</b><span class="hint">덱 전체 ERROR ${c.errors} · WARNING ${c.warnings} · 템플릿 ${esc(c.template || "")} · 최소 ${Object.entries(c.minFontPt).map(([k, v]) => `${k} ${v}pt`).join(" · ")}</span>
       <span class="seg" id="chkFilter" style="margin-left:auto"><button data-v="1" class="${S.chkOnlySlide ? "on" : ""}">이 슬라이드 (${mine.length})</button><button data-v="0" class="${S.chkOnlySlide ? "" : "on"}">전체 (${c.issues.length})</button></span>
-      <button class="chip sm" id="chkRun">다시 검사</button>${mine.length ? `<button class="chip sm" id="chkFix">✨ 세션에 고치기 요청</button>` : ""}</div>
+      <button class="chip sm" id="chkRun">다시 검사</button>${mine.length ? `<button class="chip sm" id="chkTidy" title="AI 없이 기계적으로 - 슬라이드 밖 요소를 안으로, 글자가 넘치는 상자를 늘린다(자리가 있을 때)">⚒ 자동 정리</button><button class="chip sm" id="chkFix">✨ 세션에 고치기 요청</button>` : ""}</div>
       ${list.length ? list.map((x) => `<div class="chk" data-k="${c.issues.indexOf(x)}"><span class="sev ${x.severity}">${x.severity}</span>
         <b>${x.n}</b> <span class="rule">${esc(x.rule)}</span><div class="msg">${esc(x.message)}</div></div>`).join("") : `<div class="hint">문제 없음.</div>`}`;
   }
@@ -1555,6 +1625,7 @@ ${names}
   function onChkClick(e) {
     if (e.target.id === "chkRun") { S.check = null; renderCheck(); runCheck(); return; }
     if (e.target.id === "chkFix") { aiFix(); return; }
+    if (e.target.id === "chkTidy") { autoTidy(); return; }
     const f = e.target.closest("#chkFilter button"); if (f) { S.chkOnlySlide = f.dataset.v === "1"; renderCheck(); return; }
     const it = e.target.closest(".chk"); if (!it || !S.check) return;
     const x = S.check.issues[+it.dataset.k]; const i = S.deck.slides.findIndex((s) => s.id === x.slide);
@@ -1610,12 +1681,12 @@ ${names}
     const items = web
       ? [{ h: `웹 세션 · ${st.agent || ""} · ${st.model || ""}${st.user ? ` · ${st.user}` : ""}${st.allowWeb ? " · 웹 허용" : ""}${(st.grants || []).map((g) => " · " + g).join("")}` },
          ...(st.sessionId ? [{ icon: "#", label: `세션 ID ${st.sessionId.slice(0, 8)} 복사`, act: () => sidCopy(st) }, { icon: "›", label: "확인 명령(claude --resume) 복사", act: () => sidCopy(st, true) }] : []),
-         { icon: "▶", label: "진행 보기", act: sessProgress }, { icon: "⟳", label: "모델 바꾸기…", act: sessModelDlg },
-         { icon: "📄", label: "턴 로그…", act: () => sessLog(1) }, "-",
+         { icon: "▶", label: "진행 보기", act: sessProgress }, { icon: "⟳", label: "모델 바꾸기", act: sessModelDlg },
+         { icon: "📄", label: "턴 로그", act: () => sessLog(1) }, "-",
          { icon: "■", label: "세션 중지", act: sessStop }]
       : st.connected
         ? [{ h: `수동 세션 · ${st.label || ""}` }, { html: `<div class="hint" style="padding:4px 10px;max-width:280px">터미널의 Claude Code 세션이 요청 감시(watch_requests)로 맡고 있습니다. 웹 세션으로 바꾸려면 그 감시를 끝내세요.</div>` }]
-        : [...(sessOffNote() ? [{ h: sessOffNote().replace(/^ · /, "") }] : []), { icon: "▶", label: "웹 세션 시작…", act: sessStartDlg }, { html: `<div class="hint" style="padding:4px 10px;max-width:280px">서버가 AI(claude·codex)를 띄워 편집기 요청을 처리합니다. 터미널 세션(Monitor)과 함께 쓸 수 없습니다.</div>` }];
+        : [...(sessOffNote() ? [{ h: sessOffNote().replace(/^ · /, "") }] : []), { icon: "▶", label: "웹 세션 시작", act: sessStartDlg }, { html: `<div class="hint" style="padding:4px 10px;max-width:280px">서버가 AI(claude·codex)를 띄워 편집기 요청을 처리합니다. 터미널 세션(Monitor)과 함께 쓸 수 없습니다.</div>` }];
     openMenu(btn, items, { right: false });
   }
   async function sidCopy(st, cmd) {  // 세션 식별자 - ID 복사, cmd 면 그 폴더에서 claude --resume <ID>(보기만; 웹 세션이 도는 중에 이어 쓰면 대화가 섞인다)
@@ -1633,7 +1704,7 @@ ${names}
     WSS.agent = r.data;
     const ag = r.data.agents, cur = r.data.agent, model = r.data.model;
     const opt = (name) => { const a = ag[name]; const ok = a.installed && a.loggedIn; return `<option value="${name}" ${name === cur ? "selected" : ""} ${ok ? "" : "disabled"}>${esc(a.label)}${a.verified ? "" : " (미확인)"}${ok ? "" : a.installed ? " - 로그인 안 됨" : " - 미설치"}</option>`; };
-    const models = (name) => (r.data.models[name] || []).map((m) => `<option value="${esc(m)}" ${m === model ? "selected" : ""}>${esc(m)}</option>`).join("") + `<option value="__custom">직접 입력…</option>`;
+    const models = (name) => (r.data.models[name] || []).map((m) => `<option value="${esc(m)}" ${m === model ? "selected" : ""}>${esc(m)}</option>`).join("") + `<option value="__custom">직접 입력</option>`;
     sessBox(`<div class="row" style="align-items:center;gap:8px"><h3 style="margin:0;flex:1">웹 세션 시작</h3><button class="chip sm" data-sd="close">닫기</button></div>
       <div class="hint">서버가 이 작업 공간에서 AI 를 턴마다 실행해 편집기 요청을 처리합니다. 쓰기 범위는 이 작업 공간 폴더뿐이며 <code>nexa.py</code> 명령만 허용됩니다.</div>
       <label class="f">에이전트</label><select id="sdAgent">${opt("claude")}${opt("codex")}</select>
@@ -1674,7 +1745,7 @@ ${names}
     const list = r.ok ? (r.data.models[st.agent] || []) : [];
     sessBox(`<div class="row" style="align-items:center;gap:8px"><h3 style="margin:0;flex:1">모델 바꾸기</h3><button class="chip sm" data-sd="close">닫기</button></div>
       <div class="hint">지금 ${esc(st.model || "")} · 턴 실행 중이면 끝난 뒤 적용됩니다.</div>
-      <div class="row" style="gap:6px"><select id="sdModel">${list.map((m) => `<option value="${esc(m)}" ${m === st.model ? "selected" : ""}>${esc(m)}</option>`).join("")}<option value="__custom">직접 입력…</option></select><input type="text" id="sdModelText" placeholder="모델 ID" style="display:none;flex:1"></div>
+      <div class="row" style="gap:6px"><select id="sdModel">${list.map((m) => `<option value="${esc(m)}" ${m === st.model ? "selected" : ""}>${esc(m)}</option>`).join("")}<option value="__custom">직접 입력</option></select><input type="text" id="sdModelText" placeholder="모델 ID" style="display:none;flex:1"></div>
       <label class="f" style="display:flex;align-items:center;gap:8px;font-weight:400"><input type="checkbox" id="sdSave"> 이 작업 공간 기본으로 저장 <select id="sdSaveAs" style="font-size:12px"><option value="local">이 PC 만</option><option value="shared">공유</option></select></label>
       <div class="row" style="justify-content:flex-end;gap:8px"><button class="chip sm" data-sd="close">취소</button><button class="chip sm primary" data-sd="modelgo">바꾸기</button></div>`);
     $("#sdModel").onchange = () => { $("#sdModelText").style.display = $("#sdModel").value === "__custom" ? "" : "none"; };
@@ -1690,7 +1761,7 @@ ${names}
   function sessProgress() {
     sessBox(`<div class="row" style="align-items:center;gap:8px"><h3 style="margin:0;flex:1">웹 세션 진행</h3><span class="hint" id="sdState"></span><button class="chip sm" data-sd="log">턴 로그</button><button class="chip sm" data-sd="close">닫기</button></div>
       <div class="ev" id="sdEv"><div class="hint">연결 중…</div></div>
-      <div class="row" style="justify-content:flex-end;gap:8px"><button class="chip sm" data-sd="model">모델 바꾸기…</button><button class="chip sm" data-sd="stop">세션 중지</button></div>`);
+      <div class="row" style="justify-content:flex-end;gap:8px"><button class="chip sm" data-sd="model">모델 바꾸기</button><button class="chip sm" data-sd="stop">세션 중지</button></div>`);
     if (WSS.src) WSS.src.close();
     WSS.events = [];
     const box = $("#sdEv"); box.innerHTML = "";
@@ -1747,6 +1818,7 @@ ${names}
   }
   function toggleBottom() { const f = !$("#bottom").classList.contains("fold"); $("#bottom").classList.toggle("fold", f); $("#bFold").textContent = f ? "▴" : "▾"; LS.set("bfold", f ? "1" : "0"); setTimeout(fitStage, 0); }
   function renderNotes() {
+    if (!$("#notesChips") || !$("#notesChips").children.length) notesChips();
     const s = slide(), n = s ? s.notes || "" : "";
     if (document.activeElement !== $("#notesTa")) $("#notesTa").value = n;
     $("#notesInfo").textContent = n ? `· ${n.length}자` : "· 비어 있음";
@@ -1797,6 +1869,7 @@ ${names}
   }
   function renderPresent() {
     const s = S.deck.slides[S.pIdx]; if (!s) return;
+    inkClear();  // 장이 바뀌면 펜 그림은 지운다
     const st = $("#presentStage"); st.innerHTML = Render.renderSlide(s, S.pIdx + 1);
     const notes = $("#present").classList.contains("notes"), avail = innerHeight * (notes ? 0.64 : 1);
     const k = Math.min(innerWidth / SW, avail / SH);
@@ -1819,7 +1892,7 @@ ${names}
     if (v.startsWith("#")) { const key = v.slice(1); const n = /^\d+$/.test(key) ? +key : S.deck.slides.findIndex((s) => s.id === key) + 1; if (n >= 1 && n <= S.deck.slides.length) { S.pIdx = n - 1; renderPresent(); return true; } toast(`없는 슬라이드: ${v}`); return true; }
     window.open(v, "_blank", "noopener"); return true;
   }
-  function endPresent() { if (S.pch) { try { S.pch.close(); } catch (e) { /* 무시 */ } S.pch = null; } $("#present").classList.remove("show"); if (document.fullscreenElement) document.exitFullscreen().catch(() => {}); goSlide(S.pIdx); }
+  function endPresent() { INK.pen = INK.laser = false; $("#present").classList.remove("pen", "laser"); inkClear(); if (S.pch) { try { S.pch.close(); } catch (e) { /* 무시 */ } S.pch = null; } $("#present").classList.remove("show"); if (document.fullscreenElement) document.exitFullscreen().catch(() => {}); goSlide(S.pIdx); }
   function presentKey(e) {
     const k = e.key;
     if (k === "Escape") { endPresent(); return; }
@@ -1827,6 +1900,9 @@ ${names}
     else if (["ArrowLeft", "ArrowUp", "PageUp", "Backspace"].includes(k)) pStep(-1);
     else if (k === "Home") { S.pIdx = -1; pStep(1); } else if (k === "End") { S.pIdx = S.deck.slides.length; pStep(-1); }
     else if (k.toLowerCase() === "n") $("#present").classList.toggle("notes");
+    else if ((e.ctrlKey || e.metaKey) && k.toLowerCase() === "p") inkMode("pen");
+    else if ((e.ctrlKey || e.metaKey) && k.toLowerCase() === "l") inkMode("laser");
+    else if (k.toLowerCase() === "e") inkClear();
     else if (k.toLowerCase() === "p") openPresenter();
     else return;
     e.preventDefault(); renderPresent();
@@ -1856,6 +1932,11 @@ ${names}
       const node = topEl(e.target);
       if (!node) { select(null); closeMemo(); return; }
       select(node.dataset.id); openMemo({ element: node.dataset.id }); e.preventDefault(); return;
+    }
+    if (S.fmt) {  // 서식 복사 중 - 누른 요소에 적용(빈 곳 = 끝)
+      const node = topEl(e.target); e.preventDefault();
+      if (!node) { fmtEnd(); return; }
+      fmtPasteTo([node.dataset.id]); select(node.dataset.id); return;
     }
     if (hd && !isMulti()) { const el = selEl(); if (!el) return; drag = { mode: "resize", h: hd.dataset.h, el, orig: clone(el), p0: p, moved: false, before: deckJson() }; e.preventDefault(); return; }
     const node = topEl(e.target), add = e.shiftKey || e.ctrlKey || e.metaKey;
@@ -1948,8 +2029,13 @@ ${names}
     const mono = el.type === "code" || el.type === "plan" || Render.fontRole(el.font) === "mono";
     Object.assign(ed.style, { left: b.x + "px", top: b.y + "px", minWidth: Math.max(80, b.w) + "px", minHeight: Math.max(24, b.h) + "px",
       fontSize: (el.size || 20) + "px", lineHeight: (el.lineHeight || 1.4), fontFamily: mono ? "Consolas, 'Malgun Gothic', monospace" : "'Malgun Gothic', sans-serif" });
-    ed.textContent = raw;
+    ed.textContent = raw; ed.spellcheck = true; ed.lang = document.documentElement.lang || "ko";
     $("#stage").appendChild(ed);
+    if (TEXTY.has(el.type) && (el.wrap === undefined ? el.type === "text" || el.type === "rect" : el.wrap)) {  // 입력 중 넘침 예상(상자 높이 대비) - 차단하지 않고 알려만 준다
+      const ov = document.createElement("div"); ov.className = "ovwarn"; ov.style.left = b.x + "px"; ov.style.top = (b.y + Math.max(24, b.h)) + "px"; $("#stage").appendChild(ov);
+      const chk = () => { const over = ed.scrollHeight - 4 - Math.max(24, b.h); ov.textContent = over > 2 ? `넘침 예상 +${Math.round(over)}px - 상자를 늘리거나 글을 줄이세요` : ""; ov.style.display = over > 2 ? "" : "none"; };
+      ed.addEventListener("input", chk); chk();
+    }
     S.editing = { el, ed, before: deckJson() };
     drawSel(); renderFtb(); ed.focus();
     const rg = document.createRange(); rg.selectNodeContents(ed); const sel = getSelection(); sel.removeAllRanges(); sel.addRange(rg);
@@ -1962,7 +2048,7 @@ ${names}
   }
   function endEdit(commit) {
     const E = S.editing; if (!E) return;
-    S.editing = null;
+    S.editing = null; $$("#stage .ovwarn").forEach((x) => x.remove());
     const t = E.ed.innerText.replace(/\r/g, "").replace(/\n$/, "");
     E.ed.remove();
     const el = E.el;
@@ -2012,6 +2098,7 @@ ${names}
     if (!base) return;
     snapshot();
     const el = { id: newElId(s), ...base };
+    const ds = defStyleOf(el.type); if (ds) applyStyle(el, ds);  // 사용자가 기억시킨 기본 서식(오른쪽 클릭 → 이 서식을 기본으로)
     if (isLine(el)) Object.assign(el, Render.lineBox(el));
     if (el.type === "code") el.h = Math.round(24 + Render.codeLines(el).length * el.size * el.lineHeight);
     s.elements.push(el); S.sel = el.id; afterChange();
@@ -2019,7 +2106,7 @@ ${names}
   // 도형 기본 크기(PowerPoint 처럼 종류마다) - 채우기는 장 색, 글은 비워 둔다(두 번 클릭해 쓴다)
   const SHAPE_SIZE = { rightArrow: [200, 90], leftArrow: [200, 90], upArrow: [90, 200], downArrow: [90, 200], leftRightArrow: [240, 90], chevron: [160, 80], homePlate: [160, 80], callout: [200, 110], roundCallout: [200, 110], can: [120, 150], cube: [140, 140], star5: [140, 140], plus: [120, 120] };
   // 차트 기본 데이터 - 범주 4개 · 계열 2개(원형은 1개)
-  const CHART_KINDS = [["column", "▮▮", "세로 막대"], ["stackedColumn", "▮", "누적 세로 막대"], ["stackedColumn100", "▮%", "100% 누적 세로"], ["bar", "▬", "가로 막대"], ["stackedBar", "▬▬", "누적 가로 막대"], ["stackedBar100", "▬%", "100% 누적 가로"], ["line", "⟋", "꺾은선"], ["area", "◢", "영역"], ["combo", "▮⟋", "콤보(막대 + 선)"], ["pie", "◔", "원형"], ["doughnut", "◎", "도넛"]];  // render.js elChart · export_pptx.CHART_TYPES
+  const CHART_KINDS = [["column", "▮▮", "세로 막대"], ["stackedColumn", "▮", "누적 세로 막대"], ["stackedColumn100", "▮%", "세로 100%"], ["bar", "▬", "가로 막대"], ["stackedBar", "▬▬", "누적 가로"], ["stackedBar100", "▬%", "가로 100%"], ["line", "⟋", "꺾은선"], ["area", "◢", "영역"], ["combo", "▮⟋", "콤보 막대+선"], ["pie", "◔", "원형"], ["doughnut", "◎", "도넛"]];  // render.js elChart · export_pptx.CHART_TYPES
   function chartBase(kind) {
     const pie = kind === "pie" || kind === "doughnut";
     return { type: "chart", chart: kind, x: 340, y: 180, w: 600, h: 360, size: 14, categories: ["1분기", "2분기", "3분기", "4분기"],
@@ -2029,7 +2116,7 @@ ${names}
   function chartMenu(btn) { openMenu(btn, [{ h: "차트" }, ...CHART_KINDS.map(([k, i, l]) => ({ icon: i, label: l, act: () => addEl("chart:" + k) }))]); }
   const chartToText = (el) => ["범주 | " + (el.series || []).map((s) => s.name || "").join(" | "), ...(el.categories || []).map((c, i) => [c, ...(el.series || []).map((s) => (s.values || [])[i] == null ? "" : (s.values || [])[i])].join(" | "))].join("\n");
   function textToChart(t, el) {  // 첫 줄 = "범주 | 계열 이름…", 다음 줄들 = "범주 | 값…" (빈 값 = 없음)
-    const rows = t.split("\n").map((l) => l.split(CELL_SPLIT).map((x) => x.trim())).filter((r) => r.some(Boolean));
+    const rows = t.split("\n").map((l) => splitCells(l).map((x) => x.trim())).filter((r) => r.some(Boolean));
     if (!rows.length) return;
     const head = rows[0], names = head.slice(1);
     el.series = names.map((nm, j) => ({ name: nm || `계열 ${j + 1}`, values: rows.slice(1).map((r) => (r[j + 1] === "" || r[j + 1] == null || isNaN(+r[j + 1]) ? null : +r[j + 1])) }));
@@ -2074,7 +2161,7 @@ ${names}
     const ids = out.map((o) => { const el = { id: newElId(s), ...o }; if (isLine(el)) Object.assign(el, Render.lineBox(el)); s.elements.push(el); return el.id; });
     setSelection(ids); afterChange();
   }
-  // ---- 그림 삽입: 파일 고르기(＋ 추가 → 그림 파일…) · 편집기에서 Ctrl+V(클립보드 그림) · 캔버스에 끌어다 놓기 → /api/image(작업 공간 assets/images/) → image 요소
+  // ---- 그림 삽입: 파일 고르기(＋ 추가 → 그림 파일) · 편집기에서 Ctrl+V(클립보드 그림) · 캔버스에 끌어다 놓기 → /api/image(작업 공간 assets/images/) → image 요소
   const EFFECTS = [["", "없음"], ["softEdge", "부드러운 가장자리"], ["round", "둥근 모서리"], ["circle", "원형"], ["frame", "액자(흰 테두리·그림자)"], ["glow", "빛(글로우)"]];  // render.js effectCss · export_pptx.apply_effect
   const IMG_MAX = [640, 400];  // 처음 넣을 때 최대 크기(비율 유지) - 큰 사진이 슬라이드를 덮지 않게
   function imageSize(dataUrl) { return new Promise((res) => { const im = new Image(); im.onload = () => res([im.naturalWidth || 1, im.naturalHeight || 1]); im.onerror = () => res([320, 200]); im.src = dataUrl; }); }
@@ -2102,7 +2189,7 @@ ${names}
     const f = $("#imgFile"); if (!f) return;
     f.onchange = async () => {
       const files = [...f.files]; f.value = "";
-      if (replaceEl) {  // 속성 [그림 바꾸기…] - 같은 자리에 새 그림(폭 유지, 높이는 비율로)
+      if (replaceEl) {  // 속성 [그림 바꾸기] - 같은 자리에 새 그림(폭 유지, 높이는 비율로)
         const file = files.find((x) => /^image\//.test(x.type || "")); if (!file) return;
         const dataUrl = await new Promise((res) => { const rd = new FileReader(); rd.onload = () => res(String(rd.result)); rd.readAsDataURL(file); });
         const [nw, nh] = await imageSize(dataUrl);
@@ -2113,7 +2200,7 @@ ${names}
     };
     f.click();
   }
-  // ---- 다이어그램(코드, mermaid): 코드 창 → POST /api/mermaid → PNG(assets/images/) → image 요소(mermaid 코드를 같이 둔다 - 속성 [다이어그램 코드 수정…])
+  // ---- 다이어그램(코드, mermaid): 코드 창 → POST /api/mermaid → PNG(assets/images/) → image 요소(mermaid 코드를 같이 둔다 - 속성 [다이어그램 코드 수정])
   const MERMAID_SAMPLE = "flowchart LR\n  A[요청] --> B{검토}\n  B -->|승인| C[처리]\n  B -->|거절| D[반려]";
   function codeDialog(title, value, hint, onOk) {
     const back = document.createElement("div");
@@ -2157,7 +2244,7 @@ ${names}
     const base = [["text", "T", "글자", "텍스트 text"], ["bullets", "≡", "글머리 목록", "bullets list 번호"], ["pill", "◖◗", "칩", "pill badge 태그"], ["rect", "▭", "상자", "사각형 rect box"], ["ellipse", "◯", "원", "타원 circle"], ["arrow", "→", "화살표", "선 line connector"]];
     const data = [["table", "▦", "표", "table 격자"], ["code", "{ }", "코드", "code sql"]].concat(CHART_KINDS.map(([k, i, l]) => [`chart:${k}`, i, l, `차트 chart ${k}`]));
     const icons = Render.iconNames().map(([k, ko]) => [`icon:${k}`, `<svg viewBox="0 0 24 24" width="22" height="22"><g>${(Render.ICONS ? Render.ICONS[k] : null) ? "" : ""}</g>${iconSvgInner(k)}</svg>`, ko, `아이콘 icon ${k}`]);
-    const media = [["imgfile", "🖼", "그림 파일…", "image photo 사진 업로드"], ["image", "🏷", "로고", "brand logo"], ["mermaid", "⤳", "다이어그램 코드…", "mermaid flowchart sequence 코드"]];
+    const media = [["imgfile", "🖼", "그림 파일", "image photo 사진 업로드"], ["image", "🏷", "로고", "brand logo"], ["mermaid", "⤳", "다이어그램 코드", "mermaid flowchart sequence 코드"]];
     const shapes = Render.shapeNames().map(([k, ko]) => [`shape:${k}`, `<svg viewBox="-2 -2 52 40" width="34" height="26"><path d="${Render.shapePath(k, 48, 36)}" fill="currentColor"/></svg>`, ko, `도형 shape ${k}`]);
     const diagrams = DIAGRAMS.map(([k, i, l]) => [`diagram:${k}`, i, l, `다이어그램 diagram smartart ${k}`]);
     return [["기본", base], ["데이터", data], ["미디어", media], ["도형", shapes], ["아이콘", icons], ["다이어그램", diagrams]];
@@ -2206,11 +2293,175 @@ ${names}
       { id: "maxi", label: "최대화 배치 켜기/끄기", key: "Ctrl+Shift+M", kw: "maximize layout 배치", run: () => setMaxi(!document.body.classList.contains("maxi")) },
       { id: "right", label: "오른쪽 패널 보이기/숨기기", key: "Ctrl+\\", kw: "panel 패널", run: () => toggleRight() },
       { id: "zoomFit", label: "화면 맞춤", key: "Ctrl+0", kw: "zoom fit 확대", run: () => setZoom(null) },
+      { id: "find", label: "찾기/바꾸기 (덱 전체)", key: "Ctrl+H", kw: "find replace 찾기 바꾸기 검색", run: () => openFind() },
+      { id: "import", label: "다른 덱에서 장 가져오기", kw: "import reuse slides 가져오기 다른 덱", run: () => openImportDlg() },
+      { id: "fmtcopy", label: "서식 복사", key: "Ctrl+Shift+C", kw: "format painter 서식 복사", disabled: !el, run: () => fmtCopy(false) },
+      { id: "tidy", label: "자동 정리 (검사 결과 - 안으로·상자 늘리기)", kw: "tidy auto fix 정리 자동", run: () => autoTidy() },
+      { id: "charttbl", label: "차트 데이터 표로 편집", kw: "chart data table 차트 데이터", disabled: !el || el.type !== "chart", run: () => openChartTable(el) },
       { id: "help", label: "단축키 도움말", key: "?", kw: "help shortcuts 단축키", run: () => showHelp() },
     ].map((c) => ({ ...c, group: "동작" }));
     const recent = (LS.get("cmd-recent", "") || "").split(",").filter(Boolean);
     const all = [...cmds, ...ins];
     return all.sort((a, b) => (recent.indexOf(b.id) >= 0 ? recent.length - recent.indexOf(b.id) : 0) - (recent.indexOf(a.id) >= 0 ? recent.length - recent.indexOf(a.id) : 0));
+  }
+  // ---- 찾기/바꾸기(Ctrl+H) - 덱 전체의 글·글머리·표 셀·차트 라벨·노트. 찾기는 공용 NexaSearch(퍼지·Aa·ab·.*), 바꾸기는 글자 그대로(또는 정규식)
+  function textSlots(s, withNotes) {  // → [{label, get(), set(v)}] 글을 담은 자리 전부
+    const out = [];
+    const slot = (label, el, get, set) => out.push({ label, el, get, set });
+    for (const e of s.elements) {
+      const L = `${TYPE_KO[e.type] || e.type} ${e.id}`;
+      if (e.text != null && (TEXTY.has(e.type) || e.type === "code" || e.type === "plan")) slot(L, e, () => String(e.text), (v) => { e.text = v; });
+      if (e.type === "bullets") (e.items || []).forEach((it, i) => { if (typeof it === "string") slot(L, e, () => it, (v) => { e.items[i] = v; }); else { slot(L, e, () => String(it.text || ""), (v) => { it.text = v; }); (it.sub || []).forEach((sv, j) => slot(L, e, () => String(sv), (v) => { it.sub[j] = v; })); } });
+      if (e.type === "table") (e.rows || []).forEach((r, i) => r.forEach((c, j) => slot(`${L} (${i + 1},${j + 1})`, e, () => String(c), (v) => { e.rows[i][j] = v; })));
+      if (e.type === "plan-table") (e.rows || []).forEach((r) => { (r.cells || []).forEach((c, j) => slot(L, e, () => String(c), (v) => { r.cells[j] = v; })); if (r.note) slot(L, e, () => String(r.note), (v) => { r.note = v; }); });
+      if (e.type === "chart") { if (e.title) slot(L, e, () => String(e.title), (v) => { e.title = v; }); (e.categories || []).forEach((c, i) => slot(L, e, () => String(c), (v) => { e.categories[i] = v; })); (e.series || []).forEach((sr) => slot(L, e, () => String(sr.name || ""), (v) => { sr.name = v; })); }
+      if (e.type === "group") for (const c of e.children || []) { const inner = textSlots({ elements: [c] }, false); inner.forEach((x) => { x.label = `묶음 ${e.id} › ${x.label}`; x.el = e; }); out.push(...inner); }
+    }
+    if (withNotes && s.notes) slot("노트", null, () => String(s.notes), (v) => { s.notes = v; });
+    return out;
+  }
+  function replaceRe(q, o) {  // 바꾸기용 정규식 - 퍼지는 쓰지 않는다(글자 그대로)
+    if (!q) return null;
+    const flags = "g" + (o.caseSens ? "" : "i");
+    try { if (o.regex) return new RegExp(q, flags); } catch (e) { return null; }
+    const esc = q.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    return new RegExp(o.word ? `(?<![\\w가-힣])${esc}(?![\\w가-힣])` : esc, flags);
+  }
+  function openFind() {
+    closeMenu(); if (!S.deck) return;
+    const old = $("#findDlg"); if (old) { old.querySelector("input").focus(); return; }
+    const back = document.createElement("div"); back.id = "findDlg";
+    back.innerHTML = `<div class="box"><div class="fr"><input type="search" class="fq" placeholder="찾을 글 (Enter = 다음)" autocomplete="off"><span class="ftg"></span></div>
+      <div class="fr"><input type="text" class="fw" placeholder="바꿀 글" autocomplete="off"><label class="fchk"><input type="checkbox" class="fn" checked>노트 포함</label></div>
+      <div class="list"></div>
+      <div class="acts"><span class="hint fcnt"></span><button class="chip sm" data-fa="one">이것만 바꾸기</button><button class="chip sm primary" data-fa="all">모두 바꾸기</button><button class="chip sm" data-fa="close">닫기</button></div></div>`;
+    document.body.appendChild(back);
+    const q = back.querySelector(".fq"), w = back.querySelector(".fw"), list = back.querySelector(".list"), cnt = back.querySelector(".fcnt"), notesOn = back.querySelector(".fn");
+    const opts = NexaSearch.toggles(back.querySelector(".ftg"), "find", () => render());
+    let hits = [], cur = 0;
+    const render = () => {
+      const m = NexaSearch.matcher(q.value, opts()); hits = [];
+      if (!m.empty && !m.error) S.deck.slides.forEach((s, si) => textSlots(s, notesOn.checked).forEach((sl) => { const t = sl.get(); if (m.test(t)) hits.push({ si, sl, t, hl: m.hl(t) }); }));
+      cur = Math.max(0, Math.min(cur, hits.length - 1));
+      cnt.textContent = m.error ? "정규식 오류" : m.empty ? "" : `${hits.length}곳`;
+      list.innerHTML = hits.length ? hits.slice(0, 200).map((h, i) => `<div class="it${i === cur ? " on" : ""}" data-i="${i}"><span class="g">${h.si + 1} · ${esc(h.sl.label)}</span><span class="l">${h.hl}</span></div>`).join("") : `<div class="hint" style="padding:10px 14px">${m.empty ? "글을 치면 덱 전체(글·글머리·표·차트 라벨·노트)에서 찾습니다 · 퍼지 찾기, Aa/ab/.* 토글" : "없습니다"}</div>`;
+    };
+    const go = (i) => { const h = hits[i]; if (!h) return; cur = i; goSlide(h.si); if (h.sl.el) select(h.sl.el.id); render(); };
+    const doReplace = (all) => {
+      const re = replaceRe(q.value, opts()); if (!re) { toast(opts().regex ? "정규식 오류" : "찾을 글을 적으세요"); return; }
+      const targets = all ? hits : hits[cur] ? [hits[cur]] : []; if (!targets.length) return;
+      snapshot(); let n = 0;
+      targets.forEach((h) => { const t = h.sl.get(); const v = t.replace(re, () => { n++; return w.value; }); if (v !== t) h.sl.set(v); });
+      if (!n) { undo(); toast("바꿀 곳이 없습니다 - 찾기는 퍼지, 바꾸기는 글자 그대로입니다"); return; }
+      afterChange(true); toast(`${n}곳을 바꿨습니다 (Ctrl+Z 로 되돌리기)`); render();
+    };
+    q.addEventListener("input", () => { cur = 0; render(); });
+    notesOn.addEventListener("change", render);
+    q.addEventListener("keydown", (e) => { if (e.key === "Enter") { go(hits.length ? (cur + 1) % hits.length : 0); e.preventDefault(); } else if (e.key === "Escape") back.remove(); e.stopPropagation(); });
+    w.addEventListener("keydown", (e) => { if (e.key === "Enter") { doReplace(false); e.preventDefault(); } else if (e.key === "Escape") back.remove(); e.stopPropagation(); });
+    list.addEventListener("click", (e) => { const it = e.target.closest(".it"); if (it) go(+it.dataset.i); });
+    back.addEventListener("click", (e) => { const b = e.target.closest("[data-fa]"); if (!b) return; if (b.dataset.fa === "close") back.remove(); else doReplace(b.dataset.fa === "all"); });
+    back.addEventListener("mousedown", (e) => { if (e.target === back) back.remove(); });
+    render(); q.focus();
+  }
+  // ---- 다른 덱에서 장 가져오기 - 썸네일 메뉴·팔레트. 고른 장을 지금 장 다음에(슬라이드 id 는 새로, 요소 id 는 그대로)
+  async function openImportDlg() {
+    closeMenu(); if (!S.deck) return;
+    const r = await api("GET", "/api/decks"); if (!r.ok) { toast("덱 목록을 읽지 못했습니다"); return; }
+    const decks = r.data.filter((d) => d.id !== S.id);
+    if (!decks.length) { toast("이 작업 공간에 다른 덱이 없습니다 - 덱 탭의 ＋ 로 만들 수 있습니다"); return; }
+    const back = document.createElement("div"); back.id = "impDlg";
+    back.innerHTML = `<div class="box"><h3 style="margin:0 0 8px">다른 덱에서 장 가져오기</h3><div class="fr"><label>덱</label><select class="ideck">${decks.map((d) => `<option value="${esc(d.id)}">${esc(d.title)} (${d.slides}장)</option>`).join("")}</select><button class="chip sm" data-ia="all">모두 선택</button><button class="chip sm" data-ia="none">선택 해제</button></div>
+      <div class="list"></div><div class="acts"><span class="hint icnt"></span><button class="chip sm primary" data-ia="go">지금 장 다음에 가져오기</button><button class="chip sm" data-ia="close">닫기</button></div></div>`;
+    document.body.appendChild(back);
+    const sel = back.querySelector(".ideck"), list = back.querySelector(".list"), cnt = back.querySelector(".icnt");
+    let deck = null;
+    const load = async () => { list.innerHTML = `<div class="hint" style="padding:10px">읽는 중…</div>`; const d = await api("GET", `/api/deck/${encodeURIComponent(sel.value)}`); if (!d.ok) { list.innerHTML = `<div class="hint">읽지 못했습니다</div>`; return; } deck = d.data;
+      list.innerHTML = deck.slides.map((s, i) => `<label class="it"><input type="checkbox" data-i="${i}"><span class="g">${i + 1}</span><span class="l">${esc(slideTitle(s))}${s.hidden ? " · 숨김" : ""}</span><span class="hint">${esc(s.layout || "")}</span></label>`).join(""); count(); };
+    const count = () => { cnt.textContent = `${list.querySelectorAll("input:checked").length}장 선택`; };
+    sel.addEventListener("change", load); list.addEventListener("change", count);
+    back.addEventListener("click", (e) => {
+      const b = e.target.closest("[data-ia]"); if (!b) return;
+      if (b.dataset.ia === "close") back.remove();
+      else if (b.dataset.ia === "all" || b.dataset.ia === "none") { list.querySelectorAll("input").forEach((c) => { c.checked = b.dataset.ia === "all"; }); count(); }
+      else if (b.dataset.ia === "go" && deck) {
+        const picked = [...list.querySelectorAll("input:checked")].map((c) => clone(deck.slides[+c.dataset.i])); if (!picked.length) { toast("가져올 장을 고르세요"); return; }
+        snapshot(); let at = S.cur + 1;
+        for (const s of picked) { s.id = newSlideId(); delete s.hidden; S.deck.slides.splice(at++, 0, s); }
+        S.cur = at - 1; S.sel = null; afterChange(true); back.remove(); toast(`${picked.length}장을 가져왔습니다 (Ctrl+Z 로 되돌리기)`);
+      }
+    });
+    back.addEventListener("mousedown", (e) => { if (e.target === back) back.remove(); });
+    await load();
+  }
+  // ---- 발표 중 펜·레이저 - Ctrl+P 펜(그린 것은 장을 넘기면 지움) · Ctrl+L 레이저 · E 지우기
+  const INK = { pen: false, laser: false, down: false };
+  function inkCanvas() { let c = $("#presentInk"); if (!c) { c = document.createElement("canvas"); c.id = "presentInk"; $("#present").appendChild(c); const d = document.createElement("div"); d.id = "presentLaser"; $("#present").appendChild(d); } if (c.width !== innerWidth || c.height !== innerHeight) { c.width = innerWidth; c.height = innerHeight; } return c; }
+  function inkClear() { const c = $("#presentInk"); if (c) c.getContext("2d").clearRect(0, 0, c.width, c.height); }
+  function inkMode(kind) { if (kind === "pen") { INK.pen = !INK.pen; if (INK.pen) INK.laser = false; } else { INK.laser = !INK.laser; if (INK.laser) INK.pen = false; } inkCanvas(); $("#present").classList.toggle("pen", INK.pen); $("#present").classList.toggle("laser", INK.laser); if (!INK.laser) $("#presentLaser").style.display = "none"; toast(INK.pen ? "펜 - 끌어서 그리기 · E 지우기 · Ctrl+P 끄기" : INK.laser ? "레이저 포인터 - Ctrl+L 끄기" : "펜·레이저 끔", 1800); }
+  function inkWire() {
+    const P = $("#present");
+    P.addEventListener("pointerdown", (e) => { if (!INK.pen || e.button !== 0) return; INK.down = true; const c = inkCanvas(), g = c.getContext("2d"); g.lineCap = "round"; g.lineJoin = "round"; g.strokeStyle = "#ff3b30"; g.lineWidth = 3; g.beginPath(); g.moveTo(e.clientX, e.clientY); e.stopPropagation(); e.preventDefault(); }, true);
+    P.addEventListener("pointermove", (e) => { if (INK.laser) { const d = $("#presentLaser"); d.style.display = "block"; d.style.left = e.clientX + "px"; d.style.top = e.clientY + "px"; } if (!INK.pen || !INK.down) return; const g = inkCanvas().getContext("2d"); g.lineTo(e.clientX, e.clientY); g.stroke(); }, true);
+    P.addEventListener("pointerup", (e) => { if (INK.pen && INK.down) { INK.down = false; e.stopPropagation(); } }, true);
+    P.addEventListener("click", (e) => { if (INK.pen) { e.stopPropagation(); } }, true);  // 펜 중에는 클릭으로 장을 넘기지 않는다
+  }
+  // ---- 노트 탭 칩 - 세션이 노트만 채우게(본문 불변)
+  function notesChips() {
+    const host = $("#notesChips"); if (!host) return;
+    host.innerHTML = `<button class="chip sm" data-nq="one" title="세션이 이 슬라이드의 발표자 노트를 씁니다 - 본문은 바꾸지 않음">✨ 이 장 노트 쓰기</button><button class="chip sm" data-nq="all" title="세션이 노트가 빈 모든 슬라이드의 노트를 씁니다">✨ 빈 노트 모두 쓰기</button>`;
+    host.onclick = (e) => { const b = e.target.closest("[data-nq]"); if (!b) return;
+      if (b.dataset.nq === "one") quickRequest("이 슬라이드의 발표자 노트(notes)를 써 줘 - 본문·요소는 바꾸지 말고 노트만 채울 것. 발표자가 말할 흐름(도입 → 핵심 → 근거 → 다음 장 연결)을 3~6문장으로, 원문(각주 근거)의 의미는 바꾸지 말 것.");
+      else quickRequest("이 덱에서 발표자 노트(notes)가 비어 있는 모든 슬라이드의 노트를 써 줘 - 본문·요소는 바꾸지 말고 노트만 채울 것. 장마다 발표자가 말할 흐름을 3~6문장으로, 원문의 의미는 바꾸지 말 것."); };
+  }
+  // ---- 차트 데이터 표 - 셀 편집 격자(범주 × 계열). 확인하면 categories·series 로(데이터 모델은 그대로)
+  function openChartTable(el) {
+    closeMenu();
+    const back = document.createElement("div"); back.id = "chartDlg";
+    const { cats, series } = Render.chartData(el);
+    const names = series.length ? series.map((s) => s.name) : ["계열 1"], rows = cats.length ? cats.map((c, i) => [c, ...names.map((_, j) => (series[j] && series[j].values[i] != null ? series[j].values[i] : ""))]) : [["범주 1", ...names.map(() => "")]];
+    const cell = (v, head) => `<td contenteditable="true" class="${head ? "h" : ""}">${esc(String(v))}</td>`;
+    const draw = () => { back.querySelector("tbody").innerHTML = `<tr><td class="h corner">범주 \\ 계열</td>${names.map((n) => cell(n, true)).join("")}</tr>` + rows.map((r) => `<tr>${r.map((v, j) => cell(v, j === 0)).join("")}</tr>`).join(""); };
+    back.innerHTML = `<div class="box"><h3 style="margin:0 0 8px">차트 데이터 - 표로 편집 <span class="hint">셀을 눌러 고치고 Tab 으로 이동 · 빈 값 = 없는 값</span></h3><div class="list"><table class="ctbl"><tbody></tbody></table></div>
+      <div class="acts"><button class="chip sm" data-ca="row">＋ 행(범주)</button><button class="chip sm" data-ca="col">＋ 열(계열)</button><button class="chip sm" data-ca="delrow">－ 마지막 행</button><button class="chip sm" data-ca="delcol">－ 마지막 열</button><span style="flex:1"></span><button class="chip sm primary" data-ca="ok">적용</button><button class="chip sm" data-ca="close">닫기</button></div></div>`;
+    document.body.appendChild(back); draw();
+    const read = () => { const trs = [...back.querySelectorAll("tbody tr")]; const hd = [...trs[0].children].slice(1).map((td) => td.textContent.trim()); const body = trs.slice(1).map((tr) => [...tr.children].map((td) => td.textContent.trim())); return { hd, body }; };
+    back.addEventListener("click", (e) => {
+      const b = e.target.closest("[data-ca]"); if (!b) return;
+      const { hd, body } = read(); names.splice(0, names.length, ...hd); rows.splice(0, rows.length, ...body);
+      if (b.dataset.ca === "row") { rows.push([`범주 ${rows.length + 1}`, ...names.map(() => "")]); draw(); }
+      else if (b.dataset.ca === "col") { names.push(`계열 ${names.length + 1}`); rows.forEach((r) => r.push("")); draw(); }
+      else if (b.dataset.ca === "delrow") { if (rows.length > 1) rows.pop(); draw(); }
+      else if (b.dataset.ca === "delcol") { if (names.length > 1) { names.pop(); rows.forEach((r) => r.pop()); } draw(); }
+      else if (b.dataset.ca === "close") back.remove();
+      else if (b.dataset.ca === "ok") {
+        snapshot();
+        el.categories = rows.map((r) => r[0] || "");
+        el.series = names.map((nm, j) => ({ name: nm || `계열 ${j + 1}`, values: rows.map((r) => (r[j + 1] === "" || r[j + 1] == null || isNaN(+r[j + 1]) ? null : +r[j + 1])) }));
+        afterChange(); back.remove(); toast(`차트 데이터를 바꿨습니다 - 범주 ${el.categories.length} · 계열 ${el.series.length}`);
+      }
+    });
+    back.addEventListener("keydown", (e) => { if (e.key === "Escape") back.remove(); e.stopPropagation(); });
+    back.addEventListener("mousedown", (e) => { if (e.target === back) back.remove(); });
+    const first = back.querySelector("tbody tr:nth-child(2) td:nth-child(2)"); if (first) first.focus();
+  }
+  // ---- 자동 정리(AI 없이) - 검사 결과 가운데 기계적으로 고칠 수 있는 것만: 슬라이드 밖 → 안으로, 글자 높이 넘침 → 상자 늘리기(자리가 있을 때), 한 줄 폭 넘침 → 폭 늘리기
+  async function autoTidy() {
+    const s = slide(); if (!s) return;
+    if (S.dirty) await save();  // 검사는 저장된 덱 기준 - 지금 상태로 다시 검사한 뒤 고친다
+    await runCheck();
+    if (!S.check) { toast("검사 결과를 읽지 못했습니다"); return; }
+    const its = S.check.issues.filter((x) => x.slide === s.id); let n = 0;
+    const fixes = [];
+    for (const x of its) {
+      const el = x.elements && elById(x.elements[0], s); if (!el || el.locked) continue;
+      if (x.rule === "t3.offslide" && !isLine(el)) { const nx = Math.max(0, Math.min(el.x, SW - el.w)), ny = Math.max(0, Math.min(el.y, SH - el.h)); if (nx !== el.x || ny !== el.y) fixes.push(() => { el.x = Math.round(nx); el.y = Math.round(ny); }); }
+      else if (x.rule === "t2.cutoff.spill" && x.axis === "y" && x.need) { const room = SH - 16 - el.y; const nh = Math.min(room, Math.ceil(x.need) + 4); if (nh > el.h) fixes.push(() => { el.h = nh; }); }
+      else if (x.rule === "t2.cutoff.spill" && x.axis === "x" && x.need) { const room = SW - 16 - el.x; const nw = Math.min(room, Math.ceil(x.need) + 8); if (nw > el.w) fixes.push(() => { el.w = nw; }); }
+    }
+    if (!fixes.length) { toast("자동으로 고칠 수 있는 항목이 없습니다 - 겹침·대비는 ✨ 세션에 고치기 요청으로", 3500); return; }
+    snapshot(); fixes.forEach((f) => { f(); n++; }); afterChange(true);
+    toast(`${n}개를 정리했습니다(슬라이드 안으로·상자 늘리기) - 다시 검사합니다 (Ctrl+Z 로 되돌리기)`, 3500);
   }
   function commandPalette() {
     closeMenu();
@@ -2286,14 +2537,42 @@ ${names}
     requestAnimationFrame(fitAdd);
   }
   const titleEl = (sl) => (sl.elements || []).find((e) => e.role === "title" && e.text != null);
+  /** 유형 바꾸기 때 옛 장의 내용을 새 장의 같은 종류 자리에 옮긴다 - 역할(title·subtitle·crumb…)이 같은 글, 첫 글머리·표·차트·코드·그림(로고 제외). 옮긴 것의 요약을 돌려준다 */
+  function carryContent(old, s) {
+    const moved = [];
+    const byRole = (sl, r) => (sl.elements || []).find((e) => e.role === r && e.text != null);
+    for (const r of ["title", "subtitle", "crumb", "label", "footnotes"]) { const a = byRole(old, r), b = byRole(s, r); if (a && b && r !== "crumb") { b.text = a.text; moved.push(r === "title" ? "제목" : r === "subtitle" ? "부제" : r); } }
+    const firstOf = (sl, t, f) => (sl.elements || []).find((e) => e.type === t && (!f || f(e)));
+    const ob = firstOf(old, "bullets"), nb = firstOf(s, "bullets");
+    if (ob && nb) { nb.items = clone(ob.items || []); moved.push(`글머리 ${nb.items.length}개`); }
+    else if (ob && !nb) {  // 새 장에 글머리가 없으면 본문 글자 상자(제목 역할이 아닌 가장 큰 글 상자)에 줄로
+      const tb = (s.elements || []).filter((e) => e.type === "text" && !e.role && e.text != null).sort((a, b) => (b.w * b.h) - (a.w * a.h))[0];
+      if (tb) { tb.text = bulletsToText(ob.items).replace(/^  /gm, "- "); moved.push("글머리 → 글자"); }
+    }
+    const ot = firstOf(old, "table"), nt = firstOf(s, "table");
+    if (ot && nt) { nt.rows = clone(ot.rows || []); if (ot.colW) nt.colW = clone(ot.colW); if (ot.merge) nt.merge = clone(ot.merge); moved.push(`표 ${nt.rows.length}행`); }
+    else if (ot && nb && !ob) { nb.items = (ot.rows || []).slice(1).map((r) => r.join(" · ")); moved.push("표 → 글머리"); }
+    const oc = firstOf(old, "chart"), nc = firstOf(s, "chart");
+    if (oc && nc) { for (const k of ["categories", "series", "chart", "title", "legend", "labels", "numFmt", "lineSeries", "secondaryAxis"]) { if (oc[k] !== undefined) nc[k] = clone(oc[k]); } moved.push("차트 데이터"); }
+    const ok = firstOf(old, "code"), nk = firstOf(s, "code");
+    if (ok && nk) { nk.text = ok.text; if (ok.lang) nk.lang = ok.lang; if (ok.focus) nk.focus = clone(ok.focus); moved.push("코드"); }
+    const isLogo = (e) => /brand\//.test(String(e.src || "")) || e.role === "logo";
+    const oi = firstOf(old, "image", (e) => !isLogo(e)), ni = firstOf(s, "image", (e) => !isLogo(e));
+    if (oi && ni) { ni.src = oi.src; for (const k of ["crop", "alt", "mermaid", "effect", "effectLevel"]) if (oi[k] !== undefined) ni[k] = clone(oi[k]); moved.push("그림"); }
+    const otx = (old.elements || []).filter((e) => e.type === "text" && !e.role && String(e.text || "").trim()), ntx = (s.elements || []).filter((e) => e.type === "text" && !e.role && e.text != null);
+    if (!ob && !ot && !oc && otx.length && ntx.length) { ntx.forEach((e, i) => { if (otx[i]) e.text = otx[i].text; }); moved.push(`글자 ${Math.min(otx.length, ntx.length)}개`); }
+    return moved;
+  }
   function insertSlide(s) {
-    if (AD.mode === "replace") {  // 유형 바꾸기 - 제목·노트·id 를 옮긴다
-      const old = slide(), ot = titleEl(old), nt = titleEl(s);
-      if (ot && nt) nt.text = ot.text;
+    if (AD.mode === "replace") {  // 유형 바꾸기 - 제목·노트·id 와 같은 종류의 내용(글머리·표·차트·코드·그림)을 옮긴다
+      const old = slide();
+      const moved = carryContent(old, s);
       if (old.notes) s.notes = old.notes;
+      if (old.section) s.section = old.section;
+      if (old.hidden) s.hidden = old.hidden;
       s.id = old.id;
       snapshot(); S.deck.slides[S.cur] = s; S.sel = null; afterChange(true); closeAddDlg();
-      toast("유형을 바꿨습니다 - 제목·노트는 옮겼고 본문은 예시 내용입니다 (Ctrl+Z 로 되돌리기)", 4000);
+      toast(moved.length ? `유형을 바꿨습니다 - ${moved.join("·")}·노트를 옮겼고 나머지는 예시 내용입니다 (Ctrl+Z 로 되돌리기)` : "유형을 바꿨습니다 - 옮길 수 있는 내용이 없어 본문은 예시 내용입니다 (Ctrl+Z 로 되돌리기)", 4500);
       return;
     }
     const at = AD.mode === "end" ? S.deck.slides.length : S.cur + 1;
@@ -2324,7 +2603,8 @@ ${names}
   function thumbMenu(e, i) {
     e.preventDefault(); goSlide(i);
     openMenu({ x: e.clientX, y: e.clientY }, [
-      { label: "슬라이드 복제", act: () => dupSlide(i) }, { label: "아래에 새 슬라이드…", act: () => openAddDlg() }, { label: "유형 바꾸기…", act: () => openAddDlg("replace") },
+      { label: "슬라이드 복제", act: () => dupSlide(i) }, { label: "아래에 새 슬라이드", act: () => openAddDlg() }, { label: "유형 바꾸기", act: () => openAddDlg("replace") },
+      { label: "다른 덱에서 장 가져오기", act: () => openImportDlg() },
       { label: "삭제", act: () => delSlide(i) }, "-", { label: "이 슬라이드에 요청 메모", act: () => openMemo({ element: null }) },
       { label: "여기서부터 발표", key: "Shift+F5", act: () => present(true) },
     ]);
@@ -2366,6 +2646,9 @@ ${names}
   function toggleRight() { const n = !document.body.classList.contains("noright"); if (n && document.body.classList.contains("maxi")) setMaxi(false); /* 오른쪽을 숨기면 노트가 갈 곳이 없으니 먼저 복원 */ document.body.classList.toggle("noright", n); LS.set("noright", n ? "1" : "0"); setTimeout(() => { fitStage(); fitThumbs(); }, 0); }
   const HELP = [
     ["명령 팔레트", "<kbd>Ctrl</kbd>+<kbd>K</kbd> 또는 <kbd>/</kbd> - 넣기·발표·내보내기·검사를 글자로 찾아 <kbd>Enter</kbd>"],
+    ["찾기/바꾸기", "<kbd>Ctrl</kbd>+<kbd>H</kbd> - 덱 전체의 글·글머리·표·차트 라벨·노트. 찾기는 퍼지, 바꾸기는 글자 그대로"],
+    ["서식 복사", "<kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>C</kbd> 복사 · 요소 클릭 또는 <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>V</kbd> 적용 · 서식 줄 🖌 두 번 클릭 = 여러 요소에 계속"],
+    ["발표 중", "<kbd>N</kbd> 노트 · <kbd>P</kbd> 발표자 보기 · <kbd>Ctrl</kbd>+<kbd>P</kbd> 펜 · <kbd>Ctrl</kbd>+<kbd>L</kbd> 레이저 · <kbd>E</kbd> 지우기 · <kbd>Esc</kbd> 끝"],
     ["넣기", "＋ 추가 패널에서 글자를 치면 바로 걸러짐 · <kbd>Enter</kbd> = 첫 항목"],
     ["묶음", "<kbd>Ctrl</kbd>+<kbd>G</kbd> 묶기 · <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>G</kbd> 풀기"],
     ["스마트 가이드", "끌 때 다른 요소의 가장자리·가운데, 슬라이드 가운데에 붙는다(빨간 안내선) · <kbd>Shift</kbd> = 자유"],
@@ -2391,6 +2674,7 @@ ${names}
     const inField = /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName) || S.editing;
     const k = e.key, kl = k.toLowerCase(), ctrl = e.ctrlKey || e.metaKey;
     if (ctrl && kl === "k") { e.preventDefault(); commandPalette(); return; }
+    if (ctrl && kl === "h") { e.preventDefault(); openFind(); return; }
     if (ctrl && kl === "s") { e.preventDefault(); save(); return; }
     if (k === "F5") { e.preventDefault(); present(e.shiftKey); return; }
     if (ctrl && k === "\\") { e.preventDefault(); toggleRight(); return; }
@@ -2400,7 +2684,9 @@ ${names}
     if (ctrl && k === "0") { e.preventDefault(); setZoom(null); return; }
     if (ctrl && k === "1") { e.preventDefault(); setZoom(100); return; }
     if (inField) return;
-    if (k === "Escape") { if (S.memo) { closeMemo(); return; } closeMenu(); select(null); return; }
+    if (k === "Escape") { if (S.fmt) { fmtEnd(); return; } if (S.memo) { closeMemo(); return; } closeMenu(); select(null); return; }
+    if (ctrl && e.shiftKey && kl === "c" && selEl()) { e.preventDefault(); fmtCopy(false); return; }
+    if (ctrl && e.shiftKey && kl === "v" && S.fmt && selEl()) { e.preventDefault(); fmtPasteTo(selIds()); return; }
     if (k === " " && !e.repeat) { spaceDown = true; document.body.classList.add("panning"); e.preventDefault(); return; }
     if (k === "?") { showHelp(); return; }
     if (k === "/" && !ctrl) { e.preventDefault(); commandPalette(); return; }
@@ -2494,7 +2780,7 @@ ${names}
     openMenu(btn, [
       { h: "글꼴 세트 - 템플릿 기본" }, ...f.presets.filter((p) => p.source !== "workspace").map((p) => ({ label: `${p.name} - ${p.label}`, on: p.name === f.current, act: () => setFonts(p.name) })),
       ...(f.presets.some((p) => p.source === "workspace") ? [{ h: "글꼴 세트 - 작업 공간 지정(nexa-slide.json)" }, ...f.presets.filter((p) => p.source === "workspace").map((p) => ({ label: `${p.name} - ${p.label}`, on: p.name === f.current, act: () => setFonts(p.name) }))] : []),
-      { label: "글꼴 설정 보기·수정…", act: showFonts }, "-",
+      { label: "글꼴 설정 보기·수정", act: showFonts }, "-",
       { h: `템플릿: ${S.template ? I18N.pick(S.template, "label") : "-"}` },
       { label: "코드 언어 이름표 표시", on: LS.get("langTag", "1") === "1", act: () => { LS.set("langTag", LS.get("langTag", "1") === "1" ? "0" : "1"); renderMarks(); renderProps(); } },
       { label: "단축키 보기", key: "?", act: showHelp },
@@ -2540,8 +2826,20 @@ ${names}
     });
 
     // 머리줄
-    $("#deckTabs").addEventListener("click", (e) => { if (e.target.closest("[data-deckadd]")) { deckCreate(); return; } const b = e.target.closest("[data-deck]"); if (b) switchDeck(b.dataset.deck); });
+    $("#deckTabs").addEventListener("click", (e) => { if (deckDrag.moved) { deckDrag.moved = false; return; } if (e.target.closest("[data-deckadd]")) { deckCreate(); return; } const b = e.target.closest("[data-deck]"); if (b) switchDeck(b.dataset.deck); });
     $("#deckTabs").addEventListener("contextmenu", (e) => { const b = e.target.closest("[data-deck]"); if (b) deckMenu(e, b.dataset.deck); });
+    {  // 덱 탭 - 끌어서 좌우 이동(스크롤바 없음) · ‹ › 화살표 · 휠 · ☰ 목록
+      const T = $("#deckTabs");
+      T.addEventListener("pointerdown", (e) => { if (e.button !== 0) return; deckDrag.down = true; deckDrag.moved = false; deckDrag.x = e.clientX; deckDrag.l = T.scrollLeft; });
+      window.addEventListener("pointermove", (e) => { if (!deckDrag.down) return; const dx = e.clientX - deckDrag.x; if (Math.abs(dx) > 5) { deckDrag.moved = true; T.classList.add("dragging"); } if (deckDrag.moved) { T.scrollLeft = deckDrag.l - dx; deckTabsFit(); } });
+      window.addEventListener("pointerup", () => { if (!deckDrag.down) return; deckDrag.down = false; T.classList.remove("dragging"); if (deckDrag.moved) setTimeout(() => { deckDrag.moved = false; }, 0); });
+      T.addEventListener("wheel", (e) => { if (T.scrollWidth > T.clientWidth && !e.shiftKey && Math.abs(e.deltaY) > Math.abs(e.deltaX)) { T.scrollLeft += e.deltaY; deckTabsFit(); e.preventDefault(); } }, { passive: false });
+      $("#deckPrev").addEventListener("click", () => { T.scrollBy({ left: -Math.max(120, T.clientWidth * 0.6), behavior: "smooth" }); setTimeout(deckTabsFit, 350); });
+      $("#deckNext").addEventListener("click", () => { T.scrollBy({ left: Math.max(120, T.clientWidth * 0.6), behavior: "smooth" }); setTimeout(deckTabsFit, 350); });
+      T.addEventListener("scroll", () => { $("#deckPrev").disabled = T.scrollLeft <= 0; $("#deckNext").disabled = T.scrollLeft + T.clientWidth >= T.scrollWidth - 1; });
+      window.addEventListener("resize", deckTabsFit);
+      $("#deckList").addEventListener("click", (e) => deckListMenu(e.currentTarget));
+    }
     $("#tab-chg").addEventListener("click", onChangesClick); renderChanges();
     $("#layMax").onclick = () => setMaxi(true); $("#layRestore").onclick = () => setMaxi(false);
     if (LS.get("maxi", "0") === "1") setMaxi(true);
@@ -2598,6 +2896,7 @@ ${names}
     const left = $("#left");
     left.addEventListener("click", (e) => {
       if (e.target.id === "addSlide") return openAddDlg("end");
+      const sh = e.target.closest(".sechead"); if (sh) { toggleSec(+sh.dataset.sec); return; }
       const t = e.target.closest(".thumb"); if (!t) return;
       const i = +t.dataset.i, act = e.target.dataset.act;
       if (act === "dup") dupSlide(i); else if (act === "del") delSlide(i); else goSlide(i);
@@ -2630,6 +2929,7 @@ ${names}
     window.addEventListener("pointermove", onMove); window.addEventListener("pointerup", onUp);
     stage.addEventListener("dblclick", (e) => { if (S.mode !== "edit") return; const n = topEl(e.target); if (n) { select(n.dataset.id); startEdit(selEl()); } });
     stage.addEventListener("contextmenu", ctxMenu);
+    inkWire();
     vp.addEventListener("wheel", (e) => { if (!(e.ctrlKey || e.metaKey)) return; e.preventDefault(); const r = vp.getBoundingClientRect(); setZoom(scale * 100 * (e.deltaY < 0 ? 1.1 : 1 / 1.1), { x: e.clientX - r.left, y: e.clientY - r.top }); }, { passive: false });
     vp.addEventListener("scroll", () => placeMemo());
     // 아래 패널 · 바닥줄

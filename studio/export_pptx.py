@@ -450,6 +450,10 @@ def do_image(slide, el, page):
     if isinstance(c, (list, tuple)) and len(c) == 4 and any(c):  # [왼, 위, 오른, 아래] 비율 - render.js elImage 와 같다
         l, t, r, b = (max(0.0, min(0.95, float(v or 0))) for v in c)
         pic.crop_left, pic.crop_top, pic.crop_right, pic.crop_bottom = l, t, r, b
+    try:  # 대체 텍스트(접근성) - cNvPr descr. 없으면 비운다(python-pptx 는 파일 이름을 넣는다)
+        pic._element.nvPicPr.cNvPr.set("descr", str(el.get("alt") or "")[:500])
+    except AttributeError:
+        pass
     op = el.get("opacity")
     if op is not None and float(op) < 1:
         blip = pic._element.find(f".//{{{NS_A}}}blip")

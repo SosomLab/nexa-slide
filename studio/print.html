@@ -3,12 +3,24 @@
 <head>
 <meta charset="utf-8">
 <title>인쇄</title>
-<!-- PDF 인쇄용: /studio/print.html?deck=ch00 → 슬라이드마다 한 쪽(1280×720px, 여백 0). 서버의 PDF 내보내기(Chrome 헤드리스)가 쓴다. -->
+<!-- PDF 인쇄용: /studio/print.html?deck=ch00 → 슬라이드마다 한 쪽(1280×720px, 여백 0). 서버의 PDF 내보내기(Chrome 헤드리스)가 쓴다.
+     &layout=notes 노트 페이지(A4 세로, 슬라이드 + 발표자 노트) · h2·h3·h6 유인물(A4 세로, 쪽당 2·3·6장 - h3 는 오른쪽에 메모 줄). 0.22.14 -->
 <style>
   @page { size: 1280px 720px; margin: 0; }
   html, body { margin: 0; background: #fff; }
   .pg { width: 1280px; height: 720px; overflow: hidden; page-break-after: always; break-after: page; position: relative; }
   .pg:last-child { page-break-after: auto; break-after: auto; }
+  /* 유인물·노트 - A4 세로 794×1123px(96dpi), 여백 40px */
+  body.a4 { font-family: "Malgun Gothic", "Apple SD Gothic Neo", sans-serif; color: #222; }
+  body.a4 .pg { width: 794px; height: 1123px; box-sizing: border-box; padding: 40px; }
+  .sl { position: relative; overflow: hidden; border: 1px solid #ccc; background: #fff; }
+  .sl > .rs-slide { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
+  .n { position: absolute; font-size: 11px; color: #888; }
+  .notes { white-space: pre-wrap; line-height: 1.6; font-size: 13px; margin-top: 18px; }
+  .lines { flex: 1; display: flex; flex-direction: column; justify-content: space-around; }
+  .lines i { display: block; border-bottom: 1px solid #bbb; height: 0; }
+  .row { display: flex; gap: 20px; align-items: flex-start; }
+  .foot { position: absolute; left: 40px; right: 40px; bottom: 20px; font-size: 10px; color: #888; display: flex; justify-content: space-between; }
 </style>
 <link rel="stylesheet" href="fonts.css">
 <link rel="stylesheet" href="../api/fontcss">
@@ -31,7 +43,27 @@
   try { Render.setLangs(await (await fetch("code_langs.json")).json()); } catch (e) { /* 없으면 SQL 만 */ }
   Render.setDeckFonts && Render.setDeckFonts(deck.fontPreset);
   document.getElementById("rs-css").textContent = Render.css();
-  document.getElementById("root").innerHTML = deck.slides.map((s, i) => (s.hidden ? "" : `<div class="pg">${Render.renderSlide(s, i + 1)}</div>`)).join("");  // 숨김 슬라이드는 인쇄·PDF 에서 건너뜀(쪽 번호는 원래 번호)
+  const layout = q.get("layout") || "";
+  const vis = deck.slides.map((s, i) => [s, i + 1]).filter(([s]) => !s.hidden);  // 숨김 슬라이드는 인쇄·PDF 에서 건너뜀(쪽 번호는 원래 번호)
+  const root = document.getElementById("root");
+  const sl = (s, n, w) => { const k = w / 1280; return `<div class="sl" style="width:${w}px;height:${Math.round(w * 720 / 1280)}px"><div style="position:absolute;left:0;top:0;width:1280px;height:720px;transform:scale(${k});transform-origin:0 0">${Render.renderSlide(s, n)}</div></div>`; };
+  const esc = (t) => Render.esc(t);
+  const foot = (p, tot) => `<div class="foot"><span>${esc(deck.title || id)}</span><span>${p} / ${tot}</span></div>`;
+  if (layout === "notes") {  // 노트 페이지 - 슬라이드(폭 714) + 발표자 노트
+    document.body.classList.add("a4"); document.styleSheets[0].insertRule("@page { size: 794px 1123px; margin: 0; }", 1);
+    root.innerHTML = vis.map(([s, n], i) => `<div class="pg">${sl(s, n, 714)}<div class="n" style="right:40px;top:26px">${n}</div><div class="notes">${esc(s.notes || "")}</div>${foot(i + 1, vis.length)}</div>`).join("");
+  } else if (/^h[236]$/.test(layout)) {  // 유인물 - 쪽당 2·3·6장
+    document.body.classList.add("a4"); document.styleSheets[0].insertRule("@page { size: 794px 1123px; margin: 0; }", 1);
+    const per = +layout[1], pages = [];
+    for (let i = 0; i < vis.length; i += per) pages.push(vis.slice(i, i + per));
+    root.innerHTML = pages.map((pg, pi) => {
+      let body;
+      if (per === 2) body = pg.map(([s, n]) => `<div style="margin-bottom:34px;position:relative">${sl(s, n, 714)}<div class="n" style="right:0;bottom:-16px">${n}</div></div>`).join("");
+      else if (per === 3) body = pg.map(([s, n]) => `<div class="row" style="margin-bottom:28px;height:300px"><div style="position:relative">${sl(s, n, 380)}<div class="n" style="left:0;bottom:-16px">${n}</div></div><div class="lines">${"<i></i>".repeat(7)}</div></div>`).join("");
+      else body = `<div class="row" style="flex-wrap:wrap;gap:28px 22px">${pg.map(([s, n]) => `<div style="position:relative">${sl(s, n, 340)}<div class="n" style="left:0;bottom:-15px">${n}</div></div>`).join("")}</div>`;
+      return `<div class="pg">${body}${foot(pi + 1, pages.length)}</div>`;
+    }).join("");
+  } else root.innerHTML = vis.map(([s, n]) => `<div class="pg">${Render.renderSlide(s, n)}</div>`).join("");
   await document.fonts.ready;
   document.body.dataset.ready = "1";
 })();

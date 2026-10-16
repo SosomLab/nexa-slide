@@ -13,6 +13,8 @@
     t3.offslide              요소가 슬라이드(1280×720) 밖으로 나감               ERROR
     t4.font.min              글자 크기가 역할별 최소 pt 보다 작음(pt = px × 0.75)  ERROR
     t5.mono.align            실행계획(plan)의 | 열 위치가 줄마다 다름(강조 표시를 뺀 원문 기준)   WARNING
+    t6.contrast.low          글자색과 바탕(요소 채우기, 없으면 슬라이드 배경)의 명도 대비 < 3:1(WCAG 큰 글씨 기준)   WARNING
+    t7.alt.missing           그림(image)에 대체 텍스트(alt)가 없음 - 접근성   INFO
 
 기준값(최소 pt)은 템플릿(templates/<이름>/template.json "check")에 있다. 작업 공간은 제외 대상만 고른다:
     nexa-slide.json  "check": {"ignore": ["t5.mono.align"], "ignoreSlides": {"ch00": ["s12"]}}
@@ -27,7 +29,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from common import CONFIG, DECKS, TEMPLATE, code_lines, font_role, load_deck, plain, safe_id, text_width, use_fonts  # noqa: E402
+from common import CONFIG, DECKS, TEMPLATE, code_lines, color, font_role, load_deck, plain, safe_id, text_width, use_fonts  # noqa: E402
 
 W, H = 1280, 720
 CHK = CONFIG.get("check", {})  # 작업 공간은 제외 대상(ignore·ignoreSlides)만 고른다 — 기준값은 템플릿
@@ -123,9 +125,55 @@ def _contains(outer, inner, tol=1):
             inner[0] + inner[2] <= outer[0] + outer[2] + tol and inner[1] + inner[3] <= outer[1] + outer[3] + tol)
 
 
+def _lum(hexv):
+    """상대 휘도(WCAG) - #RRGGBB"""
+    try:
+        r, g, b = (int(hexv[i:i + 2], 16) / 255 for i in (1, 3, 5))
+    except (TypeError, ValueError):
+        return None
+    f = lambda c: c / 12.92 if c <= 0.03928 else ((c + 0.055) / 1.055) ** 2.4  # noqa: E731
+    return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b)
+
+
+def contrast(fg, bg):
+    a, b = _lum(color(fg)), _lum(color(bg))
+    if a is None or b is None:
+        return None
+    hi, lo = max(a, b), min(a, b)
+    return (hi + 0.05) / (lo + 0.05)
+
+
+def _fill_hex(v):
+    """채우기 값 중 대비를 잴 수 있는 단색 - 토큰·#hex·{color}. 그라데이션·투명도 낮은 것은 None"""
+    if isinstance(v, dict):
+        if v.get("gradient") or (v.get("alpha") is not None and float(v.get("alpha") or 1) < 0.6):
+            return None
+        v = v.get("color")
+    if not isinstance(v, str) or not v:
+        return None
+    if v.startswith("#") and len(v) == 9 and int(v[7:9], 16) < 153:  # #RRGGBBAA 60% 미만
+        return None
+    return v
+
+
 def check_slide(slide, n):
     out = []
     textual = []
+    bg = slide.get("bg", "surface")
+    for el in slide.get("elements", []):  # t6 대비 · t7 대체 텍스트
+        t = el.get("type")
+        if el.get("role") == "decor":
+            continue
+        box = [el.get("x", 0), el.get("y", 0), el.get("w", 0), el.get("h", 0)]
+        if t == "image" and not str(el.get("alt") or "").strip() and not el.get("mermaid"):
+            out.append(_issue("t7.alt.missing", "INFO", slide, n, [el["id"]], box, f"{el['id']}(image) 대체 텍스트 없음 - 속성 '대체 텍스트'"))
+        if t in TEXT_TYPES and str(el.get("text") or "").strip():
+            fg = el.get("color") or "on-surface"
+            back = _fill_hex(el.get("fill")) if el.get("fill") else bg
+            c = contrast(fg, back) if back else None
+            if c is not None and c < 3.0:
+                out.append(_issue("t6.contrast.low", "WARNING", slide, n, [el["id"]], box,
+                                  f"{el['id']}({t}) 글자색 {fg} · 바탕 {back} 대비 {c:.1f}:1 < 3:1", ratio=round(c, 2), fg=fg, bg=back))
     # 장식(role "decor" — 템플릿 구조 부품의 테두리·흐린 쪽번호·띠)은 검사하지 않는다
     shapes = [e for e in slide.get("elements", []) if e.get("type") in ("rect", "ellipse", "pill") and (e.get("fill") or e.get("stroke"))
               and e.get("role") != "decor"]
@@ -239,10 +287,10 @@ def check_deck(deck_id):
         use_fonts(s.get("fontPreset") or deck.get("fontPreset"))  # 글자 폭을 그 장의 글꼴로 잰다
         issues += [dict(i, deck=deck_id) for i in check_slide(s, n) if i["rule"] not in IGNORE]
     use_fonts(None)
-    order = {"ERROR": 0, "WARNING": 1}
+    order = {"ERROR": 0, "WARNING": 1, "INFO": 2}
     issues.sort(key=lambda i: (i["n"], order[i["severity"]], i["rule"]))
     return {"deck": deck_id, "slides": len(deck.get("slides", [])), "issues": issues,
-            "errors": sum(i["severity"] == "ERROR" for i in issues), "warnings": sum(i["severity"] == "WARNING" for i in issues),
+            "errors": sum(i["severity"] == "ERROR" for i in issues), "warnings": sum(i["severity"] == "WARNING" for i in issues), "infos": sum(i["severity"] == "INFO" for i in issues),
             "minFontPt": MIN_PT, "template": TEMPLATE["name"]}
 
 
