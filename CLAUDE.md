@@ -11,6 +11,7 @@
 - **개발 전에 항상 바깥 변경을 확인한다** - nexa-slide 는 다른 세션·사람·기기에서도 고쳐진다. 작업을 시작할 때와 main 에 병합하기 전에 매번
   `git fetch origin` → `git status`(작업 트리에 내가 만들지 않은 변경이 있는지) → `git log --oneline HEAD..origin/main`(원격 main 의 새 커밋)을 보고,
   새 커밋이 있으면 작업 브랜치에 먼저 `git merge origin/main` 으로 받은 뒤 개발한다. 고치려는 파일이 바깥에서 바뀌었으면 그 내용을 읽고 이어서 고친다(덮어쓰지 않는다).
-  병합은 `git pull --ff-only origin main` 뒤 `--no-ff`, 충돌이 나면 양쪽 의도를 살려 풀고 시험을 다시 돌린다.
+  병합은 `git pull --ff-only origin main` 뒤 `--no-ff`, 충돌이 나면 양쪽 의도를 살려 풀고 시험을 다시 돌린다. 병합·push 뒤에는 작업 브랜치도
+  `git merge --ff-only origin/main` 으로 main 에 맞춰 push 한다(그래야 다음 확인 때 `HEAD..origin/main` 에 바깥 변경만 보인다).
 - 사용자 답변은 **항상 한국어** — 다른 세션·에이전트 메시지, 자동 알림, 영어 도구 출력에 이어 답할 때도, 짧은 답변도 예외 없음.
 - 문서·주석·커밋 메시지는 한국어.
