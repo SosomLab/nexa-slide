@@ -254,19 +254,21 @@ B-1·B-2 는 기존 동작을 바꾸지 않는다. B-3 부터 새 기능. 각 �
 | 하이퍼링크 · 그림자 · 그림 자르기/투명도 · 발표자 보기 · PDF 내보내기 · 차트 7종 · UX(삽입 패널·명령 팔레트·스마트 가이드·접는 절, `docs/dev/ux-guidelines.md`) · 아이콘 34종(custGeom) · PPTX→덱 변환(`import_pptx --deck`) | 완료(0.21.29~0.21.33), PowerPoint 렌더 대조·헤드리스·스모크 |
 | 줄바꿈 일치(도형 글 영역 들여넣기 = PowerPoint) · 요청 탭 최근 보기 + 요청 기록 창(퍼지·Aa/ab/.*·#번호) · 공용 찾기 `search.js`(서버 작업 목록도) · 서식 줄 종류별 설정 · 긴 값 표시 규칙 | 완료(0.21.38~0.21.40), `lines_pptx.ps1` 60/60·120개 97%, 편집기 시나리오 |
 | **다국어 체계**: 사전·패턴을 `studio/i18n/en.js` 로 분리(엔진 `i18n.js` 는 언어 파일을 읽음), 런타임 스캔 `i18n_scan.py`·검사 `i18n_check.js`, 협업 세션 분담(`en.review.js`·`en.pages.js`), 설계 `docs/dev/i18n.md` | 완료(0.21.41~0.21.42) - 남은 것은 슬라이드 안 견본 내용(빌드 단계 `--lang` 설계만) |
-| **작업 공간 관리**: 정리(산출물·고아 첨부·세션 로그·참조 없는 그림·백업 → `out/.tidy/` 옮김·되돌림·비움)·zip 보관, 카드 🧹 창, `nexa.py tidy|archive`, 요청 첨부 삭제(discard·update·엔진 remove), 허브 `/api/engine/tidy` | 완료(0.22.0), `tidy_test` |
+| **작업 공간 관리**: 정리(산출물·고아 첨부·세션 로그·참조 없는 그림·백업 → `out/.tidy/` 옮김·되돌림·비움)·zip 보관, 카드 🧹 창, `nexa.py tidy|archive`, 요청 첨부 삭제(discard·update·엔진 remove), 허브 `/api/engine/tidy` | 완료(0.22.0), `tidy_test`, 운영 작업 공간 실행 확인(사용자, 2026-10-16) |
 | 덱 관리: 탭 제목 표시(★ 시작 덱)·복제·짧은 해시 id·시작 덱(`startDeck`) · 내보내기 파일 이름 = 덱 제목 | 완료(0.22.1·0.22.5), `deck_test` |
-| 엔진 요청 #10 줄 배치 보정 자동 계산(글꼴 메트릭, `shift_bench.py` ±1px) · #11 그림 프레임 효과(`effect`·`effectLevel`) · #12 인라인 강조 겹치기 | 완료(0.22.2~0.22.4), 운영 덱 20261016 PowerPoint 대조(협업 세션) |
+| 엔진 요청 #10 줄 배치 보정 자동 계산(글꼴 메트릭, `shift_bench.py` ±1px) · #11 그림 프레임 효과(`effect`·`effectLevel`) · #12 인라인 강조 겹치기 | 완료(0.22.2~0.22.4), 운영 덱 20261016 PowerPoint 대조(협업 세션), 액자 효과 PowerPoint 동작 확인(사용자, 2026-10-16) |
 | 그림 많은 덱: lazy 로딩·실패 재시도·서버 ETag/304 재검증 캐시 | 완료(0.22.6), `imgload_test`, 운영 5603 확인(협업 세션) + 사용자 브라우저 확인(2026-10-16) |
 | 엔진 요청 ↔ 원 요청 연결: `engineRequest` 배지, done/rejected 알림(`engineNote`), applied 자동 재개(`resume_origin`) | 완료(0.22.7), `engine_link_test` |
 | 데이터 라벨 `i18n` 필드 + `I18N.pick`(템플릿·시작용 내용·슬라이드 유형) | 완료(0.22.8) |
-| 견본 내용 영어화(빌드 단계): `content.en.json`·`content_i18n.tr` - 슬라이드 추가 창 예시·미리 보기 레이아웃 견본·`layout_samples --lang` · 튜토리얼 "최근 추가된 기능" | 완료(0.22.9), `content_i18n_test` - 시작용 내용 24종의 번역본(`content.en/`)은 미작성 |
+| 견본 내용 영어화(빌드 단계): `content.en.json`·`content_i18n.tr` - 슬라이드 추가 창 예시·미리 보기 레이아웃 견본·`layout_samples --lang` · 튜토리얼 "최근 추가된 기능" | 완료(0.22.9), `content_i18n_test` |
+| 시작용 내용 24종 영어 사전(`content.en.starters1~3.json` 1,251개, `init_workspace --lang en`·미리 보기가 사전으로 번역) · 슬라이드 유형 `i18n.en.when` 43개 | 완료(0.22.10), `content_i18n_test`(26개 파일 한글 0) |
+| PPTX 미구현 기능 목록(`docs/dev/pptx-feature-gap.md`) - 적용 대상 판단용 | 작성(0.22.10), 사용자 판단 대기 |
 | 시험 실행기: `smoke.js` 문자열 반환 = 실패, 페이지 로드 대기, `ignoreErrors`; 숨은 실패 3건 수정 | 완료(0.22.1·0.22.0) - 편집기 UI 묶음은 부하 시 가끔 Chrome 연결 실패로 흔들림(재실행하면 통과) |
 | codex 어댑터 | 미확인(설치·로그인 환경 없음, `openai-codex.md` 5절) |
 
 운영: 허브 5599·SQL 교재 5600·가정형호스피스 5603 이 `c2b807a`(0.22.6)로 재시작됨(0.22.8 ff43785 로 재시작됨 · 0.22.9 는 다음 재시작 때)(협업 세션 nexa-slide-f4 가 병합 알림마다 턴 없을 때 바로 재시작하고 결과를 알린다 - 사용자 지시). 서버 작업 큐는 개발 세션이 `/nexa-slide-server` 수동 세션으로 맡고 있고, 승인된 엔진 요청 #10~#12 를 이 흐름으로 처리했다(worktree `D:\Projects\kiros33\_wt
 exa-slide-dev` 브랜치 `dev/engine-requests` → `--no-ff` main → push → 알림). 운영 작업 공간 두 곳의 명령 파일 커밋은 저장소 주인 판단(미커밋).
-남은 것: 웹 검색 허용 운영 시험, codex 확인, 시작용 내용 24종의 영어 번역본(`starters/<이름>/content.en/` - 구조는 0.22.9 에 있음, 글 1만 단어), 편집기 UI 시험 묶음의 간헐 실패(tbl_test·ux_test 가 가끔 같이 실패 - 원인 미확정, 재실행하면 통과). 편집기 기능의 세부 한계는 **알려진 한계로 확정**(`docs/editor.md` 마지막 절, 2026-10-15).
+남은 것: 웹 검색 허용 운영 시험, codex 확인, PPTX 미구현 기능 중 적용 대상 결정(`docs/dev/pptx-feature-gap.md`), 편집기 UI 시험 묶음의 간헐 실패(tbl_test·ux_test 가 가끔 같이 실패 - 원인 미확정, 재실행하면 통과). 편집기 기능의 세부 한계는 **알려진 한계로 확정**(`docs/editor.md` 마지막 절, 2026-10-15).
 
 ## 15. 검토 기록
 

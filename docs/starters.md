@@ -14,6 +14,8 @@ python3 <폴더>/nexa.py start
 
 ## 목록
 
+영어로 시작하려면 `--lang en` 을 더한다 - `content.en/` 번역본 폴더가 있으면 그것을, 없으면 엔진 사전(`studio/i18n/content.en*.json`, 24종 전부 수록)으로 번역해 복사한다(`docs/dev/i18n.md` 3절). 시작 페이지의 표시 언어가 영어이면 미리 보기와 새로 만들기(`lang`)도 같은 방식이다.
+
 숨김(`hidden: true`) 시작용 내용은 새로 만들기 목록에 나오지 않는다(검토 등록부 대상) — `init_workspace.py --starter <이름>` 으로는 계속 쓸 수 있다.
 
 

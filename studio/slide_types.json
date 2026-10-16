@@ -105,7 +105,8 @@
    "i18n": {
     "en": {
      "label": "Cover — title",
-     "purpose": "Start with the deck title, subtitle and presenter"
+     "purpose": "Start with the deck title, subtitle and presenter",
+     "when": "The deck's first slide · title and presenter"
     }
    }
   },
@@ -126,7 +127,8 @@
    "i18n": {
     "en": {
      "label": "Cover — full photo",
-     "purpose": "Set the mood with one scene first"
+     "purpose": "Set the mood with one scene first",
+     "when": "First slide of a mood-driven talk (lecture · brand · story) when you have a hero photo"
     }
    }
   },
@@ -140,7 +142,8 @@
    "i18n": {
     "en": {
      "label": "Agenda",
-     "purpose": "Sequence with time and owner"
+     "purpose": "Sequence with time and owner",
+     "when": "A sequence with set times and owners (workshop · meeting · training schedule)"
     }
    }
   },
@@ -154,7 +157,8 @@
    "i18n": {
     "en": {
      "label": "Contents",
-     "purpose": "Guide with a list of chapters"
+     "purpose": "Guide with a list of chapters",
+     "when": "Long decks with three or more chapters"
     }
    }
   },
@@ -168,7 +172,8 @@
    "i18n": {
     "en": {
      "label": "Section divider",
-     "purpose": "Cover that opens a new chapter"
+     "purpose": "Cover that opens a new chapter",
+     "when": "When a new chapter begins"
     }
    }
   },
@@ -187,7 +192,8 @@
    "i18n": {
     "en": {
      "label": "Open with a question",
-     "purpose": "One question that makes the audience want the answer"
+     "purpose": "One question that makes the audience want the answer",
+     "when": "To open with a question the audience wants answered"
     }
    }
   },
@@ -205,7 +211,8 @@
    "i18n": {
     "en": {
      "label": "One key sentence",
-     "purpose": "The sentence that runs through the deck (axis)"
+     "purpose": "The sentence that runs through the deck (axis)",
+     "when": "To state the deck's conclusion or axis in one sentence"
     }
    }
   },
@@ -224,7 +231,8 @@
    "i18n": {
     "en": {
      "label": "Dark transition statement",
-     "purpose": "A pause slide that breaks the flow and emphasizes"
+     "purpose": "A pause slide that breaks the flow and emphasizes",
+     "when": "A turning point that changes the flow (but · however)"
     }
    }
   },
@@ -244,7 +252,8 @@
    "i18n": {
     "en": {
      "label": "Photo + one sentence",
-     "purpose": "A memorable sentence over a field photo"
+     "purpose": "A memorable sentence over a field photo",
+     "when": "A field or scene photo with one memorable sentence"
     }
    }
   },
@@ -264,7 +273,8 @@
    "i18n": {
     "en": {
      "label": "Quote — customer / field voice",
-     "purpose": "Trust through a named speaker's words"
+     "purpose": "Trust through a named speaker's words",
+     "when": "When a named customer, field or expert statement is the evidence"
     }
    }
   },
@@ -278,7 +288,8 @@
    "i18n": {
     "en": {
      "label": "One number",
-     "purpose": "One conclusive number with context"
+     "purpose": "One conclusive number with context",
+     "when": "When one number is the conclusion (one context or comparison)"
     }
    }
   },
@@ -307,7 +318,8 @@
    "i18n": {
     "en": {
      "label": "Summary — conclusion first",
-     "purpose": "Three reasons and the conclusive figure on the first slide"
+     "purpose": "Three reasons and the conclusive figure on the first slide",
+     "when": "Conclusion first — the opening slide for busy decision makers (three reasons + the conclusive figure)"
     }
    }
   },
@@ -321,7 +333,8 @@
    "i18n": {
     "en": {
      "label": "KPI dashboard",
-     "purpose": "2–4 key metrics with targets and comparisons"
+     "purpose": "2–4 key metrics with targets and comparisons",
+     "when": "2–4 metrics against targets and the previous period"
     }
    }
   },
@@ -351,7 +364,8 @@
    "i18n": {
     "en": {
      "label": "Bar comparison",
-     "purpose": "Compare sizes by item or period"
+     "purpose": "Compare sizes by item or period",
+     "when": "Compare sizes by item or period (12 or fewer)"
     }
    }
   },
@@ -365,7 +379,8 @@
    "i18n": {
     "en": {
      "label": "Composition",
-     "purpose": "Compare shares of the whole"
+     "purpose": "Compare shares of the whole",
+     "when": "Compare shares of the whole across several items"
     }
    }
   },
@@ -380,7 +395,8 @@
    "i18n": {
     "en": {
      "label": "Number + evidence chart",
-     "purpose": "The conclusive number and its trend on one slide"
+     "purpose": "The conclusive number and its trend on one slide",
+     "when": "A conclusive number plus its trend (traction · growth)"
     }
    }
   },
@@ -431,7 +447,8 @@
    "i18n": {
     "en": {
      "label": "Evidence + interpretation panel",
-     "purpose": "Pin the interpretation next to table or list evidence"
+     "purpose": "Pin the interpretation next to table or list evidence",
+     "when": "To put interpretation next to table or list evidence"
     }
    }
   },
@@ -445,7 +462,8 @@
    "i18n": {
     "en": {
      "label": "Table",
-     "purpose": "Several items on the same criteria"
+     "purpose": "Several items on the same criteria",
+     "when": "Several items listed on the same criteria"
     }
    }
   },
@@ -459,7 +477,8 @@
    "i18n": {
     "en": {
      "label": "Status table (traffic light)",
-     "purpose": "Actual vs plan and status"
+     "purpose": "Actual vs plan and status",
+     "when": "Actual vs plan with normal · caution · risk states"
     }
    }
   },
@@ -474,7 +493,8 @@
    "i18n": {
     "en": {
      "label": "Range · sensitivity",
-     "purpose": "Estimates as a range, with a baseline"
+     "purpose": "Estimates as a range, with a baseline",
+     "when": "Estimates or valuations as ranges, with a baseline"
     }
    }
   },
@@ -489,7 +509,8 @@
    "i18n": {
     "en": {
      "label": "Funnel · market size",
-     "purpose": "Numbers shrinking by stage (conversion · TAM)"
+     "purpose": "Numbers shrinking by stage (conversion · TAM)",
+     "when": "Numbers shrinking by stage (conversion · TAM→SAM→SOM)"
     }
    }
   },
@@ -504,7 +525,8 @@
    "i18n": {
     "en": {
      "label": "Composition — doughnut",
-     "purpose": "Composition that highlights one share"
+     "purpose": "Composition that highlights one share",
+     "when": "Highlight one share (time · budget · market share)"
     }
    }
   },
@@ -519,7 +541,8 @@
    "i18n": {
     "en": {
      "label": "Heatmap · cohort",
-     "purpose": "Row × column values as color intensity (cohort · segment × month)"
+     "purpose": "Row × column values as color intensity (cohort · segment × month)",
+     "when": "Row × column values (cohort retention · segment × month)"
     }
    }
   },
@@ -565,7 +588,8 @@
    "i18n": {
     "en": {
      "label": "Quadrant priorities",
-     "purpose": "Place items by impact × effort"
+     "purpose": "Place items by impact × effort",
+     "when": "Place and prioritize items on two criteria (impact × effort etc.)"
     }
    }
   },
@@ -594,7 +618,8 @@
    "i18n": {
     "en": {
      "label": "Decision request",
-     "purpose": "What, who and by when to decide"
+     "purpose": "What, who and by when to decide",
+     "when": "Ask the decision maker what, who and by when"
     }
    }
   },
@@ -608,7 +633,8 @@
    "i18n": {
     "en": {
      "label": "Risks · issues and asks",
-     "purpose": "Situation · impact · ask · owner · due"
+     "purpose": "Situation · impact · ask · owner · due",
+     "when": "Risks and issues with responses and asks"
     }
    }
   },
@@ -656,7 +682,8 @@
    "i18n": {
     "en": {
      "label": "Pricing · packages",
-     "purpose": "Price and inclusions per tier"
+     "purpose": "Price and inclusions per tier",
+     "when": "Prices and packages per tier"
     }
    }
   },
@@ -670,7 +697,8 @@
    "i18n": {
     "en": {
      "label": "Step flow",
-     "purpose": "Sequence joined by arrows"
+     "purpose": "Sequence joined by arrows",
+     "when": "Ordered steps (arrows)"
     }
    }
   },
@@ -699,7 +727,8 @@
    "i18n": {
     "en": {
      "label": "Roadmap Now · Next · Later",
-     "purpose": "Work grouped by period"
+     "purpose": "Work grouped by period",
+     "when": "Work by period (Now · Next · Later)"
     }
    }
   },
@@ -728,7 +757,8 @@
    "i18n": {
     "en": {
      "label": "Timetable",
-     "purpose": "Day × time cells"
+     "purpose": "Day × time cells",
+     "when": "Day × time timetable"
     }
    }
   },
@@ -743,7 +773,8 @@
    "i18n": {
     "en": {
      "label": "Big-number steps · points",
-     "purpose": "Three causes, asks or lessons, numbered"
+     "purpose": "Three causes, asks or lessons, numbered",
+     "when": "3–5 causes, lessons or points, numbered"
     }
    }
   },
@@ -758,7 +789,8 @@
    "i18n": {
     "en": {
      "label": "Issue · metric tree",
-     "purpose": "Branch one thing into causes or parts"
+     "purpose": "Branch one thing into causes or parts",
+     "when": "Branch one thing into causes or parts (issue · metric tree)"
     }
    }
   },
@@ -772,7 +804,8 @@
    "i18n": {
     "en": {
      "label": "Structure diagram",
-     "purpose": "System · relationship diagram (Mermaid)"
+     "purpose": "System · relationship diagram (Mermaid)",
+     "when": "System or relationship structure (Mermaid)"
     }
    }
   },
@@ -804,7 +837,8 @@
    "i18n": {
     "en": {
      "label": "Person / subject intro (photo + text)",
-     "purpose": "One person or subject in depth"
+     "purpose": "One person or subject in depth",
+     "when": "One person or subject in depth, with a photo"
     }
    }
   },
@@ -819,7 +853,8 @@
    "i18n": {
     "en": {
      "label": "Case presentation",
-     "purpose": "A case and a question to consider"
+     "purpose": "A case and a question to consider",
+     "when": "A case and a question to consider (training · analysis)"
     }
    }
   },
@@ -860,7 +895,8 @@
    "i18n": {
     "en": {
      "label": "Case judgment (choices)",
-     "purpose": "Judge A–D from the case"
+     "purpose": "Judge A–D from the case",
+     "when": "Judge A–D from a case (training · discussion)"
     }
    }
   },
@@ -891,7 +927,8 @@
    "i18n": {
     "en": {
      "label": "Concept",
-     "purpose": "Key concept bullets"
+     "purpose": "Key concept bullets",
+     "when": "Concept or key-point bullets"
     }
    }
   },
@@ -906,7 +943,8 @@
    "i18n": {
     "en": {
      "label": "Step-by-step solution",
-     "purpose": "Problem → steps → answer, rules and pitfalls"
+     "purpose": "Problem → steps → answer, rules and pitfalls",
+     "when": "Problem → steps → answer (solutions · calculations · grammar)"
     }
    }
   },
@@ -921,7 +959,8 @@
    "i18n": {
     "en": {
      "label": "Check question",
-     "purpose": "Check understanding with four choices"
+     "purpose": "Check understanding with four choices",
+     "when": "Check understanding (four choices)"
     }
    }
   },
@@ -965,7 +1004,8 @@
    "i18n": {
     "en": {
      "label": "Wrap-up",
-     "purpose": "What to remember"
+     "purpose": "What to remember",
+     "when": "What to remember from a chapter or the deck"
     }
    }
   },
@@ -1000,7 +1040,8 @@
    "i18n": {
     "en": {
      "label": "Next actions · asks",
-     "purpose": "Who does what by when"
+     "purpose": "Who does what by when",
+     "when": "Who does what by when (last slide)"
     }
    }
   },
@@ -1015,7 +1056,8 @@
    "i18n": {
     "en": {
      "label": "References · sources",
-     "purpose": "List of sources and where used"
+     "purpose": "List of sources and where used",
+     "when": "List of evidence and sources"
     }
    }
   },
@@ -1030,7 +1072,8 @@
    "i18n": {
     "en": {
      "label": "Anticipated questions (appendix)",
-     "purpose": "Questions, answers and evidence in advance"
+     "purpose": "Questions, answers and evidence in advance",
+     "when": "Anticipated questions and answers (appendix)"
     }
    }
   },

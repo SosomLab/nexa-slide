@@ -19,12 +19,14 @@ def load_map(lang):
     if lang in _maps:
         return _maps[lang]
     m = {}
-    p = I18N_DIR / f"content.{lang}.json"
-    if lang != "ko" and p.is_file():
-        try:
-            m = {k: v for k, v in json.loads(p.read_text(encoding="utf-8")).items() if not k.startswith("_") and isinstance(v, str)}
-        except (OSError, ValueError):
-            m = {}
+    if lang != "ko":  # content.<lang>.json + content.<lang>.*.json(시작용 내용 등 묶음별 파일) 을 합친다
+        for p in sorted(I18N_DIR.glob(f"content.{lang}*.json")):
+            if p.name != f"content.{lang}.json" and not p.name.startswith(f"content.{lang}."):
+                continue
+            try:
+                m.update({k: v for k, v in json.loads(p.read_text(encoding="utf-8")).items() if not k.startswith("_") and isinstance(v, str)})
+            except (OSError, ValueError):
+                continue
     _maps[lang] = m
     return m
 

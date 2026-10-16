@@ -580,7 +580,7 @@
     const custom = loc() === "custom";
     const b = { title: $("#fTitle").value.trim(), template: H.tpl, starter: $("#fStarter").value || null, port: $("#fPort").value.trim(),
       purpose: $("#fPurpose").value, audience: $("#fAudience").value, direction: $("#fDirection").value, materials: $("#fMaterials").value,
-      askDraft: $("#fAsk").checked, loc: loc(), slidesDir: wsName(), defaultTitle: I18N.t("제목") };  // 제목이 비었을 때 명령·경로에 쓰는 자리 글(표시 언어대로)
+      askDraft: $("#fAsk").checked, loc: loc(), slidesDir: wsName(), defaultTitle: I18N.t("제목"), lang: I18N.effective() };  // 제목이 비었을 때 명령·경로에 쓰는 자리 글(표시 언어대로) · lang = 시작용 내용 언어
     if (custom) { b.folder = $("#fFolder").value.trim(); b.sub = $("#fSub").value.trim(); }
     return b;
   }
@@ -629,7 +629,7 @@
     if (custom && !$("#fFolder").value.trim()) { toast("저장할 폴더를 고르세요"); return; }
     const body = { action: "create", title: $("#fTitle").value.trim(), template: H.tpl, starter: $("#fStarter").value || null,
       purpose: $("#fPurpose").value, audience: $("#fAudience").value, direction: $("#fDirection").value, materials: $("#fMaterials").value,
-      askDraft: $("#fAsk").checked, port: $("#fPort").value.trim() || (H.plan && H.plan.port) || "", loc: loc(), slidesDir: wsName() };
+      askDraft: $("#fAsk").checked, port: $("#fPort").value.trim() || (H.plan && H.plan.port) || "", loc: loc(), slidesDir: wsName(), lang: I18N.effective() };
     if (custom) { body.folder = $("#fFolder").value.trim(); body.sub = $("#fSub").value.trim(); }
     busy(true, "작업 공간을 만들고 서버를 띄우는 중...");
     const r = await post("/api/project", body);

@@ -55,6 +55,36 @@ def main():
     check("tr: 구조·경로 유지", tr({"title": "정리", "items": ["항목 1", {"img": "assets/사진.png"}], "src": "a/가.png"}, "en") == {"title": "Summary", "items": ["Item 1", {"img": "assets/사진.png"}], "src": "a/가.png"})
     check("tr: ko·모르는 언어는 그대로", tr("정리", "ko") == "정리" and tr("정리", "xx") == "정리")
     check("content_dir: 번역본 없으면 content/", content_dir(STUDIO.parent / "starters" / "weekly-report", "en").name == "content")
+    # 시작용 내용 24종 - 사전(content.en.starters*.json)으로 번역하면 한글이 남지 않아야 한다(경로·mermaid 등 SKIP_KEYS 제외)
+    from content_i18n import SKIP_KEYS
+    left, n = [], 0
+    for p in sorted((STUDIO.parent / "starters").glob("*/content/*.json")):
+        n += 1
+        out = tr(json.loads(p.read_text(encoding="utf-8")), "en")
+
+        def walk(o):
+            if isinstance(o, str):
+                if H.search(o):
+                    left.append(f"{p.parent.parent.name}: {o[:40]}")
+            elif isinstance(o, list):
+                for v in o:
+                    walk(v)
+            elif isinstance(o, dict):
+                for k, v in o.items():
+                    if k not in SKIP_KEYS:
+                        walk(v)
+        walk(out)
+    check(f"시작용 내용 {n}개 파일 tr(en): 한글 없음", n >= 24 and not left, str(left[:8]))
+    # init_workspace --lang en: 번역본 폴더가 없어도 사전으로 번역해 복사한다
+    with tempfile.TemporaryDirectory() as td:
+        r = subprocess.run([sys.executable, str(STUDIO / "init_workspace.py"), str(Path(td) / "ws"), "--title", "EN test", "--starter", "weekly-report", "--lang", "en", "--port", "5698"], env={**ENV, "NEXA_SLIDE_WORKSPACE": ""}, capture_output=True, text=True, encoding="utf-8", errors="replace")
+        files = list((Path(td) / "ws").rglob("content/*.json"))
+        bad = []
+        for f in files:
+            walk_out = []
+            hangul_strings(json.loads(f.read_text(encoding="utf-8")), walk_out)
+            bad += [f"{f.name}: {s[:30]}" for s in walk_out]
+        check("init_workspace --starter weekly-report --lang en: 내용 파일이 영어", r.returncode == 0 and files and not bad, (r.stderr or "")[-300:] + str(bad[:5]))
     r = subprocess.run([sys.executable, str(STUDIO / "layout_samples.py"), "--json", "--lang", "en"], env=ENV, cwd=str(WS), capture_output=True, text=True, encoding="utf-8", errors="replace")
     d = json.loads(r.stdout[r.stdout.index("{"):]) if "{" in r.stdout else {}
     left = []
