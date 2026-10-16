@@ -377,11 +377,11 @@
     const d = S.decks.find((x) => x.id === id) || { id, title: id };
     openMenu({ x: e.clientX, y: e.clientY }, [
       { h: `${d.title} · id ${d.id}` },
-      { label: "새 덱", act: () => deckCreate() }, "-",
       { label: "제목 바꾸기", act: async () => { const t = (prompt("덱 제목", d.title) || "").trim(); if (!t || t === d.title) return; const r = await deckAdmin({ action: "retitle", id, title: t }, "제목을 바꿨습니다"); if (r && S.id === id) { S.deck.title = t; S.savedJson = deckJson(); } } },
       { label: "복제", act: async () => { const t = (prompt("복제한 덱의 제목", `${d.title} (복사)`) || "").trim(); if (!t) return; if (S.dirty && S.id === id) await save(); const r = await deckAdmin({ action: "copy", id, title: t }, `복제했습니다: ${t}`); if (r) await loadDeck(r.id); } },
       { label: d.start ? "시작 덱 해제" : "시작 덱으로", on: !!d.start, act: async () => { await deckAdmin({ action: "start", id: d.start ? "" : id }, d.start ? "시작 덱을 해제했습니다" : `시작 덱: ${d.title}`); } }, "-",
       { label: "덱 삭제(휴지통)", act: async () => { if (!confirm(`덱 "${d.title}" 을 지울까요? decks/.trash/ 로 옮겨지며 요청·기록·첨부·content 도 같이 갑니다.`)) return; const r = await deckAdmin({ action: "delete", id }, `휴지통으로 옮겼습니다: ${d.title}`); if (r && S.id === id) { const next = S.decks[0]; if (next) await loadDeck(next.id); else location.href = BASE + "/studio/home.html"; } } },
+      "-", { label: "새 덱", act: () => deckCreate() },
     ]);
   }
   const reqsOf = (sid, st) => {  // 썸네일 배지 - 후속 요청은 thread 단위로 하나만 센다
@@ -1081,7 +1081,12 @@
     const node = e.target.closest("#host .rs-el"); if (!node) return;
     e.preventDefault(); if (!selIds().includes(node.dataset.id)) select(node.dataset.id);
     const el = selEl(), lk = selEls().every((x) => x.locked);
-    openMenu({ x: e.clientX, y: e.clientY }, [
+    let tblItems = [];
+    if (isTbl(el) && !isMulti() && !el.locked) {  // 표 안 오른쪽 클릭 - 누른 셀이 선택에 없으면 그 셀을 고르고, 셀 기준 메뉴
+      const rc = cellAt(el, toSlide(e));
+      if (rc) { if (!S.cell || S.cell.id !== el.id || !S.cell.set.has(cellKey(rc[0], rc[1]))) setCells(el, [rc], rc); tblItems = tableCtxItems(el); }
+    }
+    openMenu({ x: e.clientX, y: e.clientY }, [...tblItems,
       { label: isMulti() ? `복사 (${selIds().length}개)` : "복사", key: "Ctrl+C", act: () => { S.clip = selEls().map(clone); toast(`요소 ${S.clip.length}개 복사`); } },
       { label: "잘라내기", key: "Ctrl+X", disabled: lk, act: () => { S.clip = selEls().filter((x) => !x.locked).map(clone); delEl(); } },
       { label: "붙여넣기", key: "Ctrl+V", disabled: !S.clip, act: () => dupEl(S.clip) },
@@ -1543,6 +1548,51 @@ ${names}
     if (el.borders) { el.borders = fix(el.borders); if (!el.borders.length) delete el.borders; }
     if (el.merge) { el.merge = fix(el.merge); if (!el.merge.length) delete el.merge; }
   }
+  /** 행(열) from 을 to 자리로 옮긴다(렌더 표·표 객체). 렌더 표의 덧씌우기 좌표도 새 순서로 바꾼다 */
+  function tableMoveLine(el, axis, from, to) {
+    const [nr, nc] = tblDims(el), n = axis === "r" ? nr : nc;
+    if (from === to || from < 0 || to < 0 || from >= n || to >= n) return false;
+    const order = Array.from({ length: n }, (_, i) => i); order.splice(from, 1); order.splice(to, 0, from);  // order[new] = old
+    const remap = new Map(order.map((old, nw) => [old, nw]));
+    const reorder = (arr) => (Array.isArray(arr) && arr.length === n ? order.map((o) => arr[o]) : arr);
+    if (el.type === "table") {
+      if (axis === "r") { el.rows = reorder(el.rows); if (el.rowH) el.rowH = reorder(el.rowH); }
+      else { el.rows = el.rows.map((r) => reorder(r)); for (const k of ["colW", "colFont", "align"]) if (el[k]) el[k] = reorder(el[k]); }
+      const idx = axis === "r" ? 0 : 1, fix = (lst) => (lst || []).map((m) => { const v = m[idx]; if (v == null || v === "*") return m; const o = [...m]; o[idx] = remap.has(+v) ? remap.get(+v) : +v; return o; });
+      if (el.cellFill) el.cellFill = fix(el.cellFill); if (el.borders) el.borders = fix(el.borders); if (el.merge) el.merge = fix(el.merge);
+    } else {
+      const rows = objRows(el); el.rows = rows;
+      if (axis === "r") el.rows = reorder(rows);
+      else { rows.forEach((r) => { r.cells = r.cells || []; while (r.cells.length < nc) r.cells.push(""); r.cells = reorder(r.cells); }); el.cols = (el.cols || []).map((c) => (c && typeof c === "object" ? c : { w: c })); while (el.cols.length < nc) el.cols.push({ w: 1 }); el.cols = reorder(el.cols); }
+      const idx = axis === "r" ? 0 : 1, fix = (lst) => (lst || []).map((m) => { const v = m[idx]; if (v == null || v === "*") return m; const o = [...m]; o[idx] = remap.has(+v) ? remap.get(+v) : +v; return o; });
+      if (el.cellFill) el.cellFill = fix(el.cellFill); if (el.borders) el.borders = fix(el.borders);
+    }
+    return true;
+  }
+  function cellsClearStyle() {  // 고른 셀의 서식만 지운다(글은 그대로) - 렌더 표는 덧씌우기에서, 표 객체는 셀 객체 키에서
+    const el = selEl(); if (!el || !S.cell) return; const cells = cellList(); snapshot();
+    const hit = (m) => cells.some(([r, c]) => +m[0] === r && +m[1] === c);
+    if (el.cellFill) { el.cellFill = el.cellFill.filter((m) => !hit(m)); if (!el.cellFill.length) delete el.cellFill; }
+    if (el.borders) { el.borders = el.borders.filter((m) => !hit(m)); if (!el.borders.length) delete el.borders; }
+    if (el.type === "table-obj") cells.forEach(([r, c]) => { const row = objRows(el)[r]; const x = row && row.cells && row.cells[c]; if (x && typeof x === "object") { for (const k of ["fill", "color", "bold", "italic", "align", "valign", "font", "size", "pad", "bd"]) delete x[k]; if (Object.keys(x).length === 1 && "v" in x) row.cells[c] = x.v; } });
+    afterChange(); toast("셀 서식을 지웠습니다(글은 그대로)");
+  }
+  /** 오른쪽 클릭 메뉴의 표 항목 - 셀 기준 행·열 삽입·삭제·병합·비우기·서식·선택 */
+  function tableCtxItems(el) {
+    const cells = cellList(), rs = [...new Set(cells.map((x) => x[0]))], cs = [...new Set(cells.map((x) => x[1]))], [nr, nc] = tblDims(el);
+    const ins = (axis, at) => () => { snapshot(); tableInsert(el, axis, at); S.cell = null; afterChange(); };
+    const selLine = (axis, k) => () => { const list = axis === "c" ? Array.from({ length: nr }, (_, i) => [i, k]) : Array.from({ length: nc }, (_, j) => [k, j]); S.cell = { id: el.id, set: new Set(list.map(([r, c]) => cellKey(r, c))), anchor: list[0], line: [axis, k] }; drawSel(); renderFtb(); renderProps(); };
+    return [
+      { h: `셀 (${rs.length === 1 ? rs[0] + 1 : `${Math.min(...rs) + 1}~${Math.max(...rs) + 1}`}행, ${cs.length === 1 ? cs[0] + 1 : `${Math.min(...cs) + 1}~${Math.max(...cs) + 1}`}열)` },
+      { label: "행 위에 삽입", act: ins("r", Math.min(...rs)) }, { label: "행 아래에 삽입", act: ins("r", Math.max(...rs) + 1) },
+      { label: "열 왼쪽에 삽입", act: ins("c", Math.min(...cs)) }, { label: "열 오른쪽에 삽입", act: ins("c", Math.max(...cs) + 1) },
+      { label: rs.length > 1 ? `행 ${rs.length}개 삭제` : "행 삭제", disabled: nr <= 1, act: () => cellRowCol("row-") }, { label: cs.length > 1 ? `열 ${cs.length}개 삭제` : "열 삭제", disabled: nc <= 1, act: () => cellRowCol("col-") }, "-",
+      { label: cells.length > 1 ? "셀 병합" : "병합 풀기", act: () => cellMerge() }, { label: "셀 비우기", key: "Delete", act: () => cellsClearText() }, { label: "셀 서식 지우기", act: () => cellsClearStyle() },
+      { label: "셀 글 편집", key: "Enter", act: () => startCellEdit(el, S.cell.anchor) }, "-",
+      { label: "행 전체 선택", act: selLine("r", rs[0]) }, { label: "열 전체 선택", act: selLine("c", cs[0]) }, { label: "표 전체 선택", act: () => { const all = []; for (let i = 0; i < nr; i++) for (let j = 0; j < nc; j++) all.push([i, j]); setCells(el, all, [0, 0]); } },
+      { label: "↕ 행 높이를 글에 맞춤", act: () => { snapshot(); fitRows(el); afterChange(); } }, "-",
+    ];
+  }
   function tableInsert(el, axis, at) {
     const [nr, nc] = tblDims(el);
     if (el.type === "table") {
@@ -1611,8 +1661,8 @@ ${names}
     const band = (x, y, w, hh) => `<div class="tmove" title="끌어서 표 이동 (표 안은 셀 선택 · Alt+끌기도 이동)" style="left:${x}px;top:${y}px;width:${w}px;height:${hh}px"></div>`;
     h += band(el.x - mb, el.y - mb, el.w + 2 * mb, mb) + band(el.x - mb, el.y + el.h, el.w + 2 * mb, mb) + band(el.x - mb, el.y, mb, el.h) + band(el.x + el.w, el.y, mb, el.h);
     h += `<div class="tgrip tmove" title="끌어서 표 이동" style="left:${el.x - off - 22 / scale}px;top:${el.y - off - 22 / scale}px;width:${22 / scale}px;height:${22 / scale}px;font-size:${13 / scale}px">✥</div>`;
-    for (let j = 0; j < nc; j++) h += `<div class="tgut col" data-c="${j}" title="열 ${j + 1} 선택 (Shift 범위 · Ctrl 더하기)" style="left:${el.x + xs[j] + 1}px;top:${el.y - off - t}px;width:${xs[j + 1] - xs[j] - 2}px;height:${t}px"></div>`;
-    for (let i = 0; i < nr; i++) h += `<div class="tgut row" data-r="${i}" title="행 ${i + 1} 선택 (Shift 범위 · Ctrl 더하기)" style="left:${el.x - off - t}px;top:${el.y + ys[i] + 1}px;width:${t}px;height:${ys[i + 1] - ys[i] - 2}px"></div>`;
+    for (let j = 0; j < nc; j++) h += `<div class="tgut col${S.cell && S.cell.id === el.id && S.cell.line && S.cell.line[0] === "c" && S.cell.set.has(cellKey(0, j)) ? " on" : ""}" data-c="${j}" title="열 ${j + 1} 선택 (Shift 범위 · Ctrl 더하기) · 고른 열의 띠를 끌면 옮기기" style="left:${el.x + xs[j] + 1}px;top:${el.y - off - t}px;width:${xs[j + 1] - xs[j] - 2}px;height:${t}px"></div>`;
+    for (let i = 0; i < nr; i++) h += `<div class="tgut row${S.cell && S.cell.id === el.id && S.cell.line && S.cell.line[0] === "r" && S.cell.set.has(cellKey(i, 0)) ? " on" : ""}" data-r="${i}" title="행 ${i + 1} 선택 (Shift 범위 · Ctrl 더하기) · 고른 행의 띠를 끌면 옮기기" style="left:${el.x - off - t}px;top:${el.y + ys[i] + 1}px;width:${t}px;height:${ys[i + 1] - ys[i] - 2}px"></div>`;
     for (let j = 1; j < nc; j++) h += `<div class="tbnd col" data-c="${j}" title="끌어서 열 폭 조절" style="left:${el.x + xs[j] - hw / 2}px;top:${el.y}px;width:${hw}px;height:${el.h}px"></div>`;
     for (let i = 1; i < nr; i++) h += `<div class="tbnd row" data-r="${i}" title="끌어서 행 높이 조절" style="left:${el.x}px;top:${el.y + ys[i] - hw / 2}px;width:${el.w}px;height:${hw}px"></div>`;
     return h;
@@ -2202,6 +2252,7 @@ ${names}
         const lineCells = (k) => (axis === "c" ? Array.from({ length: nr }, (_, i) => [i, k]) : Array.from({ length: nc }, (_, j) => [k, j]));
         if (e.ctrlKey || e.metaKey) { const set = new Set(S.cell && S.cell.id === tsel.id ? S.cell.set : []); lineCells(idx).forEach(([r, c]) => set.add(cellKey(r, c))); S.cell = { id: tsel.id, set, anchor: lineCells(idx)[0], line: [axis, idx] }; drawSel(); renderFtb(); renderProps(); }
         else if (e.shiftKey && S.cell && S.cell.id === tsel.id && S.cell.line && S.cell.line[0] === axis) { const a = S.cell.line[1], cells = []; for (let k = Math.min(a, idx); k <= Math.max(a, idx); k++) cells.push(...lineCells(k)); S.cell = { id: tsel.id, set: new Set(cells.map(([r, c]) => cellKey(r, c))), anchor: lineCells(a)[0], line: [axis, a] }; drawSel(); renderFtb(); renderProps(); }
+        else if (S.cell && S.cell.id === tsel.id && S.cell.line && S.cell.line[0] === axis && S.cell.line[1] === idx && S.cell.set.size === (axis === "c" ? nr : nc)) { drag = { mode: "gutmove", el: tsel, axis, from: idx, to: idx, moved: false, before: deckJson() }; }  // 이미 고른 줄의 띠를 끌면 옮기기
         else { S.cell = { id: tsel.id, set: new Set(lineCells(idx).map(([r, c]) => cellKey(r, c))), anchor: lineCells(idx)[0], line: [axis, idx] }; drawSel(); renderFtb(); renderProps(); drag = { mode: "gutsel", el: tsel, axis, a: idx, moved: false }; }
         e.preventDefault(); return;
       }
@@ -2235,6 +2286,12 @@ ${names}
     if (S.drawing && S.drawing.p0) { drawMove(e); return; }
     if (!drag) return;
     if (drag.mode === "tres") { const p = toSlide(e); drag.moved = true; applyBoundary(drag.el, drag.axis, drag.idx, drag.axis === "c" ? p.x - drag.el.x : p.y - drag.el.y, drag.g0); renderCanvas(); drawSel(); return; }
+    if (drag.mode === "gutmove") {  // 놓을 자리 = 포인터 위치의 줄(앞/뒤 반으로 나눠)
+      const p = toSlide(e), { xs, ys, nr, nc } = cellGeom(drag.el), n = drag.axis === "c" ? nc : nr, arr = drag.axis === "c" ? xs : ys, v = drag.axis === "c" ? p.x - drag.el.x : p.y - drag.el.y;
+      let to = n - 1; for (let k = 0; k < n; k++) if (v < (arr[k] + arr[k + 1]) / 2) { to = k; break; }
+      if (to !== drag.to || !drag.moved) { drag.moved = true; drag.to = to; drawSel(); const ov = $("#ov"), gap = to <= drag.from ? arr[to] : arr[to + 1]; const d = document.createElement("div"); d.className = "tdrop"; if (drag.axis === "c") Object.assign(d.style, { left: (drag.el.x + gap - 2 / scale) + "px", top: (drag.el.y - 8 / scale) + "px", width: (4 / scale) + "px", height: (drag.el.h + 16 / scale) + "px" }); else Object.assign(d.style, { left: (drag.el.x - 8 / scale) + "px", top: (drag.el.y + gap - 2 / scale) + "px", width: (drag.el.w + 16 / scale) + "px", height: (4 / scale) + "px" }); ov.appendChild(d); }
+      return;
+    }
     if (drag.mode === "gutsel") { const p = toSlide(e), rc = cellAt(drag.el, p); if (!rc) return; const { nr, nc } = cellGeom(drag.el), k = drag.axis === "c" ? rc[1] : rc[0]; const cells = []; for (let q = Math.min(drag.a, k); q <= Math.max(drag.a, k); q++) { if (drag.axis === "c") for (let i = 0; i < nr; i++) cells.push([i, q]); else for (let j = 0; j < nc; j++) cells.push([q, j]); } S.cell = { id: drag.el.id, set: new Set(cells.map(([r, c]) => cellKey(r, c))), anchor: S.cell.anchor, line: [drag.axis, drag.a] }; drawSel(); return; }
     if (drag.mode === "cellsel") { const rc = cellAt(drag.el, toSlide(e)); if (rc && (rc[0] !== drag.a[0] || rc[1] !== drag.a[1] || drag.moved)) { drag.moved = true; S.cell = { id: drag.el.id, set: new Set(cellRect(drag.a, rc).map(([r, c]) => cellKey(r, c))), anchor: drag.a, cur: rc }; drawSel(); } return; }
     const p = toSlide(e), dx = p.x - drag.p0.x, dy = p.y - drag.p0.y, free = e.shiftKey, el = drag.el, o = drag.orig;
@@ -2286,6 +2343,7 @@ ${names}
     if (S.drawing && S.drawing.p0) { drawUp(); return; }
     if (!drag) return;
     const d = drag; drag = null;
+    if (d.mode === "gutmove") { $$("#ov .tdrop").forEach((x) => x.remove()); if (d.moved && d.to !== d.from && tableMoveLine(d.el, d.axis, d.from, d.to)) { S.undo.push(d.before); S.redo = []; const k = d.to, [nr, nc] = tblDims(d.el); const list = d.axis === "c" ? Array.from({ length: nr }, (_, i) => [i, k]) : Array.from({ length: nc }, (_, j) => [k, j]); S.cell = { id: d.el.id, set: new Set(list.map(([r, c]) => cellKey(r, c))), anchor: list[0], line: [d.axis, k] }; afterChange(); toast(`${d.axis === "c" ? "열" : "행"}을 ${d.from + 1} → ${d.to + 1} 로 옮겼습니다 (Ctrl+Z 로 되돌리기)`); } else drawSel(); return; }
     if (d.mode === "cellsel" || d.mode === "gutsel") { renderFtb(); renderProps(); return; }
     if (d.mode === "marquee") {
       if (!d.moved) { if (!d.base.length) select(null); else drawSel(); return; }

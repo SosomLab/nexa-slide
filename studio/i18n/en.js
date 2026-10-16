@@ -9,6 +9,10 @@
   Object.assign(en.dict, {
     // ---- 튜토리얼 "최근 추가된 기능" 0.22.13 항목(페이지 영역이지만 함께 추가 - en.pages.js 에 같은 키를 두지 않는다)
     "PowerPoint 기능 보강": "PowerPoint feature upgrades", ": 글 안에 ": ": inline ", " 첨자 · ": " scripts · ", " 글자 링크, 숨김 슬라이드·구분(섹션), 도형 테두리 점선, 액자 색, 표 셀별 채움·테두리·격자, 차트에 누적 가로·100% 누적·콤보(막대+선, 보조 축)·축 제목·숫자 형식 - 모두 PPTX 로 그대로 나갑니다.": " text links, hidden slides and sections, dashed shape borders, frame color, per-cell table fills, borders and grids, and charts with stacked bar, 100% stacked, combo (bar + line, secondary axis), axis titles and number formats - all exported to PPTX as is.",
+    // ---- 0.22.19 표 오른쪽 클릭 메뉴·띠 끌어 행/열 옮기기
+    "행 위에 삽입": "Insert row above", "행 아래에 삽입": "Insert row below", "열 왼쪽에 삽입": "Insert column left", "열 오른쪽에 삽입": "Insert column right",
+    "셀 서식 지우기": "Clear cell formatting", "셀 글 편집": "Edit cell text", "행 전체 선택": "Select whole row", "열 전체 선택": "Select whole column", "표 전체 선택": "Select whole table",
+    "↕ 행 높이를 글에 맞춤": "↕ Fit row heights to text", "셀 서식을 지웠습니다(글은 그대로)": "Cell formatting cleared (text kept)",
     // ---- 0.22.18 표 P3·그림 톤·도형 효과
     "끌어서 표 이동 (표 안은 셀 선택 · Alt+끌기도 이동)": "Drag to move the table (inside = cell selection · Alt+drag also moves)", "끌어서 표 이동": "Drag to move the table", "끌어서 열 폭 조절": "Drag to resize column", "끌어서 행 높이 조절": "Drag to resize row",
     "↕ 글에 맞춤": "↕ Fit to text", "글 양에 맞춰 행 높이를 다시 나눈다(표 높이도 바뀜)": "Re-divide row heights by text amount (table height changes too)", "열·행 경계를 끌어 폭·높이 조절": "Drag column/row borders to resize", "행 높이를 글에 맞춤": "Fit row heights to text",
@@ -418,6 +422,10 @@
 
   });
   en.patterns.push(
+    [/^행 (\d+)개 삭제$/, "Delete $1 rows"], [/^열 (\d+)개 삭제$/, "Delete $1 columns"], [/^셀 \((.+)행, (.+)열\)$/, "Cell (row $1, col $2)"],
+    [/^(열|행)을 (\d+) → (\d+) 로 옮겼습니다 \(Ctrl\+Z 로 되돌리기\)$/, (m, a, b, c) => `Moved ${a === "열" ? "column" : "row"} ${b} → ${c} (Ctrl+Z to undo)`],
+    [/^열 (\d+) 선택 \(Shift 범위 · Ctrl 더하기\) · 고른 열의 띠를 끌면 옮기기$/, "Select column $1 (Shift range · Ctrl add) · drag a selected column's strip to move it"],
+    [/^행 (\d+) 선택 \(Shift 범위 · Ctrl 더하기\) · 고른 행의 띠를 끌면 옮기기$/, "Select row $1 (Shift range · Ctrl add) · drag a selected row's strip to move it"],
     [/^엔진 요청 #(\d+)$/, "Engine request #$1"], [/^엔진 요청 #(\d+) 처리됨(\(커밋 [^)]*\))? - 운영 서버에 적용\(재시작\)되면 다시 처리합니다\.$/, "Engine request #$1 done$2 - handled again once applied to the server (restart)."],
     [/^엔진 요청 #(\d+) 적용됨(\(main [^)]*\))? - 다시 처리합니다\.$/, "Engine request #$1 applied$2 - handling again."], [/^엔진 요청 #(\d+) 거절됨(.*)$/, "Engine request #$1 rejected$2"],
     [/^(.+) \((\d+)장\) · id (\S+)( · 시작 덱)? - 오른쪽 클릭: 제목·복제·시작 덱·삭제$/, (m, a, b, c, d) => `${a} (${b} slides) · id ${c}${d ? " · start deck" : ""} - right-click: title · duplicate · start deck · delete`],
