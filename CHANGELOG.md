@@ -1,5 +1,9 @@
 # 변경 이력
 
+## 문서 - 2026-10-16 · 다른 PPT 제작 도구·MS Office 대비 추가 구현 후보
+
+- `docs/dev/feature-comparison.md`: Gamma·Canva·Beautiful.ai·Pitch·Genspark·Manus·Google/Figma Slides 와 PowerPoint 저작 기능 기준으로 nexa-slide 에 없는 기능을 범주별 표(현재·추가 구현·크기·권장)로 정리 - 적용 대상 판단용. 기존 조사(`docs/research/diagram-table-editing-survey.md`)의 15개 후보와 `pptx-feature-gap.md` 를 잇는다.
+
 ## 0.22.13 - 2026-10-16 · 차트 - 누적 가로·100% 누적·콤보(보조 축)·축 제목·숫자 형식
 
 PowerPoint 차트와 호환되는 수준으로(모두 네이티브 `c:chart`, PowerPoint 에서 편집 가능), 데이터 입력은 기존 `범주 | 계열…` 표 그대로(사용자 지시).
