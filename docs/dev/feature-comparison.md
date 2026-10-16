@@ -1,0 +1,157 @@
+# 다른 PPT 제작 도구·MS Office 대비 추가 구현 후보
+
+2026-10-16, 0.22.13 기준. 두 기준으로 nexa-slide 에 **없는** 기능을 모아 적용 대상을 고르기 위한 표다.
+
+1. **다른 PPT 제작 사이트**(Gamma · Canva · Beautiful.ai · Pitch · Genspark AI Slides · Manus · Presentations.AI · Google Slides · Figma Slides)
+2. **MS Office(PowerPoint 데스크톱)** 의 저작·편집 기능 — PPTX **내보내기** 쪽 빈 곳은 [pptx-feature-gap.md](pptx-feature-gap.md) 에 따로 있고(0.22.11~13 에서 후보 전부 적용), 여기서는 편집기·발표·협업 같은 **저작 기능**만 본다.
+
+원칙(기존 조사 [diagram-table-editing-survey.md](../research/diagram-table-editing-survey.md) 결론과 같다): **기능만 차용하고 구성·디자인(템플릿 토큰·레이아웃·동일성 규칙)은 유지**한다. 그래서 이전에 "제외"로 두었던 테마 전환·브랜드 킷·AutoFit·분석·댓글도 이번엔 빠짐없이 적어 다시 판단할 수 있게 했다.
+
+읽는 법: **작업** = 손댈 곳(편집기 `studio.js`·`render.js` / 서버 `server.py`·허브 `hub.py` / PPTX `export_pptx.py` / 세션 규약). **크기** S = 반나절, M = 하루 안, L = 며칠. **권장** = 개발 세션 의견(후보·보류·제외), 결정은 사용자 몫. 이미 있는 것은 "있음"으로 적고 빠진 부분만 표시했다.
+
+## 1. 비교 대상의 성격과 nexa-slide 의 자리
+
+| 제품 | 성격 | 강점 | nexa-slide 와 다른 점 |
+|---|---|---|---|
+| Gamma | 카드형(길이 가변) AI 덱·문서·웹페이지 | 프롬프트·문서 → 덱, ✨ 카드별 AI 편집, 실시간 공동 편집, 공유 분석, Gamma 5 의 자유 캔버스·PPTX 가져오기 | 고정 16:9 슬라이드가 아니라 카드. PPTX 내보내기 충실도 낮음(표·그라데이션 손실) |
+| Canva | 범용 디자인 도구의 프레젠테이션 | 수동 편집 원시 기능 최다(레이어·안내선·Magic Write·Bulk Create·브랜드 킷·버전 1,000개), 요소·사진 라이브러리 | 디자인 자유도가 높은 만큼 일관성은 사용자 몫. PPTX 로 열면 달라질 수 있다고 스스로 경고 |
+| Beautiful.ai | Smart Slides(자동 배치) | 레이아웃·간격·정렬 자동, 팀 테마·브랜드 킷, 편집 가능한 PPTX | 자동 배치가 규칙 — nexa 의 "검사 + 레이아웃 고치기" 와 비슷한 목적 |
+| Pitch | 투자 피치·영업 | 피치 룸·CRM 연동·참여 분석, 브랜드 자산·글꼴 | 영업 프로세스 도구에 가깝다 |
+| Genspark AI Slides | 에이전트형 생성 | 프롬프트·문서 → 덱(차트·노트 포함), AI 편집 + 수동 편집, PPTX·PDF·Google Slides 내보내기 | 크레딧 과금, 내보내기 충실도는 독립 확인 없음([genspark-ai-slides.md](../research/genspark-ai-slides.md) 조사) |
+| Manus | 에이전트형 생성 | 네이티브 .pptx 를 처음부터, 차트 "Edit Data" 표 오버레이, 한 장만 재생성 | 템플릿 체계 없음 |
+| Presentations.AI | 디자인 시스템형 | 내용이 레이아웃 존에 흘러드는 "anti-fragile" | 요소 개별 이동 불가 |
+| Google Slides · Figma Slides | 협업 중심 | 실시간 공동 편집·댓글·버전, Figma 는 디자인 자산 연결 | Figma Slides PPTX 는 글꼴 대체·코드 블록 이미지화 |
+| **nexa-slide** | 로컬·저장소 기반 엔진 + AI 세션(Claude/Codex) | 덱 JSON 과 PPTX 가 같은 규칙으로 렌더(동일성 검사·PowerPoint 대조), 템플릿 토큰·레이아웃·슬라이드 유형 43·시작용 24, 슬라이드/요소 단위 요청 → 세션이 고침, 변경 원장·기록, 허브 인증·웹 노출, git 연동 | 클라우드 SaaS 가 아니라 **내 폴더·내 AI 세션**으로 돈다. 아래 표의 빈 곳은 대부분 SaaS 의 협업·라이브러리·생성 부가 기능 |
+
+## 2. 다른 PPT 제작 사이트 기준
+
+### A. 생성(AI)
+
+| 기능 | 제공하는 곳 | nexa-slide 현재 | 추가 구현 | 작업 | 크기 | 권장 |
+|---|---|---|---|---|---|---|
+| 프롬프트·문서 → 덱 전체 생성 | Gamma·Genspark·Manus·Beautiful.ai·Pres.AI | 있음 - 새로 만들기 브리프(목적·대상·방향·참고 자료) + 초안 요청 → 세션이 작성, Word·Excel·PDF·PPTX 내용 추출 | 시작 페이지에서 **생성 결과를 기다리는 진행 화면**(지금은 Studio 로 넘어가 요청 상태로 봄) | 허브·편집기 | S | 보류 — 요청 상태 표시로 충분 |
+| 카드·장 단위 AI 편집 칩(요약·늘리기·톤·번역·"이것처럼 다른 안") | Gamma ✨, Canva Magic Write, Pres.AI | 요청 메모(자유 글) + 레이아웃 고치기·다듬기 ✨ | **빠른 칩 확장**(톤·번역·축약·다른 안·수강자 표현) — 칩은 요청 문구를 세션에 보낼 뿐 | 편집기 + 작업 공간 `CLAUDE.md` 규약 | S | **후보**(기존 조사 P1-1) |
+| 발표자 노트 자동 생성 | Copilot "Keep it", Canva, Manus | 노트 탭(수동), 세션에 요청 가능 | **노트 생성 칩**("이 장/전체 노트 쓰기" → 세션이 노트만, 본문 불변) | 편집기·규약 | S | **후보**(P1-2) |
+| AI 변경 미리보기 → 유지/되돌리기 | Gamma Original/Modified | 변경 탭 diff·기록 50개 | 변경 탭 위에 **수락/되돌리기 단추**(장 단위) | 편집기 | M | 후보(P2-10) |
+| 한 장만 다른 레이아웃으로 재생성(내용 유지) | Manus, Gamma /process | 유형 바꾸기(본문이 예시로 바뀜) | **내용 유지 유형 전환**(글머리 n개 → steps n개 등 필드 매핑) | `slide_types.json` fields·layouts | M | **후보**(P1-7) |
+| 이미지 생성(AI)·스톡 사진·아이콘 라이브러리 | Gamma·Canva·Beautiful.ai·Genspark | 아이콘 33 내장, 그림 파일·클립보드·끌어다 놓기, mermaid | 외부 생성·스톡 연동 없음 — 세션이 이미지 도구를 쓰도록 규약으로 가능 | 세션 규약(+선택: 이미지 API 어댑터) | M~L | 보류 — MIT 저장소에 상표·라이선스 자료를 넣지 않는 원칙과 충돌 여지 |
+| 웹 검색 기반 생성 | Gamma·Genspark·Manus | `sessionAllowWeb` 있음(운영 시험 미완) | 운영 시험만 | - | - | 기존 남은 일 |
+| 데이터 → 여러 장 자동 생성 | Canva Bulk Create | `build_deck.py`·`content/` 빌드가 같은 일 | 편집기 UI 는 가치 중간 | - | L | 제외(P3-13) |
+
+### B. 편집
+
+| 기능 | 제공하는 곳 | nexa-slide 현재 | 추가 구현 | 작업 | 크기 | 권장 |
+|---|---|---|---|---|---|---|
+| 덱 찾기/바꾸기(글·노트·표 셀) | PowerPoint·Google Slides | 요청 기록·서버 작업 찾기(`search.js`)만 | **덱 안 찾기/바꾸기** 창(미리보기 → 바꾸기, 변경 탭 기록) | 편집기 | S~M | **후보**(P1-6) |
+| 입력 중 넘침 경고 | Pres.AI anti-fragile, Gamma 16:9 점선 | 저장 뒤 검사(⚠ 검사 탭), 넘침 표시 | 글 입력 **중** 즉시 경고(차단은 안 함) | 편집기(`check_layout` t2 를 JS 로) | M | 후보(P1-3) |
+| 차트 데이터 표 오버레이 | Manus Edit Data, Gamma | 속성 데이터 칸(`범주 \| 계열…` 글) | 표 격자 UI(셀 편집·행 추가) — 데이터 모델은 그대로 | 편집기 | M | 후보(P2-9) |
+| 다른 덱에서 장 가져오기 | PowerPoint Reuse Slides | 덱 복제·슬라이드 복제 | 썸네일 메뉴 "다른 덱에서 가져오기…"(id 재부여) | 편집기 + `/api/deck` | S~M | **후보**(P2-11) |
+| 섹션 접기·묶음 이동 | PowerPoint 섹션, Gamma | PPTX 섹션(0.22.11)·개요 탭 | 레일에서 **구분 접기·구분째 이동** | 편집기 | M | 후보(P2-12) |
+| 레이어 패널 | Canva | 속성 탭 요소 목록(가려진 요소 선택·Ctrl/Shift) | 끌어서 순서 바꾸기 | 편집기 | S | 보류 — 순서 단추(⇈⇊)로 충분 |
+| 사용자 안내선·눈금자 | Canva·PowerPoint | 스마트 가이드·8px 격자 | 안내선 추가·고정(슬라이드 공통) | 편집기 | S | 보류 |
+| 서식 복사(Format Painter) | PowerPoint·Canva | 없음 | 서식 줄 🖌 — 글꼴·크기·색·채우기·테두리를 다른 요소에 | 편집기 | S | **후보** |
+| 글자 자동 맞춤(넘치면 줄이기) | Beautiful.ai·Gamma | 없음(알려진 한계) | 편집기·PowerPoint 축소 비율이 달라 동일성이 깨짐 | 양쪽 | M | 보류(기존 결정 유지) |
+| 글꼴 업로드·브랜드 글꼴 | Canva·Pitch | 작업 공간 `fonts/`·`fontPresets`·PPTX 글꼴 포함 | 있음 | - | - | - |
+
+### C. 디자인·브랜드
+
+| 기능 | 제공하는 곳 | nexa-slide 현재 | 추가 구현 | 작업 | 크기 | 권장 |
+|---|---|---|---|---|---|---|
+| 템플릿 갤러리·테마 전환 | 전부 | 엔진 템플릿 + 작업 공간 템플릿(토큰), ⋯ 더보기 → 템플릿 바꾸기, 미리 보기 | 갤러리는 시작 페이지 템플릿 카드가 대신. **만든 뒤 테마 전환 미리 보기**(바꾸기 전 썸네일) | 편집기·허브 | S | 보류 |
+| 브랜드 킷(로고·색·글꼴 묶음) | Canva·Beautiful.ai·Pitch | 템플릿 토큰 + `brand`(로고·워드마크·파비콘) + 글꼴 세트 — 작업 공간 단위 | **회사 템플릿 만들기 안내 페이지/마법사**(색 5개·로고·글꼴 → 템플릿 폴더 생성) | 허브 | M | 후보 — 도입 장벽을 낮춤 |
+| 스마트 레이아웃(자동 정렬·간격) | Beautiful.ai | 레이아웃(고정 좌표) + 검사 + 레이아웃 고치기(세션) + 정렬·분배 | 즉시 "자동 정리" 단추(검사 규칙으로 간격·정렬만 고정 보정, AI 없음) | 편집기 | M | 후보 |
+| 디자인 토큰 편집 UI | - | JSON(`template.json`) 수동 | 토큰 편집 창(색 미리 보기) | 허브 | M | 보류 |
+
+### D. 협업·공유
+
+| 기능 | 제공하는 곳 | nexa-slide 현재 | 추가 구현 | 작업 | 크기 | 권장 |
+|---|---|---|---|---|---|---|
+| 실시간 공동 편집(커서·동시 저장) | Gamma·Canva·Google·Figma | 늦게 저장한 쪽 충돌 알림(자동 병합 없음) | OT/CRDT 수준은 L. 중간: **요소 단위 잠금 + 변경 실시간 반영**(SSE 로 다른 사람 저장을 즉시 다시 불러옴) | 서버·편집기 | M(중간)/L | 보류 — 사용 형태(한 사람 + AI 세션)에선 수요 낮음 |
+| 댓글 스레드(사람 ↔ 사람, @멘션) | Gamma·Canva·Google·Figma | 요청 메모(사람 → AI 세션)·답변·기록 | 요청 메모를 **사람에게도** 배정(담당·해결 상태) | 서버·편집기 | M | 보류(기존 결정 — 필요해지면 요청 모델 확장) |
+| 공유 링크(보기 전용·비밀번호·만료) | 전부 | 허브 로그인·역할, 웹 노출(slides.sosomlab.com), 발표·인쇄 페이지 | **보기 전용 공유 링크**(토큰 URL, 만료) | 허브·서버 | M | **후보** — 외부 검토자에게 보낼 때 |
+| 조회 분석(열람·장별 체류) | Gamma·Pitch·Beautiful.ai | 접근 로그(허브) | 공유 링크 열람 집계(누가·언제·몇 장) | 허브 | S(링크 뒤) | 보류 |
+| 내보내기 없이 웹 발표(URL 로 발표) | Gamma·Pitch | 발표 모드·발표자 보기(로그인 필요) | 공유 링크로 발표 보기 | 위와 같음 | - | 공유 링크에 포함 |
+| 버전 기록·되돌리기 | Canva(1,000)·Google | 기록 탭(백업 50)·변경 원장·git | 있음 | - | - | - |
+
+### E. 데이터·미디어
+
+| 기능 | 제공하는 곳 | nexa-slide 현재 | 추가 구현 | 작업 | 크기 | 권장 |
+|---|---|---|---|---|---|---|
+| 임베드(YouTube·Figma·iframe·Loom) | Gamma·Pitch·Canva | 없음 | PPTX 에 못 나가므로 **링크 카드**(썸네일 + 링크)로 대체 | 편집기 | S | 보류 |
+| 비디오·오디오 | 전부 | 없음 | PPTX 미디어 포함은 L, 편집기 재생은 M | 양쪽 | L | 제외 |
+| 외부 데이터 연결(스프레드시트 실시간) | Pitch·Google | 차트 데이터는 덱 JSON | CSV 붙여넣기 → 표·차트(데이터 칸에 탭 구분 허용) | 편집기 | S | **후보**(작음) |
+| Mermaid·다이어그램 | Gamma Smart Diagrams, Canva Whiteboard | mermaid → PNG, 다이어그램 9종(요소 묶음) | 네이티브 구조 레이아웃(격자형 flowchart·ERD) — 기존 조사 접근 3 | 양쪽 | L | 기존 조사 결론대로 보류(별도 과제) |
+| 표 가져오기(Excel 붙여넣기) | 전부 | import_doc(Excel → 내용 추출) | 편집기 표 데이터 칸에 **탭 구분 붙여넣기** 인식 | 편집기 | S | **후보**(위와 묶음) |
+
+### F. 내보내기·가져오기
+
+| 기능 | 제공하는 곳 | nexa-slide 현재 | 추가 구현 | 작업 | 크기 | 권장 |
+|---|---|---|---|---|---|---|
+| PPTX(편집 가능) | 전부(충실도 차이) | 있음 — 네이티브 도형·표·차트·그룹, 글꼴 포함, PowerPoint 대조 | - | - | - | 강점 |
+| PDF·PNG | 전부 | 있음(PowerPoint 또는 Chrome) | - | - | - | - |
+| Google Slides 내보내기 | Gamma·Genspark·Canva | 없음 | Google API 연동 — PPTX 를 Drive 에 올려 변환하는 안내로 충분 | 문서 | S | 제외(안내만) |
+| 이미지(장별 PNG zip)·GIF·비디오 | Canva | 렌더 PNG(`render_pptx.ps1`) | 내보내기 메뉴에 "PNG zip" | 서버 | S | 보류 |
+| PPTX 가져오기 | Gamma 5·Canva | `import_pptx --deck`(글·글머리·표·그림·차트·도형) | 편집기에서 **PPTX 수정분 역반영**(우리 파일 한정, 글자만) | 서버·편집기 | L | 보류(P3-14) |
+| 문서(Word·Markdown·Notion) 가져오기 | Gamma | Word·Excel·PDF·PPTX 내용 추출 → 세션 | Markdown 개요 → 덱 직접 변환(세션 없이: 제목·글머리만) | 서버 | M | 보류 |
+
+### G. 운영·접근
+
+| 기능 | 제공하는 곳 | nexa-slide 현재 | 추가 구현 | 작업 | 크기 | 권장 |
+|---|---|---|---|---|---|---|
+| 모바일·태블릿 편집 | Canva·Google | 데스크톱 브라우저 기준 | 발표·보기만 반응형(편집은 제외) | 편집기 CSS | M | 보류 |
+| 오프라인 | PowerPoint·Canva(일부) | 로컬 서버라 오프라인 가능(세션은 네트워크 필요) | 있음 | - | - | - |
+| 다국어 UI | 전부 | ko·en(0.21.41~) | 추가 언어는 사전 파일 하나 | - | - | - |
+| 접근성(대체 텍스트·대비 검사) | Canva·PowerPoint | 없음 | 그림 `alt` + PPTX `descr`, 색 대비 검사(토큰 조합) | 양쪽·검사 | S+S | **후보** |
+
+## 3. MS Office(PowerPoint) 저작 기능 기준
+
+PPTX 내보내기 항목(전환·애니메이션·3D·패턴 채움·마스터 등)은 [pptx-feature-gap.md](pptx-feature-gap.md) 를 본다. 여기는 PowerPoint 로 **작업할 때 쓰는 기능** 가운데 편집기에 없는 것.
+
+| 범주 | PowerPoint 기능 | nexa-slide 현재 | 추가 구현 | 크기 | 권장 |
+|---|---|---|---|---|---|
+| 구조 | 슬라이드 마스터·레이아웃·테마 편집 | 템플릿 토큰(JSON)·레이아웃 코드가 대체, PPTX 는 빈 레이아웃에 직접 그림 | 토큰 → PPTX theme 색 매핑은 gap 문서 보류 항목. 편집기 "마스터" 개념은 템플릿 편집 UI 로 — C 의 토큰 편집 창과 같음 | M | 보류 |
+| 구조 | 섹션(접기·이름·이동) | PPTX 섹션 출력(0.22.11), 개요 탭 | 레일 접기·구분째 이동 | M | 후보(P2-12) |
+| 구조 | 다시 사용 슬라이드·슬라이드 라이브러리 | 덱·슬라이드 복제 | 다른 덱에서 가져오기 | S~M | **후보**(B) |
+| 구조 | 개요 보기(글머리로 덱 구성 편집) | 개요 탭(읽기·이동) | 개요에서 제목·글머리 직접 편집 → 요소 반영 | M | 보류 |
+| 디자인 | Designer(디자인 아이디어) | 레이아웃 고치기·다듬기(AI 세션), 슬라이드 유형 43 | 즉시 제안(AI 없이 유형 후보 3개 썸네일) | M | 보류 |
+| 디자인 | 서식 복사·기본 도형/글상자로 설정 | 없음 | 서식 복사 단추, "이 설정을 기본으로" | S | **후보** |
+| 디자인 | 눈금자·안내선·그리드 설정 | 스마트 가이드·8px 격자 | 사용자 안내선 | S | 보류 |
+| 도형 | 도형 병합(결합·교차·빼기)·점 편집·자유형 | 프리셋 21·아이콘 33·곡선 | 없음 — 디자인 방향 밖 | L | 제외 |
+| 도형 | 커넥터 붙임(도형 따라 이동)·꺾인 연결선 | 직선·곡선(끝점 끌기) | gap 문서 보류 항목과 같음 | L | 보류 |
+| 글 | 자동 맞춤·단 나누기·WordArt·세로쓰기 | 없음 | gap 문서 | M | 보류/제외 |
+| 글 | 찾기/바꾸기 | 없음 | B 와 같음 | S~M | **후보** |
+| 글 | 맞춤법·문법·번역·동의어 | 없음(세션에 요청) | 브라우저 맞춤법(`spellcheck`) 켜기는 S; 번역은 칩(A) | S | 후보(작음) |
+| 글 | 글머리 그림·여러 수준(3단계 이상) | 2단계(항목·하위), 기호·번호 | 3단계 | M | 보류 |
+| 표 | 표 스타일 갤러리·줄무늬·셀 분할 | 셀 병합·채움·테두리·격자(0.22.12) | 줄무늬 한 번에(`banding` 스위치 → cellFill 생성), 셀 분할 | S/M | 보류 |
+| 그림 | 배경 제거·색 보정·압축·모양으로 자르기 | 자르기(비율)·투명도·효과 5종·액자 색 | 흑백·흐리게(S, gap 후보), 배경 제거는 외부 모델 필요 | S/L | 흑백·흐리게만 후보 |
+| 그림 | 아이콘·3D 모델·스톡 이미지 | 아이콘 33 | 아이콘 추가(라이선스 확인된 세트) | S/개 | 보류 |
+| 삽입 | 수식(OMath) | 없음 | KaTeX → PNG(mermaid 와 같은 틀) 먼저, OMML 은 다음 | M | 보류(이공계 교안 수요 시) |
+| 삽입 | 비디오·오디오·화면 녹화·스크린샷 | 없음(스크린샷은 클립보드 그림으로) | - | L | 제외 |
+| 삽입 | 확대/축소(Zoom)·요약 슬라이드 | 없음 | 요약 슬라이드(각 장 표지 썸네일 + 링크)는 레이아웃으로 가능 | M | 보류 |
+| 발표 | 발표자 보기(노트·다음 장·시간) | 있음(`presenter.html`, 채널 동기화) | - | - | - |
+| 발표 | 펜·레이저 포인터·형광펜(발표 중) | 없음 | 발표 화면 그리기 오버레이(저장 안 함) | S~M | 후보(작음) |
+| 발표 | 자막(실시간 음성)·발표자 코치·리허설 타이밍·녹화 | 없음 | 브라우저 Web Speech 로 자막은 M, 나머지는 제외 | M/L | 보류/제외 |
+| 발표 | 하이퍼링크·동작 설정·사용자 지정 쇼 | 요소·글자 링크(0.22.11), 숨김 슬라이드 | 사용자 지정 쇼(부분 재생 목록) | S | 보류 |
+| 출력 | 유인물(2·3·6장/쪽)·노트 페이지 인쇄 | PDF 1장/쪽 | `print.html` 에 유인물·노트 레이아웃 옵션 | S | **후보** — 교육 자료 배포 |
+| 출력 | 비디오·GIF 내보내기 | 없음 | - | L | 제외 |
+| 협업 | 댓글·@멘션·공동 작성·변경 내용 추적 | 요청 메모(AI 세션)·변경 원장·충돌 알림 | D 의 공유 링크·댓글 배정 | M | 보류 |
+| 협업 | 버전 기록 | 기록 탭·백업·git | - | - | - |
+| 검토 | 접근성 검사기·대체 텍스트 | 없음 | G 와 같음 | S+S | **후보** |
+| 검토 | 암호·정보 권한 관리·완료 표시 | 허브 인증·역할 | PPTX 암호 저장은 PowerPoint COM 으로만 가능(Windows) | S | 보류 |
+| 파일 | 자동 저장·클라우드·모바일 | 자동 저장(로컬·저장소), 웹 노출 | - | - | - |
+| 파일 | 포함 글꼴·PDF·XPS·ODP | 글꼴 포함 PPTX·PDF | ODP 는 LibreOffice 변환 안내 | - | 제외 |
+
+## 4. 권장 묶음(참고)
+
+1. **편집 바로 효과(S 묶음)**: 찾기/바꾸기 · 서식 복사 · 다른 덱에서 장 가져오기 · 표·차트 데이터 칸에 탭 구분 붙여넣기 · 대체 텍스트 + 대비 검사 · 유인물·노트 인쇄 레이아웃.
+2. **AI 세션 활용(S, 규약 위주)**: 빠른 칩 확장(톤·번역·축약·다른 안) · 노트 생성 칩 · 레이아웃 고치기 전후 검사 수 표시.
+3. **중간(M)**: 내용 유지 유형 전환 · 입력 중 넘침 경고 · 차트 데이터 표 오버레이 · 섹션 접기 · AI 변경 수락/되돌리기 · 회사 템플릿 마법사 · 자동 정리 단추.
+4. **정책 판단 필요**: 보기 전용 공유 링크(+열람 집계) · 사람 간 댓글 배정 · 실시간 반영(중간 단계) · 이미지 생성/스톡 연동.
+5. **유지(제외)**: 애니메이션·전환·비디오 · 도형 병합·점 편집 · 글자 자동 맞춤 · Google Slides 직접 내보내기 · 모바일 편집.
+
+결정된 항목은 엔진 요청으로 등록해 처리한다([engine-request-design.md](engine-request-design.md)).
+
+## 5. 출처
+
+- 기존 조사: [diagram-table-editing-survey.md](../research/diagram-table-editing-survey.md)(2026-10, 제품별 다이어그램·편집 기능 15개 후보), [genspark-ai-slides.md](../research/genspark-ai-slides.md), [pptx-feature-gap.md](pptx-feature-gap.md).
+- 2026-10-16 검색(3자 평가가 많아 방향 참고용): Gamma 리뷰 [kripeshadwani](https://kripeshadwani.com/?p=30758) · [dupple](https://dupple.com/reviews/gamma) · [24slides](https://24slides.com/presentbetter/gamma-app-review) · [gamma.app 가이드](https://gamma.app/de/explore/content/guides/complete-guide-to-ai-presentation-tools-in-2026); Beautiful.ai·Pitch [beautiful.ai 비교](https://www.beautiful.ai/comparison/beautiful-ai-vs-pitch) · [ahaslides](https://ahaslides.com/blog/alternatives-to-beautiful-ai/) · [chatslide](https://www.chatslide.ai/pages/compare/pitch-vs-beautiful-ai) · [capterra](https://www.capterra.com.au/compare/171959/186431/beautiful-ai/vs/pitch); Genspark [presentations.ai 리뷰](https://www.presentations.ai/blog/genspark-review) · [getalai](https://getalai.com/blog/genspark-alternatives) · [tenbin](https://tenbin.ai/media/ai_guide/genspark-slide-creation-guide) · [tosea](https://tosea.ai/blog/best-ai-slide-generators-second-half-2026).

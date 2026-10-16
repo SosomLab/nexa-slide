@@ -271,7 +271,7 @@ B-1·B-2 는 기존 동작을 바꾸지 않는다. B-3 부터 새 기능. 각 �
 
 운영: 허브 5599·SQL 교재 5600·가정형호스피스 5603 이 `c2b807a`(0.22.6)로 재시작됨(0.22.8 ff43785 로 재시작됨 · 0.22.9 는 다음 재시작 때)(협업 세션 nexa-slide-f4 가 병합 알림마다 턴 없을 때 바로 재시작하고 결과를 알린다 - 사용자 지시). 서버 작업 큐는 개발 세션이 `/nexa-slide-server` 수동 세션으로 맡고 있고, 승인된 엔진 요청 #10~#12 를 이 흐름으로 처리했다(worktree `D:\Projects\kiros33\_wt
 exa-slide-dev` 브랜치 `dev/engine-requests` → `--no-ff` main → push → 알림). 운영 작업 공간 두 곳의 명령 파일 커밋은 저장소 주인 판단(미커밋).
-남은 것: 웹 검색 허용 운영 시험, codex 확인, PPTX 미구현 기능 중 적용 대상 결정(`docs/dev/pptx-feature-gap.md`), 편집기 UI 시험 묶음의 간헐 실패(tbl_test·ux_test 가 가끔 같이 실패 - 원인 미확정, 재실행하면 통과). 편집기 기능의 세부 한계는 **알려진 한계로 확정**(`docs/editor.md` 마지막 절, 2026-10-15).
+남은 것: 웹 검색 허용 운영 시험, codex 확인, PPTX 미구현 기능의 보류 항목·다른 제작 도구·MS Office 대비 추가 구현 후보 결정(`docs/dev/pptx-feature-gap.md`·`docs/dev/feature-comparison.md`), 편집기 UI 시험 묶음의 간헐 실패(tbl_test·ux_test 가 가끔 같이 실패 - 원인 미확정, 재실행하면 통과). 편집기 기능의 세부 한계는 **알려진 한계로 확정**(`docs/editor.md` 마지막 절, 2026-10-15).
 
 ## 15. 검토 기록
 
