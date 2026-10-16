@@ -1,0 +1,45 @@
+{
+ "base": "http://127.0.0.1:5667",
+ "pages": [
+  {
+   "url": "/studio/#tbltest/1",
+   "wait": 2500,
+   "steps": [
+    {
+     "name": "표 선택 뒤 셀 클릭 → 셀 선택 표시(.cellsel 1개) · 서식 줄에 셀 도구",
+     "js": "document.querySelector('[data-sel=\"e01\"]').click(); await new Promise(r=>setTimeout(r,300)); const n=document.querySelector('#host .rs-el[data-id=\"e01\"]'); const cells=n.querySelectorAll('.rs-cell'); const r=cells[3].getBoundingClientRect(); n.dispatchEvent(new PointerEvent('pointerdown',{bubbles:true,clientX:r.left+r.width/2,clientY:r.top+r.height/2,button:0,pointerId:1,isPrimary:true})); document.dispatchEvent(new PointerEvent('pointerup',{bubbles:true,pointerId:1})); await new Promise(r2=>setTimeout(r2,300)); return document.querySelectorAll('#ov .cellsel').length===1 && document.querySelector('#ftb [data-f=\"cmerge\"]') ? true : 'cellsel='+document.querySelectorAll('#ov .cellsel').length"
+    },
+    {
+     "name": "Shift+클릭(첫 셀) → 범위 4셀 · Ctrl+클릭으로 하나 빼기 → 3셀",
+     "js": "const n=document.querySelector('#host .rs-el[data-id=\"e01\"]'); const cells=n.querySelectorAll('.rs-cell'); const r0=cells[0].getBoundingClientRect(); n.dispatchEvent(new PointerEvent('pointerdown',{bubbles:true,clientX:r0.left+r0.width/2,clientY:r0.top+r0.height/2,button:0,pointerId:1,isPrimary:true,shiftKey:true})); document.dispatchEvent(new PointerEvent('pointerup',{bubbles:true,pointerId:1})); await new Promise(r=>setTimeout(r,200)); const a=document.querySelectorAll('#ov .cellsel').length; const r1=cells[1].getBoundingClientRect(); n.dispatchEvent(new PointerEvent('pointerdown',{bubbles:true,clientX:r1.left+r1.width/2,clientY:r1.top+r1.height/2,button:0,pointerId:1,isPrimary:true,ctrlKey:true})); document.dispatchEvent(new PointerEvent('pointerup',{bubbles:true,pointerId:1})); await new Promise(r=>setTimeout(r,200)); const b=document.querySelectorAll('#ov .cellsel').length; return a===4 && b===3 ? true : 'a='+a+' b='+b"
+    },
+    {
+     "name": "셀 채우기(렌더 표) → cellFill 덧씌우기 3개 · 표 유형 유지",
+     "js": "document.querySelector('#ftb [data-f=\"cfill\"]').click(); await new Promise(r=>setTimeout(r,200)); const sw=[...document.querySelectorAll('.menu button, .menu [data-c], .menu .pal button')].find(x=>/s1|primary/.test(x.dataset.c||x.title||x.textContent)); if(!sw) return 'no palette '+document.querySelectorAll('.menu *').length; sw.click(); await new Promise(r=>setTimeout(r,300)); const j=JSON.parse(document.querySelector('#elJson')?document.querySelector('#elJson').value:'{}'); const el=j.type?j:null; return el && el.type==='table' && (el.cellFill||[]).length===3 ? true : JSON.stringify(el&&{t:el.type,f:el.cellFill}).slice(0,200)"
+    },
+    {
+     "name": "셀 굵게(글자 서식) → 표 객체로 자동 변환 · 셀 객체에 bold",
+     "js": "document.querySelector('#ftb [data-f=\"cbold\"]').click(); await new Promise(r=>setTimeout(r,300)); const el=JSON.parse(document.querySelector('#elJson').value); const rows=el.rows||[]; const anyBold=rows.some(r=>(r.cells||[]).some(c=>c&&typeof c==='object'&&c.bold)); return el.type==='table-obj' && anyBold ? true : 'type='+el.type+' bold='+anyBold"
+    },
+    {
+     "name": "두 번 클릭 → 셀 하나만 편집 · 글 입력 · Tab → 옆 셀 편집 · Esc 확정",
+     "js": "const n=document.querySelector('#host .rs-el[data-id=\"e01\"]'); const cells=n.querySelectorAll('.rs-cell'); const r=cells[2].getBoundingClientRect(); n.dispatchEvent(new MouseEvent('dblclick',{bubbles:true,clientX:r.left+r.width/2,clientY:r.top+r.height/2})); await new Promise(r2=>setTimeout(r2,300)); const ed=document.querySelector('#stage .editor.cell'); if(!ed) return 'no cell editor'; ed.textContent='셀글'; ed.dispatchEvent(new KeyboardEvent('keydown',{key:'Tab',bubbles:true})); await new Promise(r2=>setTimeout(r2,300)); const ed2=document.querySelector('#stage .editor.cell'); if(!ed2) return 'no next editor'; ed2.textContent='옆'; ed2.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true})); await new Promise(r2=>setTimeout(r2,300)); const el=JSON.parse(document.querySelector('#elJson').value); const txt=JSON.stringify(el.rows); return txt.includes('셀글') && txt.includes('옆') && !document.querySelector('#stage .editor') ? true : txt.slice(0,160)"
+    },
+    {
+     "name": "＋행↓(셀 기준 삽입) → 3행 · 병합(2셀) → span · 렌더 표로 변환 → merge 로 · 버린 서식 안내",
+     "js": "const n=document.querySelector('#host .rs-el[data-id=\"e01\"]'); const cells=n.querySelectorAll('.rs-cell'); const r=cells[2].getBoundingClientRect(); n.dispatchEvent(new PointerEvent('pointerdown',{bubbles:true,clientX:r.left+r.width/2,clientY:r.top+r.height/2,button:0,pointerId:1,isPrimary:true})); document.dispatchEvent(new PointerEvent('pointerup',{bubbles:true,pointerId:1})); await new Promise(r2=>setTimeout(r2,200)); document.querySelector('#ftb [data-f=\"crowcol\"][data-v=\"row+\"]').click(); await new Promise(r2=>setTimeout(r2,300)); let el=JSON.parse(document.querySelector('#elJson').value); const nr=(el.rows||[]).length; const n2=document.querySelector('#host .rs-el[data-id=\"e01\"]'); const c2=n2.querySelectorAll('.rs-cell'); const ra=c2[2].getBoundingClientRect(), rb=c2[3].getBoundingClientRect(); n2.dispatchEvent(new PointerEvent('pointerdown',{bubbles:true,clientX:ra.left+ra.width/2,clientY:ra.top+ra.height/2,button:0,pointerId:1,isPrimary:true})); document.dispatchEvent(new PointerEvent('pointerup',{bubbles:true,pointerId:1})); await new Promise(r2=>setTimeout(r2,150)); n2.dispatchEvent(new PointerEvent('pointerdown',{bubbles:true,clientX:rb.left+rb.width/2,clientY:rb.top+rb.height/2,button:0,pointerId:1,isPrimary:true,shiftKey:true})); document.dispatchEvent(new PointerEvent('pointerup',{bubbles:true,pointerId:1})); await new Promise(r2=>setTimeout(r2,150)); document.querySelector('#ftb [data-f=\"cmerge\"]').click(); await new Promise(r2=>setTimeout(r2,300)); el=JSON.parse(document.querySelector('#elJson').value); const span=JSON.stringify(el.rows).includes('\"span\":[1,2]'); document.querySelector('#tab-props [data-act=\"totable\"]').click(); await new Promise(r2=>setTimeout(r2,400)); el=JSON.parse(document.querySelector('#elJson').value); return nr===3 && span && el.type==='table' && (el.merge||[]).length===1 ? true : 'nr='+nr+' span='+span+' type='+el.type+' merge='+JSON.stringify(el.merge)"
+    }
+   ]
+  },
+  {
+   "url": "/studio/#fxtest/1",
+   "wait": 2500,
+   "steps": [
+    {
+     "name": "＋ 추가 → 표 객체 타일 → table-obj 요소 · 속성에 표 객체 절",
+     "js": "document.querySelector('#addBtn').click(); await new Promise(r=>setTimeout(r,300)); const t=document.querySelector('.menu .tile[data-ins=\"tableobj\"]'); if(!t) return 'no tile'; t.click(); await new Promise(r=>setTimeout(r,500)); const el=JSON.parse(document.querySelector('#elJson').value); return el.type==='table-obj' && document.querySelector('#tab-props [data-act=\"totable\"]') && document.querySelectorAll('#host .rs-el[data-type=\"table-obj\"] .rs-cell').length===9 ? true : 'type='+el.type"
+    }
+   ]
+  }
+ ]
+}

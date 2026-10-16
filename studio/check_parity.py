@@ -11,7 +11,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from common import DECKS, LANGS, STUDIO, bullet_rows, num_hang, code_lines, fill_spec, resolve_tokens, plan_runs, runs, table_grid  # noqa: E402
+from common import DECKS, LANGS, STUDIO, bullet_rows, num_hang, code_lines, fill_spec, obj_to_table, resolve_tokens, plan_runs, runs, table_grid, table_to_obj  # noqa: E402
 
 SAMPLES = [
     {"type": "code", "lang": "python", "text": "def f(x):\n    # 주석\n    return x * 2 + 'a'  # 끝\n"},
@@ -43,6 +43,20 @@ TABLE_SAMPLES = [
     {"type": "table", "x": 0, "y": 0, "w": 600, "h": 180, "rows": [["a", "b", "c"], ["1", "2", "3"], ["4", "5", "6"]], "cellFill": [[1, None, "s1"], [2, 2, "#FF0000"], ["x", 0, "s2"], [0, 9, "s3"]],
      "borders": [[2, "*", "T", "primary", 2], [None, 1, "lr"], [1, 1, "B"], [None, None, "Q"]]},
     {"type": "table", "x": 0, "y": 0, "w": 600, "h": 120, "rows": [["a", "b"], ["1", "2"]], "gridLines": True, "borders": [[1, 0, "B", "s1", 3]], "header": False},
+    # 표 객체(table-obj, 0.22.17) - 셀 > 행 > 열 > style 우선순위 · span 병합 · 배열 행 · 머리 행 지정 · 덧씌우기 겸용
+    {"type": "table-obj", "x": 0, "y": 0, "w": 600, "h": 200, "cols": [{"w": 2, "font": "mono", "align": "right"}, {"w": 1}, 1],
+     "style": {"headFill": "s1", "size": 14, "font": "heading", "color": "on-surface-variant", "gridLines": True},
+     "rows": [{"header": True, "h": 1, "cells": ["항목", {"v": "값", "align": "center"}, "비고"]},
+              ["매출", "10", {"v": "주", "italic": True, "size": 11}],
+              {"h": 2, "fill": "surface-container", "bold": True, "valign": "bottom", "cells": [{"v": "합계", "color": "primary", "bd": {"T": ["primary", 2]}, "pad": [2, 4, 2, 4]}, {"v": "15", "span": [1, 2]}, ""]}],
+     "cellFill": [[1, 1, "s2"]], "borders": [[None, 0, "LR"]]},
+    {"type": "table-obj", "x": 0, "y": 0, "w": 300, "h": 100, "rows": [["a", "b"], ["1", "2"]], "style": {"header": False}},
+]
+# 변환 왕복 예제 - table → table-obj → table (common.table_to_obj·obj_to_table ↔ render.tableToObj·objToTable)
+CONV_SAMPLES = [
+    {"type": "table", "id": "t1", "x": 0, "y": 0, "w": 600, "h": 180, "rows": [["a", "b", "c"], ["1", "2", "3"], ["4", "5", "6"]], "colW": [2, 1, 1], "colFont": ["", "mono", ""], "align": ["", "right", ""], "rowH": [1, 1, 2],
+     "cellFill": [[2, None, "s1"], [1, 2, "#FF0000"]], "merge": [[1, 0, 1, 2]], "headFill": "primary", "size": 15, "borders": [[2, "*", "T", "primary", 2]]},
+    {"type": "table", "id": "t2", "x": 0, "y": 0, "w": 300, "h": 100, "rows": [["a", "b"], ["1", "2"]], "header": False},
 ]
 # 채우기(fill) 예제 - 토큰 · #hex · #hexAA(투명도) · 색+alpha · 그라데이션(각도·정지점 순서·고른 간격·토큰·잘못된 값)
 FILL_SAMPLES = [
@@ -63,7 +77,8 @@ const out = {code: inp.code.map(e => R.codeLines(e).map(l => ({n: l.n, focus: l.
   plan: inp.plans.map(p => R.planRuns(p)),
   grid: inp.tables.map(e => { const g = R.tableGrid(e); return {colW: g.colW.map(v => +v.toFixed(3)), rowH: g.rowH.map(v => +v.toFixed(3)), cells: g.cells, callouts: g.callouts.map(c => ({...c, x: +c.x.toFixed(3), y: +c.y.toFixed(3), h: +c.h.toFixed(3), cy: +c.cy.toFixed(3), tx: +c.tx.toFixed(3)}))}; }),
   bullets: inp.bullets.map(e => R.bulletRows(e).map(([t, lvl, after, num]) => [t, lvl, +(+after).toFixed(3), num ? [num.label, num.scheme || "", num.start, num.kind || "", R.numHang(num.label, lvl ? +e.subSize || 17 : +e.size || 20, lvl ? 20 : 28)] : null])),
-  fills: inp.fills.map(f => R.fillSpec(f))};
+  fills: inp.fills.map(f => R.fillSpec(f)),
+  conv: inp.conv.map(e => { const o = R.tableToObj(e); const back = R.objToTable(o); return {obj: o, back: back.el, dropped: back.dropped}; })};
 process.stdout.write(JSON.stringify(out));
 """
 
@@ -106,7 +121,7 @@ def main():
     # 채우기: 고정 예제 + 덱의 모든 fill 값
     fills = list(FILL_SAMPLES) + [e["fill"] for i in ids for s in json.loads((DECKS / f"{i}.json").read_text(encoding="utf-8"))["slides"]
                                   for e in s["elements"] if e.get("fill")]
-    inp = json.dumps({"tokens": tokens, "langs": LANGS, "code": code, "texts": texts, "plans": plans, "tables": tables, "bullets": bullets, "fills": fills},
+    inp = json.dumps({"tokens": tokens, "langs": LANGS, "code": code, "texts": texts, "plans": plans, "tables": tables, "bullets": bullets, "fills": fills, "conv": CONV_SAMPLES},
                      ensure_ascii=False)
     r = subprocess.run(["node", "-e", JS, str(STUDIO / "render.js")], input=inp.encode("utf-8"), capture_output=True)
     if r.returncode:
@@ -126,7 +141,8 @@ def main():
           "grid": [rnd(table_grid(e)) for e in tables],
           "bullets": [[[t, lvl, round(float(after), 3), [num["label"], num.get("scheme") or "", num["start"], num.get("kind") or "", num_hang(num["label"], float(e.get("subSize", 17)) if lvl else float(e.get("size", 20)), 20 if lvl else 28)] if num else None]
                        for t, lvl, after, num in bullet_rows(e)] for e in bullets],
-          "fills": [fill_spec(f) for f in fills]}
+          "fills": [fill_spec(f) for f in fills],
+          "conv": [(lambda o: {"obj": o, "back": obj_to_table(o)[0], "dropped": obj_to_table(o)[1]})(table_to_obj(e)) for e in CONV_SAMPLES]}
     def canon(o):  # 직렬화 차이(정수/실수, 빠진 키/null) 제거
         if isinstance(o, dict):
             return {k: canon(v) for k, v in o.items() if v is not None}

@@ -1,5 +1,14 @@
 # 변경 이력
 
+## 0.22.17 - 2026-10-16 · 표 객체(table-obj) · 캔버스 셀 선택·셀 편집·셀 서식 · 렌더 표 ↔ 표 객체 상호 변환
+
+`docs/dev/table-model-design.md` 를 사용자 방향(렌더 표는 유지하고 표 객체를 따로 두되 서로 변환)으로 구현. 편집기 시나리오 `ux5_test`, 시험 `tableobj_test`, `check_parity` 에 표 객체·변환 왕복 예제.
+
+- **표 객체** 요소 `table-obj`: 표 → 행(`h`·`header`·행 기본 서식) → 셀(`{v, fill, color, bold, italic, align, valign, font, size, pad, bd, span}` 또는 문자열)의 중첩 구조, 열 `cols[{w, font, align}]`, 표 기본 `style{headFill, headColor, rule, gridLines, size, font, color, header}`. 우선순위 셀 > 행 > 열 > style. 두 렌더러(`common.table_obj_grid` ↔ `render.tableObjGrid`)가 같은 격자로 풀고, PPTX 는 셀마다 크기·세로 정렬·여백·기울임·채움·테두리·병합(`gridSpan`)을 쓴다. ＋ 추가 "표 객체" 타일.
+- **상호 변환**: 렌더 표 → 표 객체(`table_to_obj`/`tableToObj` - 글·열 폭·열 글꼴·정렬·행 높이·머리·셀 채움·테두리·병합 그대로), 표 객체 → 렌더 표(`obj_to_table`/`objToTable` - 셀·행 단위 글자 서식은 버리고 버린 목록을 안내). 서식 줄 "⇄ 객체/렌더", 속성 탭 단추, 오른쪽 클릭 메뉴. 렌더 표에서 셀 글자 서식(색·굵게·크기·세로·기울임)을 넣으면 **자동으로 표 객체로 바뀐다**(채움·테두리·병합은 렌더 표의 덧씌우기로 그대로).
+- **캔버스 셀 선택**(렌더 표·표 객체 공통): 고른 표 안을 누르면 셀, 끌면 범위, Shift+클릭 범위, Ctrl+클릭 더하기/빼기(가장자리 6px 는 표 이동). 방향키로 셀 커서(Shift = 범위), Tab/Shift+Tab 옆 셀(마지막이면 행 추가), Delete 비우기, Enter/F2·두 번 클릭 = **그 셀만 편집**(Tab 으로 다음 셀 계속), Esc 셀 선택 해제. 셀 서식 줄: 채우기·글자색·굵게·기울임·가로 3·세로·크기·테두리(변 고르기·굵은 위 선·지우기)·병합/풀기·고른 셀 기준 행/열 삽입·삭제. 속성 탭에 고른 셀 안내.
+- 표 속성 공통: 행·열 삽입·삭제가 렌더 표의 덧씌우기(cellFill·borders·merge) 좌표를 같이 옮긴다. 찾기/바꾸기·유형 바꾸기(내용 옮김)·서식 복사가 표 객체도 다룬다. `check_layout` 는 표 객체의 가장 작은 셀 크기로 최소 글자 검사.
+
 ## 문서 - 2026-10-16 · 표 셀 선택·중첩 모델 검토
 
 - `docs/dev/table-model-design.md`: 캔버스 셀 선택(클릭·끌기·Shift/Ctrl·행/열 띠·셀 단위 편집·탭 복사/붙여넣기)과 PowerPoint 식 표 → 행 → 셀 중첩 모델(간결형 `string[][]` 과 상호 변환, 우선순위 셀 > 행 > 열 > 표) 설계·단계·비용(P1 M~L · P2 L · P3 M, 합계 4~6일)·위험 - 사용자 결정 대기.

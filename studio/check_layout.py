@@ -196,6 +196,17 @@ def check_slide(slide, n):
                 sizes.append(("하위 ", float(el.get("subSize") or 17)))
         elif t in ("table", "plan", "plan-table", "code"):
             sizes.append(("", float(el.get("size") or {"code": 15, "plan": 14}.get(t, 16))))
+        elif t == "table-obj":  # 표 객체 - style.size 와 셀·행 단위 size 중 가장 작은 것
+            st = el.get("style") or {}
+            ss = [float(st.get("size") or 16)]
+            for r in el.get("rows") or []:
+                if isinstance(r, dict):
+                    if r.get("size"):
+                        ss.append(float(r["size"]))
+                    for c in r.get("cells") or []:
+                        if isinstance(c, dict) and c.get("size"):
+                            ss.append(float(c["size"]))
+            sizes.append(("", min(ss)))
         role = el.get("role") or "default"
         lim = MIN_PT.get(role, MIN_PT["default"])
         for label, px in sizes:

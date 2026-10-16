@@ -301,7 +301,7 @@ def do_shape(slide, el, page):
 def apply_shadow(shp, el):
     """shadow(true 또는 {blur, dx, dy, color, alpha}) → a:effectLst/a:outerShdw (render.js shadowCss 와 같은 기본값)."""
     v = el.get("shadow")
-    if not v or el.get("type") in ("line", "arrow", "curve", "table", "plan-table"):
+    if not v or el.get("type") in ("line", "arrow", "curve", "table", "plan-table", "table-obj"):
         return
     o = v if isinstance(v, dict) else {}
     blur, dx, dy = float(o.get("blur", 6)), float(o.get("dx", 2)), float(o.get("dy", 3))
@@ -388,7 +388,7 @@ def apply_link(shp, el, slides, index):
 
 def apply_xfrm(shp, el):
     """요소의 rot(도, 시계 방향)·flipH·flipV 를 도형 xfrm 에(선·표는 제외). render.js 는 같은 값을 CSS transform 으로 그린다."""
-    if el.get("type") in ("line", "arrow", "curve", "table", "plan-table") or not (el.get("rot") or el.get("flipH") or el.get("flipV")):
+    if el.get("type") in ("line", "arrow", "curve", "table", "plan-table", "table-obj") or not (el.get("rot") or el.get("flipH") or el.get("flipV")):
         return
     try:
         xfrm = shp._element.find(f".//{{{NS_A}}}xfrm")
@@ -535,28 +535,31 @@ def do_table(slide, el, page):
     for j, cw in enumerate(g["colW"]):
         tbl.columns[j].width = E(cw)
     size = float(g["size"])
+    VA = {"top": "t", "middle": "ctr", "bottom": "b"}
     for i in range(nr):
         tbl.rows[i].height = E(g["rowH"][i])
         for j in range(nc):
             c = g["cells"][i][j]
             cell = tbl.cell(i, j)
-            cell.margin_left = cell.margin_right = E(14)
-            cell.margin_top = cell.margin_bottom = E(0)
+            csize = float(c.get("size") or size)  # 표 객체는 셀마다 크기·세로 정렬·여백·기울임을 가질 수 있다(render.js elTable 과 같다)
+            pt_, pr_, pb_, pl_ = pad_of({"pad": c["pad"]}) if c.get("pad") is not None else (0, 14, 0, 14)
+            cell.margin_left, cell.margin_right = E(pl_), E(pr_)
+            cell.margin_top, cell.margin_bottom = E(pt_), E(pb_)
             cell.vertical_anchor = MSO_ANCHOR.MIDDLE
             tf = cell.text_frame
             tf.word_wrap = True
             p = tf.paragraphs[0]
-            para_fmt(p, size, 1.4, c["align"])
+            para_fmt(p, csize, 1.4, c["align"])
             for t, st in runs(c["text"], page):
                 if t:
-                    set_run(p.add_run(), t, size, st.get("bold", c["bold"]),
-                            color(st.get("color") or c["color"]), c["font"], italic=st.get("italic", False), underline=st.get("underline", False), st=st)
-            end_para(p, size)
+                    set_run(p.add_run(), t, csize, st.get("bold", c["bold"]),
+                            color(st.get("color") or c["color"]), c["font"], italic=st.get("italic", bool(c.get("italic"))), underline=st.get("underline", False), st=st)
+            end_para(p, csize)
             tcPr = cell._tc.get_or_add_tcPr()
             for ch in list(tcPr):
                 tcPr.remove(ch)
-            tcPr.set("anchor", "ctr")
-            is_head = i == 0 and (el.get("type") == "plan-table" or el.get("header", True))
+            tcPr.set("anchor", VA.get(c.get("valign"), "ctr"))
+            is_head = bool(c.get("head")) if "head" in c else i == 0 and (el.get("type") == "plan-table" or el.get("header", True))
             bd = c.get("bd") or {}  # 셀별 테두리(common.table_cell_styles) - 없으면 본문 행 아래 선만(render.js elTable 과 같다)
             for side, dflt in (("L", None), ("R", None), ("T", None), ("B", None if is_head else [g["rule"], 1])):
                 v = bd.get(side) or dflt
@@ -567,8 +570,8 @@ def do_table(slide, el, page):
             else:
                 etree.SubElement(tcPr, qn("a:noFill"))
     shapes = [gf]
-    if el.get("type") != "plan-table":  # 셀 병합 - 왼쪽 위 셀의 글만 남고 덮인 셀은 비운다(render.js elTable 과 같은 규칙)
-        span, skip = table_merges(el, nr, nc)
+    if el.get("type") != "plan-table":  # 셀 병합 - 왼쪽 위 셀의 글만 남고 덮인 셀은 비운다(render.js elTable 과 같은 규칙). 표 객체는 격자의 merge(셀 span)
+        span, skip = table_merges({"merge": g["merge"]} if g.get("merge") is not None else el, nr, nc)
         for (r, c) in sorted(skip):
             tbl.cell(r, c).text_frame.text = ""
         for (r, c), (rs, cs) in span.items():
@@ -1080,7 +1083,7 @@ def do_group(slide, el, page):
     n = 0
     for _, c in kids:
         h = HANDLERS.get(c.get("type"))
-        if not h or c.get("type") in ("table", "plan-table", "group", "chart"):
+        if not h or c.get("type") in ("table", "plan-table", "table-obj", "group", "chart"):
             print(f"  ! {el.get('id')}: 묶음 안의 {c.get('type')} 은 건너뜀(표·묶음은 묶음에 넣지 않는다)")
             continue
         cc = dict(c)
@@ -1106,7 +1109,7 @@ def do_group(slide, el, page):
 
 
 HANDLERS = {"rect": do_box, "ellipse": do_box, "pill": do_box, "text": do_box, "image": do_image,
-            "line": do_line, "arrow": do_line, "curve": do_curve, "table": do_table, "plan-table": do_table,
+            "line": do_line, "arrow": do_line, "curve": do_curve, "table": do_table, "plan-table": do_table, "table-obj": do_table,
             "code": do_code, "plan": do_plan, "bullets": do_bullets, "shape": do_shape, "group": do_group, "chart": do_chart, "icon": do_icon}
 
 

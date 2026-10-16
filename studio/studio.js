@@ -481,7 +481,7 @@
     const s = slide(); if (!s) return;
     const els = selEls().filter((x) => !x.locked && x.type !== "group");
     if (els.length < 2) { toast("잠기지 않은 요소를 2개 이상 고르세요(묶음은 다시 묶지 않습니다)"); return; }
-    if (els.some((x) => ["table", "plan-table", "chart"].includes(x.type))) { toast("표·차트는 묶을 수 없습니다 - PPTX 묶음에 넣지 못합니다"); return; }
+    if (els.some((x) => ["table", "plan-table", "table-obj", "chart"].includes(x.type))) { toast("표·차트는 묶을 수 없습니다 - PPTX 묶음에 넣지 못합니다"); return; }
     const bs = els.map(boxOf), x = Math.min(...bs.map((b) => b.x)), y = Math.min(...bs.map((b) => b.y)), w = Math.max(...bs.map((b) => b.x + b.w)) - x, h = Math.max(...bs.map((b) => b.y + b.h)) - y;
     snapshot();
     const kids = els.map((el) => { const c = clone(el); if (isLine(c)) { c.x1 -= x; c.x2 -= x; c.y1 -= y; c.y2 -= y; Object.assign(c, Render.lineBox(c)); } else { c.x -= x; c.y -= y; } return c; });
@@ -514,6 +514,7 @@
     }
     const b = boxOf(el), hs = 11 / scale, bw = 2 / scale;
     let h = `<div class="selbox${el.locked ? " locked" : ""}${S.mode === "pick" ? " pick" : ""}" style="left:${b.x - bw}px;top:${b.y - bw}px;width:${b.w + 2 * bw}px;height:${b.h + 2 * bw}px;border-width:${bw * (S.mode === "pick" ? 1.5 : 1)}px"></div>`;
+    if (isTbl(el)) h += cellSelHtml(el);
     if (!el.locked && S.mode === "edit") {
       const pts = isLine(el) ? [["p1", el.x1, el.y1], ["p2", el.x2, el.y2]]
         : [["nw", b.x, b.y], ["n", b.x + b.w / 2, b.y], ["ne", b.x + b.w, b.y], ["e", b.x + b.w, b.y + b.h / 2],
@@ -764,20 +765,22 @@
 
   // ---------------------------------------------------------------- 서식 도구줄(편집 모드 · 요소 선택)
   const TEXTY = new Set(["text", "pill", "rect", "ellipse", "shape"]);
-  const SIZED = new Set(["text", "pill", "rect", "ellipse", "shape", "bullets", "table", "plan-table", "code", "plan", "chart"]);
-  const TYPE_KO = { text: "글자", pill: "칩", rect: "상자", ellipse: "원", image: "그림", line: "선", arrow: "화살표", table: "표", "plan-table": "실행계획 표", code: "코드", plan: "실행계획", bullets: "글머리", curve: "곡선", shape: "도형", group: "묶음", chart: "차트", icon: "아이콘" };
+  const SIZED = new Set(["text", "pill", "rect", "ellipse", "shape", "bullets", "table", "plan-table", "table-obj", "code", "plan", "chart"]);
+  const isTbl = (x) => !!x && (x.type === "table" || x.type === "table-obj");  // 셀 선택·셀 편집을 지원하는 표 두 종류
+  const TYPE_KO = { text: "글자", pill: "칩", rect: "상자", ellipse: "원", image: "그림", line: "선", arrow: "화살표", table: "표", "plan-table": "실행계획 표", code: "코드", plan: "실행계획", bullets: "글머리", curve: "곡선", shape: "도형", group: "묶음", chart: "차트", icon: "아이콘", "table-obj": "표 객체" };
   const SIZE_PRESETS = [10, 11, 12, 13, 14, 15, 16, 17, 18, 20, 22, 24, 28, 32, 36, 40, 48, 60, 72];
   function defSize(el) { return { pill: 14, code: 15, plan: 14, "plan-table": 15, table: 16 }[el.type] || 20; }
   function swatch(v) { return v ? Render.fillCss(v) : "transparent"; }  // 토큰·#hex(투명도)·그라데이션 객체 모두
   const fillLabel = (v) => !v ? "없음" : typeof v === "object" ? "그라데이션·투명도 (요소 JSON 에서 고침)" : v;
   // 서식 줄 - 요소 종류마다 자주 쓰는 설정을 바로 고친다(속성 탭과 같은 값). 종류별 "종류" 선택 → 글자 → 면·테두리/종류별 설정 → 공통(링크·그림자·회전) → 복제·삭제·잠금·위치·메모
-  const ROTATABLE = (x) => !isLine(x) && !["table", "plan-table", "bullets", "code", "plan"].includes(x.type);
+  const ROTATABLE = (x) => !isLine(x) && !["table", "plan-table", "table-obj", "bullets", "code", "plan"].includes(x.type);
   const hasShadow = (x) => hasFill(x) || x.type === "image";
   // 서식 복사(🖌) - 요소 종류마다 "서식"으로 치는 키. 복사한 뒤 다른 요소를 클릭하면 같은 종류의 키만 옮긴다(없는 값은 지움). Ctrl+Shift+C / Ctrl+Shift+V 도 같다
   const STYLE_KEYS = (x) => {
     if (isLine(x) || x.type === "curve") return ["color", "width", "dash", "head"];
     if (x.type === "bullets") return ["size", "subSize", "lineHeight", "color", "subColor", "dot", "marker", "subMarker", "gap", "subGap", "spread", "pad", "shadow"];
     if (x.type === "table") return ["size", "font", "colFont", "headFill", "headColor", "rule", "gridLines", "shadow"];
+    if (x.type === "table-obj") return ["style", "shadow"];
     if (x.type === "image") return ["effect", "effectLevel", "effectColor", "frameColor", "frameWidth", "opacity", "shadow"];
     if (x.type === "chart") return ["size", "legend", "labels", "grid", "colors", "numFmt", "numFmt2"];
     if (x.type === "icon") return ["fill", "color", "shadow"];
@@ -826,8 +829,22 @@
         h += `${vsep}<button class="ib" data-f="marker" title="글머리 종류 - 항목 ${esc(el.marker || "●")} · 하위 ${esc(el.subMarker || "–")} (글 앞에 직접 적은 번호·기호가 우선)">${esc(el.marker === "none" ? "없음" : el.marker || "●")} ▾</button>` + sw("dot", "●", "점 색(기호 글머리)", el.dot, "primary")
           + `<button class="ib" data-f="spacing" title="줄 높이 · 항목 간격 · 하위 크기">↕ ▾</button><button class="ib" data-f="conv" data-v="text" title="글자 상자로 바꾸기 - 항목을 줄로 펼침(하위 항목은 앞에 공백 두 칸)">T</button>`;
       }
-      if (t === "table") h += vsep + [["row+", "＋행", "맨 아래에 행 추가"], ["row-", "－행", "맨 아래 행 지우기"], ["col+", "＋열", "맨 오른쪽에 열 추가"], ["col-", "－열", "맨 오른쪽 열 지우기"]].map(([k, l, tt]) => `<button class="ib" data-f="tblop" data-v="${k}" title="${tt}">${l}</button>`).join("")
-        + `<span class="pt" title="행 × 열">${(el.rows || []).length}×${((el.rows || [])[0] || []).length}</span>` + sw("headFill", "▀", "머리 행 면", el.headFill, "surface-container-high") + sw("headColor", "A", "머리 행 글자색", el.headColor, "on-surface");
+      if (isTbl(el) && S.cell && S.cell.id === el.id) {  // 셀 선택 - 셀 서식·병합·행/열 삽입(고른 셀 기준)
+        const n = S.cell.set.size, va = cellProp(el, "valign") || "middle";
+        h += `${vsep}<span class="pt" title="고른 셀">셀 ${n}</span>` + sw("cfill", "🪣", "셀 채우기", cellProp(el, "fill")) + sw("ccolor", "A", "셀 글자색", cellProp(el, "color"), "on-surface")
+          + `<button class="ib${cellProp(el, "bold") ? " on" : ""}" data-f="cbold" title="굵게"><b>B</b></button><button class="ib${cellProp(el, "italic") ? " on" : ""}" data-f="citalic" title="기울임"><i>I</i></button>`
+          + [["left", "⇤"], ["center", "↔"], ["right", "⇥"]].map(([v, ic]) => `<button class="ib${cellProp(el, "align") === v ? " on" : ""}" data-f="calign" data-v="${v}" title="가로 ${v === "left" ? "왼쪽" : v === "center" ? "가운데" : "오른쪽"}">${ic}</button>`).join("")
+          + `<button class="ib" data-f="cvalign" title="세로 정렬 - 누를 때마다 바뀜(지금 ${{ top: "위", middle: "가운데", bottom: "아래" }[va]})">${{ top: "⤒", middle: "↕", bottom: "⤓" }[va]}</button>`
+          + `<input class="num" type="number" min="6" max="72" step="1" data-f="csize" value="${cellProp(el, "size") || ""}" placeholder="${(el.type === "table" ? el.size : (el.style || {}).size) || 16}" title="셀 글자 크기(px) - 비우면 표 기본" style="width:52px">`
+          + `<button class="ib" data-f="cbd" title="셀 테두리 ▾">▢ ▾</button><button class="ib" data-f="cmerge" title="병합 / 풀기">⊞</button>`
+          + `${vsep}` + [["row+", "＋행↓", "고른 셀 아래에 행"], ["row-", "－행", "고른 행 지우기"], ["col+", "＋열→", "고른 셀 오른쪽에 열"], ["col-", "－열", "고른 열 지우기"]].map(([k, l, tt]) => `<button class="ib" data-f="crowcol" data-v="${k}" title="${tt}">${l}</button>`).join("")
+          + `<button class="ib" data-f="cclear" title="셀 선택 해제 (Esc)">✕</button>`;
+      } else if (isTbl(el)) {
+        const st = el.type === "table" ? el : (el.style || {}), [nr, nc] = tblDims(el);
+        h += vsep + [["row+", "＋행", "맨 아래에 행 추가"], ["row-", "－행", "맨 아래 행 지우기"], ["col+", "＋열", "맨 오른쪽에 열 추가"], ["col-", "－열", "맨 오른쪽 열 지우기"]].map(([k, l, tt]) => `<button class="ib" data-f="tblop" data-v="${k}" title="${tt}">${l}</button>`).join("")
+          + `<span class="pt" title="행 × 열">${nr}×${nc}</span>` + sw("headFill", "▀", "머리 행 면", st.headFill, "surface-container-high") + sw("headColor", "A", "머리 행 글자색", st.headColor, "on-surface")
+          + `<button class="ib" data-f="tconv" title="${el.type === "table" ? "표 객체로 변환 - 셀마다 서식(색·굵게·크기·세로·여백·테두리)을 가질 수 있다" : "렌더 표로 변환 - 셀·행 단위 글자 서식은 버린다"}">${el.type === "table" ? "⇄ 객체" : "⇄ 렌더"}</button>`;
+      }
       if (t === "chart") {
         const lg = el.legend || (((el.series || []).length > 1 || el.chart === "pie" || el.chart === "doughnut") ? "bottom" : "none");
         h += `${vsep}<button class="ib" data-f="legend" title="범례 - 누를 때마다 바뀜 (없음 → 아래 → 오른쪽)">${{ none: "범례 없음", bottom: "범례 아래", right: "범례 오른쪽" }[lg]}</button><button class="ib${el.labels ? " on" : ""}" data-f="labels" title="값 표시">값</button><button class="ib${el.grid === false ? "" : " on"}" data-f="grid" title="눈금선">▦</button>`;
@@ -976,8 +993,22 @@
     if (t.tagName === "INPUT" || t.tagName === "SELECT") return;
     // ---- 종류별
     if (f === "dot") palette(t, el.dot, true, (c) => mutate((x) => { if (c) x.dot = c; else delete x.dot; }, (x) => x.type === "bullets"));
-    if (f === "headFill") palette(t, el.headFill, true, (c) => mutate((x) => { if (c) x.headFill = c; else delete x.headFill; }, (x) => x.type === "table"));
-    if (f === "headColor") palette(t, el.headColor, true, (c) => mutate((x) => { if (c) x.headColor = c; else delete x.headColor; }, (x) => x.type === "table"));
+    const stOf = (x) => (x.type === "table-obj" ? (x.style = x.style || {}) : x);
+    if (f === "headFill") palette(t, (stOf(el)).headFill, true, (c) => mutate((x) => { const o = stOf(x); if (c) o.headFill = c; else delete o.headFill; }, isTbl));
+    if (f === "headColor") palette(t, (stOf(el)).headColor, true, (c) => mutate((x) => { const o = stOf(x); if (c) o.headColor = c; else delete o.headColor; }, isTbl));
+    if (f === "tconv") { snapshot(); if (el.type === "table") ensureObj(el, "표 객체로 바꿨습니다 - 셀을 눌러 서식을 넣을 수 있습니다 (Ctrl+Z 로 되돌리기)"); else objToTableEl(el); afterChange(); return; }
+    if (f === "cfill") palette(t, cellProp(el, "fill"), true, (c) => cellApply("fill", c || null));
+    if (f === "ccolor") palette(t, cellProp(el, "color"), true, (c) => cellApply("color", c || null));
+    if (f === "cbold") cellApply("bold", !cellProp(el, "bold"));
+    if (f === "citalic") cellApply("italic", !cellProp(el, "italic") || null);
+    if (f === "calign") cellApply("align", t.dataset.v);
+    if (f === "cvalign") { const o = ["top", "middle", "bottom"], v = o[(o.indexOf(cellProp(el, "valign") || "middle") + 1) % 3]; cellApply("valign", v === "middle" ? null : v); }
+    if (f === "csize" && e.type === "change") { const v = parseFloat(t.value); cellApply("size", v > 0 ? v : null); }
+    if (f === "cmerge") cellMerge();
+    if (f === "crowcol") cellRowCol(t.dataset.v);
+    if (f === "cclear") clearCells();
+    if (f === "cbd") openMenu(t, [{ h: "셀 테두리 - 고른 셀에" }, ...[["TBLR", "모든 변"], ["T", "위"], ["B", "아래"], ["L", "왼쪽"], ["R", "오른쪽"], ["TB", "위·아래"], ["LR", "왼쪽·오른쪽"]].map(([s, l]) => ({ label: l, act: () => cellApply("bd", el.type === "table" ? { sides: s, color: "", width: 1 } : Object.fromEntries([...s].map((k) => [k, ["outline-variant", 1]]))) })),
+      { label: "굵은 선(2px) 위", act: () => cellApply("bd", el.type === "table" ? { sides: "T", color: "primary", width: 2 } : { T: ["primary", 2] }) }, "-", { label: "테두리 지우기", act: () => cellApply("bd", null) }]);
     if (f === "marker") openMenu(t, [
       { h: "항목" }, { html: `<div class="pal" style="grid-template-columns:repeat(6,auto)">${MARKER_OPTS.map(([k, l]) => `<button data-mk="${esc(k)}" class="${(el.marker || "●") === k ? " on" : ""}" style="width:auto;min-width:22px;padding:0 5px;background:#fff;font:12px var(--font)" title="${esc(l)}">${esc(l)}</button>`).join("")}</div>`, bind: (n) => n.addEventListener("click", (ev) => { const b = ev.target.closest("[data-mk]"); if (b) { closeMenu(); mutate((x) => setProp(x, "marker", b.dataset.mk), (x) => x.type === "bullets"); } }) },
       { h: "하위 항목" }, { html: `<div class="pal" style="grid-template-columns:repeat(6,auto)">${SUB_MARKER_OPTS.map(([k, l]) => `<button data-smk="${esc(k)}" class="${(el.subMarker || "–") === k ? " on" : ""}" style="width:auto;min-width:22px;padding:0 5px;background:#fff;font:12px var(--font)" title="${esc(l)}">${esc(l)}</button>`).join("")}</div>`, bind: (n) => n.addEventListener("click", (ev) => { const b = ev.target.closest("[data-smk]"); if (b) { closeMenu(); mutate((x) => setProp(x, "subMarker", b.dataset.smk), (x) => x.type === "bullets"); } }) }, "-",
@@ -1059,6 +1090,7 @@
       { label: "앞으로 가져오기", key: "Ctrl+]", act: () => zorder("fwd") }, { label: "뒤로 보내기", key: "Ctrl+[", act: () => zorder("bwd") },
       { label: "맨 앞으로", key: "Alt+Ctrl+]", act: () => zorder("front") }, { label: "맨 뒤로", key: "Alt+Ctrl+[", act: () => zorder("back") }, "-",
       { label: "글자 편집", key: "Enter", act: () => startEdit(el) }, "-",
+      ...(isTbl(el) ? [{ label: el.type === "table" ? "표 객체로 변환" : "렌더 표로 변환", act: () => { snapshot(); if (el.type === "table") ensureObj(el, "표 객체로 바꿨습니다 (Ctrl+Z 로 되돌리기)"); else objToTableEl(el); afterChange(); } }, "-"] : []),
       { label: "서식 복사", key: "Ctrl+Shift+C", act: () => fmtCopy(false) }, ...(S.fmt ? [{ label: "서식 적용", key: "Ctrl+Shift+V", act: () => fmtPasteTo(selIds()) }] : []),
       { label: `이 서식을 새 ${TYPE_KO[el.type] || el.type} 요소의 기본으로`, act: () => setDefStyle(el) }, ...(defStyleOf(el.type) ? [{ label: `${TYPE_KO[el.type] || el.type} 기본 서식 지우기`, act: () => { LS.set(defStyleKey(el.type), ""); toast("기본 서식을 지웠습니다"); } }] : []), "-",
       { label: isMulti() ? `이 요소 ${selIds().length}개에 요청 메모` : "이 요소에 요청 메모", act: () => openMemo({ element: el.id, elements: selIds() }) },
@@ -1232,7 +1264,7 @@ ${names}
     const grid = (keys) => `<div class="xywh">${keys.map((k) => `<div class="f"><label>${k}</label><input type="number" data-k="${k}" value="${el[k]}" title="${k} (px)"></div>`).join("")}</div>`;
     h += `<h3>위치·크기 <span class="hint">px · 슬라이드 1280×720</span></h3>${grid(isLine(el) ? ["x1", "y1", "x2", "y2"] : ["x", "y", "w", "h"])}
       ${!isLine(el) ? `<div class="row" style="margin-top:6px"><label>링크</label><input type="text" data-k="link" value="${esc(el.link || "")}" placeholder="https://… · #3(슬라이드 번호) · #s07(슬라이드 id)" title="발표 화면에서 누르면 이동(새 탭 또는 슬라이드). PPTX 도 같은 링크"></div>` : ""}
-      ${!isLine(el) && !["table", "plan-table", "bullets", "code", "plan"].includes(el.type) ? `<div class="row" style="margin-top:6px"><label>회전(°)</label><input type="number" step="1" data-k="rot" value="${el.rot || 0}" title="시계 방향, 중심 기준 - PPT 와 같다" style="width:70px"><button class="chip sm${el.flipH ? " on" : ""}" data-flip="H" title="좌우 뒤집기">⇋ 좌우</button><button class="chip sm${el.flipV ? " on" : ""}" data-flip="V" title="상하 뒤집기">⇅ 상하</button></div>` : ""}
+      ${!isLine(el) && !["table", "plan-table", "table-obj", "bullets", "code", "plan"].includes(el.type) ? `<div class="row" style="margin-top:6px"><label>회전(°)</label><input type="number" step="1" data-k="rot" value="${el.rot || 0}" title="시계 방향, 중심 기준 - PPT 와 같다" style="width:70px"><button class="chip sm${el.flipH ? " on" : ""}" data-flip="H" title="좌우 뒤집기">⇋ 좌우</button><button class="chip sm${el.flipV ? " on" : ""}" data-flip="V" title="상하 뒤집기">⇅ 상하</button></div>` : ""}
       <h3 style="margin-top:10px">순서</h3><div class="zrow"><button class="pbtn" data-z="back" title="맨 뒤로 보내기 (Alt+Ctrl+[)">⇊ 맨 뒤</button><button class="pbtn" data-z="bwd" title="뒤로 보내기 (Ctrl+[)">↓ 뒤로</button><button class="pbtn" data-z="fwd" title="앞으로 가져오기 (Ctrl+])">↑ 앞으로</button><button class="pbtn" data-z="front" title="맨 앞으로 가져오기 (Alt+Ctrl+])">⇈ 맨 앞</button></div></div>`;
     if (TEXTY.has(el.type)) {
       h += `${el.type === "text" ? `<div class="row" style="margin:0 0 6px"><button class="chip sm" data-conv="bullets" title="줄마다 항목인 글머리 목록으로 바꿉니다(앞에 공백 두 칸 = 하위 항목, 글 앞의 번호·기호는 자동 감지)">≡ 글머리 목록으로 바꾸기</button></div>` : ""}<div class="sec"><h3>글자 <span class="hint" style="cursor:help" title="인라인 표기(겹쳐 쓸 수 있다): **굵게** · ==강조== · [[토큰|색]] · __밑줄__ · *기울임* · ~~취소~~ · ^{위}_{아래} · [[bg:토큰|형광]] · [[link:url|글]]·[[link:#3|글]] · {page}">**굵게** · ==강조== · [[토큰|색]] … ⓘ</span></h3><textarea data-k="text" style="min-height:70px;font-family:var(--font);font-size:13px">${esc(el.text || "")}</textarea>
@@ -1293,7 +1325,22 @@ ${names}
         ${seg("항목", "marker", el, MARKER_OPTS, "●")}${seg("하위 항목", "subMarker", el, SUB_MARKER_OPTS, "–")}
         ${seg("글 앞 번호·기호 감지", "autoNum", { autoNum: el.autoNum === false ? "off" : "on" }, [["on", "켬"], ["off", "끔"]], "on")}
         <div class="row"><button class="chip sm" data-conv="text" title="항목을 줄로 펼친 글자 상자로 바꿉니다(하위 항목은 앞에 공백 두 칸)">글자 상자로 바꾸기</button></div></details>`;
+    if (isTbl(el) && S.cell && S.cell.id === el.id) {  // 고른 셀
+      const n = S.cell.set.size, a = S.cell.anchor;
+      h += `<div class="sec"><h3>셀 ${n}개 <span class="hint">주 셀 (${a[0] + 1},${a[1] + 1}) · 서식 줄에서 채움·색·굵게·정렬·테두리·병합·행/열</span></h3>
+        <div class="hint">클릭 = 셀 · 끌기/Shift = 범위 · Ctrl = 더하기 · 두 번 클릭 = 셀 글 편집 · Tab = 다음 셀 · Delete = 비우기 · Esc = 셀 선택 해제. 렌더 표에 글자 서식을 넣으면 표 객체로 바뀝니다.</div></div>`;
+    }
+    if (el.type === "table-obj") {
+      const st = el.style || {}, [nr, nc] = tblDims(el);
+      h += `<div class="sec"><h3>표 객체 - 줄 = 행, 칸은 " | " (셀 서식은 남음)</h3><textarea data-tbl="1" style="min-height:140px">${esc(objRowsText(el))}</textarea>
+        <div class="row"><label>행·열</label><button class="chip sm" data-tblop="row+" title="맨 아래에 행 추가">＋행</button><button class="chip sm" data-tblop="row-" title="맨 아래 행 지우기">－행</button><button class="chip sm" data-tblop="col+" title="맨 오른쪽에 열 추가">＋열</button><button class="chip sm" data-tblop="col-" title="맨 오른쪽 열 지우기">－열</button><span class="hint" style="margin:0">${nr}×${nc}</span></div>
+        <div class="row"><label>열 비율</label><input type="text" data-objcols="1" value="${esc((el.cols || []).map((c) => (c && typeof c === "object" ? c.w == null ? 1 : c.w : c)).join(", "))}" placeholder="예: 2, 1, 1"></div>
+        ${num("크기(px)", "style.size", { "style.size": st.size })}${colorRow("머리 면", "style.headFill", { "style.headFill": st.headFill })}${colorRow("머리 글자", "style.headColor", { "style.headColor": st.headColor })}${colorRow("선 색", "style.rule", { "style.rule": st.rule })}
+        ${seg("격자", "style.gridLines", { "style.gridLines": st.gridLines ? "on" : "off" }, [["off", "가로선만"], ["on", "모든 칸"]], "off")}${seg("머리 행", "style.header", { "style.header": st.header === false ? "off" : "on" }, [["on", "있음"], ["off", "없음"]], "on")}
+        <div class="row"><button class="chip sm" data-act="totable" title="렌더 표로 - 셀·행 단위 글자 서식은 버린다">⇄ 렌더 표로 변환</button><span class="hint" style="margin:0">표 안을 눌러 셀을 고르면 셀 서식을 넣을 수 있다</span></div></div>`;
+    }
     if (el.type === "table") h += `<div class="sec"><h3>표 - 줄 = 행, 칸은 " | " 로 구분 (첫 행 = 머리)</h3>${fontInfoHtml(el)}<textarea data-tbl="1" style="min-height:140px">${esc(tableToText(el.rows))}</textarea>
+        <div class="row"><button class="chip sm" data-act="toobj" title="표 객체로 - 셀마다 서식(색·굵게·크기·세로·여백·테두리)을 가질 수 있고 글·채움·병합은 그대로">⇄ 표 객체로 변환</button><span class="hint" style="margin:0">표 안을 다시 누르면 셀 선택</span></div>
         <div class="row"><label>행·열</label><button class="chip sm" data-tblop="row+" title="맨 아래에 행 추가">＋행</button><button class="chip sm" data-tblop="row-" title="맨 아래 행 지우기">－행</button><button class="chip sm" data-tblop="col+" title="맨 오른쪽에 열 추가">＋열</button><button class="chip sm" data-tblop="col-" title="맨 오른쪽 열 지우기">－열</button><span class="hint" style="margin:0">${(el.rows || []).length}×${((el.rows || [])[0] || []).length}</span></div>
         <div class="row"><label>셀 병합</label><input type="text" data-merge="1" value="${esc((el.merge || []).map((m) => m.join(",")).join("; "))}" placeholder="행,열,행수,열수; … (0부터 · 예: 0,0,1,2; 1,1,2,1)" title="왼쪽 위 셀이 행수×열수를 차지한다. 머리 행도 0행. 겹치면 앞 것만"></div>
         <div class="row"><label>셀 채움</label><input type="text" data-cellfill="1" value="${esc((el.cellFill || []).map((m) => m.map((v) => (v == null ? "*" : v)).join(",")).join("; "))}" placeholder="행,열,색; … (* = 줄 전체 · 예: 2,*,s1; 1,3,primary-container)" title="셀 바탕색 - 색은 토큰 이름(#hex 도 됨). 행이나 열에 * 를 쓰면 그 줄 전체. 머리 행도 0행. PPTX 셀 채움과 같다"></div>
@@ -1327,6 +1374,13 @@ ${names}
     if (["x", "y", "w", "h", "x1", "y1", "x2", "y2", "size", "subSize", "lineHeight", "width", "gap", "start", "rot", "effectLevel", "strokeWidth", "frameWidth"].includes(k)) { if (v === "" || v == null || (k === "rot" && +v === 0)) delete el[k]; else el[k] = +v; }
     else if (k === "strokeDash") { if (v && v !== "solid") el.strokeDash = v; else delete el.strokeDash; }
     else if (k === "gridLines") { if (v === "on") el.gridLines = true; else delete el.gridLines; }  // 표 격자(모든 칸 테두리)
+    else if (k.startsWith("style.")) {  // 표 객체의 style.* (크기·머리 면·머리 글자·선 색·격자·머리 행)
+      const kk = k.slice(6); el.style = el.style || {};
+      if (kk === "gridLines") { if (v === "on") el.style.gridLines = true; else delete el.style.gridLines; }
+      else if (kk === "header") { if (v === "off") el.style.header = false; else delete el.style.header; }
+      else if (v === "" || v == null) delete el.style[kk]; else el.style[kk] = kk === "size" ? +v : v;
+      if (!Object.keys(el.style).length) delete el.style;
+    }
     else if (k === "locked") { if (v) el.locked = true; else delete el.locked; }
     else if (k === "bold") el.bold = v === "1";
     else if (k === "autoNum") { if (v === "off") el.autoNum = false; else delete el.autoNum; }  // 글 앞 번호·기호 감지(기본 켬)
@@ -1385,12 +1439,154 @@ ${names}
       else { const a = rows.filter((m) => /^[TBLRtblr]+$/.test(m[2])).map((m) => { const o = [ix(m[0]), ix(m[1]), m[2].toUpperCase()]; if (m[3] || (m[4] && !isNaN(+m[4]))) o.push(m[3] || ""); if (m[4] && !isNaN(+m[4])) o.push(+m[4]); return o; }).filter((m) => okIx(m[0]) && okIx(m[1])); if (a.length) el.borders = a; else delete el.borders; }
     }
     else if (t.dataset.bul) el.items = textToBullets(t.value);
-    else if (t.dataset.tbl) el.rows = textToTable(t.value);
+    else if (t.dataset.tbl) { if (el.type === "table-obj") setObjRowsText(el, t.value); else el.rows = textToTable(t.value); }
+    else if (t.dataset.objcols) { const a = t.value.split(/[,\s]+/).filter(Boolean).map(Number).filter((x) => x > 0); const [, nc] = tblDims(el); el.cols = Array.from({ length: nc }, (_, j) => { const c = (el.cols || [])[j]; const o = c && typeof c === "object" ? { ...c } : {}; o.w = a[j] || 1; return o; }); }
     afterChange();
   }
   document.addEventListener("toggle", (e) => { const d = e.target; if (d && d.matches && d.matches("details.fold[data-fold]")) LS.set("fold-" + d.dataset.fold, d.open ? "1" : "0"); }, true);
+  // ---- 표 객체(table-obj) - 행 객체·셀 객체. 글 편집은 렌더 표처럼 "줄 = 행, | = 칸" 으로 하고 셀 객체의 서식은 남긴다
+  const objRows = (el) => (el.rows || []).map((r) => (Array.isArray(r) || !r || typeof r !== "object" ? { cells: [...(r || [])] } : r));
+  const cellVal = (c) => (c && typeof c === "object" ? (c.v == null ? "" : String(c.v)) : (c == null ? "" : String(c)));
+  const objRowsText = (el) => objRows(el).map((r) => (r.cells || []).map(cellVal).join(" | ")).join("\n");
+  function setObjRowsText(el, t) {
+    const lines = textToTable(t), rows = objRows(el);
+    el.rows = lines.map((cells, i) => { const r = rows[i] || { cells: [] }; const rc = cells.map((v, j) => { const c = (r.cells || [])[j]; if (c && typeof c === "object") { c.v = v; return c; } return v; }); return { ...r, cells: rc }; });
+  }
+  const tblDims = (el) => { const g = Render.tableGrid(el); return [g.rowH.length, g.colW.length]; };
+  /** 렌더 표 → 표 객체로 바꿔 끼운다(같은 id). 셀 단위 글자 서식이 필요할 때 자동으로 부른다 */
+  function ensureObj(el, why) {
+    if (el.type !== "table") return el;
+    const s = slide(), i = s.elements.indexOf(el); if (i < 0) return el;
+    const o = Render.tableToObj(el); s.elements[i] = o;
+    if (why !== false) toast(why || "셀 서식을 넣기 위해 표 객체로 바꿨습니다(서식·글은 그대로)", 3500);
+    return o;
+  }
+  function objToTableEl(el) {
+    if (el.type !== "table-obj") return el;
+    const { el: t, dropped } = Render.objToTable(el);
+    const s = slide(), i = s.elements.indexOf(el); if (i < 0) return el;
+    s.elements[i] = t;
+    toast(dropped.length ? `렌더 표로 바꿨습니다 - 셀·행 단위 서식(${dropped.join("·")})은 버렸습니다 (Ctrl+Z 로 되돌리기)` : "렌더 표로 바꿨습니다", 4000);
+    return t;
+  }
+  /** 표 객체의 (r,c) 셀 객체(문자열이면 객체로 바꿔 둔다) */
+  function objCell(el, r, c) {
+    const rows = objRows(el); el.rows = rows;
+    const row = rows[r] || (rows[r] = { cells: [] }); row.cells = row.cells || [];
+    while (row.cells.length <= c) row.cells.push("");
+    const x = row.cells[c]; if (x && typeof x === "object") return x;
+    return (row.cells[c] = { v: x == null ? "" : String(x) });
+  }
+  // ---- 셀 선택 - 캔버스에서 표(렌더 표·표 객체)가 선택된 채 셀을 누르면 셀, 끌면 범위, Shift+클릭 범위, Ctrl+클릭 더하기/빼기
+  function cellGeom(el) { const g = Render.tableGrid(el); const xs = [0]; g.colW.forEach((w) => xs.push(xs[xs.length - 1] + w)); const ys = [0]; g.rowH.forEach((h) => ys.push(ys[ys.length - 1] + h)); return { g, xs, ys, nr: g.rowH.length, nc: g.colW.length }; }
+  function cellAt(el, p) {
+    const { xs, ys, nr, nc } = cellGeom(el); const lx = p.x - el.x, ly = p.y - el.y;
+    if (!nr || !nc || lx < 0 || ly < 0 || lx > xs[nc] || ly > ys[nr]) return null;
+    let c = 0; while (c < nc - 1 && lx >= xs[c + 1]) c++; let r = 0; while (r < nr - 1 && ly >= ys[r + 1]) r++;
+    return [r, c];
+  }
+  const cellKey = (r, c) => `${r},${c}`;
+  const cellList = () => (S.cell ? [...S.cell.set].map((k) => k.split(",").map(Number)) : []);
+  function cellRect(a, b) { const out = []; for (let r = Math.min(a[0], b[0]); r <= Math.max(a[0], b[0]); r++) for (let c = Math.min(a[1], b[1]); c <= Math.max(a[1], b[1]); c++) out.push([r, c]); return out; }
+  function setCells(el, cells, anchor) { S.cell = { id: el.id, set: new Set(cells.map(([r, c]) => cellKey(r, c))), anchor: anchor || cells[0] }; drawSel(); renderFtb(); renderProps(); }
+  function clearCells(quiet) { if (!S.cell) return; S.cell = null; if (!quiet) { drawSel(); renderFtb(); renderProps(); } }
+  function cellSelHtml(el) {  // 선택 표시 - 셀마다 상자(병합된 셀은 span 만큼)
+    if (!S.cell || S.cell.id !== el.id) return "";
+    const { g, xs, ys, nr, nc } = cellGeom(el), mg = Render.tableMerges(g.merge ? { merge: g.merge } : el, nr, nc);
+    return cellList().filter(([r, c]) => r < nr && c < nc && !mg.skip.has(cellKey(r, c))).map(([r, c]) => { const sp = mg.span.get(cellKey(r, c)) || [1, 1]; return `<div class="cellsel" style="left:${el.x + xs[c]}px;top:${el.y + ys[r]}px;width:${xs[Math.min(nc, c + sp[1])] - xs[c]}px;height:${ys[Math.min(nr, r + sp[0])] - ys[r]}px"></div>`; }).join("");
+  }
+  /** 고른 셀의 서식 하나 읽기(주 셀) */
+  function cellProp(el, k) {
+    const a = S.cell && S.cell.anchor; if (!a) return undefined;
+    const g = Render.tableGrid(el), c = g.cells[a[0]] && g.cells[a[0]][a[1]]; if (!c) return undefined;
+    return k === "fill" ? c.fill : k === "color" ? c.color : k === "bold" ? c.bold : k === "align" ? c.align : k === "valign" ? c.valign || "middle" : k === "size" ? c.size : k === "italic" ? !!c.italic : undefined;
+  }
+  /** 고른 셀에 서식 적용 - fill·테두리·병합은 렌더 표도 덧씌우기로 받고, 글자 서식(color·bold·italic·size·align·valign·pad·font)은 표 객체로 바꿔서 */
+  function cellApply(k, v) {
+    let el = selEl(); if (!el || !S.cell || S.cell.id !== el.id) return;
+    const cells = cellList(); if (!cells.length) return;
+    snapshot();
+    if (el.type === "table" && ["fill", "bd"].includes(k)) {
+      if (k === "fill") { el.cellFill = (el.cellFill || []).filter((f) => !cells.some(([r, c]) => +f[0] === r && +f[1] === c)); if (v) cells.forEach(([r, c]) => el.cellFill.push([r, c, v])); if (!el.cellFill.length) delete el.cellFill; }
+      else { el.borders = (el.borders || []).filter((b) => !cells.some(([r, c]) => +b[0] === r && +b[1] === c)); if (v) cells.forEach(([r, c]) => el.borders.push([r, c, v.sides, v.color || "", v.width || 1])); if (!el.borders.length) delete el.borders; }
+    } else {
+      el = ensureObj(el);
+      cells.forEach(([r, c]) => { const o = objCell(el, r, c); if (v === undefined || v === null || v === "") delete o[k]; else o[k] = v; });
+    }
+    afterChange();
+  }
+  function cellsClearText() { const el = selEl(); if (!el || !S.cell) return; snapshot(); cellList().forEach(([r, c]) => { if (el.type === "table") { if (el.rows[r]) el.rows[r][c] = ""; } else objCell(el, r, c).v = ""; }); afterChange(); }
+  function cellMerge() {  // 선택 범위 병합 / 이미 병합이면 풀기
+    let el = selEl(); if (!el || !S.cell) return; const cells = cellList(); if (!cells.length) return;
+    const rs = cells.map((x) => x[0]), cs = cells.map((x) => x[1]), r0 = Math.min(...rs), c0 = Math.min(...cs), r1 = Math.max(...rs), c1 = Math.max(...cs);
+    snapshot();
+    if (el.type === "table") {
+      const has = (el.merge || []).find((m) => +m[0] === r0 && +m[1] === c0);
+      if (has && cells.length === 1) el.merge = el.merge.filter((m) => m !== has); else { el.merge = (el.merge || []).filter((m) => !(+m[0] >= r0 && +m[0] <= r1 && +m[1] >= c0 && +m[1] <= c1)); el.merge.push([r0, c0, r1 - r0 + 1, c1 - c0 + 1]); }
+      if (!el.merge.length) delete el.merge;
+    } else {
+      const o = objCell(el, r0, c0);
+      if (o.span && cells.length === 1) delete o.span; else { for (let r = r0; r <= r1; r++) for (let c = c0; c <= c1; c++) { const x = objCell(el, r, c); delete x.span; } if (r1 > r0 || c1 > c0) o.span = [r1 - r0 + 1, c1 - c0 + 1]; }
+    }
+    afterChange(); toast("병합/풀기 - 왼쪽 위 셀의 글만 남고 덮인 셀은 가려집니다");
+  }
+  /** 행·열 삽입·삭제(렌더 표·표 객체 공통) - at 위치에. 렌더 표의 덧씌우기(cellFill·borders·merge) 좌표도 옮긴다 */
+  function shiftOverlays(el, axis, at, delta) {
+    const idx = axis === "r" ? 0 : 1;
+    const fix = (arr) => (arr || []).map((m) => { const v = m[idx]; if (v == null || v === "*") return m; const n = +v; if (delta < 0 && n === at) return null; const o = [...m]; o[idx] = n >= at ? n + delta : n; return o; }).filter(Boolean);
+    if (el.cellFill) { el.cellFill = fix(el.cellFill); if (!el.cellFill.length) delete el.cellFill; }
+    if (el.borders) { el.borders = fix(el.borders); if (!el.borders.length) delete el.borders; }
+    if (el.merge) { el.merge = fix(el.merge); if (!el.merge.length) delete el.merge; }
+  }
+  function tableInsert(el, axis, at) {
+    const [nr, nc] = tblDims(el);
+    if (el.type === "table") {
+      if (axis === "r") { el.rows.splice(at, 0, Array.from({ length: nc }, () => "")); if (el.rowH && el.rowH.length >= at) el.rowH.splice(at, 0, 1); }
+      else { el.rows.forEach((r) => r.splice(at, 0, "")); if (el.colW) el.colW.splice(at, 0, 1); if (el.colFont) el.colFont.splice(at, 0, ""); if (el.align) el.align.splice(at, 0, ""); }
+      shiftOverlays(el, axis, at, 1);
+    } else {
+      const rows = objRows(el); el.rows = rows;
+      if (axis === "r") rows.splice(at, 0, { cells: Array.from({ length: nc }, () => "") });
+      else { rows.forEach((r) => { r.cells = r.cells || []; while (r.cells.length < nc) r.cells.push(""); r.cells.splice(at, 0, ""); }); el.cols = (el.cols || []).map((c) => (c && typeof c === "object" ? c : { w: c })); while (el.cols.length < nc) el.cols.push({ w: 1 }); el.cols.splice(at, 0, { w: 1 }); }
+    }
+  }
+  function tableDelete(el, axis, ats) {
+    const [nr, nc] = tblDims(el); ats = [...new Set(ats)].sort((a, b) => b - a);
+    if ((axis === "r" ? nr : nc) - ats.length < 1) { toast("마지막 행·열은 지울 수 없습니다"); return false; }
+    for (const at of ats) {
+      if (el.type === "table") {
+        if (axis === "r") { el.rows.splice(at, 1); if (el.rowH && el.rowH.length > at) el.rowH.splice(at, 1); }
+        else { el.rows.forEach((r) => r.splice(at, 1)); for (const k of ["colW", "colFont", "align"]) if (el[k] && el[k].length > at) el[k].splice(at, 1); }
+        shiftOverlays(el, axis, at, -1);
+      } else {
+        const rows = objRows(el); el.rows = rows;
+        if (axis === "r") rows.splice(at, 1); else { rows.forEach((r) => { if (r.cells && r.cells.length > at) r.cells.splice(at, 1); }); if (el.cols && el.cols.length > at) el.cols.splice(at, 1); }
+      }
+    }
+    return true;
+  }
+  function cellRowCol(op) {  // 서식 줄 - 고른 셀 기준 행·열 삽입·삭제
+    const el = selEl(); if (!el || !S.cell) return;
+    const cells = cellList(), rs = [...new Set(cells.map((x) => x[0]))], cs = [...new Set(cells.map((x) => x[1]))];
+    snapshot();
+    if (op === "row+") tableInsert(el, "r", Math.max(...rs) + 1); else if (op === "col+") tableInsert(el, "c", Math.max(...cs) + 1);
+    else if (op === "row-") { if (!tableDelete(el, "r", rs)) { undo(); return; } } else if (op === "col-") { if (!tableDelete(el, "c", cs)) { undo(); return; } }
+    S.cell = null; afterChange();
+  }
+  function moveCellCursor(el, dr, dc, extend) {
+    const [nr, nc] = tblDims(el); const a = S.cell ? S.cell.anchor : [0, 0], cur = S.cell && S.cell.cur ? S.cell.cur : a;
+    let r = cur[0] + dr, c = cur[1] + dc;
+    if (c >= nc) { c = 0; r++; } if (c < 0) { c = nc - 1; r--; }
+    if (r >= nr) { if (dr === 0 && dc > 0) { snapshot(); tableInsert(el, "r", nr); afterChange(); r = nr; } else r = nr - 1; }
+    if (r < 0) r = 0;
+    const rc = [r, c];
+    if (extend) { S.cell = { id: el.id, set: new Set(cellRect(a, rc).map(([x, y]) => cellKey(x, y))), anchor: a, cur: rc }; drawSel(); renderFtb(); renderProps(); }
+    else setCells(el, [rc], rc);
+    return rc;
+  }
   function tableOp(el, op) {  // 표 행·열 더하기·빼기(머리 행·첫 열은 남긴다) - 속성 탭·서식 줄이 같이 쓴다(snapshot·afterChange 는 부르는 쪽)
-    if (!el || el.type !== "table") return;
+    if (!el || !isTbl(el)) return;
+    if (el.type === "table-obj") { const [nr, nc] = tblDims(el); if (op === "row+") tableInsert(el, "r", nr); else if (op === "row-") tableDelete(el, "r", [nr - 1]); else if (op === "col+") tableInsert(el, "c", nc); else if (op === "col-") tableDelete(el, "c", [nc - 1]); return; }
     const rows = el.rows || [], nc = (rows[0] || []).length;
     if (op === "row+") rows.push(Array.from({ length: nc }, () => ""));
     else if (op === "row-" && rows.length > 2) rows.pop();
@@ -1428,7 +1624,7 @@ ${names}
     if (b.dataset.imgpick && el && el.type === "image") { imagePick(el); return; }
     if (b.dataset.mermaid && el && el.type === "image") { mermaidDialog(el); return; }
     if (b.dataset.flip && el) { snapshot(); const k = "flip" + b.dataset.flip; selEls().forEach((x) => { if (x[k]) delete x[k]; else x[k] = true; }); afterChange(); return; }
-    if (b.dataset.tblop && el && el.type === "table") { snapshot(); tableOp(el, b.dataset.tblop); afterChange(); return; }
+    if (b.dataset.tblop && el && isTbl(el)) { snapshot(); tableOp(el, b.dataset.tblop); afterChange(); return; }
     if (b.id === "applyJson" && el) {
       try {
         const nv = JSON.parse($("#elJson").value);
@@ -1442,6 +1638,8 @@ ${names}
     if (b.dataset.act === "dupEl") dupEl();
     if (b.dataset.act === "ungroup") ungroupSel();
     if (b.dataset.act === "charttbl" && el && el.type === "chart") { openChartTable(el); return; }
+    if (b.dataset.act === "toobj" && el && el.type === "table") { snapshot(); ensureObj(el, "표 객체로 바꿨습니다 - 표 안을 눌러 셀 서식을 넣을 수 있습니다 (Ctrl+Z 로 되돌리기)"); afterChange(); return; }
+    if (b.dataset.act === "totable" && el && el.type === "table-obj") { snapshot(); objToTableEl(el); afterChange(); return; }
     if (b.dataset.act === "delEl") delEl();
     if (b.dataset.act === "reqEl") openMemo({ element: el.id });
   }
@@ -1909,7 +2107,7 @@ ${names}
   }
 
   // ---------------------------------------------------------------- 선택·끌기·크기 조절
-  function select(id) { S.sel = id; S.multi = []; S.multiSlide = null; drawSel(); renderProps(); renderFtb(); }
+  function select(id) { S.sel = id; S.multi = []; S.multiSlide = null; if (S.cell && S.cell.id !== id) S.cell = null; drawSel(); renderProps(); renderFtb(); }
   function setSelection(ids) {  // 여러 요소를 한 번에 고른다(첫 요소가 주 선택)
     ids = ids.filter((id) => elById(id));
     S.sel = ids[0] || null; S.multi = ids.slice(1); S.multiSlide = slide() ? slide().id : null;
@@ -1939,6 +2137,18 @@ ${names}
       fmtPasteTo([node.dataset.id]); select(node.dataset.id); return;
     }
     if (hd && !isMulti()) { const el = selEl(); if (!el) return; drag = { mode: "resize", h: hd.dataset.h, el, orig: clone(el), p0: p, moved: false, before: deckJson() }; e.preventDefault(); return; }
+    {  // 이미 고른 표 안을 누르면 셀 선택(가장자리 6px 안쪽은 표 이동) - Shift 범위 · Ctrl 더하기/빼기 · 끌면 범위
+      const n0 = topEl(e.target), t0 = n0 && !isMulti() && S.sel === n0.dataset.id ? elById(n0.dataset.id) : null;
+      if (t0 && isTbl(t0) && !t0.locked) {
+        const rc = cellAt(t0, p), edge = 6 / scale, lx = p.x - t0.x, ly = p.y - t0.y;
+        if (rc && lx > edge && ly > edge && lx < t0.w - edge && ly < t0.h - edge) {
+          if (e.ctrlKey || e.metaKey) { const set = new Set(S.cell && S.cell.id === t0.id ? S.cell.set : []); const k = cellKey(rc[0], rc[1]); const was = set.has(k); if (was) set.delete(k); else set.add(k); S.cell = { id: t0.id, set, anchor: was ? (S.cell && S.cell.anchor && set.has(cellKey(...S.cell.anchor)) ? S.cell.anchor : ([...set][0] || rc).toString().split(",").map(Number)) : rc }; drawSel(); renderFtb(); renderProps(); }
+          else if (e.shiftKey && S.cell && S.cell.id === t0.id) setCells(t0, cellRect(S.cell.anchor, rc), S.cell.anchor);
+          else { setCells(t0, [rc], rc); drag = { mode: "cellsel", el: t0, p0: p, a: rc, moved: false }; }
+          e.preventDefault(); return;
+        }
+      }
+    }
     const node = topEl(e.target), add = e.shiftKey || e.ctrlKey || e.metaKey;
     if (!node) {  // 빈 곳 - 끌면 범위 선택(Shift/Ctrl 이면 더하기), 그냥 누르면 선택 해제
       drag = { mode: "marquee", p0: p, box: { x: p.x, y: p.y, w: 0, h: 0 }, base: add ? selIds() : [], moved: false };
@@ -1955,6 +2165,7 @@ ${names}
     if (S.pan) { const vp = $("#vpEdit"); vp.scrollLeft = S.pan.l - (e.clientX - S.pan.x); vp.scrollTop = S.pan.t - (e.clientY - S.pan.y); return; }
     if (S.drawing && S.drawing.p0) { drawMove(e); return; }
     if (!drag) return;
+    if (drag.mode === "cellsel") { const rc = cellAt(drag.el, toSlide(e)); if (rc && (rc[0] !== drag.a[0] || rc[1] !== drag.a[1] || drag.moved)) { drag.moved = true; S.cell = { id: drag.el.id, set: new Set(cellRect(drag.a, rc).map(([r, c]) => cellKey(r, c))), anchor: drag.a, cur: rc }; drawSel(); } return; }
     const p = toSlide(e), dx = p.x - drag.p0.x, dy = p.y - drag.p0.y, free = e.shiftKey, el = drag.el, o = drag.orig;
     if (!drag.moved && Math.hypot(dx, dy) * scale < 3) return;
     drag.moved = true;
@@ -2004,6 +2215,7 @@ ${names}
     if (S.drawing && S.drawing.p0) { drawUp(); return; }
     if (!drag) return;
     const d = drag; drag = null;
+    if (d.mode === "cellsel") { renderFtb(); renderProps(); return; }
     if (d.mode === "marquee") {
       if (!d.moved) { if (!d.base.length) select(null); else drawSel(); return; }
       const m = d.box, s = slide();  // 상자 안에 완전히 들어간 요소(잠긴 요소 포함 - 이동은 안 됨)
@@ -2016,12 +2228,39 @@ ${names}
   }
 
   // ---------------------------------------------------------------- 글자 직접 편집
+  /** 셀 하나 편집 - 셀 상자 자리에 글 편집기, Tab/Shift+Tab 으로 옆 셀(마지막이면 행 추가), Ctrl+Enter·Esc·바깥 클릭 = 확정 */
+  function startCellEdit(el, rc) {
+    if (!el || el.locked || S.mode !== "edit" || !isTbl(el)) return;
+    const { g, xs, ys, nr, nc } = cellGeom(el); if (rc[0] >= nr || rc[1] >= nc) return;
+    const mg = Render.tableMerges(g.merge ? { merge: g.merge } : el, nr, nc), sp = mg.span.get(cellKey(rc[0], rc[1])) || [1, 1];
+    const cell = g.cells[rc[0]][rc[1]], raw = el.type === "table" ? String((el.rows[rc[0]] || [])[rc[1]] ?? "") : cellVal((objRows(el)[rc[0]] || { cells: [] }).cells[rc[1]]);
+    const bx = el.x + xs[rc[1]], by = el.y + ys[rc[0]], bw = xs[Math.min(nc, rc[1] + sp[1])] - xs[rc[1]], bh = ys[Math.min(nr, rc[0] + sp[0])] - ys[rc[0]];
+    setCells(el, [rc], rc);
+    const ed = document.createElement("div"); ed.className = "editor cell"; ed.setAttribute("contenteditable", "plaintext-only");
+    if (ed.contentEditable !== "plaintext-only") ed.setAttribute("contenteditable", "true");
+    const sz = +cell.size || +g.size || 16, mono = cell.font === "mono";
+    Object.assign(ed.style, { left: bx + "px", top: by + "px", width: bw + "px", minHeight: bh + "px", fontSize: sz + "px", lineHeight: 1.4, padding: "0 14px", display: "flex", alignItems: "center", fontFamily: mono ? "Consolas, 'Malgun Gothic', monospace" : "'Malgun Gothic', sans-serif" });
+    ed.textContent = raw; ed.spellcheck = true;
+    $("#stage").appendChild(ed);
+    S.editing = { el, ed, before: deckJson(), cell: rc };
+    drawSel(); renderFtb(); ed.focus();
+    const rg = document.createRange(); rg.selectNodeContents(ed); const sel = getSelection(); sel.removeAllRanges(); sel.addRange(rg);
+    ed.addEventListener("keydown", (e) => {
+      e.stopPropagation();
+      if (e.key === "Escape" || (e.key === "Enter" && (e.ctrlKey || e.metaKey))) { e.preventDefault(); endEdit(true); }
+      else if (e.key === "Tab") { e.preventDefault(); const cur = S.editing && S.editing.el; endEdit(true); const el2 = elById(el.id); if (el2) { const next = moveCellCursor(el2, 0, e.shiftKey ? -1 : 1); startCellEdit(el2, next); } }
+      else if (e.key === "Enter" && ed.contentEditable === "true") { e.preventDefault(); document.execCommand("insertText", false, "\n"); }
+    });
+    ed.addEventListener("blur", () => endEdit(true));
+  }
   function startEdit(el) {
     if (!el || el.locked || S.mode !== "edit") return;
+    if (isTbl(el) && S.cell && S.cell.id === el.id && S.cell.anchor) return startCellEdit(el, S.cell.anchor);
     let raw;
     if (TEXTY.has(el.type) || el.type === "code" || el.type === "plan") raw = el.text || "";
     else if (el.type === "bullets") raw = bulletsToText(el.items);
     else if (el.type === "table") raw = tableToText(el.rows);
+    else if (el.type === "table-obj") raw = objRowsText(el);
     else return;
     const b = boxOf(el), ed = document.createElement("div");
     ed.className = "editor"; ed.setAttribute("contenteditable", "plaintext-only");
@@ -2052,11 +2291,14 @@ ${names}
     const t = E.ed.innerText.replace(/\r/g, "").replace(/\n$/, "");
     E.ed.remove();
     const el = E.el;
-    if (commit) {
-      const old = el.type === "bullets" ? bulletsToText(el.items) : el.type === "table" ? tableToText(el.rows) : el.text || "";
+    if (commit && E.cell) {  // 셀 하나
+      const [r, c] = E.cell, old = el.type === "table" ? String((el.rows[r] || [])[c] ?? "") : cellVal((objRows(el)[r] || { cells: [] }).cells[c]);
+      if (t !== old) { S.undo.push(E.before); S.redo = []; if (el.type === "table") { while (el.rows.length <= r) el.rows.push([]); el.rows[r][c] = t; } else objCell(el, r, c).v = t; afterChange(); return; }
+    } else if (commit) {
+      const old = el.type === "bullets" ? bulletsToText(el.items) : el.type === "table" ? tableToText(el.rows) : el.type === "table-obj" ? objRowsText(el) : el.text || "";
       if (t !== old) {
         S.undo.push(E.before); S.redo = [];
-        if (el.type === "bullets") el.items = textToBullets(t); else if (el.type === "table") el.rows = textToTable(t); else el.text = t;
+        if (el.type === "bullets") el.items = textToBullets(t); else if (el.type === "table") el.rows = textToTable(t); else if (el.type === "table-obj") setObjRowsText(el, t); else el.text = t;
         afterChange(); return;
       }
     }
@@ -2093,6 +2335,7 @@ ${names}
       arrow: { type: "arrow", x1: 480, y1: 360, x2: 800, y2: 360, color: "on-surface", width: 2, head: "end" },
       code: { type: "code", x: 64, y: 184, w: 640, h: 0, text: "SELECT d.item_cd\nFROM   trx_demand d\nWHERE  d.tenant_id = :t;", lang: "sql", size: 14, lineHeight: 1.6, radius: "r-m" },
       table: { type: "table", x: 64, y: 184, w: 640, h: 96, rows: [["열 1", "열 2"], ["값", "값"]], colW: [1, 1], size: 16, headFill: `${part}-container`, headColor: `on-${part}-container`, rule: "surface-container-high" },
+      tableobj: { type: "table-obj", x: 64, y: 184, w: 640, h: 132, cols: [{ w: 1 }, { w: 1 }, { w: 1 }], rows: [{ header: true, cells: ["열 1", "열 2", "열 3"] }, { cells: ["", "", ""] }, { cells: ["", "", ""] }], style: { headFill: `${part}-container`, headColor: `on-${part}-container`, size: 16 } },
       image: { type: "image", x: 560, y: 320, w: Math.round(40 * (S.brand.logoRatio || 765 / 237)), h: 40, src: S.brand.logo || "assets/brand/logo.png" },
     }[kind] || (kind.startsWith("shape:") ? shapeBase(kind.slice(6), part) : kind.startsWith("chart:") ? chartBase(kind.slice(6)) : kind.startsWith("icon:") ? { type: "icon", icon: kind.slice(5), x: 600, y: 320, w: 80, h: 80, fill: part } : null);
     if (!base) return;
@@ -2242,7 +2485,7 @@ ${names}
   // ---- 삽입 패널: 한 단에 검색 + 묶음별 타일(하위 메뉴 없음). 글자를 치면 바로 걸러지고 Enter 는 첫 타일. Canva·Figma 의 '요소' 패널 꼴
   function insertItems() {
     const base = [["text", "T", "글자", "텍스트 text"], ["bullets", "≡", "글머리 목록", "bullets list 번호"], ["pill", "◖◗", "칩", "pill badge 태그"], ["rect", "▭", "상자", "사각형 rect box"], ["ellipse", "◯", "원", "타원 circle"], ["arrow", "→", "화살표", "선 line connector"]];
-    const data = [["table", "▦", "표", "table 격자"], ["code", "{ }", "코드", "code sql"]].concat(CHART_KINDS.map(([k, i, l]) => [`chart:${k}`, i, l, `차트 chart ${k}`]));
+    const data = [["table", "▦", "표", "table 격자 렌더"], ["tableobj", "▦+", "표 객체", "table object cells 셀 서식"], ["code", "{ }", "코드", "code sql"]].concat(CHART_KINDS.map(([k, i, l]) => [`chart:${k}`, i, l, `차트 chart ${k}`]));
     const icons = Render.iconNames().map(([k, ko]) => [`icon:${k}`, `<svg viewBox="0 0 24 24" width="22" height="22"><g>${(Render.ICONS ? Render.ICONS[k] : null) ? "" : ""}</g>${iconSvgInner(k)}</svg>`, ko, `아이콘 icon ${k}`]);
     const media = [["imgfile", "🖼", "그림 파일", "image photo 사진 업로드"], ["image", "🏷", "로고", "brand logo"], ["mermaid", "⤳", "다이어그램 코드", "mermaid flowchart sequence 코드"]];
     const shapes = Render.shapeNames().map(([k, ko]) => [`shape:${k}`, `<svg viewBox="-2 -2 52 40" width="34" height="26"><path d="${Render.shapePath(k, 48, 36)}" fill="currentColor"/></svg>`, ko, `도형 shape ${k}`]);
@@ -2313,6 +2556,7 @@ ${names}
       if (e.text != null && (TEXTY.has(e.type) || e.type === "code" || e.type === "plan")) slot(L, e, () => String(e.text), (v) => { e.text = v; });
       if (e.type === "bullets") (e.items || []).forEach((it, i) => { if (typeof it === "string") slot(L, e, () => it, (v) => { e.items[i] = v; }); else { slot(L, e, () => String(it.text || ""), (v) => { it.text = v; }); (it.sub || []).forEach((sv, j) => slot(L, e, () => String(sv), (v) => { it.sub[j] = v; })); } });
       if (e.type === "table") (e.rows || []).forEach((r, i) => r.forEach((c, j) => slot(`${L} (${i + 1},${j + 1})`, e, () => String(c), (v) => { e.rows[i][j] = v; })));
+      if (e.type === "table-obj") objRows(e).forEach((r, i) => (r.cells || []).forEach((c, j) => { if (c && typeof c === "object") slot(`${L} (${i + 1},${j + 1})`, e, () => cellVal(c), (v) => { c.v = v; }); else slot(`${L} (${i + 1},${j + 1})`, e, () => cellVal(c), (v) => { r.cells[j] = v; }); }));
       if (e.type === "plan-table") (e.rows || []).forEach((r) => { (r.cells || []).forEach((c, j) => slot(L, e, () => String(c), (v) => { r.cells[j] = v; })); if (r.note) slot(L, e, () => String(r.note), (v) => { r.note = v; }); });
       if (e.type === "chart") { if (e.title) slot(L, e, () => String(e.title), (v) => { e.title = v; }); (e.categories || []).forEach((c, i) => slot(L, e, () => String(c), (v) => { e.categories[i] = v; })); (e.series || []).forEach((sr) => slot(L, e, () => String(sr.name || ""), (v) => { sr.name = v; })); }
       if (e.type === "group") for (const c of e.children || []) { const inner = textSlots({ elements: [c] }, false); inner.forEach((x) => { x.label = `묶음 ${e.id} › ${x.label}`; x.el = e; }); out.push(...inner); }
@@ -2489,7 +2733,7 @@ ${names}
     back.addEventListener("mousedown", (e) => { if (e.target === back) close(); });
     render(); q.focus();
   }
-  function goSlide(i) { if (!S.deck) return; S.cur = Math.max(0, Math.min(S.deck.slides.length - 1, i)); S.sel = null; S.chkBox = S.chkBox && S.chkBox.slide === slide().id ? S.chkBox : null; closeMemo(); renderAll(); ensureThumbVisible(S.cur); }
+  function goSlide(i) { if (!S.deck) return; S.cur = Math.max(0, Math.min(S.deck.slides.length - 1, i)); S.sel = null; S.cell = null; S.chkBox = S.chkBox && S.chkBox.slide === slide().id ? S.chkBox : null; closeMemo(); renderAll(); ensureThumbVisible(S.cur); }
   function dupSlide(i) { snapshot(); const c = clone(S.deck.slides[i]); c.id = newSlideId(); S.deck.slides.splice(i + 1, 0, c); S.cur = i + 1; S.sel = null; afterChange(true); }
   function delSlide(i) {
     if (S.deck.slides.length <= 1) return toast("마지막 슬라이드는 지울 수 없습니다");
@@ -2549,8 +2793,10 @@ ${names}
       const tb = (s.elements || []).filter((e) => e.type === "text" && !e.role && e.text != null).sort((a, b) => (b.w * b.h) - (a.w * a.h))[0];
       if (tb) { tb.text = bulletsToText(ob.items).replace(/^  /gm, "- "); moved.push("글머리 → 글자"); }
     }
-    const ot = firstOf(old, "table"), nt = firstOf(s, "table");
-    if (ot && nt) { nt.rows = clone(ot.rows || []); if (ot.colW) nt.colW = clone(ot.colW); if (ot.merge) nt.merge = clone(ot.merge); moved.push(`표 ${nt.rows.length}행`); }
+    const otA = firstOf(old, "table") || firstOf(old, "table-obj"), ntA = firstOf(s, "table") || firstOf(s, "table-obj");
+    const ot = otA && otA.type === "table-obj" ? Render.objToTable(otA).el : otA, nt = ntA;
+    if (ot && nt && nt.type === "table") { nt.rows = clone(ot.rows || []); if (ot.colW) nt.colW = clone(ot.colW); if (ot.merge) nt.merge = clone(ot.merge); moved.push(`표 ${nt.rows.length}행`); }
+    else if (otA && nt && nt.type === "table-obj") { const src = otA.type === "table" ? Render.tableToObj(otA) : otA; nt.rows = clone(src.rows || []); nt.cols = clone(src.cols || []); moved.push(`표 ${nt.rows.length}행`); }
     else if (ot && nb && !ob) { nb.items = (ot.rows || []).slice(1).map((r) => r.join(" · ")); moved.push("표 → 글머리"); }
     const oc = firstOf(old, "chart"), nc = firstOf(s, "chart");
     if (oc && nc) { for (const k of ["categories", "series", "chart", "title", "legend", "labels", "numFmt", "lineSeries", "secondaryAxis"]) { if (oc[k] !== undefined) nc[k] = clone(oc[k]); } moved.push("차트 데이터"); }
@@ -2684,7 +2930,7 @@ ${names}
     if (ctrl && k === "0") { e.preventDefault(); setZoom(null); return; }
     if (ctrl && k === "1") { e.preventDefault(); setZoom(100); return; }
     if (inField) return;
-    if (k === "Escape") { if (S.fmt) { fmtEnd(); return; } if (S.memo) { closeMemo(); return; } closeMenu(); select(null); return; }
+    if (k === "Escape") { if (S.fmt) { fmtEnd(); return; } if (S.memo) { closeMemo(); return; } if (S.cell) { clearCells(); return; } closeMenu(); select(null); return; }
     if (ctrl && e.shiftKey && kl === "c" && selEl()) { e.preventDefault(); fmtCopy(false); return; }
     if (ctrl && e.shiftKey && kl === "v" && S.fmt && selEl()) { e.preventDefault(); fmtPasteTo(selIds()); return; }
     if (k === " " && !e.repeat) { spaceDown = true; document.body.classList.add("panning"); e.preventDefault(); return; }
@@ -2707,6 +2953,13 @@ ${names}
     const el = selEl();
     if (!el) { if (k === "ArrowDown" || k === "ArrowRight") { goSlide(S.cur + 1); e.preventDefault(); } else if (k === "ArrowUp" || k === "ArrowLeft") { goSlide(S.cur - 1); e.preventDefault(); } return; }
     if (S.mode !== "edit") return;
+    if (S.cell && S.cell.id === el.id && isTbl(el)) {  // 셀 선택 중 - 셀 커서 이동·편집·비우기
+      if (k === "Delete" || k === "Backspace") { e.preventDefault(); cellsClearText(); return; }
+      if (k === "Enter" || k === "F2") { e.preventDefault(); startCellEdit(el, S.cell.cur || S.cell.anchor); return; }
+      if (k === "Tab") { e.preventDefault(); moveCellCursor(el, 0, e.shiftKey ? -1 : 1); return; }
+      const cm = { ArrowLeft: [0, -1], ArrowRight: [0, 1], ArrowUp: [-1, 0], ArrowDown: [1, 0] }[k];
+      if (cm && !ctrl) { e.preventDefault(); moveCellCursor(el, cm[0], cm[1], e.shiftKey); return; }
+    }
     if (k === "Delete" || k === "Backspace") { e.preventDefault(); delEl(); return; }
     if ((k === "Enter" || k === "F2") && !isMulti()) { e.preventDefault(); startEdit(el); return; }
     const d = e.shiftKey ? GRID : 1, mv = { ArrowLeft: [-d, 0], ArrowRight: [d, 0], ArrowUp: [0, -d], ArrowDown: [0, d] }[k];
@@ -2927,7 +3180,7 @@ ${names}
     stage.addEventListener("pointerdown", onDown);
     vp.addEventListener("pointerdown", (e) => { if (e.target === vp || e.target.id === "stageWrap") { if (spaceDown || e.button === 1) onDown(e); else { select(null); closeMemo(); } } });
     window.addEventListener("pointermove", onMove); window.addEventListener("pointerup", onUp);
-    stage.addEventListener("dblclick", (e) => { if (S.mode !== "edit") return; const n = topEl(e.target); if (n) { select(n.dataset.id); startEdit(selEl()); } });
+    stage.addEventListener("dblclick", (e) => { if (S.mode !== "edit") return; const n = topEl(e.target); if (!n) return; const el = elById(n.dataset.id); if (isTbl(el)) { const rc = cellAt(el, toSlide(e)); if (rc) { select(el.id); startCellEdit(el, rc); return; } } select(n.dataset.id); startEdit(selEl()); });
     stage.addEventListener("contextmenu", ctxMenu);
     inkWire();
     vp.addEventListener("wheel", (e) => { if (!(e.ctrlKey || e.metaKey)) return; e.preventDefault(); const r = vp.getBoundingClientRect(); setZoom(scale * 100 * (e.deltaY < 0 ? 1.1 : 1 / 1.1), { x: e.clientX - r.left, y: e.clientY - r.top }); }, { passive: false });

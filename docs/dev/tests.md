@@ -23,6 +23,7 @@ NEXA_TEST_DIR=/tmp/nexa-tests python3 studio/tests/run_all.py   # 산출물 자�
 | runs · effect | `runs_test.py` · `effect_test.py` | 인라인 강조 겹치기(`common.runs` ↔ `render.runs`, 취소선·첨자·형광펜·글자 링크 포함) · 그림 프레임 효과 PPTX XML·CSS | Node |
 | docstruct | `docstruct_test.py` | 0.22.11~12 - 숨김 슬라이드(`show=0`)·구분(섹션 `p14:sectionLst`)·문서 속성·도형 테두리 점선(`prstDash`)·액자 색·SVG 그림(`svgBlip`)·글 표기 PPTX XML, 표 셀별 채움·테두리·격자 PPTX·render.js | Node |
 | (editor) ux3 | `scenarios/ux3_test.json` | 0.22.15 - 내용 유지 유형 전환·섹션 접기·자동 정리·넘침 경고·차트 데이터 표 | editor 묶음 |
+| tableobj | `tableobj_test.py` | 0.22.17 - 표 객체 리졸버 우선순위·span·변환 왕복·PPTX 셀 서식(크기·세로·여백·기울임·테두리·병합). 편집기 쪽은 `scenarios/ux5_test.json`(셀 클릭·Shift/Ctrl·채움·자동 변환·셀 편집·Tab·행 삽입·병합·렌더 표로 변환·표 객체 타일) | Node |
 | uxpack | `uxpack_test.py` | 0.22.14 - 검사 대비(t6)·대체 텍스트(t7), PPTX `descr`, 유인물·노트 PDF(Chrome). 편집기 쪽은 `scenarios/ux2_test.json`(찾기/바꾸기·서식 복사·가져오기·노트 칩·alt·펜) | Node·Chrome |
 | chart | `chart_test.py` | 0.22.13 - 누적 가로·100% 누적·콤보(`c:lineChart`, 보조 축 둘째 `c:valAx`)·축 제목·숫자 형식(`formatCode`) PPTX XML, render.js 같은 종류 SVG·`chartFmt`·`comboLines` | Node |
 | race | `race_test.py` | 서버 동시 시작 경쟁(`START_LOCK`) | |
