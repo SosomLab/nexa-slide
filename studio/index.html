@@ -497,6 +497,8 @@
   .tgrip:hover { background: var(--p); filter: brightness(1.15); }
   .tgut { position: absolute; box-sizing: border-box; background: var(--tone); border: 1px solid var(--line); border-radius: 3px; pointer-events: auto; cursor: pointer; }
   .tgut:hover { background: var(--pc); border-color: var(--p); }
+  .tgut.on { background: var(--pc); border-color: var(--p); cursor: grab; }
+  .tdrop { position: absolute; background: var(--p); border-radius: 2px; pointer-events: none; box-shadow: 0 0 0 1px #fff; }
   .tbnd { position: absolute; pointer-events: auto; z-index: 2; }
   .tbnd.col { cursor: col-resize; } .tbnd.row { cursor: row-resize; }
   .tbnd:hover { background: rgba(169,31,36,.25); }

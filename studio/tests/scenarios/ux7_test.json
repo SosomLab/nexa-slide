@@ -1,0 +1,27 @@
+{
+ "base": "http://127.0.0.1:5667",
+ "pages": [
+  {
+   "url": "/studio/#tbl2test/1",
+   "wait": 2500,
+   "steps": [
+    {
+     "name": "표 안 오른쪽 클릭 → 셀 선택 + 메뉴에 행/열 삽입·삭제·병합·비우기·서식 지우기·선택·높이 맞춤",
+     "js": "document.querySelector('[data-sel=\"e01\"]').click(); await new Promise(r=>setTimeout(r,300)); const n=document.querySelector('#host .rs-el[data-id=\"e01\"]'); const c=n.querySelectorAll('.rs-cell')[3]; const r=c.getBoundingClientRect(); n.dispatchEvent(new MouseEvent('contextmenu',{bubbles:true,clientX:r.left+r.width/2,clientY:r.top+r.height/2})); await new Promise(r2=>setTimeout(r2,250)); const lbl=(b)=>{const s=[...b.querySelectorAll('span')].filter(x=>!x.classList.contains('k')); return (s.length?s[s.length-1]:b).textContent.trim();};const items=[...document.querySelectorAll('.menu button')].map(lbl); const need=['행 위에 삽입','행 아래에 삽입','열 왼쪽에 삽입','열 오른쪽에 삽입','행 삭제','열 삭제','병합 풀기','셀 비우기','셀 서식 지우기','셀 글 편집','행 전체 선택','열 전체 선택','표 전체 선택','↕ 행 높이를 글에 맞춤','복사']; const miss=need.filter(k=>!items.includes(k)); const sel=document.querySelectorAll('#ov .cellsel').length; return !miss.length && sel===1 ? true : 'miss='+miss+' sel='+sel+' '+items.slice(0,6)"
+    },
+    {
+     "name": "  메뉴 '행 아래에 삽입' → 행 +1 · '열 오른쪽에 삽입' → 열 +1",
+     "js": "let el=JSON.parse(document.querySelector('#elJson').value); const nr0=el.rows.length, nc0=el.rows[0].length; const lbl=(b)=>{const s=[...b.querySelectorAll('span')].filter(x=>!x.classList.contains('k')); return (s.length?s[s.length-1]:b).textContent.trim();};const it=[...document.querySelectorAll('.menu button')].find(x=>lbl(x)==='행 아래에 삽입'); it.click(); await new Promise(r=>setTimeout(r,300)); el=JSON.parse(document.querySelector('#elJson').value); const nr=el.rows.length; const n=document.querySelector('#host .rs-el[data-id=\"e01\"]'); const c=n.querySelectorAll('.rs-cell')[0]; const r=c.getBoundingClientRect(); n.dispatchEvent(new MouseEvent('contextmenu',{bubbles:true,clientX:r.left+r.width/2,clientY:r.top+r.height/2})); await new Promise(r2=>setTimeout(r2,250)); const it2=[...document.querySelectorAll('.menu button')].find(x=>lbl(x)==='열 오른쪽에 삽입'); it2.click(); await new Promise(r2=>setTimeout(r2,300)); el=JSON.parse(document.querySelector('#elJson').value); return nr===nr0+1 && el.rows[0].length===nc0+1 && el.colW.length===nc0+1 ? true : 'nr='+nr0+'→'+nr+' nc='+nc0+'→'+el.rows[0].length"
+    },
+    {
+     "name": "열 띠 클릭(선택) → 그 띠를 끌어 첫 열을 맨 끝으로 → 글 순서 바뀜(놓을 자리 표시 1개)",
+     "js": "const n=document.querySelector('#host .rs-el[data-id=\"e01\"]'); let el=JSON.parse(document.querySelector('#elJson').value); const b=el.rows[0].slice(), nc=b.length; const exp=b.slice(1).concat([b[0]]).join('|'); const g=document.querySelector('#ov .tgut.col[data-c=\"0\"]'); let r=g.getBoundingClientRect(); g.dispatchEvent(new PointerEvent('pointerdown',{bubbles:true,clientX:r.left+r.width/2,clientY:r.top+r.height/2,button:0,pointerId:1,isPrimary:true})); window.dispatchEvent(new PointerEvent('pointerup',{bubbles:true,pointerId:1})); await new Promise(r2=>setTimeout(r2,300)); const on=document.querySelector('#ov .tgut.col.on[data-c=\"0\"]'); if(!on) return 'not selected strip'; r=on.getBoundingClientRect(); const last=document.querySelector('#ov .tgut.col[data-c=\"'+(nc-1)+'\"]').getBoundingClientRect(); on.dispatchEvent(new PointerEvent('pointerdown',{bubbles:true,clientX:r.left+r.width/2,clientY:r.top+r.height/2,button:0,pointerId:1,isPrimary:true})); window.dispatchEvent(new PointerEvent('pointermove',{bubbles:true,clientX:last.left+last.width*0.9,clientY:r.top+40,pointerId:1})); await new Promise(r2=>setTimeout(r2,100)); const drop=document.querySelectorAll('#ov .tdrop').length; window.dispatchEvent(new PointerEvent('pointerup',{bubbles:true,pointerId:1})); await new Promise(r2=>setTimeout(r2,400)); el=JSON.parse(document.querySelector('#elJson').value); window.__ux7b=b.join('|'); return drop===1 && el.rows[0].join('|')===exp ? true : 'drop='+drop+' row0='+el.rows[0].join('|')+' exp='+exp"
+    },
+    {
+     "name": "  Ctrl+Z → 원래 순서",
+     "js": "document.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true})); document.dispatchEvent(new KeyboardEvent('keydown',{key:'z',ctrlKey:true,bubbles:true})); await new Promise(r=>setTimeout(r,400)); const el=JSON.parse(document.querySelector('#elJson').value); return el.rows[0].join('|')===window.__ux7b ? true : el.rows[0].join('|')+' vs '+window.__ux7b"
+    }
+   ]
+  }
+ ]
+}
