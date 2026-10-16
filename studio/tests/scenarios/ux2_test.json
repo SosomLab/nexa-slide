@@ -22,8 +22,8 @@
      "js": "window.__n0=document.querySelectorAll('#left .thumb').length; document.querySelectorAll('#left .thumb')[0].dispatchEvent(new MouseEvent('contextmenu',{bubbles:true,clientX:100,clientY:100})); await new Promise(r=>setTimeout(r,200)); const it=[...document.querySelectorAll('.menu .it, .menu button, .menu div')].find(x=>x.textContent.trim().startsWith('다른 덱에서')); if(!it) return 'no menu item'; it.click(); await new Promise(r=>setTimeout(r,900)); const cb=document.querySelector('#impDlg .list input'); if(!cb) return 'no slides'; cb.checked=true; cb.dispatchEvent(new Event('change',{bubbles:true})); document.querySelector('#impDlg [data-ia=\"go\"]').click(); await new Promise(r=>setTimeout(r,400)); const n=document.querySelectorAll('#left .thumb').length; return n===window.__n0+1 && !document.querySelector('#impDlg') ? true : 'thumbs '+window.__n0+'→'+n"
     },
     {
-     "name": "노트 탭 칩 2개(이 장 노트 쓰기·빈 노트 모두)",
-     "js": "return document.querySelectorAll('#notesChips [data-nq]').length===2 ? true : 'chips='+document.querySelectorAll('#notesChips [data-nq]').length"
+     "name": "노트 탭 칩 3개(이 장 노트 쓰기·빈 노트 모두·지우기) - 지우기는 노트가 비면 숨김",
+     "js": "const q=document.querySelectorAll('#notesChips [data-nq]'); const clr=document.querySelector('#notesClr'); const hid=!!clr && (clr.style.display==='none' || !!document.querySelector('#notesTa').value); return q.length===3 && hid ? true : 'chips='+q.length+' hid='+hid"
     },
     {
      "name": "그림 속성에 대체 텍스트 칸 · 입력하면 alt 에 반영",
