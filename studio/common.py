@@ -1127,11 +1127,188 @@ def table_cell_styles(el, cells, nc):
                         d[sd] = [col, w]
     for (i, j), d in bds.items():
         if d:
-            cells[i][j]["bd"] = d
+            cells[i][j]["bd"] = {**(cells[i][j].get("bd") or {}), **d}
+
+
+TABLE_OBJ_CELL_KEYS = ("fill", "color", "bold", "italic", "align", "valign", "font", "size", "pad", "bd")  # 셀 객체가 가질 수 있는 서식 키(우선순위 셀 > 행 > 열 > 표)
+
+
+def _num(v, dflt):
+    try:
+        x = float(v)
+        return x if x > 0 else dflt
+    except (TypeError, ValueError):
+        return dflt
+
+
+def table_obj_grid(el):
+    """표 객체(table-obj) → table_grid 와 같은 격자(render.js tableObjGrid 와 같은 규칙).
+    rows: [{h, header, 서식…, cells: [문자열 | {v, 서식…, span: [행수, 열수]}]}] (행이 배열이면 cells 로 본다)
+    cols: [{w, font, align, 서식…}] · style: {headFill, headColor, rule, gridLines, size, font, color, header}
+    셀 > 행 > 열 > style > 기본. 병합은 셀 span 으로(격자의 merge 로 돌려준다). cellFill·borders 덧씌우기도 받는다."""
+    st = el.get("style") or {}
+    rows = [r if isinstance(r, dict) else {"cells": list(r)} for r in (el.get("rows") or [])]
+    cols = [c if isinstance(c, dict) else {"w": c} for c in (el.get("cols") or [])]
+    nc = max([len(cols)] + [len(r.get("cells") or []) for r in rows] + [1])
+    cols = (cols + [{}] * nc)[:nc]
+    ratios = [_num(c.get("w", 1), 1) for c in cols]
+    tot = sum(ratios) or 1
+    colW = [el["w"] * r / tot for r in ratios]
+    rowH = row_heights({"h": el["h"], "rowH": [_num(r.get("h", 1), 1) for r in rows]}, len(rows)) if rows else []
+    head_fill, head_color = st.get("headFill", "surface-container-high"), st.get("headColor", "on-surface")
+    base_font, base_color = st.get("font"), st.get("color", "on-surface")
+    cells, merge = [], []
+    for i, r in enumerate(rows):
+        rc = (list(r.get("cells") or []) + [""] * nc)[:nc]
+        hd = bool(r.get("header")) if "header" in r else (i == 0 and st.get("header", True) is not False)
+        row = []
+        for j in range(nc):
+            c = rc[j] if isinstance(rc[j], dict) else {"v": rc[j]}
+            col = cols[j]
+
+            def pick(k, dflt):
+                for src in (c, r, col):
+                    if src.get(k) is not None:
+                        return src[k]
+                return dflt
+            font = pick("font", None)
+            cell = {"text": "" if c.get("v") is None else str(c.get("v")), "fill": pick("fill", head_fill if hd else None),
+                    "color": pick("color", head_color if hd else base_color), "bold": bool(pick("bold", hd)),
+                    "align": pick("align", "left"), "font": "body" if (hd and font is None) else font_role(font if font is not None else base_font), "head": hd}
+            for k in ("italic", "size", "valign", "pad", "bd"):
+                v = pick(k, None)
+                if v is not None:
+                    cell[k] = dict(v) if k == "bd" and isinstance(v, dict) else v
+            row.append(cell)
+            sp = c.get("span")
+            if isinstance(sp, (list, tuple)) and len(sp) == 2:
+                try:
+                    rs, cs = int(sp[0]), int(sp[1])
+                    if rs > 1 or cs > 1:
+                        merge.append([i, j, rs, cs])
+                except (TypeError, ValueError):
+                    pass
+        cells.append(row)
+    rule = st.get("rule", el.get("rule", "surface-container-high"))
+    table_cell_styles({"cellFill": el.get("cellFill"), "borders": el.get("borders"), "gridLines": st.get("gridLines", el.get("gridLines")), "rule": rule}, cells, nc)
+    return {"x": el["x"], "y": el["y"], "tw": el["w"], "colW": colW, "rowH": rowH, "cells": cells, "rule": rule,
+            "size": st.get("size", 16), "callouts": [], "merge": merge}
+
+
+def table_to_obj(el):
+    """렌더 표(table) → 표 객체(table-obj). 머리·열 글꼴·열 정렬·행 높이·셀 채움·테두리·병합을 객체 구조로 옮긴다(글은 그대로). render.js tableToObj 와 같다."""
+    rows = el.get("rows") or []
+    nc = max([len(r) for r in rows] + [1])
+    fonts, aligns = list(el.get("colFont") or []), list(el.get("align") or [])
+    colw = list(el.get("colW") or [])
+    cols = []
+    for j in range(nc):
+        c = {"w": _num(colw[j], 1) if j < len(colw) else 1}
+        if j < len(fonts) and fonts[j]:
+            c["font"] = font_role(fonts[j])
+        if j < len(aligns) and aligns[j]:
+            c["align"] = aligns[j]
+        cols.append(c)
+    rowh = list(el.get("rowH") or [])
+    header = el.get("header", True)
+    fills = {}
+    for f in el.get("cellFill") or []:
+        try:
+            r, c, col = list(f)[:3]
+        except (TypeError, ValueError):
+            continue
+        r, c = _tidx(r), _tidx(c)
+        if r is False or c is False or not col:
+            continue
+        for i in range(len(rows)):
+            if r is not None and i != r:
+                continue
+            for j in range(nc):
+                if c is None or j == c:
+                    fills[(i, j)] = col
+    spans = {(int(m[0]), int(m[1])): [int(m[2]), int(m[3])] for m in (el.get("merge") or []) if isinstance(m, (list, tuple)) and len(m) >= 4}
+    out_rows = []
+    for i, r in enumerate(rows):
+        cells = []
+        for j in range(nc):
+            v = str(r[j]) if j < len(r) else ""
+            o = {}
+            if (i, j) in fills:
+                o["fill"] = fills[(i, j)]
+            if (i, j) in spans:
+                o["span"] = spans[(i, j)]
+            cells.append({"v": v, **o} if o else v)
+        ro = {"cells": cells}
+        if i == 0 and header:
+            ro["header"] = True
+            if any(fonts):
+                ro["font"] = "body"  # 렌더 표의 머리 행은 항상 본문 글꼴
+        if i < len(rowh):
+            ro["h"] = _num(rowh[i], 1)
+        out_rows.append(ro)
+    style = {k: el[k] for k in ("headFill", "headColor", "rule", "gridLines", "size", "font", "color") if el.get(k) is not None}
+    if not header:
+        style["header"] = False
+    new = {k: v for k, v in el.items() if k not in ("rows", "colW", "rowH", "colFont", "align", "merge", "cellFill", "header", "headFill", "headColor", "rule", "gridLines", "size", "font", "color")}
+    new.update({"type": "table-obj", "cols": cols, "rows": out_rows, "style": style})
+    if el.get("borders"):
+        new["borders"] = el["borders"]
+    return new
+
+
+def obj_to_table(el):
+    """표 객체 → 렌더 표. 글·열 폭·열 글꼴·열 정렬·행 높이·머리·style·셀 채움·span 은 옮기고, 셀·행 단위 글자 서식(색·굵게·크기·세로·여백·기울임)은 버린다.
+    돌려주는 값: (새 요소, 버린 서식 키 목록)."""
+    g = table_obj_grid(el)
+    rows = [r if isinstance(r, dict) else {"cells": list(r)} for r in (el.get("rows") or [])]
+    cols = [c if isinstance(c, dict) else {"w": c} for c in (el.get("cols") or [])]
+    nc = len(g["colW"])
+    st = el.get("style") or {}
+    out = {k: v for k, v in el.items() if k not in ("rows", "cols", "style")}
+    out["type"] = "table"
+    out["rows"] = [["" if not isinstance(c, dict) and c is None else (str(c.get("v", "") if isinstance(c, dict) else c)) for c in ((list(r.get("cells") or []) + [""] * nc)[:nc])] for r in rows]
+    out["colW"] = [_num(c.get("w", 1), 1) for c in (cols + [{}] * nc)[:nc]]
+    if any(c.get("font") for c in cols):
+        out["colFont"] = [font_role(c.get("font")) if c.get("font") else "" for c in (cols + [{}] * nc)[:nc]]
+    if any(c.get("align") for c in cols):
+        out["align"] = [c.get("align") or "" for c in (cols + [{}] * nc)[:nc]]
+    if any(r.get("h") is not None for r in rows):
+        out["rowH"] = [_num(r.get("h", 1), 1) for r in rows]
+    if rows and not (bool(rows[0].get("header")) if "header" in rows[0] else st.get("header", True) is not False):
+        out["header"] = False
+    for k in ("headFill", "headColor", "rule", "gridLines", "size", "font", "color"):
+        if st.get(k) is not None:
+            out[k] = st[k]
+    fills, merge, dropped = [], [], set()
+    for i, r in enumerate(rows):
+        for k in TABLE_OBJ_CELL_KEYS:
+            if r.get(k) is not None and k != "fill" and not (k == "font" and r.get("header") and r.get("font") == "body"):
+                dropped.add(k)
+        if r.get("fill") is not None:
+            fills.append([i, None, r["fill"]])
+        for j, c in enumerate((list(r.get("cells") or []) + [""] * nc)[:nc]):
+            if not isinstance(c, dict):
+                continue
+            if c.get("fill") is not None:
+                fills.append([i, j, c["fill"]])
+            if isinstance(c.get("span"), (list, tuple)) and len(c["span"]) == 2:
+                merge.append([i, j, int(c["span"][0]), int(c["span"][1])])
+            for k in TABLE_OBJ_CELL_KEYS:
+                if k not in ("fill", "bd") and c.get(k) is not None:
+                    dropped.add(k)
+            if c.get("bd"):
+                dropped.add("bd")
+    if fills or el.get("cellFill"):
+        out["cellFill"] = list(el.get("cellFill") or []) + fills
+    if merge:
+        out["merge"] = merge
+    return out, sorted(dropped)
 
 
 def table_grid(el):
-    """반환: {x, y, tw, colW(px), rowH(px), cells[r][c]{text,fill,color,bold,align,font,bd?}, rule, callouts[]}"""
+    """반환: {x, y, tw, colW(px), rowH(px), cells[r][c]{text,fill,color,bold,align,font,head,bd?}, rule, callouts[], merge?}"""
+    if el.get("type") == "table-obj":
+        return table_obj_grid(el)
     is_plan = el.get("type") == "plan-table"
     if is_plan:
         cols = el.get("columns", [])
@@ -1169,7 +1346,7 @@ def table_grid(el):
             vals = [str((r.get("cells") or [])[j]) if j < len(r.get("cells") or []) else "" for r in body]
             auto.append("right" if j != op and any(v.strip() for v in vals) and all((not v.strip()) or _NUM.match(v) for v in vals) else "left")
         cells.append([{"text": str(c), "fill": head_fill, "color": head_color, "bold": True, "font": "body",
-                       "align": aligns[j] if j < len(aligns) and aligns[j] else auto[j]} for j, c in enumerate(cols)])
+                       "align": aligns[j] if j < len(aligns) and aligns[j] else auto[j], "head": True} for j, c in enumerate(cols)])
         for r in body:
             rc = list(r.get("cells") or []) + [""] * nc
             hl = {int(k): v for k, v in (r.get("hl") or {}).items()}
@@ -1181,7 +1358,7 @@ def table_grid(el):
                 role = hl.get(j)
                 fill, color = HL_ROLE.get(role, (None, el.get("color", "on-surface")))
                 row.append({"text": t, "fill": fill, "color": color, "bold": bool(role), "font": "mono",
-                            "align": aligns[j] if j < len(aligns) and aligns[j] else auto[j]})
+                            "align": aligns[j] if j < len(aligns) and aligns[j] else auto[j], "head": False})
             cells.append(row)
     else:
         for i, r in enumerate(el.get("rows", [])):
@@ -1190,7 +1367,7 @@ def table_grid(el):
             cells.append([{"text": str(rc[j]), "fill": head_fill if hd else None,
                            "color": head_color if hd else el.get("color", "on-surface"), "bold": hd,
                            "align": (aligns[j] if j < len(aligns) and aligns[j] else "left"),
-                           "font": "body" if hd else font_role(fonts[j] if j < len(fonts) and fonts[j] else def_font)}
+                           "font": "body" if hd else font_role(fonts[j] if j < len(fonts) and fonts[j] else def_font), "head": hd}
                           for j in range(nc)])
     table_cell_styles(el, cells, nc)
     callouts = []

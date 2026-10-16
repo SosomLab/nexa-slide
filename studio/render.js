@@ -318,9 +318,94 @@
       if (r === false || c === false || !sides) continue;
       for (let i = 0; i < nr; i++) { if (r != null && i !== r) continue; for (let j = 0; j < nc; j++) { if (c != null && j !== c) continue; const k = `${i},${j}`; const d = bds.get(k) || {}; for (const sd of sides) if ("TBLR".includes(sd)) d[sd] = [col, w]; bds.set(k, d); } }
     }
-    for (const [k, d] of bds) { if (Object.keys(d).length) { const [i, j] = k.split(",").map(Number); cells[i][j].bd = d; } }
+    for (const [k, d] of bds) { if (Object.keys(d).length) { const [i, j] = k.split(",").map(Number); cells[i][j].bd = { ...(cells[i][j].bd || {}), ...d }; } }
+  }
+  const TABLE_OBJ_CELL_KEYS = ["fill", "color", "bold", "italic", "align", "valign", "font", "size", "pad", "bd"];
+  const numOr = (v, d) => { const x = +v; return x > 0 ? x : d; };
+  /** 표 객체(table-obj) → tableGrid 와 같은 격자 (common.table_obj_grid 와 같은 규칙 - 셀 > 행 > 열 > style > 기본, 병합은 셀 span) */
+  function tableObjGrid(el) {
+    const st = el.style || {};
+    const rows = (el.rows || []).map((r) => (r && !Array.isArray(r) && typeof r === "object" ? r : { cells: [...(r || [])] }));
+    let cols = (el.cols || []).map((c) => (c && typeof c === "object" ? c : { w: c }));
+    const nc = Math.max(cols.length, ...rows.map((r) => (r.cells || []).length), 1);
+    cols = cols.slice(0, nc); while (cols.length < nc) cols.push({});
+    const ratios = cols.map((c) => numOr(c.w == null ? 1 : c.w, 1)), tot = ratios.reduce((a, b) => a + b, 0) || 1;
+    const colW = ratios.map((r) => (el.w * r) / tot);
+    const rowH = rows.length ? rowHeights({ h: el.h, rowH: rows.map((r) => numOr(r.h == null ? 1 : r.h, 1)) }, rows.length) : [];
+    const headFill = st.headFill || "surface-container-high", headColor = st.headColor || "on-surface", baseFont = st.font, baseColor = st.color || "on-surface";
+    const cells = [], merge = [];
+    rows.forEach((r, i) => {
+      const rc = [...(r.cells || [])].slice(0, nc); while (rc.length < nc) rc.push("");
+      const hd = "header" in r ? !!r.header : (i === 0 && st.header !== false);
+      const row = [];
+      for (let j = 0; j < nc; j++) {
+        const c = rc[j] && typeof rc[j] === "object" ? rc[j] : { v: rc[j] }, col = cols[j];
+        const pick = (k, d) => { for (const src of [c, r, col]) if (src[k] != null) return src[k]; return d; };
+        const font = pick("font", null);
+        const cell = { text: c.v == null ? "" : String(c.v), fill: pick("fill", hd ? headFill : null), color: pick("color", hd ? headColor : baseColor), bold: !!pick("bold", hd),
+          align: pick("align", "left"), font: hd && font == null ? "body" : fontRole(font != null ? font : baseFont), head: hd };
+        for (const k of ["italic", "size", "valign", "pad", "bd"]) { const v = pick(k, null); if (v != null) cell[k] = k === "bd" && typeof v === "object" ? { ...v } : v; }
+        row.push(cell);
+        const sp = c.span;
+        if (Array.isArray(sp) && sp.length === 2) { const rs = parseInt(sp[0], 10), cs = parseInt(sp[1], 10); if (!isNaN(rs) && !isNaN(cs) && (rs > 1 || cs > 1)) merge.push([i, j, rs, cs]); }
+      }
+      cells.push(row);
+    });
+    const rule = st.rule || el.rule || "surface-container-high";
+    tableCellStyles({ cellFill: el.cellFill, borders: el.borders, gridLines: st.gridLines != null ? st.gridLines : el.gridLines, rule }, cells, nc);
+    return { x: el.x, y: el.y, tw: el.w, colW, rowH, cells, rule, size: st.size || 16, callouts: [], merge };
+  }
+  /** 렌더 표 → 표 객체 (common.table_to_obj 와 같다) */
+  function tableToObj(el) {
+    const rows = el.rows || [], nc = Math.max(1, ...rows.map((r) => r.length));
+    const fonts = el.colFont || [], aligns = el.align || [], colw = el.colW || [], rowh = el.rowH || [], header = el.header !== false;
+    const cols = []; for (let j = 0; j < nc; j++) { const c = { w: j < colw.length ? numOr(colw[j], 1) : 1 }; if (fonts[j]) c.font = fontRole(fonts[j]); if (aligns[j]) c.align = aligns[j]; cols.push(c); }
+    const fills = new Map();
+    for (const f of el.cellFill || []) { if (!Array.isArray(f) || f.length < 3) continue; const r = tidx(f[0]), c = tidx(f[1]), col = f[2]; if (r === false || c === false || !col) continue; for (let i = 0; i < rows.length; i++) { if (r != null && i !== r) continue; for (let j = 0; j < nc; j++) if (c == null || j === c) fills.set(`${i},${j}`, col); } }
+    const spans = new Map(); for (const m of el.merge || []) if (Array.isArray(m) && m.length >= 4) spans.set(`${+m[0]},${+m[1]}`, [+m[2], +m[3]]);
+    const outRows = rows.map((r, i) => {
+      const cells = []; for (let j = 0; j < nc; j++) { const v = j < r.length ? String(r[j]) : ""; const o = {}; if (fills.has(`${i},${j}`)) o.fill = fills.get(`${i},${j}`); if (spans.has(`${i},${j}`)) o.span = spans.get(`${i},${j}`); cells.push(Object.keys(o).length ? { v, ...o } : v); }
+      const ro = { cells }; if (i === 0 && header) { ro.header = true; if (fonts.some(Boolean)) ro.font = "body"; } if (i < rowh.length) ro.h = numOr(rowh[i], 1); return ro;
+    });
+    const style = {}; for (const k of ["headFill", "headColor", "rule", "gridLines", "size", "font", "color"]) if (el[k] != null) style[k] = el[k]; if (!header) style.header = false;
+    const drop = new Set(["rows", "colW", "rowH", "colFont", "align", "merge", "cellFill", "header", "headFill", "headColor", "rule", "gridLines", "size", "font", "color"]);
+    const out = {}; for (const k of Object.keys(el)) if (!drop.has(k)) out[k] = el[k];
+    Object.assign(out, { type: "table-obj", cols, rows: outRows, style }); if (el.borders) out.borders = el.borders;
+    return out;
+  }
+  /** 표 객체 → 렌더 표 - 셀·행 단위 글자 서식은 버린다. → {el, dropped[]} (common.obj_to_table 와 같다) */
+  function objToTable(el) {
+    const g = tableObjGrid(el), nc = g.colW.length, st = el.style || {};
+    const rows = (el.rows || []).map((r) => (r && !Array.isArray(r) && typeof r === "object" ? r : { cells: [...(r || [])] }));
+    let cols = (el.cols || []).map((c) => (c && typeof c === "object" ? c : { w: c })); cols = cols.slice(0, nc); while (cols.length < nc) cols.push({});
+    const out = {}; for (const k of Object.keys(el)) if (!["rows", "cols", "style"].includes(k)) out[k] = el[k];
+    out.type = "table";
+    const padRow = (r) => { const rc = [...(r.cells || [])].slice(0, nc); while (rc.length < nc) rc.push(""); return rc; };
+    out.rows = rows.map((r) => padRow(r).map((c) => (c && typeof c === "object" ? (c.v == null ? "" : String(c.v)) : (c == null ? "" : String(c)))));
+    out.colW = cols.map((c) => numOr(c.w == null ? 1 : c.w, 1));
+    if (cols.some((c) => c.font)) out.colFont = cols.map((c) => (c.font ? fontRole(c.font) : ""));
+    if (cols.some((c) => c.align)) out.align = cols.map((c) => c.align || "");
+    if (rows.some((r) => r.h != null)) out.rowH = rows.map((r) => numOr(r.h == null ? 1 : r.h, 1));
+    if (rows.length && !("header" in rows[0] ? !!rows[0].header : st.header !== false)) out.header = false;
+    for (const k of ["headFill", "headColor", "rule", "gridLines", "size", "font", "color"]) if (st[k] != null) out[k] = st[k];
+    const fills = [], merge = [], dropped = new Set();
+    rows.forEach((r, i) => {
+      for (const k of TABLE_OBJ_CELL_KEYS) if (r[k] != null && k !== "fill" && !(k === "font" && r.header && r.font === "body")) dropped.add(k);
+      if (r.fill != null) fills.push([i, null, r.fill]);
+      padRow(r).forEach((c, j) => {
+        if (!c || typeof c !== "object") return;
+        if (c.fill != null) fills.push([i, j, c.fill]);
+        if (Array.isArray(c.span) && c.span.length === 2) merge.push([i, j, +c.span[0], +c.span[1]]);
+        for (const k of TABLE_OBJ_CELL_KEYS) if (k !== "fill" && k !== "bd" && c[k] != null) dropped.add(k);
+        if (c.bd) dropped.add("bd");
+      });
+    });
+    if (fills.length || el.cellFill) out.cellFill = [...(el.cellFill || []), ...fills];
+    if (merge.length) out.merge = merge;
+    return { el: out, dropped: [...dropped].sort() };
   }
   function tableGrid(el) {
+    if (el.type === "table-obj") return tableObjGrid(el);
     const isPlan = el.type === "plan-table";
     let cols, n, tw, cw = 0, body = [];
     if (isPlan) {
@@ -351,7 +436,7 @@
         const vals = body.map((r) => (r.cells && j < r.cells.length ? String(r.cells[j]) : ""));
         auto.push(j !== op && vals.some((v) => v.trim()) && vals.every((v) => !v.trim() || NUM.test(v)) ? "right" : "left");
       }
-      cells.push(cols.map((c, j) => ({ text: String(c), fill: headFill, color: headColor, bold: true, font: "body", align: aligns[j] || auto[j] })));
+      cells.push(cols.map((c, j) => ({ text: String(c), fill: headFill, color: headColor, bold: true, font: "body", align: aligns[j] || auto[j], head: true })));
       for (const r of body) {
         const rc = (r.cells || []).slice(); while (rc.length < nc) rc.push("");
         const hl = r.hl || {};
@@ -361,7 +446,7 @@
           if (j === op) t = "  ".repeat(parseInt(r.depth || 0, 10)) + t;
           const role = hl[j] || hl[String(j)];
           const [fill, col] = HL_ROLE[role] || [null, el.color || "on-surface"];
-          row.push({ text: t, fill, color: col, bold: !!role, font: "mono", align: aligns[j] || auto[j] });
+          row.push({ text: t, fill, color: col, bold: !!role, font: "mono", align: aligns[j] || auto[j], head: false });
         }
         cells.push(row);
       }
@@ -371,7 +456,7 @@
         const hd = (el.header !== false) && i === 0;
         cells.push(rc.slice(0, nc).map((t, j) => ({
           text: String(t), fill: hd ? headFill : null, color: hd ? headColor : (el.color || "on-surface"), bold: hd,
-          align: aligns[j] || "left", font: hd ? "body" : fontRole(fonts[j] || defFont),
+          align: aligns[j] || "left", font: hd ? "body" : fontRole(fonts[j] || defFont), head: hd,
         })));
       });
     }
@@ -849,19 +934,20 @@
   function elTable(el, page) {
     const g = tableGrid(el);
     let html = "", y = 0;
-    const size = g.size, mg = el.type === "plan-table" ? { span: new Map(), skip: new Set() } : tableMerges(el, g.cells.length, g.colW.length);
+    const size = g.size, mg = el.type === "plan-table" ? { span: new Map(), skip: new Set() } : tableMerges(g.merge ? { merge: g.merge } : el, g.cells.length, g.colW.length);
+    const VJ = { top: "flex-start", middle: "center", bottom: "flex-end" };
     g.cells.forEach((row, i) => {
       let x = 0;
-      const isHead = i === 0 && (el.type === "plan-table" || el.header !== false);
       row.forEach((c, j) => {
+        const isHead = !!c.head, cs = +c.size || size, pad = c.pad != null ? padOf({ pad: c.pad }) : [0, 14, 0, 14];
         const sp = mg.span.get(`${i},${j}`);
         if (mg.skip.has(`${i},${j}`)) { x += g.colW[j]; return; }  // 병합에 덮인 셀
         const w = sp ? g.colW.slice(j, j + sp[1]).reduce((a, b) => a + b, 0) : g.colW[j], h = sp ? g.rowH.slice(i, i + sp[0]).reduce((a, b) => a + b, 0) : g.rowH[i];
         const bd = c.bd || {}, SIDE = { T: "top", B: "bottom", L: "left", R: "right" };
         const side = (k, dflt) => { const v = bd[k] || dflt; return v ? `border-${SIDE[k]}:${v[1]}px solid ${color(v[0])};` : ""; };
         const bb = side("T") + side("B", isHead ? null : [g.rule, 1]) + side("L") + side("R");  // 기본 = 본문 행 아래 선(rule), 셀별 bd 가 덮어씀(export_pptx.do_table 과 같다)
-        html += `<div class="rs-cell" style="left:${x}px;top:${y}px;width:${w}px;height:${h}px;${c.fill ? `background:${color(c.fill)};` : ""}${bb}justify-content:${HJUST[c.align] || "flex-start"};font-family:${font(c.font)};font-size:${size}px;line-height:${size * 1.4}px;text-align:${c.align}">` +
-          `<div class="rs-ct" style="position:relative;top:${shift(c.font, size, 1.4)}px">${spanRuns(c.text, page, color(c.color), c.bold) || "&#8203;"}</div></div>`;
+        html += `<div class="rs-cell" style="left:${x}px;top:${y}px;width:${w}px;height:${h}px;${c.fill ? `background:${color(c.fill)};` : ""}${bb}justify-content:${HJUST[c.align] || "flex-start"};align-items:${VJ[c.valign] || "center"};padding:${pad[0]}px ${pad[1]}px ${pad[2]}px ${pad[3]}px;font-family:${font(c.font)};font-size:${cs}px;line-height:${cs * 1.4}px;text-align:${c.align}${c.italic ? ";font-style:italic" : ""}">` +
+          `<div class="rs-ct" style="position:relative;top:${shift(c.font, cs, 1.4)}px">${spanRuns(c.text, page, color(c.color), c.bold) || "&#8203;"}</div></div>`;
         x += g.colW[j];
       });
       y += g.rowH[i];
@@ -949,7 +1035,7 @@
       case "group": inner = (el.children || []).map((c) => renderElement(c, page)).join(""); break;  // 자식은 묶음 상자 기준 좌표 - 묶음의 회전·뒤집기가 함께 적용된다
       case "line": case "arrow": inner = elLine(el); break;
       case "curve": inner = elCurve(el); break;
-      case "table": case "plan-table": inner = elTable(el, page); break;
+      case "table": case "plan-table": case "table-obj": inner = elTable(el, page); break;
       case "code": inner = elCode(el); break;
       case "plan": inner = elPlan(el); break;
       case "bullets": inner = elBullets(el, page); break;
@@ -990,7 +1076,7 @@
 .rs-cell>.rs-ct{white-space:pre-wrap;word-break:keep-all;flex:1}`;
   }
 
-  const api = { setLazy, setDeckFonts, presetFonts, fontRole, setTokens, setLangs, langOf, color, colorAlpha, fillSpec, fillCss, radius, runs, plain, hlSQL, hlPython, codeLines, planRuns, tableGrid, tableMerges, chartAxis, chartData, chartFmt, comboLines, iconNames, bulletRows, bulletNum, numHang, markerNum, numLabel, shapePath, shapeNames, renderElement, renderSlide, css, esc, lineBox };
+  const api = { setLazy, setDeckFonts, presetFonts, fontRole, setTokens, setLangs, langOf, color, colorAlpha, fillSpec, fillCss, radius, runs, plain, hlSQL, hlPython, codeLines, planRuns, tableGrid, tableMerges, chartAxis, chartData, chartFmt, comboLines, tableToObj, objToTable, iconNames, bulletRows, bulletNum, numHang, markerNum, numLabel, shapePath, shapeNames, renderElement, renderSlide, css, esc, lineBox };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   root.Render = api;
 })(typeof window !== "undefined" ? window : globalThis);
