@@ -5,7 +5,7 @@
 
 > 그림 형식: **구성은 flowchart**(무엇이 어디에 있나), **시간 순서는 sequence diagram**(요청이 어떻게 흐르나), **세션 수명은 state diagram**(상태가 어떻게 바뀌나)으로 나눴다.
 > 한 그림에 다 넣으면 읽기 어렵다 — 구성도로 위치를 잡고, 궁금한 흐름의 시퀀스 그림을 본다.
-> 소스 위치는 함수 이름 기준이다(1~7절은 B-3 `717af8a`, 8~9절과 구성도의 엔진 부분은 0.21.2 `0707d1e`). 줄 번호는 바뀌므로 함수 이름으로 찾는다.
+> 소스 위치는 함수 이름 기준이다(1~7절은 B-3 `717af8a`, 8~9절과 구성도의 엔진 부분은 0.21.2 `0707d1e`, 8.1·8.2 와 구성도의 수동 엔진 세션은 0.22.21). 줄 번호는 바뀌므로 함수 이름으로 찾는다.
 
 ## 0. 예시 구성 — 작업 공간 3개
 
@@ -50,6 +50,7 @@ flowchart LR
         FSB[(작업 공간 B 파일<br/>decks/*.json · *.requests.json · *.changes.jsonl<br/>out/.studio/server.json · session.json · flush.json<br/>out/.studio/sessions/시각/turn-N.jsonl)]
         Q[(엔진 요청 큐 - 사용자 설정 폴더<br/>hub/engine/requests.json · requests.lock<br/>hub/engine/attach/요청 id/)]
         CLE[claude -p 프로세스<br/>턴마다 생성 · cwd = 엔진 worktree]
+        MANE[수동 엔진 세션<br/>VS Code · 터미널 /nexa-slide-server<br/>watch_engine_requests --stream]
         WT[(엔진 worktree<br/>엔진/.claude/worktrees/engine-dev<br/>브랜치 engine-dev · .nexa/ 큐 CLI·첨부 사본)]
         MAIN[(엔진 운영 트리 main<br/>허브·작업 공간 서버가 실행하는 코드)]
     end
@@ -71,6 +72,8 @@ flowchart LR
     ENGS -->|큐에서 하나씩 · 턴마다 실행| CLE
     CLE -->|구현 · 검증 · commit| WT
     CLE -->|.nexa/engine_request.py status done| Q
+    MANE -->|큐 감시 · 하트비트 kind=manual · status done| Q
+    MANE -->|구현 · 검증 · commit| WT
     WT -.->|운영자가 검토 후 main 병합 · push · 재시작| MAIN
 ```
 
@@ -343,8 +346,10 @@ sequenceDiagram
     AD->>H: 허브·작업 공간 서버 재시작 (service.py restart · nexa.py restart)
     AD->>Q: [적용됨] → status applied (appliedCommit = 병합 커밋)
     AD->>WT: engine-dev 를 main 으로 fast-forward (다음 세션이 최신 main 에서 시작)
-    Note over WS,AD: 원 요청 재개는 사람이 - 작업 공간에서 그 요청에 [후속 요청] 또는 다시 열기
+    Note over WS,AD: 원 요청 재개는 자동(E-5) - done·applied·rejected 때 원 요청에 알리고 applied 면 다시 연다(8.1)
 ```
+
+엔진 개발 세션은 웹(위 그림의 `EngineProfile` → `claude -p`) 대신 **수동 세션**(VS Code·터미널에서 `/nexa-slide-server`)이 맡을 수도 있다 — 둘 중 하나만 살아 있다(8.2).
 
 ```mermaid
 stateDiagram-v2
@@ -369,6 +374,90 @@ stateDiagram-v2
 | 허브 API | `server.py` `H.api_get_engine`(requests · session · notice · attach) · `H.api_post_engine`(requests: add 누구나 · status/priority/remove/startRequest 관리자 / session: start·stop·model 관리자) |
 | 엔진 세션 | `wsession.py` `EngineProfile`(`ensure_worktree` · `_copy_attachments` · 큐 CLI `.nexa/engine_request.py`) + 작업 공간 세션과 같은 `WebSession` 상태 기계·SSE |
 | 화면 | `home.html` 서버 작업 카드(상태별 집계 · 승인/거절/적용됨 · [세션 시작] · 진행 패널 · 요청 양식 첨부) · `menu.js` 알림 배지 |
+
+### 8.1 원 요청 연결 · 자동 재개 (E-5, 0.21.x)
+
+작업 공간 세션이 원 요청 id 를 붙여 넘기면 큐 항목과 원 요청이 서로를 가리키고, 큐 상태가 바뀔 때마다 원 요청에 알림이 간다. **applied** 가 되면 원 요청이 다시 `open` 이 되어 감시 중인 작업 공간 세션이 이어서 처리한다(새 엔진으로).
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant WS as 작업 공간 세션
+    participant RQ as 원 요청 decks/{덱}.requests.json
+    participant CLI as engine_request.py (CLI)
+    participant Q as 큐 hub/engine/requests.json
+    participant DEV as 엔진 개발 세션 (웹·수동)
+    actor AD as 관리자
+    participant ST as Studio 요청 카드
+
+    WS->>CLI: nexa.py engine_request add --request {원 요청 id} --deck {덱} --title …
+    CLI->>Q: add (from = {kind: session, ws, deck, request}) → triage
+    CLI->>RQ: link_origin → _origin_update {engineRequest: N}
+    Note right of RQ: 작업 공간 서버가 떠 있으면 POST /api/requests/{덱} (action update)<br/>꺼져 있으면 파일을 직접 고친다
+    RQ-->>ST: "엔진 요청 #N" 배지 (중계로 열었으면 /engine?q=#N 링크)
+    AD->>Q: [승인] triage → open
+    DEV->>Q: working → 구현·검증·커밋 → status N done --commit …
+    Q->>RQ: update → resume_origin(done) → engineNote "처리됨(커밋 …) - 적용되면 다시 처리"
+    AD->>AD: main 병합 · push · 서버 재시작
+    AD->>Q: [적용됨] 또는 status N applied --applied-commit {main 해시}
+    Q->>RQ: resume_origin(applied) → {status: open, engineNote: "적용됨(main …) - 다시 처리"}
+    RQ-->>WS: 요청이 다시 open - 감시가 받아 이어서 처리
+    Note over Q,RQ: rejected 면 engineNote 에 거절 사유만 (status 는 그대로)
+```
+
+| 단계 | 소스 · 함수 |
+|---|---|
+| 넘기기 · 연결 | `engine_request.py` add(`--request`·`--deck`) → `engine_requests.add` · `link_origin` |
+| 원 요청 고치기 | `engine_requests._origin_of`(from.kind=session · ws · deck · request 가 다 있을 때만) · `_origin_update`(`hub.server_state` 로 서버 확인 → `POST /api/requests/<덱>`, 아니면 파일) |
+| 상태 알림 | `engine_requests.update` → `resume_origin`(done · applied · rejected) — CLI·허브 API 모두 같은 길 |
+| 받는 쪽 | `server.py` `api_post_requests` update(`engineRequest`·`engineNote` 만 받음) · `studio.js` 요청 카드 배지·한 줄 안내 |
+| 시험 | `studio/tests/engine_link_test.py` |
+
+### 8.2 수동 엔진 세션 (0.21.12 ~ 0.21.14)
+
+Claude Code 는 밖에서 실행 중인 세션에 입력을 넣는 공개 API 가 없다. 그래서 **세션 쪽에서** 슬래시 명령 `/nexa-slide-server` 로 큐를 맡는다(`.claude/commands/nexa-slide-server.md`). 감시는 하트비트 파일로 자기를 알리고, 허브는 웹 엔진 세션이 꺼져 있을 때 그 파일을 보고 카드에 "수동 세션"으로 보인다.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor U as 사용자
+    participant S as Claude Code 세션 (VS Code · 터미널)
+    participant W as watch_engine_requests.py --stream (Monitor)
+    participant HB as 하트비트 hub/engine/.studio/session.json
+    participant Q as 큐 hub/engine/requests.json
+    participant H as 허브 :5599 (서버 작업 카드)
+
+    U->>S: /nexa-slide-server
+    S->>HB: session_state() - 웹 엔진 세션(kind=engine)·다른 수동 감시가 살아 있나
+    S->>W: Monitor 로 실행 (--label · --agent · --model, 넘겨받기면 --takeover)
+    alt 웹 엔진 세션이 살아 있음
+        W-->>S: {"event":"refused","reason":"web-engine-session"} → 카드 [세션 중지] 안내
+    else 다른 수동 감시가 살아 있음
+        W-->>S: refused already-watched (--takeover 면 procutil.kill_tree 로 이전 감시를 끝내고 takeover)
+    end
+    W-->>S: {"event":"idle","connected":true,"open":n,"triage":n}
+    loop 1초마다
+        W->>HB: _beat (kind=manual · pid · label · agent · model · ts)
+        W->>Q: load · counts - open 이 새로 생기거나 updated 가 바뀌었나
+        W-->>S: {"event":"request","item":{…}} → 세션이 engine-dev worktree 에서 처리
+        H->>HB: /api/engine · /api/home/live - WS_ENGINE 이 꺼져 있으면 state=manual
+    end
+    alt 세션·창이 닫힘
+        W->>W: StdoutWatch.closed() (stdout_closed) → 끝냄
+    else 관리자가 카드 [끊기]
+        H->>W: POST /api/engine/session {stop} → 웹 세션 없음 → procutil.stop_manual(하트비트) → kill_tree
+    else 30분 만료
+        W-->>S: {"event":"expired"} → 세션이 같은 명령으로 다시 띄움
+    end
+    W->>HB: finally _beat(stopped) → 카드 "세션 없음"
+```
+
+| 단계 | 소스 · 함수 |
+|---|---|
+| 슬래시 명령 | `.claude/commands/nexa-slide-server.md`(엔진) · 작업 공간은 `init_workspace.ensure_claude_commands` 가 `/nexa-slide-session` 판을 둔다 |
+| 감시 | `watch_engine_requests.py` `main`(`--stream`·`--takeover`·`--ttl`, 기본 1780초) · `_beat` · `procutil.session_meta`(agent·model·세션 ID) |
+| 상태 판정 | 허브 카드·슬래시 명령 0단계는 `engine_requests.session_state` · `pid_alive`, 웹 시작은 `wsession.EngineProfile.check_start`(`requests_core.heartbeat_status` · `pid_alive` — 수동 세션이 살아 있으면 거절) |
+| 끝내기 | `procutil.StdoutWatch` · `stdout_closed`(Windows 0바이트 WriteFile · POSIX poll) · `kill_tree`(taskkill /T /F · SIGTERM→SIGKILL) · `stop_manual` ← `server.py` 세션 stop(웹 세션이 없을 때) |
 
 ## 9. API 추가분 (0.19 ~ 0.21)
 
