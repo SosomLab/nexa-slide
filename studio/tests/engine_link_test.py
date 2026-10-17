@@ -55,6 +55,23 @@ def main():
         r1 = reqs()[0]
         check("link_origin → 원 요청 engineRequest (서버 경유)", ok and r1.get("engineRequest") == it["id"], str(r1)[:200])
         q.update(it["id"], status="open", by="admin"); q.update(it["id"], status="working", by="dev")
+        approved_body, approved_updated = it["body"], it["updated"]
+        it2 = q.add("추가 지시", "승인된 요청에 붙이면 안 됨", kind="session", ws=str(WS), ws_id="englink", request="r1", deck="el", slide="s1")
+        check("working 세션 요청의 중복은 원 항목을 바꾸지 않고 새 triage 생성",
+              it2["id"] != it["id"] and it2["status"] == "triage" and f"#{it['id']}" in it2["body"]
+              and it["body"] == approved_body and it["updated"] == approved_updated,
+              str({"original": it, "new": it2})[:300])
+        triage_body, triage_updated = it2["body"], it2["updated"]
+        it2b = q.add("추가 지시 2", "승인 전 덧붙임", kind="session", ws=str(WS), ws_id="englink", request="r1", deck="el", slide="s1")
+        check("triage 중복은 승인 대기 항목에만 덧붙임", it2b["id"] == it2["id"] and it2["status"] == "triage"
+              and it2["body"].startswith(triage_body) and it2["updated"] >= triage_updated, str(it2b)[:200])
+        q.update(it2["id"], status="open", by="admin")
+        open_body, open_updated = it2["body"], it2["updated"]
+        it2c = q.add("세 번째 추가", "open 요청에는 새 승인 필요", kind="session", ws=str(WS), ws_id="englink", request="r1", deck="el", slide="s1")
+        check("open 세션 요청의 중복도 원 항목을 보존하고 새 triage 생성",
+              it2c["id"] not in (it["id"], it2["id"]) and it2c["status"] == "triage" and f"#{it2['id']}" in it2c["body"]
+              and it2["body"] == open_body and it2["updated"] == open_updated,
+              str({"original": it2, "new": it2c})[:300])
         q.update(it["id"], status="done", by="dev", commit="abc1234")
         r1 = reqs()[0]
         check("done → engineNote 알림 · status 는 open 그대로", r1.get("status") == "open" and "처리됨" in (r1.get("engineNote") or "") and "abc1234" in r1["engineNote"], str(r1)[:200])
@@ -63,8 +80,9 @@ def main():
         q.update(it["id"], status="applied", by="admin", appliedCommit="main9")
         r1 = reqs()[0]
         check("applied → 원 요청 status open 으로 재개 · engineNote 적용됨", r1.get("status") == "open" and "적용됨" in (r1.get("engineNote") or "") and "main9" in r1["engineNote"], str(r1)[:200])
-        it2 = q.add("둘째", "", kind="session", ws=str(WS), ws_id="englink", request="r1", deck="el", slide="s1")
-        q.update(it2["id"], status="rejected", by="admin", reply="범위 밖")
+        it3 = q.add("둘째", "", kind="session", ws=str(WS), ws_id="englink", request="r1", deck="el", slide="s1")
+        q.link_origin(it3)
+        q.update(it3["id"], status="rejected", by="admin", reply="범위 밖")
         r1 = reqs()[0]
         check("rejected → engineNote 거절 사유", "거절됨" in (r1.get("engineNote") or "") and "범위 밖" in r1["engineNote"], str(r1)[:200])
     finally:
