@@ -61,6 +61,10 @@ AI 세션(B 단계 - docs/dev/web-session-design.md · studio/agents/ · wsessio
   /w/<id>/…                          그 작업 공간 서버(별도 프로세스·포트)로 그대로 넘기고 응답을 돌려준다(Location 은 접두를 다시 붙임).
                                      꺼져 있으면 띄운다(--port auto — 설정 포트가 쓰는 중이면 빈 포트). nexa.py 로 띄운 서버가 있으면 그 서버로.
                                      편집기(studio.js·menu.js·slide.html)는 주소의 /w/<id> 접두를 보고 /api·/out·그림 경로 앞에 붙인다.
+보기 전용 공유 링크(0.22.25 - share.py · docs/auth.md) - 허브, 로그인 없이 토큰으로 덱 1개 보기만
+  /s/<토큰>/…                         토큰 → 링크(만료·회수) → (비밀번호면) 쿠키 nexa_share → 허용 목록(view.html·render.js·i18n·tokens.json·fonts·
+                                     그 덱의 /api/deck/<덱>(notes·hidden 장 제거)·덱이 참조하는 그림)만 그 작업 공간 서버로 중계. 그 밖·모든 쓰기 403.
+  GET/POST /api/share · POST /api/share/<id>   (로그인 사용자) 목록·만들기 {action: "create", ws, deck, days?, password?} · 회수 {action: "revoke"}
 
 작업 공간 없이 띄우면(또는 작업 공간에 덱이 없으면) / 는 시작 페이지로 간다. 덱이 있으면 편집기(Studio)로.
 엔진 폴더 안의 작업 공간은 열지 않는다(허브로 뜬다) — 슬라이드 내용은 엔진 밖에 둔다.
@@ -92,6 +96,7 @@ from watch_requests import session_status  # noqa: E402
 import auth  # noqa: E402
 import ledger  # noqa: E402
 import hub  # noqa: E402
+import share  # noqa: E402
 sys.path.insert(0, str(STUDIO.parent / "docs" / "research" / "review"))
 try:  # 템플릿 검토(검토 등록부) — 시작 페이지 메뉴 "템플릿 검토"(/review)
     import review_server as review  # noqa: E402
@@ -378,12 +383,58 @@ def _is_poll(path):
     return bool(POLL_RX.search((path or "").split("?")[0]))
 
 
+# ---------- 보기 전용 공유 링크(허브 /s/<토큰>/…) - share.py · docs/auth.md ----------
+SHARE_ASSETS = {}  # 링크 id → {"paths": 덱이 참조하는 상대 경로 집합, "at"} - 덱 JSON 을 내줄 때 계산해 그 파일들만 중계한다
+SHARE_STATIC = {"/studio/render.js", "/studio/i18n.js", "/studio/tokens.json", "/studio/code_langs.json", "/studio/fonts.css", "/api/fontcss"}
+SHARE_STATIC_RX = re.compile(r"^(/studio/i18n/[A-Za-z0-9_.-]+\.js|/api/fontfile/[A-Za-z0-9_.-]+|/wsfonts/[^/]+)$")
+SHARE_DENIED_HTML = """<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>nexa-slide</title><style>body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#1a1a1a;color:#eee;font:15px/1.6 "Malgun Gothic","Apple SD Gothic Neo",system-ui,sans-serif}
+main{max-width:460px;padding:32px 28px;background:#262626;border-radius:16px}h1{font-size:19px;margin:0 0 10px}p{margin:6px 0;color:#ccc}.en{color:#999;font-size:13px}</style></head>
+<body><main><h1>이 링크는 열 수 없습니다</h1><p>주소가 잘못됐거나, 기한이 지났거나, 회수된 공유 링크입니다. 링크를 보낸 사람에게 새 링크를 요청해 주세요.</p>
+<p class="en">This link cannot be opened - it may be wrong, expired or revoked. Ask the sender for a new link.</p></main></body></html>"""
+
+
+def _share_assets(deck: dict) -> set:
+    """덱 JSON 이 참조하는 상대 경로(그림 src 등) - 공유 링크로 열 수 있는 작업 공간 파일은 이것뿐."""
+    out = set()
+
+    def walk(o):
+        if isinstance(o, dict):
+            for k, v in o.items():
+                if k in ("src", "image", "poster") and isinstance(v, str) and v and not re.match(r"^(https?:|data:|blob:|/|#)", v):
+                    out.add(unquote(v.split("?")[0].split("#")[0]).lstrip("./"))
+                else:
+                    walk(v)
+        elif isinstance(o, list):
+            for v in o:
+                walk(v)
+    walk(deck)
+    return out
+
+
+def share_filter_deck(lid, data: bytes) -> bytes:
+    """공유 응답용 덱 - 발표자 노트와 숨김 슬라이드를 뺀다(허브에서, 작업 공간 서버 응답을 고쳐서). 보이는 장의 원래 쪽 번호는 page 에."""
+    d = json.loads(data.decode("utf-8"))
+    slides = []
+    for i, s in enumerate(d.get("slides") or []):
+        if s.get("hidden"):
+            continue
+        s = {k: v for k, v in s.items() if k != "notes"}
+        s["page"] = i + 1
+        slides.append(s)
+    d["slides"] = slides
+    d.pop("notes", None)
+    SHARE_ASSETS[lid] = {"paths": _share_assets(d), "at": time.time()}
+    return json.dumps(d, ensure_ascii=False).encode("utf-8")
+
+
 class H(BaseHTTPRequestHandler):
     server_version = "nexa-slide/0.2"
     # 요청마다 - 인증 결과·로그용
     user = role = None
     via_hub = False      # 허브 중계를 거쳐 왔다(X-Nexa-Hub-Key 확인됨) - 작업 공간 서버에서
     _status = _err = _event = None
+    _share_ws = None     # 공유 링크(/s/…) 요청이면 그 작업 공간의 중계 이름(접근 로그 ws)
 
     def log_message(self, fmt, *args):
         if _is_poll(self.path):
@@ -422,7 +473,7 @@ class H(BaseHTTPRequestHandler):
         t0 = time.monotonic()
         self.user = self.role = None
         self.via_hub = False
-        self._status = self._err = self._event = None
+        self._status = self._err = self._event = self._share_ws = None
         try:
             self.dispatch(method)
         except Exception as e:  # noqa: BLE001 - 라우팅 밖에서 난 예외(핸들러 안의 예외는 _route 가 500 으로 답한다)
@@ -446,6 +497,8 @@ class H(BaseHTTPRequestHandler):
             self.user = self.headers.get("X-Nexa-User") or None
             self.role = self.headers.get("X-Nexa-Role") or None
         if HUB:
+            if path == "/s" or path.startswith("/s/"):  # 보기 전용 공유 링크 - 로그인 대신 토큰(AUTH_FREE 와 별도의 접두 분기, authenticate 전)
+                return self.share_route(method, path)
             if not self.authenticate(method, path):
                 return
         elif not self.via_hub and method in MUTATING and not self.origin_ok(strict=False):
@@ -527,6 +580,8 @@ class H(BaseHTTPRequestHandler):
                "server": SERVER_NAME or (hub.ws_id(WORKSPACE) if not HUB else "hub")}
         if m:
             rec["ws"] = unquote(m.group(1))
+        elif self._share_ws:
+            rec["ws"] = self._share_ws
         if self._err:
             rec["error"] = str(self._err)[:200]
         if self._event:
@@ -575,13 +630,14 @@ class H(BaseHTTPRequestHandler):
             return self.err(500, f"{type(e).__name__}: {e}")
 
     # ---------- 중계(허브 한 포트로 여러 작업 공간) ----------
-    def proxy(self, method, raw_id, path):
+    def proxy(self, method, raw_id, path, prefix=None, transform=None):
         """/w/<id>/<경로> → 그 작업 공간 서버의 /<경로>. 요청 머리·본문을 그대로 넘기고 응답을 그대로 돌려준다.
         응답의 Location 이 / 로 시작하면(예: / → /studio/) 접두 /w/<id> 를 다시 붙인다. 이 서버 자신의 작업 공간이면 접두만 떼고 여기서 처리한다.
         대상이 응답하지 않으면 기억을 지우고 한 번 더 찾는다(꺼졌으면 다시 띄운다).
-        raw_id 는 주소에 적힌 대로(한글은 퍼센트 부호화) - HTTP 머리(X-Forwarded-Prefix·Location)에는 이 형태를 쓰고, 작업 공간을 찾을 때만 푼다."""
+        raw_id 는 주소에 적힌 대로(한글은 퍼센트 부호화) - HTTP 머리(X-Forwarded-Prefix·Location)에는 이 형태를 쓰고, 작업 공간을 찾을 때만 푼다.
+        prefix 를 주면(공유 링크 /s/<토큰>) 그 접두를 쓰고, transform(bytes → bytes)은 200 응답 본문을 고친다(덱에서 노트·숨김 장 제거)."""
         wid = unquote(raw_id)
-        prefix = f"/w/{raw_id}"
+        prefix = prefix or f"/w/{raw_id}"
         n = int(self.headers.get("Content-Length") or 0)
         body = self.rfile.read(n) if n else b""
         try:
@@ -619,6 +675,8 @@ class H(BaseHTTPRequestHandler):
                     return self.send_json({"ok": False, "error": str(e2), **e2.extra}, 502)
             finally:
                 conn.close()
+        if transform and resp.status == 200 and method != "HEAD":
+            data = transform(data)
         self.send_response(resp.status, resp.reason)
         for k, v in resp.getheaders():
             kl = k.lower()
@@ -941,6 +999,139 @@ class H(BaseHTTPRequestHandler):
             return self.err(404, "덱 없음")
         import check_layout
         self.send_json(check_layout.check_deck(i))
+
+    # ---------- 보기 전용 공유 링크 /s/<토큰>/… (허브, 로그인 없이) - share.py · docs/auth.md ----------
+    def share_route(self, method, path):
+        """토큰 → 링크(만료·회수) → (비밀번호면) 쿠키 → 허용 목록만 그 작업 공간 서버로 중계(X-Nexa-User share:<id> · Role viewer).
+        잘못된 토큰·만료·회수는 같은 안내 페이지(존재 여부를 흘리지 않는다 - 상태 코드만 404/410). 로그·경로에는 토큰 대신 /s/<id>."""
+        u = urlparse(self.path)
+        m = re.match(rf"^/s/({share.TOKEN_RX})(/.*)?$", path)
+        found = share.lookup(m.group(1)) if m else None
+        if not found:
+            self.path = "/s/-" + ((m.group(2) or "") if m else "")
+            self._event = "share.denied:-:unknown"
+            return self.share_denied(404)
+        lid, rec = found
+        tok, rest = m.group(1), m.group(2) or ""
+        self.path = f"/s/{lid}{rest}" + (f"?{u.query}" if u.query else "")
+        self.user, self.role, self._share_ws = f"share:{lid}", "viewer", rec.get("wsId")
+        st = share.status(rec)
+        if st != "ok":
+            self._event = f"share.denied:{lid}:{st}"
+            return self.share_denied(410)
+        prefix = f"/s/{tok}"
+        if not rest:  # /s/<토큰> → /s/<토큰>/ (페이지의 상대 경로 기준)
+            self.send_response(302)
+            self.send_header("Location", prefix + "/")
+            self.send_header("Cache-Control", "no-store")
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+            return
+        authed = not rec.get("pw") or share.cookie_ok(auth.parse_cookies(self.headers.get("Cookie")).get(share.COOKIE), lid, rec)
+        if rest == "/api/share/state" and method == "GET":
+            return self.send_json({"ok": True, "deck": rec["deck"], "needPassword": not authed, "locked": auth.locked_for(f"share:{lid}"),
+                                   "expires": share.public(lid, rec)["expires"]})
+        if rest == "/api/share/auth" and method == "POST":
+            if not self.origin_ok(strict=True):
+                return self.err(403, "다른 출처의 요청")
+            return self.share_auth(lid, rec, prefix)
+        if method not in ("GET", "HEAD"):
+            self._event = f"share.denied:{lid}:method"
+            return self.err(403, "보기 전용 링크")
+        if rest == "/":  # 보기 페이지 - 비밀번호가 있어도 페이지는 연다(입력 화면), 자료는 열지 않는다
+            if authed and method == "GET":
+                self._event = f"share.view:{lid}"
+                share.note_view(lid)
+            return self.proxy(method, rec["wsId"], "/studio/view.html", prefix=prefix)
+        if not authed:
+            self._err = "share.password"
+            return self.send_json({"ok": False, "error": "password"}, 401)
+        if rest == f"/api/deck/{rec['deck']}":
+            return self.proxy(method, rec["wsId"], rest, prefix=prefix, transform=lambda data: share_filter_deck(lid, data))
+        cached = SHARE_ASSETS.get(lid) or {}
+        if not (rest in SHARE_STATIC or SHARE_STATIC_RX.match(rest) or unquote(rest).lstrip("/") in cached.get("paths", ())):
+            self._event = f"share.denied:{lid}:path"
+            return self.err(403, "이 링크로 열 수 없는 경로")
+        return self.proxy(method, rec["wsId"], rest + (f"?{u.query}" if u.query else ""), prefix=prefix)
+
+    def share_denied(self, status):
+        b = SHARE_DENIED_HTML.encode("utf-8")
+        self._err = "share.denied"
+        self.send_response(status)
+        self.send_header("Content-Type", "text/html; charset=utf-8")
+        self.send_header("Content-Length", str(len(b)))
+        self.send_header("Cache-Control", "no-store")
+        self.end_headers()
+        self.wfile.write(b)
+
+    def share_auth(self, lid, rec, prefix):
+        """비밀번호 확인 → 쿠키 nexa_share(Path=/s/<토큰>/, 링크 만료와 세션 7일 중 짧은 쪽). 실패 잠금은 auth._FAILS(링크 id 키, 5회/15분)."""
+        if not rec.get("pw"):
+            return self.send_json({"ok": True})
+        key = f"share:{lid}"
+        left = auth.locked_for(key)
+        if left:
+            self._event = f"share.auth.locked:{lid}"
+            return self.err(429, f"비밀번호 실패가 잦아 잠겼다 - {left // 60 + 1}분 뒤에")
+        b = self.body_json() or {}
+        if not share.check_password(b.get("password"), rec):
+            auth.note_failure(key)
+            self._event = f"share.auth.fail:{lid}"
+            return self.err(401, "비밀번호가 맞지 않다")
+        auth.clear_failures(key)
+        self._event = f"share.auth:{lid}"
+        v, ma = share.cookie_value(lid, rec)
+        ck = f"{share.COOKIE}={v}; Path={prefix}/; HttpOnly; SameSite=Lax; Max-Age={ma}" + ("; Secure" if self.is_secure() else "")
+        return self.send_json({"ok": True}, headers={"Set-Cookie": ck})
+
+    # ---------- 공유 링크 관리 API(허브, 로그인 사용자) ----------
+    def api_get_share(self, what, q):
+        """GET /api/share?ws=<중계 이름>&deck=<덱> - 내 링크(관리자는 전부) + 한도·정책."""
+        if not HUB:
+            return self.err(404, "허브(시작 페이지)에서")
+        if what:
+            return self.err(404, "없는 API")
+        ws_id, deck = (q.get("ws") or [""])[0], (q.get("deck") or [""])[0]
+        return self.send_json({"ok": True, "links": share.list_links(self.user, self.role, ws_id or None, deck or None), "maxDays": share.max_days(),
+                               "defaultDays": share.DEFAULT_DAYS, "canCreate": share.can_create(self.role), "admin": self.role == "admin"})
+
+    def api_post_share(self, what, q):
+        """POST /api/share {action: "create", ws, deck, days?, password?} → {link, token, url}(토큰은 이 응답에만) · POST /api/share/<id> {action: "revoke"}."""
+        if not HUB:
+            return self.err(404, "허브(시작 페이지)에서")
+        b = self.body_json() or {}
+        if what:  # 회수 - 만든 사람 또는 관리자
+            rec = share.get(what)
+            if not rec:
+                return self.err(404, "없는 링크")
+            if (b.get("action") or "revoke") != "revoke":
+                return self.err(400, "action = revoke")
+            if self.role != "admin" and rec.get("by") != self.user:
+                self._event = f"share.denied:{what}:owner"
+                return self.err(403, "만든 사람 또는 관리자만 회수할 수 있다")
+            share.revoke(what, self.user)
+            self._event = f"share.revoke:{what}"
+            return self.send_json({"ok": True, "link": share.public(what, share.get(what))})
+        if (b.get("action") or "create") != "create":
+            return self.err(400, "action = create")
+        if not share.can_create(self.role):
+            self._event = "share.denied:-:policy"
+            return self.err(403, "공유 링크 만들기는 관리자만(전역 설정 shareCreate)")
+        ws_id, deck = str(b.get("ws") or ""), str(b.get("deck") or "")
+        ws = hub.ws_by_id(ws_id)
+        if ws is None:
+            return self.err(404, "모르는 작업 공간이다 - 시작 페이지에서 연 작업 공간만")
+        if not safe_id(deck):
+            return self.err(400, "잘못된 덱 id")
+        cfg = hub.load_ws_config(ws)
+        if not (ws / str(cfg.get("decks") or "decks") / f"{deck}.json").is_file():
+            return self.err(404, "덱 없음")
+        try:
+            lid, tok, rec = share.create(ws, ws_id, deck, self.user, b.get("days"), b.get("password") or None)
+        except ValueError as e:
+            return self.err(400, str(e))
+        self._event = f"share.create:{lid}"
+        return self.send_json({"ok": True, "link": share.public(lid, rec), "token": tok, "url": f"/s/{tok}/"})
 
     # ---------- 작업 공간·세션 ----------
     def me(self):
@@ -1829,7 +2020,7 @@ class H(BaseHTTPRequestHandler):
                 st = (style or "").lower().replace(" ", "").replace("-", "")
                 w = next((v for k, v in self.WEIGHTS if k in st), 400)
                 fmt = {".otf": "opentype", ".ttf": "truetype", ".woff": "woff", ".woff2": "woff2"}[f.suffix.lower()]
-                url = "/wsfonts/" + quote(f.name)
+                url = (self.headers.get("X-Forwarded-Prefix") or "") + "/wsfonts/" + quote(f.name)  # 허브 중계(/w/<id>)·공유 링크(/s/<토큰>)로 열렸으면 그 접두를 붙인다(허브로 새지 않게)
                 css.append(f'@font-face {{ font-family: "{fam}"; font-weight: {w}; font-style: {"italic" if "italic" in st or "oblique" in st else "normal"}; '
                            f'font-display: swap; src: url("{url}") format("{fmt}"); }}')
         b = ("/* 작업 공간 글꼴(fonts/) */\n" + "\n".join(css) + "\n").encode("utf-8")

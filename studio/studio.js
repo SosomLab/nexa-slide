@@ -13,6 +13,7 @@
   "use strict";
   // 허브 중계(/w/<id>/studio/)로 열렸으면 그 접두를 서버 경로(/api·/out·그림) 앞에 붙인다. 작업 공간 서버로 바로 열면 빈 값(지금과 같음).
   const BASE = (location.pathname.match(/^\/w\/[^/]+/) || [""])[0];
+  const HUB_WS = BASE ? decodeURIComponent(BASE.slice(3)) : null;  // 허브 경유일 때 중계 이름 - 허브 API(/api/share)가 이 이름으로 작업 공간을 찾는다
   window.RENDER_BASE = BASE + "/";
   const $ = (s, r = document) => r.querySelector(s);
   const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -1165,6 +1166,7 @@ ${names}
       { icon: "❓", label: "글꼴 받기·설치 안내", act: () => window.open(`${BASE}/studio/fonts.html`, "_blank") },
       { icon: "🖼", label: S.preview ? "PowerPoint 렌더 미리보기 닫기" : "PowerPoint 렌더 미리보기 (나란히)", act: togglePreview },
       { icon: "↻", label: "PowerPoint 로 다시 렌더 (Windows)", act: () => { if (!S.preview) togglePreview(); doRender(); } },
+      ...(HUB_WS ? ["-", { icon: "🔗", label: "공유 링크… (보기 전용)", act: () => shareDlg() }] : []),  // 허브 경유로 열었을 때만(토큰 주소는 허브가 낸다)
     ], { right: true });
   }
 
@@ -2660,6 +2662,7 @@ ${names}
       { id: "presentCur", label: "발표 (지금 슬라이드부터)", key: "Shift+F5", kw: "발표 present", run: () => present(true) },
       { id: "pptx", label: "PPTX 내보내기", kw: "export pptx 파워포인트", run: () => doExport() },
       { id: "pdf", label: "PDF 내보내기", kw: "export pdf 인쇄", run: () => doExportPdf() },
+      ...(HUB_WS ? [{ id: "share", label: "공유 링크… (보기 전용)", kw: "share link 공유 링크 보기 전용", run: () => shareDlg() }] : []),
       { id: "check", label: "레이아웃 검사", kw: "check 검사 겹침 넘침", run: () => btn("chkBtn") },
       { id: "aifix", label: "레이아웃 고치기 (세션에 요청)", kw: "fix ai 세션 고치기", run: () => btn("aiFixBtn") },
       { id: "polish", label: "다듬기 (세션에 요청)", kw: "polish 다듬기 ai", run: () => btn("aiPolishBtn") },
@@ -3167,6 +3170,57 @@ ${names}
     if (!r.ok) { $("#fdErr").textContent = (r.data && r.data.error) || "저장하지 못했습니다"; return; }
     await applyFonts(r.data); toast("작업 공간 글꼴 세트를 저장했습니다 - PPTX 는 다음 내보내기부터", 4000);
   }
+
+  // ---------------------------------------------------------------- 보기 전용 공유 링크 - 허브 경유로 열었을 때만(허브 API /api/share · 주소 /s/<토큰>/, docs/auth.md)
+  async function hubApi(method, url, body) {  // 허브 자신의 API - 중계 접두(BASE)를 붙이지 않는다
+    const r = await fetch(url, { method, headers: body !== undefined ? { "Content-Type": "application/json" } : {}, body: body !== undefined ? JSON.stringify(body) : undefined, cache: "no-store" });
+    let data = null; try { data = await r.json(); } catch (e) { /* 빈 응답 */ }
+    NexaMenu.auth401(r, data);
+    return { ok: r.ok, status: r.status, data };
+  }
+  /** 공유 링크 창 - 만료(1/7/30일·직접)·비밀번호로 만들기 → 주소 복사, 아래에 이 덱의 링크 목록·[회수]. created = 방금 만든 주소(한 번만 보인다) */
+  async function shareDlg(created) {
+    if (!HUB_WS) { toast("공유 링크는 허브(시작 페이지)를 거쳐 열었을 때만 만들 수 있습니다", 4000); return; }
+    const r = await hubApi("GET", `/api/share?ws=${encodeURIComponent(HUB_WS)}&deck=${encodeURIComponent(S.id)}`);
+    if (!r.ok) { toast("공유 링크 목록을 읽지 못했습니다: " + ((r.data && r.data.error) || r.status), 4000); return; }
+    const d = r.data, links = d.links || [], fmt = (s) => (s || "").replace("T", " ").slice(0, 16);
+    const ST = { ok: "유효", expired: "만료", revoked: "회수됨" };
+    $("#shareDlg .box").innerHTML = `<div class="row" style="align-items:center;gap:8px"><h3 style="margin:0;flex:1">공유 링크 - <b>${esc((S.deck && S.deck.title) || S.id)}</b></h3><button class="chip sm" data-sh="close">닫기</button></div>
+      <div class="hint">로그인 없이 이 덱을 보기만 하는 주소입니다 - 발표자 노트·숨김 슬라이드는 보이지 않고, 편집·내보내기는 할 수 없습니다. 주소는 만들 때 한 번만 보이니 복사해 두세요. 받은 사람은 누구나 열 수 있으니 필요하면 비밀번호를 두세요.</div>
+      ${created ? `<div class="sh-new"><label>새 링크 (복사해서 보내세요)</label><div class="row" style="gap:6px;margin:0"><input id="shUrl" readonly value="${esc(created)}" style="flex:1;font:12.5px Consolas,monospace"><button class="chip sm primary" data-sh="copy">복사</button><button class="chip sm" data-sh="open">열어 보기</button></div></div>` : ""}
+      ${d.canCreate ? `<h4>새 링크 만들기</h4><div class="row" style="gap:10px;align-items:flex-end;margin:0;flex-wrap:wrap">
+        <div><label>만료</label><select id="shDays"><option value="1">1일</option><option value="7" selected>7일</option><option value="30">30일</option><option value="custom">직접…</option></select> <input id="shDaysN" type="number" min="1" max="${d.maxDays}" value="14" style="width:70px;display:none"> <span class="hint" style="margin:0;display:inline">최대 ${d.maxDays}일</span></div>
+        <div><label>비밀번호 (선택, 4자 이상)</label><input id="shPw" type="text" autocomplete="off" placeholder="없음" style="width:170px"></div>
+        <button class="chip sm primary" data-sh="create">만들기</button></div><div class="hint" id="shErr" style="color:#93000A;margin:4px 0 0"></div>`
+        : `<div class="hint">공유 링크 만들기는 관리자만 할 수 있습니다(전역 설정 shareCreate).</div>`}
+      <h4>이 덱의 링크 ${links.length ? `(${links.length})` : ""}</h4>
+      ${links.length ? `<table><tr><th>상태</th><th>만든 사람</th><th>만든 때</th><th>만료</th><th>조회</th><th></th></tr>${links.map((l) => `<tr class="${l.status}"><td>${ST[l.status] || esc(l.status)}${l.hasPassword ? " 🔒" : ""}</td><td>${esc(l.by || "")}</td><td>${esc(fmt(l.created))}</td><td>${esc(fmt(l.expires))}</td><td>${l.views}${l.lastView ? `<div class="hint" style="margin:0">${esc(fmt(l.lastView))}</div>` : ""}</td><td style="text-align:right">${l.status === "ok" ? `<button class="chip sm" data-sh="revoke" data-id="${esc(l.id)}">회수</button>` : ""}</td></tr>`).join("")}</table>` : `<div class="hint">아직 없습니다.</div>`}
+      <div class="hint" style="margin-top:8px">${d.admin ? `모든 링크는 <a href="/account" target="_blank">계정 페이지 ↗</a> 에서 봅니다.` : "내가 만든 링크만 보입니다. 회수는 만든 사람 또는 관리자가 할 수 있습니다."}</div>`;
+    $("#shareDlg").classList.add("show");
+    const sel = $("#shDays"); if (sel) sel.onchange = () => { $("#shDaysN").style.display = sel.value === "custom" ? "" : "none"; };
+  }
+  async function onShareDlg(e) {
+    if (e.target === $("#shareDlg")) { $("#shareDlg").classList.remove("show"); return; }
+    const b = e.target.closest("[data-sh]"); if (!b) return;
+    const act = b.dataset.sh;
+    if (act === "close") { $("#shareDlg").classList.remove("show"); return; }
+    if (act === "copy") { const u = $("#shUrl").value; try { await navigator.clipboard.writeText(u); } catch (err) { $("#shUrl").select(); document.execCommand("copy"); } toast("공유 링크를 복사했습니다"); return; }
+    if (act === "open") { window.open($("#shUrl").value, "_blank", "noopener"); return; }
+    if (act === "create") {
+      const sel = $("#shDays"), days = sel.value === "custom" ? +$("#shDaysN").value : +sel.value, pw = $("#shPw").value;
+      if (pw && pw.length < 4) { $("#shErr").textContent = "비밀번호는 4자 이상"; return; }
+      const r = await hubApi("POST", "/api/share", { action: "create", ws: HUB_WS, deck: S.id, days, password: pw || undefined });
+      if (!r.ok) { $("#shErr").textContent = (r.data && r.data.error) || "만들지 못했습니다"; return; }
+      toast("공유 링크를 만들었습니다 - 복사해서 보내세요", 4000);
+      await shareDlg(location.origin + r.data.url); return;
+    }
+    if (act === "revoke") {
+      if (!confirm("이 링크를 회수할까요? 받은 사람은 더 이상 열 수 없습니다.")) return;
+      const r = await hubApi("POST", `/api/share/${encodeURIComponent(b.dataset.id)}`, { action: "revoke" });
+      if (!r.ok) { toast("회수하지 못했습니다: " + ((r.data && r.data.error) || r.status), 4000); return; }
+      toast("회수했습니다"); await shareDlg();
+    }
+  }
   function moreMenu(btn) {
     const f = S.fonts || { presets: [] };
     openMenu(btn, [
@@ -3238,6 +3292,7 @@ ${names}
     // 변경 탭 설명(ⓘ) - 다른 단추·객체를 누르면 자동으로 숨긴다
     document.addEventListener("pointerdown", (e) => { if (S.chgInfo && !e.target.closest("#chgInfoBtn, #chgInfo")) { S.chgInfo = false; renderChanges(); } }, true);
     $("#fontDlg").addEventListener("click", onFontDlg);
+    $("#shareDlg").addEventListener("click", onShareDlg);
     $("#addDlg").addEventListener("click", onAddDlg); $("#adQ").addEventListener("input", renderAddDlg);
     window.addEventListener("resize", () => { if ($("#addDlg").classList.contains("show")) fitAdd(); }); $("#fontChip").onclick = showFonts;
     $("#noticeClose").onclick = () => $("#notice").classList.remove("show");

@@ -27,6 +27,7 @@ TESTS = [  # (이름, 실행, 설명, claude 필요)
     ("regress", [sys.executable, "engine_regress_test.py"], "엔진 회귀(검증 ④) - 복제 엔진에서 변경 없음 0 · 토큰 변경 1(장별) · --allow · 깨진 덱 2 · 원본 불변", False),
     ("e3", [sys.executable, "e3_manual_test.py"], "수동 엔진 세션(watch_engine_requests) 상태·거절", False),
     ("e4", [sys.executable, "e4_manual_stop_test.py"], "수동 세션 수명 - 파이프 닫힘·takeover·웹 끊기", False),
+    ("share", [sys.executable, "share_test.py"], "보기 전용 공유 링크(/s/<토큰>/) - 만들기·열람(노트·숨김 장 없음)·허용 목록·비밀번호 잠금·회수·만료·로그에 토큰 없음", False),
     ("englist", [sys.executable, "englist_test.py"], "서버 작업 목록 - 카드 5건·검색 API·/engine 페이지", False),
     ("editor", [sys.executable, "editor_ui_test.py"], "편집기 UI - 그림·도형·차트·묶음·표·링크·그림자·삽입 패널·팔레트·발표자 보기(scenarios/*.json)", False),
     ("tidy", [sys.executable, "tidy_test.py"], "작업 공간 정리·보관(tidy.py) - 보고·옮김·되돌림·비움·zip, 요청 첨부 정리 API", False),

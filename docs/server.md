@@ -42,9 +42,10 @@ python3 studio/service.py start                                                 
 | 그 밖 `/…` | `assetRoot` — 덱 그림 경로(`assets/brand/logo.png` 등) |
 | `/api/…` | API(아래) |
 | `/w/<이름>/…` | 중계 — 그 작업 공간 서버(별도 프로세스·포트)로 그대로 넘기고 응답을 돌려준다. 허브 포트 하나로 여러 Studio 를 쓸 때([home.md](home.md#한-주소로-중계--허브-포트-하나로-여러-studio)). 응답 `Location` 이 `/` 로 시작하면 접두를 다시 붙인다. 자기 작업 공간이면 접두만 떼고 직접 처리. 밖에서 온 `X-Nexa-*` 는 버리고 공유 비밀·사용자 헤더를 붙인다 |
-| `/login` · `/setup` · `/account` | 허브의 로그인 · 최초 관리자 설정 · 계정(비밀번호, 관리자면 사용자 관리) — [auth.md](auth.md) |
+| `/login` · `/setup` · `/account` | 허브의 로그인 · 최초 관리자 설정 · 계정(비밀번호, 관리자면 사용자 관리, 공유 링크) — [auth.md](auth.md) |
+| `/s/<토큰>/…` | **보기 전용 공유 링크**(허브, 로그인 없이) — 토큰으로 덱 1개를 `studio/view.html` 로 보여 준다. 허용 목록(보기 페이지·렌더 파일·그 덱의 `/api/deck/<덱>`(노트·숨김 장 제거)·덱이 참조하는 그림)만 그 작업 공간 서버로 중계, 그 밖·모든 쓰기 403. 잘못된 토큰·만료·회수는 같은 안내 페이지(404/410) — [auth.md](auth.md#보기-전용-공유-링크-02225) |
 
-허브의 모든 경로는 `/login`·`/setup`·`/api/auth/state`·`/api/auth/login`·`/api/auth/setup` 을 빼고 로그인 뒤에 있다. 미인증 요청은 401(API·정적·산출물) 또는 302 `/login`(페이지)이고 본문에 내용이 없다.
+허브의 모든 경로는 `/login`·`/setup`·`/api/auth/state`·`/api/auth/login`·`/api/auth/setup`·`/s/<토큰>/…` 을 빼고 로그인 뒤에 있다. 미인증 요청은 401(API·정적·산출물) 또는 302 `/login`(페이지)이고 본문에 내용이 없다.
 
 보안 범위:
 - 점(`.`)으로 시작하는 경로 조각은 모두 403 — `out/.studio`(세션 상태)·`decks/.history`·`.env` 등.
@@ -85,6 +86,8 @@ python3 studio/service.py start                                                 
 | `GET /api/templates` | 템플릿 목록과 선택된 템플릿 |
 | `GET /api/home` · `POST /api/project` · `POST /api/settings` · `GET /api/fs` · `GET /api/preview` | 시작 페이지 - [home.md](home.md#api) |
 | `GET /api/check/<id>` | 레이아웃 검사 결과 `{issues[{rule, severity, slide, n, elements, box, message, detail}], errors, warnings, minFontPt}` |
+| `GET /api/share?ws=&deck=` · `POST /api/share` · `POST /api/share/<id>` | (허브) 보기 전용 공유 링크 목록 · 만들기 `{action: "create", ws, deck, days?, password?}` → `{link, token, url}` · 회수 `{action: "revoke"}` — [auth.md](auth.md#api) |
+| `GET /api/fontcss` | 작업 공간 `fonts/` 의 `@font-face` — `X-Forwarded-Prefix`(중계 `/w/<이름>`·공유 `/s/<토큰>`)가 있으면 `/wsfonts/` 앞에 붙인다 |
 
 ## 요청 메모 파일
 
