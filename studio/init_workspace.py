@@ -762,8 +762,8 @@ def main():
             print(f"알림: 포트 {port} 는 작업 공간 {other} 설정과 같다 — 두 서버를 함께 띄우면 뒤에 띄운 쪽이 실패한다", file=sys.stderr)
     ws.mkdir(parents=True, exist_ok=True)
     a.template = a.template or (st or {}).get("template") or "lecture"
-    if not (ENGINE / "studio" / "templates" / a.template / "template.json").is_file():
-        sys.exit(f"없는 템플릿: {a.template}")
+    if not (ENGINE / "studio" / "templates" / a.template / "template.json").is_file() and not (ws / "templates" / a.template / "template.json").is_file():
+        sys.exit(f"없는 템플릿: {a.template}")  # 엔진 템플릿 또는 이 작업 공간의 회사 템플릿(templates/<이름>/ - 마법사가 만든 것)
     made = []
     top = root or ws  # 만든 파일 목록은 저장소 루트(없으면 작업 공간) 기준으로 보인다
     name = a.title or top.name  # 저장소형이면 제목 기본값은 저장소 이름(slides 가 아니라)

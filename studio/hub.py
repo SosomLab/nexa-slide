@@ -17,7 +17,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from paths import (ENGINE, default_projects_root, documents_dir, forget, inside_engine, load_settings, load_ws_config, projects_root,
+from paths import (ENGINE, LOCAL_CONFIG, default_projects_root, documents_dir, forget, inside_engine, load_settings, load_ws_config, projects_root,
                    remember, repo_workspace, save_settings, user_dir)
 
 STUDIO = ENGINE / "studio"
@@ -94,31 +94,59 @@ def nav(ws, direct):
 
 
 # ---------- 목록 ----------
-def templates():
+def _template_card(d, t, workspace=False):
+    """템플릿 카드 항목 - 색 견본은 토큰 파일(+extends 바탕) 위에 tokenOverrides 를 덮어 계산한다."""
+    tok = _read_json(d / t["tokens"]) if t.get("tokens") else None
+    if tok is None and t.get("extends"):
+        base = _read_json(TEMPLATES / t["extends"] / "template.json") or {}
+        tok = _read_json(TEMPLATES / t["extends"] / base.get("tokens", "tokens.json")) or {}
+        if base.get("tokenOverrides"):  # 바탕이 목적별 템플릿(lecture 토큰 + 덮어쓰기)이면 그 값 위에
+            tok = {**tok, "colors": {**tok.get("colors", {}), **((base["tokenOverrides"].get("colors")) or {})}}
+    cs = dict((tok or {}).get("colors", {}))
+    cs.update(((t.get("tokenOverrides") or {}).get("colors")) or {})
+
+    def c(k):
+        v = cs.get(k)
+        for _ in range(5):
+            if isinstance(v, str) and v.startswith("#"):
+                return v
+            v = cs.get(v)
+        return None
+    sw = [x for x in (c("primary"), c("primary-container"), c("day1"), c("day2"), c("day3"), c("on-surface")) if x]
+    item = {"name": d.name, "label": t.get("label", d.name), "description": t.get("description", ""), "i18n": t.get("i18n") or {},
+            "extends": t.get("extends"), "swatches": sw,
+            "concept": f"/studio/templates/{d.name}/design/concept.html" if not workspace and (d / "design" / "concept.html").is_file() else None}
+    if workspace:
+        item["workspace"] = True
+    return item
+
+
+def ws_templates(ws):
+    """작업 공간 templates/<이름>/template.json 목록(회사 템플릿 - extends+tokenOverrides 만, docs/templates.md). 엔진과 겹치는 이름은 뺀다(엔진 것이 쓰인다)."""
+    out = []
+    root = Path(ws) / "templates" if ws else None
+    if not root or not root.is_dir():
+        return out
+    for d in sorted(root.iterdir()):
+        t = _read_json(d / "template.json")
+        if not t or not re.fullmatch(r"[A-Za-z0-9_-]+", d.name) or (TEMPLATES / d.name / "template.json").is_file():
+            continue
+        if not isinstance(t.get("extends"), str) or not (TEMPLATES / t["extends"] / "template.json").is_file():
+            t = {**t, "extends": "lecture"}  # 로더(common.load_template)와 같은 처리
+        t.pop("tokens", None)
+        out.append(_template_card(d, t, workspace=True))
+    return out
+
+
+def templates(ws=None):
+    """엔진 템플릿 목록(+ ws 를 주면 그 작업 공간의 회사 템플릿을 뒤에 - 작업 공간 서버의 시작 페이지에서만 보인다)."""
     out = []
     for d in sorted(TEMPLATES.iterdir()):
         t = _read_json(d / "template.json")
         if not t or t.get("hidden"):  # 숨긴 템플릿(검토 대상으로 옮김) — 목록에서 제외, 이미 쓰는 작업 공간은 그대로 동작
             continue
-        tok = _read_json(d / t["tokens"]) if t.get("tokens") else None
-        if tok is None and t.get("extends"):
-            base = _read_json(TEMPLATES / t["extends"] / "template.json") or {}
-            tok = _read_json(TEMPLATES / t["extends"] / base.get("tokens", "tokens.json")) or {}
-        cs = dict((tok or {}).get("colors", {}))
-        cs.update(((t.get("tokenOverrides") or {}).get("colors")) or {})
-
-        def c(k):
-            v = cs.get(k)
-            for _ in range(5):
-                if isinstance(v, str) and v.startswith("#"):
-                    return v
-                v = cs.get(v)
-            return None
-        sw = [x for x in (c("primary"), c("primary-container"), c("day1"), c("day2"), c("day3"), c("on-surface")) if x]
-        out.append({"name": d.name, "label": t.get("label", d.name), "description": t.get("description", ""), "i18n": t.get("i18n") or {},
-                    "extends": t.get("extends"), "swatches": sw,
-                    "concept": f"/studio/templates/{d.name}/design/concept.html" if (d / "design" / "concept.html").is_file() else None})
-    return out
+        out.append(_template_card(d, t))
+    return out + ws_templates(ws)
 
 
 def starters():
@@ -308,7 +336,7 @@ def home(current=None, refused=None):
             "projectsRootFromEnv": bool(os.environ.get("NEXA_SLIDE_PROJECTS")), "engine": str(ENGINE),
             "current": cur, "refused": str(refused) if refused else None, "proxy": proxy_on(),
             "sessionGlobal": {k: s.get(k) for k in SESSION_KEYS if s.get(k) is not None},
-            "recent": recent, "templates": templates(), "starters": starters() if _supports_starter() else [],
+            "recent": recent, "templates": templates(current), "starters": starters() if _supports_starter() else [],
             "samples": s.get("samples", []), "demo": str(projects_root() / DEMO_DIR)}
 
 
@@ -536,6 +564,13 @@ def plan(b):
                 args += [opt, line.strip()]
     if b.get("askDraft"):
         args += ["--ask-draft"]
+    if isinstance(b.get("wizard"), dict):  # 회사 템플릿 마법사 - 만든 뒤 그 작업 공간에 templates/<이름>/ 을 두고 template 을 바꾼다(기반 템플릿으로 먼저 만든다)
+        wn = str(b["wizard"].get("name") or "")
+        if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_-]{0,39}", wn):
+            raise HubError("회사 템플릿 이름은 영문·숫자·-·_ 로 1~40자")
+        if (TEMPLATES / wn / "template.json").is_file():
+            raise HubError(f"엔진 템플릿과 같은 이름은 쓸 수 없다: {wn}")
+        warn.append(f"만든 뒤 회사 템플릿 {wn}({template} 바탕)을 작업 공간 templates/{wn}/ 에 두고 적용합니다")
     start = [(ws or Path("<폴더>") / slides_dir) / "nexa.py", "start"]
     py = _py()
     if ws and "&" in str(ws) and os.name == "nt":
@@ -563,6 +598,12 @@ def create(b):
     code, log = _run(p["args"], None, timeout=300)
     if code != 0 or not (ws / CONFIG_NAME).is_file():
         raise HubError("작업 공간을 만들지 못했다", log=log)
+    if isinstance(b.get("wizard"), dict):  # 회사 템플릿 - 서버를 띄우기 전에 두므로 재시작이 필요 없다(덱은 기반 템플릿으로 빌드됨 - sizes 는 같다)
+        try:
+            tr = create_template({**b["wizard"], "ws": str(ws), "base": b["wizard"].get("base") or p["args"][p["args"].index("--template") + 1]})
+        except HubError as e:
+            raise HubError(f"작업 공간은 만들었지만 회사 템플릿을 만들지 못했다: {e}", path=str(ws), log=log, **e.extra)
+        log += "\n" + "\n".join(f"템플릿 {tr['name']}: {f}" for f in tr["files"])
     url, slog = start_server(ws, auto=proxy_on())
     cfg = _read_json(ws / CONFIG_NAME) or {}
     decks = sorted(f.stem for f in (ws / cfg.get("decks", "decks")).glob("*.json") if not f.name.endswith(".requests.json"))
@@ -677,37 +718,55 @@ def demo():
 
 
 # ---------- 미리보기 ----------
-def _stamp(template, starter):
-    """미리보기를 다시 만들지 정하는 값 - 엔진 코드·템플릿·시작용 내용 중 가장 늦게 바뀐 시각."""
+def _stamp(template, starter, ws_tpl=None):
+    """미리보기를 다시 만들지 정하는 값 - 엔진 코드·템플릿·시작용 내용(·작업 공간 템플릿 폴더·그 로고) 중 가장 늦게 바뀐 시각."""
     files = [*STUDIO.glob("*.py"), *TEMPLATES.rglob("*")]
     if starter:
         files += [*(STARTERS / starter).rglob("*")]
+    if ws_tpl:
+        files += [*ws_tpl[0].rglob("*"), *ws_tpl[1].glob("*.png")]
     return max((f.stat().st_mtime_ns for f in files if f.is_file()), default=0)
 
 
-def preview_key(template, starter, lang="ko"):
-    return f"{template}--{starter or 'layouts'}" + ("" if (lang or "ko") == "ko" else f"--{lang}")
+def preview_key(template, starter, lang="ko", ws=None):
+    return (f"ws-{ws_id(ws)}--" if ws else "") + f"{template}--{starter or 'layouts'}" + ("" if (lang or "ko") == "ko" else f"--{lang}")
 
 
-def preview(template=None, starter=None, lang="ko"):
+def preview(template=None, starter=None, lang="ko", ws=None):
     """템플릿 × 시작용 내용을 임시 작업 공간(PREVIEW_ROOT/<템플릿>--<내용>)에 실제로 만들어 빌드한 덱을 돌려준다.
     시작용 내용이 없으면 레이아웃 견본(전 레이아웃 한 장씩). 템플릿이 없으면 시작용 내용이 정한 템플릿.
-    엔진·템플릿·내용이 바뀌지 않았으면 전에 만든 것을 그대로 쓴다. 화면은 home.html 이 render.js 로 그린다."""
+    엔진·템플릿·내용이 바뀌지 않았으면 전에 만든 것을 그대로 쓴다. 화면은 home.html 이 render.js 로 그린다.
+    ws(작업 공간 서버의 시작 페이지)를 주면 그 작업 공간의 회사 템플릿(templates/<이름>/)도 된다 - template.json 과 로고를 임시 작업 공간에 복사해 빌드한다."""
     if starter and not (STARTERS / str(starter) / "starter.json").is_file():
         raise HubError(f"없는 시작용 내용: {starter}")
     if not template:
         template = ((_read_json(STARTERS / starter / "starter.json") or {}).get("template") if starter else None) or "lecture"
-    if not re.fullmatch(r"[A-Za-z0-9_-]+", str(template)) or not (TEMPLATES / template / "template.json").is_file():
+    ws_tpl = None  # (작업 공간 템플릿 폴더, 그 작업 공간의 assets/brand 폴더)
+    if not re.fullmatch(r"[A-Za-z0-9_-]+", str(template)):
         raise HubError(f"없는 템플릿: {template}")
+    if not (TEMPLATES / template / "template.json").is_file():
+        src = Path(ws) / "templates" / template if ws else None
+        if not src or not (src / "template.json").is_file():
+            raise HubError(f"없는 템플릿: {template}")
+        wcfg = load_ws_config(ws)
+        ws_tpl = (src, (Path(ws) / wcfg.get("assetRoot", ".") / "assets" / "brand").resolve())
     lang = re.sub(r"[^a-z-]", "", str(lang or "ko").lower()) or "ko"  # 견본 글 언어 - studio/i18n/content.<lang>.json · starters/<이름>/content.<lang>/ (없으면 한국어)
-    key = preview_key(template, starter, lang)
+    key = preview_key(template, starter, lang, ws if ws_tpl else None)
     ws = PREVIEW_ROOT / key
-    stamp = _stamp(template, starter) + (f"|{lang}|{(STUDIO / 'i18n' / f'content.{lang}.json').stat().st_mtime_ns if (STUDIO / 'i18n' / f'content.{lang}.json').is_file() else 0}" if lang != "ko" else "")
+    stamp = str(_stamp(template, starter, ws_tpl)) + (f"|{lang}|{(STUDIO / 'i18n' / f'content.{lang}.json').stat().st_mtime_ns if (STUDIO / 'i18n' / f'content.{lang}.json').is_file() else 0}" if lang != "ko" else "")
     meta = _read_json(ws / "preview.json") or {}
     if meta.get("stamp") != stamp:
         if ws.exists():
             shutil.rmtree(ws)
-        label = (_read_json(TEMPLATES / template / "template.json") or {}).get("label", template)
+        if ws_tpl:  # 회사 템플릿 - init 전에 임시 작업 공간에 template.json·로고를 두면 init·빌드가 그것을 읽는다
+            (ws / "templates" / template).mkdir(parents=True, exist_ok=True)
+            shutil.copy2(ws_tpl[0] / "template.json", ws / "templates" / template / "template.json")
+            for f in ws_tpl[1].glob("*.png") if ws_tpl[1].is_dir() else []:
+                (ws / "assets" / "brand").mkdir(parents=True, exist_ok=True)
+                shutil.copy2(f, ws / "assets" / "brand" / f.name)
+            label = (_read_json(ws_tpl[0] / "template.json") or {}).get("label", template)
+        else:
+            label = (_read_json(TEMPLATES / template / "template.json") or {}).get("label", template)
         args = [STUDIO / "init_workspace.py", ws, "--title", f"{label} 미리보기", "--template", template, "--deck", "layouts", "--no-remember", "--flat"]
         if starter:
             args += ["--starter", starter]
@@ -763,4 +822,140 @@ def project(b):
     if act == "forget":
         forget(b.get("path", ""))
         return {"ok": True}
-    raise HubError("action = create|plan|open|start|stop|demo|forget")
+    if act == "palette":
+        return palette_preview(b)
+    if act == "template":
+        return create_template(b)
+    raise HubError("action = create|plan|open|start|stop|demo|forget|palette|template")
+
+
+# ---------- 회사 템플릿 만들기(마법사) - 작업 공간에만 쓴다(docs/dev/template-wizard-design.md, 안 A) ----------
+PNG_SIG = b"\x89PNG\r\n\x1a\n"
+FONT_EXTS = (".ttf", ".otf", ".woff", ".woff2")
+TEMPLATE_NAME_RX = r"[A-Za-z0-9][A-Za-z0-9_-]{0,39}"
+
+
+def palette_preview(b):
+    """마법사 미리 보기용 - 색 5개(+고급에서 고친 파생값) → 파생 색 전부와 대비 경고. 아무것도 쓰지 않는다."""
+    import palette
+    try:
+        return {"ok": True, **palette.build(b.get("colors") or {})}
+    except ValueError as e:
+        raise HubError(str(e))
+
+
+def _b64_file(item, what, max_mb, exts=None):
+    """{name, data(base64)} → (안전한 파일 이름, bytes). 크기·확장자 확인."""
+    import base64
+    if not isinstance(item, dict) or not item.get("data"):
+        raise HubError(f"{what} 파일이 비었다")
+    name = re.sub(r"[^A-Za-z0-9가-힣._ -]+", "-", str(item.get("name") or what)).strip(" .-") or what
+    ext = Path(name).suffix.lower()
+    if exts and ext not in exts:
+        raise HubError(f"{what} 파일은 {' · '.join(exts)} 만: {name}")
+    try:
+        data = base64.b64decode(str(item["data"]).split(",")[-1], validate=False)
+    except (ValueError, TypeError):
+        raise HubError(f"{what} 파일을 읽지 못했다(base64)")
+    if len(data) > max_mb * 1024 * 1024:
+        raise HubError(f"{what} 파일이 너무 크다({len(data) // 1024} KB) - {max_mb} MB 까지")
+    return name, data
+
+
+def create_template(b):
+    """b = {ws, name, base, colors{primary, surface, on-surface, accent1, accent2, …파생값}, label?, description?, brand?{name, logo{name,data}, wordmark{…}},
+            font?{preset} | font?{name, family, files{regular{name,data}, bold?{…}}}, overwrite?}
+    → 작업 공간에 templates/<이름>/template.json(extends+tokenOverrides) · assets/brand/logo.png · fonts/<파일> 을 쓰고 nexa-slide.json 의
+      template(·brand·fontPresets·fontPreset)을 바꾼다(set_template 과 같은 처리 - 공유 파일에만). 엔진 저장소에는 아무것도 쓰지 않는다.
+    서버가 떠 있으면 재시작이 필요하다(응답 restart). 기존 덱의 글자 크기 하한은 build_deck --force 때 적용된다."""
+    import palette
+    ws = _ws_of(b.get("ws") or b.get("path"))
+    name = str(b.get("name") or "").strip()
+    if not re.fullmatch(TEMPLATE_NAME_RX, name):
+        raise HubError("템플릿 이름은 영문·숫자·-·_ 로 1~40자(영문·숫자로 시작)")
+    if (TEMPLATES / name).exists():
+        raise HubError(f"엔진 템플릿과 같은 이름은 쓸 수 없다: {name} - 다른 이름을 고른다")
+    base = str(b.get("base") or "lecture")
+    if not re.fullmatch(r"[A-Za-z0-9_-]+", base) or not (TEMPLATES / base / "template.json").is_file():
+        raise HubError(f"없는 기반 템플릿: {base}(엔진 템플릿 중 하나)")
+    tdir = ws / "templates" / name
+    if (tdir / "template.json").is_file() and not b.get("overwrite"):
+        raise HubError(f"이미 있는 템플릿: {name} - 다른 이름을 쓰거나 덮어쓰기를 고른다", exists=True)
+    try:
+        colors = palette.derive(b.get("colors") or {})
+    except ValueError as e:
+        raise HubError(f"색: {e}")
+    warns = palette.warnings(colors)
+    label = " ".join(str(b.get("label") or "").split())[:80] or name
+    desc = " ".join(str(b.get("description") or "").split())[:300] or f"회사 템플릿 - {base} 바탕, 시작 페이지의 마법사로 만듦"
+    tj = {"_comment": "작업 공간 템플릿(회사 템플릿) - 엔진 템플릿을 extends 하고 tokenOverrides·label·description·parts 만 바꾼다. tokens·design·sizes·check 는 둘 수 없다(docs/templates.md)",
+          "extends": base, "label": label, "description": desc, "tokenOverrides": {"colors": colors}}
+    i18n = b.get("i18n")
+    if isinstance(i18n, dict) and isinstance(i18n.get("en"), dict):
+        tj["i18n"] = {"en": {k: " ".join(str(i18n["en"].get(k) or "").split())[:300] for k in ("label", "description") if i18n["en"].get(k)}}
+    cfg = load_ws_config(ws, local=False)  # 공유 파일에만 쓴다(PC 별 nexa-slide.local.json 값은 섞지 않는다)
+    asset_root = (ws / cfg.get("assetRoot", ".")).resolve()
+    writes = []  # (경로, bytes) - 검사가 다 끝난 뒤 한꺼번에 쓴다
+    brand = b.get("brand") if isinstance(b.get("brand"), dict) else {}
+    bcfg = dict(cfg.get("brand") or {})
+    for key, default in (("logo", "assets/brand/logo.png"), ("wordmark", "assets/brand/wordmark.png")):
+        if brand.get(key):
+            _n, data = _b64_file(brand[key], "로고" if key == "logo" else "워드마크", 4)
+            if not data.startswith(PNG_SIG):
+                raise HubError(("로고" if key == "logo" else "워드마크") + " 는 PNG 파일만(가로세로 비율을 PNG 머리에서 읽는다)")
+            writes.append((asset_root / default, data))
+            bcfg[key] = default
+    if brand.get("name") is not None:
+        bcfg["name"] = " ".join(str(brand.get("name") or "").split())[:80]
+    if brand:
+        cfg["brand"] = bcfg
+    font = b.get("font") if isinstance(b.get("font"), dict) else {}
+    if font.get("files"):  # 전용 글꼴 - 파일은 fonts/, 세트는 nexa-slide.json fontPresets(엔진에 글꼴 파일을 넣지 않는다 - docs/fonts.md)
+        fname = str(font.get("name") or name)
+        family = " ".join(str(font.get("family") or "").split())[:60]
+        if not re.fullmatch(r"[A-Za-z0-9_-]{1,64}", fname):
+            raise HubError("글꼴 세트 이름은 영문·숫자·-·_")
+        if not family or '"' in family:
+            raise HubError("글꼴 이름(family)을 적는다 - 글꼴 파일의 패밀리 이름")
+        files = font["files"] if isinstance(font["files"], dict) else {}
+        if not files.get("regular"):
+            raise HubError("글꼴 파일(regular)을 올린다")
+        fdir = ws / cfg.get("fontsDir", "fonts")
+        measure = {}
+        for role in ("regular", "bold"):
+            if files.get(role):
+                fn, data = _b64_file(files[role], f"글꼴({role})", 30, FONT_EXTS)
+                writes.append((fdir / fn, data))
+                measure[role] = fn
+        measure.setdefault("bold", measure["regular"])
+        face = {"css": f'"{family}", "Malgun Gothic", "맑은 고딕", "Apple SD Gothic Neo", sans-serif', "latin": family, "ea": family, "measure": measure}
+        cfg.setdefault("fontPresets", {})[fname] = {"body": dict(face), "heading": dict(face)}
+        cfg["fontPreset"] = fname
+    elif font.get("preset"):
+        preset = str(font["preset"])
+        btpl = _read_json(TEMPLATES / base / "template.json") or {}
+        bname = base if btpl.get("tokens") else (btpl.get("extends") or "lecture")
+        btok = _read_json(TEMPLATES / bname / ((_read_json(TEMPLATES / bname / "template.json") or {}).get("tokens") or "tokens.json")) or {}
+        if preset not in (btok.get("fontPresets") or {}) and preset not in (cfg.get("fontPresets") or {}):
+            raise HubError(f"없는 글꼴 세트: {preset}")
+        cfg["fontPreset"] = preset
+    cfg["template"] = name
+    made = []
+    for p, data in writes:
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_bytes(data)
+        made.append(str(p.relative_to(ws)) if ws in p.parents else str(p))
+    tdir.mkdir(parents=True, exist_ok=True)
+    (tdir / "template.json").write_text(json.dumps(tj, ensure_ascii=False, indent=2) + "\n", encoding="utf-8", newline="\n")
+    made.insert(0, f"templates/{name}/template.json")
+    (ws / CONFIG_NAME).write_text(json.dumps(cfg, ensure_ascii=False, indent=2) + "\n", encoding="utf-8", newline="\n")
+    made.append(CONFIG_NAME)
+    st = server_state(ws)
+    local_tpl = load_ws_config(ws).get("template")
+    note = ("작업 공간 서버를 다시 시작해야 새 템플릿이 반영됩니다. " if st["running"] else "") + "기존 덱의 글자 크기 하한은 build_deck --force 로 다시 빌드할 때 적용되고, PPTX 는 다시 내보냅니다."
+    if local_tpl != name:
+        note += f" 알림: 이 PC 의 {LOCAL_CONFIG} 에 template 이 있어 이 PC 에서는 그 값({local_tpl})이 쓰입니다."
+    return {"ok": True, "path": str(ws), "name": name, "base": base, "label": label, "dir": str(tdir), "files": made, "colors": colors, "warnings": warns,
+            "config": {"template": name, "fontPreset": cfg.get("fontPreset"), "brand": cfg.get("brand")},
+            "restart": {"needed": bool(st["running"]), "running": bool(st["running"]), "url": st.get("url"), "id": ws_id(ws), "hubUrl": f"/w/{ws_id(ws)}/"},
+            "template": next((t for t in ws_templates(ws) if t["name"] == name), None), "note": note}

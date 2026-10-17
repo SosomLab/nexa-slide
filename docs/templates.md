@@ -3,6 +3,8 @@
 **디자인은 엔진 템플릿에, 작업 공간에는 선택만.**
 색·글꼴·글자 크기·검사 기준·디자인 기준 문서처럼 "어떻게 보이는가"를 정하는 것은 모두 `studio/templates/<이름>/` 에 있다.
 작업 공간(교재·발표 저장소)은 `nexa-slide.json` 에서 **이름을 고르기만** 하고, 디자인 값을 직접 쓰거나 파일로 두지 않는다.
+한 가지 예외가 **작업 공간 템플릿(회사 템플릿)** 이다 — 작업 공간 `templates/<이름>/template.json` 하나로, 엔진 템플릿을 `extends` 하고
+`tokenOverrides`(색)·`label`·`description`·`parts` 만 바꾼다(회사 색·로고를 공개 엔진 저장소에 넣지 않기 위해, [아래](#작업-공간-템플릿회사-템플릿--extends--tokenoverrides-만)).
 
 ```json
 { "template": "lecture", "fontPreset": "modern" }
@@ -56,7 +58,32 @@ studio/templates/<이름>/
 | `partLabels` · `coverBadge` · `endNextNote` | 슬라이드에 들어가는 문구(내용) |
 | `check.ignore` · `check.ignoreSlides` | 검사에서 뺄 규칙·슬라이드 |
 
-작업 공간에 `tokens.json`·`design/`·검사 기준값을 두지 않는다(예외: 전용 글꼴 세트 `fontPresets` 와 글꼴 파일 `fonts/` — 엔진에 회사 서체를 넣지 않기 위해). 다른 크기·글꼴·색이 필요하면 **새 템플릿을 엔진에 추가**하고 이름으로 고른다.
+작업 공간에 `tokens.json`·`design/`·검사 기준값을 두지 않는다(예외: 전용 글꼴 세트 `fontPresets` 와 글꼴 파일 `fonts/` — 엔진에 회사 서체를 넣지 않기 위해,
+그리고 아래 **작업 공간 템플릿** — `extends`+`tokenOverrides` 만). 다른 **크기·검사 기준·레이아웃**이 필요하면 **새 템플릿을 엔진에 추가**하고 이름으로 고른다.
+
+## 작업 공간 템플릿(회사 템플릿) — `extends` + `tokenOverrides` 만
+
+회사 색·로고·서체는 공개 저장소(엔진)에 넣지 않는다. 대신 작업 공간에 템플릿 **하나의 파일**을 둔다:
+
+```
+<작업 공간>/templates/<이름>/template.json
+{ "extends": "brief", "label": "ACME 회사 템플릿", "description": "…",
+  "tokenOverrides": { "colors": { "primary": "#1A6B3C", "on-primary": "#FFFFFF", "primary-container": "…", … } } }
+```
+
+| 규칙 | 내용 |
+|---|---|
+| 허용 키 | `extends`(**엔진 템플릿** 이름 — 필수, 아니면 `lecture` 바탕으로 쓰고 경고) · `label` · `description` · `tokenOverrides`(`colors`·`radius`·`fonts`) · `parts` · `i18n` |
+| 금지 키 | `tokens` · `design` · `sizes` · `check`(· `hidden`) — 토큰 체계·글자 크기 하한·검사 기준은 엔진이 소유한다. 들어 있으면 로더가 **무시하고 경고**한다(stderr `알림:`) |
+| 이름 | 영문·숫자·`-`·`_`. **엔진 템플릿과 같은 이름은 쓸 수 없다**(마법사가 거부, 폴더를 만들어도 엔진 것이 쓰이고 경고) |
+| 찾는 순서 | 엔진 `studio/templates/<이름>` → 작업 공간 `templates/<이름>`. `set_template`·편집기 템플릿 목록·시작 페이지(그 작업 공간 서버)에 `[작업 공간]` 표시로 함께 보인다 |
+| 보이는 곳 | **그 작업 공간에서만**(허브의 새로 만들기 목록에는 없다). 다른 작업 공간에 쓰려면 폴더를 복사한다 |
+| 로고·글꼴 | 템플릿 파일이 아니라 `nexa-slide.json` 의 `brand`(`assets/brand/logo.png` — PNG 만)와 `fontPresets`/`fontPreset`(파일은 `fonts/`) — 마법사가 함께 써 준다 |
+
+만드는 방법 — 시작 페이지 **템플릿 탭 맨 앞 "＋ 회사 템플릿 만들기"**(또는 새로 만들기 ①의 같은 카드): 기반 템플릿 · 색 5개(주색 · 바탕 · 본문 글자 · 보조색 1 · 보조색 2) · 로고 PNG · 글꼴(기반 세트 또는 전용 글꼴 파일) · 이름을 넣으면
+나머지 역할 색(`*-container` · `on-*` · `surface-dim/container` · `outline-variant` · `panel` · `day3`)을 `studio/palette.py` 가 파생하고(container = surface 쪽으로 85%, on-색 = 대비가 큰 흑/백, 4.5:1 미만이면 경고),
+브라우저에서 기반 템플릿의 레이아웃 견본에 그 색을 입혀 미리 보여 준다("고급"에서 파생값을 하나씩 고칠 수 있다). 만들면 그 작업 공간의 `template` 이 바뀌므로 **서버를 다시 시작**한다(허브가 단추를 준다) — [home.md](home.md#회사-템플릿-만들기마법사).
+CLI 로 색만 파생하려면 `python3 studio/palette.py "#주색" "#바탕" "#본문" "#보조1" "#보조2"`.
 
 ## 템플릿 바꾸기
 

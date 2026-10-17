@@ -7,6 +7,30 @@
   const en = (L.en = L.en || { name: "English", dict: {}, patterns: [] });
   const t = (s) => (window.I18N ? window.I18N.t(s) : s);
   Object.assign(en.dict, {
+    // ---- 0.22.26 회사 템플릿 만들기 마법사(시작 페이지 - 색 5개·로고·글꼴 → 작업 공간 templates/<이름>/)
+    "＋ 회사 템플릿 만들기": "+ Company template", "색 5개 · 로고 PNG · 글꼴": "5 colors · PNG logo · font", "회사 템플릿 만들기": "Create a company template",
+    "회사 색과 로고로 템플릿을 만들어 작업 공간": "Build a template from your company colors and logo in the workspace's", "에 둡니다(기반 템플릿의 색만 바꿈 - 엔진에는 아무것도 넣지 않습니다).": "folder (only the base template's colors change - nothing is added to the engine).",
+    "기반 템플릿의": "Only the base template's", "색만": "colors", "회사 색으로 바꿉니다 - 글자 크기·검사 기준·레이아웃은 기반 템플릿 그대로. 만든 템플릿은 작업 공간의": "are replaced with your company colors - font sizes, check thresholds and layouts stay as in the base template. The template lives only in the workspace's",
+    "에만 있고 엔진에는 아무것도 넣지 않습니다.": "- nothing is added to the engine.", "기반 템플릿": "Base template", "색 5개": "5 colors",
+    "나머지 역할 색(container · on-색 · 바탕 단계 · 3부)은 이 다섯에서 파생합니다 - 아래 \"고급\"에서 하나씩 고칠 수 있습니다.": "The other role colors (containers, on-colors, surface steps, part 3) are derived from these five - adjust them one by one under \"Advanced\".",
+    "로고 (PNG)": "Logo (PNG)", "로 저장됩니다(머리 오른쪽·표지). 가로세로 비율은 PNG 머리에서 읽습니다.": "(header right · cover). The aspect ratio is read from the PNG header.",
+    "회사 · 제품 이름 (로고 대체 글자)": "Company / product name (logo alt text)", "예: ACME": "e.g. ACME",
+    "회사 서체 파일은 작업 공간 fonts/ 폴더에 두고, 세트는 nexa-slide.json 의 fontPresets 에 적습니다 (엔진에 글꼴 파일을 넣지 않습니다).": "Company font files go in the workspace fonts/ folder and the set is written to fontPresets in nexa-slide.json (no font files are added to the engine).",
+    "글꼴 이름 (파일의 패밀리 이름)": "Font name (family name in the file)", "예: Corp Sans": "e.g. Corp Sans", "세트 이름 (비우면 템플릿 이름)": "Set name (template name if empty)", "예: corp": "e.g. corp",
+    "보통 굵기 파일 (.ttf · .otf)": "Regular weight file (.ttf · .otf)", "굵은 글꼴 파일 (선택)": "Bold file (optional)", "템플릿 이름 · 표시 이름": "Template name · display name",
+    "영문 · 숫자 · - · _ (예: acme)": "letters · digits · - · _ (e.g. acme)", "표시 이름 (예: ACME 회사 템플릿)": "Display name (e.g. ACME company template)", "적용할 작업 공간": "Workspace to apply to",
+    "적용할 작업 공간이 없습니다 - 먼저 작업 공간을 만들거나 열어 두세요. 새로 만들기 ①의 \"＋ 회사 템플릿 만들기\"로는 작업 공간과 함께 만들 수 있습니다.": "No workspace to apply to - create or open one first. \"+ Company template\" in step ① of New slides creates it together with the workspace.",
+    "고급 - 파생 색 하나씩 고치기": "Advanced - adjust derived colors", "다시 파생": "Re-derive", "주색 (제목 띠 · 강조)": "Primary (title band · emphasis)", "바탕": "Background", "본문 글자": "Body text",
+    "보조색 1 (1부 · 차트)": "Accent 1 (part 1 · charts)", "보조색 2 (2부 · 차트)": "Accent 2 (part 2 · charts)",
+    "만들기를 누르면 새 슬라이드 만들기 ①에 이 템플릿이 골라지고, 작업 공간을 만들 때 함께 만들어집니다.": "Create selects this template in step ① of New slides; it is created together with the workspace.",
+    "기반 템플릿 미리 보기를 만드는 중... (템플릿마다 처음 한 번은 빌드합니다)": "Building the base template preview... (built once per template)", "기반 템플릿 기본": "Base template default", "전용 글꼴 파일 올리기 (fonts/)": "Upload company font files (fonts/)",
+    "색을 계산하지 못했습니다": "Could not derive the colors", "대비 경고": "Contrast warning", "- 글자/바탕 대비가 4.5:1 (WCAG AA 본문) 에 못 미칩니다:": "- text/background contrast is below 4.5:1 (WCAG AA body text):", "- 색을 바꾸거나 \"고급\"에서 고치세요.": "- change the colors or fix them under \"Advanced\".",
+    "로고는 PNG 파일만 됩니다 (가로세로 비율을 PNG 머리에서 읽습니다)": "The logo must be a PNG file (the aspect ratio is read from the PNG header)", "템플릿 이름은 영문·숫자·-·_ 로 1~40자 (영문·숫자로 시작)": "Template name: letters, digits, - and _ (1-40 chars, starting with a letter or digit)",
+    "엔진 템플릿과 같은 이름은 쓸 수 없습니다:": "Cannot use the name of an engine template:", "색을 아직 계산하지 못했습니다 - 잠시 뒤 다시": "Colors not derived yet - try again in a moment", "전용 글꼴은 글꼴 이름과 파일(regular)을 올립니다": "A company font needs a font name and the regular file",
+    "회사 템플릿을 골랐습니다 - [만들고 Studio 열기]를 누르면 작업 공간과 함께 만들어집니다": "Company template selected - [Create and open Studio] creates it together with the workspace", "회사 템플릿을 만드는 중...": "Creating the company template...",
+    "템플릿을 만들고 이 작업 공간의 템플릿으로 골랐습니다.": "template created and selected for this workspace.", "만든 파일:": "Files written:", "지금 다시 시작": "Restart now",
+    "작업 공간 서버를 끄고 다시 띄웁니다 - 열려 있는 편집기는 새로 고칩니다.": "Stops and restarts the workspace server - reload any open editor.", "이 페이지를 내주는 서버 자신이라 여기서는 다시 시작하지 못합니다 - 터미널에서": "This is the server serving this page, so it cannot restart itself here - in a terminal run",
+    "작업 공간 서버를 다시 시작하는 중...": "Restarting the workspace server...", "다시 시작하지 못했습니다": "Could not restart", "작업 공간 서버를 다시 시작했습니다": "Workspace server restarted",
     // ---- 튜토리얼 "최근 추가된 기능" 0.22.13 항목(페이지 영역이지만 함께 추가 - en.pages.js 에 같은 키를 두지 않는다)
     "PowerPoint 기능 보강": "PowerPoint feature upgrades", ": 글 안에 ": ": inline ", " 첨자 · ": " scripts · ", " 글자 링크, 숨김 슬라이드·구분(섹션), 도형 테두리 점선, 액자 색, 표 셀별 채움·테두리·격자, 차트에 누적 가로·100% 누적·콤보(막대+선, 보조 축)·축 제목·숫자 형식 - 모두 PPTX 로 그대로 나갑니다.": " text links, hidden slides and sections, dashed shape borders, frame color, per-cell table fills, borders and grids, and charts with stacked bar, 100% stacked, combo (bar + line, secondary axis), axis titles and number formats - all exported to PPTX as is.",
     // ---- 0.22.21 노트 패널 재배치
@@ -426,6 +450,7 @@
 
   });
   en.patterns.push(
+    [/^(\S+) · (\S+) 바탕 · 만들 때 함께$/, "$1 · based on $2 · created with the workspace"],  // 0.22.26 새로 만들기 ①의 회사 템플릿 카드
     [/^행 (\d+)개 삭제$/, "Delete $1 rows"], [/^열 (\d+)개 삭제$/, "Delete $1 columns"], [/^셀 \((.+)행, (.+)열\)$/, "Cell (row $1, col $2)"],
     [/^(열|행)을 (\d+) → (\d+) 로 옮겼습니다 \(Ctrl\+Z 로 되돌리기\)$/, (m, a, b, c) => `Moved ${a === "열" ? "column" : "row"} ${b} → ${c} (Ctrl+Z to undo)`],
     [/^열 (\d+) 선택 \(Shift 범위 · Ctrl 더하기\) · 고른 열의 띠를 끌면 옮기기$/, "Select column $1 (Shift range · Ctrl add) · drag a selected column's strip to move it"],

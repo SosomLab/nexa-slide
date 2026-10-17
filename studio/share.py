@@ -14,6 +14,7 @@ import datetime as dt
 import hashlib
 import hmac
 import json
+import re
 import secrets
 import sys
 import time
@@ -96,6 +97,18 @@ def create(ws, ws_id, deck, by, days=None, password=None):
         links[lid] = rec
         _save(links)
     return lid, tok, rec
+
+
+_MASK_RX = None
+
+
+def mask_path(text: str) -> str:
+    """로그에 쓰기 전에 `/s/<토큰>` 의 토큰 원문을 `-` 로 가린다 - 서버 로그(log_message)·접근 로그의 이른 거부(Host·hub-key 위조)처럼
+    share_route 가 경로를 /s/<id> 로 바꾸기 전에 기록되는 줄용(0.22.25 #6). 링크 id(짧은 숫자)는 토큰 길이가 아니라 그대로다."""
+    global _MASK_RX
+    if _MASK_RX is None:
+        _MASK_RX = re.compile(r"(/s/)" + TOKEN_RX + r"(?=[/?\s\"']|$)")
+    return _MASK_RX.sub(r"\1-", text) if text and "/s/" in text else text
 
 
 def lookup(tok):

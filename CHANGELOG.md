@@ -1,5 +1,16 @@
 # 변경 이력
 
+## 0.22.26 - 2026-10-17 · 회사 템플릿 만들기 마법사 · 작업 공간 템플릿(extends+tokenOverrides)
+
+엔진 요청 #3(협업 세션 설계 메모 `docs/dev/template-wizard-design.md`, 0절 원칙 충돌은 **안 A** 로 확정). 회사 색·로고·서체를 공개 엔진 저장소에 넣지 않고도 "회사 템플릿"을 쓸 수 있다.
+
+- **작업 공간 템플릿**: `<작업 공간>/templates/<이름>/template.json` 하나 — 반드시 엔진 템플릿을 `extends` 하고 `tokenOverrides`(색)·`label`·`description`·`parts`(·`i18n`)만 바꾼다. `tokens`·`design`·`sizes`·`check` 는 금지(로더가 무시하고 `알림:` 경고), `extends` 가 엔진 템플릿이 아니면 `lecture` 바탕+경고, 엔진과 같은 이름은 엔진 것이 쓰인다(마법사는 생성 거부). 찾는 순서 엔진 `studio/templates/` → 작업 공간 `templates/` — `common.template_dir/template_dirs/load_template/list_templates`, `set_template`(목록에 `[작업 공간]`), `hub.templates(ws)`(그 작업 공간 서버의 시작 페이지에만 `작업 공간` 배지로), `hub.preview`(작업 공간 템플릿은 `template.json`·`assets/brand/*.png` 를 임시 작업 공간에 복사해 빌드), `init_workspace --template`, `workspace_stamp` 가 작업 공간 `templates/**.json` 도 감시. render.js 는 토큰으로 받으므로 변경 없음. **작업 공간 템플릿이 없으면 출력은 그대로**(`engine_regress` 차이 0).
+- **`studio/palette.py`**(새, 순수 함수·CLI): 색 5개(주색 `primary` · 바탕 `surface` · 본문 `on-surface` · 보조 `accent1`→`day1` · `accent2`→`day2`) → `lecture/tokens.json` 의 역할 색 23개 파생 — container = 그 색을 surface 쪽으로 85%(어두운 바탕 75%), on-색 = 대비가 큰 흑/백, `on-*-container` = on-surface 쪽 60%(대비 4.5 보장 순서로 대체), `surface-dim/container/-high` 4·6·10%, `on-surface-variant` 는 대비 4.5 가 되는 데까지만 옅게, `outline-variant` 78%, `panel/on-panel`, `day3` = primary·accent2 중간. WCAG 대비 4.5:1 미만인 짝은 `warnings`. `check_layout` 의 `_lum`·`contrast` 가 여기 것을 쓴다(공식 한 곳).
+- **허브 API**: `POST /api/project {action: "palette", colors}`(파생 미리 보기, 쓰기 없음) · `{action: "template", ws, name, base, colors, label?, description?, brand?{name, logo PNG(base64), wordmark?}, font?{preset} | {name, family, files{regular, bold?}}, overwrite?}` → `templates/<이름>/template.json` · `assets/brand/logo.png`(PNG 만) · `fonts/<파일>` + `nexa-slide.json` 의 `template`(·`brand`·`fontPresets`·`fontPreset`, 공유 파일에만 — `set_template` 과 같은 처리) → 응답에 만든 파일·파생 색·경고·`restart{needed, running, url, id, hubUrl}`·안내. 관리자, 또는 이 허브에서 연 작업 공간(최근 작업)에 한해 로그인 사용자(아니면 403) · 작업 공간 서버는 자기 작업 공간만. 접근 로그 `event=template.create:<작업 공간>:<이름>`. `create` 에 `wizard` 를 주면 새 작업 공간을 만든 뒤 서버를 띄우기 전에 함께 만든다(재시작 불필요).
+- **시작 페이지**(`home.html`): 템플릿 탭 맨 앞 **"＋ 회사 템플릿 만들기"** 카드와 새로 만들기 ① 템플릿 격자 끝의 같은 카드 → 마법사(기반 템플릿 · 색 5개(시작값 = 기반 템플릿 색) · 로고 PNG · 회사 이름 · 글꼴(기반 세트 또는 전용 글꼴 파일 올리기) · 이름·표시 이름 · 적용할 작업 공간 · "고급" 파생값 하나씩 고치기). **브라우저 미리 보기**: 기반 템플릿의 `/api/preview` 결과에 파생 토큰을 `Render.setTokens` 로 덮어 레이아웃 견본을 그리고(색을 바꾸면 즉시), 올린 로고는 object URL 로 바꿔 보이며, 대비 경고를 띄운다. 만들면 **[지금 다시 시작]**(허브에서 `stop`→`start`; 작업 공간 서버 자신이면 `nexa.py restart` 안내) + "기존 덱의 글자 크기 하한은 `build_deck --force` 때" 안내. 새로 만들기에서는 ✎ 카드로 골라 두고 작업 공간과 함께 만든다. i18n ko/en.
+- 고침: `hub.preview` 의 stamp 계산이 `int + str` 로 `TypeError` 를 내던 것(0.22.9 부터 `/api/preview` 가 500) → `str()`.
+- 시험 `template_wizard_test`(`palette` 단위 · API 로 생성 → 파일 3종 · `resolve_tokens` 색 일치 · `export_pptx --out` 의 `srgbClr` 에 primary · 엔진 이름·PNG 아님·없는 세트·이상한 이름 거부 · 금지 키 무시·경고 · 같은 이름 폴더 무시 · 전용 글꼴 → `fonts/`+`fontPresets` · 비관리자 권한 · 작업 공간 서버의 `/api/templates`·`/api/home`·`/api/preview` · 엔진 저장소 `git status` 불변), `run_all wizard`. 문서 `templates.md`(원칙 문구 — 작업 공간 템플릿은 extends+tokenOverrides 만)·`home.md`·`configuration.md`·`tests.md`.
+
 ## 0.22.25 - 2026-10-17 · 보기 전용 공유 링크
 
 엔진 요청 #2(협업 세션 설계 메모 `docs/dev/share-link-design.md`). 로그인 없이 토큰 URL 하나로 **덱 1개를 보기만** 한다(외부 검토자·청중).
@@ -11,6 +22,7 @@
 - **UI**: Studio 내보내기 ▾ **공유 링크… (보기 전용)**(허브 경유로 열었을 때만, 명령 팔레트에도) - 만료 1/7/30일·직접, 비밀번호(선택), 만들기 → 주소 한 번만 표시·복사·열어 보기, 이 덱의 링크 목록·[회수]. `/account` 에 **공유 링크** 카드(내 것, 관리자는 전체·회수). 허브 API `GET /api/share?ws=&deck=` · `POST /api/share {action: "create", ws, deck, days?, password?}` · `POST /api/share/<id> {action: "revoke"}`. i18n ko/en.
 - **접근 로그 이벤트** `share.create:<id>` `share.revoke:<id>` `share.view:<id>`(조회 수 +1) `share.auth:<id>` `share.auth.fail:<id>` `share.auth.locked:<id>` `share.denied:<id>:<expired|revoked|path|method|owner>` `share.denied:-:unknown|policy`. 토큰 원문은 어디에도 남지 않는다.
 - `api_get_fontcss` 가 `X-Forwarded-Prefix` 를 읽어 `/wsfonts/` 앞에 접두를 붙인다 - `/w/<이름>/` 중계에서도 작업 공간 글꼴이 허브로 새지 않는다.
+- **엔진 요청 #6(협업 세션 검토)**: 공유 토큰 원문이 허브 `server.log`(`log_message` → stderr, 정상 요청 줄 전부)와 접근 로그의 **이른 거부**(share_route 가 경로를 `/s/<id>` 로 바꾸기 전에 거절되는 잘못된 Host 400·hub-key 위조 403)에 남던 것 — `share.mask_path()` 로 두 곳 모두 `/s/-` 로 가린다. `share_test` 가 이른 거부 두 경우와 `server.log` 까지 grep 하고, 정리 단계에서 허브가 띄운 작업 공간 서버도 끝낸다.
 - 문서 `auth.md`(공유 링크 절·설정·API·로그 이벤트) · `editor.md` · `server.md` · `server-admin.md` · `home.md`/`configuration.md`(설정 키) · `tests.md`. 시험 `share_test`.
 
 ## 0.22.24 - 2026-10-17 · 엔진 요청 검증 ④ - 전체 작업 공간 PPTX XML 회귀(`engine_regress.py`)
