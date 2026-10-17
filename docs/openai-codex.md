@@ -109,4 +109,5 @@ codex exec resume --last "다음 요청"                                    # �
 | 금지(어떤 설정으로도 넣지 않음) | `--dangerously-skip-permissions`·`bypassPermissions` | `--sandbox danger-full-access`·`--approve-for-me` |
 
 서비스 유형·모델은 **전역(사용자 설정 `sessionAgent`·`sessionModel`, 관리자만) < 작업 공간 설정(`nexa-slide.local.json`/`nexa-slide.json` 의 같은 키) < 세션 시작 창의 선택** 순이고 모두 화면에서 바꾼다(시작 창의 "이 작업 공간 기본으로 저장").
+샌드박스가 **작업 공간 밖 쓰기**를 막으므로 밖에 쓰는 일은 모두 작업 공간 서버(127.0.0.1)를 거친다 - 덱 저장은 `save_deck`, 엔진 요청은 `engine_request add` 가 `POST /api/engine_request` 로(0.22.27 - 그 전에는 큐 파일을 직접 쓰다 멈췄다). 작업 공간 서버가 꺼져 있으면 Codex 세션에서는 엔진 요청을 넣을 수 없다(오류가 reply 에 남는다).
 `codex` 를 처음 쓸 때는 작업 공간 하나로 `python3 nexa.py draft_deck`·`save_deck` 흐름이 끝까지 가는지 턴 로그(Studio 세션 칩 → 턴 로그)로 확인한다 — 옵션 이름이 설치된 판과 다르면 `probe` 가 `--help` 로 알아내 경고한다.

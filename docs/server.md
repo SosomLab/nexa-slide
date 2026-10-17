@@ -62,6 +62,7 @@ python3 studio/service.py start                                                 
 | `GET /api/version/<id>` | `{deck, requests, changes, session, deckIds, decksVer, config, engine}` — 편집기가 2초마다 확인(외부 변경 감지·원장 기록·세션 상태·덱 목록·설정·엔진 변경 → 탭 갱신·새로 고침 안내) |
 | `GET /api/changes/<id>` | 변경 원장 - `?limit=&before=&since=&origin=&slide=&group=1&recent=1&seq=N` ([change-ledger.md](change-ledger.md#api)) |
 | `GET /api/requests/<id>` | 요청 메모 목록 |
+| `POST /api/engine_request` | `{title, body?, request?, deck?, slide?, evidence?}` → `{ok, item, note}` — 작업 공간 세션이 엔진 요청을 큐에 넣는 길(**로컬 직접 접속만**, 허브 중계 403). 큐 파일이 작업 공간 밖이라 Codex 샌드박스가 직접 못 쓰므로 `engine_request add` 가 서버가 떠 있으면 이리로 온다(0.22.27). 늘 `session`(triage) |
 | `POST /api/requests/<id>` | `{"action": "add"\|"update"\|"delete"\|"send"\|"discard", …}` — add 는 `status`(draft/open)·`region`·`attachments`(아래 attach 로 올린 것만, 최대 10), send = 초안→대기(slide 생략 시 전체), discard = 초안 지우기, update 는 `status`·`reply`·`text`·`attachments`, delete 는 첨부 파일도 지운다 |
 | `POST /api/attach/<id>` | 요청 첨부 올리기 `{name, type, data(base64)}` → `{path, name, type, size, url}`. 그림(png/jpg/gif/webp/svg)·PDF·글(txt/md/csv/json)·pptx/docx/xlsx, 12MB 까지. 파일은 `out/attach/<덱>/<시각>.<확장자>`(작업 공간 안, git 제외), 편집기는 `url`(`/out/attach/…`)로 본다 |
 | `POST /api/export/<id>` | PPTX 생성 → `{url: "/out/<id>.pptx?v=…"}` |

@@ -1,5 +1,13 @@
 # 변경 이력
 
+## 0.22.27 - 2026-10-17 · Codex 샌드박스에서 엔진 요청 등록 - 작업 공간 서버 경유
+
+사용자 지적(편집기: Codex 가 "엔진 요청 등록 명령이 50초 넘게 응답 없음"). 원인: `engine_request add` 가 큐 파일(사용자 설정 폴더 = 작업 공간 **밖**)을 직접 쓰는데 Codex `workspace-write` 샌드박스는 그 쓰기를 막아 첫 시도는 멈추고 둘째는 빈 출력으로 실패했다(샌드박스 밖에서는 1초). 턴은 실패하지 않아 편집기에는 "대기 + 사유" 로만 보였다.
+
+- 작업 공간 서버에 **`POST /api/engine_request`**(로컬 직접 접속만, 허브 중계 403, 허브 서버 404): `{title, body, request?, deck?, slide?, evidence?}` → `engine_requests.add(kind=session)` + `link_origin`(원 요청 배지) → `{ok, item, note}`. 접근 로그 `engine.request:<id>`. 사용자는 `X-Nexa-Session-User`(세션 CLI 가 `NEXA_SLIDE_USER` 로 보냄).
+- `engine_request.py add`: 작업 공간 안(`NEXA_SLIDE_WORKSPACE`)이고 서버가 떠 있으면 그 API 로(`via_server`), 서버가 없거나 실패하면 전처럼 파일에 직접(안내 한 줄). 출력은 같다 - 턴 프롬프트·명령 파일 변경 없음.
+- 시험 `engine_link_test` 에 API·CLI 경유 등록 검사. 문서 `openai-codex.md`·`server.md`.
+
 ## 0.22.26 - 2026-10-17 · 회사 템플릿 만들기 마법사 · 작업 공간 템플릿(extends+tokenOverrides)
 
 엔진 요청 #3(협업 세션 설계 메모 `docs/dev/template-wizard-design.md`, 0절 원칙 충돌은 **안 A** 로 확정). 회사 색·로고·서체를 공개 엔진 저장소에 넣지 않고도 "회사 템플릿"을 쓸 수 있다.
