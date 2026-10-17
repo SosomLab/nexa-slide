@@ -59,6 +59,9 @@ async function main() {
         let v, err = null;
         try { v = await evalJs(s.js); } catch (e) { err = e.message; }
         if (s.wait) await sleep(s.wait);
+        if (s.shot) {  // 단계 뒤 화면을 PNG 로 남긴다(사람이 보는 점검용) - {shot: "<파일 경로>"}
+          try { const r = await send("Page.captureScreenshot", { format: "png" }); fs.writeFileSync(s.shot, Buffer.from(r.result.data, "base64")); console.log(`     화면 → ${s.shot}`); } catch (e) { console.log(`     화면 저장 실패: ${e.message}`); }
+        }
         const ok = !err && v !== false && !(typeof v === "string" && !s.dump);  // 단계가 돌려준 글은 실패 사유(dump 단계만 결과 글)
         if (!ok) fails++;
         console.log(`${ok ? "OK  " : "FAIL"} ${s.name}${err ? " - " + err : v === false ? "" : typeof v === "string" && (s.dump || v.length < 200) ? " → " + v : ""}`);
