@@ -187,6 +187,15 @@ try:
     check("다른 로고로 덮어쓰면 이전 로고가 out/.history/wizard/<시각>/ 에 백업", st == 200 and r3.get("backups") and bks and bks[-1].read_bytes() == logo_before and lp.read_bytes() == logo2, (st, r3.get("backups"), [str(b) for b in bks]))
     st, r3 = admin("POST", BASE + "/api/project", {**body, "overwrite": True, "brand": {"logo": {"name": "acme2.png", "data": b64(logo2)}}})
     check("같은 바이트면 백업 없음", st == 200 and not r3.get("backups"), r3.get("backups"))
+    # #8: 같은 초에 연달아 두 번(B → C → D) - 백업 폴더가 밀리초(+순번)라 B·C 가 모두 남아야 한다
+    logo3, logo4 = png(40, 20, (10, 200, 10)), png(40, 20, (10, 10, 200))
+    n0 = len(list(hist.glob("*/assets/brand/logo.png")))
+    bk_paths = []
+    for lg in (logo3, logo4):
+        st, r3 = admin("POST", BASE + "/api/project", {**body, "overwrite": True, "brand": {"logo": {"name": "acme3.png", "data": b64(lg)}}})
+        bk_paths += r3.get("backups") or []
+    kept = [p.read_bytes() for p in hist.glob("*/assets/brand/logo.png")]
+    check("연달아 덮어써도 백업 폴더가 겹치지 않아 이전 로고 둘 다 남음", len(kept) == n0 + 2 and logo2 in kept and logo3 in kept and len(set(bk_paths)) == 2, (n0, len(kept), bk_paths))
     st, r3 = admin("POST", BASE + "/api/project", {**body, "overwrite": True})  # 원래 로고로 되돌림(아래 검사들이 logo 바이트를 본다)
     check("원래 로고로 복구", st == 200 and lp.read_bytes() == logo)
 
