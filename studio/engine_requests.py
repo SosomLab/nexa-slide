@@ -213,20 +213,28 @@ def update(rid, status=None, by=None, **fields):
                 raise ValueError(f"상태는 {'|'.join(STATUSES)}")
             if status != x["status"] and status not in TRANSITIONS.get(x["status"], ()):
                 raise ValueError(f"{x['status']} → {status} 로 바꿀 수 없다")
+        now = _now()
+        if by != "engine-session":  # 세션 밖(사람·허브·CLI)이 손대면 "세션이 되돌려 답을 기다리는 중" 표시를 지운다 → 큐가 다시 보낸다(wsession EngineQueueSource)
+            x.pop("awaiting", None)
+        if status:
             if status != x["status"]:
                 changed = status
                 x["status"] = status
-                x["history"].append({"t": _now(), "status": status, "by": by or "?"})
+                x["history"].append({"t": now, "status": status, "by": by or "?"})
                 if status == "applied":
-                    x["appliedAt"] = _now()
+                    x["appliedAt"] = now
+                if status == "open" and by == "engine-session":  # 세션이 질문·실패로 되돌림 - 사람이 손대기 전에는 다시 보내지 않는다(무한 반복 방지, 0.22.27)
+                    x["awaiting"] = True
         for k, v in fields.items():
+            if k == "commit" and str(v or "").lower() == "auto":  # 세션이 커밋을 허브에 맡김(Codex) - 허브가 reconcile 에서 실제 해시를 적는다
+                continue
             if k in ("reply", "branch", "commit", "test", "appliedCommit", "engineVersion", "title", "body") and v is not None:
                 x[k] = str(v)[:MAX_BODY if k == "body" else 500]
             elif k == "priority" and v is not None:
                 x["priority"] = int(v)
             elif k == "evidence" and v is not None:  # 첨부를 요청 폴더로 옮긴 뒤 경로를 덧붙일 때
                 x["evidence"] = [str(e) for e in v][:20]
-        x["updated"] = _now()
+        x["updated"] = now
         _write(d)
     if changed in ("done", "applied", "rejected"):  # 잠금 밖에서 - 원 요청(작업 공간)에 알리거나 다시 연다
         resume_origin(x, changed)

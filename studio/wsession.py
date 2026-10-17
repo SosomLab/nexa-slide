@@ -201,8 +201,17 @@ class EngineQueueSource:
         import engine_requests
         self.q = engine_requests
 
+    @staticmethod
+    def returned_by_session(x):
+        """세션이 스스로 open 으로 되돌린 항목(질문·커밋 불가 등 - 마지막 이력이 engine-session 의 open)인가 - 사람이 답하거나 다시 열기 전에는 다시 보내지 않는다.
+        (0.22.27: 이것을 가리지 않아 같은 요청을 턴마다 다시 받는 무한 반복이 있었다 - 토큰 소모)"""
+        return x.get("status") == "open" and bool(x.get("awaiting"))  # engine_requests.update 가 세션의 open 되돌림에 켜고, 세션 밖의 어떤 갱신이든 끈다
+
     def poll(self):
         x = self.q.next_open()
+        if x and x["status"] == "open" and self.returned_by_session(x):
+            items = sorted((i for i in self.q.load() if i.get("status") == "open" and not self.returned_by_session(i)), key=lambda i: (-int(i.get("priority") or 0), i["id"]))
+            x = items[0] if items else None
         if not x:
             return None, None
         if x["status"] == "open":
@@ -298,7 +307,7 @@ class EngineProfile:
             show["evidence"] = [e for e in (show.get("evidence") or []) if not str(e).startswith("attach/")] + att
             show["attachments"] = att
         return (tpl.replace("{id}", str(x["id"])).replace("{branch}", self.BRANCH).replace("{req_cli}", self.req_cli()).replace("{shell}", ag.shell_note)
-                .replace("{request}", json.dumps(show, ensure_ascii=False, indent=1)))
+                .replace("{commit}", ag.engine_commit_note).replace("{request}", json.dumps(show, ensure_ascii=False, indent=1)))
 
     def settings_json(self, allow_web=False, grants=(), repo_root=None):  # 엔진 세션은 웹·grants 를 열지 않는다(무시 - 엔진 권한 묶음이 따로 있다)
         tpl = json.loads((STUDIO / "agents" / "permissions.json").read_text(encoding="utf-8"))
@@ -316,9 +325,31 @@ class EngineProfile:
         import engine_requests
         return {"queue": engine_requests.counts(), "git": self.git_info()}
 
+    def commit_for(self, x, emit):
+        """세션이 커밋하지 못한 worktree 변경을 허브가 대신 커밋한다(Codex 샌드박스는 .git 쓰기 불가 - 0.22.27). 바뀐 것이 없으면 None, 커밋했으면 짧은 해시."""
+        st = self._git("status", "--porcelain", cwd=self.cwd)
+        if st.returncode != 0 or not st.stdout.strip():
+            return None
+        self._git("add", "-A", cwd=self.cwd)
+        title = " ".join(str(x.get("title") or "").split())[:70] or "엔진 요청"
+        msg = f"{title} (engine-request #{x['id']})\n\n엔진 세션이 worktree 에서 고친 내용 - 허브가 대신 커밋(세션 샌드박스는 .git 쓰기 불가)\n\nCo-Authored-By: Claude <noreply@anthropic.com>"
+        r = self._git("-c", "user.name=nexa-slide hub", "-c", "user.email=hub@nexa-slide.local", "commit", "-q", "-m", msg, cwd=self.cwd)
+        if r.returncode != 0:
+            emit("warn", message=f"허브 대신 커밋 실패: {(r.stderr or r.stdout).strip()[-200:]}", ids=[x["id"]])
+            return None
+        h = self._git("rev-parse", "--short", "HEAD", cwd=self.cwd).stdout.strip()
+        emit("text", text=f"허브가 worktree 변경을 대신 커밋했다: {h} (engine-request #{x['id']})")
+        return h or None
+
     def reconcile(self, batch, result, rc_code, emit):
         import engine_requests
         x = engine_requests.get(batch[0]["id"])
+        if x and x["status"] == "done" and (not x.get("commit") or str(x.get("commit")).lower() == "auto"):  # 세션이 커밋을 못 했거나 허브에 맡김(--commit auto)
+            h = self.commit_for(x, emit)
+            if h:
+                engine_requests.update(x["id"], by="hub", commit=h, branch=self.BRANCH)
+            elif str(x.get("commit") or "").lower() == "auto":
+                engine_requests.update(x["id"], by="hub", commit=None)
         if x and x["status"] == "working":
             note = ((result or {}).get("text") or "").strip().splitlines()
             note = (note[0] if note else f"턴이 끝났지만 요청을 마무리하지 못함(코드 {rc_code})")[:300]

@@ -17,7 +17,7 @@
 3. **검증** — `python3 studio/check_parity.py -W example`(렌더 규칙을 건드렸으면 필수), 관련 모듈 `python3 -m py_compile`, 있으면 관련 시험 스크립트. 결과를 reply 에 적는다.
    **④ 전체 작업 공간 회귀**: 렌더·내보내기·레이아웃(`studio/*.py`·`render.js`·`templates/`)을 건드렸으면 `python3 studio/engine_regress.py`(등록된 모든 작업 공간의 덱을 사본에서 main 엔진과 지금 엔진으로 내보내 슬라이드 XML 비교) 를 돌린다.
    종료 코드 0 이어야 하고, 기능 추가로 **의도한** 차이는 `--allow <덱>[:<장>]` 로 표시한 뒤 reply 에 "의도한 변경: 덱/장 — 이유" 를 적는다. 1(예상 밖 차이)·2(실패·시간 초과)면 원인을 고치기 전에 done 으로 두지 않는다.
-4. 커밋 — `git add <고친 파일들>` 뒤 `git commit -m "<종류>: <요약> (engine-request #{id})"` (한국어, 끝에 `Co-Authored-By: Claude <noreply@anthropic.com>`).
+4. 커밋 — `git add <고친 파일들>` 뒤 `git commit -m "<종류>: <요약> (engine-request #{id})"` (한국어, 끝에 `Co-Authored-By: Claude <noreply@anthropic.com>`). {commit}
 5. `python3 {req_cli} status {id} done --by "engine-session" --commit "<git rev-parse --short HEAD 결과>" --branch "{branch}" --test "<실행한 검증>" --reply "<무엇을 어떻게 바꿨고 어떻게 쓰는지 2~4문장>"`
    (커밋 해시는 먼저 `git rev-parse --short HEAD` 로 보고 그 값을 적는다 — 명령 치환 `$(…)` 은 쓰지 않는다).
    할 수 없거나 판단이 필요하면 `status {id} rejected --reply "<이유·질문>"` 또는 `open` 으로 되돌리고 reply 에 질문을 적는다. **빈 reply 로 끝내지 않는다.**
