@@ -833,6 +833,7 @@ def project(b):
 PNG_SIG = b"\x89PNG\r\n\x1a\n"
 FONT_EXTS = (".ttf", ".otf", ".woff", ".woff2")
 TEMPLATE_NAME_RX = r"[A-Za-z0-9][A-Za-z0-9_-]{0,39}"
+WINDOWS_RESERVED = {"con", "prn", "aux", "nul", *(f"com{i}" for i in range(1, 10)), *(f"lpt{i}" for i in range(1, 10))}  # 폴더 이름으로 쓸 수 없다(#7)
 
 
 def palette_preview(b):
@@ -868,11 +869,14 @@ def create_template(b):
     → 작업 공간에 templates/<이름>/template.json(extends+tokenOverrides) · assets/brand/logo.png · fonts/<파일> 을 쓰고 nexa-slide.json 의
       template(·brand·fontPresets·fontPreset)을 바꾼다(set_template 과 같은 처리 - 공유 파일에만). 엔진 저장소에는 아무것도 쓰지 않는다.
     서버가 떠 있으면 재시작이 필요하다(응답 restart). 기존 덱의 글자 크기 하한은 build_deck --force 때 적용된다."""
+    import datetime as _dt
     import palette
     ws = _ws_of(b.get("ws") or b.get("path"))
     name = str(b.get("name") or "").strip()
     if not re.fullmatch(TEMPLATE_NAME_RX, name):
         raise HubError("템플릿 이름은 영문·숫자·-·_ 로 1~40자(영문·숫자로 시작)")
+    if name.lower() in WINDOWS_RESERVED:  # con·aux·com1… - Windows 에서 폴더를 만들 수 없다(엔진 이름 검사보다 먼저 - TEMPLATES/con.exists() 가 True 라 안내가 틀렸었다, #7)
+        raise HubError(f"Windows 예약 이름은 쓸 수 없다: {name} - 다른 이름을 고른다")
     if (TEMPLATES / name).exists():
         raise HubError(f"엔진 템플릿과 같은 이름은 쓸 수 없다: {name} - 다른 이름을 고른다")
     base = str(b.get("base") or "lecture")
@@ -940,12 +944,22 @@ def create_template(b):
             raise HubError(f"없는 글꼴 세트: {preset}")
         cfg["fontPreset"] = preset
     cfg["template"] = name
-    made = []
+    made, backups = [], []
+    try:  # 템플릿 폴더부터 - 여기서 실패하면(예약 이름·권한) 로고·글꼴을 건드리기 전에 끝난다(#7: 로고만 바뀐 반쪽 상태 방지)
+        tdir.mkdir(parents=True, exist_ok=True)
+    except OSError as e:
+        raise HubError(f"템플릿 폴더를 만들지 못했다: templates/{name} - {e}")
+    hist = ws / cfg.get("out", "out") / ".history" / "wizard" / _dt.datetime.now().strftime("%Y%m%d-%H%M%S")
     for p, data in writes:
         p.parent.mkdir(parents=True, exist_ok=True)
+        if p.is_file() and p.read_bytes() != data:  # 기존 로고·글꼴 파일은 out/.history/wizard/<시각>/ 에 백업하고 덮어쓴다(#7)
+            rel = p.relative_to(asset_root) if asset_root in p.parents else Path(p.name)
+            bk = hist / rel
+            bk.parent.mkdir(parents=True, exist_ok=True)
+            bk.write_bytes(p.read_bytes())
+            backups.append(str(bk.relative_to(ws)) if ws in bk.parents else str(bk))
         p.write_bytes(data)
         made.append(str(p.relative_to(ws)) if ws in p.parents else str(p))
-    tdir.mkdir(parents=True, exist_ok=True)
     (tdir / "template.json").write_text(json.dumps(tj, ensure_ascii=False, indent=2) + "\n", encoding="utf-8", newline="\n")
     made.insert(0, f"templates/{name}/template.json")
     (ws / CONFIG_NAME).write_text(json.dumps(cfg, ensure_ascii=False, indent=2) + "\n", encoding="utf-8", newline="\n")
@@ -955,7 +969,9 @@ def create_template(b):
     note = ("작업 공간 서버를 다시 시작해야 새 템플릿이 반영됩니다. " if st["running"] else "") + "기존 덱의 글자 크기 하한은 build_deck --force 로 다시 빌드할 때 적용되고, PPTX 는 다시 내보냅니다."
     if local_tpl != name:
         note += f" 알림: 이 PC 의 {LOCAL_CONFIG} 에 template 이 있어 이 PC 에서는 그 값({local_tpl})이 쓰입니다."
-    return {"ok": True, "path": str(ws), "name": name, "base": base, "label": label, "dir": str(tdir), "files": made, "colors": colors, "warnings": warns,
+    if backups:
+        note += f" 바뀐 기존 파일 {len(backups)}개는 {hist.relative_to(ws) if ws in hist.parents else hist} 에 백업했습니다."
+    return {"ok": True, "path": str(ws), "name": name, "base": base, "label": label, "dir": str(tdir), "files": made, "backups": backups, "colors": colors, "warnings": warns,
             "config": {"template": name, "fontPreset": cfg.get("fontPreset"), "brand": cfg.get("brand")},
             "restart": {"needed": bool(st["running"]), "running": bool(st["running"]), "url": st.get("url"), "id": ws_id(ws), "hubUrl": f"/w/{ws_id(ws)}/"},
             "template": next((t for t in ws_templates(ws) if t["name"] == name), None), "note": note}
