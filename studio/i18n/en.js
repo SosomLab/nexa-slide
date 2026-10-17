@@ -8,7 +8,7 @@
   const t = (s) => (window.I18N ? window.I18N.t(s) : s);
   Object.assign(en.dict, {
     // ---- 0.22.26 회사 템플릿 만들기 마법사(시작 페이지 - 색 5개·로고·글꼴 → 작업 공간 templates/<이름>/)
-    "＋ 회사 템플릿 만들기": "+ Company template", "색 5개 · 로고 PNG · 글꼴": "5 colors · PNG logo · font", "회사 템플릿 만들기": "Create a company template", "만들기": "Create",
+    "＋ 회사 템플릿 만들기": "+ Company template", "색 5개 · 로고 PNG · 글꼴": "5 colors · PNG logo · font", "회사 템플릿 만들기": "Create a company template",
     "회사 색과 로고로 템플릿을 만들어 작업 공간": "Build a template from your company colors and logo in the workspace's", "에 둡니다(기반 템플릿의 색만 바꿈 - 엔진에는 아무것도 넣지 않습니다).": "folder (only the base template's colors change - nothing is added to the engine).",
     "기반 템플릿의": "Only the base template's", "색만": "colors", "회사 색으로 바꿉니다 - 글자 크기·검사 기준·레이아웃은 기반 템플릿 그대로. 만든 템플릿은 작업 공간의": "are replaced with your company colors - font sizes, check thresholds and layouts stay as in the base template. The template lives only in the workspace's",
     "에만 있고 엔진에는 아무것도 넣지 않습니다.": "- nothing is added to the engine.", "기반 템플릿": "Base template", "색 5개": "5 colors",
