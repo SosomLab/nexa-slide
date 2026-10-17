@@ -194,7 +194,7 @@ Register-ScheduledTask -TaskName 'nexa-slide hub' -Action $act -Trigger (New-Sch
    python3 <작업 공간>/nexa.py restart                        # 떠 있는 작업 공간마다
    ```
 4. **[적용됨] 표시** — 카드의 [적용됨]을 누른다(확인 창: "main 에 병합하고 서버를 재시작했나요?"). 지금 화면 버튼은 상태만 바꾸고 병합 커밋(`appliedCommit`)은 적지 않는다.
-   병합 커밋까지 남기려면 관리자로 로그인한 상태에서 허브 API 를 부른다:
+   병합 커밋까지 남기려면 엔진 저장소에서 CLI 로 `python3 studio/engine_request.py status <번호> applied --applied-commit <병합 커밋>`(원 요청 재개 알림에 그 해시가 들어간다), 또는 관리자로 로그인한 상태에서 허브 API 를 부른다:
    ```text
    POST /api/engine/requests
    {"action": "status", "id": <번호>, "status": "applied", "appliedCommit": "<병합 커밋>"}
