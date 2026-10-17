@@ -19,6 +19,8 @@
 
 정해진 작업 공간은 `NEXA_SLIDE_WORKSPACE` 로 하위 프로세스에 넘어간다(서버가 실행하는 export·set_fonts·렌더도 같은 작업 공간을 쓴다).
 
+작업 공간 밖의 **전역(사용자) 설정** `settings.json` 의 키 목록은 [home.md](home.md#사용자-설정) — 허브 인증·로그(`sessionDays`·`publicHosts`·`accessLogDays`·`accessLogStatic`)와 보기 전용 공유 링크(`shareMaxDays` 기본 90 · `shareCreate` `any`/`admin`)는 [auth.md](auth.md).
+
 ## `nexa-slide.json`
 
 경로는 모두 **작업 공간 폴더 기준 상대 경로**다. 파일이 없으면 전부 기본값으로 동작한다.

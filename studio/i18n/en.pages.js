@@ -15,4 +15,14 @@
   en.patterns.push(
     [/^측정 (.+\.(?:ttf|otf|ttc)(?: · .+)?)$/, "measured $1"],
   );
+  // ---- 보기 전용 공유 링크(engine-request #2): 보기 페이지 view.html · 계정 페이지의 공유 링크 카드
+  Object.assign(en.dict, {
+    "슬라이드 보기": "Slides", "비밀번호가 필요한 공유 링크": "This shared link needs a password", "이 슬라이드를 보려면 보낸 사람에게 받은 비밀번호를 넣어 주세요.": "Enter the password you received from the sender to view these slides.",
+    "이 링크는 열 수 없습니다": "This link cannot be opened", "실패가 잦아 잠시 잠겼습니다 - 몇 분 뒤에 다시": "Too many failed attempts - try again in a few minutes", "비밀번호가 맞지 않습니다": "Wrong password",
+    "슬라이드를 읽지 못했습니다": "Could not load the slides", "보여 줄 슬라이드가 없습니다": "No slides to show", "← → 넘기기": "← → navigate", "F 전체 화면": "F fullscreen",
+    "이전 (←)": "Previous (←)", "다음 (→)": "Next (→)", "전체 화면 (F)": "Fullscreen (F)",
+    "공유 링크": "Shared links", "내가 만든 것": "mine", "로그인 없이 덱 하나를 보기만 하는 토큰 주소입니다 - Studio 의 내보내기 ▾ \"공유 링크…\" 에서 만듭니다. 주소는 만들 때만 보이고 여기서는 볼 수 없습니다. 회수하면 그 주소는 바로 열리지 않습니다.":
+      "Token URLs that show one deck read-only without login - create them in Studio under Export ▾ \"Share link…\". The URL is shown only when created and cannot be seen here. Revoking makes it stop working at once.",
+    "작업 공간 / 덱": "Workspace / deck",
+  });
 })();
