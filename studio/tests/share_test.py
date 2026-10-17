@@ -309,10 +309,25 @@ try:
         print("SKIP Chrome 또는 node 없음 - view.html 화면 확인 생략")
         toks = (tok, tok2, tok3, tok_b, tok5)
 
-    # ---------- 접근 로그 ----------
+    # ---------- 이른 거부 경로(share_route 전에 거절) - 잘못된 Host 400 · hub-key 위조 403 (#6: 이 줄들이 토큰 원문을 남기던 결함) ----------
+    for hdrs, want in (({"Host": "evil.example"}, 400), ({"X-Nexa-Hub-Key": "forged"}, 403)):
+        try:
+            req = urllib.request.Request(BASE + f"/s/{tok}/api/deck/demo", headers=hdrs)
+            urllib.request.urlopen(req, timeout=5)
+            code = 200
+        except urllib.error.HTTPError as e:
+            code = e.code
+        check(f"  이른 거부 {hdrs} → {want}", code == want, str(code))
+
+    # ---------- 접근 로그 · 서버 로그 ----------
     time.sleep(0.5)
     logs = "".join(p.read_text(encoding="utf-8", errors="replace") for p in sorted((USER / "hub" / "logs").glob("access-*.log")))
-    check("접근 로그에 토큰 원문 없음", logs and not any(t in logs for t in toks))
+    check("접근 로그에 토큰 원문 없음(이른 거부 포함)", logs and not any(t in logs for t in toks))
+    check("  이른 거부 줄은 /s/- 로 가려짐", '"path":"/s/-/api/deck/demo"' in logs)
+    slog = (USER / "hub" / ".studio" / "server.log")
+    stext = slog.read_text(encoding="utf-8", errors="replace") if slog.is_file() else ""
+    check("허브 server.log 에 토큰 원문 없음(log_message 가림)", stext and not any(t in stext for t in toks), f"{slog} {len(stext)}자")
+    check("  server.log 의 공유 줄은 /s/- 로", "/s/-/" in stext)
     for ev in (f"share.create:{lid}", f"share.view:{lid}", f"share.denied:{lid}:path", f"share.denied:{lid}:method", f"share.revoke:{lid}", f"share.denied:{lid}:revoked",
                f"share.auth.fail:{lid2}", f"share.auth.locked:{lid2}", f"share.auth:{lid3}", f"share.denied:{lid3}:expired", "share.denied:-:unknown", f"share.denied:{lid}:owner", "share.denied:-:policy"):
         check(f"  로그 이벤트 {ev}", f'"event":"{ev}"' in logs)
@@ -322,6 +337,11 @@ finally:
     try:
         if ws_path:
             admin("POST", BASE + "/api/project", {"action": "stop", "path": ws_path})
+    except Exception:  # noqa: BLE001
+        pass
+    try:  # 허브 stop 은 허브가 띄운 작업 공간 서버를 끝내지 않는다 - 남지 않게 실행기로 한 번 더
+        if ws_path and (Path(ws_path) / "nexa.py").is_file():
+            subprocess.run([sys.executable, str(Path(ws_path) / "nexa.py"), "stop"], env=ENV, cwd=ws_path, capture_output=True, text=True, timeout=30)
     except Exception:  # noqa: BLE001
         pass
     print("  ", svc("stop").stdout.strip())

@@ -439,7 +439,7 @@ class H(BaseHTTPRequestHandler):
     def log_message(self, fmt, *args):
         if _is_poll(self.path):
             return  # 2초 폴링은 기록하지 않는다
-        sys.stderr.write("%s %s\n" % (self.log_date_time_string(), fmt % args))
+        sys.stderr.write("%s %s\n" % (self.log_date_time_string(), share.mask_path(fmt % args)))  # 공유 토큰 원문은 서버 로그에도 남기지 않는다
 
     def send_response(self, code, message=None):
         self._status = code
@@ -575,7 +575,7 @@ class H(BaseHTTPRequestHandler):
             return  # 정적 파일·2초 폴링의 승인 줄은 설정으로만(부피)
         m = re.match(r"^/w/([^/]+)", u.path)
         rec = {"t": dt.datetime.now().astimezone().isoformat(timespec="milliseconds"), "result": result, "status": st, "method": method,
-               "path": u.path, "user": self.user, "ip": self.client_ip(), "via": "cloudflare" if self.headers.get("Cf-Ray") else "hub" if self.via_hub else "local",
+               "path": share.mask_path(u.path), "user": self.user,  # 이른 거부(Host·hub-key 위조)는 share_route 가 /s/<id> 로 바꾸기 전이라 여기서 가린다 "ip": self.client_ip(), "via": "cloudflare" if self.headers.get("Cf-Ray") else "hub" if self.via_hub else "local",
                "ua": (self.headers.get("User-Agent") or "")[:160], "ms": int((time.monotonic() - t0) * 1000),
                "server": SERVER_NAME or (hub.ws_id(WORKSPACE) if not HUB else "hub")}
         if m:

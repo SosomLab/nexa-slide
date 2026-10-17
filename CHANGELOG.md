@@ -11,6 +11,7 @@
 - **UI**: Studio 내보내기 ▾ **공유 링크… (보기 전용)**(허브 경유로 열었을 때만, 명령 팔레트에도) - 만료 1/7/30일·직접, 비밀번호(선택), 만들기 → 주소 한 번만 표시·복사·열어 보기, 이 덱의 링크 목록·[회수]. `/account` 에 **공유 링크** 카드(내 것, 관리자는 전체·회수). 허브 API `GET /api/share?ws=&deck=` · `POST /api/share {action: "create", ws, deck, days?, password?}` · `POST /api/share/<id> {action: "revoke"}`. i18n ko/en.
 - **접근 로그 이벤트** `share.create:<id>` `share.revoke:<id>` `share.view:<id>`(조회 수 +1) `share.auth:<id>` `share.auth.fail:<id>` `share.auth.locked:<id>` `share.denied:<id>:<expired|revoked|path|method|owner>` `share.denied:-:unknown|policy`. 토큰 원문은 어디에도 남지 않는다.
 - `api_get_fontcss` 가 `X-Forwarded-Prefix` 를 읽어 `/wsfonts/` 앞에 접두를 붙인다 - `/w/<이름>/` 중계에서도 작업 공간 글꼴이 허브로 새지 않는다.
+- **엔진 요청 #6(협업 세션 검토)**: 공유 토큰 원문이 허브 `server.log`(`log_message` → stderr, 정상 요청 줄 전부)와 접근 로그의 **이른 거부**(share_route 가 경로를 `/s/<id>` 로 바꾸기 전에 거절되는 잘못된 Host 400·hub-key 위조 403)에 남던 것 — `share.mask_path()` 로 두 곳 모두 `/s/-` 로 가린다. `share_test` 가 이른 거부 두 경우와 `server.log` 까지 grep 하고, 정리 단계에서 허브가 띄운 작업 공간 서버도 끝낸다.
 - 문서 `auth.md`(공유 링크 절·설정·API·로그 이벤트) · `editor.md` · `server.md` · `server-admin.md` · `home.md`/`configuration.md`(설정 키) · `tests.md`. 시험 `share_test`.
 
 ## 0.22.24 - 2026-10-17 · 엔진 요청 검증 ④ - 전체 작업 공간 PPTX XML 회귀(`engine_regress.py`)
