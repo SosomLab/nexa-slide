@@ -117,7 +117,7 @@ class WorkspaceProfile:
     def prompt(self, batch, reason, sess, ag):
         tpl = self.prompt_file.read_text(encoding="utf-8")
         return (tpl.replace("{guide}", ag.guide_file).replace("{reason}", str(reason)).replace("{web}", (self.WEB_NOTE if sess.allow_web else "") + self.git_note(sess))
-                .replace("{batch}", json.dumps([rc.brief(r) for r in batch], ensure_ascii=False, indent=1)))
+                .replace("{shell}", ag.shell_note).replace("{batch}", json.dumps([rc.brief(r) for r in batch], ensure_ascii=False, indent=1)))
 
     def repo_root(self):
         """작업 공간을 품은 git 저장소 루트 - 작업 공간 자신이 루트이거나 저장소가 아니면 None. 엔진 폴더면 거절."""
@@ -297,7 +297,7 @@ class EngineProfile:
         if att:  # 큐의 evidence 는 사용자 설정 폴더 기준 경로 - 세션에는 cwd 안 사본 경로로 보여 준다
             show["evidence"] = [e for e in (show.get("evidence") or []) if not str(e).startswith("attach/")] + att
             show["attachments"] = att
-        return (tpl.replace("{id}", str(x["id"])).replace("{branch}", self.BRANCH).replace("{req_cli}", self.req_cli())
+        return (tpl.replace("{id}", str(x["id"])).replace("{branch}", self.BRANCH).replace("{req_cli}", self.req_cli()).replace("{shell}", ag.shell_note)
                 .replace("{request}", json.dumps(show, ensure_ascii=False, indent=1)))
 
     def settings_json(self, allow_web=False, grants=(), repo_root=None):  # 엔진 세션은 웹·grants 를 열지 않는다(무시 - 엔진 권한 묶음이 따로 있다)

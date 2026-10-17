@@ -15,7 +15,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from common import CONFIG, WORKSPACE  # noqa: E402
 from paths import ROOT_MARKER, write_root_marker  # noqa: E402
-from init_workspace import ensure_claude_commands, LAUNCHER, ensure_claude_settings, ensure_env_files, ensure_gitignore  # noqa: E402
+from init_workspace import ensure_claude_commands, ensure_codex_skills, LAUNCHER, ensure_claude_settings, ensure_env_files, ensure_gitignore  # noqa: E402
 
 
 def main():
@@ -37,6 +37,8 @@ def main():
         print(f"{name} 를 두었다: {WORKSPACE / name}" + (" — NEXA_SLIDE_HOME 에 이 엔진 위치(가장 먼저 쓰인다)" if name == ".env" else " — 샘플(커밋)"))
     if ensure_claude_commands(WORKSPACE, root):
         print("추가: .claude/commands/ - 이 폴더" + ("와 저장소 루트" if root and root != WORKSPACE else "") + "에서 연 Claude Code 세션에서 /nexa-slide-session(이 작업 공간의 슬라이드 세션) · /nexa-slide-server(서버 작업 큐)로 연결할 수 있다")
+    if ensure_codex_skills(WORKSPACE, root):
+        print("추가: .codex/skills/ - 이 폴더" + ("와 저장소 루트" if root and root != WORKSPACE else "") + "에서 연 Codex 세션에서 $nexa-slide-session · $nexa-slide-server 로 연결할 수 있다")
     if ensure_claude_settings(WORKSPACE):  # AI 세션 권한(쓰기 범위 = 이 폴더, 명령은 nexa.py 만) - 없는 키만 더한다
         print(f".claude/settings.json 에 훅·권한을 더했다: {WORKSPACE / '.claude' / 'settings.json'}")
     print(f"엔진 위치 확인: python3 {f} engine")

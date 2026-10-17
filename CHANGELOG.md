@@ -1,5 +1,14 @@
 # 변경 이력
 
+## 0.22.22 - 2026-10-17 · Codex 웹 세션 실동작 · Codex 스킬 $nexa-slide-session / $nexa-slide-server
+
+사용자 요청("Codex 로 작업 폴더 세션·서버 작업 세션을 만들어 동작", "VS Code 의 `/nexa-slide-server`·`/nexa-slide-session` 처럼 Codex 에서도"). 작업 공간 `테스트1` 에서 Codex 웹 세션 턴을 끝까지 확인(Windows · codex-cli 0.163 · gpt-6-luna).
+
+- **Codex 어댑터 결함 셋 고침**(`studio/agents/codex.py`): ① `turn_cmd()` 가 wsession 이 넘기는 `allow_web`·`add_dirs`·`new_session_id`·`name` 을 받지 않아 첫 턴이 `TypeError` 로 끝나던 것(`base.py` 서명도 맞춤) ② Windows 에서 chocolatey·npm 판 `codex.exe` 옆에 `codex-code-mode-host.exe` 가 없어 명령 실행이 전부 "fail closed" 되던 것 — `executable()` 이 host 가 있는 **데스크톱 앱 동봉 CLI**(`%LOCALAPPDATA%/OpenAI/Codex/bin/<해시>/codex.exe`)를 우선하고 probe 가 `codeModeHost`·안내를 준다 ③ `--ignore-user-config` 가 `[windows] sandbox = "elevated"` 까지 버려 기본 샌드박스가 `CreateProcess` 실패하던 것 — 사용자 `config.toml` 의 값을 읽어 `-c windows.sandbox=…` 로 넘긴다(없으면 elevated). `verified = True`, 기본 모델 목록 `gpt-6-luna`.
+- **턴 프롬프트 `{shell}` 자리**(`turn_prompt.md`·`engine_turn_prompt.md` + `Agent.shell_note`): Claude 용 "다른 Bash 는 거절 · Edit 로 고친다" 문구를 Codex 가 그대로 믿고 "파일 도구가 없다"며 멈추던 것 — Codex 에는 "Read 는 셸 읽기, Edit 는 `apply_patch`, 작업 공간 안은 셸로 읽고 고쳐도 된다" 를 넣는다.
+- **Codex 스킬**: 엔진 저장소 `.codex/skills/nexa-slide-server/SKILL.md`, 작업 공간에는 `init_workspace.ensure_codex_skills`(새 작업 공간·`update_launcher`, 저장소형이면 루트에도)가 `.codex/skills/nexa-slide-session/`·`nexa-slide-server/` 를 둔다 — Codex 대화창에 `$nexa-slide-session`/`$nexa-slide-server` 한 줄로 Claude 의 슬래시 명령과 같은 연결. Monitor 가 없으므로 **1회 대기 명령 반복**: `watch_requests --ttl 600`(요청 묶음을 내고 끝남 / `ttl`) · `watch_engine_requests --wait --ttl 600`(**새 `--wait`** — 요청이 생길 때까지 기다렸다가 한 건 내고 끝남 / `expired`). `.gitignore` 에 `.codex/*` + `!.codex/skills/`.
+- 문서 `openai-codex.md`(Windows 주의·스킬·확인됨 표), `claude-session.md`. 시험 `codex_adapter_test`(설치 없이: 인자·실행 파일 고르기·windows.sandbox·`{shell}`) · `e3` 재확인. VS Code 작업 공간 설정 `.vscode/settings.json`(git 제외)에 pyenv 인터프리터 경로.
+
 ## 0.22.21 - 2026-10-16 · 노트 패널 재배치
 
 - **노트 패널**(사용자 지적 - ✨ 칩과 입력 칸이 너무 붙어 있음): 위 줄은 **발표자 노트 · 글자 수**(왼쪽)와 **✨ 이 장 노트 쓰기 · ✨ 빈 노트 모두 쓰기 · 지우기**(오른쪽, 지우기는 노트가 있을 때만), 아래 입력 칸은 남은 높이를 다 쓰는 세로 배치. 아래 패널 기본 높이 98 → 132(최소 72, `LAYOUT_VER` 3 으로 저장된 높이 초기화). 입력 중 제목 옆 글자 수·탭 배지·지우기 표시를 같이 갱신. 안내 문구를 "이 슬라이드에서 말할 내용 - PPTX 노트·발표자 보기에 들어간다"로.
