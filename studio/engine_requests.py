@@ -304,6 +304,17 @@ def resume_origin(item, status):
     return False
 
 
+def reclaim_stale(by="hub"):
+    """엔진 세션이 끊긴 채 남은 working 항목을 open 으로 되돌린다(새 엔진 세션 시작 때 - 허브가 죽거나 재시작되면 reconcile 이 돌지 않아 working 이 고아로 남았다, 0.22.28).
+    되돌린 항목 id 목록을 돌려준다. awaiting 은 켜지 않으므로 새 세션이 바로 다시 받는다."""
+    out = []
+    for x in load():
+        if x.get("status") == "working":
+            update(x["id"], status="open", by=by, reply=(x.get("reply") or "") + "\n[세션이 끊겨 되돌림] 새 엔진 세션이 이어서 처리한다")
+            out.append(x["id"])
+    return out
+
+
 def next_open():
     """개발 세션이 다음에 처리할 요청 - open 중 priority 큰 것, 같으면 먼저 들어온 것. working 이 있으면 그것(한 번에 하나)."""
     items = load()

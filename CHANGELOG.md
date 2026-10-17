@@ -1,5 +1,14 @@
 # 변경 이력
 
+## 0.22.28 - 2026-10-18 · 엔진 세션 상태 갱신을 outbox 로 · 고아 working 되돌리기 · 카드 제목 '서버 요청'
+
+Codex 엔진 세션 둘째 운영 시험(2026-10-17 21시, 사용자 요청 #13 "카드 제목 '서버 작업' → '서버 요청'")에서: 세션이 `.nexa/engine_request.py status …` 로 큐 파일(사용자 설정 폴더)을 쓰는 것도 샌드박스 안에서 30초 넘게 멈췄고(작업 공간 세션의 `add` 와 같은 현상), 허브 재시작으로 세션이 끊기자 #13 이 `working` 으로 고아가 됐다. 0.22.27 의 반복 방지·허브 커밋은 재시작 전 세션이라 아직 적용 전이었다.
+
+- **outbox**: worktree 의 `.nexa/engine_request.py`(세션용 실행 파일)가 `status` 를 큐에 직접 쓰지 않고 `.nexa/outbox/<id>-<ms>.json` 에 적는다(즉시 "턴 끝에 반영" 안내). 턴이 끝나면 `EngineProfile.apply_outbox` 가 시각 순으로 `engine_requests.update` 에 반영(applied 면 appliedCommit) → 이어서 허브 대신 커밋·반복 방지. `list`·`show`·`add` 는 그대로 CLI. 턴 프롬프트에 "같은 턴에서 show 로 확인해도 안 바뀐 것이 정상".
+- **고아 working 되돌리기**: 새 엔진 세션 시작(`check_start`) 때 `engine_requests.reclaim_stale()` 이 남은 `working` 을 `open`(+"[세션이 끊겨 되돌림]")으로 - `awaiting` 아님이라 새 세션이 바로 받는다.
+- **#13**: 시작 페이지 엔진 세션 카드 제목 `서버 작업` → **`서버 요청`**(Codex 엔진 세션이 `home.html` 수정, 커밋은 개발 세션 대행 1e83e70) + `en.js` "Server requests". 메뉴 배지·`/engine` 목록 제목·안내 문구의 "서버 작업" 은 그대로(요청 범위 = 카드 제목).
+- 시험 `engine_commit_test` 에 (d) 고아 되돌리기 (e) shim → outbox → reconcile 반영·커밋 추가.
+
 ## 0.22.27 - 2026-10-17 · Codex 샌드박스에서 엔진 요청 등록 - 작업 공간 서버 경유
 
 사용자 지적(편집기: Codex 가 "엔진 요청 등록 명령이 50초 넘게 응답 없음"). 현상: 작업 공간 Codex 세션 안에서만 `engine_request add --request … --deck …` 가 첫 시도는 멈추고 둘째는 빈 출력으로 실패했다(샌드박스 밖에서는 1초; 엔진 세션의 `status` 쓰기는 같은 큐 파일인데 된다 — 큐 파일 쓰기 자체보다 CLI 가 작업 공간 서버로 되돌아가는 `link_origin` POST 경로가 의심되나 확정하지 못함). 턴은 실패하지 않아 편집기에는 "대기 + 사유" 로만 보였다. 서버 경유로 바꾸자 같은 요청이 바로 등록됐다.

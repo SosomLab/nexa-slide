@@ -255,9 +255,27 @@ class EngineProfile:
         shim.mkdir(exist_ok=True)
         (shim / ".gitignore").write_text("*\n", encoding="utf-8", newline="\n")
         target = (STUDIO / "engine_request.py").as_posix()
+        (shim / "outbox").mkdir(exist_ok=True)
         (shim / "engine_request.py").write_text(
-            "# -*- coding: utf-8 -*-\n# 허브 엔진의 큐 CLI 를 이 worktree 안에서 부르기 위한 실행 파일(세션 시작 때 wsession 이 만든다, git 제외)\n"
-            f"import runpy, sys\nsys.argv[0] = {target!r}\nrunpy.run_path({target!r}, run_name='__main__')\n", encoding="utf-8", newline="\n")
+            "# -*- coding: utf-8 -*-\n# 허브 엔진의 큐 CLI 를 이 worktree 안에서 부르기 위한 실행 파일(세션 시작 때 wsession 이 만든다, git 제외).\n"
+            "# status 는 큐 파일(작업 공간 밖)을 직접 쓰지 않고 .nexa/outbox/ 에 적어 둔다 - 허브가 턴 끝에 반영한다(Codex 샌드박스에서 큐 파일 쓰기가 멈추던 결함, 0.22.28).\n"
+            "import json, os, sys, time, runpy\n"
+            "HERE = os.path.dirname(os.path.abspath(__file__))\n"
+            "if len(sys.argv) > 1 and sys.argv[1] == 'status':\n"
+            "    import argparse\n"
+            "    ap = argparse.ArgumentParser(prog='engine_request.py status')\n"
+            "    ap.add_argument('cmd'); ap.add_argument('id', type=int); ap.add_argument('status')\n"
+            "    for k in ('--reply', '--reply-file', '--commit', '--applied-commit', '--branch', '--test', '--by'):\n"
+            "        ap.add_argument(k)\n"
+            "    a = ap.parse_args()\n"
+            "    reply = open(a.reply_file, encoding='utf-8').read() if a.reply_file and a.reply_file != '-' else (sys.stdin.read() if a.reply_file == '-' else a.reply)\n"
+            "    rec = {'id': a.id, 'status': a.status, 'reply': reply, 'commit': a.commit or a.applied_commit, 'branch': a.branch, 'test': a.test, 'by': a.by or 'engine-session', 't': time.time()}\n"
+            "    p = os.path.join(HERE, 'outbox', '%d-%d.json' % (a.id, int(time.time() * 1000)))\n"
+            "    with open(p, 'w', encoding='utf-8') as f:\n"
+            "        json.dump(rec, f, ensure_ascii=False)\n"
+            "    print('#%d → %s (허브가 턴 끝에 반영한다)' % (a.id, a.status))\n"
+            "    sys.exit(0)\n"
+            f"sys.argv[0] = {target!r}\nrunpy.run_path({target!r}, run_name='__main__')\n", encoding="utf-8", newline="\n")
 
     def git_info(self):
         exists = (self.cwd / ".git").exists()
@@ -272,6 +290,8 @@ class EngineProfile:
         if st.get("connected") and st.get("kind") != "engine" and rc.pid_alive(st.get("pid")):
             raise ValueError(f"수동 엔진 개발 세션({st.get('label') or '?'}, pid {st.get('pid')})이 맡고 있다")
         self.ensure_worktree()
+        import engine_requests
+        engine_requests.reclaim_stale(by="hub")  # 이전 세션이 끊긴 채 남긴 working → open (새 세션이 이어서 받는다)
 
     def source(self):
         return EngineQueueSource()
@@ -341,8 +361,32 @@ class EngineProfile:
         emit("text", text=f"허브가 worktree 변경을 대신 커밋했다: {h} (engine-request #{x['id']})")
         return h or None
 
+    def apply_outbox(self, emit):
+        """세션이 .nexa/outbox/ 에 남긴 status 갱신을 시각 순으로 큐에 반영한다(샌드박스 안에서 큐 파일을 쓰지 않게). 전이가 안 되는 것은 warn 으로 남기고 지운다."""
+        import engine_requests
+        box = self.cwd / ".nexa" / "outbox"
+        if not box.is_dir():
+            return 0
+        n = 0
+        for p in sorted(box.glob("*.json")):
+            try:
+                rec = json.loads(p.read_text(encoding="utf-8"))
+                applied = rec["status"] == "applied"
+                engine_requests.update(int(rec["id"]), status=rec["status"], by=rec.get("by") or "engine-session", reply=rec.get("reply"),
+                                       commit=None if applied else rec.get("commit"), appliedCommit=rec.get("commit") if applied else None,
+                                       branch=rec.get("branch"), test=rec.get("test"))
+                n += 1
+            except (OSError, ValueError, KeyError, TypeError) as e:
+                emit("warn", message=f"세션의 상태 갱신을 반영하지 못함({p.name}): {e}")
+            try:
+                p.unlink()
+            except OSError:
+                pass
+        return n
+
     def reconcile(self, batch, result, rc_code, emit):
         import engine_requests
+        self.apply_outbox(emit)
         x = engine_requests.get(batch[0]["id"])
         if x and x["status"] == "done" and (not x.get("commit") or str(x.get("commit")).lower() == "auto"):  # 세션이 커밋을 못 했거나 허브에 맡김(--commit auto)
             h = self.commit_for(x, emit)
