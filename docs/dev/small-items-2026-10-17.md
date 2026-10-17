@@ -64,3 +64,8 @@
 - 이것은 문서 작업이라 **협업 세션이 맡아도 된다** — 개발 세션이 원하면 넘겨받는다.
 
 **완료 기준**: mermaid 가 GitHub 미리 보기에서 그려지고, 표의 함수 이름이 코드에 실제로 있다(grep).
+
+## D. 결과 (0.22.23 · engine-request #4)
+
+- A·B 는 worktree 작업자가 구현(커밋 647a64d → main 6720665): `render.js strokeCss`·`export_pptx stroke_rgb/set_line_color`(도형·선·화살표·곡선·표 셀 테두리·그림 액자), `SHAPES`/`SHAPE_PRESETS`/`shape_text_rect`/`PRST_TO_SHAPE` 에 `flowChartProcess/Decision/Document/InputOutput`(한국어 이름 "순서도: 프로세스/판단/문서/데이터"), `check_parity` 에 선 색 9건·도형 글 영역 100건(25종), selftest 3건. 불투명 선의 XML 은 전과 동일(`engine_regress` 0). 데이터 도형 textRect(l=w/5, r=4w/5)는 PowerPoint 렌더 눈 대조만.
+- C 는 협업 세션(7dfc2ed, mermaid). 남긴 것: `import_pptx` 는 선 색을 읽지 않아 투명도 왕복 없음, 테두리 색 UI 는 단색 토큰만.

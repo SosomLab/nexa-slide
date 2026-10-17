@@ -184,5 +184,6 @@
 
 사용자 지시("Codex 로 작업 폴더 세션·서버 작업 세션 생성·동작", "`/nexa-slide-server`·`/nexa-slide-session` 을 Codex 에서도"). 세션 역할도 이날 정리 — **개발 세션**(엔진 코드·큐 수동 세션·브랜치/병합)과 **협업 세션**(요청 정리·검토·운영·문서; 큐 #1~#4 와 설계 메모 4개를 넣음).
 - 작업 공간 `테스트1` 웹 세션을 `agent=codex`(작업 공간 서버 로컬 `POST /api/wsession`) 로 켜서 턴을 끝까지 확인. 그 과정에서 어댑터 결함 셋(인자 불일치 · chocolatey 판에 code-mode host 없음 → 앱 동봉 CLI 우선 · Windows 샌드박스 elevated 전달)과 프롬프트 낱말 문제(`{shell}`)를 고쳤다 — `CHANGELOG` 0.22.22.
-- 서버 작업 큐의 **Codex 세션**: 웹 모드는 허브 카드 [세션 시작] → 서비스 유형 `codex`(관리자 로그인이 필요해 터미널 세션이 대신 호출할 수 없다 — 수동 claude 감시가 살아 있으면 `check_start` 가 거절하므로 먼저 끝낸다). 수동 모드는 엔진 저장소에서 연 Codex 에 `$nexa-slide-server`(`.codex/skills/`) — Monitor 대신 `watch_engine_requests --wait --ttl 600` 반복(새 `--wait`).
+- 서버 작업 큐의 **Codex 세션**: 웹 모드는 허브 카드 [세션 시작] → 서비스 유형 `codex`(관리자 로그인이 필요해 터미널 세션이 대신 호출할 수 없다 — 수동 claude 감시가 살아 있으면 `check_start` 가 거절하므로 먼저 끝낸다). 수동 모드는 엔진 저장소에서 연 Codex 에 `$nexa-slide-server`(`.codex/skills/`) — Monitor 대신 `watch_engine_requests --wait --ttl 600` 반복(새 `--wait`). 운영 시험은 사용자가 뒤에 하기로 함.
+- **큐 처리 기록(2026-10-17)**: #1 검증 ④(0.22.24) · #2 공유 링크(0.22.25) · #3 템플릿 마법사(0.22.26) · #4 투명도·순서도 도형(0.22.23) — 사용자 요청 4건은 협업 세션이 설계 메모(`engine-regress-design`·`share-link-design`·`template-wizard-design`·`small-items-2026-10-17`)를 쓰고 큐에 넣었고, 개발 세션이 #1 은 직접, #2·#3·#4 는 worktree 작업자 셋에게 병렬로 맡겨 검토·병합했다. 협업 세션 검토에서 나온 #5(CLI 인자·빈 파일)·#6(토큰 로그)·#7(예약 이름·백업)·#8(백업 폴더 겹침)도 당일 처리. 모두 `applied`. 큐 본문이 pyenv-win 래퍼에 잘려 "설계 메모 경로 한 줄" 만 남은 것은 #5 의 원인이 됐다(이후 `--body-file`).
 
