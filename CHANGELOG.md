@@ -8,6 +8,7 @@
 - 판정: `--allow` 로 표시한 차이는 의도한 변경(expected). 종료 코드 0 동일/전부 의도 · 1 예상 밖 · 2 실패·시간 초과(조용히 통과하지 않는다). 이 PC(작업 공간 2 · 덱 2 · 12장) 6초.
 - 규약: `engine_turn_prompt.md` 검증 단계 ④, `/nexa-slide-server`·`$nexa-slide-server`(엔진·작업 공간 명령 파일) 검증 목록에 추가 — 렌더·내보내기·레이아웃·템플릿을 건드렸으면 돌리고 결과 요약을 reply 에.
 - 시험 `engine_regress_test`(엔진 복제본에서 변경 없음 0 · `lecture` 토큰 변경 → demo 7장 unexpected 1 · `--allow` · 깨진 덱 2 · 원본 mtime 불변 · 사본 정리). 문서 `tests.md`·`engine-request-design.md`.
+- **엔진 요청 #5(협업 세션 검토)**: ① Windows pyenv-win 의 `python` 래퍼(.bat)가 인자를 cmd 로 다시 해석해 여러 줄 `--body` 가 첫 줄에서 잘리고(`|| goto :error` 가 붙음) `< > | &` 가 리다이렉트가 되던 것 — `engine_request.py add --body-file <파일>|-`·`status --reply-file`, 잘린 값은 **거부**(안내), 턴 프롬프트·`CLAUDE.md` 에 주의. 그 리다이렉트로 저장소 루트에 생겨 791b652 에 섞여 들어간 빈 파일 `10.0` 삭제. ② `status <n> applied --applied-commit <해시>`(문서대로; 옛 `--commit` 도 같은 뜻), `server-admin.md` 9절. ③ `engine_regress.py` 의 기준 엔진 사본은 최근 3개만 남긴다. 시험 `engine_request_cli_test`.
 
 ## 0.22.22 - 2026-10-17 · Codex 웹 세션 실동작 · Codex 스킬 $nexa-slide-session / $nexa-slide-server
 

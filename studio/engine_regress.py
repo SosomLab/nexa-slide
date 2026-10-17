@@ -45,6 +45,7 @@ CONFIG_NAME = "nexa-slide.json"
 LOCAL_NAME = "nexa-slide.local.json"
 SKIP_COPY = {"out", ".history", ".studio", "fonts", ".git", "node_modules", "__pycache__", ".claude", ".codex"}
 SKIP_PARTS = {"docProps/core.xml"}  # 만든/고친 시각 - 같은 엔진으로 두 번 내보내도 다르다
+KEEP_ENGINES = 3  # scratch 에 남겨 두는 기준 엔진 사본 수
 RX_SLIDE = re.compile(r"^ppt/slides/(?:_rels/)?slide(\d+)\.xml(?:\.rels)?$")
 RX_NOTES = re.compile(r"^ppt/notesSlides/(?:_rels/)?notesSlide(\d+)\.xml(?:\.rels)?$")
 RX_UUID = re.compile(r"\{[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}\}")
@@ -90,6 +91,10 @@ def base_engine(rev, scratch_root):
     with zipfile.ZipFile(tmp) as z:
         z.extractall(root)
     tmp.unlink(missing_ok=True)
+    # 기준이 바뀔 때마다 쌓이지 않게 최근 KEEP_ENGINES 개만 남긴다(각 2~3MB)
+    olds = sorted((p for p in scratch_root.glob("engine-*") if p.is_dir() and p != root), key=lambda p: p.stat().st_mtime, reverse=True)
+    for p in olds[KEEP_ENGINES - 1:]:
+        rmtree(p)
     return root, short
 
 

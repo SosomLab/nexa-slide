@@ -13,5 +13,6 @@
   새 커밋이 있으면 작업 브랜치에 먼저 `git merge origin/main` 으로 받은 뒤 개발한다. 고치려는 파일이 바깥에서 바뀌었으면 그 내용을 읽고 이어서 고친다(덮어쓰지 않는다).
   병합은 `git pull --ff-only origin main` 뒤 `--no-ff`, 충돌이 나면 양쪽 의도를 살려 풀고 시험을 다시 돌린다. 병합·push 뒤에는 작업 브랜치도
   `git merge --ff-only origin/main` 으로 main 에 맞춰 push 한다(그래야 다음 확인 때 `HEAD..origin/main` 에 바깥 변경만 보인다).
+- **Windows pyenv-win 주의**: `python`/`python3` 는 .bat 래퍼라 인자를 cmd 로 다시 해석한다 - 여러 줄 인자는 첫 줄에서 잘리고(`|| goto :error` 가 붙음) `< > | &` 는 리다이렉트가 되어 엉뚱한 파일(예: `10.0`)이 생긴다. `python -c` 여러 줄 금지(스크립트 파일로), 긴 본문은 `--body-file`/`--reply-file`, 그런 문자가 꼭 필요하면 `~/.pyenv/pyenv-win/versions/<판>/python.exe` 를 직접 부른다. 커밋 전 `git status` 로 낯선 파일을 확인한다.
 - 사용자 답변은 **항상 한국어** — 다른 세션·에이전트 메시지, 자동 알림, 영어 도구 출력에 이어 답할 때도, 짧은 답변도 예외 없음.
 - 문서·주석·커밋 메시지는 한국어.

@@ -22,6 +22,7 @@ TESTS = [  # (이름, 실행, 설명, claude 필요)
     ("i18n", ["node", "i18n_check.js"], "i18n.js 문법·중복 키·번역 표본", False),
     ("smoke", [sys.executable, "smoke_run.py"], "허브·Studio 헤드리스 클릭 스모크(데모 작업 공간 생성)", False),
     ("codex", [sys.executable, "codex_adapter_test.py"], "Codex 어댑터 - turn_cmd 인자·host 있는 실행 파일·windows.sandbox·{shell} 프롬프트(설치 불필요)", False),
+    ("reqcli", [sys.executable, "engine_request_cli_test.py"], "엔진 요청 CLI - --body-file/stdin·래퍼에 잘린 값 거부·applied --applied-commit·--reply-file", False),
     ("regress", [sys.executable, "engine_regress_test.py"], "엔진 회귀(검증 ④) - 복제 엔진에서 변경 없음 0 · 토큰 변경 1(장별) · --allow · 깨진 덱 2 · 원본 불변", False),
     ("e3", [sys.executable, "e3_manual_test.py"], "수동 엔진 세션(watch_engine_requests) 상태·거절", False),
     ("e4", [sys.executable, "e4_manual_stop_test.py"], "수동 세션 수명 - 파이프 닫힘·takeover·웹 끊기", False),
