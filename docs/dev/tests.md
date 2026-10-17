@@ -14,6 +14,7 @@ NEXA_TEST_DIR=/tmp/nexa-tests python3 studio/tests/run_all.py   # 산출물 자�
 | i18n | `i18n_check.js` | `i18n.js` 문법 · 사전 중복 키 · 번역 표본 | Node |
 | smoke | `smoke_run.py` + `smoke.js` | 허브 로그인 → 시작 페이지·Studio(중계)의 주요 단추 50여 단계를 헤드리스 Chrome 으로 눌러 본다(콘솔 오류 0). 데모 작업 공간을 만든다 | Node, Chrome |
 | codex | `codex_adapter_test.py` | 0.22.22 - Codex 어댑터: `turn_cmd` 가 wsession 의 키워드 인자를 모두 받음, Windows 에서 `codex-code-mode-host.exe` 가 있는 실행 파일(앱 동봉) 우선, `config.toml` 의 `[windows] sandbox` 옮겨 적기, 턴 프롬프트 `{shell}` 자리·어댑터별 안내. Codex 설치·로그인 없이 돈다 | - |
+| guard | `settings_guard_test.py` | 0.22.24 - `paths.remember` 가드: OS 임시 폴더 안 작업 공간은 `NEXA_SLIDE_USER_DIR` 격리가 없으면 실제 `settings.json` recent 에 올리지 않는다(APPDATA/XDG 를 임시로 바꿔 하위 프로세스로 확인) | - |
 | reqcli | `engine_request_cli_test.py` | 0.22.24 - 엔진 요청 CLI: `--body-file <파일>`·`-`(stdin)로 여러 줄·`< > \| &` 본문 보존, pyenv-win 래퍼에 잘린 값(`\|\| goto :error`) 거부, `status applied --applied-commit`(옛 `--commit` 도 appliedCommit), `--reply-file` | - |
 | regress | `engine_regress_test.py` | 0.22.24 - 엔진 요청 검증 ④ `engine_regress.py`: 엔진을 `git clone --local` 로 복제해(저장소 밖) example 사본을 `recent` 에 등록하고 (a) 변경 없음 → 0 (b) `lecture` 토큰 하나 변경 → demo 7장 모두 unexpected·1 (c) `--allow demo` 0 / `demo:1` 1 (d) 깨진 덱 → failed·2 (e) 원본 mtime 불변 (g) 사본 삭제·`--keep`·기준 엔진 재사용 | python-pptx |
 | e3 | `e3_manual_test.py` | 수동 엔진 세션(`watch_engine_requests`) - 1회·stream 하트비트, `/api/engine` state=manual, 웹 엔진 세션 시작 거절, already-watched | |
