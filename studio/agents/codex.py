@@ -3,7 +3,7 @@
 
 한 턴: codex exec --json --sandbox workspace-write -m <m> -c approval_policy="never" -c sandbox_workspace_write.network_access=true
               [-c windows.sandbox="<elevated|…>"] --ignore-user-config --skip-git-repo-check -        프롬프트는 stdin("-")
-이어 가기: codex exec resume [같은 옵션] <thread_id> -
+이어 가기: codex exec [같은 옵션] resume <thread_id> -        (옵션은 resume 앞에 - resume 뒤에는 -c·--last 등만 받는다)
 출력(NDJSON): thread.started(thread_id) · turn.started · item.started/completed(agent_message·command_execution·file_change·…) · turn.completed(usage) · turn.failed · error
 로그인 확인: codex --version · codex login status
 금지: --sandbox danger-full-access · --approve-for-me · --dangerously-bypass-approvals-and-sandbox
@@ -119,8 +119,8 @@ class CodexAgent(Agent):
         """settings_path·max_turns·budget_usd·allow_web·add_dirs·new_session_id·name 은 claude 전용 - 호출 쪽(wsession)이 공통으로 넘기므로 받기만 하고 쓰지 않는다
         (웹 검색·저장소 루트 권한은 start() 가 codex 에서 거절한다. 세션 ID 는 codex 가 thread.started 로 준다)."""
         exe = self.executable() or "codex"
-        if resume_id:
-            return [exe, "exec", "resume", *self._common(model, flags), str(resume_id), "-"]
+        if resume_id:  # exec 의 옵션(--json·--sandbox·-m·-c…)은 반드시 `resume` **앞에** - 뒤에 두면 "Usage: codex exec resume --json [SESSION_ID]" 로 종료 2(0.163 실측, 두 번째 턴부터 실패하던 결함)
+            return [exe, "exec", *self._common(model, flags), "resume", str(resume_id), "-"]
         return [exe, "exec", *self._common(model, flags), "-"]
 
     def parse(self, line):

@@ -176,8 +176,19 @@ def inside_engine(p) -> bool:
     return p == ENGINE or ENGINE in p.parents
 
 
+def in_temp(path) -> bool:
+    """OS 임시 폴더 안인가(시험이 만드는 작업 공간 자리)."""
+    try:
+        p, t = Path(path).resolve(), Path(tempfile.gettempdir()).resolve()
+        return p == t or t in p.parents
+    except OSError:
+        return False
+
+
 def remember(path, title=""):
-    """최근 작업 맨 앞에 올린다."""
+    """최근 작업 맨 앞에 올린다. 임시 폴더 안의 작업 공간은 사용자 설정이 격리(NEXA_SLIDE_USER_DIR)된 때만 - 시험·임시 서버가 실제 '최근 작업' 을 더럽히지 않게(0.22.24)."""
+    if in_temp(path) and not os.environ.get("NEXA_SLIDE_USER_DIR"):
+        return
     s = load_settings()
     path = str(Path(path).resolve())
     import datetime as dt

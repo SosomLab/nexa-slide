@@ -1,5 +1,18 @@
 # 변경 이력
 
+## 0.22.25 - 2026-10-17 · 보기 전용 공유 링크
+
+엔진 요청 #2(협업 세션 설계 메모 `docs/dev/share-link-design.md`). 로그인 없이 토큰 URL 하나로 **덱 1개를 보기만** 한다(외부 검토자·청중).
+
+- **허브 주소 `/s/<토큰>/`**(`studio/share.py`·`server.py share_route`): `AUTH_FREE` 와 별도로 `authenticate` 전에 접두 분기. 토큰(`token_urlsafe(32)`, 파일에는 sha256 만) → 만료·회수 확인 → (비밀번호 링크면) 쿠키 `nexa_share`(무상태 HMAC, `Path=/s/<토큰>/`, 링크 만료와 세션 7일 중 짧은 쪽) → **허용 목록만** 그 작업 공간 서버로 중계(`proxy()` 재사용, `X-Nexa-User: share:<id>`·`X-Nexa-Role: viewer`): `view.html`·`render.js`·`i18n*`·`tokens.json`·`code_langs.json`·`fonts.css`·`/api/fontcss`·`/api/fontfile/*`·`/wsfonts/*`·그 덱의 `/api/deck/<덱>`(허브가 **`notes` 와 `hidden` 슬라이드를 걸러 낸다**, 보이는 장의 원래 번호는 `page`)·덱이 참조하는 그림(`src`)만. 그 밖 경로·모든 POST/PUT 은 403. 잘못된 토큰·만료·회수는 **같은 안내 페이지**(404/410 으로만 구분, 본문 같음). 로그·경로에는 토큰 대신 `/s/<id>`.
+- **보기 페이지 `studio/view.html`**(새): 전체 화면 슬라이드 넘기기(← → · Home/End · 터치 밀기 · 왼쪽/오른쪽 클릭 · `#n`), 쪽 번호·전체 화면 단추, 노트·편집 UI 없음, `render.js` 재사용. 비밀번호 링크는 먼저 입력 화면. `fonts.css` 의 절대 경로(`/api/fontfile/`)를 링크 접두 아래로 바꿔 넣는다.
+- **저장 `hub/share.json`**(사용자 설정 폴더, `filelock`): `{links: {<id>: {tokenHash, ws, wsId, deck, by, created, expires, pw: {hash, salt}|null, revoked, views, lastView}}}`. 비밀번호는 `auth.py` scrypt. 실패 잠금은 `auth._FAILS` 에 링크 id 키로 5회/15분(429). CLI `python3 studio/share.py list|revoke <id>`.
+- **정책(전역 설정)**: 만들기는 로그인 사용자 누구나(`shareCreate: "any"`, `"admin"` 이면 관리자만), 회수는 만든 사람 또는 관리자, 관리자는 전체 목록. 만료 기본 7일·최대 `shareMaxDays`(기본 90), 영구 링크 없음.
+- **UI**: Studio 내보내기 ▾ **공유 링크… (보기 전용)**(허브 경유로 열었을 때만, 명령 팔레트에도) - 만료 1/7/30일·직접, 비밀번호(선택), 만들기 → 주소 한 번만 표시·복사·열어 보기, 이 덱의 링크 목록·[회수]. `/account` 에 **공유 링크** 카드(내 것, 관리자는 전체·회수). 허브 API `GET /api/share?ws=&deck=` · `POST /api/share {action: "create", ws, deck, days?, password?}` · `POST /api/share/<id> {action: "revoke"}`. i18n ko/en.
+- **접근 로그 이벤트** `share.create:<id>` `share.revoke:<id>` `share.view:<id>`(조회 수 +1) `share.auth:<id>` `share.auth.fail:<id>` `share.auth.locked:<id>` `share.denied:<id>:<expired|revoked|path|method|owner>` `share.denied:-:unknown|policy`. 토큰 원문은 어디에도 남지 않는다.
+- `api_get_fontcss` 가 `X-Forwarded-Prefix` 를 읽어 `/wsfonts/` 앞에 접두를 붙인다 - `/w/<이름>/` 중계에서도 작업 공간 글꼴이 허브로 새지 않는다.
+- 문서 `auth.md`(공유 링크 절·설정·API·로그 이벤트) · `editor.md` · `server.md` · `server-admin.md` · `home.md`/`configuration.md`(설정 키) · `tests.md`. 시험 `share_test`.
+
 ## 0.22.24 - 2026-10-17 · 엔진 요청 검증 ④ - 전체 작업 공간 PPTX XML 회귀(`engine_regress.py`)
 
 엔진 요청 #1(협업 세션 설계 메모 `docs/dev/engine-regress-design.md`). 엔진 변경이 **다른 작업 공간**을 깨는지 한 명령으로 본다.
@@ -8,6 +21,16 @@
 - 판정: `--allow` 로 표시한 차이는 의도한 변경(expected). 종료 코드 0 동일/전부 의도 · 1 예상 밖 · 2 실패·시간 초과(조용히 통과하지 않는다). 이 PC(작업 공간 2 · 덱 2 · 12장) 6초.
 - 규약: `engine_turn_prompt.md` 검증 단계 ④, `/nexa-slide-server`·`$nexa-slide-server`(엔진·작업 공간 명령 파일) 검증 목록에 추가 — 렌더·내보내기·레이아웃·템플릿을 건드렸으면 돌리고 결과 요약을 reply 에.
 - 시험 `engine_regress_test`(엔진 복제본에서 변경 없음 0 · `lecture` 토큰 변경 → demo 7장 unexpected 1 · `--allow` · 깨진 덱 2 · 원본 mtime 불변 · 사본 정리). 문서 `tests.md`·`engine-request-design.md`.
+- **최근 작업 오염 가드**(협업 세션 발견 - 시험 작업 공간 `Temp/nexa-slide-tests/…/docstruct…` 가 실제 `settings.json` recent 에 들어감): `paths.remember` 가 OS 임시 폴더 안의 작업 공간은 `NEXA_SLIDE_USER_DIR` 격리가 없으면 기록하지 않는다(격리된 시험은 그대로 기록). 원인은 시험 스크립트가 아니라 임시 작업 공간에서 격리 없이 띄운 서버·`init_workspace` 였다. 시험 `settings_guard_test`.
+- **Codex 두 번째 턴 실패 고침**(사용자 지적 - 편집기에 "턴이 비정상 종료(코드 2)"): `codex exec resume` 뒤에 `--sandbox`·`-m`·`--json` 을 두면 "Usage: codex exec resume --json [SESSION_ID]" 로 거절된다 — exec 옵션을 **`resume` 앞에** 둔다(`codex exec [옵션] resume <thread_id> -`, 실측). 고친 뒤 "버전 0.5·작성자" 요청을 Codex 가 draft_deck → apply_patch → save_deck → content 반영 → done 으로 끝까지 처리함.
+- **엔진 요청 #5(협업 세션 검토)**: ① Windows pyenv-win 의 `python` 래퍼(.bat)가 인자를 cmd 로 다시 해석해 여러 줄 `--body` 가 첫 줄에서 잘리고(`|| goto :error` 가 붙음) `< > | &` 가 리다이렉트가 되던 것 — `engine_request.py add --body-file <파일>|-`·`status --reply-file`, 잘린 값은 **거부**(안내), 턴 프롬프트·`CLAUDE.md` 에 주의. 그 리다이렉트로 저장소 루트에 생겨 791b652 에 섞여 들어간 빈 파일 `10.0` 삭제. ② `status <n> applied --applied-commit <해시>`(문서대로; 옛 `--commit` 도 같은 뜻), `server-admin.md` 9절. ③ `engine_regress.py` 의 기준 엔진 사본은 최근 3개만 남긴다. 시험 `engine_request_cli_test`.
+## 0.22.23 - 2026-10-17 · 선·테두리 투명도 · 순서도 도형 4종
+
+엔진 요청 #4 의 A·B(설계 메모 `docs/dev/small-items-2026-10-17.md`).
+
+- **선·테두리 투명도**: 도형·상자·글 상자의 `stroke`, 선·화살표·곡선의 `color`, 표 셀 테두리(`borders`·셀 `bd`), 그림 액자 `frameColor` 에 `#RRGGBBAA`(끝 두 자리 = 불투명도) - 전에는 길이 7 이 아니면 **검정**이 됐다. 편집기는 `rgba()`(`render.strokeCss`), PPTX 는 `a:ln > a:solidFill > a:srgbClr > a:alpha`(`export_pptx.stroke_rgb`·`set_line_color`, 1 미만일 때만 - **불투명한 선의 XML 은 전과 바이트 동일**, example 덱 회귀 0). 채우기와 같은 규칙(`common.color_alpha` ↔ `render.colorAlpha`). 편집기 색 선택 상자는 단색 토큰만 - 투명도는 요소 JSON 으로("(직접)" 으로 보임).
+- **순서도 도형 4종** `flowChartProcess`(프로세스) · `flowChartDecision`(판단) · `flowChartDocument`(문서) · `flowChartInputOutput`(데이터) - 도형 21 → 25종. 모양은 사각형·마름모·평행사변형과 비슷하지만 prstGeom 이 달라 PowerPoint 가 순서도 기호로 인식한다. 기하·글 영역은 ECMA-376 presetShapeDefinitions(문서 = 21600 격자, 밑변 (21600,17322)→(0,20172) 3차 곡선, 글 영역 높이 17322/21600 · 데이터 = 5×5 격자 평행사변형, 글 영역 w/5~4w/5). `render.js SHAPES`·`export_pptx.SHAPE_PRESETS`(`MSO_SHAPE.FLOWCHART_*`)·`common.shape_text_rect`·`import_pptx.PRST_TO_SHAPE`(왕복 이름 유지)·`studio.js SHAPE_SIZE`. 삽입 패널·속성 "도형 종류" 는 `shapeNames()` 로 자동. 편집기 이름은 "순서도: 프로세스" 식(다이어그램 "프로세스 (갈매기)"·메뉴 "문서" 와 구별, en "Flowchart: Process").
+- 시험: `check_parity` 에 선 색 표본(알파 80 · 토큰 · 잘못된 값 · FF · 00 · 모르는 토큰)과 **모든 도형의 글 영역**(`render.shapeRect` ↔ `common.shape_text_rect`, 25종 × 4 크기) · `export_pptx --selftest` 에 테두리·선의 `a:ln` 안 `a:alpha`, 순서도 prst, 불투명 테두리에 alpha 없음 · `shape_menu.json` 21→25 · `editor_ui_test` 도형 목록. 문서 `deck-format.md`·`editor.md`·`pptx-feature-gap.md`(두 항목 완료)·`web-session-design.md`.
 
 ## 0.22.22 - 2026-10-17 · Codex 웹 세션 실동작 · Codex 스킬 $nexa-slide-session / $nexa-slide-server
 

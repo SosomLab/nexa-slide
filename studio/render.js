@@ -63,6 +63,8 @@
     return { kind: "gradient", angle: Math.round((((isNaN(ang) ? 0 : ang) % 360) + 360) % 360 * 100) / 100, stops };
   }
   const rgba = (hex, a) => a >= 1 ? hex : `rgba(${parseInt(hex.slice(1, 3), 16)},${parseInt(hex.slice(3, 5), 16)},${parseInt(hex.slice(5, 7), 16)},${a})`;
+  /** 선·테두리 색(stroke · 선 color · 표 테두리 · 액자) - 토큰·#RRGGBB·#RRGGBBAA → CSS 색(불투명하면 #RRGGBB, 아니면 rgba()). PPTX 는 a:ln 의 a:alpha(export_pptx.stroke_rgb, common.color_alpha 와 같은 규칙) */
+  const strokeCss = (v, dflt) => { const ca = colorAlpha(v, dflt); return ca ? rgba(ca[0], ca[1]) : dflt || null; };
   /** fill → CSS background 값. 그라데이션 각도: PPT 0 = 왼→오 = CSS 90deg */
   function fillCss(v) {
     const f = fillSpec(v);
@@ -596,7 +598,7 @@
     else r = radius(el.radius, w, h) + "px";
     let s = `border-radius:${r};`;
     if (el.fill) s += `background:${fillCss(el.fill)};`;
-    if (el.stroke && !dashArray(el.strokeDash, 1)) s += `box-shadow:inset 0 0 0 ${el.strokeWidth || 1}px ${color(el.stroke)};`;  // 점선·파선은 strokeDashSvg 가 그린다
+    if (el.stroke && !dashArray(el.strokeDash, 1)) s += `box-shadow:inset 0 0 0 ${el.strokeWidth || 1}px ${strokeCss(el.stroke)};`;  // 점선·파선은 strokeDashSvg 가 그린다
     if (el.effect === "glow" || el.effect === "softEdge") {  // 도형 효과(0.22.18) - 그림과 같은 수치(effectPx), 광선은 테두리 그림자와 같이
       const px = effectPx(el);
       if (el.effect === "glow") { const c = color(el.effectColor || "primary"); s += (el.stroke && !dashArray(el.strokeDash, 1) ? s.includes("box-shadow:") ? "" : "" : ""); s = s.replace(/box-shadow:([^;]*);/, (m, v) => `box-shadow:${v},0 0 ${px}px ${Math.round(px / 2)}px ${c}99;`); if (!s.includes("box-shadow:")) s += `box-shadow:0 0 ${px}px ${Math.round(px / 2)}px ${c}99;`; }
@@ -610,7 +612,7 @@
   function strokeDashSvg(el, shape) {
     const sw = +el.strokeWidth || 1, da = dashArray(el.strokeDash, sw);
     if (!el.stroke || !da) return "";
-    const w = +el.w, h = +el.h, sc = color(el.stroke), hf = sw / 2;
+    const w = +el.w, h = +el.h, sc = strokeCss(el.stroke), hf = sw / 2;
     const g = shape === "ellipse" ? `<ellipse cx="${R2(w / 2)}" cy="${R2(h / 2)}" rx="${R2(w / 2 - hf)}" ry="${R2(h / 2 - hf)}"`
       : `<rect x="${R2(hf)}" y="${R2(hf)}" width="${R2(w - sw)}" height="${R2(h - sw)}" rx="${R2(Math.max(0, (shape === "pill" ? Math.min(w, h) / 2 : radius(el.radius, w, h)) - hf))}"`;
     return `<svg class="rs-svg" style="left:0;top:0" width="${w}" height="${h}">${g} fill="none" stroke="${sc}" stroke-width="${sw}" stroke-dasharray="${da}"/></svg>`;
@@ -670,9 +672,15 @@
       faces: (w, h, ss) => { const y = ss / 8, rx = w / 2; return [{ d: `M0 ${R2(y)}A${R2(rx)} ${R2(y)} 0 1 1 ${R2(w)} ${R2(y)}A${R2(rx)} ${R2(y)} 0 1 1 0 ${R2(y)}Z`, tint: "rgba(255,255,255,.3)" }]; } },
     cube: { ko: "정육면체", path: (w, h, ss) => { const y = ss / 4; return P([0, y], [y, 0], [w, 0], [w, h - y], [w - y, h], [0, h]); }, rect: (w, h, ss) => { const y = ss / 4; return [0, y, w - y, h]; },
       faces: (w, h, ss) => { const y = ss / 4; return [{ d: P([0, y], [y, 0], [w, 0], [w - y, y]), tint: "rgba(255,255,255,.3)" }, { d: P([w - y, y], [w, 0], [w, h - y], [w - y, h]), tint: "rgba(0,0,0,.2)" }]; } },
+    // 순서도(flowChart*, 0.22.23) - 모양은 사각형·마름모·평행사변형과 비슷하지만 prstGeom 이 달라 PowerPoint 가 순서도 기호로 인식한다. 기하 = ECMA-376 presetShapeDefinitions
+    flowChartProcess: { ko: "순서도: 프로세스", path: (w, h) => P([0, 0], [w, 0], [w, h], [0, h]), rect: (w, h) => [0, 0, w, h] },
+    flowChartDecision: { ko: "순서도: 판단", path: (w, h) => P([w / 2, 0], [w, h / 2], [w / 2, h], [0, h / 2]), rect: (w, h) => [w / 4, h / 4, (3 * w) / 4, (3 * h) / 4] },
+    flowChartDocument: { ko: "순서도: 문서", path: (w, h) => { const y1 = h * 17322 / 21600; return `M0 0L${R2(w)} 0L${R2(w)} ${R2(y1)}C${R2(w / 2)} ${R2(y1)} ${R2(w / 2)} ${R2(h * 23922 / 21600)} 0 ${R2(h * 20172 / 21600)}Z`; }, rect: (w, h) => [0, 0, w, h * 17322 / 21600] },  // 아래 변 = 21600 격자 (21600,17322)→(0,20172) 3차 곡선
+    flowChartInputOutput: { ko: "순서도: 데이터", path: (w, h) => P([0, h], [w / 5, 0], [w, 0], [(4 * w) / 5, h]), rect: (w, h) => [w / 5, 0, (4 * w) / 5, h] },  // 5×5 격자 평행사변형(기울기 = 폭/5)
   };
   const shapePath = (name, w, h) => (SHAPES[name] || SHAPES.diamond).path(w, h, Math.min(w, h));
   const shapeNames = () => Object.keys(SHAPES).map((k) => [k, SHAPES[k].ko]);
+  const shapeRect = (name, w, h) => (SHAPES[name] || SHAPES.diamond).rect(w, h, Math.min(w, h));  // 글 영역 [l,t,r,b] - common.shape_text_rect 와 같다(check_parity)
 
   function elShape(el, page) {
     const w = +el.w, h = +el.h, ss = Math.min(w, h), g = SHAPES[el.shape] || SHAPES.diamond;
@@ -681,7 +689,7 @@
     let html = `<div class="rs-shp" style="position:absolute;left:0;top:0;width:${w}px;height:${R2(h * (1 + over))}px;background:${fill};clip-path:path('${d}')"></div>`;
     for (const f of faces) html += `<div class="rs-shp" style="position:absolute;left:0;top:0;width:${w}px;height:${h}px;background:linear-gradient(${f.tint},${f.tint}),${fill};clip-path:path('${f.d}')"></div>`;
     if (el.stroke) {
-      const sw = +el.strokeWidth || 1, sc = color(el.stroke), da = dashArray(el.strokeDash, sw), dd = da ? ` stroke-dasharray="${da}"` : "";
+      const sw = +el.strokeWidth || 1, sc = strokeCss(el.stroke), da = dashArray(el.strokeDash, sw), dd = da ? ` stroke-dasharray="${da}"` : "";
       html += `<svg style="position:absolute;left:0;top:0;overflow:visible" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}"><path d="${d}" fill="none" stroke="${sc}" stroke-width="${sw}" stroke-linejoin="round"${dd}/>${faces.map((f) => `<path d="${f.d}" fill="none" stroke="${sc}" stroke-width="${sw}" stroke-linejoin="round"${dd}/>`).join("")}</svg>`;
     }
     const hasText = el.text != null && String(el.text) !== "";
@@ -864,7 +872,7 @@
     if (e === "softEdge") return `-webkit-mask-image:linear-gradient(to right,transparent,#000 ${px}px,#000 calc(100% - ${px}px),transparent),linear-gradient(to bottom,transparent,#000 ${px}px,#000 calc(100% - ${px}px),transparent);-webkit-mask-composite:source-in;mask-image:linear-gradient(to right,transparent,#000 ${px}px,#000 calc(100% - ${px}px),transparent),linear-gradient(to bottom,transparent,#000 ${px}px,#000 calc(100% - ${px}px),transparent);mask-composite:intersect;`;
     if (e === "round") return `border-radius:${px}px;overflow:hidden;`;
     if (e === "circle") return "border-radius:50%;overflow:hidden;";
-    if (e === "frame") return `border:${+el.frameWidth || px}px solid ${el.frameColor ? color(el.frameColor) : "#fff"};box-sizing:border-box;box-shadow:0 2px 6px rgba(0,0,0,.3);overflow:hidden;`;  // 액자 - 두께 frameWidth(기본 = 수준)·색 frameColor(기본 흰색)
+    if (e === "frame") return `border:${+el.frameWidth || px}px solid ${el.frameColor ? strokeCss(el.frameColor) : "#fff"};box-sizing:border-box;box-shadow:0 2px 6px rgba(0,0,0,.3);overflow:hidden;`;  // 액자 - 두께 frameWidth(기본 = 수준)·색 frameColor(기본 흰색)
     if (e === "glow") { const c = color(el.effectColor || "primary"); return `box-shadow:0 0 ${px}px ${Math.round(px / 2)}px ${c}99;`; }
     return "";
   }
@@ -886,7 +894,7 @@
   /** 선·화살표: 요소 상자(x,y,w,h) 기준 SVG. 화살 머리 = 선 두께 × 5 (PPT 'lg') */
   function lineSvg(el, ox, oy) {
     const x1 = el.x1 - ox, y1 = el.y1 - oy, x2 = el.x2 - ox, y2 = el.y2 - oy;
-    const w = +el.width || 2, c = color(el.color || "on-surface");
+    const w = +el.width || 2, c = strokeCss(el.color || "on-surface");
     const head = el.head || (el.type === "arrow" ? "end" : "none");
     const hl = w * 5, hw = w * 5;
     const len = Math.hypot(x2 - x1, y2 - y1) || 1, ux = (x2 - x1) / len, uy = (y2 - y1) / len;
@@ -907,7 +915,7 @@
 
   /** 곡선(꺾은선 근사): points = 요소 상자 기준 [[x,y],…], head = end/none - 화살 머리는 마지막 선분 방향 */
   function elCurve(el) {
-    const m = 20, pts = el.points || [], w = +el.width || 2, c = color(el.color || "on-surface");
+    const m = 20, pts = el.points || [], w = +el.width || 2, c = strokeCss(el.color || "on-surface");
     const dash = el.dash === "dot" ? `stroke-dasharray="${w} ${w}"` : el.dash && el.dash !== "solid" ? `stroke-dasharray="${w * 4} ${w * 3}"` : "";
     if (pts.length < 2) return "";
     const P = pts.map(([x, y]) => [x + m, y + m]);
@@ -951,7 +959,7 @@
         if (mg.skip.has(`${i},${j}`)) { x += g.colW[j]; return; }  // 병합에 덮인 셀
         const w = sp ? g.colW.slice(j, j + sp[1]).reduce((a, b) => a + b, 0) : g.colW[j], h = sp ? g.rowH.slice(i, i + sp[0]).reduce((a, b) => a + b, 0) : g.rowH[i];
         const bd = c.bd || {}, SIDE = { T: "top", B: "bottom", L: "left", R: "right" };
-        const side = (k, dflt) => { const v = bd[k] || dflt; return v ? `border-${SIDE[k]}:${v[1]}px solid ${color(v[0])};` : ""; };
+        const side = (k, dflt) => { const v = bd[k] || dflt; return v ? `border-${SIDE[k]}:${v[1]}px solid ${strokeCss(v[0])};` : ""; };
         const bb = side("T") + side("B", isHead ? null : [g.rule, 1]) + side("L") + side("R");  // 기본 = 본문 행 아래 선(rule), 셀별 bd 가 덮어씀(export_pptx.do_table 과 같다)
         html += `<div class="rs-cell" style="left:${x}px;top:${y}px;width:${w}px;height:${h}px;${c.fill ? `background:${color(c.fill)};` : ""}${bb}justify-content:${HJUST[c.align] || "flex-start"};align-items:${VJ[c.valign] || "center"};padding:${pad[0]}px ${pad[1]}px ${pad[2]}px ${pad[3]}px;font-family:${font(c.font)};font-size:${cs}px;line-height:${cs * 1.4}px;text-align:${c.align}${c.italic ? ";font-style:italic" : ""}">` +
           `<div class="rs-ct" style="position:relative;top:${shift(c.font, cs, 1.4)}px">${spanRuns(c.text, page, color(c.color), c.bold) || "&#8203;"}</div></div>`;
@@ -1086,7 +1094,7 @@
 .rs-cell>.rs-ct{white-space:pre-wrap;word-break:keep-all;flex:1}`;
   }
 
-  const api = { setLazy, setDeckFonts, presetFonts, fontRole, setTokens, setLangs, langOf, color, colorAlpha, fillSpec, fillCss, radius, runs, plain, hlSQL, hlPython, codeLines, planRuns, tableGrid, tableMerges, chartAxis, chartData, chartFmt, comboLines, tableToObj, objToTable, iconNames, bulletRows, bulletNum, numHang, markerNum, numLabel, shapePath, shapeNames, renderElement, renderSlide, css, esc, lineBox };
+  const api = { setLazy, setDeckFonts, presetFonts, fontRole, setTokens, setLangs, langOf, color, colorAlpha, fillSpec, fillCss, radius, runs, plain, hlSQL, hlPython, codeLines, planRuns, tableGrid, tableMerges, chartAxis, chartData, chartFmt, comboLines, tableToObj, objToTable, iconNames, bulletRows, bulletNum, numHang, markerNum, numLabel, shapePath, shapeNames, shapeRect, strokeCss, renderElement, renderSlide, css, esc, lineBox };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   root.Render = api;
 })(typeof window !== "undefined" ? window : globalThis);

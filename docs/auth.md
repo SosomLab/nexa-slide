@@ -29,7 +29,7 @@
 | CSRF | 상태 변경(POST·PUT)은 `Origin`(없으면 `Referer`)의 호스트가 `Host` 와 같아야 한다(허브는 둘 다 없는 요청도 거절) |
 | Host 검사 | `127.0.0.1`·`localhost`, Cloudflare 경유(`Cf-Ray` 헤더), 사용자 설정 `publicHosts` 에 적은 호스트만. 그 밖은 400(DNS 리바인딩 차단) |
 | 미인증 응답 | API·중계 API·JSON 요청은 401 `{"error":"login","login":"/login"}`, 페이지(GET)는 302 `/login?next=…`, 정적 파일·산출물(`/out/`·그림·글꼴·`/w/…`)은 401. 본문에 내용은 없다 |
-| 예외(로그인 없이) | `/login`·`/setup`(페이지, CSS·JS 내장) · `GET /api/auth/state` · `POST /api/auth/login`·`/api/auth/setup` 만 |
+| 예외(로그인 없이) | `/login`·`/setup`(페이지, CSS·JS 내장) · `GET /api/auth/state` · `POST /api/auth/login`·`/api/auth/setup` 만. 그리고 **보기 전용 공유 링크 `/s/<토큰>/…`**(로그인 대신 토큰 - 아래 절) |
 
 편집기·시작 페이지는 401 을 받으면 로그인 페이지로 가고, 로그인 뒤 원래 주소로 돌아온다(`next`).
 
@@ -55,6 +55,7 @@
 | `users.json` | `{"users": {아이디: {hash, salt, role, created, mustChange}}}` — `hashlib.scrypt`(n=2¹⁴, r=8, p=1) + 16바이트 salt |
 | `hub/sessions.json` | 로그인 세션(토큰 해시 → 사용자·시각). 지우면 모두 로그아웃 |
 | `hub/.studio/hub-key` | 허브 ↔ 작업 공간 서버 공유 비밀(아래) |
+| `hub/share.json` | 보기 전용 공유 링크(토큰 해시 → 작업 공간·덱·만든 사람·만료·비밀번호 해시·회수·조회 수). 백업 대상 |
 | `hub/logs/access-YYYY-MM-DD.log` | 접근 로그(아래) |
 
 ## 비밀번호를 잊었을 때 — 이 PC 에서만
@@ -95,7 +96,7 @@ python3 studio/auth.py delete <아이디>
 | `path` | 쿼리를 뺀 경로 |
 | `ip` · `via` | `Cf-Connecting-IP`(Cloudflare 경유)가 있으면 그것, 아니면 연결 주소 · `cloudflare` / `hub`(중계로 들어온 작업 공간 서버) / `local` |
 | `server` | `hub` 또는 작업 공간 폴더 이름 · `ws` = 중계 이름(`/w/<이름>/` 일 때) |
-| `event` | 보안 이벤트 — `setup` `setup.denied` `login` `login.fail` `login.locked` `logout` `password.change` `password.fail` `users.add:<id>` `users.delete:<id>` `users.reset:<id>` `users.role:<id>` `users.denied` |
+| `event` | 보안 이벤트 — `setup` `setup.denied` `login` `login.fail` `login.locked` `logout` `password.change` `password.fail` `users.add:<id>` `users.delete:<id>` `users.reset:<id>` `users.role:<id>` `users.denied` · 공유 링크 `share.create:<id>` `share.revoke:<id>` `share.view:<id>` `share.auth:<id>` `share.auth.fail:<id>` `share.auth.locked:<id>` `share.denied:<id>:<expired\|revoked\|path\|method\|owner>` `share.denied:-:<unknown\|policy>`(공유 요청은 `user` 가 `share:<id>`, `path` 는 토큰 대신 `/s/<id>/…`, `ws` 는 그 작업 공간의 중계 이름) |
 | `error` | 오류 메시지 요약(200자) |
 
 비밀번호·쿠키·토큰·공유 비밀은 기록하지 않는다. 정적 파일과 2초 폴링(`/api/version/`·`/api/session`)의 **승인(allow)** 줄은 부피 때문에 기본으로 남기지 않는다(`accessLogStatic: true` 로 켠다). deny·error 는 항상 남는다.
@@ -108,6 +109,25 @@ python3 studio/auth.py delete <아이디>
 | `publicHosts` | `[]` | Cloudflare 가 아닌 경로로 공개할 때 허용할 Host(`["slides.example.com"]`). Cloudflare 터널은 설정 없이 통과한다(`Cf-Ray`) |
 | `accessLogDays` | 30 | 접근 로그 보관 일수 |
 | `accessLogStatic` | false | 정적 파일·폴링의 승인 줄까지 남길지 |
+| `shareMaxDays` | 90 | 보기 전용 공유 링크의 최대 만료 일수(기본 만료는 7일, 영구 링크 없음) |
+| `shareCreate` | `"any"` | 공유 링크를 만들 수 있는 사람 - `any`(로그인 사용자 누구나) · `admin`(관리자만). 회수는 늘 만든 사람 또는 관리자 |
+
+## 보기 전용 공유 링크 (0.22.25)
+
+로그인 없이 **토큰 URL 하나로 덱 1개를 보기만** 하는 주소 — 외부 검토자·청중에게 보낼 때. 편집·요청·세션·내보내기 같은 쓰기는 전부 막히고 발표자 노트·숨김 슬라이드는 응답에 들어가지 않는다.
+
+| 항목 | 내용 |
+|---|---|
+| 주소 | `https://<허브>/s/<토큰>/` — 토큰은 `secrets.token_urlsafe(32)`, 서버 파일(`hub/share.json`)에는 sha256 만. 만들 때 한 번만 보여 주고 다시 볼 수 없다 |
+| 만들기 | Studio(허브 경유로 열었을 때) 내보내기 ▾ **공유 링크… (보기 전용)** — 만료 1/7/30일·직접(최대 `shareMaxDays`), 비밀번호 선택(4자 이상). 로그인 사용자 누구나(`shareCreate: "admin"` 이면 관리자만) |
+| 회수 | 같은 창의 이 덱 목록, 또는 `/account` **공유 링크** 카드(내 것, 관리자는 전체) — 만든 사람 또는 관리자. 터미널 `python3 studio/share.py list` · `revoke <id>` |
+| 열어 주는 것 | `studio/view.html`(전체 화면 넘기기 - 키보드·터치·쪽 번호) + 그 덱의 `/api/deck/<덱>`(허브가 `notes`·`hidden` 장을 제거) + 렌더에 필요한 파일(`render.js`·`i18n*`·`tokens.json`·`code_langs.json`·`fonts.css`·`/api/fontcss`·`/api/fontfile/*`·`/wsfonts/*`)과 **그 덱이 참조하는 그림(`src`)** 만. 그 밖 GET·모든 POST/PUT 은 403, 같은 토큰으로 다른 덱·다른 작업 공간은 열 수 없다 |
+| 중계 | 허브가 그 작업 공간 서버로 넘긴다(`X-Nexa-User: share:<id>`, `X-Nexa-Role: viewer`, `X-Forwarded-Prefix: /s/<토큰>`). 꺼져 있으면 띄운다(`/w/` 와 같다) |
+| 비밀번호 | 보기 페이지가 먼저 입력을 받는다(`POST /s/<토큰>/api/share/auth`). 맞으면 쿠키 `nexa_share`(`Path=/s/<토큰>/; HttpOnly; SameSite=Lax`, https 면 `Secure`, 만료 = 링크 만료와 `sessionDays` 중 짧은 쪽, 허브 공유 비밀로 서명한 무상태 값). 실패 5회 → 15분 잠금(429, 링크 id 기준 - 허브 재시작으로 풀림) |
+| 거부 | 잘못된 토큰(404)·만료·회수(410) 모두 **같은 안내 페이지** — 존재 여부를 흘리지 않는다. 비밀번호 전 자료 요청은 401 `{"error":"password"}` |
+| 로그 | `share.view:<id>`(페이지 열 때, 조회 수 +1) 등 위 표의 이벤트. **토큰 원문은 로그·경로 어디에도 남기지 않는다**(`/s/<id>` 로 바꿔 적는다) |
+
+주의: 링크를 받은 사람은 누구나 열 수 있다(비밀번호가 없으면). 메신저로 보낼 때는 짧은 만료나 비밀번호를 두고, 필요 없어지면 회수한다. 공유 링크는 허브(로그인 판)에서만 뜻이 있다 — 작업 공간 서버 포트를 직접 연 경우는 서비스 범위 밖이다.
 
 ## 밖에 열 때 권장
 
@@ -129,5 +149,9 @@ python3 studio/auth.py delete <아이디>
 | `POST /api/auth/password` | `{current, new}` — 다른 기기 로그인은 끊고 이 기기는 새 세션 |
 | `GET /api/auth/users` | (관리자) 사용자 목록 |
 | `POST /api/auth/users` | (관리자) `{action: "add"\|"delete"\|"reset"\|"role", id, password?, role?}` |
+| `GET /api/share?ws=<중계 이름>&deck=<덱>` | 공유 링크 목록 `{links: [{id, wsId, ws, deck, by, created, expires, hasPassword, revoked, views, lastView, status: ok\|expired\|revoked}], maxDays, defaultDays, canCreate, admin}` — 내가 만든 것, 관리자는 전부 |
+| `POST /api/share` | `{action: "create", ws, deck, days?, password?}` → `{link, token, url: "/s/<토큰>/"}`(토큰은 이 응답에만). 정책 밖 403, 한도 밖 400, 모르는 작업 공간·덱 404 |
+| `POST /api/share/<id>` | `{action: "revoke"}` — 만든 사람 또는 관리자 |
+| `GET /s/<토큰>/api/share/state` · `POST /s/<토큰>/api/share/auth` | (로그인 없이, 토큰으로) `{deck, needPassword, locked, expires}` · `{password}` → 쿠키 `nexa_share` |
 
 `/api/config`·`/api/home` 응답에 `user: {id, role}` 이 들어간다(중계로 들어온 작업 공간 서버에서도).

@@ -100,7 +100,7 @@ codex exec resume --last "다음 요청"                                    # �
 | 설치·로그인 확인 | `claude --version` · `claude auth status`(JSON, 턴을 쓰지 않음) | `codex --version` · `codex login status` |
 | 한 턴 | `claude -p --output-format stream-json --verbose --model <m> --permission-mode dontAsk --permission-prompts none --restricted --tools "Read,Edit,Write,Glob,Grep,Bash" --settings <권한 JSON> --strict-mcp-config --max-turns <n>`(프롬프트는 stdin) | `codex exec --json --sandbox workspace-write -m <m> -c approval_policy="never" -c sandbox_workspace_write.network_access=true [-c windows.sandbox="elevated"] --ignore-user-config --skip-git-repo-check -`(프롬프트는 stdin). Windows 샌드박스 값은 사용자 `config.toml` 의 `[windows] sandbox` 를 옮겨 적는다(없으면 elevated) |
 | 턴 프롬프트의 도구 낱말 | Read/Edit/Write 도구 | 같은 프롬프트에 `{shell}` 자리로 "Read 는 셸 읽기, Edit 는 `apply_patch`" 안내를 넣는다(`CodexAgent.shell_note`) — 없으면 Codex 가 "파일 도구가 없다"며 멈춘다(실측) |
-| 이어 가기 | `--resume <session_id>`(`system/init` 의 `session_id`) | `codex exec resume <thread_id> -`(`thread.started` 의 `thread_id`) |
+| 이어 가기 | `--resume <session_id>`(`system/init` 의 `session_id`) | `codex exec [위 옵션] resume <thread_id> -`(`thread.started` 의 `thread_id`). 옵션은 **`resume` 앞에** - 뒤에 두면 "Usage: codex exec resume …" 로 종료 2(0.22.24 에서 두 번째 턴부터 실패하던 결함을 고침) |
 | 모델 | 별칭 `opus`·`sonnet`·`haiku` 또는 전체 ID | 계정에서 쓸 수 있는 모델 ID(목록은 관리자가 전역 설정 `sessionModels.codex` 에) |
 | 쓰기 범위 | 엔진 권한 템플릿(`studio/agents/permissions.json` workspace+web)을 `--settings` 로 — 작업 공간 안 Read/Edit/Write, 명령은 `python3 nexa.py …` 만 | `--sandbox workspace-write`(cwd = 작업 공간 안만 쓰기), 네트워크는 `save_deck` 의 127.0.0.1 저장을 위해 켬 |
 | 읽는 안내 파일 | `CLAUDE.md` | `AGENTS.md` |

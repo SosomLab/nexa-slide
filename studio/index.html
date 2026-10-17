@@ -457,6 +457,18 @@
   #fontDlg h4 { margin: 14px 0 6px; font-size: 13px; }
   #fontDlg table { border-collapse: collapse; width: 100%; }
   #fontDlg td { padding: 5px 8px; border-bottom: 1px solid var(--tone2); vertical-align: top; font-size: 12.5px; }
+  /* 공유 링크 창(보기 전용 토큰 주소 - 허브 경유일 때만, studio.js shareDlg) */
+  #shareDlg { position: fixed; inset: 0; background: rgba(0,0,0,.35); z-index: 110; display: none; align-items: center; justify-content: center; }
+  #shareDlg.show { display: flex; }
+  #shareDlg .box { background: #fff; border-radius: 18px; padding: 18px 22px; width: min(720px, 94vw); max-height: 88vh; overflow-y: auto; box-shadow: var(--sh2); }
+  #shareDlg h4 { margin: 14px 0 6px; font-size: 13px; }
+  #shareDlg label { display: block; font-size: 12px; font-weight: 700; margin: 0 0 3px; }
+  #shareDlg select, #shareDlg input { font: inherit; padding: 5px 8px; border: 1px solid var(--line); border-radius: 8px; background: #fff; }
+  #shareDlg table { border-collapse: collapse; width: 100%; font-size: 12.5px; }
+  #shareDlg th { text-align: left; color: var(--ink2); font-size: 12px; padding: 4px 8px; border-bottom: 1px solid var(--line); }
+  #shareDlg td { padding: 5px 8px; border-bottom: 1px solid var(--tone2); vertical-align: top; }
+  #shareDlg tr.expired td, #shareDlg tr.revoked td { color: var(--ink2); }
+  #shareDlg .sh-new { background: var(--okc); border-radius: 10px; padding: 10px 12px; margin-top: 10px; }
   #help .box { background: #fff; border-radius: 18px; padding: 18px 22px; width: min(720px, 92vw); max-height: 84vh; overflow-y: auto; box-shadow: var(--sh2); }
   #help table { border-collapse: collapse; width: 100%; }
   #help td { padding: 4px 8px; border-bottom: 1px solid var(--tone2); vertical-align: top; }
@@ -672,6 +684,7 @@
 <div id="present"><div id="presentStage"></div><div id="presentInfo"></div><div id="presentNotes"></div></div>
 <div id="help"><div class="box"></div></div>
 <div id="fontDlg"><div class="box"></div></div>
+<div id="shareDlg"><div class="box"></div></div><!-- 보기 전용 공유 링크 - 만들기·목록·회수 (studio.js shareDlg, 허브 경유일 때만) -->
 <div id="sessDlg"><div class="box"></div></div><!-- 웹 AI 세션 - 시작 창 · 진행 패널 · 턴 로그 (studio.js) -->
 <div id="addDlg"><div class="box">
   <div class="ad-h"><h3 style="margin:0" id="adTitle">슬라이드 추가</h3>

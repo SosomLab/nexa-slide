@@ -1088,6 +1088,9 @@ def shape_text_rect(shape, w, h):
         "star5": lambda: [0.318 * w, 0.382 * h, 0.682 * w, 0.764 * h], "plus": lambda: [ss / 4, ss / 4, w - ss / 4, h - ss / 4],
         "callout": lambda: [0, 0, w, h], "roundCallout": lambda: [ss / 6 * 0.29, ss / 6 * 0.29, w - ss / 6 * 0.29, h - ss / 6 * 0.29],
         "can": lambda: [0, ss / 4, w, h - ss / 8], "cube": lambda: [0, ss / 4, w - ss / 4, h],
+        # 순서도 4종(0.22.23) - ECMA-376 presetShapeDefinitions 의 textRect
+        "flowChartProcess": lambda: [0, 0, w, h], "flowChartDecision": lambda: [w / 4, h / 4, 3 * w / 4, 3 * h / 4],
+        "flowChartDocument": lambda: [0, 0, w, h * 17322 / 21600], "flowChartInputOutput": lambda: [w / 5, 0, 4 * w / 5, h],
     }
     return R.get(shape, R["diamond"])()
 
