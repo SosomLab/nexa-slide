@@ -29,7 +29,8 @@ claude = agents.get("claude")
 cmd = ag.turn_cmd("m1", None, None, max_turns=40, budget_usd=None, flags={}, allow_web=False, add_dirs=None, new_session_id=None, name="x")
 check("turn_cmd 가 wsession 의 키워드 인자를 모두 받는다", cmd[1] == "exec" and cmd[-1] == "-" and "-m" in cmd and cmd[cmd.index("-m") + 1] == "m1")
 cmd2 = ag.turn_cmd("m1", "thread-1", None, flags={}, allow_web=False, add_dirs=None, new_session_id=None, name="x")
-check("resume 는 exec resume <thread_id> -", cmd2[1:3] == ["exec", "resume"] and cmd2[-2:] == ["thread-1", "-"])
+check("resume 는 exec [옵션] resume <thread_id> - (옵션이 resume 앞 - 뒤에 두면 종료 2)",
+      cmd2[1] == "exec" and cmd2[-3:] == ["resume", "thread-1", "-"] and "--sandbox" in cmd2[:cmd2.index("resume")] and "--json" in cmd2[:cmd2.index("resume")])
 check("--sandbox workspace-write · approval never · network_access 고정",
       "workspace-write" in cmd and 'approval_policy="never"' in cmd and "sandbox_workspace_write.network_access=true" in cmd)
 check("금지 옵션이 없다", not any("danger" in c or "bypass" in c or "approve-for-me" in c for c in cmd))
