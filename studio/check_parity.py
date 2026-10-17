@@ -3,7 +3,8 @@
 
     python3 studio/check_parity.py [ch00 …]
 
-비교 대상: 덱의 모든 code 요소 줄 하이라이트(codeLines) · 모든 요소의 인라인 강조(runs) · plan 강조 · 표 격자(tableGrid) · 글머리 행(bulletRows, 균등 간격 포함).
+비교 대상: 덱의 모든 code 요소 줄 하이라이트(codeLines) · 모든 요소의 인라인 강조(runs) · plan 강조 · 표 격자(tableGrid) · 글머리 행(bulletRows, 균등 간격 포함)
+  · 채우기(fillSpec) · 선·테두리 색(colorAlpha - stroke·선 color 의 #RRGGBBAA) · 도형 글 영역(shapeRect ↔ shape_text_rect, 모든 도형 종류).
 """
 import json
 import subprocess
@@ -11,7 +12,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from common import DECKS, LANGS, STUDIO, bullet_rows, num_hang, code_lines, fill_spec, obj_to_table, resolve_tokens, plan_runs, runs, table_grid, table_to_obj  # noqa: E402
+from common import DECKS, LANGS, STUDIO, bullet_rows, num_hang, code_lines, color_alpha, fill_spec, obj_to_table, resolve_tokens, plan_runs, runs, shape_text_rect, table_grid, table_to_obj  # noqa: E402
 
 SAMPLES = [
     {"type": "code", "lang": "python", "text": "def f(x):\n    # 주석\n    return x * 2 + 'a'  # 끝\n"},
@@ -67,6 +68,10 @@ FILL_SAMPLES = [
     {"gradient": {"angle": "x", "stops": [[0, "#002F7B"]]}}, {"gradient": {"stops": [[0, "#zz"], ["a", "primary", "b"], 3, "#002F7BGG"]}},
     {"gradient": {"stops": []}}, {"gradient": "no"}, [1, 2], 5, "", None,
 ]
+# 선·테두리 색(stroke · 선 color, 0.22.23) 예제 - 알파 80 · 토큰 이름 · 잘못된 값(기본 검정) · 알파 FF(불투명) · 00(투명) · 모르는 토큰 · 다른 토큰을 가리키는 토큰
+STROKE_SAMPLES = ["#002F7B80", "primary", "#12345", "#002F7BFF", "#002F7B00", "no-such-token", "on-surface", "#abcdef40", 7]
+# 도형 글 영역 - 모든 도형 종류(이름은 render.js shapeNames 에서) × 가로·세로·정사각 상자
+SHAPE_SIZES = [(160, 120), (300, 80), (90, 200), (140, 140)]
 
 JS = r"""
 const R = require(process.argv[1]);
@@ -78,6 +83,9 @@ const out = {code: inp.code.map(e => R.codeLines(e).map(l => ({n: l.n, focus: l.
   grid: inp.tables.map(e => { const g = R.tableGrid(e); return {colW: g.colW.map(v => +v.toFixed(3)), rowH: g.rowH.map(v => +v.toFixed(3)), cells: g.cells, callouts: g.callouts.map(c => ({...c, x: +c.x.toFixed(3), y: +c.y.toFixed(3), h: +c.h.toFixed(3), cy: +c.cy.toFixed(3), tx: +c.tx.toFixed(3)}))}; }),
   bullets: inp.bullets.map(e => R.bulletRows(e).map(([t, lvl, after, num]) => [t, lvl, +(+after).toFixed(3), num ? [num.label, num.scheme || "", num.start, num.kind || "", R.numHang(num.label, lvl ? +e.subSize || 17 : +e.size || 20, lvl ? 20 : 28)] : null])),
   fills: inp.fills.map(f => R.fillSpec(f)),
+  strokes: inp.strokes.map(s => R.colorAlpha(s)),
+  shapeNames: R.shapeNames().map(([k]) => k),
+  shapes: R.shapeNames().flatMap(([k]) => inp.sizes.map(([w, h]) => [k, w, h, R.shapeRect(k, w, h).map(v => +v.toFixed(3))])),
   conv: inp.conv.map(e => { const o = R.tableToObj(e); const back = R.objToTable(o); return {obj: o, back: back.el, dropped: back.dropped}; })};
 process.stdout.write(JSON.stringify(out));
 """
@@ -121,7 +129,11 @@ def main():
     # 채우기: 고정 예제 + 덱의 모든 fill 값
     fills = list(FILL_SAMPLES) + [e["fill"] for i in ids for s in json.loads((DECKS / f"{i}.json").read_text(encoding="utf-8"))["slides"]
                                   for e in s["elements"] if e.get("fill")]
-    inp = json.dumps({"tokens": tokens, "langs": LANGS, "code": code, "texts": texts, "plans": plans, "tables": tables, "bullets": bullets, "fills": fills, "conv": CONV_SAMPLES},
+    # 선·테두리: 고정 예제 + 덱의 모든 stroke·선 color 값
+    strokes = list(STROKE_SAMPLES) + [e[k] for i in ids for s in json.loads((DECKS / f"{i}.json").read_text(encoding="utf-8"))["slides"]
+                                      for e in s["elements"] for k in (("stroke",) if e.get("stroke") else ()) + (("color",) if e["type"] in ("line", "arrow", "curve") and e.get("color") else ())]
+    inp = json.dumps({"tokens": tokens, "langs": LANGS, "code": code, "texts": texts, "plans": plans, "tables": tables, "bullets": bullets, "fills": fills, "conv": CONV_SAMPLES,
+                      "strokes": strokes, "sizes": SHAPE_SIZES},
                      ensure_ascii=False)
     r = subprocess.run(["node", "-e", JS, str(STUDIO / "render.js")], input=inp.encode("utf-8"), capture_output=True)
     if r.returncode:
@@ -142,6 +154,9 @@ def main():
           "bullets": [[[t, lvl, round(float(after), 3), [num["label"], num.get("scheme") or "", num["start"], num.get("kind") or "", num_hang(num["label"], float(e.get("subSize", 17)) if lvl else float(e.get("size", 20)), 20 if lvl else 28)] if num else None]
                        for t, lvl, after, num in bullet_rows(e)] for e in bullets],
           "fills": [fill_spec(f) for f in fills],
+          "strokes": [list(color_alpha(s)) for s in strokes],
+          "shapeNames": js["shapeNames"],
+          "shapes": [[k, w, h, [round(v, 3) for v in shape_text_rect(k, w, h)]] for k in js["shapeNames"] for w, h in SHAPE_SIZES],
           "conv": [(lambda o: {"obj": o, "back": obj_to_table(o)[0], "dropped": obj_to_table(o)[1]})(table_to_obj(e)) for e in CONV_SAMPLES]}
     def canon(o):  # 직렬화 차이(정수/실수, 빠진 키/null) 제거
         if isinstance(o, dict):
@@ -164,7 +179,7 @@ def main():
             bad += 1
             print(f"개수 다름: {k} py={len(py[k])} js={len(js[k])}")
     n = {k: len(v) for k, v in py.items()}
-    print(f"비교: 코드 {n['code']}개 · 인라인 {n['runs']}줄 · plan {n['plan']}줄 · 표 {n['grid']}개 · 글머리 {n['bullets']}개 · 채우기 {n['fills']}개 → {'모두 같음' if not bad else f'{bad}건 다름'}")
+    print(f"비교: 코드 {n['code']}개 · 인라인 {n['runs']}줄 · plan {n['plan']}줄 · 표 {n['grid']}개 · 글머리 {n['bullets']}개 · 채우기 {n['fills']}개 · 선 색 {n['strokes']}개 · 도형 글 영역 {n['shapes']}개({len(js['shapeNames'])}종) → {'모두 같음' if not bad else f'{bad}건 다름'}")
     sys.exit(1 if bad else 0)
 
 
