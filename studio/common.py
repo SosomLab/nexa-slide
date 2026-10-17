@@ -159,9 +159,22 @@ def server_port(default=None):
     run = running_server()
     return int(run["port"]) if run else (default or DEFAULT_PORT)
 # ---------- 템플릿 — 디자인(색·글꼴·크기·검사 기준·디자인 기준 문서)은 엔진의 templates/<이름>/ 에 있고,
-#            작업 공간은 nexa-slide.json 의 "template"(·"fontPreset")으로 고르기만 한다 ----------
+#            작업 공간은 nexa-slide.json 의 "template"(·"fontPreset")으로 고르기만 한다.
+#            예외(0.22.26, 회사 템플릿): 작업 공간 templates/<이름>/template.json — 엔진 템플릿을 extends 하고
+#            tokenOverrides·label·description·parts 만 바꾼다(마법사가 만든다 - docs/templates.md). tokens·design·sizes·check 는
+#            쓸 수 없어 무시하고 경고한다. 엔진 템플릿과 같은 이름이면 엔진 것이 쓰인다(만들 때 거부). ----------
 TEMPLATES = STUDIO / "templates"
+WS_TEMPLATES = (WORKSPACE / "templates") if WORKSPACE is not None else None  # 작업 공간 템플릿 폴더(없어도 된다)
+WS_TEMPLATE_KEYS = ("extends", "label", "description", "tokenOverrides", "parts", "i18n")  # 작업 공간 템플릿에 허용하는 키
 DEFAULT_TEMPLATE = "lecture"
+_warned = set()
+
+
+def warn_once(msg):
+    """같은 알림은 한 번만(stderr) - 템플릿은 import 때와 목록에서 여러 번 읽힌다."""
+    if msg not in _warned:
+        _warned.add(msg)
+        print(f"알림: {msg}", file=sys.stderr)
 
 
 def _merge(base, over):
@@ -171,14 +184,47 @@ def _merge(base, over):
     return out
 
 
+def template_dir(name):
+    """이름 → (템플릿 폴더, 작업 공간 것인가). 엔진 templates/ 먼저, 없으면 작업 공간 templates/. 둘 다 없으면 (None, False)."""
+    d = TEMPLATES / str(name)
+    if (d / "template.json").is_file():
+        return d, False
+    if WS_TEMPLATES is not None and re.fullmatch(r"[A-Za-z0-9_-]+", str(name)) and (WS_TEMPLATES / name / "template.json").is_file():
+        return WS_TEMPLATES / name, True
+    return None, False
+
+
+def template_dirs():
+    """[(이름, 폴더, 작업 공간 것인가)] — 엔진 것(폴더 순) 뒤에 작업 공간 것. 엔진과 겹치는 작업 공간 이름은 빼고 알린다."""
+    out = [(p.name, p, False) for p in sorted(TEMPLATES.iterdir()) if (p / "template.json").is_file()]
+    if WS_TEMPLATES is not None and WS_TEMPLATES.is_dir():
+        names = {n for n, _, _ in out}
+        for p in sorted(WS_TEMPLATES.iterdir()):
+            if not (p / "template.json").is_file() or not re.fullmatch(r"[A-Za-z0-9_-]+", p.name):
+                continue
+            if p.name in names:
+                warn_once(f"작업 공간 템플릿 {p.name} 은 엔진 템플릿과 이름이 같아 쓰지 않는다(엔진 것이 쓰인다) - 폴더 이름을 바꾼다")
+                continue
+            out.append((p.name, p, True))
+    return out
+
+
 def load_template(name, _seen=()):
-    """templates/<이름>/template.json — "extends" 를 따라 합친다. 경로 항목(tokens·design)은 정의한 템플릿 폴더 기준."""
-    d = TEMPLATES / name
-    f = d / "template.json"
-    if not f.is_file():
-        have = ", ".join(sorted(p.name for p in TEMPLATES.iterdir() if (p / "template.json").is_file()))
+    """templates/<이름>/template.json — "extends" 를 따라 합친다. 경로 항목(tokens·design)은 정의한 템플릿 폴더 기준.
+    작업 공간 템플릿은 허용 키(WS_TEMPLATE_KEYS)만 읽고 extends 는 엔진 템플릿이어야 한다(아니면 DEFAULT_TEMPLATE 바탕, 경고)."""
+    d, ws = template_dir(name)
+    if d is None:
+        have = ", ".join(n for n, _, _ in template_dirs())
         raise SystemExit(f"없는 템플릿: {name} — 있는 것: {have}")
-    raw = json.loads(f.read_text(encoding="utf-8"))
+    raw = json.loads((d / "template.json").read_text(encoding="utf-8"))
+    if ws:
+        bad = [k for k in raw if k not in WS_TEMPLATE_KEYS and not k.startswith("_")]
+        if bad:
+            warn_once(f"작업 공간 템플릿 {name}: {', '.join(bad)} 은 작업 공간 템플릿에 둘 수 없어 무시한다(extends·label·description·tokenOverrides·parts 만 - docs/templates.md)")
+        raw = {k: v for k, v in raw.items() if k in WS_TEMPLATE_KEYS}
+        if not isinstance(raw.get("extends"), str) or not (TEMPLATES / raw["extends"] / "template.json").is_file():
+            warn_once(f"작업 공간 템플릿 {name}: extends 가 엔진 템플릿이 아니라 {DEFAULT_TEMPLATE} 를 바탕으로 쓴다")
+            raw["extends"] = DEFAULT_TEMPLATE
     for k in ("tokens",):
         if k in raw:
             raw[k] = str((d / raw[k]).resolve())
@@ -187,19 +233,22 @@ def load_template(name, _seen=()):
     base = load_template(raw["extends"], _seen + (name,)) if raw.get("extends") and raw["extends"] not in _seen else {}
     out = _merge(base, {k: v for k, v in raw.items() if k != "extends"})
     out["name"] = name
+    if ws:
+        out["workspace"] = True
     return out
 
 
 def list_templates():
-    """템플릿 목록 — 숨긴 템플릿(hidden: 검토 대상으로 옮김)은 빼되, 이 작업 공간이 쓰는 것이면 남긴다."""
+    """템플릿 목록 — 숨긴 템플릿(hidden: 검토 대상으로 옮김)은 빼되, 이 작업 공간이 쓰는 것이면 남긴다. 작업 공간 템플릿은 workspace: true."""
     out = []
-    for p in sorted(TEMPLATES.iterdir()):
-        if not (p / "template.json").is_file():
-            continue
+    for name, p, ws in template_dirs():
         t = json.loads((p / "template.json").read_text(encoding="utf-8"))
-        if t.get("hidden") and p.name != TEMPLATE["name"]:
+        if t.get("hidden") and name != TEMPLATE["name"]:
             continue
-        out.append({"name": p.name, "label": t.get("label", p.name), "i18n": t.get("i18n") or {}})
+        item = {"name": name, "label": t.get("label", name), "i18n": t.get("i18n") or {}}
+        if ws:
+            item["workspace"] = True
+        out.append(item)
     return out
 
 

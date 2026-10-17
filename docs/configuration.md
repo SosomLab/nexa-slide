@@ -32,11 +32,11 @@
 | `content` | `content` | 내용 원본 `<id>.json` · 공통 슬라이드 `_common.json` |
 | `decks` | `decks` | 덱 `<id>.json` · 요청 메모 `<id>.requests.json` · 백업 `.history/` |
 | `out` | `out` | PPTX · 렌더 PNG · 비교 이미지 · 세션 상태 `.studio/` |
-| `template` | `lecture` | **디자인 템플릿 이름**(`studio/templates/<이름>/`) — 색·글꼴·글자 크기·검사 기준은 모두 템플릿에 있다([templates.md](templates.md)) |
+| `template` | `lecture` | **디자인 템플릿 이름**(`studio/templates/<이름>/`, 또는 이 작업 공간의 회사 템플릿 `templates/<이름>/` — 엔진 템플릿을 `extends` 하고 색만 바꾼 것) — 색·글꼴·글자 크기·검사 기준은 모두 템플릿에 있다([templates.md](templates.md)) |
 | `fontPreset` | 템플릿 기본 | 템플릿 `fontPresets` 또는 작업 공간 `fontPresets` 중 하나(편집기 글꼴 선택·`set_fonts.py` 가 바꾼다) |
 | `fontPresets` | 없음 | 작업 공간 전용 글꼴 세트 `{이름: {body, heading?, mono?}}` — 글꼴 파일은 `fonts/`(`fontsDir` 로 바꿀 수 있음). [fonts.md](fonts.md) |
 | `brand.name` | `""` | 로고 대체 글자(alt) |
-| `brand.logo` | `assets/brand/logo.png` | 머리 오른쪽·표지 로고(`assetRoot` 기준). 가로세로 비율은 PNG 머리에서 읽는다 |
+| `brand.logo` | `assets/brand/logo.png` | 머리 오른쪽·표지 로고(`assetRoot` 기준). **PNG 만** — 가로세로 비율을 PNG 머리에서 읽는다. 시작 페이지의 회사 템플릿 마법사가 올린 로고를 여기에 저장하고 `brand.name` 을 함께 쓴다 |
 | `brand.wordmark` | `assets/brand/wordmark.png` | 바닥 워드마크 |
 | `brand.favicon` | — | 편집기 파비콘 |
 | `partLabels` | `Part 1`·`Part 2`·`Part 3`·`Appendix` | 부(`day1`/`day2`/`day3`/`apx`) 칩 이름 |
@@ -66,7 +66,8 @@
 
 > 기존 덱의 그림 경로가 저장소 루트 기준이면 `assetRoot` 를 그 루트로 맞춘다. 덱 JSON 은 고치지 않아도 된다.
 
-> **원칙**: 작업 공간은 고르기만 한다 — `tokens.json`·디자인 기준 문서·검사 기준값을 작업 공간에 두지 않는다. 다른 디자인이 필요하면 엔진에 템플릿을 추가한다.
+> **원칙**: 작업 공간은 고르기만 한다 — `tokens.json`·디자인 기준 문서·검사 기준값을 작업 공간에 두지 않는다. 예외는 회사 색·로고·서체처럼 공개 엔진에 넣을 수 없는 것뿐:
+> 작업 공간 템플릿 `templates/<이름>/template.json`(엔진 템플릿 `extends` + `tokenOverrides` 만 — [templates.md](templates.md#작업-공간-템플릿회사-템플릿--extends--tokenoverrides-만))과 전용 글꼴(`fonts/` + `fontPresets`). 다른 크기·검사 기준·레이아웃이 필요하면 엔진에 템플릿을 추가한다.
 
 ## 여러 PC 에서 쓰기 — PC 별 설정 `.env` · `nexa-slide.local.json`
 

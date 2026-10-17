@@ -29,6 +29,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+import palette  # noqa: E402
 from common import CONFIG, DECKS, TEMPLATE, code_lines, color, font_role, load_deck, plain, safe_id, text_width, use_fonts  # noqa: E402
 
 W, H = 1280, 720
@@ -125,22 +126,12 @@ def _contains(outer, inner, tol=1):
             inner[0] + inner[2] <= outer[0] + outer[2] + tol and inner[1] + inner[3] <= outer[1] + outer[3] + tol)
 
 
-def _lum(hexv):
-    """상대 휘도(WCAG) - #RRGGBB"""
-    try:
-        r, g, b = (int(hexv[i:i + 2], 16) / 255 for i in (1, 3, 5))
-    except (TypeError, ValueError):
-        return None
-    f = lambda c: c / 12.92 if c <= 0.03928 else ((c + 0.055) / 1.055) ** 2.4  # noqa: E731
-    return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b)
+_lum = palette.lum  # 상대 휘도(WCAG) - 공식은 palette.py 한 곳에(템플릿 마법사의 대비 경고와 같은 값)
 
 
 def contrast(fg, bg):
-    a, b = _lum(color(fg)), _lum(color(bg))
-    if a is None or b is None:
-        return None
-    hi, lo = max(a, b), min(a, b)
-    return (hi + 0.05) / (lo + 0.05)
+    """토큰·#hex 두 색의 대비(1~21). 색이 아니면 None."""
+    return palette.contrast(color(fg), color(bg))
 
 
 def _fill_hex(v):

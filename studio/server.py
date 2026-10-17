@@ -319,6 +319,8 @@ def workspace_stamp():
     engine = 편집기 코드와 템플릿 파일(엔진 업데이트) - config·engine 이 바뀌면 화면을 새로 고쳐야 반영된다."""
     files = [] if HUB or not DECKS.is_dir() else [f for f in DECKS.glob("*.json") if not f.name.endswith(".requests.json")]
     eng = [STUDIO / n for n in ENGINE_UI] + [f for f in (STUDIO / "templates").rglob("*.json")]
+    if not HUB and (WORKSPACE / "templates").is_dir():  # 작업 공간 템플릿(회사 템플릿 - extends+tokenOverrides)도 바뀌면 새로 고침 안내
+        eng += [f for f in (WORKSPACE / "templates").rglob("*.json")]
     return {"deckIds": sorted(f.stem for f in files), "decksVer": max((ver(f) for f in files), key=int, default="0"),
             "config": "0" if HUB else max(ver(WORKSPACE / "nexa-slide.json"), ver(WORKSPACE / "nexa-slide.local.json"), key=int), "engine": max((ver(f) for f in eng), key=int, default="0")}
 
@@ -1387,11 +1389,21 @@ class H(BaseHTTPRequestHandler):
         if b.get("action") == "open" and not HUB and b.get("path") and Path(b["path"]).resolve() == WORKSPACE:
             hub.remember(WORKSPACE, CONFIG.get("title", WORKSPACE.name))
             return self.send_json({"ok": True, "path": str(WORKSPACE), "url": f"http://127.0.0.1:{self.server.server_port}/"})
+        if b.get("action") == "template":  # 회사 템플릿 만들기(마법사) - 관리자, 또는 이 허브에서 연 작업 공간(최근 작업)에 한해 로그인 사용자. 작업 공간 서버는 자기 작업 공간만
+            ws = str(b.get("ws") or b.get("path") or "")
+            if HUB:
+                if self.role != "admin" and hub.ws_by_id(hub.ws_id(ws or "?")) is None:
+                    self._event = "template.denied"
+                    return self.err(403, "회사 템플릿은 관리자 또는 이 허브에서 연 작업 공간에만 만들 수 있다")
+            elif not ws or Path(ws).resolve() != WORKSPACE:
+                return self.err(400, "이 서버의 작업 공간에만 만들 수 있다")
+            self._event = f"template.create:{Path(ws).name}:{re.sub(r'[^A-Za-z0-9_-]', '', str(b.get('name') or ''))[:40]}"
+            return self.hub_call(hub.create_template, b)
         self.hub_call(hub.project, b)
 
     def api_get_preview(self, _, q):
         with PREVIEW_LOCK:  # 같은 미리보기를 동시에 만들지 않게
-            self.hub_call(hub.preview, (q.get("template") or [None])[0], (q.get("starter") or [None])[0], (q.get("lang") or ["ko"])[0])
+            self.hub_call(hub.preview, (q.get("template") or [None])[0], (q.get("starter") or [None])[0], (q.get("lang") or ["ko"])[0], None if HUB else WORKSPACE)
 
     def api_post_settings(self, _, q):
         b = self.body_json() or {}
