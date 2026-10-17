@@ -77,6 +77,7 @@ PRST_TO_SHAPE = {  # PowerPoint 프리셋(prstGeom prst) → 덱 shape 종류(re
     "hexagon": "hexagon", "octagon": "octagon", "rightArrow": "rightArrow", "leftArrow": "leftArrow", "upArrow": "upArrow", "downArrow": "downArrow",
     "leftRightArrow": "leftRightArrow", "chevron": "chevron", "homePlate": "homePlate", "star5": "star5", "plus": "plus",
     "wedgeRectCallout": "callout", "wedgeRoundRectCallout": "roundCallout", "can": "can", "cube": "cube",
+    "flowChartProcess": "flowChartProcess", "flowChartDecision": "flowChartDecision", "flowChartDocument": "flowChartDocument", "flowChartInputOutput": "flowChartInputOutput",  # 순서도(0.22.23)
 }
 AUTONUM_TO_MARKER = {"arabicPeriod": "1.", "arabicParenR": "1)", "arabicParenBoth": "(1)", "alphaLcPeriod": "a.", "alphaLcParenR": "a)", "alphaUcPeriod": "A.", "alphaUcParenR": "A)", "circleNumDbPlain": "①"}
 _A = "{http://schemas.openxmlformats.org/drawingml/2006/main}"

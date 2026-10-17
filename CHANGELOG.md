@@ -1,5 +1,13 @@
 # 변경 이력
 
+## 0.22.23 - 2026-10-17 · 선·테두리 투명도 · 순서도 도형 4종
+
+엔진 요청 #4 의 A·B(설계 메모 `docs/dev/small-items-2026-10-17.md`).
+
+- **선·테두리 투명도**: 도형·상자·글 상자의 `stroke`, 선·화살표·곡선의 `color`, 표 셀 테두리(`borders`·셀 `bd`), 그림 액자 `frameColor` 에 `#RRGGBBAA`(끝 두 자리 = 불투명도) - 전에는 길이 7 이 아니면 **검정**이 됐다. 편집기는 `rgba()`(`render.strokeCss`), PPTX 는 `a:ln > a:solidFill > a:srgbClr > a:alpha`(`export_pptx.stroke_rgb`·`set_line_color`, 1 미만일 때만 - **불투명한 선의 XML 은 전과 바이트 동일**, example 덱 회귀 0). 채우기와 같은 규칙(`common.color_alpha` ↔ `render.colorAlpha`). 편집기 색 선택 상자는 단색 토큰만 - 투명도는 요소 JSON 으로("(직접)" 으로 보임).
+- **순서도 도형 4종** `flowChartProcess`(프로세스) · `flowChartDecision`(판단) · `flowChartDocument`(문서) · `flowChartInputOutput`(데이터) - 도형 21 → 25종. 모양은 사각형·마름모·평행사변형과 비슷하지만 prstGeom 이 달라 PowerPoint 가 순서도 기호로 인식한다. 기하·글 영역은 ECMA-376 presetShapeDefinitions(문서 = 21600 격자, 밑변 (21600,17322)→(0,20172) 3차 곡선, 글 영역 높이 17322/21600 · 데이터 = 5×5 격자 평행사변형, 글 영역 w/5~4w/5). `render.js SHAPES`·`export_pptx.SHAPE_PRESETS`(`MSO_SHAPE.FLOWCHART_*`)·`common.shape_text_rect`·`import_pptx.PRST_TO_SHAPE`(왕복 이름 유지)·`studio.js SHAPE_SIZE`. 삽입 패널·속성 "도형 종류" 는 `shapeNames()` 로 자동. 편집기 이름은 "순서도: 프로세스" 식(다이어그램 "프로세스 (갈매기)"·메뉴 "문서" 와 구별, en "Flowchart: Process").
+- 시험: `check_parity` 에 선 색 표본(알파 80 · 토큰 · 잘못된 값 · FF · 00 · 모르는 토큰)과 **모든 도형의 글 영역**(`render.shapeRect` ↔ `common.shape_text_rect`, 25종 × 4 크기) · `export_pptx --selftest` 에 테두리·선의 `a:ln` 안 `a:alpha`, 순서도 prst, 불투명 테두리에 alpha 없음 · `shape_menu.json` 21→25 · `editor_ui_test` 도형 목록. 문서 `deck-format.md`·`editor.md`·`pptx-feature-gap.md`(두 항목 완료)·`web-session-design.md`.
+
 ## 0.22.22 - 2026-10-17 · Codex 웹 세션 실동작 · Codex 스킬 $nexa-slide-session / $nexa-slide-server
 
 사용자 요청("Codex 로 작업 폴더 세션·서버 작업 세션을 만들어 동작", "VS Code 의 `/nexa-slide-server`·`/nexa-slide-session` 처럼 Codex 에서도"). 작업 공간 `테스트1` 에서 Codex 웹 세션 턴을 끝까지 확인(Windows · codex-cli 0.163 · gpt-6-luna).

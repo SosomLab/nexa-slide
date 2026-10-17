@@ -6,16 +6,16 @@
 "wait": 2500,
 "steps": [
 {
-"name": "편집기 로드(도형 21개)",
-"js": "const n=document.querySelectorAll('#host .rs-el[data-type=\"shape\"]').length; return n===21 ? true : 'n='+n"
+"name": "편집기 로드(도형 25개)",
+"js": "const n=document.querySelectorAll('#host .rs-el[data-type=\"shape\"]').length; return n===25 ? true : 'n='+n"
 },
 {
-"name": "＋ 추가 → 삽입 패널의 도형 타일 21칸",
-"js": "document.querySelector('#addBtn').click(); await new Promise(r=>setTimeout(r,300)); const n=document.querySelectorAll('#menu .tile[data-ins^=\"shape:\"]').length; return n===21 ? true : 'tiles='+n"
+"name": "＋ 추가 → 삽입 패널의 도형 타일 25칸",
+"js": "document.querySelector('#addBtn').click(); await new Promise(r=>setTimeout(r,300)); const n=document.querySelectorAll('#menu .tile[data-ins^=\"shape:\"]').length; return n===25 ? true : 'tiles='+n"
 },
 {
-"name": "  별 타일 → shape 요소 22개·속성 도형 종류",
-"js": "document.querySelector('#menu .tile[data-ins=\"shape:star5\"]').click(); await new Promise(r=>setTimeout(r,500)); const n=document.querySelectorAll('#host .rs-el[data-type=\"shape\"]').length; const s=document.querySelector('select[data-k=\"shape\"]'); return n===22 && s && s.value==='star5' ? true : 'n='+n+' sel='+(s&&s.value)"
+"name": "  별 타일 → shape 요소 26개·속성 도형 종류",
+"js": "document.querySelector('#menu .tile[data-ins=\"shape:star5\"]').click(); await new Promise(r=>setTimeout(r,500)); const n=document.querySelectorAll('#host .rs-el[data-type=\"shape\"]').length; const s=document.querySelector('select[data-k=\"shape\"]'); return n===26 && s && s.value==='star5' ? true : 'n='+n+' sel='+(s&&s.value)"
 },
 {
 "name": "  속성 도형 종류 → 정육면체(면 3)",
@@ -34,8 +34,8 @@
 "js": "document.querySelector('#addBtn').click(); await new Promise(r=>setTimeout(r,300)); document.querySelector('#menu .tile[data-ins=\"chart:column\"]').click(); await new Promise(r=>setTimeout(r,500)); document.querySelector('#addBtn').click(); await new Promise(r=>setTimeout(r,300)); document.querySelector('#menu .tile[data-ins=\"icon:check\"]').click(); await new Promise(r=>setTimeout(r,500)); const c=document.querySelectorAll('#host .rs-el[data-type=\"chart\"] svg').length, i=document.querySelectorAll('#host .rs-el[data-type=\"icon\"] svg').length; return c===1 && i===1 ? true : 'chart='+c+' icon='+i"
 },
 {
-"name": "  실행 취소 6번(별·정육면체·순환·프로세스·차트·아이콘) → 원래 21개",
-"js": "for (let i=0;i<6;i++) { document.querySelector('#undoBtn').click(); await new Promise(r=>setTimeout(r,150)); } await new Promise(r=>setTimeout(r,400)); const n=document.querySelectorAll('#host .rs-el').length; return n===21 ? true : 'n='+n"
+"name": "  실행 취소 6번(별·정육면체·순환·프로세스·차트·아이콘) → 원래 25개",
+"js": "for (let i=0;i<6;i++) { document.querySelector('#undoBtn').click(); await new Promise(r=>setTimeout(r,150)); } await new Promise(r=>setTimeout(r,400)); const n=document.querySelectorAll('#host .rs-el').length; return n===25 ? true : 'n='+n"
 }
 ]
 }

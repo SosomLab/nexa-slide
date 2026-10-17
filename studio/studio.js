@@ -2485,7 +2485,7 @@ ${names}
     s.elements.push(el); S.sel = el.id; afterChange();
   }
   // 도형 기본 크기(PowerPoint 처럼 종류마다) - 채우기는 장 색, 글은 비워 둔다(두 번 클릭해 쓴다)
-  const SHAPE_SIZE = { rightArrow: [200, 90], leftArrow: [200, 90], upArrow: [90, 200], downArrow: [90, 200], leftRightArrow: [240, 90], chevron: [160, 80], homePlate: [160, 80], callout: [200, 110], roundCallout: [200, 110], can: [120, 150], cube: [140, 140], star5: [140, 140], plus: [120, 120] };
+  const SHAPE_SIZE = { rightArrow: [200, 90], leftArrow: [200, 90], upArrow: [90, 200], downArrow: [90, 200], leftRightArrow: [240, 90], chevron: [160, 80], homePlate: [160, 80], callout: [200, 110], roundCallout: [200, 110], can: [120, 150], cube: [140, 140], star5: [140, 140], plus: [120, 120], flowChartProcess: [180, 90], flowChartDecision: [160, 120], flowChartDocument: [160, 120], flowChartInputOutput: [180, 90] };
   // 차트 기본 데이터 - 범주 4개 · 계열 2개(원형은 1개)
   const CHART_KINDS = [["column", "▮▮", "세로 막대"], ["stackedColumn", "▮", "누적 세로 막대"], ["stackedColumn100", "▮%", "세로 100%"], ["bar", "▬", "가로 막대"], ["stackedBar", "▬▬", "누적 가로"], ["stackedBar100", "▬%", "가로 100%"], ["line", "⟋", "꺾은선"], ["area", "◢", "영역"], ["combo", "▮⟋", "콤보 막대+선"], ["pie", "◔", "원형"], ["doughnut", "◎", "도넛"]];  // render.js elChart · export_pptx.CHART_TYPES
   function chartBase(kind) {
