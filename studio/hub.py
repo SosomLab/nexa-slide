@@ -949,7 +949,12 @@ def create_template(b):
         tdir.mkdir(parents=True, exist_ok=True)
     except OSError as e:
         raise HubError(f"템플릿 폴더를 만들지 못했다: templates/{name} - {e}")
-    hist = ws / cfg.get("out", "out") / ".history" / "wizard" / _dt.datetime.now().strftime("%Y%m%d-%H%M%S")
+    hist_root = ws / cfg.get("out", "out") / ".history" / "wizard"
+    stamp = _dt.datetime.now().strftime("%Y%m%d-%H%M%S-%f")[:22]  # 밀리초까지 - 같은 초에 두 번 만들어도 앞 백업을 덮지 않는다(#8)
+    hist, n = hist_root / stamp, 2
+    while hist.exists():  # 그래도 겹치면 _2, _3 …
+        hist = hist_root / f"{stamp}_{n}"
+        n += 1
     for p, data in writes:
         p.parent.mkdir(parents=True, exist_ok=True)
         if p.is_file() and p.read_bytes() != data:  # 기존 로고·글꼴 파일은 out/.history/wizard/<시각>/ 에 백업하고 덮어쓴다(#7)
