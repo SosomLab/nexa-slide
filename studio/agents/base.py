@@ -57,6 +57,8 @@ class Agent:
     exe_names = ()                # PATH 에서 찾을 이름들
     # 턴 프롬프트 `{shell}` 자리 - 이 도구가 파일을 읽고 고치고 명령을 돌리는 방법(프롬프트 본문은 Claude 의 Read/Edit 낱말로 적혀 있다)
     shell_note = ""
+    # 엔진 턴 프롬프트 `{commit}` 자리 - 이 도구가 worktree 에서 git 커밋을 할 수 있는지(Codex 샌드박스는 .git 쓰기를 막아 허브가 대신 커밋한다)
+    engine_commit_note = ""
 
     def executable(self):
         p = (load_settings().get("agentPaths") or {}).get(self.name)

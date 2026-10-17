@@ -69,6 +69,9 @@ class CodexAgent(Agent):
     default_models = ["gpt-6-luna"]  # 2026-10-17 ChatGPT 로그인 계정의 기본 모델(codex 가 -m 없이 고른 것). 계정마다 다르면 사용자 설정 sessionModels.codex
     verified = True  # Windows · codex-cli 0.163 에서 작업 공간 웹 세션 턴(읽기 → 요청 파일 수정 → 답) 확인
     exe_names = ("codex", "codex.exe", "codex.cmd")
+    engine_commit_note = ("**너는 Codex 다 — 샌드박스가 `.git` 쓰기를 막아 `git add`/`git commit` 은 'index.lock: Permission denied' 로 실패한다(실측). 커밋을 시도하지 말고 "
+                          "5 에서 `--commit auto` 로 끝내라 — 턴이 끝나면 허브가 worktree 의 변경을 `engine-request #<번호>` 메시지로 대신 커밋하고 해시를 적는다.** "
+                          "`git status`·`git diff` 는 된다.")
     shell_note = ("**너는 Codex 다 — 이 글의 `Read` 는 셸로 파일 읽기(`Get-Content`·`cat`·`sed -n`), `Edit` 는 `apply_patch`(또는 셸로 파일 쓰기)를 뜻한다.** "
                   "샌드박스는 작업 공간(cwd) 안 쓰기만 허용하므로 그 안의 파일은 읽고 고칠 수 있고, 밖은 읽기만 한다. "
                   "`python3 nexa.py …` 외의 셸 명령도 작업 공간 안 파일을 읽고 고치는 데 쓸 수 있다(파일 삭제·외부 네트워크는 하지 않는다 — 127.0.0.1 의 편집기 서버 저장은 `save_deck` 이 한다).")

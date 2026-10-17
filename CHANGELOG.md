@@ -2,11 +2,12 @@
 
 ## 0.22.27 - 2026-10-17 · Codex 샌드박스에서 엔진 요청 등록 - 작업 공간 서버 경유
 
-사용자 지적(편집기: Codex 가 "엔진 요청 등록 명령이 50초 넘게 응답 없음"). 원인: `engine_request add` 가 큐 파일(사용자 설정 폴더 = 작업 공간 **밖**)을 직접 쓰는데 Codex `workspace-write` 샌드박스는 그 쓰기를 막아 첫 시도는 멈추고 둘째는 빈 출력으로 실패했다(샌드박스 밖에서는 1초). 턴은 실패하지 않아 편집기에는 "대기 + 사유" 로만 보였다.
+사용자 지적(편집기: Codex 가 "엔진 요청 등록 명령이 50초 넘게 응답 없음"). 현상: 작업 공간 Codex 세션 안에서만 `engine_request add --request … --deck …` 가 첫 시도는 멈추고 둘째는 빈 출력으로 실패했다(샌드박스 밖에서는 1초; 엔진 세션의 `status` 쓰기는 같은 큐 파일인데 된다 — 큐 파일 쓰기 자체보다 CLI 가 작업 공간 서버로 되돌아가는 `link_origin` POST 경로가 의심되나 확정하지 못함). 턴은 실패하지 않아 편집기에는 "대기 + 사유" 로만 보였다. 서버 경유로 바꾸자 같은 요청이 바로 등록됐다.
 
 - 작업 공간 서버에 **`POST /api/engine_request`**(로컬 직접 접속만, 허브 중계 403, 허브 서버 404): `{title, body, request?, deck?, slide?, evidence?}` → `engine_requests.add(kind=session)` + `link_origin`(원 요청 배지) → `{ok, item, note}`. 접근 로그 `engine.request:<id>`. 사용자는 `X-Nexa-Session-User`(세션 CLI 가 `NEXA_SLIDE_USER` 로 보냄).
 - `engine_request.py add`: 작업 공간 안(`NEXA_SLIDE_WORKSPACE`)이고 서버가 떠 있으면 그 API 로(`via_server`), 서버가 없거나 실패하면 전처럼 파일에 직접(안내 한 줄). 출력은 같다 - 턴 프롬프트·명령 파일 변경 없음.
 - 시험 `engine_link_test` 에 API·CLI 경유 등록 검사. 문서 `openai-codex.md`·`server.md`.
+- **Codex 엔진 세션(서버 작업)**: 샌드박스가 `.git` 쓰기를 막아 worktree 에서 `git commit` 이 'index.lock: Permission denied' 로 실패한다(`--add-dir`·`writable_roots` 로도 안 풀림, 실측). → 엔진 턴 프롬프트 `{commit}` 자리에 Codex 용 안내(커밋하지 말고 `--commit auto`), 턴이 끝나면 **허브가 worktree 변경을 대신 커밋**(`EngineProfile.commit_for`: `engine-request #<n>` 메시지, 해시를 큐에 적음). 또 세션이 스스로 `open` 으로 되돌린 항목(질문·실패)을 큐가 턴마다 다시 보내 **같은 요청을 무한 반복**(#11 에서 턴 3~5, 토큰 280만)하던 것 — 마지막 이력이 engine-session 의 open 이면 사람이 손대기 전까지 다시 보내지 않는다(`EngineQueueSource.returned_by_session`). 시험 `engine_commit_test`.
 
 ## 0.22.26 - 2026-10-17 · 회사 템플릿 만들기 마법사 · 작업 공간 템플릿(extends+tokenOverrides)
 

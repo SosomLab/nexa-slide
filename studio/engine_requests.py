@@ -167,7 +167,7 @@ def counts():
 
 
 def add(title, body="", kind="user", user=None, ws=None, ws_id=None, request=None, deck=None, slide=None, evidence=None, priority=0):
-    """요청을 넣는다. kind=session(작업 공간 세션이 넘김)은 triage, 그 밖은 open. 같은 작업 공간·같은 원 요청이 이미 열려 있으면 그 항목에 덧붙인다. 항목을 돌려준다."""
+    """요청을 넣는다. kind=session 은 triage, 그 밖은 open. 같은 원 요청의 세션 덧붙임은 triage 에만 붙인다."""
     title = " ".join(str(title or "").split())[:200]
     body = str(body or "")[:MAX_BODY]
     if not title:
@@ -176,13 +176,19 @@ def add(title, body="", kind="user", user=None, ws=None, ws_id=None, request=Non
         raise ValueError("kind = user|session|cli")
     with FileLock(LOCK):
         d = _read()
-        if ws and request:  # 중복 - 같은 작업 공간·같은 원 요청이 아직 열려 있으면 덧붙인다
-            for x in d["items"]:
-                if x.get("status") in ("triage", "open", "working") and (x.get("from") or {}).get("ws") == str(ws) and (x.get("from") or {}).get("request") == request:
-                    x["body"] = (x.get("body") or "") + f"\n\n--- 덧붙임 {_now()} ---\n{body}"
-                    x["updated"] = _now()
-                    _write(d)
-                    return x
+        if ws and request:  # 중복 - 승인 대기 세션 요청에만 덧붙인다
+            matches = [x for x in d["items"] if x.get("status") in ("triage", "open", "working")
+                       and (x.get("from") or {}).get("ws") == str(ws) and (x.get("from") or {}).get("request") == request]
+            target = next((x for x in matches if x.get("status") == "triage"), None) if kind == "session" else (matches[0] if matches else None)
+            if target:
+                target["body"] = (target.get("body") or "") + f"\n\n--- 덧붙임 {_now()} ---\n{body}"
+                target["updated"] = _now()
+                _write(d)
+                return target
+            if kind == "session":
+                approved = next((x for x in reversed(matches) if x.get("status") in ("open", "working")), None)
+                if approved:
+                    body = f"기존 승인 요청 #{approved['id']}에 대한 추가 요청입니다.\n\n{body}"
         item = {"id": d["next"], "status": "triage" if kind == "session" else "open", "title": title, "body": body,
                 "from": {"kind": kind, "ws": str(ws) if ws else None, "wsId": ws_id, "user": user, "request": request, "deck": deck, "slide": slide},
                 "evidence": [str(e) for e in (evidence or [])][:10], "priority": int(priority or 0), "created": _now(), "updated": _now(),
@@ -207,20 +213,28 @@ def update(rid, status=None, by=None, **fields):
                 raise ValueError(f"상태는 {'|'.join(STATUSES)}")
             if status != x["status"] and status not in TRANSITIONS.get(x["status"], ()):
                 raise ValueError(f"{x['status']} → {status} 로 바꿀 수 없다")
+        now = _now()
+        if by != "engine-session":  # 세션 밖(사람·허브·CLI)이 손대면 "세션이 되돌려 답을 기다리는 중" 표시를 지운다 → 큐가 다시 보낸다(wsession EngineQueueSource)
+            x.pop("awaiting", None)
+        if status:
             if status != x["status"]:
                 changed = status
                 x["status"] = status
-                x["history"].append({"t": _now(), "status": status, "by": by or "?"})
+                x["history"].append({"t": now, "status": status, "by": by or "?"})
                 if status == "applied":
-                    x["appliedAt"] = _now()
+                    x["appliedAt"] = now
+                if status == "open" and by == "engine-session":  # 세션이 질문·실패로 되돌림 - 사람이 손대기 전에는 다시 보내지 않는다(무한 반복 방지, 0.22.27)
+                    x["awaiting"] = True
         for k, v in fields.items():
+            if k == "commit" and str(v or "").lower() == "auto":  # 세션이 커밋을 허브에 맡김(Codex) - 허브가 reconcile 에서 실제 해시를 적는다
+                continue
             if k in ("reply", "branch", "commit", "test", "appliedCommit", "engineVersion", "title", "body") and v is not None:
                 x[k] = str(v)[:MAX_BODY if k == "body" else 500]
             elif k == "priority" and v is not None:
                 x["priority"] = int(v)
             elif k == "evidence" and v is not None:  # 첨부를 요청 폴더로 옮긴 뒤 경로를 덧붙일 때
                 x["evidence"] = [str(e) for e in v][:20]
-        x["updated"] = _now()
+        x["updated"] = now
         _write(d)
     if changed in ("done", "applied", "rejected"):  # 잠금 밖에서 - 원 요청(작업 공간)에 알리거나 다시 연다
         resume_origin(x, changed)
