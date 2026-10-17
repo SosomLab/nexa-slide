@@ -55,6 +55,8 @@ class Agent:
     default_models = []           # 별칭 목록(사용자 설정 sessionModels.<이름> 이 우선)
     verified = False              # 이 PC 에서 명령·출력 형식을 확인했는가(아니면 화면에 "미확인")
     exe_names = ()                # PATH 에서 찾을 이름들
+    # 턴 프롬프트 `{shell}` 자리 - 이 도구가 파일을 읽고 고치고 명령을 돌리는 방법(프롬프트 본문은 Claude 의 Read/Edit 낱말로 적혀 있다)
+    shell_note = ""
 
     def executable(self):
         p = (load_settings().get("agentPaths") or {}).get(self.name)
@@ -96,7 +98,9 @@ class Agent:
         return list(lst) if isinstance(lst, list) and lst else list(self.default_models)
 
     # ---------- 실행 ----------
-    def turn_cmd(self, model, resume_id=None, settings_path=None, max_turns=None, budget_usd=None, flags=None):
+    def turn_cmd(self, model, resume_id=None, settings_path=None, max_turns=None, budget_usd=None, flags=None, allow_web=False, add_dirs=None,
+                 new_session_id=None, name=None):
+        """한 턴의 명령줄. wsession 이 모든 인자를 키워드로 넘기므로 어댑터는 쓰지 않는 것도 받아야 한다(codex 는 allow_web·add_dirs·new_session_id·name 을 무시)."""
         raise NotImplementedError
 
     def env(self):

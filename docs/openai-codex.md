@@ -5,8 +5,12 @@ nexa-slide 의 편집기·빌드·PPTX 내보내기는 AI 없이 동작한다. A
 
 | 방식 | Claude Code | Codex CLI |
 |---|---|---|
-| 수동 세션 — 사람이 도구를 열고 요청을 처리시킨다 | 상시 감시(Monitor) — [ai-editing.md](ai-editing.md#21-claude-code--터미널) | **지금 가능** — 1회 대기 반복(아래 3절) |
-| 웹 세션 — 시작 페이지·Studio 버튼으로 서버가 세션을 띄운다 | 개발 중 | 개발 중 — 서비스 유형 `codex` 로 같은 화면에서 쓰게 한다(아래 5절) |
+| 수동 세션 — 사람이 도구를 열고 요청을 처리시킨다 | 상시 감시(Monitor) — `/nexa-slide-session` · `/nexa-slide-server` | **스킬 한 줄** `$nexa-slide-session` · `$nexa-slide-server` — 1회 대기 반복(아래 3절) |
+| 웹 세션 — 시작 페이지·Studio 버튼으로 서버가 세션을 띄운다 | 확인됨 | **확인됨(0.22.22, Windows)** — 서비스 유형 `codex` 로 같은 화면에서(아래 5절) |
+
+> **Windows 에서 먼저 볼 것(0.22.22 실측)**: chocolatey·npm 으로 깐 `codex.exe` 는 옆에 `codex-code-mode-host.exe` 가 없어 **명령을 하나도 실행하지 못한다**("Code Mode is unavailable … fail closed").
+> **Codex 데스크톱 앱**을 설치하면 `%LOCALAPPDATA%\OpenAI\Codex\bin\<해시>\codex.exe` 에 host 가 함께 들어오고, 엔진은 이것을 자동으로 우선 쓴다(사용자 설정 `agentPaths.codex` 가 있으면 그것). 직접 쓸 때도 이 경로의 `codex.exe` 를 쓰거나 PATH 앞에 둔다.
+> 또 이 PC 에서는 기본 Windows 샌드박스(unelevated)가 `CreateProcess` 실패를 내고, 앱이 준비한 **elevated 샌드박스**(`~/.codex/config.toml` 의 `[windows] sandbox = "elevated"`)만 동작했다 — 엔진은 그 값을 읽어 `-c windows.sandbox=…` 로 넘긴다.
 
 ## 1. 설치
 
@@ -37,8 +41,8 @@ brew install --cask codex                               # 또는 Homebrew(macOS)
 
 ## 3. 수동 세션 — 지금 바로 쓰는 방법
 
-새 작업 공간에는 Codex 가 자동으로 읽는 **`AGENTS.md`** 가 이미 있다(같은 규칙, 요청은 1회 대기 반복). 없는 작업 공간은
-`python3 <엔진>/studio/init_workspace.py <작업 공간>` 을 다시 실행하면 없는 파일만 만든다.
+새 작업 공간에는 Codex 가 자동으로 읽는 **`AGENTS.md`** 와 **스킬** `.codex/skills/nexa-slide-session/`·`nexa-slide-server/`(0.22.22) 가 있다. 옛 작업 공간은
+`python3 nexa.py update_launcher`(또는 `python3 <엔진>/studio/init_workspace.py <작업 공간>`)가 없는 파일만 만든다. 저장소형이면 루트에도 같은 스킬을 둔다(Codex 는 cwd 의 `.codex/skills` 를 읽는다).
 
 ```powershell
 cd '<작업 공간>'
@@ -46,7 +50,11 @@ python3 nexa.py start          # 편집기 서버(이미 떠 있으면 생략)
 codex                          # 대화형으로 연다
 ```
 
-대화창에 붙여 넣는다:
+대화창에 **`$nexa-slide-session`** 한 줄(또는 `/skills` 에서 고른다) — Claude Code 의 `/nexa-slide-session` 과 같은 일이다. 스킬이 하는 것:
+`python3 nexa.py watch_requests --label "Codex" --agent codex --ttl 600` 로 **요청이 올 때까지 기다렸다가**(편집기 칩은 "수동 세션 · Codex") 요청 묶음 JSON 을 받아 끝나면 → 규약대로 처리(working → `draft_deck` → `apply_patch` → `save_deck` → done+reply) → 같은 명령을 다시. 600초 동안 요청이 없으면 `{"event":"ttl"}` 로 끝나고 다시 건다.
+서버 작업(엔진 요청 큐)은 **`$nexa-slide-server`** — `watch_engine_requests --wait --ttl 600`(요청이 생기면 한 건 내고 끝남, 없으면 `expired`) 로 같은 반복을 하고 엔진 worktree 에서 처리한다. 엔진 저장소에서 연 Codex 에는 저장소의 `.codex/skills/nexa-slide-server/` 가 같은 스킬이다.
+
+스킬 없이 손으로 하려면 대화창에 붙여 넣는다:
 
 ```text
 이 폴더는 nexa-slide 슬라이드 작업 공간이야. AGENTS.md 와 CLAUDE.md 를 먼저 읽어(같은 규칙이 너에게도 적용돼).
@@ -83,13 +91,15 @@ codex exec resume --last "다음 요청"                                    # �
 ## 5. 웹 세션에서 서비스 유형 바꾸기
 
 웹 세션(허브 시작 페이지·Studio 세션 칩의 [세션 시작])은 **서비스 유형(`claude` / `codex`)만 바꾸면 같은 화면·같은 처리 규약**으로 동작한다 — 서버가 턴마다 그 CLI 를 실행한다([claude-session.md](claude-session.md) 5절, 설계 [dev/web-session-design.md](dev/web-session-design.md)).
-`codex` 어댑터(`studio/agents/codex.py`)는 **공식 문서 기준으로 만들었고 이 PC 에서 확인되지 않았다** — 시작 창에 "미확인" 으로 표시되고, 설치가 없으면 비활성(이 문서 안내).
+`codex` 어댑터(`studio/agents/codex.py`)는 **2026-10-17 Windows(codex-cli 0.163 · ChatGPT 로그인 · 모델 `gpt-6-luna`)에서 작업 공간 웹 세션 턴을 끝까지 확인했다** — 셸로 안내 파일·덱을 읽고, 요청 파일을 고쳐 답을 남겼다. 설치가 없으면 시작 창에서 비활성(이 문서 안내).
+시작 창의 모델 칸에는 계정에서 쓸 수 있는 모델 ID 를 적는다(기본 목록 `gpt-6-luna`, 관리자가 전역 설정 `sessionModels.codex` 로 바꾼다).
 
-| 항목 | `claude` (확인됨) | `codex` (미확인) |
+| 항목 | `claude` (확인됨) | `codex` (확인됨 · Windows) |
 |---|---|---|
-| 실행 파일 | `claude`(PATH) — 사용자 설정 `agentPaths.claude` 로 지정 가능 | `codex` — `agentPaths.codex` |
+| 실행 파일 | `claude`(PATH) — 사용자 설정 `agentPaths.claude` 로 지정 가능 | `agentPaths.codex` → PATH 의 `codex` → (Windows) 데스크톱 앱 동봉 `codex.exe`. PATH 판 옆에 `codex-code-mode-host.exe` 가 없으면 앱 동봉 판을 우선 |
 | 설치·로그인 확인 | `claude --version` · `claude auth status`(JSON, 턴을 쓰지 않음) | `codex --version` · `codex login status` |
-| 한 턴 | `claude -p --output-format stream-json --verbose --model <m> --permission-mode dontAsk --permission-prompts none --restricted --tools "Read,Edit,Write,Glob,Grep,Bash" --settings <권한 JSON> --strict-mcp-config --max-turns <n>`(프롬프트는 stdin) | `codex exec --json --sandbox workspace-write -m <m> -c approval_policy="never" -c sandbox_workspace_write.network_access=true --ignore-user-config --skip-git-repo-check -`(프롬프트는 stdin) |
+| 한 턴 | `claude -p --output-format stream-json --verbose --model <m> --permission-mode dontAsk --permission-prompts none --restricted --tools "Read,Edit,Write,Glob,Grep,Bash" --settings <권한 JSON> --strict-mcp-config --max-turns <n>`(프롬프트는 stdin) | `codex exec --json --sandbox workspace-write -m <m> -c approval_policy="never" -c sandbox_workspace_write.network_access=true [-c windows.sandbox="elevated"] --ignore-user-config --skip-git-repo-check -`(프롬프트는 stdin). Windows 샌드박스 값은 사용자 `config.toml` 의 `[windows] sandbox` 를 옮겨 적는다(없으면 elevated) |
+| 턴 프롬프트의 도구 낱말 | Read/Edit/Write 도구 | 같은 프롬프트에 `{shell}` 자리로 "Read 는 셸 읽기, Edit 는 `apply_patch`" 안내를 넣는다(`CodexAgent.shell_note`) — 없으면 Codex 가 "파일 도구가 없다"며 멈춘다(실측) |
 | 이어 가기 | `--resume <session_id>`(`system/init` 의 `session_id`) | `codex exec resume <thread_id> -`(`thread.started` 의 `thread_id`) |
 | 모델 | 별칭 `opus`·`sonnet`·`haiku` 또는 전체 ID | 계정에서 쓸 수 있는 모델 ID(목록은 관리자가 전역 설정 `sessionModels.codex` 에) |
 | 쓰기 범위 | 엔진 권한 템플릿(`studio/agents/permissions.json` workspace+web)을 `--settings` 로 — 작업 공간 안 Read/Edit/Write, 명령은 `python3 nexa.py …` 만 | `--sandbox workspace-write`(cwd = 작업 공간 안만 쓰기), 네트워크는 `save_deck` 의 127.0.0.1 저장을 위해 켬 |

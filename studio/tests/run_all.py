@@ -21,6 +21,7 @@ HERE = Path(__file__).resolve().parent
 TESTS = [  # (이름, 실행, 설명, claude 필요)
     ("i18n", ["node", "i18n_check.js"], "i18n.js 문법·중복 키·번역 표본", False),
     ("smoke", [sys.executable, "smoke_run.py"], "허브·Studio 헤드리스 클릭 스모크(데모 작업 공간 생성)", False),
+    ("codex", [sys.executable, "codex_adapter_test.py"], "Codex 어댑터 - turn_cmd 인자·host 있는 실행 파일·windows.sandbox·{shell} 프롬프트(설치 불필요)", False),
     ("e3", [sys.executable, "e3_manual_test.py"], "수동 엔진 세션(watch_engine_requests) 상태·거절", False),
     ("e4", [sys.executable, "e4_manual_stop_test.py"], "수동 세션 수명 - 파이프 닫힘·takeover·웹 끊기", False),
     ("englist", [sys.executable, "englist_test.py"], "서버 작업 목록 - 카드 5건·검색 API·/engine 페이지", False),

@@ -4,7 +4,7 @@
 
 지켜야 할 것
 - 명령은 반드시 cwd 기준 `python3 nexa.py …` 로만 실행한다 — 안내 파일에 `python3 slides/nexa.py` 나 절대 경로로 적혀 있어도 `python3 nexa.py` 로 바꿔 부른다.
-  **다른 Bash 명령(파이썬 스크립트·heredoc·cat·sed 등)은 거절되지만 `python3 nexa.py …` 는 허용된다 — 거절을 만나도 포기하지 말고 아래 명령으로 한다.** 목록: `python3 nexa.py help`.
+  {shell} 목록: `python3 nexa.py help`.
 - 작업 공간 밖의 파일(엔진 문서 포함)은 읽을 수 없다. 레이아웃·필드 구조는 `python3 nexa.py layout_samples`, 슬라이드 유형은 `python3 nexa.py slide_types <낱말>` 로 본다.
 - 파일을 지우지 않는다. 덱 파일(`decks/<deck>.json`)을 직접 쓰지 않는다 — 저장은 늘 `save_deck`.
 - 요청이 **엔진 변경**(새 레이아웃·슬라이드 유형·렌더 버그·`nexa.py` 명령 추가 등 이 작업 공간 안에서 할 수 없는 일)을 요구하면 억지로 우회하지 말고

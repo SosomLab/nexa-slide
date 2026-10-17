@@ -57,3 +57,5 @@ desktop.ini
 *.swp
 .claude/*
 !.claude/commands/
+.codex/*
+!.codex/skills/

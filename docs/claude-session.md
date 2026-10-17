@@ -31,6 +31,7 @@ Monitor
 실행기를 쓰는 저장소라면 `python3 <작업 공간>/nexa.py watch_requests --stream`.
 
 **가장 쉬운 방법**: 그 작업 공간 폴더(CLI) 또는 저장소 루트(VS Code)에서 연 Claude Code 세션에 **`/nexa-slide-session`** 한 줄 — 위 Monitor 명령을 모델 ID(`--agent claude --model <자기 모델>`)와 함께 걸고 요청 처리 규약을 따른다(명령 파일은 `init_workspace`/`update_launcher` 가 둔다, [home.md](home.md) 수동 엔진 세션). 웹 세션이 맡고 있으면 `refused` — 시작 페이지·Studio 의 [세션 중지] 뒤 다시. 서버 작업(엔진 요청 큐)은 `/nexa-slide-server`.
+**Codex CLI** 에서는 같은 폴더의 스킬 **`$nexa-slide-session`** · **`$nexa-slide-server`**(`.codex/skills/`, 0.22.22)가 같은 일을 한다 — Monitor 가 없어 1회 대기 명령(`watch_requests --ttl 600` / `watch_engine_requests --wait --ttl 600`)을 반복한다([openai-codex.md](openai-codex.md) 3절).
 
 - `--stream` 은 기본 **1780초(`--ttl`) 뒤 스스로 끝나며** `{"event": "ttl"}` 한 줄을 낸다. Monitor 가 만료되면 셸만 끝나고
   python 이 남아 하트비트만 쓰는 "가짜 연결"(편집기는 연결됨인데 요청이 어디에도 가지 않음)이 생기기 때문이다(Windows 실측).

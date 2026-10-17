@@ -180,3 +180,9 @@
 - 큐 상태가 바뀌면(`engine_requests.update`, CLI·허브 API 모두) 원 요청에 알린다(`resume_origin`): **done** → `engineNote` "엔진 요청 #N 처리됨(커밋 …) - 운영 서버에 적용(재시작)되면 다시 처리합니다."(status 는 그대로), **applied** → `status: open` 으로 되돌리고 `engineNote` "적용됨(main …) - 다시 처리합니다." → 감시 중인 작업 공간 세션이 이어서 처리한다, **rejected** → `engineNote` 거절 사유. 편집기 카드는 `engineNote` 를 배지 툴팁과 한 줄 안내로 보인다.
 - 운영 흐름: 개발 세션이 done → 협업 세션이 main 병합본으로 재시작 → **적용됨 표시**(`/engine` 의 [적용됨] 또는 `engine_request.py status N applied --applied-commit <main 해시>`)가 원 요청을 다시 연다. 시험 `engine_link_test.py`.
 
+### 12.3 Codex 로 세션 (2026-10-17, 0.22.22)
+
+사용자 지시("Codex 로 작업 폴더 세션·서버 작업 세션 생성·동작", "`/nexa-slide-server`·`/nexa-slide-session` 을 Codex 에서도"). 세션 역할도 이날 정리 — **개발 세션**(엔진 코드·큐 수동 세션·브랜치/병합)과 **협업 세션**(요청 정리·검토·운영·문서; 큐 #1~#4 와 설계 메모 4개를 넣음).
+- 작업 공간 `테스트1` 웹 세션을 `agent=codex`(작업 공간 서버 로컬 `POST /api/wsession`) 로 켜서 턴을 끝까지 확인. 그 과정에서 어댑터 결함 셋(인자 불일치 · chocolatey 판에 code-mode host 없음 → 앱 동봉 CLI 우선 · Windows 샌드박스 elevated 전달)과 프롬프트 낱말 문제(`{shell}`)를 고쳤다 — `CHANGELOG` 0.22.22.
+- 서버 작업 큐의 **Codex 세션**: 웹 모드는 허브 카드 [세션 시작] → 서비스 유형 `codex`(관리자 로그인이 필요해 터미널 세션이 대신 호출할 수 없다 — 수동 claude 감시가 살아 있으면 `check_start` 가 거절하므로 먼저 끝낸다). 수동 모드는 엔진 저장소에서 연 Codex 에 `$nexa-slide-server`(`.codex/skills/`) — Monitor 대신 `watch_engine_requests --wait --ttl 600` 반복(새 `--wait`).
+

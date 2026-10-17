@@ -49,6 +49,7 @@ def main():
             pass
     ap = argparse.ArgumentParser(description="수동 엔진 개발 세션 - 엔진 요청 큐 감시")
     ap.add_argument("--stream", action="store_true", help="끝나지 않고 처리할 요청이 생길 때마다 JSON 한 줄")
+    ap.add_argument("--wait", action="store_true", help="(1회 모드) 요청이 없으면 바로 끝내지 않고 생길 때까지 기다렸다가 내고 끝난다 - Monitor 가 없는 도구(Codex 등)의 반복용. --ttl 기본 600")
     ap.add_argument("--label", default=os.environ.get("NEXA_SLIDE_SESSION") or "Claude Code")
     ap.add_argument("--takeover", action="store_true", help="살아 있는 이전 수동 감시를 넘겨받는다(웹 엔진 세션은 넘겨받지 않는다)")
     ap.add_argument("--agent", default=None, help="이 감시를 띄운 AI(claude·codex …) - 카드에 표시. 기본: Claude Code 안이면 claude")
@@ -72,7 +73,7 @@ def main():
     hb = {"pid": os.getpid(), "label": a.label, "mode": "stream" if a.stream else "once", "interval": INTERVAL, "kind": "manual",
           "started": time.strftime("%Y-%m-%dT%H:%M:%S"), "cwd": os.getcwd(), "user": os.environ.get("NEXA_SLIDE_USER") or os.environ.get("USERNAME") or "local",
           **procutil.session_meta(a.agent, a.model)}  # agent·model·sessionId·entry - 카드에 모델·세션 ID
-    ttl = a.ttl if a.ttl is not None else (1780 if a.stream else 0)
+    ttl = a.ttl if a.ttl is not None else (1780 if a.stream else (600 if a.wait else 0))
     t0 = time.time()
     emitted = {}  # id → updated(변경이 있으면 다시 알린다)
     if a.stream:  # 연결 직후 한 줄 - Monitor 를 건 세션이 "연결됨 · 대기 n건" 을 바로 알 수 있게(요청은 아래 루프가 이어서 낸다)
@@ -97,7 +98,7 @@ def main():
                 show = {k: x.get(k) for k in ("id", "title", "body", "from", "evidence", "priority", "created", "reply")}
                 show["attachments"] = [f["path"] for f in q.attach_files(x["id"])]
                 print(json.dumps({"event": "request", "item": show, "open": c.get("open", 0), "triage": c.get("triage", 0)}, ensure_ascii=False), flush=True)
-            if not a.stream:
+            if not a.stream and (fresh or not a.wait):  # 1회 모드: 요청을 냈거나(--wait 포함) 기다리지 않는 호출이면 끝. --wait 는 요청이 생길 때까지(또는 ttl) 돈다
                 if not fresh:
                     print(json.dumps({"event": "idle", "open": c.get("open", 0), "triage": c.get("triage", 0)}, ensure_ascii=False), flush=True)
                 return 0

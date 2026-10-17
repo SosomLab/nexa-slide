@@ -26,6 +26,7 @@ class ClaudeAgent(Agent):
     default_models = ["opus", "sonnet", "haiku"]
     verified = True
     exe_names = ("claude", "claude.exe", "claude.cmd")
+    shell_note = ("**다른 Bash 명령(파이썬 스크립트·heredoc·cat·sed 등)은 거절되지만 `python3 nexa.py …` 는 허용된다 — 거절을 만나도 포기하지 말고 아래 명령으로 한다.**")
 
     def _probe(self, exe, out):
         code, so, se = run([exe, "--version"], timeout=20)
