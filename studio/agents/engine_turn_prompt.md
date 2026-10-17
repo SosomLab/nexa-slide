@@ -20,6 +20,7 @@
 4. 커밋 — `git add <고친 파일들>` 뒤 `git commit -m "<종류>: <요약> (engine-request #{id})"` (한국어, 끝에 `Co-Authored-By: Claude <noreply@anthropic.com>`). {commit}
 5. `python3 {req_cli} status {id} done --by "engine-session" --commit "<git rev-parse --short HEAD 결과>" --branch "{branch}" --test "<실행한 검증>" --reply "<무엇을 어떻게 바꿨고 어떻게 쓰는지 2~4문장>"`
    (커밋 해시는 먼저 `git rev-parse --short HEAD` 로 보고 그 값을 적는다 — 명령 치환 `$(…)` 은 쓰지 않는다).
+   `status` 는 바로 큐에 쓰지 않고 `.nexa/outbox/` 에 적혀 **턴이 끝날 때 허브가 반영**한다 — 같은 턴에서 `show` 로 확인해도 아직 안 바뀐 것이 정상이니 다시 시도하지 않는다. 한 턴에 `status` 는 마지막 한 번이면 된다.
    할 수 없거나 판단이 필요하면 `status {id} rejected --reply "<이유·질문>"` 또는 `open` 으로 되돌리고 reply 에 질문을 적는다. **빈 reply 로 끝내지 않는다.**
 
 끝나면 요청 번호·커밋·검증 결과를 한 줄로 요약한다. 답변은 한국어.

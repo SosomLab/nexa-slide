@@ -105,5 +105,30 @@ check("되돌린 항목이 있어도 다른 open 요청은 받는다", batch and
 batch, _ = src.poll()
 check("working 이 남아 있으면 그것부터(같은 항목)", batch and batch[0]["id"] == it4["id"] and batch[0]["status"] == "working")
 
+# (d) 세션이 끊긴 채 남은 working 은 새 세션 시작(check_start) 때 open 으로 되돌리고 새 세션이 받는다(awaiting 아님)
+it5 = q.add("끊긴 세션이 남긴 것", "", kind="cli")
+q.update(it5["id"], status="working", by="engine-session")
+q.update(it4["id"], status="done", by="engine-session", reply="끝")
+prof.check_start()
+x5 = q.get(it5["id"])
+check("check_start 가 고아 working → open(+안내) · awaiting 아님", x5["status"] == "open" and "끊겨" in (x5.get("reply") or "") and not x5.get("awaiting"), str(x5)[:200])
+batch, _ = src.poll()
+check("  새 세션이 바로 받는다", batch and batch[0]["id"] == it5["id"] and batch[0]["status"] == "working", str(batch)[:120])
+# (e) 세션의 status 는 .nexa/outbox 에 적히고 허브가 턴 끝에 반영한다 - 실행 파일(shim)부터 실제로 돌린다
+shim = WT / ".nexa" / "engine_request.py"
+check("check_start 가 worktree 에 shim·outbox 를 둔다", shim.is_file() and (WT / ".nexa" / "outbox").is_dir())
+(WT / "fix2.txt").write_text("둘째 수정\n", encoding="utf-8")
+r = subprocess.run([sys.executable, str(shim), "status", str(it5["id"]), "done", "--by", "engine-session", "--commit", "auto", "--test", "py_compile", "--reply", "고쳤다 - 허브 커밋"],
+                   cwd=str(WT), capture_output=True, text=True, encoding="utf-8", errors="replace", env={**os.environ})
+box = sorted((WT / ".nexa" / "outbox").glob("*.json"))
+check("shim status → outbox 파일 1개 · 큐는 아직 working", r.returncode == 0 and "턴 끝" in r.stdout and len(box) == 1 and q.get(it5["id"])["status"] == "working", r.stdout + r.stderr + str(box))
+prof.reconcile([q.get(it5["id"])], {"ok": True, "text": ""}, 0, emit)
+x5 = q.get(it5["id"])
+head2 = git("rev-parse", "--short", "HEAD", cwd=WT).stdout.strip()
+check("reconcile 이 outbox 를 반영(done·reply·test) 하고 허브가 커밋해 해시를 적음", x5["status"] == "done" and x5.get("reply") == "고쳤다 - 허브 커밋" and x5.get("test") == "py_compile" and x5.get("commit") == head2 and head2 != head, str(x5)[:300])
+check("  outbox 비움", not list((WT / ".nexa" / "outbox").glob("*.json")))
+r = subprocess.run([sys.executable, str(shim), "list"], cwd=str(WT), capture_output=True, text=True, encoding="utf-8", errors="replace", env={**os.environ})
+check("shim 의 다른 명령(list)은 그대로 CLI 로", r.returncode == 0 and "끊긴 세션이 남긴 것" in r.stdout, r.stdout[-200:] + r.stderr[-200:])
+
 print("\n실패:", ", ".join(FAILS) if FAILS else "없음")
 sys.exit(1 if FAILS else 0)
