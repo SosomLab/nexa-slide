@@ -8,7 +8,15 @@
 - 판정: `--allow` 로 표시한 차이는 의도한 변경(expected). 종료 코드 0 동일/전부 의도 · 1 예상 밖 · 2 실패·시간 초과(조용히 통과하지 않는다). 이 PC(작업 공간 2 · 덱 2 · 12장) 6초.
 - 규약: `engine_turn_prompt.md` 검증 단계 ④, `/nexa-slide-server`·`$nexa-slide-server`(엔진·작업 공간 명령 파일) 검증 목록에 추가 — 렌더·내보내기·레이아웃·템플릿을 건드렸으면 돌리고 결과 요약을 reply 에.
 - 시험 `engine_regress_test`(엔진 복제본에서 변경 없음 0 · `lecture` 토큰 변경 → demo 7장 unexpected 1 · `--allow` · 깨진 덱 2 · 원본 mtime 불변 · 사본 정리). 문서 `tests.md`·`engine-request-design.md`.
+- **Codex 두 번째 턴 실패 고침**(사용자 지적 - 편집기에 "턴이 비정상 종료(코드 2)"): `codex exec resume` 뒤에 `--sandbox`·`-m`·`--json` 을 두면 "Usage: codex exec resume --json [SESSION_ID]" 로 거절된다 — exec 옵션을 **`resume` 앞에** 둔다(`codex exec [옵션] resume <thread_id> -`, 실측). 고친 뒤 "버전 0.5·작성자" 요청을 Codex 가 draft_deck → apply_patch → save_deck → content 반영 → done 으로 끝까지 처리함.
 - **엔진 요청 #5(협업 세션 검토)**: ① Windows pyenv-win 의 `python` 래퍼(.bat)가 인자를 cmd 로 다시 해석해 여러 줄 `--body` 가 첫 줄에서 잘리고(`|| goto :error` 가 붙음) `< > | &` 가 리다이렉트가 되던 것 — `engine_request.py add --body-file <파일>|-`·`status --reply-file`, 잘린 값은 **거부**(안내), 턴 프롬프트·`CLAUDE.md` 에 주의. 그 리다이렉트로 저장소 루트에 생겨 791b652 에 섞여 들어간 빈 파일 `10.0` 삭제. ② `status <n> applied --applied-commit <해시>`(문서대로; 옛 `--commit` 도 같은 뜻), `server-admin.md` 9절. ③ `engine_regress.py` 의 기준 엔진 사본은 최근 3개만 남긴다. 시험 `engine_request_cli_test`.
+## 0.22.23 - 2026-10-17 · 선·테두리 투명도 · 순서도 도형 4종
+
+엔진 요청 #4 의 A·B(설계 메모 `docs/dev/small-items-2026-10-17.md`).
+
+- **선·테두리 투명도**: 도형·상자·글 상자의 `stroke`, 선·화살표·곡선의 `color`, 표 셀 테두리(`borders`·셀 `bd`), 그림 액자 `frameColor` 에 `#RRGGBBAA`(끝 두 자리 = 불투명도) - 전에는 길이 7 이 아니면 **검정**이 됐다. 편집기는 `rgba()`(`render.strokeCss`), PPTX 는 `a:ln > a:solidFill > a:srgbClr > a:alpha`(`export_pptx.stroke_rgb`·`set_line_color`, 1 미만일 때만 - **불투명한 선의 XML 은 전과 바이트 동일**, example 덱 회귀 0). 채우기와 같은 규칙(`common.color_alpha` ↔ `render.colorAlpha`). 편집기 색 선택 상자는 단색 토큰만 - 투명도는 요소 JSON 으로("(직접)" 으로 보임).
+- **순서도 도형 4종** `flowChartProcess`(프로세스) · `flowChartDecision`(판단) · `flowChartDocument`(문서) · `flowChartInputOutput`(데이터) - 도형 21 → 25종. 모양은 사각형·마름모·평행사변형과 비슷하지만 prstGeom 이 달라 PowerPoint 가 순서도 기호로 인식한다. 기하·글 영역은 ECMA-376 presetShapeDefinitions(문서 = 21600 격자, 밑변 (21600,17322)→(0,20172) 3차 곡선, 글 영역 높이 17322/21600 · 데이터 = 5×5 격자 평행사변형, 글 영역 w/5~4w/5). `render.js SHAPES`·`export_pptx.SHAPE_PRESETS`(`MSO_SHAPE.FLOWCHART_*`)·`common.shape_text_rect`·`import_pptx.PRST_TO_SHAPE`(왕복 이름 유지)·`studio.js SHAPE_SIZE`. 삽입 패널·속성 "도형 종류" 는 `shapeNames()` 로 자동. 편집기 이름은 "순서도: 프로세스" 식(다이어그램 "프로세스 (갈매기)"·메뉴 "문서" 와 구별, en "Flowchart: Process").
+- 시험: `check_parity` 에 선 색 표본(알파 80 · 토큰 · 잘못된 값 · FF · 00 · 모르는 토큰)과 **모든 도형의 글 영역**(`render.shapeRect` ↔ `common.shape_text_rect`, 25종 × 4 크기) · `export_pptx --selftest` 에 테두리·선의 `a:ln` 안 `a:alpha`, 순서도 prst, 불투명 테두리에 alpha 없음 · `shape_menu.json` 21→25 · `editor_ui_test` 도형 목록. 문서 `deck-format.md`·`editor.md`·`pptx-feature-gap.md`(두 항목 완료)·`web-session-design.md`.
 
 ## 0.22.22 - 2026-10-17 · Codex 웹 세션 실동작 · Codex 스킬 $nexa-slide-session / $nexa-slide-server
 

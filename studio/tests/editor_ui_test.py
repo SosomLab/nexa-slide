@@ -21,7 +21,7 @@ USER, PROJ, PORT = WORK / "user", WORK / "projects", 5667
 WS = PROJ / "ui시험" / "slides"
 ENV = {**os.environ, "NEXA_SLIDE_USER_DIR": str(USER), "NEXA_SLIDE_PROJECTS": str(PROJ), "PYTHONIOENCODING": "utf-8", "NEXA_SLIDE_WORKSPACE": str(WS)}
 FAILS = []
-SHAPES = ["triangle", "rtTriangle", "diamond", "parallelogram", "trapezoid", "pentagon", "hexagon", "octagon", "rightArrow", "leftArrow", "upArrow", "downArrow", "leftRightArrow", "chevron", "homePlate", "star5", "plus", "callout", "roundCallout", "can", "cube"]
+SHAPES = ["triangle", "rtTriangle", "diamond", "parallelogram", "trapezoid", "pentagon", "hexagon", "octagon", "rightArrow", "leftArrow", "upArrow", "downArrow", "leftRightArrow", "chevron", "homePlate", "star5", "plus", "callout", "roundCallout", "can", "cube", "flowChartProcess", "flowChartDecision", "flowChartDocument", "flowChartInputOutput"]
 PNG = bytes.fromhex("89504e470d0a1a0a0000000d49484452000000010000000108060000001f15c4890000000d4944415478da63f8cfc0f01f0005000201e4ae07ea0000000049454e44ae426082")
 
 
@@ -41,7 +41,7 @@ def fixture():
         "tbltest": {"title": "표·글머리", "slides": [{"id": "s1", "elements": [{"id": "e01", "type": "table", "x": 60, "y": 60, "w": 500, "h": 100, "rows": [["열 1", "열 2"], ["값", "값"]], "colW": [1, 1], "size": 16}, {"id": "e02", "type": "bullets", "x": 60, "y": 300, "w": 500, "h": 200, "size": 20, "items": ["1. 첫째", "2. 둘째"]}]}]},
         "tbl2test": {"title": "표 띠", "slides": [{"id": "s1", "elements": [{"id": "e01", "type": "table", "x": 60, "y": 60, "w": 500, "h": 100, "rows": [["열 1", "열 2"], ["값", "값"]], "colW": [1, 1], "size": 16}, {"id": "e02", "type": "text", "x": 60, "y": 300, "w": 500, "h": 60, "text": "글", "size": 20}]}]},
         "grptest": {"title": "묶음", "slides": [{"id": "s1", "elements": [{"id": "e01", "type": "text", "x": 60, "y": 60, "w": 400, "h": 60, "text": "글", "size": 20}, {"id": "e02", "type": "rect", "x": 60, "y": 200, "w": 300, "h": 100, "fill": "surface-container"}]}]},
-        "shapetest": {"title": "도형", "slides": [{"id": "s1", "elements": [{"id": f"e{i + 1:02d}", "type": "shape", "shape": n, "x": 40 + (i % 7) * 170, "y": 40 + (i // 7) * 200, "w": 150, "h": 110, "text": "가", "size": 14, "fill": "primary-container"} for i, n in enumerate(SHAPES)]}]},
+        "shapetest": {"title": "도형", "slides": [{"id": "s1", "elements": [{"id": f"e{i + 1:02d}", "type": "shape", "shape": n, "x": 40 + (i % 7) * 170, "y": 40 + (i // 7) * 165, "w": 150, "h": 110, "text": "가", "size": 14, "fill": "primary-container"} for i, n in enumerate(SHAPES)]}]},
         "fxtest": {"title": "효과", "slides": [{"id": "s1", "elements": [
             {"id": "e01", "type": "text", "x": 60, "y": 30, "w": 1100, "h": 40, "text": "효과", "size": 22},
             {"id": "e02", "type": "rect", "x": 80, "y": 120, "w": 260, "h": 120, "text": "링크 상자", "fill": "surface-container", "radius": "r-m", "shadow": True, "link": "#2"},

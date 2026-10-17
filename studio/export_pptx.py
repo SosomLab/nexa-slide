@@ -3,7 +3,7 @@
 
     python3 studio/export_pptx.py ch00            # → out/ch00.pptx
     python3 studio/export_pptx.py ch00 --out x.pptx
-    python3 studio/export_pptx.py --selftest [--out x.pptx]   # 채우기(단색·투명도·그라데이션) 견본을 내보내 XML 점검
+    python3 studio/export_pptx.py --selftest [--out x.pptx]   # 채우기(단색·투명도·그라데이션)·선 투명도·순서도 도형 견본을 내보내 XML 점검
 
 단위: 요소 좌표 px(1280×720) → EMU = px × 9525, 글자 size(px) → pt = px × 0.75.
 줄 간격은 "정확히(pt)" = size × lineHeight × 0.75 로 넣어 브라우저 line-height 와 같게 한다.
@@ -14,7 +14,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from common import (cur_fonts, font_role, use_fonts, BULLET_HEAVY, table_merges, table_merges, table_merges, CODE_GUTTER_W, CODE_PAD_Y, OUT, REPO, HL_ROLE, bullet_rows, num_hang, code_lines, code_style, color, fill_spec, load_deck,  # noqa: E402
+from common import (cur_fonts, font_role, use_fonts, BULLET_HEAVY, table_merges, table_merges, table_merges, CODE_GUTTER_W, CODE_PAD_Y, OUT, REPO, HL_ROLE, bullet_rows, num_hang, code_lines, code_style, color, color_alpha, fill_spec, load_deck,  # noqa: E402
                     pad_of, plan_runs, radius, runs, safe_id, table_grid, tokens)
 
 from lxml import etree  # noqa: E402  (python-pptx 의존성)
@@ -192,6 +192,20 @@ def alpha_el(clr, alpha):
         etree.SubElement(clr, qn("a:alpha")).set("val", str(int(round(alpha * 100000))))
 
 
+def stroke_rgb(value, default="#000000"):
+    """선·테두리 색(stroke · 선 color · 표 테두리 · 액자) - 토큰·#RRGGBB·#RRGGBBAA → ('#RRGGBB', 불투명도). render.js strokeCss 와 같은 규칙(common.color_alpha).
+    PPTX 는 a:ln > a:solidFill > a:srgbClr 에 a:alpha(alpha_el, 1 미만일 때만) - 불투명한 선의 XML 은 전과 같다."""
+    return color_alpha(value, default) or (default, 1.0)
+
+
+def set_line_color(line, value, default="#000000"):
+    """python-pptx LineFormat 에 선 색(+투명도) - line.color.rgb 가 만든 a:srgbClr 에 a:alpha 를 붙인다"""
+    hexv, a = stroke_rgb(value, default)
+    line.color.rgb = RGBColor.from_string(hexv[1:])
+    if a < 1:
+        alpha_el(line._get_or_add_ln().find(qn("a:solidFill")).find(qn("a:srgbClr")), a)
+
+
 def shape_fill_line(shape, el):
     f = fill_spec(el.get("fill"))  # 단색(+투명도) · 선형 그라데이션 - render.fillCss 와 같은 규칙
     if f:
@@ -215,7 +229,7 @@ def shape_fill_line(shape, el):
     else:
         shape.fill.background()
     if el.get("stroke"):
-        shape.line.color.rgb = RGBColor.from_string(color(el["stroke"])[1:])
+        set_line_color(shape.line, el["stroke"])  # #RRGGBBAA 면 a:alpha(0.22.23)
         shape.line.width = E(el.get("strokeWidth", 1))
         d = el.get("strokeDash")
         if d and d != "solid":  # 도형 테두리 점선·파선(render.js strokeDashSvg 와 같은 간격 - 선 요소의 dash 와 같은 값)
@@ -281,6 +295,8 @@ SHAPE_PRESETS = {  # render.js SHAPES 와 같은 이름 → PowerPoint 프리셋
     "rightArrow": MSO_SHAPE.RIGHT_ARROW, "leftArrow": MSO_SHAPE.LEFT_ARROW, "upArrow": MSO_SHAPE.UP_ARROW, "downArrow": MSO_SHAPE.DOWN_ARROW,
     "leftRightArrow": MSO_SHAPE.LEFT_RIGHT_ARROW, "chevron": MSO_SHAPE.CHEVRON, "homePlate": MSO_SHAPE.PENTAGON, "star5": MSO_SHAPE.STAR_5_POINT,
     "plus": MSO_SHAPE.CROSS, "callout": MSO_SHAPE.RECTANGULAR_CALLOUT, "roundCallout": MSO_SHAPE.ROUNDED_RECTANGULAR_CALLOUT, "can": MSO_SHAPE.CAN, "cube": MSO_SHAPE.CUBE,
+    # 순서도 4종(0.22.23) - prst flowChartProcess · flowChartDecision · flowChartDocument · flowChartInputOutput
+    "flowChartProcess": MSO_SHAPE.FLOWCHART_PROCESS, "flowChartDecision": MSO_SHAPE.FLOWCHART_DECISION, "flowChartDocument": MSO_SHAPE.FLOWCHART_DOCUMENT, "flowChartInputOutput": MSO_SHAPE.FLOWCHART_DATA,
 }
 
 
@@ -357,7 +373,7 @@ def apply_effect(pic, el):
     if e == "frame":  # 액자 - 테두리 두께(frameWidth, 기본 = 수준)·색(frameColor, 기본 흰색) + 기본 그림자 (render.js effectCss 와 같다)
         fw = float(el.get("frameWidth") or px)
         pic.line.width = Pt(fw * 0.75)
-        pic.line.color.rgb = RGBColor.from_string((color(el.get("frameColor") or "#FFFFFF") or "#FFFFFF")[1:])
+        set_line_color(pic.line, el.get("frameColor") or "#FFFFFF", "#FFFFFF")
         if not el.get("shadow"):
             apply_shadow(pic, {**el, "shadow": {"blur": 6, "dx": 0, "dy": 2, "alpha": 0.3}})
         return
@@ -511,7 +527,8 @@ def style_line(ln, el):
     ln.set("w", str(int(round(float(el.get("width", 2)) * PX))))
     ln.set("cap", "flat")
     sf = etree.SubElement(ln, qn("a:solidFill"))
-    rgb_el(sf, color(el.get("color", "on-surface")))
+    hexv, a = stroke_rgb(el.get("color", "on-surface"))
+    alpha_el(rgb_el(sf, hexv), a)  # #RRGGBBAA 면 a:alpha(0.22.23)
     if el.get("dash") and el["dash"] != "solid":
         etree.SubElement(ln, qn("a:prstDash")).set("val", "sysDot" if el["dash"] == "dot" else "dash")
     head = el.get("head", "end" if el["type"] == "arrow" else "none")
@@ -529,7 +546,8 @@ def _cell_border(tcPr, side, col=None, w_px=1):
         ln.set("w", str(int(w_px * PX)))
         ln.set("cap", "flat"), ln.set("cmpd", "sng"), ln.set("algn", "ctr")
         sf = etree.SubElement(ln, qn("a:solidFill"))
-        rgb_el(sf, color(col))
+        hexv, a = stroke_rgb(col)
+        alpha_el(rgb_el(sf, hexv), a)
         etree.SubElement(ln, qn("a:prstDash")).set("val", "solid")
     else:
         ln.set("w", "0")
@@ -1241,7 +1259,8 @@ def export(deck, out):
 
 
 def selftest(out):
-    """채우기 견본(단색 · #hexAA · 색+alpha · 그라데이션 각도/정지점/고른 간격 · 글상자)을 내보내 슬라이드 XML 을 점검한다(개발·설치 점검용)."""
+    """채우기 견본(단색 · #hexAA · 색+alpha · 그라데이션 각도/정지점/고른 간격 · 글상자)과 선·테두리 투명도(stroke·선 color 의 #RRGGBBAA → a:ln 안 a:alpha, 0.22.23) ·
+    순서도 도형(prst flowChart*) 견본을 내보내 슬라이드 XML 을 점검한다(개발·설치 점검용)."""
     import zipfile
     deck = {"id": "selftest", "slides": [{"id": "s01", "elements": [
         {"id": "e01", "type": "pill", "x": 80, "y": 200, "w": 400, "h": 80, "text": "01", "color": "white", "size": 32,
@@ -1251,6 +1270,9 @@ def selftest(out):
         {"id": "e04", "type": "rect", "x": 560, "y": 340, "w": 400, "h": 60, "fill": {"gradient": {"angle": 90, "stops": ["#DCE3F0", "#B4C4E2", "#7F98C9", "#3F62A2"]}}},
         {"id": "e05", "type": "text", "x": 80, "y": 440, "w": 400, "h": 60, "text": "글", "fill": {"gradient": {"angle": 45, "stops": [[0, "primary", 0.2], [1, "primary"]]}, "alpha": 0.9}},
         {"id": "e06", "type": "pill", "x": 560, "y": 440, "w": 200, "h": 40, "text": "단색", "fill": "primary", "color": "white"},
+        {"id": "e07", "type": "rect", "x": 80, "y": 540, "w": 200, "h": 60, "stroke": "#002F7B80", "strokeWidth": 2},  # 반투명 테두리
+        {"id": "e08", "type": "shape", "shape": "flowChartDocument", "x": 320, "y": 540, "w": 200, "h": 100, "text": "문서", "fill": "surface", "stroke": "primary"},  # 순서도 + 불투명 테두리(alpha 없음)
+        {"id": "e09", "type": "line", "x1": 560, "y1": 560, "x2": 900, "y2": 560, "color": "#FF000040", "width": 2},  # 반투명 선
     ]}]}
     out = Path(out)
     export(deck, out)
@@ -1263,8 +1285,13 @@ def selftest(out):
             sp[nm.group(1)] = pr.group(0)
     prim = color("primary")[1:]
     solid = re.compile(r'<a:solidFill><a:srgbClr val="[0-9A-F]{6}"/></a:solidFill>')
+
+    def ln_of(s):  # 첫 a:ln 블록(없으면 빈 문자열) - 선 투명도는 채우기가 아니라 a:ln 안에 있어야 한다
+        m = re.search(r"<a:ln[ >].*?</a:ln>", s, re.S)
+        return m.group(0) if m else ""
+    cxn = re.search(r"<p:cxnSp>.*?</p:cxnSp>", xml, re.S)
     checks = [
-        ("도형 6개", len(sp) == 6),
+        ("도형 8개", len(sp) == 8),
         ("그라데이션 투명→진한", '<a:gradFill rotWithShape="1"><a:gsLst><a:gs pos="0"><a:srgbClr val="002F7B"><a:alpha val="0"/></a:srgbClr></a:gs>'
          '<a:gs pos="100000"><a:srgbClr val="002F7B"/></a:gs></a:gsLst><a:lin ang="0" scaled="0"/></a:gradFill>' in sp.get("e01", "")),
         ("gradFill 이 ln 앞", all("<a:gradFill" in sp[k] and sp[k].index("<a:gradFill") < sp[k].index("<a:ln") for k in ("e01", "e04", "e05") if k in sp)),
@@ -1274,6 +1301,10 @@ def selftest(out):
         ("정지점 불투명도 × 전체 alpha", f'<a:gs pos="0"><a:srgbClr val="{prim}"><a:alpha val="18000"/></a:srgbClr></a:gs><a:gs pos="100000"><a:srgbClr val="{prim}"><a:alpha val="90000"/>' in sp.get("e05", "")
          and '<a:lin ang="2700000" scaled="0"/>' in sp.get("e05", "")),
         ("단색 그대로", bool(solid.search(sp.get("e06", ""))) and "<a:alpha" not in sp.get("e06", "") and "<a:gradFill" not in sp.get("e06", "")),
+        ("테두리 #hexAA → a:ln 안 a:alpha", '<a:solidFill><a:srgbClr val="002F7B"><a:alpha val="50200"/></a:srgbClr></a:solidFill>' in ln_of(sp.get("e07", "")) and 'w="19050"' in ln_of(sp.get("e07", ""))),
+        ("순서도 prst + 불투명 테두리는 alpha 없음", '<a:prstGeom prst="flowChartDocument">' in sp.get("e08", "")
+         and f'<a:solidFill><a:srgbClr val="{prim}"/></a:solidFill>' in ln_of(sp.get("e08", "")) and "<a:alpha" not in ln_of(sp.get("e08", ""))),
+        ("선 color #hexAA → a:ln 안 a:alpha", cxn is not None and '<a:solidFill><a:srgbClr val="FF0000"><a:alpha val="25100"/></a:srgbClr></a:solidFill>' in ln_of(cxn.group(0))),
     ]
     bad = [n for n, ok in checks if not ok]
     print("selftest: " + ("모두 통과 " + str([n for n, _ in checks]) if not bad else "실패 " + str(bad)))
