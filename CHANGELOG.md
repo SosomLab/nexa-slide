@@ -1,5 +1,14 @@
 # 변경 이력
 
+## 0.22.24 - 2026-10-17 · 엔진 요청 검증 ④ - 전체 작업 공간 PPTX XML 회귀(`engine_regress.py`)
+
+엔진 요청 #1(협업 세션 설계 메모 `docs/dev/engine-regress-design.md`). 엔진 변경이 **다른 작업 공간**을 깨는지 한 명령으로 본다.
+
+- `studio/engine_regress.py [--base main] [--ws …] [--no-example] [--allow <덱>[:<장>]…] [--max-seconds 600] [--deck-seconds 120] [--json] [--keep]`: 사용자 설정 `settings.json` `recent` 의 작업 공간(+ 엔진 `example`)을 사용자 설정 폴더 `hub/engine/scratch/regress-<시각>/` 에 복사하고(out·.history·.studio·fonts·.git 제외, 밖을 가리키는 assetRoot·content·decks 는 사본 local 설정에 절대 경로), 기준 엔진(`git archive <base> studio` → `scratch/engine-<해시>/`, 재사용)과 지금 트리 엔진으로 덱마다 `export_pptx --out` 해 PPTX zip 의 모든 항목을 비교한다 — `docProps/core.xml`(시각) 제외, XML·rels 는 canonicalize, `presentation.xml` 구역 id 는 순번 치환, 미디어는 바이트. 차이는 **장별**(slideN·rels·notesSlideN)과 기타 부품으로 보고하고 첫 차이 줄을 보여 준다. 원본에는 쓰지 않고 사본은 끝나면 지운다.
+- 판정: `--allow` 로 표시한 차이는 의도한 변경(expected). 종료 코드 0 동일/전부 의도 · 1 예상 밖 · 2 실패·시간 초과(조용히 통과하지 않는다). 이 PC(작업 공간 2 · 덱 2 · 12장) 6초.
+- 규약: `engine_turn_prompt.md` 검증 단계 ④, `/nexa-slide-server`·`$nexa-slide-server`(엔진·작업 공간 명령 파일) 검증 목록에 추가 — 렌더·내보내기·레이아웃·템플릿을 건드렸으면 돌리고 결과 요약을 reply 에.
+- 시험 `engine_regress_test`(엔진 복제본에서 변경 없음 0 · `lecture` 토큰 변경 → demo 7장 unexpected 1 · `--allow` · 깨진 덱 2 · 원본 mtime 불변 · 사본 정리). 문서 `tests.md`·`engine-request-design.md`.
+
 ## 0.22.22 - 2026-10-17 · Codex 웹 세션 실동작 · Codex 스킬 $nexa-slide-session / $nexa-slide-server
 
 사용자 요청("Codex 로 작업 폴더 세션·서버 작업 세션을 만들어 동작", "VS Code 의 `/nexa-slide-server`·`/nexa-slide-session` 처럼 Codex 에서도"). 작업 공간 `테스트1` 에서 Codex 웹 세션 턴을 끝까지 확인(Windows · codex-cli 0.163 · gpt-6-luna).
