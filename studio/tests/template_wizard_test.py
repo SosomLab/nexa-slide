@@ -174,6 +174,21 @@ try:
     check("같은 이름 다시 → 400 exists", st == 400 and r2.get("exists") is True, (st, r2))
     st, r2 = admin("POST", BASE + "/api/project", {**body, "overwrite": True, "label": "ACME v2"})
     check("overwrite 로 덮어쓰기 200", st == 200 and r2.get("label") == "ACME v2", (st, r2))
+    # #7: Windows 예약 이름은 아무것도 쓰기 전에 거부(로고만 바뀐 반쪽 상태 금지) · 기존 로고·글꼴을 덮어쓸 때 백업
+    logo_before = lp.read_bytes()
+    for bad in ("aux", "COM1", "lpt1", "con", "NUL"):
+        st, r3 = admin("POST", BASE + "/api/project", {**body, "name": bad, "brand": {"logo": {"name": "l.png", "data": b64(png(10, 10, (1, 2, 3)))}}})
+        names = [p.name.lower() for p in (WS / "templates").iterdir()]  # (Windows 에서는 Path("con").exists() 가 늘 True 라 목록으로 본다)
+        check(f"예약 이름 {bad} → 400 안내·파일 불변", st == 400 and "예약" in str(r3.get("error", "")) and bad.lower() not in names and lp.read_bytes() == logo_before, (st, r3))
+    logo2 = png(40, 20, (200, 10, 10))
+    st, r3 = admin("POST", BASE + "/api/project", {**body, "overwrite": True, "brand": {"logo": {"name": "acme2.png", "data": b64(logo2)}}})
+    hist = WS / "out" / ".history" / "wizard"
+    bks = sorted(hist.glob("*/assets/brand/logo.png")) if hist.exists() else []
+    check("다른 로고로 덮어쓰면 이전 로고가 out/.history/wizard/<시각>/ 에 백업", st == 200 and r3.get("backups") and bks and bks[-1].read_bytes() == logo_before and lp.read_bytes() == logo2, (st, r3.get("backups"), [str(b) for b in bks]))
+    st, r3 = admin("POST", BASE + "/api/project", {**body, "overwrite": True, "brand": {"logo": {"name": "acme2.png", "data": b64(logo2)}}})
+    check("같은 바이트면 백업 없음", st == 200 and not r3.get("backups"), r3.get("backups"))
+    st, r3 = admin("POST", BASE + "/api/project", {**body, "overwrite": True})  # 원래 로고로 되돌림(아래 검사들이 logo 바이트를 본다)
+    check("원래 로고로 복구", st == 200 and lp.read_bytes() == logo)
 
     # 2d) resolve_tokens 색 일치(작업 공간 사본에서 엔진 common 이 읽는 값)
     tok, err = resolve_tokens()
