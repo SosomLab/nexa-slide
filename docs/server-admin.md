@@ -60,6 +60,7 @@ python3 studio/service.py restart                   # ② 허브 재시작(구 �
 | 허브 로그 | 사용자 설정 폴더 `hub/.studio/server.log` |
 | 작업 공간 서버 로그 | `<작업 공간>/out/.studio/server.log` |
 | 접근 로그 | 사용자 설정 폴더 `hub/logs/access-YYYY-MM-DD.log` — 하루 한 파일, `accessLogDays`(기본 30일) 지나면 자동 삭제 |
+| 공유 링크 | `/account` 공유 링크 카드(관리자는 전체) 또는 `python3 studio/share.py list` · `revoke <id>` — 아래 4절 |
 | 설정 위치 확인 | `python3 studio/paths.py` (사용자 설정 폴더·허브 포트·엔진 위치) |
 
 접근 로그는 한 줄이 JSON 하나다. 거부·오류만 보기:
@@ -111,6 +112,20 @@ grep -E '"result":"(deny|error)"' ~/.config/nexa-slide/hub/logs/access-$(date +%
 - 터미널 명령은 실행 중인 허브와 같은 파일을 보므로 **허브를 재시작하지 않아도** 바로 반영된다.
 - **원격에서 비밀번호를 초기화하는 방법은 없다** — 웹은 관리자가 다른 사용자를 초기화하는 것까지다.
 
+### 보기 전용 공유 링크 — 회수·로그 (0.22.25)
+
+사용자가 Studio 에서 만든 `/s/<토큰>/` 주소는 로그인 없이 덱 1개를 보여 준다([auth.md](auth.md#보기-전용-공유-링크-02225)). 운영자가 할 일:
+
+| 할 일 | 웹 | 이 PC 터미널 |
+|---|---|---|
+| 전체 목록(누가·어느 덱·만료·조회 수) | `/account` **공유 링크** 카드(관리자) | `python3 studio/share.py list` |
+| 회수 | 그 줄의 [회수] | `python3 studio/share.py revoke <id>` |
+| 정책 | — | `settings.json` `shareMaxDays`(기본 90) · `shareCreate: "any"\|"admin"`(기본 any) — 허브 재시작 없이 바로 반영 |
+
+- 토큰 원문은 서버 어디에도 없다(해시만). 유출이 의심되면 회수하고 새로 만든다. 파일 `hub/share.json` 을 지우면 모든 링크가 죽는다.
+- 접근 로그에서 `"user":"share:<id>"` 줄이 그 링크의 요청이다. `share.view:<id>` 가 열람, `share.denied:<id>:path` 가 허용 목록 밖 시도, `share.auth.fail`·`share.auth.locked` 가 비밀번호 실패·잠금. 한 링크에 `denied:path` 가 몰리면 링크를 뒤져 보는 사람이 있다는 뜻이니 회수한다.
+- 비밀번호 잠금은 링크 id 기준(5회/15분)이라 누군가 일부러 틀리면 정상 시청자도 그 시간 동안 막힌다 — 그런 경우 새 링크를 만든다.
+
 ## 5. 복구 — 이 PC 에서만
 
 | 상황 | 하는 일 |
@@ -147,6 +162,7 @@ Register-ScheduledTask -TaskName 'nexa-slide hub' -Action $act -Trigger (New-Sch
 |---|---|---|
 | 계정 | 사용자 설정 폴더 `users.json` | 비밀번호는 해시만 있다. 그래도 외부에 두지 않는다 |
 | 설정 | `settings.json`(기준 폴더·최근 작업·`publicHosts` 등) | |
+| 공유 링크 | `hub/share.json` | 토큰 해시만 있다. 지우면 보낸 링크가 모두 죽는다 |
 | 접근 로그 | `hub/logs/` | 보관 기간이 지나면 지워지므로 오래 둘 것은 따로 옮긴다 |
 | 슬라이드 | 각 작업 공간(저장소) | git 으로 관리. 자동 백업 `decks/.history/`·변경 원장 — [operation.md](operation.md#백업--복원) |
 

@@ -84,6 +84,7 @@ python3 <작업 공간>/nexa.py start      # 작업 공간 서버 → 덱이 있
 | `hubPort` | 허브 포트(기본 5599) |
 | `hubProxy` | 열기·만들기를 중계 주소 `/w/<이름>/` 로(기본 `true`). `false` 면 작업 공간 서버 포트로 바로 이동 |
 | `sessionDays` · `publicHosts` · `accessLogDays` · `accessLogStatic` | 로그인 유지 일수(7) · 허용 공개 호스트 · 접근 로그 보관 일수(30) · 정적 승인 줄 기록 — [auth.md](auth.md) |
+| `shareMaxDays` · `shareCreate` | 보기 전용 공유 링크의 최대 만료 일수(90) · 만들 수 있는 사람 `any`(기본)/`admin` — [auth.md](auth.md#보기-전용-공유-링크-02225) |
 | `sessionAgent` · `sessionModel` · `sessionModels` · `sessionIdleMinutes` · `sessionTurnMinutes` · `sessionMax` · `sessionMaxTurns` · `sessionBudgetUsd` · `agentPaths` | AI 웹 세션 전역 기본(에이전트 `claude`/`codex` · 모델 · 모델 목록 `{claude: […], codex: […]}` · 유휴 60분 · 턴 20분 · 동시 3 · 턴당 도구 반복 40 · 예산 · 실행 파일 경로). **관리자만** — 시작 페이지 메뉴 "기준 폴더 설정" 아래 "AI 세션 전역 기본". 작업 공간 설정 `sessionAgent`·`sessionModel`(`nexa-slide.local.json`/`nexa-slide.json`)과 세션 시작 창의 선택이 이보다 우선 |
 
 계정(`users.json`)·세션·접근 로그도 이 폴더에 있다. 허브는 로컬이어도 로그인이 필요하다 — [auth.md](auth.md).

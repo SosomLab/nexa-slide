@@ -10,7 +10,7 @@
 <script src="/studio/i18n/en.pages.js"></script>
 <script src="/studio/i18n.js"></script>
 <script src="/studio/menu.js"></script>
-<!-- 계정(/account) - 내 비밀번호 변경 · (관리자) 사용자 추가·삭제·비밀번호 초기화·역할. 허브에서만. -->
+<!-- 계정(/account) - 내 비밀번호 변경 · (관리자) 사용자 추가·삭제·비밀번호 초기화·역할 · 공유 링크(내 것, 관리자는 전체)·회수. 허브에서만. -->
 <style>
   :root { --p: #A91F24; --pc: #FFDAD6; --onpc: #410004; --bg: #F4F1F1; --card: #fff; --tone: #F2EFEF; --tone2: #ECE8E8; --ink: #1F1B1B; --ink2: #534343; --line: #D8C2C0; --ok: #146C2E; --okc: #C4EED0; --err: #BA1A1A; --font: "Malgun Gothic", "맑은 고딕", sans-serif; }
   * { box-sizing: border-box; }
@@ -68,6 +68,12 @@
     </form>
     <div class="msg" id="uMsg"></div>
   </section>
+  <section class="card" id="shareCard" style="display:none">
+    <h2>공유 링크 <span class="badge" id="shareScope"></span></h2>
+    <p class="hint">로그인 없이 덱 하나를 보기만 하는 토큰 주소입니다 - Studio 의 내보내기 ▾ "공유 링크…" 에서 만듭니다. 주소는 만들 때만 보이고 여기서는 볼 수 없습니다. 회수하면 그 주소는 바로 열리지 않습니다.</p>
+    <table><thead><tr><th>상태</th><th>작업 공간 / 덱</th><th>만든 사람</th><th>만료</th><th>조회</th><th></th></tr></thead><tbody id="shares"></tbody></table>
+    <div class="msg" id="sMsg"></div>
+  </section>
 </main>
 <script>
 (async () => {
@@ -87,6 +93,26 @@
     if (!r.ok) { m.className = "msg err"; m.textContent = r.data.error || "바꾸지 못했습니다"; return; }
     m.className = "msg ok"; m.textContent = "바꿨습니다"; $("#pwForm").reset(); $("#mustChange").style.display = "none";
     const next = q.get("next"); if (next && /^\/(?!\/)/.test(next)) setTimeout(() => location.replace(next), 600);
+  });
+
+  // 공유 링크 - 내가 만든 것(관리자는 전체)·회수. 만들기는 Studio 에서(그 덱을 열어 둔 상태에서)
+  const SST = { ok: "유효", expired: "만료", revoked: "회수됨" };
+  async function shares() {
+    const x = await fetch("/api/share", { cache: "no-store" }); const d = await x.json(); if (!x.ok) return;
+    $("#shareCard").style.display = ""; $("#shareScope").textContent = d.admin ? "전체" : "내가 만든 것";
+    const fmt = (s) => (s || "").replace("T", " ").slice(0, 16);
+    $("#shares").innerHTML = d.links.length ? d.links.map((l) => `<tr><td>${SST[l.status] || esc(l.status)}${l.hasPassword ? " 🔒" : ""}</td><td><span title="${esc(l.ws || "")}">${esc(l.wsId || "")}</span> / <b>${esc(l.deck)}</b></td><td>${esc(l.by || "")}</td>
+      <td style="color:var(--ink2)">${esc(fmt(l.expires))}</td><td>${l.views}</td><td style="text-align:right">${l.status === "ok" ? `<button type="button" class="chip sm danger" data-sid="${esc(l.id)}">회수</button>` : ""}</td></tr>`).join("")
+      : `<tr><td colspan="6" style="color:var(--ink2)">없음</td></tr>`;
+  }
+  await shares();
+  $("#shares").addEventListener("click", async (e) => {
+    const b = e.target.closest("[data-sid]"); if (!b) return;
+    if (!confirm("이 링크를 회수할까요? 받은 사람은 더 이상 열 수 없습니다.")) return;
+    const m = $("#sMsg"); m.className = "msg";
+    const r = await post(`/api/share/${encodeURIComponent(b.dataset.sid)}`, { action: "revoke" });
+    if (!r.ok) { m.className = "msg err"; m.textContent = r.data.error || "실패"; return; }
+    m.className = "msg ok"; m.textContent = "회수했습니다"; await shares();
   });
 
   if (me.user.role !== "admin") return;

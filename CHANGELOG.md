@@ -1,5 +1,18 @@
 # 변경 이력
 
+## 0.22.25 - 2026-10-17 · 보기 전용 공유 링크
+
+엔진 요청 #2(협업 세션 설계 메모 `docs/dev/share-link-design.md`). 로그인 없이 토큰 URL 하나로 **덱 1개를 보기만** 한다(외부 검토자·청중).
+
+- **허브 주소 `/s/<토큰>/`**(`studio/share.py`·`server.py share_route`): `AUTH_FREE` 와 별도로 `authenticate` 전에 접두 분기. 토큰(`token_urlsafe(32)`, 파일에는 sha256 만) → 만료·회수 확인 → (비밀번호 링크면) 쿠키 `nexa_share`(무상태 HMAC, `Path=/s/<토큰>/`, 링크 만료와 세션 7일 중 짧은 쪽) → **허용 목록만** 그 작업 공간 서버로 중계(`proxy()` 재사용, `X-Nexa-User: share:<id>`·`X-Nexa-Role: viewer`): `view.html`·`render.js`·`i18n*`·`tokens.json`·`code_langs.json`·`fonts.css`·`/api/fontcss`·`/api/fontfile/*`·`/wsfonts/*`·그 덱의 `/api/deck/<덱>`(허브가 **`notes` 와 `hidden` 슬라이드를 걸러 낸다**, 보이는 장의 원래 번호는 `page`)·덱이 참조하는 그림(`src`)만. 그 밖 경로·모든 POST/PUT 은 403. 잘못된 토큰·만료·회수는 **같은 안내 페이지**(404/410 으로만 구분, 본문 같음). 로그·경로에는 토큰 대신 `/s/<id>`.
+- **보기 페이지 `studio/view.html`**(새): 전체 화면 슬라이드 넘기기(← → · Home/End · 터치 밀기 · 왼쪽/오른쪽 클릭 · `#n`), 쪽 번호·전체 화면 단추, 노트·편집 UI 없음, `render.js` 재사용. 비밀번호 링크는 먼저 입력 화면. `fonts.css` 의 절대 경로(`/api/fontfile/`)를 링크 접두 아래로 바꿔 넣는다.
+- **저장 `hub/share.json`**(사용자 설정 폴더, `filelock`): `{links: {<id>: {tokenHash, ws, wsId, deck, by, created, expires, pw: {hash, salt}|null, revoked, views, lastView}}}`. 비밀번호는 `auth.py` scrypt. 실패 잠금은 `auth._FAILS` 에 링크 id 키로 5회/15분(429). CLI `python3 studio/share.py list|revoke <id>`.
+- **정책(전역 설정)**: 만들기는 로그인 사용자 누구나(`shareCreate: "any"`, `"admin"` 이면 관리자만), 회수는 만든 사람 또는 관리자, 관리자는 전체 목록. 만료 기본 7일·최대 `shareMaxDays`(기본 90), 영구 링크 없음.
+- **UI**: Studio 내보내기 ▾ **공유 링크… (보기 전용)**(허브 경유로 열었을 때만, 명령 팔레트에도) - 만료 1/7/30일·직접, 비밀번호(선택), 만들기 → 주소 한 번만 표시·복사·열어 보기, 이 덱의 링크 목록·[회수]. `/account` 에 **공유 링크** 카드(내 것, 관리자는 전체·회수). 허브 API `GET /api/share?ws=&deck=` · `POST /api/share {action: "create", ws, deck, days?, password?}` · `POST /api/share/<id> {action: "revoke"}`. i18n ko/en.
+- **접근 로그 이벤트** `share.create:<id>` `share.revoke:<id>` `share.view:<id>`(조회 수 +1) `share.auth:<id>` `share.auth.fail:<id>` `share.auth.locked:<id>` `share.denied:<id>:<expired|revoked|path|method|owner>` `share.denied:-:unknown|policy`. 토큰 원문은 어디에도 남지 않는다.
+- `api_get_fontcss` 가 `X-Forwarded-Prefix` 를 읽어 `/wsfonts/` 앞에 접두를 붙인다 - `/w/<이름>/` 중계에서도 작업 공간 글꼴이 허브로 새지 않는다.
+- 문서 `auth.md`(공유 링크 절·설정·API·로그 이벤트) · `editor.md` · `server.md` · `server-admin.md` · `home.md`/`configuration.md`(설정 키) · `tests.md`. 시험 `share_test`.
+
 ## 0.22.24 - 2026-10-17 · 엔진 요청 검증 ④ - 전체 작업 공간 PPTX XML 회귀(`engine_regress.py`)
 
 엔진 요청 #1(협업 세션 설계 메모 `docs/dev/engine-regress-design.md`). 엔진 변경이 **다른 작업 공간**을 깨는지 한 명령으로 본다.

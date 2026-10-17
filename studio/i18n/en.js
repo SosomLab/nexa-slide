@@ -486,4 +486,20 @@
     [/^세션이 꺼져 있어 대기 요청 (\d+)건이 처리되지 않습니다 - $/, "The session is off, so $1 waiting requests are not being handled - "], [/^(서버 재시작으로 세션 종료됨|유휴로 세션 종료됨|사용자가 세션 중지|오류로 세션 종료됨)\((.+)\)$/, (m, a, b) => en.dict[a] + "(" + b + ")"], [/^기록 - (.+)$/, "History - $1"], [/^변경 - (.+)$/, "Changes - $1"], [/^이 서버의 작업 공간 (.*)$/, "This server's workspace $1"], [/^작업 공간 ([A-Za-z]:\.+|\/.+)$/, "Workspace $1"], [/^(\d+)개$/, "$1"], [/^#(\d+) 를 거절할까요\?$/, "Reject #$1?"],
     [/^#(\d+) 의 커밋을 main 에 병합하고 서버를 재시작했나요\? 적용됨으로 표시합니다\.(\n병합 커밋\(main\) 해시:)?$/, (m, a, b) => `Did you merge #${a}'s commit into main and restart the server? It will be marked applied.${b ? "\nMerge commit (main) hash:" : ""}`],
   );
+  // ---- 보기 전용 공유 링크 창(engine-request #2, studio.js shareDlg) - 보기 페이지·계정 카드의 글은 en.pages.js
+  Object.assign(en.dict, {
+    "공유 링크… (보기 전용)": "Share link… (view only)", "공유 링크는 허브(시작 페이지)를 거쳐 열었을 때만 만들 수 있습니다": "Share links can only be created when Studio was opened through the hub (start page)",
+    "공유 링크 - ": "Share link - ", "로그인 없이 이 덱을 보기만 하는 주소입니다 - 발표자 노트·숨김 슬라이드는 보이지 않고, 편집·내보내기는 할 수 없습니다. 주소는 만들 때 한 번만 보이니 복사해 두세요. 받은 사람은 누구나 열 수 있으니 필요하면 비밀번호를 두세요.":
+      "A URL that shows this deck read-only without login - presenter notes and hidden slides are not included, and editing or exporting is not possible. The URL is shown only once, so copy it now. Anyone who receives it can open it, so set a password if needed.",
+    "새 링크 (복사해서 보내세요)": "New link (copy and send)", "열어 보기": "Open", "새 링크 만들기": "Create a link", "만료": "Expires", "1일": "1 day", "7일": "7 days", "30일": "30 days", "직접…": "Custom…",
+    "비밀번호 (선택, 4자 이상)": "Password (optional, 4+ chars)", "만들기": "Create", "공유 링크 만들기는 관리자만 할 수 있습니다(전역 설정 shareCreate).": "Only admins can create share links (global setting shareCreate).",
+    "만든 사람": "Created by", "만든 때": "Created", "조회": "Views", "유효": "Active", "회수됨": "Revoked", "회수": "Revoke", "아직 없습니다.": "None yet.",
+    "모든 링크는 ": "All links are listed on the ", "계정 페이지 ↗": "account page ↗", " 에서 봅니다.": ".", "내가 만든 링크만 보입니다. 회수는 만든 사람 또는 관리자가 할 수 있습니다.": "Only links you created are shown. The creator or an admin can revoke a link.",
+    "공유 링크를 복사했습니다": "Share link copied", "공유 링크를 만들었습니다 - 복사해서 보내세요": "Share link created - copy and send it", "이 링크를 회수할까요? 받은 사람은 더 이상 열 수 없습니다.": "Revoke this link? Recipients will no longer be able to open it.",
+    "회수했습니다": "Revoked", "비밀번호는 4자 이상": "Password must be 4+ characters",
+  });
+  en.patterns.push(
+    [/^최대 (\d+)일$/, "max $1 days"], [/^이 덱의 링크(?: \((\d+)\))?$/, (m, n) => "Links for this deck" + (n ? ` (${n})` : "")],
+    [/^공유 링크 목록을 읽지 못했습니다: (.*)$/, "Could not load share links: $1"], [/^회수하지 못했습니다: (.*)$/, "Could not revoke: $1"],
+  );
 })();
