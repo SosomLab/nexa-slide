@@ -46,3 +46,9 @@
 - `studio/tests/engine_regress_test.py`(`e4_manual_stop_test.py` 머리 본뜸, 격리 `NEXA_SLIDE_USER_DIR`): example 사본을 `recent` 에 등록 →
   (a) 변경 없음 → 0, (b) 임시 git 저장소에서 `common.py` 의 상수 하나를 바꾼 커밋을 base 와 비교 → 1 과 해당 장 보고, (c) `--allow` → 0, (d) 덱 하나를 깨진 JSON 으로 → 2, (e) 원본 mtime 불변.
 - `run_all.py` `TESTS` 에 추가. 수동: 현재 PC 의 `recent`(1곳·덱 1·5장)로 실행 시간 기록.
+
+## 6. 구현 결과 (개발 세션, 0.22.24 · engine-request #1)
+
+- `studio/engine_regress.py` — 3절 제안대로(기준 `main`, `git archive` 사본 `hub/engine/scratch/engine-<해시>/` 최근 3개, 작업 공간 사본 `regress-<시각>/`, 밖을 가리키는 `assetRoot`·`content`·`decks` 는 사본 local 설정에 절대 경로, `docProps/core.xml` 제외·canonicalize·구역 id 치환, 장별 보고, `--allow`, 종료 0/1/2, Windows 삭제 재시도). 실측: 같은 엔진으로 두 번 내보내면 `core.xml` 만 다르다. 이 PC(작업 공간 2 · 덱 2 · 12장) 4~6초.
+- 규약 연결: `engine_turn_prompt.md` 검증 단계 ④, `/nexa-slide-server`(엔진·작업 공간 명령 파일), `$nexa-slide-server`. 시험 `engine_regress_test`(엔진 복제본에 작업 트리 커밋 → 변경 없음 0 · 토큰 변경 1 · `--allow` · 깨진 덱 2 · 원본 mtime 불변 · 사본 정리).
+- 협업 세션 검토: 정상. 기준 엔진 사본 누적은 #5 에서 최근 3개로 제한.

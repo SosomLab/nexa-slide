@@ -58,3 +58,10 @@
 - `studio/tests/template_wizard_test.py`: 격리 사용자 폴더·example 사본 → API 로 생성 → 파일 3종(template.json·logo·nexa-slide.json) 확인 → `resolve_tokens` 결과 색 일치 → `export_pptx --out` 의 `srgbClr` 에 primary 값 존재 → 엔진 이름 충돌 거부 → 금지 키(tokens/design) 무시.
 - `palette.py` 단위 시험(대비·혼합 값).
 - 수동: 허브에서 색 5개·PNG 로고로 만들고 미리 보기·재시작·편집기 확인.
+
+## 6. 구현 결과 (개발 세션, 0.22.26 · engine-request #3)
+
+- 0절은 **안 A 로 확정**(개발 세션 결정, 사용자 이의 없음). 로더는 메모의 "작업 공간 → 엔진" 순서와 달리 **엔진 이름이면 엔진 우선**(작업 공간 것 무시+경고) — `lecture` 를 가리는 재귀·혼동을 막기 위함(`docs/templates.md`).
+- 구현: `studio/palette.py`(파생·대비·CLI), `common.py` 로더(`WS_TEMPLATES`·금지 키 무시+경고), `set_template`·`init_workspace`·`hub.preview`·`workspace_stamp`, 허브 API `POST /api/project {action: template|palette}`, `home.html` 마법사(미리 보기는 기반 `/api/preview` 결과에 `Render.setTokens`), 시험 `template_wizard_test`. 덤으로 `/api/preview` 가 0.22.9 부터 500(stamp `int + str`)이던 결함 고침.
+- 협업 세션 검토 → #7(Windows 예약 이름 거부·폴더 먼저·로고/글꼴 백업 `out/.history/wizard/<시각>/`) · #8(백업 폴더 밀리초+순번). `assetRoot` 가 밖이면 로고는 설정대로 그 폴더에 쓴다(의도).
+- 남긴 것: 워드마크는 API 만, `tokenOverrides.fonts` 는 마법사 미사용, 재시작 단추는 stop→start(턴 drain 없음), 비관리자 권한은 "허브 최근 작업에 있는 작업 공간" 기준.

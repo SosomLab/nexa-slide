@@ -226,10 +226,18 @@ B-1·B-2 는 기존 동작을 바꾸지 않는다. B-3 부터 새 기능. 각 �
 - 기동 잠금 `e677ff0`: `service.py start` 에 `out/.studio/start.lock`(FileLock), 서버는 bind 뒤 `server.json` 의 다른 살아 있는 서버를 보면 물러남 — 허브 중계 자동 기동과 `nexa.py restart` 의 경합.
 - 후속 요청 `148b8a7`(0.19.1): 완료된 요청에 사용자가 답할 길이 없던 문제(세션이 질문하며 `done`, "다시 열기"는 같은 text 를 다시 보낼 뿐). 요청에 `parent`·`thread`(뿌리 id)를 두고 대상은 물려받으며 원 요청은 그대로, `requests_core.brief()` 가 같은 thread 의 앞선 요청·답을 `context`(최근 6개·항목당 800자·첨부 경로)로 붙인다. `turn_prompt.md` 에 context 규칙과 "묻는 reply 면 done 금지", `WorkspaceProfile.reconcile` 이 질문으로 끝나는 reply 인데 `done` 이면 `warn` 이벤트(상태는 바꾸지 않음, `QUESTION_RX`). 결정: 선택지 자동 버튼은 두지 않는다(단순하게).
 
-### 14.1 진행 현황 (2026-10-16 갱신 · 0.22.21)
+### 14.1 진행 현황 (2026-10-17 갱신 · 0.22.26)
 
 | 단계 | 상태 |
 |---|---|
+| **세션 역할 분담**(2026-10-17): 개발 세션(엔진 코드·큐 처리·브랜치/병합) · 협업 세션(요청 정리·검토·운영 반영·문서) | 운영 중 - 큐 #1~#8 을 이 분담으로 처리(개발 세션이 구현·병합, 협업 세션이 허브 재시작·검토·`applied`) |
+| **Codex 웹 세션**(서비스 유형 `codex`) | **확인됨(0.22.22, Windows · codex-cli 0.163 · gpt-6-luna)** - 작업 공간 테스트1에서 요청 처리 끝까지. 어댑터 결함 4건 고침(인자 불일치 · chocolatey 판 code-mode host 없음 → 앱 동봉 CLI · windows.sandbox 전달 · `resume` 옵션 순서), 프롬프트 `{shell}` |
+| **Codex 스킬** `$nexa-slide-session`·`$nexa-slide-server`(`.codex/skills/`, 1회 대기 반복 · `watch_engine_requests --wait`) | 완료(0.22.22). 엔진 저장소와 작업 공간(`init_workspace`·`update_launcher`) |
+| **엔진 요청 검증 ④** `engine_regress.py`(등록 작업 공간 덱 PPTX XML 전후 비교) | 완료(0.22.24) · 규약(엔진 턴 프롬프트·`/nexa-slide-server`)에 연결 · 큐 #1 |
+| 선·테두리 투명도 `#RRGGBBAA` · 순서도 도형 4종(25종) | 완료(0.22.23) · 큐 #4 |
+| **보기 전용 공유 링크** `/s/<토큰>/`(만료·비밀번호·회수·허용 목록 중계·`view.html`) | 완료(0.22.25) · 큐 #2 · 정책 `shareCreate any`·`shareMaxDays 90`(전역 설정) · 토큰 로그 가림(#6) |
+| **회사 템플릿 마법사** · 작업 공간 템플릿(안 A: `extends`+`tokenOverrides`) · `palette.py` | 완료(0.22.26) · 큐 #3 · 예약 이름·백업 폴더(#7·#8) |
+| 엔진 요청 CLI `--body-file`/`--reply-file`·`--applied-commit`(pyenv-win 래퍼 대응) · `paths.remember` 임시 폴더 가드 | 완료(0.22.24) · 큐 #5 · 협업 세션 발견 |
 | B-1 ~ B-6 웹 세션(시작·턴·SSE·화면·문서) | 완료, 운영 중 |
 | 웹 검색 허용(`sessionAllowWeb`) | 완료(0.19.0). 운영 실제 시험은 아직 — 대상 요청이 웹 없이 먼저 처리됨. 새 요청으로 시험 필요 |
 | git 기록·push·저장소 루트(`sessionAllowGit`·`sessionAllowPush`·`sessionRepoRoot`) | 완료(0.20.0)·**운영 실사용 통과**(SQL 교재 s12: 루트 작업일지 수정 → 브랜치 커밋(Requested-by) → main 병합 → push). 전역 3개는 사용자가 켜 둠 |
@@ -277,7 +285,7 @@ B-1·B-2 는 기존 동작을 바꾸지 않는다. B-3 부터 새 기능. 각 �
 
 운영: 허브 5599 는 `f459b65`(0.22.16), SQL 교재 5600·가정형호스피스 5603 은 `0ade63a`(0.22.18)로 재시작됨(2026-10-16, 협업 세션) - 0.22.19~0.22.21 은 정적 파일만 바뀌어 재시작 없이 새로 고침으로 반영(main `ad1e6dc`)(협업 세션 nexa-slide-f4 가 병합 알림마다 턴 없을 때 바로 재시작하고 결과를 알린다 - 사용자 지시). 서버 작업 큐는 개발 세션이 `/nexa-slide-server` 수동 세션으로 맡고 있고, 승인된 엔진 요청 #10~#12 를 이 흐름으로 처리했다(worktree `D:\Projects\kiros33\_wt
 exa-slide-dev` 브랜치 `dev/engine-requests` → `--no-ff` main → push → 알림). 운영 작업 공간 두 곳의 명령 파일 커밋은 저장소 주인 판단(미커밋). 작업 규칙(2026-10-16, `CLAUDE.md`): 저장소는 바깥(다른 세션·사람·기기)에서도 고쳐지므로 개발 시작·병합 전마다 `git fetch` → `git status` → `git log HEAD..origin/main` 으로 확인하고 새 커밋은 작업 브랜치에 먼저 받는다. 병합·push 뒤 작업 브랜치를 main 에 맞춰 push 한다.
-남은 것: 웹 검색 허용 운영 시험, codex 확인, 기능 목록의 보류·정책 판단 항목(`docs/dev/pptx-feature-gap.md`·`docs/dev/feature-comparison.md` - 사용자 안내선·3단계 글머리·회사 템플릿 마법사·공유 링크·댓글·실시간 반영·연결선 도형 붙임·텍스트 자동 맞춤·마스터/테마·수식), 편집기 UI 시험 묶음의 간헐 실패(tbl_test·ux_test 가 가끔 같이 실패 - 원인 미확정, 재실행하면 통과). 편집기 기능의 세부 한계는 **알려진 한계로 확정**(`docs/editor.md` 마지막 절, 2026-10-15).
+남은 것(2026-10-17 갱신): 웹 검색 허용 운영 시험, **서버 작업(엔진 큐) 세션을 Codex 로 운영 시험**(허브 카드 [세션 시작]→Codex 또는 `$nexa-slide-server` - 사용자가 하기로 함), 공유 링크 `allowPdf`(선택)·마법사 워드마크 화면·`tokenOverrides.fonts`, 기능 목록의 보류·정책 판단 항목(`docs/dev/pptx-feature-gap.md`·`docs/dev/feature-comparison.md` - 사용자 안내선·3단계 글머리·댓글·실시간 반영·연결선 도형 붙임·텍스트 자동 맞춤·마스터/테마·수식), 편집기 UI 시험 묶음의 간헐 실패(tbl_test·ux_test·deck_test 가 가끔 실패 - 포트 5667 fixture 겹침·서버 뜨기 전 접속으로 보임, 재실행하면 통과), `fonts.css` 의 `/api/fontfile/Pretendard-*` 404 콘솔 오류(글꼴 파일이 없는 PC 의 기존 현상). 끝난 것: codex 확인(0.22.22), 회사 템플릿 마법사(0.22.26), 공유 링크(0.22.25). 편집기 기능의 세부 한계는 **알려진 한계로 확정**(`docs/editor.md` 마지막 절, 2026-10-15).
 
 ## 15. 검토 기록
 
