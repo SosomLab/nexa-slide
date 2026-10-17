@@ -67,6 +67,19 @@ def main():
         q.update(it2["id"], status="rejected", by="admin", reply="범위 밖")
         r1 = reqs()[0]
         check("rejected → engineNote 거절 사유", "거절됨" in (r1.get("engineNote") or "") and "범위 밖" in r1["engineNote"], str(r1)[:200])
+        # 0.22.27 - 서버 경유 등록: POST /api/engine_request(로컬) 와 CLI(작업 공간 안이면 서버로) - Codex 샌드박스가 큐 파일(작업 공간 밖)을 못 써서 멈추던 결함
+        rq = urllib.request.Request(base + "/api/engine_request", data=json.dumps({"title": "API 경유", "body": "본문", "request": "r1", "deck": "el", "slide": "s1"}).encode("utf-8"),
+                                    method="POST", headers={"Content-Type": "application/json", "Origin": base, "X-Nexa-Session-User": "tester"})
+        with urllib.request.urlopen(rq, timeout=20) as r:
+            d = json.loads(r.read())
+        it4 = d.get("item") or {}
+        check("POST /api/engine_request → triage · from.kind session · user", d.get("ok") and it4.get("status") == "triage" and (it4.get("from") or {}).get("kind") == "session" and (it4.get("from") or {}).get("user") == "tester", str(d)[:300])
+        check("  note(세션 꺼짐 안내) 포함", "note" in d)
+        check("  원 요청 engineRequest 가 새 번호로", reqs()[0].get("engineRequest") == it4.get("id"))
+        cr = subprocess.run([sys.executable, str(STUDIO / "engine_request.py"), "add", "--title", "CLI 경유", "--body", "본문", "--request", "r2-cli", "--deck", "el"],  # r1 은 위 항목에 합쳐지므로(같은 원 요청 덧붙임) 다른 id
+                            env={**ENV, "NEXA_SLIDE_USER": "cli-user"}, cwd=str(WS), capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=60)
+        it5 = max(q.load(), key=lambda x: x["id"])
+        check("CLI add(작업 공간 안·서버 떠 있음) → 서버 경유로 등록 · user", cr.returncode == 0 and it5.get("title") == "CLI 경유" and (it5.get("from") or {}).get("user") == "cli-user" and "직접 쓴다" not in cr.stderr, cr.stdout + cr.stderr)
     finally:
         srv.terminate(); srv.wait(timeout=10)
     # 서버가 꺼진 경우 - 파일 직접

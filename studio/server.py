@@ -1671,6 +1671,32 @@ class H(BaseHTTPRequestHandler):
     def api_get_requests(self, i, q):
         self.send_json(self._reqs(i))
 
+    def api_post_engine_request(self, _, q):
+        """작업 공간 세션이 엔진 요청을 큐에 넣는 길(로컬 직접 접속만) - engine_request.py add 가 작업 공간 안에서 서버가 떠 있으면 이리로 온다.
+        큐 파일은 사용자 설정 폴더(작업 공간 밖)라 Codex 샌드박스(workspace-write)에서는 직접 쓸 수 없어 명령이 멈추거나 실패했다(0.22.27) - save_deck 과 같은 방식.
+        {title, body, request?, deck?, slide?, evidence?[]} → {ok, item, note}. kind 는 늘 session(triage) - 세션이 관리자 승인을 건너뛰지 못하게."""
+        if HUB:
+            return self.err(404, "작업 공간 서버에서")
+        if self.via_hub:
+            return self.err(403, "작업 공간 서버 로컬에서만(세션 CLI)")
+        import engine_requests
+        b = self.body_json() or {}
+        title = " ".join(str(b.get("title") or "").split())
+        if not title:
+            return self.err(400, "제목 없음")
+        try:
+            wid = hub.ws_id(WORKSPACE)
+        except Exception:  # noqa: BLE001
+            wid = None
+        user = (self.headers.get("X-Nexa-Session-User") or str(b.get("user") or "")).strip()[:40] or None
+        evidence = [str(x)[:500] for x in (b.get("evidence") or []) if str(x)][:20] if isinstance(b.get("evidence"), list) else []
+        it = engine_requests.add(title, str(b.get("body") or ""), kind="session", user=user, ws=str(WORKSPACE), ws_id=wid,
+                                 request=(str(b["request"])[:40] if b.get("request") else None), deck=(str(b["deck"])[:80] if b.get("deck") else None),
+                                 slide=(str(b["slide"])[:40] if b.get("slide") else None), evidence=evidence, priority=0)
+        engine_requests.link_origin(it)  # 원 요청에 engineRequest 배지 - 자기 서버의 /api/requests 로 POST(다른 스레드) 하므로 WRITE_LOCK 밖에서
+        self._event = f"engine.request:{it['id']}"
+        return self.send_json({"ok": True, "item": it, "note": engine_requests.pending_note(it["status"])})
+
     def api_post_requests(self, i, q):
         b = self.body_json() or {}
         act = b.get("action", "add")

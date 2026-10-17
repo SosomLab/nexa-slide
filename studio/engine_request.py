@@ -35,6 +35,28 @@ def text_arg(value, file, name):
     return value
 
 
+def via_server(ws, payload):
+    """작업 공간 서버가 떠 있으면 POST /api/engine_request(로컬) 로 넣고 (item, note) 를 돌려준다. 서버가 없거나 실패하면 (None, None) → 호출 쪽이 직접 쓴다."""
+    import json as _json
+    import urllib.request
+    try:
+        import hub
+        st = hub.server_state(ws)
+        if not (st.get("running") and st.get("url")):
+            return None, None
+        base = st["url"].rstrip("/")
+        hdrs = {"Content-Type": "application/json", "Origin": base}
+        if os.environ.get("NEXA_SLIDE_USER"):
+            hdrs["X-Nexa-Session-User"] = os.environ["NEXA_SLIDE_USER"][:40]
+        req = urllib.request.Request(base + "/api/engine_request", data=_json.dumps(payload, ensure_ascii=False).encode("utf-8"), method="POST", headers=hdrs)
+        with urllib.request.urlopen(req, timeout=30) as r:
+            d = _json.loads(r.read().decode("utf-8"))
+        return (d.get("item"), d.get("note")) if d.get("ok") and d.get("item") else (None, None)
+    except Exception as e:  # noqa: BLE001 - 서버 경유는 편의, 직접 쓰기로 이어 간다(샌드박스에서는 그것도 실패할 수 있다 - 그때는 오류가 그대로 보인다)
+        print(f"안내: 서버 경유 등록 실패({type(e).__name__}) - 큐 파일에 직접 쓴다", file=sys.stderr)
+        return None, None
+
+
 def main():
     for st in (sys.stdout, sys.stderr):
         try:
@@ -89,10 +111,15 @@ def main():
                     ws_id = None
             body = text_arg(args.body, args.body_file, "body")
             text_arg(args.title, None, "title")
-            it = q.add(args.title, body, kind=kind, user=args.user, ws=ws, ws_id=ws_id, request=args.request, deck=args.deck,
-                       slide=args.slide, evidence=args.evidence, priority=args.priority)
-            q.link_origin(it)  # 원 요청(--request·--deck)에 engineRequest 번호를 적는다 - 편집기 배지, 적용 뒤 자동 재개
-            note = q.pending_note(it["status"])
+            it = note = None
+            if ws:  # 작업 공간 안: 서버가 떠 있으면 서버 API 로(큐 파일은 작업 공간 밖 - Codex 샌드박스는 거기 쓰지 못해 멈추거나 실패했다, 0.22.27). 서버가 없으면 직접
+                it, note = via_server(ws, {"title": args.title, "body": body, "request": args.request, "deck": args.deck, "slide": args.slide,
+                                           "evidence": args.evidence, "user": args.user})
+            if it is None:
+                it = q.add(args.title, body, kind=kind, user=args.user, ws=ws, ws_id=ws_id, request=args.request, deck=args.deck,
+                           slide=args.slide, evidence=args.evidence, priority=args.priority)
+                q.link_origin(it)  # 원 요청(--request·--deck)에 engineRequest 번호를 적는다 - 편집기 배지, 적용 뒤 자동 재개
+                note = q.pending_note(it["status"])
             if args.json:
                 print(json.dumps({**it, "note": note}, ensure_ascii=False))
             else:
