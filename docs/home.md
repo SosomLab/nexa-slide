@@ -102,7 +102,7 @@ python3 <작업 공간>/nexa.py start      # 작업 공간 서버 → 덱이 있
 | 시작 | **새 슬라이드 만들기**(① 제목·템플릿·시작용 내용 ② 목적·대상·작성 방향·참고 자료 ③ 저장 위치), **폴더·저장소 열기**, **서버 작업**(nexa-slide 엔진 개발 — 엔진 요청 큐·개발 세션, 아래), **최근 작업**(실행 상태·포트 · 서버 시작/중지 · 세션) |
 | 튜토리얼 | 작업 공간 정하기 → 템플릿·방향 → Studio 편집 → Claude 세션 요청 → 발표·내보내기 → 최근 추가된 기능(요청 기록 창·덱 복제·그림 효과·정리·보관·표시 언어·PowerPoint 기능 보강 0.22.11~13) |
 | 데모 | 엔진 예제(`example/`)를 기준 폴더의 `nexa-slide-demo/` 로 처음 한 번 복사해 연다 |
-| 템플릿 | 엔진 `studio/templates/` 목록(색 견본·설명·디자인 기준), 시작용 내용(`starters/`, 있을 때). 카드마다 **미리 보기** |
+| 템플릿 | 맨 앞 **＋ 회사 템플릿 만들기**(마법사, 아래), 엔진 `studio/templates/` 목록(색 견본·설명·디자인 기준), 작업 공간 서버면 그 작업 공간의 회사 템플릿(`작업 공간` 배지), 시작용 내용(`starters/`, 있을 때). 카드마다 **미리 보기** |
 | 샘플 둘러보기 | 참고할 사이트를 등록·삭제하고 새 탭으로 연다(사용자 설정 `samples`) |
 | 템플릿 검토 | `/review` — 템플릿·레이아웃 후보와 참고 자료를 미리 보고 검토·승인(등록일·검토일·승인일·이력). [research/review](research/review/README.md) |
 
@@ -132,6 +132,17 @@ python3 <작업 공간>/nexa.py start      # 작업 공간 서버 → 덱이 있
   `init_workspace.py` 로 만들고 빌드한다. 엔진·작업 공간에는 아무것도 쓰지 않는다.
 - 조합마다 처음 한 번만 빌드하고, 엔진 코드·템플릿·시작용 내용이 바뀌면 다시 만든다. 지워도 다음 미리 보기 때 다시 생긴다.
 - 그리기는 편집기와 같은 `render.js` 다(PowerPoint 결과와의 차이는 `compare.py` 기준과 같다).
+- 작업 공간 서버의 시작 페이지에서는 그 작업 공간의 회사 템플릿도 미리 볼 수 있다 — `template.json` 과 `assets/brand/*.png` 를 임시 작업 공간에 복사해 빌드한다(`hub/preview/ws-<이름>--<템플릿>--…/`).
+
+### 회사 템플릿 만들기(마법사)
+
+색 5개·로고·글꼴로 **작업 공간 템플릿**(`templates/<이름>/template.json` — 엔진 템플릿을 `extends` 하고 `tokenOverrides` 만, [templates.md](templates.md#작업-공간-템플릿회사-템플릿--extends--tokenoverrides-만))을 만든다. 엔진 저장소에는 아무것도 쓰지 않는다.
+
+- 여는 곳: 템플릿 탭 맨 앞 카드, 새로 만들기 ①의 템플릿 격자 끝 카드. 새로 만들기에서 열면 "만들기"가 양식에 그 템플릿을 **골라 두고**(격자에 ✎ 카드) 작업 공간을 만들 때 함께 만든다(`POST /api/project create` 의 `wizard`) — 서버가 뜨기 전에 두므로 재시작이 없다. 템플릿 탭에서 열면 **적용할 작업 공간**(이 서버의 작업 공간 · 최근 작업)을 고른다.
+- 입력: 기반 템플릿(엔진 템플릿, 기본 `lecture`) → 색 5개(주색 · 바탕 · 본문 글자 · 보조색 1 · 보조색 2, 시작값은 기반 템플릿의 색) → 로고 PNG(`assets/brand/logo.png` 로 저장, 비율은 PNG 머리) · 회사 이름(alt) → 글꼴(기반 템플릿 세트 중 하나 또는 **전용 글꼴 파일 올리기** — `fonts/` + `nexa-slide.json` `fontPresets`) → 이름(영문·숫자·`-`·`_`, 엔진 템플릿 이름 불가) · 표시 이름.
+- 미리 보기: 서버 왕복 없이 브라우저에서 — 기반 템플릿의 `/api/preview` 결과(빌드된 레이아웃 견본)에 파생 토큰을 `Render.setTokens` 로 덮어 그린다. 파생(`*-container` · `on-*` · 바탕 단계 · `panel` · `day3`)은 `POST /api/project {action: "palette", colors}` → `studio/palette.py`(순수 함수, 한 곳) 가 계산하고 대비 4.5:1 미만인 짝은 **대비 경고**로 보인다. "고급" 펼침에서 파생값을 하나씩 고친다. 올린 로고는 미리 보기 슬라이드의 로고 자리에 object URL 로 바꿔 보인다.
+- 만들기: `POST /api/project {action: "template", ws, name, base, colors, label?, brand?, font?, overwrite?}`(관리자, 또는 이 허브에서 연 작업 공간(최근 작업)에 한해 로그인 사용자 · 작업 공간 서버는 자기 작업 공간만) → `templates/<이름>/template.json` · `assets/brand/logo.png` · `fonts/<파일>` 을 쓰고 `nexa-slide.json` 의 `template`(·`brand`·`fontPresets`·`fontPreset`)을 바꾼다(`set_template` 과 같은 처리 — 공유 파일에만). 접근 로그 `event=template.create:<작업 공간>:<이름>`.
+- 만든 뒤: 그 작업 공간 서버가 떠 있으면 **[지금 다시 시작]**(허브에서 `stop` → `start`; 작업 공간 서버 자신의 페이지면 터미널 `nexa.py restart` 안내). 기존 덱의 글자 크기 하한은 `build_deck --force` 때 적용되고 PPTX 는 다시 내보낸다.
 
 ### 새로 만들 때 하는 일
 
@@ -218,7 +229,9 @@ Esc·바깥·닫기 단추로 닫는다. 주소에 `?menu=open` 을 붙이면 �
 | `POST /api/project` | `{"action": "create", title, template, starter?, folder?, sub?, port?, purpose, audience, direction, materials, askDraft}` · `{"action": "plan", …create 와 같음}` → `{path, port, url, args, commands: {powershell, bash: {init, start}}, warnings}` · `{"action": "open", path}` · `{"action": "demo"}` · `{"action": "forget", path}` → `{ok, path, url, direct, id, hubUrl}` (`url` = `hubProxy` 가 켜져 있으면 `/w/<이름>/`, 아니면 `direct`). 실패하면 400 `{error, needInit?, existing?, log?}` |
 | `/w/<이름>/…` | 중계 — 그 작업 공간 서버의 `/…` 로 넘긴다(위 "한 주소로 중계"). 모르는 이름은 404, 서버를 띄우지 못하면 502 |
 | `/api/auth/…` · `/login` · `/setup` · `/account` | 로그인·계정 — [auth.md](auth.md). 위의 모든 API 는 로그인 뒤에 있다(미인증 401) |
-| `GET /api/preview?template=&starter=` | 미리 보기 - 템플릿 × 시작용 내용(없으면 레이아웃 견본)을 사용자 설정 폴더의 임시 작업 공간에 빌드 → `{template, starter, tokens, base, decks}` |
+| `GET /api/preview?template=&starter=` | 미리 보기 - 템플릿 × 시작용 내용(없으면 레이아웃 견본)을 사용자 설정 폴더의 임시 작업 공간에 빌드 → `{template, starter, tokens, base, decks}`. 작업 공간 서버에서는 그 작업 공간의 회사 템플릿도 |
+| `POST /api/project` `{"action": "palette", colors}` | 회사 템플릿 마법사의 색 파생(쓰기 없음) → `{colors(역할 색 전부), warnings[{fg, bg, ratio}]}` |
+| `POST /api/project` `{"action": "template", ws, name, base, colors, label?, description?, brand?: {name, logo: {name, data(base64 PNG)}, wordmark?}, font?: {preset} \| {name, family, files: {regular, bold?}}, overwrite?}` | 회사 템플릿 만들기 → 작업 공간 `templates/<이름>/template.json`·로고·글꼴 파일을 쓰고 `nexa-slide.json` 의 `template` 을 바꾼다 → `{name, base, label, dir, files, colors, warnings, config, restart: {needed, running, url, id, hubUrl}, template(카드), note}`. 관리자 또는 최근 작업의 작업 공간(403) · 엔진 이름·금지 입력은 400 · 이미 있으면 400 `{exists: true}` |
 | `POST /api/settings` | `{projectsRoot?, samples?, hubProxy?, sessionAgent?, sessionModel?, sessionModels?, sessionIdleMinutes?, sessionTurnMinutes?, sessionMax?, sessionMaxTurns?, sessionBudgetUsd?, agentPaths?}` - 빈 값은 기본으로. `session*`·`agentPaths` 는 관리자만(403) |
 | `POST /api/project` `{"action": "session", op, path, agent?, model?, saveAs?}` | 작업 공간 웹 세션 `start`·`stop`·`status`·`model` — 서버가 꺼져 있으면 먼저 띄운다. 응답은 그 서버의 `/api/wsession` 과 같고 `url`(서버 주소)이 붙는다 |
 | `GET /api/fs?path=<폴더>` | 폴더 고르기 - 하위 폴더 `[{name, path, git, workspace}]`, 드라이브 목록, 바로 가기(문서·기준·홈) |

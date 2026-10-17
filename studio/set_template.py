@@ -14,18 +14,20 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from common import CONFIG_NAME, LOCAL_NAME, TEMPLATE, TEMPLATES, WORKSPACE, load_template, read_config  # noqa: E402
+from common import CONFIG_NAME, LOCAL_NAME, TEMPLATE, WORKSPACE, load_template, read_config, template_dirs  # noqa: E402
 
 
 def templates():
-    """[{name, label, description, hidden, replacedBy}] — 폴더 순. 숨긴 것도 돌려주되 hidden 으로 표시한다."""
+    """[{name, label, description, hidden, replacedBy, workspace?}] — 엔진 것(폴더 순) 뒤에 이 작업 공간의 templates/<이름>/(workspace: true).
+    숨긴 것도 돌려주되 hidden 으로 표시한다."""
     out = []
-    for p in sorted(TEMPLATES.iterdir()):
-        if not (p / "template.json").is_file():
-            continue
-        t = load_template(p.name)  # extends 를 합친 label·description
-        out.append({"name": p.name, "label": t.get("label", p.name), "description": t.get("description", ""),
-                    "hidden": bool(t.get("hidden")), "replacedBy": t.get("replacedBy")})
+    for name, _p, ws in template_dirs():
+        t = load_template(name)  # extends 를 합친 label·description
+        item = {"name": name, "label": t.get("label", name), "description": t.get("description", ""),
+                "hidden": bool(t.get("hidden")), "replacedBy": t.get("replacedBy")}
+        if ws:
+            item["workspace"] = True
+        out.append(item)
     return out
 
 
@@ -42,7 +44,7 @@ def main():
         print(f"현재: {cur}  ({WORKSPACE / CONFIG_NAME})")
         for t in shown:
             mark = "*" if t["name"] == cur else " "
-            print(f"{mark} {t['name']:14s} {t['label']:20s} {t['description']}")
+            print(f"{mark} {t['name']:14s} {t['label']:20s} {t['description']}" + ("  [작업 공간]" if t.get("workspace") else ""))
         print("바꾸기: python3 nexa.py set_template <이름> → 서버 재시작(nexa.py restart) → build_deck <덱> --force")
         return
     name = args[0]

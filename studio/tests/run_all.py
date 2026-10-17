@@ -25,6 +25,7 @@ TESTS = [  # (이름, 실행, 설명, claude 필요)
     ("guard", [sys.executable, "settings_guard_test.py"], "paths.remember 가드 - 임시 폴더 작업 공간은 격리 없이는 최근 작업에 올리지 않음", False),
     ("reqcli", [sys.executable, "engine_request_cli_test.py"], "엔진 요청 CLI - --body-file/stdin·래퍼에 잘린 값 거부·applied --applied-commit·--reply-file", False),
     ("regress", [sys.executable, "engine_regress_test.py"], "엔진 회귀(검증 ④) - 복제 엔진에서 변경 없음 0 · 토큰 변경 1(장별) · --allow · 깨진 덱 2 · 원본 불변", False),
+    ("wizard", [sys.executable, "template_wizard_test.py"], "회사 템플릿 마법사(0.22.26) - palette 파생·/api/project template·작업 공간 파일 3종·resolve_tokens·PPTX srgbClr·거부·금지 키·권한·git status 불변", False),
     ("e3", [sys.executable, "e3_manual_test.py"], "수동 엔진 세션(watch_engine_requests) 상태·거절", False),
     ("e4", [sys.executable, "e4_manual_stop_test.py"], "수동 세션 수명 - 파이프 닫힘·takeover·웹 끊기", False),
     ("share", [sys.executable, "share_test.py"], "보기 전용 공유 링크(/s/<토큰>/) - 만들기·열람(노트·숨김 장 없음)·허용 목록·비밀번호 잠금·회수·만료·로그에 토큰 없음", False),
