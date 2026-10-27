@@ -78,6 +78,15 @@ try:
     check("/api/engine/deploy?fetch=0 → 마지막 배포", st == 200 and "state" in (d.get("last") or {}), (st, str(d)[:200]))
     st, d = admin("GET", BASE + "/api/engine")
     check("/api/engine 에 deploy(관리자)", "deploy" in d, list(d)[:12])
+    # 허브 화면 판(0.22.30) - 화면 파일이 바뀌면 notice 의 ui 값이 바뀐다(menu.js 가 [새로 고침] 안내)
+    st, d = admin("GET", BASE + "/api/engine/notice")
+    ui0 = d.get("ui")
+    f = HERE.parent / "lightbox.js"
+    t = f.stat()
+    os.utime(f, ns=(t.st_atime_ns, max(t.st_mtime_ns, int(ui0 or 0)) + 1_000_000_000))
+    st, d = admin("GET", BASE + "/api/engine/notice")
+    os.utime(f, ns=(t.st_atime_ns, t.st_mtime_ns))
+    check("notice.ui - 허브 화면 파일이 바뀌면 값이 바뀐다", ui0 and d.get("ui") and d.get("ui") != ui0, (ui0, d.get("ui")))
     sc = {"base": BASE, "login": {"id": "admin", "password": "el-test-pass-1"}, "pages": [
         {"url": "/studio/home.html#start", "wait": 2500, "steps": [
             {"name": "카드 목록 5건 + 더 보기(전체 7건)", "js": "const n=document.querySelectorAll('#engList .ritem').length; const m=document.querySelector('#engList a[href=\"/engine\"]'); return n===5 && m && m.textContent.includes('7') ? true : 'n='+n+' more='+(m&&m.textContent)"}]},

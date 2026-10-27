@@ -63,6 +63,10 @@
   .nx-menubtn { position: relative; }
   .nx-dot { position: absolute; top: -5px; right: -5px; min-width: 16px; height: 16px; border-radius: 999px; background: var(--p, #A91F24); color: #fff; font: 700 10px/16px var(--font, sans-serif); padding: 0 4px; box-sizing: border-box; text-align: center; pointer-events: none; }
   .nx-toast a { color: #fff; text-decoration: underline; margin-left: 8px; }
+  .nx-toast.nx-reload { display: flex; align-items: center; gap: 10px; bottom: 20px; }
+  .nx-toast.nx-reload button { font: inherit; border: 0; border-radius: 8px; padding: 4px 12px; cursor: pointer; }
+  .nx-toast.nx-reload .nx-go { background: var(--p, #A91F24); color: #fff; font-weight: 700; }
+  .nx-toast.nx-reload .nx-x { background: transparent; color: #fff; padding: 4px 6px; }
   .nx-badge { background: var(--p, #A91F24) !important; color: #fff !important; border-radius: 999px; padding: 0 7px; font-weight: 700; line-height: 18px; }
   .nx-lang { display: none; margin: 0 0 4px 0; padding: 4px 0 4px 22px; }
   .nx-lang.on { display: block; }
@@ -201,6 +205,10 @@
     if (NOTICE.off) return;
     let d; try { const r = await fetch("/api/engine/notice", { cache: "no-store" }); if (r.status === 404) { NOTICE.off = true; return; } if (!r.ok) return; d = await r.json(); } catch (e) { return; }  // 작업 공간 서버로 바로 열었으면 없음(404) - 한 번 보고 그만 묻는다
     if (!d.ok) return;
+    if (d.ui && !BASE) {  // 허브 화면 파일이 바뀌었다(배포·병합) - 열려 있는 이 페이지는 옛 판이므로 새로 고침 안내(편집기는 자기 /api/version 의 engine 으로 따로 본다)
+      if (!NOTICE.ui) NOTICE.ui = d.ui;
+      else if (d.ui !== NOTICE.ui && !document.querySelector(".nx-reload")) reloadBar();
+    }
     NOTICE.admin = !!d.admin;
     const n = d.admin ? d.triage + (d.startRequest && d.sessionOff ? 1 : 0) : 0;
     let seen = 0; try { seen = +(sessionStorage.getItem("nexa-notice-seen") || 0); } catch (e) { /* 저장소 없음 */ }
@@ -225,6 +233,13 @@
     document.title = NOTICE.n ? `(${NOTICE.n}) ${base}` : base;
   }
   document.addEventListener("nexa-lang", () => noticeTitle());
+  function reloadBar() {
+    const t = document.createElement("div"); t.className = "nx-toast nx-reload";
+    t.innerHTML = `<span>nexa-slide 화면이 새 판으로 바뀌었습니다. 새로 고침해야 반영됩니다.</span><button type="button" class="nx-go">새로 고침</button><button type="button" class="nx-x" title="닫기">✕</button>`;
+    t.querySelector(".nx-go").onclick = () => location.reload();
+    t.querySelector(".nx-x").onclick = () => { NOTICE.ui = null; t.remove(); };  // 닫으면 지금 판을 기준으로 다시 본다(다음 변경 때 또 안내)
+    document.body.appendChild(t);
+  }
   function noticeToast(msg) {
     const t = document.createElement("div"); t.className = "nx-toast"; t.textContent = msg;
     const a = document.createElement("a"); a.href = "/studio/home.html#start"; a.textContent = "서버 작업 보기"; t.appendChild(a);
