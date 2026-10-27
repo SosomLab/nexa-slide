@@ -300,6 +300,7 @@
               <div class="rm" id="engGit"></div>
               <div class="rm" id="engSess" style="margin-top:3px;font-size:12px"></div></div></div>
           <div id="engBanner"></div>
+          <div id="engDeploy"></div>
           <div class="list" id="engList" style="margin-top:6px"></div>
           <form id="engForm" style="display:none;margin-top:8px;border-top:1px solid var(--line);padding-top:8px">
             <label class="f" for="erTitle">요청 제목</label><input type="text" id="erTitle" required maxlength="200" placeholder="예: 표 레이아웃에 각주 칸 추가">
@@ -750,7 +751,7 @@
   }
   // ISO 시각 → "10/14 16:39" · 세션이 끝난 이유를 우리말로
   const fmtT = (iso) => { const m = /^\d{4}-(\d\d)-(\d\d)T(\d\d:\d\d)/.exec(iso || ""); return m ? `${+m[1]}/${+m[2]} ${m[3]}` : (iso || ""); };
-  const reasonKo = (r) => ({ user: "사용자 중지", idle: "유휴 중지", "server-stop": "서버 종료", error: "오류" }[r] || r);
+  const reasonKo = (r) => ({ user: "사용자 중지", idle: "유휴 중지", "server-stop": "서버 종료", error: "오류", deploy: "배포" }[r] || r);
 
   // ---------- 서버 작업 카드 - 엔진 요청 큐 · 엔진 개발 세션(관리자가 켬) ----------
   const ST_KO = { triage: "승인 대기", open: "대기", working: "처리 중", done: "완료(적용 대기)", rejected: "거절", applied: "적용됨" };
@@ -788,6 +789,8 @@
         ? `<button type="button" class="svc" data-eng="start" style="flex:none">${icon("play", 14)}세션 시작</button>`
         : sr ? `<span class="badge">관리자에게 시작 요청됨</span>` : `<button type="button" class="svc" data-eng="askstart" style="flex:none">관리자에게 시작 요청</button>`}</div>`
       : "";
+    renderDeploy(admin, g, c);
+    if (admin && d.deploy && d.deploy.state === "running" && !DEP.timer) pollDeploy();  // 다른 창에서 시작한 배포도 따라간다
     const items = d.recent || [];
     $("#engList").innerHTML = items.length ? items.map((x) => {
       const f = x.from || {};
@@ -799,6 +802,47 @@
       return `<div class="ritem" style="padding:6px 8px"><div class="rb"><div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap"><span class="badge ${x.status === "working" ? "run" : x.status === "done" ? "ok" : ""}">${ST_KO[x.status] || x.status}</span><b style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(x.body || "")}">#${x.id} ${esc(x.title)}</b><span style="display:flex;gap:4px;flex:none">${acts}</span></div>
         <small class="hint" style="display:block">${esc(f.kind === "session" ? "세션" : f.kind || "")}${f.user ? ` · ${esc(f.user)}` : ""}${f.wsId ? ` · ${esc(f.wsId)}` : ""}${x.commit ? ` · ${esc(x.commit)}` : ""} · ${fmtT(x.updated)}${x.reply ? ` — ${esc(x.reply.slice(0, 120))}` : ""}</small>${att ? `<div class="att ro">${att}</div>` : ""}</div></div>`;
     }).join("") + (d.total > items.length ? `<div class="row" style="justify-content:center;padding:6px 0 2px"><a class="chip sm" href="/engine" title="전체 목록 · 검색 · 상태별 조회">더 보기 (전체 ${d.total}건)</a></div>` : "") : `<div class="empty">엔진 변경 요청이 없습니다. 작업 공간 세션이 엔진 한계를 만나면 여기로 넘기고, 직접 적을 수도 있습니다.</div>`;
+  }
+  // 배포(관리자) - 완료된 엔진 요청(engine-dev)을 main 병합·시험·재시작·push·적용됨까지 한 번에(engine_deploy.py, docs/dev/engine-deploy-design.md)
+  const DEP = { open: false, plan: null, last: null, timer: 0 };
+  const DEP_KO = { running: "배포 중", ok: "배포 완료", warn: "배포 완료(경고)", failed: "배포 실패", rolledback: "배포 되돌림" };
+  function renderDeploy(admin, g, c) {
+    const box = $("#engDeploy"), last = (H.engine && H.engine.deploy) || DEP.last || null;
+    if (!admin || !(g.ahead || c.done || DEP.open || (last && last.state === "running"))) { box.innerHTML = ""; return; }
+    const head = `<div class="row" style="align-items:center;gap:6px;margin-top:6px;font-size:12.5px"><span style="flex:1;min-width:0">${c.done ? `완료(적용 대기) <b>${c.done}</b>건` : ""}${g.ahead ? `${c.done ? " · " : ""}${esc(g.branch || "engine-dev")} <b>+${g.ahead}</b> 커밋` : ""}${last && last.state && last.state !== "none" ? ` <span class="badge ${last.state === "running" ? "run" : last.state === "ok" ? "ok" : ""}" title="${esc(last.message || "")}">${DEP_KO[last.state] || esc(last.state)}${last.finished ? ` · ${fmtT(last.finished)}` : ""}</span>` : ""}</span>`
+      + `<button type="button" class="svc" data-eng="deploy" title="engine-dev 를 main 에 병합 → 시험 → 재시작 → push → 적용됨(관리자)">${DEP.open ? "닫기" : "배포…"}</button></div>`;
+    if (!DEP.open) { box.innerHTML = head; return; }
+    const p = DEP.plan, L = last;
+    let body = "";
+    if (!p) body = `<div class="hint">확인하는 중… (git fetch)</div>`;
+    else {
+      body = `<div class="hint" style="margin-bottom:4px">main <b>${esc(p.main)}</b> ← ${esc(p.branch)} · 판 ${esc(p.version || "")}${p.originAhead ? ` · 원격 main 새 커밋 ${p.originAhead}개를 먼저 받음` : ""}${p.render ? ` · <b>렌더 규칙 변경</b>(check_parity 실행)` : ""}</div>`
+        + `<div style="font-size:12px"><b>요청</b> ${p.requests.length ? p.requests.map((r) => `#${r.id} ${esc(r.title)}`).join(" · ") : `<span class="hint">완료 요청 없음(커밋만)</span>`}</div>`
+        + `<div style="font-size:12px;margin-top:3px"><b>커밋</b> ${p.commits.map((x) => `<code>${esc(x.hash)}</code> ${esc(x.subject)}`).join("<br>") || "-"}</div>`
+        + `<div class="hint" style="margin-top:3px" title="${esc(p.files.join("\n"))}">파일 ${p.files.length}개: ${esc(p.files.slice(0, 6).join(", "))}${p.files.length > 6 ? " …" : ""}</div>`
+        + (p.blockers.length ? `<div class="warn">${p.blockers.map(esc).join("<br>")}</div>` : "")
+        + `<div class="hint" style="margin-top:6px">순서: 시험용 worktree 에서 병합 → 시험(새로 생긴 실패만 막음, 몇 분) → 처리 중 턴 대기 → main 반영 → 허브·작업 공간 서버 재시작(엔진 세션은 끊김) → push → 적용됨 · 원 요청 재개. 허브가 뜨지 않으면 main 을 되돌린다.</div>`
+        + `<div class="row" style="justify-content:flex-end;margin-top:6px"><button type="button" class="chip sm primary" data-eng="deployrun" ${p.ready && !(L && L.state === "running") ? "" : "disabled"}>배포 시작</button></div>`;
+    }
+    if (L && L.steps && L.steps.length) body += `<div style="margin-top:6px;border-top:1px dashed var(--line);padding-top:4px;font-size:12px">${L.steps.map((x) => `<div style="color:${x.ok ? "inherit" : "var(--err)"}">${x.ok ? "✓" : "✕"} ${esc(x.step)} <span class="hint">${esc(x.msg || "")}</span></div>`).join("")}${L.state === "running" ? `<div class="hint">진행 중… (허브가 재시작되는 동안 잠시 응답이 없을 수 있습니다)</div>` : `<div><b>${DEP_KO[L.state] || esc(L.state)}</b> ${esc(L.message || "")}</div>`}</div>`;
+    box.innerHTML = head + `<div style="border:1px solid var(--line);border-radius:10px;padding:8px 10px;margin-top:6px">${body}</div>`;
+  }
+  async function loadDeploy(fetchGit) {
+    try {
+      const r = await fetch(`/api/engine/deploy${fetchGit ? "" : "?fetch=0"}`, { cache: "no-store" }); const d = await r.json();
+      if (!d.ok) { toast(d.error || "배포 정보를 읽지 못했습니다", 5000); return null; }
+      if (fetchGit) DEP.plan = d;
+      DEP.last = d.last || null;
+      return d.last;
+    } catch (e) { return { state: "running" }; }  // 허브 재시작 중 - 계속 본다
+  }
+  function pollDeploy() {
+    clearTimeout(DEP.timer);
+    DEP.timer = setTimeout(async () => {
+      const last = await loadDeploy(false); DEP.timer = 0; loadEngine();
+      if (last && last.state === "running") pollDeploy();
+      else if (last) { toast(`${DEP_KO[last.state] || last.state}${last.message ? ` - ${last.message}` : ""}`, 8000); DEP.plan = null; if (DEP.open) { await loadDeploy(true); loadEngine(); } }
+    }, 2500);
   }
   // 요청 양식 첨부 - 클립보드 그림(Ctrl+V)·끌어다 놓기·＋ 첨부 → /api/engine/attach(_new/) → 큐에 넣을 때 그 요청 폴더로
   const ER = { att: [], busy: 0 };
@@ -861,6 +905,19 @@
     const b = e.target.closest("[data-eng]"); if (!b) return;
     if (b.dataset.eng === "start") { openSessModal({ engine: true }, "nexa-slide 엔진 개발"); return; }
     if (b.dataset.eng === "progress") { openEngProgress(); return; }
+    if (b.dataset.eng === "deploy") {
+      DEP.open = !DEP.open; DEP.plan = null; loadEngine();
+      if (DEP.open) { const last = await loadDeploy(true); loadEngine(); if (last && last.state === "running") pollDeploy(); }
+      return;
+    }
+    if (b.dataset.eng === "deployrun") {
+      const p = DEP.plan || {};
+      const what = (p.requests || []).map((r) => `#${r.id} ${r.title}`).join("\n") || `커밋 ${(p.commits || []).length}개`;
+      if (!confirm(`엔진을 배포할까요?\n\n${what}\n\nmain 병합 → 시험 → 허브·작업 공간 서버 재시작(엔진 세션은 끊깁니다) → push → 적용됨`)) return;
+      const r = await post("/api/engine/deploy", { action: "run" });
+      if (!r.ok) { toast(r.data.error || "배포를 시작하지 못했습니다", 6000); return; }
+      DEP.last = r.data.last; loadEngine(); pollDeploy(); return;
+    }
     if (b.dataset.eng === "manualhow") {  // 터미널 세션으로 맡기기 - 명령을 보여 주고 복사(숨김 메뉴)
       let box = $("#engManual");
       if (!box) { box = document.createElement("div"); box.id = "engManual"; box.className = "hint"; box.style.cssText = "margin-top:6px;border:1px dashed var(--line);border-radius:10px;padding:8px 10px"; $("#engSess").insertAdjacentElement("afterend", box); }

@@ -34,6 +34,7 @@ TESTS = [  # (이름, 실행, 설명, claude 필요)
     ("editor", [sys.executable, "editor_ui_test.py"], "편집기 UI - 그림·도형·차트·묶음·표·링크·그림자·삽입 패널·팔레트·발표자 보기(scenarios/*.json)", False),
     ("tidy", [sys.executable, "tidy_test.py"], "작업 공간 정리·보관(tidy.py) - 보고·옮김·되돌림·비움·zip, 요청 첨부 정리 API", False),
     ("deck", [sys.executable, "deck_test.py"], "덱 관리(deck_admin) - 짧은 해시 id·복제·시작 덱·목록, /api/decks copy·start", False),
+    ("deploy", [sys.executable, "engine_deploy_test.py"], "엔진 배포(engine_deploy) - 계획·병합 커밋·push·적용됨·충돌 시 main 불변·겹치는 미커밋 변경·새 실패만 막는 시험 비교(임시 저장소)", False),
     ("englink", [sys.executable, "engine_link_test.py"], "엔진 요청 ↔ 원 요청 연결(engineRequest 배지)·done 알림·applied 자동 재개", False),
     ("content_i18n", [sys.executable, "content_i18n_test.py"], "견본 내용 언어(content_i18n) - layout_samples --lang en · /api/slidetypes?lang=en · tr()", False),
     ("runs", [sys.executable, "runs_test.py"], "인라인 강조 겹치기(runs) - Python·render.js 같은 결과", False),

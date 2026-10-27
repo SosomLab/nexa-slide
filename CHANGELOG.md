@@ -1,5 +1,15 @@
 # 변경 이력
 
+## 0.22.29 - 2026-10-27 · 엔진 배포 - 카드 [배포] 로 병합·시험·재시작·push·적용됨
+
+사용자 지적(2026-10-27): 관리자로 로그인했는데도 승인한 엔진 요청이 main·운영에 반영되지 않는다 - 엔진 세션은 규약상 merge·push·재시작이 막혀 있고(요청 #4 거절), 허브에는 그 단계를 실행할 기능이 없었다. 사람 승인은 두고 실행만 자동으로 바꿨다. 설계 `docs/dev/engine-deploy-design.md`.
+
+- **`studio/engine_deploy.py`**: `plan`(들어갈 커밋·요청·파일·막는 이유) · `run`(시험용 worktree 에서 `--no-ff` 병합 → `run_all` 후 실패 묶음만 병합 전 main 에서 다시 돌려 새 실패만 막음 · 렌더 파일이면 `check_parity` → 처리 중 턴 대기 → 운영 트리 ff → 허브 재시작·생존 확인(실패하면 `reset --keep` 후 재시작 = rolledback) → 떠 있던 작업 공간 서버 재시작 → push → done 요청 applied(병합 커밋·판) → engine-dev ff) · `status`. 허브가 떼어 낸 프로세스로 실행해 허브 재시작에도 끊기지 않는다. 기록 `hub/engine/deploy.json`·`deploy-logs/`.
+- **API**: `GET /api/engine/deploy`(계획+기록, `?fetch=0` 기록만) · `POST /api/engine/deploy {action: run}` - 관리자만, 엔진 세션 턴 처리 중이면 409, 시작 전에 웹 엔진 세션을 끈다. `GET /api/engine` 에 `deploy`(관리자).
+- **카드**: 완료 요청·앞선 커밋이 있으면 `[배포…]` - 요청·커밋·파일·막는 이유·순서, [배포 시작], 단계별 진행(✓/✕)·마지막 배포 배지. 손으로 하는 [적용됨]은 그대로 남김.
+- 시험 `engine_deploy_test`(임시 저장소 + bare origin: 계획·병합 커밋·push·applied·engine-dev 맞춤·충돌 시 main 불변·겹치는 미커밋 변경 막음·새 실패만 막는 비교) · `englist_test` 에 배포 API 조회.
+- 문서: `engine-request-design.md` 10절 결정 3 변경, `server-admin.md` 9절 카드 [배포].
+
 ## 0.22.28 - 2026-10-18 · 엔진 세션 상태 갱신을 outbox 로 · 고아 working 되돌리기 · 카드 제목 '서버 요청'
 
 Codex 엔진 세션 둘째 운영 시험(2026-10-17 21시, 사용자 요청 #13 "카드 제목 '서버 작업' → '서버 요청'")에서: 세션이 `.nexa/engine_request.py status …` 로 큐 파일(사용자 설정 폴더)을 쓰는 것도 샌드박스 안에서 30초 넘게 멈췄고(작업 공간 세션의 `add` 와 같은 현상), 허브 재시작으로 세션이 끊기자 #13 이 `working` 으로 고아가 됐다. 0.22.27 의 반복 방지·허브 커밋은 재시작 전 세션이라 아직 적용 전이었다.
