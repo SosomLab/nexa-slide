@@ -528,7 +528,7 @@
 <!-- 엔진 개발 세션 진행(SSE) -->
 <div class="modal-back" id="engpModal"><div class="modal" style="width:min(720px,100%)">
   <div class="mh"><h3>엔진 개발 세션 진행</h3><button type="button" class="ib" data-close>✕</button></div>
-  <div class="mb"><div id="engpBody" style="font:12px Consolas,monospace;background:var(--tone);border-radius:10px;padding:8px 10px;max-height:52vh;overflow-y:auto;white-space:pre-wrap;word-break:break-all"></div></div>
+  <div class="mb"><div id="engpNow" style="margin-bottom:6px;font-size:12px" title="지금 하는 일 - 4초마다 확인, 경과는 1초마다"></div><div id="engpBody"style="font:12px Consolas,monospace;background:var(--tone);border-radius:10px;padding:8px 10px;max-height:52vh;overflow-y:auto;white-space:pre-wrap;word-break:break-all"></div></div>
 </div></div>
 <style>#engpBody .e { padding: 1px 0; border-bottom: 1px dashed var(--tone2); } #engpBody .e.warn, #engpBody .e.error { color: var(--err); } #engpBody .e.turn-end { color: var(--ok); }</style>
 <!-- 미리 보기 -->
@@ -807,7 +807,7 @@
     // 4줄 세션 상태 + 마지막 요약 + 오른쪽 끝 버튼(최근 작업과 같은 .svc)
     let line, btn = "";
     if (s.state === "manual") line = `<span class="badge run" title="터미널의 Claude Code 세션이 watch_engine_requests 로 큐를 맡고 있다(pid ${esc(String(s.pid || ""))})">수동 세션</span> ${esc(s.label || "")}${s.agent || s.model ? ` · ${esc([s.agent, s.model].filter(Boolean).join(" "))}` : ""}${s.entry ? ` <span class="badge" title="세션을 연 곳">${esc(s.entry)}</span>` : ""}${s.startedBy ? ` · ${esc(s.startedBy)}` : ""}${s.cwd ? ` <span class="hint" title="${esc(s.cwd)}">· ${esc(String(s.cwd).split(/[\\/]/).pop())}</span>` : ""} ${sidBadge(s.sessionId, s.cwd, 1)}`;
-    else if (on) line = `<span class="badge run">엔진 세션 ${esc(s.state)}</span> ${esc(s.agent || "")} · ${esc(s.model || "")}${s.startedBy ? ` · ${esc(s.startedBy)}` : ""} · 턴 ${s.turns || 0} ${sidBadge(s.sessionId, s.cwd, s.turns)}${s.lastError ? ` · <span style="color:var(--err)">${esc(s.lastError.slice(0, 80))}</span>` : ""}`;
+    else if (on) line = `<span class="badge run">엔진 세션 ${esc(s.state)}</span> ${esc(s.agent || "")} · ${esc(s.model || "")}${s.startedBy ? ` · ${esc(s.startedBy)}` : ""} · 턴 ${s.turns || 0} ${sidBadge(s.sessionId, s.cwd, s.turns)}${s.lastError ? ` · <span style="color:var(--err)">${esc(s.lastError.slice(0, 80))}</span>` : ""}${s.pulse && s.pulse.turn ? `<br>${pulseHtml(s.pulse)}` : ""}`;
     else line = `<span class="badge">세션 없음</span>${s.last && s.last.startedAt ? ` <span class="hint">· 마지막 · ${esc(s.last.agent || "")} ${esc(s.last.model || "")} · ${fmtT(s.last.stoppedAt || s.last.startedAt)}${s.last.reason ? ` · ${reasonKo(s.last.reason)}` : ""}</span>` : ""}`;
     const sr = d.startRequest, banner = !on && (pending || sr);  // 세션이 꺼진 채 할 일이 있으면 배너 - 그때 [세션 시작]은 배너에만(버튼이 두 개가 되지 않게)
     if (s.state === "manual") btn = admin
@@ -1051,10 +1051,32 @@
       loadEngine();
     }
   });
-  let engSrc = null;
+  // 처리 중 턴의 맥박(wsession.pulse) 한 줄 - 긴 도구(시험 몇 분) 동안 이벤트가 없어도 '무엇을 몇 분째 · 프로세스 살아 있음'을 보인다(#9)
+  // add = 받은 뒤 흐른 초(진행 창이 1초마다 다시 그릴 때). 판정: 프로세스 없음 = 빨강 · 도구 없이 출력이 5분 넘게 없음 = 노랑 · 그 밖 = 정상
+  function pulseHtml(p, add = 0) {
+    const t = (s) => depDur((s || 0) + add);
+    const head = `턴 ${p.turn} · ${t(p.turnSec)}째 · 도구 ${p.tools || 0}회`;
+    let now, tone;
+    if (!p.alive) { now = "에이전트 프로세스가 없다 - 턴이 곧 정리된다(오래가면 [세션 중지] 뒤 다시 시작)"; tone = "err"; }
+    else if (p.tool) { now = `도구 실행 중: <b>${esc(p.tool.name || "")}</b> ${esc((p.tool.summary || "").slice(0, 90))} · ${t(p.tool.sec)}째 (시험·회귀는 몇 분 걸린다)`; tone = (p.tool.sec + add) > 900 ? "warn" : "ok"; }
+    else { now = `모델 응답 대기 · 마지막 출력 ${t(p.outSec)} 전`; tone = (p.outSec + add) > 300 ? "warn" : "ok"; }
+    const c = tone === "err" ? "var(--err)" : tone === "warn" ? "var(--warn)" : "var(--ok)";
+    return `<span class="pulse" style="font-size:11.5px"><span style="color:${c}">●</span> ${head} · ${now}${p.alive ? ` <span class="hint">· 프로세스 살아 있음</span>` : ""}</span>`;
+  }
+  let engSrc = null, engPulse = { timer: 0, tick: 0, p: null, at: 0 };
+  function engPulseStop() { clearInterval(engPulse.timer); clearInterval(engPulse.tick); engPulse = { timer: 0, tick: 0, p: null, at: 0 }; }
+  function engPulseStart() {
+    engPulseStop();
+    const draw = () => { const p = engPulse.p, el = $("#engpNow"); if (!el) return;
+      el.innerHTML = p && p.turn ? pulseHtml(p, Math.round((Date.now() - engPulse.at) / 1000)) : `<span class="hint">● 대기 중 - 처리 중인 턴 없음${p && p.state ? ` (${esc(p.state)})` : ""}</span>`; };
+    const load = async () => { if (!$("#engpModal").classList.contains("on")) { engPulseStop(); return; }  // Esc 등 다른 길로 닫혔다
+      try { const r = await fetch("/api/engine/session/pulse", { cache: "no-store" }); const d = await r.json(); if (d.ok) { engPulse.p = d; engPulse.at = Date.now(); draw(); } } catch (e) { /* 다음 차례에 */ } };
+    load(); engPulse.timer = setInterval(load, 4000); engPulse.tick = setInterval(draw, 1000);
+  }
   function openEngProgress() {
     $("#engpBody").innerHTML = ""; $("#engpModal").classList.add("on");
     if (engSrc) engSrc.close();
+    engPulseStart();
     const box = $("#engpBody");
     const add = (t, cls) => { const div = document.createElement("div"); div.className = "e " + (cls || ""); div.textContent = t; box.appendChild(div); box.scrollTop = box.scrollHeight; };
     try {
@@ -1067,6 +1089,7 @@
           else if (k === "turn.start") txt = `턴 ${d.turn} 시작 - 요청 #${(d.ids || []).join(", #")} · ${d.model}`;
           else if (k === "init") txt = `세션 ${String(d.sessionId || "").slice(0, 8)} · 모델 ${d.model}`;
           else if (k === "tool") txt = `도구 ${d.tool} ${d.summary || ""}`;
+          else if (k === "tool_result") txt = `  ↳ 도구 결과 ${d.ok === false ? "오류" : "받음"}`;
           else if (k === "text") txt = `✎ ${d.text}`;
           else if (k === "turn.end") txt = `턴 ${d.turn} 끝 - ${d.ok ? "정상" : "실패"}${d.costUsd != null ? ` · $${Number(d.costUsd).toFixed(4)}` : ""}${d.error ? ` · ${d.error}` : ""}`;
           else if (k === "warn" || k === "error") txt = `${k === "warn" ? "경고" : "오류"} ${d.message || ""}`;
@@ -1077,7 +1100,7 @@
       engSrc.onerror = () => add("연결이 끊겨 다시 붙는 중…", "warn");
     } catch (err) { add("이 브라우저는 SSE 를 지원하지 않습니다"); }
   }
-  $("#engpModal").addEventListener("click", (e) => { if (e.target.closest("[data-close]") || e.target === $("#engpModal")) { if (engSrc) { engSrc.close(); engSrc = null; } } });
+  $("#engpModal").addEventListener("click", (e) => { if (e.target.closest("[data-close]") || e.target === $("#engpModal")) { if (engSrc) { engSrc.close(); engSrc = null; } engPulseStop(); } });
 
   // 세션 식별자 - claude 세션 ID 앞 8자리 배지, 누르면 ID 복사(Shift = 그 폴더에서 claude --resume <ID> 확인 명령)
   const sidBadge = (id, cwd, turns) => id ? `<button type="button" class="badge sid" data-sid="${esc(id)}" data-cwd="${esc(cwd || "")}" title="${esc(["claude 세션 ID " + id, cwd ? "폴더 " + cwd : "", "누르면 ID 복사 · Shift+누르면 확인 명령(claude --resume) 복사", "터미널에서 claude --resume <ID> 로 바로 열거나, claude --resume 목록에서 '#앞 8자리' 로 검색", turns === 0 ? "아직 첫 턴 전 - 대화 파일이 없어 claude --resume 로는 안 열린다(요청을 처리한 뒤부터)" : ""].filter(Boolean).join("\n"))}"${turns === 0 ? ' data-turn0="1" style="border-style:dashed;opacity:.75"' : ""}>ID ${esc(id.slice(0, 8))}${turns === 0 ? " · 턴 전" : ""}</button>` : "";

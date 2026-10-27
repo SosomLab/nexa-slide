@@ -57,6 +57,7 @@ AI 세션(B 단계 - docs/dev/web-session-design.md · studio/agents/ · wsessio
                                      아니면 폴링 JSON {state, seq, events: [{seq, t, type: state|turn.start|init|text|tool|tool_result|turn.end|warn|error|model|idle, …}]}.
                                      허브 중계는 text/event-stream 응답을 줄 단위로 바로 흘린다
   GET  /api/wsession/log?turn=N      그 턴의 어댑터 출력 원문(줄 목록)
+  GET  /api/wsession/pulse           처리 중 턴의 맥박 {state, seq, turn, turnSec, outSec, tools, alive, tool?: {name, summary, sec}} - 허브 엔진 세션은 /api/engine/session/pulse
 중계(허브 한 포트로 여러 작업 공간 — hub.py ws_id·proxy_target)
   /w/<id>/…                          그 작업 공간 서버(별도 프로세스·포트)로 그대로 넘기고 응답을 돌려준다(Location 은 접두를 다시 붙임).
                                      꺼져 있으면 띄운다(--port auto — 설정 포트가 쓰는 중이면 빈 포트). nexa.py 로 띄운 서버가 있으면 그 서버로.
@@ -1260,6 +1261,8 @@ class H(BaseHTTPRequestHandler):
             return self.send_json({"ok": True, "state": ws.state, "seq": ws.seq, "events": ws.events_since(since)})
         if what == "log":
             return self.send_json({"ok": True, "turn": (q.get("turn") or ["1"])[0], "lines": ws.turn_log((q.get("turn") or ["1"])[0]).splitlines()})
+        if what == "pulse":  # 처리 중 턴의 맥박(지금 도구·경과·마지막 출력·프로세스 생존) - 진행 창이 몇 초마다(git 을 묻지 않는 가벼운 조회)
+            return self.send_json({"ok": True, **ws.pulse()})
         if what:
             return self.err(404, "없는 API")
         self.send_json({"ok": True, **ws.info()})
