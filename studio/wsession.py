@@ -318,7 +318,35 @@ class EngineProfile:
                 pass
         return out
 
+    def sync_main(self):
+        """턴 직전 - engine-dev 가 main 보다 뒤처졌으면 따라잡는다(옛 코드 위에서 고치지 않게). 배포 안 한 커밋이 없으면 fast-forward,
+        있으면 main 을 병합(충돌이면 되돌리고 그대로). worktree 에 커밋하지 않은 변경이 있으면 손대지 않는다. → (ok, 알림 글) - 할 일이 없으면 (True, "")."""
+        if not (self.cwd / ".git").exists():
+            return True, ""
+        cnt = lambda rng: int((self._git("rev-list", "--count", rng).stdout or "0").strip() or 0)
+        behind, ahead = cnt(f"{self.BRANCH}..main"), cnt(f"main..{self.BRANCH}")
+        if not behind:
+            return True, ""
+        main = self._git("rev-parse", "--short", "main").stdout.strip()
+        if self._git("status", "--porcelain", "--untracked-files=no", cwd=self.cwd).stdout.strip():
+            return False, f"{self.BRANCH} 에 커밋하지 않은 변경이 있어 main({main}, +{behind})을 받지 못했다 - 옛 코드 위에서 처리한다"
+        if not ahead:
+            r = self._git("merge", "--ff-only", "main", cwd=self.cwd)
+        else:
+            r = self._git("-c", "user.name=nexa-slide hub", "-c", "user.email=hub@nexa-slide.local", "merge", "--no-edit", "-m", f"merge: main → {self.BRANCH} - 요청 처리 전 따라잡기", "main", cwd=self.cwd)
+            if r.returncode:
+                self._git("merge", "--abort", cwd=self.cwd)
+        if r.returncode:
+            return False, f"{self.BRANCH} 를 main({main})에 맞추지 못했다(배포 안 한 커밋 {ahead}개와 충돌) - 옛 코드 위에서 처리한다: {(r.stderr or r.stdout).strip()[-200:]}"
+        return True, f"{self.BRANCH} 를 main({main})에 맞췄다 - main 의 새 커밋 {behind}개" + (f", 배포 안 한 커밋 {ahead}개는 그대로(병합)" if ahead else "")
+
     def prompt(self, batch, reason, sess, ag):
+        try:
+            ok, msg = self.sync_main()
+        except (OSError, subprocess.SubprocessError) as e:  # git 이 멈춰도 턴은 돈다
+            ok, msg = False, f"main 따라잡기 실패: {e}"
+        if msg:
+            sess.emit("text" if ok else "warn", **({"text": msg} if ok else {"message": msg}))
         x = batch[0]
         tpl = self.prompt_file.read_text(encoding="utf-8")
         show = {k: x.get(k) for k in ("id", "title", "body", "from", "evidence", "priority", "created", "history")}

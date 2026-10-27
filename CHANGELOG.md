@@ -1,6 +1,6 @@
 # 변경 이력
 
-## 0.22.33 - 2026-10-27 · 엔진 배포 진행을 단계·시험 묶음별로 · 배포 시간 단축
+## 0.22.33 - 2026-10-27 · 엔진 배포 진행을 단계·시험 묶음별로 · 배포 시간 단축 · 요청 전 main 따라잡기
 
 - **진행 표시**: 펼친 배포 판에 큰 단계 표시줄(확인→병합→시험→턴 대기→main 반영→재시작→push→적용됨, 끝난 것 ✓·지금 것 돌아감), 끝난 단계마다 한 줄과 걸린 시간, 지금 단계의 경과 시간, **시험 묶음별 진행 막대·칩**(26개 묶음이 끝날 때마다 ✓/✕·초), 경과·예상 시간. 계획 판에도 예상 시간.
   `run_all` 이 묶음마다 `-- 통과|실패 <이름> <초>s` 를 바로 찍고(`--exact` 이름 그대로 고르기 추가), `engine_deploy` 가 출력을 줄 단위로 따라가 `deploy.json` 의 `tests` 에 남긴다.
@@ -8,8 +8,10 @@
   - 비교 시험 재실행 생략 - 병합 전 main 의 시험 기록(`test-baseline.json`)이 있으면 그것과 비교한다. 배포한 병합본의 결과가 다음 배포의 기준이 되므로 연속 배포에서는 시험을 한 번만 돈다(지난번 비교 재실행 약 5분).
   - `race` 시험 2분 15초 → 몇 초: 포트 50개를 하나씩 0.4초 기다리며 두드리던 것을 한꺼번에(Windows 는 닫힌 localhost 포트도 시간 초과까지 기다린다).
   - 문서(`docs/`·`*.md`)만 바뀐 배포는 시험을 건너뛴다.
+- **엔진 세션이 요청을 처리하기 전에 `engine-dev` 를 main 으로 따라잡는다**(`wsession.EngineProfile.sync_main`, 턴마다) - 전에는 배포 끝에만 맞춰서, 터미널에서 main 에 직접 병합한 뒤 온 요청은 옛 코드 위에서 고쳐졌다. 배포 안 한 커밋이 없으면 ff, 있으면 main 병합, 충돌·커밋 안 한 변경이면 그대로 두고 세션 로그에 경고.
+- README "AI 세션 준비": [세션 시작] 은 서버가 `claude`·`codex` CLI 를 직접 실행하므로 서버 PC·같은 사용자에 설치·로그인이 필요하다는 안내와 AI 별(Claude Code·Codex CLI) 펼침 단락으로 설치·로그인·확인 명령.
 - `englist` 시험: 이 PC 에 없는 글꼴(Pretendard)의 `/api/fontfile` 404 를 콘솔 오류로 치지 않는다(`share` 와 같음).
-- 참고(엔진 밖 환경): 운영 PC 의 Python 에 `python-pptx`·`Pillow` 가 없어 PPTX 시험 9개(deck·effect·tableobj·uxpack·chart·docstruct 등)가 0초에 실패하고 있었다 - `pip install -r requirements.txt` 로 설치했다. 운영 허브의 PPTX 내보내기도 같은 까닭으로 안 되던 상태였다.
+- 참고(엔진 밖 환경): 운영 PC 의 Python 에 `python-pptx`·`Pillow` 가 없어 PPTX 시험 9개(deck·effect·tableobj·uxpack·chart·docstruct 등)가 0초에 실패하고 있었다 - `pip install -r requirements.txt` 로 설치했다. 운영 허브의 PPTX 내보내기도 같은 까닭으로 안 되던 상태였다. 설치 뒤 전체 시험 실패는 12개 → 4개(smoke·englist 는 Pretendard 글꼴 미설치 404, thread 는 smoke 에 딸림, editor 는 fx_test 시나리오 하나 - 모두 병합 전에도 같음).
 
 ## 0.22.32 - 2026-10-27 · 카드 배포 단추를 펼침 단추로 · 진행 중 단계 표시
 
