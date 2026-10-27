@@ -19,6 +19,7 @@
 | `keynote` · `archive` · `blueprint` · `swiss` | 템플릿 검토에서 승인한 시각 템플릿(어두운 무대·금색 / 종이 미색·테라코타·명조 / 도면 청록·주황 / 흰 바탕·빨강 하나) - `lecture` 바탕 | 역할별 최소 15px 로 올림 | lecture 와 같음 |
 | `editorial` · `ledger` · `signal` · `forest` | 템플릿 검토에서 추천한 시각 템플릿(미색·명조·진홍 / 크림·남색·금색 / 노랑·검정·빨강 / 숲녹색·크림·테라코타) - `lecture` 바탕, 검토는 계속(`/review`) | 역할별 최소 15px 로 올림 | lecture 와 같음 |
 | `graphite` | 참고 덱 101(콘텐츠 덱 정리)을 승인해 만든 시각 템플릿 — 흰 바탕, 검정 글자, 강조색 없이 회색 단계와 검정 굵기만, 모서리 없음 - `lecture` 바탕 | 역할별 최소 15px 로 올림 | lecture 와 같음 |
+| `casebook` · `electric` | 참고 덱 024(캠페인 사례집)·025(캠페인 전략 기획안)를 승인해 만든 시각 템플릿 — 크림·테라코타·어두운 사진 패널·고정폭 키커·거대 흐린 쪽번호 / 흰 바탕·전기 파랑 하나·고정폭 키커·모서리 없음 - `lecture` 바탕 | 역할별 최소 15px 로 올림 | lecture 와 같음 |
 | ~~`story`~~ · ~~`report`~~ | **숨김** — `archive`·`swiss` 와 겹쳐 목록에서 뺐다(`hidden: true`, 검토 등록부 대상). 이미 쓰는 작업 공간은 그대로 동작 | | |
 | `lecture-large` | `lecture` 를 바탕으로 글자만 일괄 확대 | 빌드할 때 역할별 최소 px 로 올림 — 본문 15px · 각주 11px · 경로·쪽번호 12px. 상자 크기는 그대로라 촘촘한 도식은 넘칠 수 있음. 이미 큰 글까지 **비율로** 키우고 상자·배치도 다시 잡으려면 `scale_fonts`·content `fontScale`([operation.md](operation.md)) | lecture 와 같음 |
 

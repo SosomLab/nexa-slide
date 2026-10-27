@@ -42,7 +42,7 @@
 | 추출 | 완료 - 장 2,274개 지문, 이미지 자리 199개(CSS 배경 사진 11개 보완 포함) |
 | 시각 검토 | 완료 - 8묶음(분류별)로 나눠 장마다 레이아웃 대응·새 유형·고유 여부, 이미지마다 내용·의미·역할·어울리는 이미지 |
 | [01-census](01-census.md) | 완료 - 156개 스킬 표, 분류·시각 계열·점수, 기존 레이아웃 사용 빈도 |
-| [02-visual-families](02-visual-families.md) | 완료 - 시각 계열 9묶음, nexa 템플릿 후보 8개 **모두 엔진 템플릿으로 구현**(승인 4: keynote·archive·blueprint·swiss / 추천 상태로 먼저 구현 4: editorial·ledger·signal·forest) + 승인 참고 덱 101 → `graphite` |
+| [02-visual-families](02-visual-families.md) | 완료 - 시각 계열 9묶음, nexa 템플릿 후보 8개 **모두 엔진 템플릿으로 구현**(승인 4: keynote·archive·blueprint·swiss / 추천 상태로 먼저 구현 4: editorial·ledger·signal·forest) + 승인 참고 덱 101 → `graphite` · 024 → `casebook` · 025 → `electric` |
 | [03-slide-archetypes](03-slide-archetypes.md) | 완료 - 기존 레이아웃 대응 1,734장(76%), 새 유형 540장 → 대표 28개(1순위 10 · 2순위 14 · 3순위 4), 그중 19종 레이아웃으로 구현(`layouts_more.py`) |
 | [04-image-slots](04-image-slots.md) | 완료 - 자리 형태 6가지·역할 8가지·어울리는 이미지·레이아웃 연결·기준값 |
 | 검토·승인 | 진행 - 검토 등록부([../review](../review/README.md))에 템플릿 후보 8 · 레이아웃 28 · 참고 덱 156 · 템플릿 유형 15 · 슬라이드 유형 52 등록. 승인: 템플릿 4 · 레이아웃 8 · 참고 덱 6(101 구현) · 템플릿 유형 5. 추천 상태로 남은 템플릿 4·템플릿 유형 10·슬라이드 유형 52는 구현은 됐고 검토만 남음 |

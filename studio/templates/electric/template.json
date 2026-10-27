@@ -1,0 +1,64 @@
+{
+  "extends": "lecture",
+  "label": "일렉트릭 - 흰 바탕·전기 파랑 하나",
+  "description": "캠페인·전략 기획안, 브리프, 주장+숫자 근거. 흰 바탕, 먹색 글자, 전기 파랑 강조 하나(숫자·키워드·선), 굵은 고딕 두 줄 제목, 고정폭 키커, 어두운 표지·결정 요청, 모서리 없음(템플릿 검토 승인 참고 덱 025 campaign-strategy-deck).",
+  "sizes": {
+    "_comment": "업무·발표용은 칩·글자를 역할별 최소 px 로 올려 빌드한다(1280×720 에서 읽히는 크기). pt = px × 0.75",
+    "minPx": {
+      "default": 15,
+      "footnotes": 11,
+      "crumb": 12,
+      "page": 12
+    }
+  },
+  "check": {
+    "minFontPt": {
+      "default": 11,
+      "footnotes": 8,
+      "crumb": 9,
+      "page": 9
+    }
+  },
+  "tokenOverrides": {
+    "colors": {
+      "primary": "#1D4FE0",
+      "on-primary": "#FFFFFF",
+      "primary-container": "#DCE4FF",
+      "on-primary-container": "#0B1F6B",
+      "surface": "#FFFFFF",
+      "surface-dim": "#F6F7FA",
+      "surface-container": "#EFF1F6",
+      "surface-container-high": "#E1E4EC",
+      "on-surface": "#121417",
+      "on-surface-variant": "#5B606B",
+      "outline-variant": "#CDD1DA",
+      "white": "#FFFFFF",
+      "panel": "#0F1115",
+      "on-panel": "#FFFFFF",
+      "day1": "#1D4FE0",
+      "day1-container": "#DCE4FF",
+      "on-day1-container": "#0B1F6B",
+      "day2": "#121417",
+      "day2-container": "#E1E4EC",
+      "on-day2-container": "#121417",
+      "day3": "#8A7A5A",
+      "day3-container": "#F1EBDD",
+      "on-day3-container": "#3A3020"
+    },
+    "radius": {
+      "r-s": 0,
+      "r-m": 0,
+      "r-l": 0
+    }
+  },
+  "parts": {
+    "_comment": "구조 부품(layouts.py PARTS) — labels·foot·pageGhost. 참고 덱은 파랑 고정폭 키커(번호/슬래시) + 하단 가는 바닥글(덱명·쪽수)이라 바닥글은 기본 부품 그대로",
+    "labels": "mono"
+  },
+  "i18n": {
+    "en": {
+      "label": "Electric - white · one electric blue",
+      "description": "Campaign and strategy plans, briefs, claim + numeric evidence. White background, ink-black text, one electric-blue accent (numbers, keywords, rules), bold two-line sans titles, monospace kickers, dark cover and decision ask, no corners (approved in template review, reference deck 025 campaign-strategy-deck)."
+    }
+  }
+}

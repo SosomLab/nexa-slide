@@ -1,0 +1,65 @@
+{
+  "extends": "lecture",
+  "label": "케이스북 - 크림·테라코타·어두운 사진",
+  "description": "캠페인·프로젝트 사례집, 실행물 도판, 성과 회고. 따뜻한 크림 바탕, 갈색 먹 글자, 테라코타 강조 하나, 굵은 고딕 제목, 고정폭 키커, 어두운 사진 표지·마감 패널, 거대 흐린 쪽번호(템플릿 검토 승인 참고 덱 024 campaign-case-study-deck).",
+  "sizes": {
+    "_comment": "업무·발표용은 칩·글자를 역할별 최소 px 로 올려 빌드한다(1280×720 에서 읽히는 크기). pt = px × 0.75",
+    "minPx": {
+      "default": 15,
+      "footnotes": 11,
+      "crumb": 12,
+      "page": 12
+    }
+  },
+  "check": {
+    "minFontPt": {
+      "default": 11,
+      "footnotes": 8,
+      "crumb": 9,
+      "page": 9
+    }
+  },
+  "tokenOverrides": {
+    "colors": {
+      "primary": "#B5452B",
+      "on-primary": "#FFFFFF",
+      "primary-container": "#F0D6C9",
+      "on-primary-container": "#4A1A0D",
+      "surface": "#F7F2E8",
+      "surface-dim": "#F1EADD",
+      "surface-container": "#EBE2D2",
+      "surface-container-high": "#DDD1BC",
+      "on-surface": "#26201B",
+      "on-surface-variant": "#6E6155",
+      "outline-variant": "#D4C7B0",
+      "white": "#FFFDF9",
+      "panel": "#231B16",
+      "on-panel": "#F2E8DA",
+      "day1": "#B5452B",
+      "day1-container": "#F0D6C9",
+      "on-day1-container": "#4A1A0D",
+      "day2": "#4F5B4A",
+      "day2-container": "#DCE2D4",
+      "on-day2-container": "#1B2318",
+      "day3": "#6B5B4D",
+      "day3-container": "#E6DCD0",
+      "on-day3-container": "#2A2119"
+    },
+    "radius": {
+      "r-s": 2,
+      "r-m": 4,
+      "r-l": 6
+    }
+  },
+  "parts": {
+    "_comment": "구조 부품(layouts.py PARTS) — labels·foot·pageGhost. 참고 덱은 고정폭 대문자 키커(슬래시 경로) + 우상단 거대 흐린 쪽번호 + 가는 바닥글 줄",
+    "labels": "mono",
+    "pageGhost": true
+  },
+  "i18n": {
+    "en": {
+      "label": "Casebook - cream · terracotta · dark photo",
+      "description": "Campaign and project case books, deliverable plates, results retrospectives. Warm cream background, brown-black text, one terracotta accent, bold sans titles, monospace kickers, dark photo cover and closing panels, huge faint page numbers (approved in template review, reference deck 024 campaign-case-study-deck)."
+    }
+  }
+}
