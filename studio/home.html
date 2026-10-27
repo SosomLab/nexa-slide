@@ -816,6 +816,7 @@
       : banner ? ""
       : `<button type="button" class="svc" data-eng="start" title="엔진 요청 큐를 처리하는 개발 세션을 띄웁니다(엔진 worktree, 관리자)">${icon("play", 14)}세션 시작</button>`;
     else if (on) btn = `<button type="button" class="chip sm" data-eng="progress">진행</button>`;
+    if (admin) btn += `<button type="button" class="ib" data-eng="tidy" title="엔진 개발 영역 정리 - 고아 첨부·worktree 첨부 사본·회귀 확인 사본·오래된 로그·남은 시험용 worktree" style="height:24px;min-width:24px;padding:0 4px;font-size:13px">🧹</button>`;
     if (admin) btn += `<button type="button" class="ib" data-eng="manualhow" title="터미널의 Claude Code 세션이 큐를 맡게 하는 방법(숨김 메뉴)" style="height:24px;min-width:24px;padding:0 4px">⋯</button>`;
     $("#engSess").innerHTML = `<span style="flex:1;min-width:0">${line}</span>${btn}`;
     // 배너 - 처리·승인 대기가 있는데 세션이 꺼져 있으면(관리자: 시작 버튼 · 일반: 관리자에게 시작 요청)
@@ -994,6 +995,7 @@
     const b = e.target.closest("[data-eng]"); if (!b) return;
     if (b.dataset.eng === "start") { openSessModal({ engine: true }, "nexa-slide 엔진 개발"); return; }
     if (b.dataset.eng === "progress") { openEngProgress(); return; }
+    if (b.dataset.eng === "tidy") { openTidy("", "", "nexa-slide 엔진 개발", true); return; }
     if (b.dataset.eng === "deploy") {
       DEP.open = !DEP.open; DEP.plan = null; loadEngine();
       if (DEP.open) { const last = await loadDeploy(true); loadEngine(); if (last && last.state === "running") pollDeploy(); }
@@ -1177,39 +1179,46 @@
   });
 
   // ---------- 작업 공간 관리 - 정리·보관(작업 공간 서버의 /api/tidy, 허브에서는 중계 /w/<id>/api/tidy) ----------
-  const TD = { id: "", path: "", title: "", rep: null };
+  // engine = 엔진 개발 영역 정리(허브 /api/engine/tidy, 관리자) - 같은 창에 범주만 다르고, 바로 지우며(옮겨 두지 않음) 보관은 없다
+  const TD = { id: "", path: "", title: "", rep: null, engine: false };
   const tdBase = () => (H.home.mode === "hub" ? `/w/${encodeURIComponent(TD.id)}` : "");
+  const tdUrl = () => (TD.engine ? "/api/engine/tidy" : tdBase() + "/api/tidy");
   const fmtSize = (n) => (n < 1024 ? `${n}B` : n < 1048576 ? `${(n / 1024).toFixed(1)}KB` : n < 1073741824 ? `${(n / 1048576).toFixed(1)}MB` : `${(n / 1073741824).toFixed(2)}GB`);
-  async function openTidy(id, path, title) {
-    TD.id = id; TD.path = path; TD.title = title; TD.rep = null;
+  async function openTidy(id, path, title, engine) {
+    TD.id = id; TD.path = path; TD.title = title; TD.rep = null; TD.engine = !!engine;
     $("#tidyTitle").textContent = title || path;
     $("#tidyBody").innerHTML = '<div class="hint">정리 대상을 살피는 중…</div>'; $("#tidyErr").innerHTML = "";
     $("#tidyModal").classList.add("on");
-    let d; try { const r = await fetch(tdBase() + "/api/tidy", { cache: "no-store", headers: { Accept: "application/json" } }); d = await r.json(); if (NexaMenu.auth401(r, d)) return; if (!r.ok) d = { error: d.error || r.status }; } catch (e) { d = { error: String(e) }; }
-    if (!d || !d.ok) { $("#tidyBody").innerHTML = `<div class="warn">${esc(d && d.error || "읽지 못했습니다")}${H.home.mode === "hub" ? "<br>작업 공간 서버가 응답하지 않으면 카드의 [시작]으로 먼저 띄우세요." : ""}</div>`; return; }
+    let d; try { const r = await fetch(tdUrl(), { cache: "no-store", headers: { Accept: "application/json" } }); d = await r.json(); if (NexaMenu.auth401(r, d)) return; if (!r.ok) d = { error: d.error || r.status }; } catch (e) { d = { error: String(e) }; }
+    if (!d || !d.ok) { $("#tidyBody").innerHTML = `<div class="warn">${esc(d && d.error || "읽지 못했습니다")}${H.home.mode === "hub" && !TD.engine ? "<br>작업 공간 서버가 응답하지 않으면 카드의 [시작]으로 먼저 띄우세요." : ""}</div>`; return; }
     TD.rep = d; drawTidy();
   }
   function drawTidy() {
     const d = TD.rep; if (!d) return;
-    const cats = ["output", "attach", "log", "image", "backup"], dflt = new Set(["output", "attach", "log"]);
+    const cats = d.order || ["output", "attach", "log", "image", "backup"], dflt = new Set(d.defaults || ["output", "attach", "log"]);
     const by = {}; d.items.forEach((it) => { (by[it.category] = by[it.category] || []).push(it); });
-    $("#tidyBody").innerHTML = `<div class="hint" style="margin-top:0">폴더 <code>${esc(d.workspace)}</code> · 정리 대상 ${d.items.length}개 · ${fmtSize(d.total)}. 지운 파일은 <code>out/.tidy/</code> 에 옮겨 두므로 되돌릴 수 있고, [비우기]로 완전히 지웁니다.</div>
-      ${cats.map((c) => { const s = d.summary[c] || { count: 0, size: 0 }, list = by[c] || []; return `<details class="td-cat"${list.length && dflt.has(c) ? " open" : ""}><summary><label><input type="checkbox" data-tcat="${c}" ${list.length ? "" : "disabled"} ${list.length && dflt.has(c) ? "checked" : ""}> <b>${esc(d.categories[c])}</b> <span class="hint" style="margin:0">${s.count}개 · ${fmtSize(s.size)}</span></label>${c === "backup" ? '<span class="hint" style="margin:0 0 0 8px">되돌리기·되살리기에 쓰이므로 보통은 두세요</span>' : c === "image" ? '<span class="hint" style="margin:0 0 0 8px">백업이 참조하는 그림(표시)은 기본으로 남깁니다</span>' : ""}</summary>
+    $("#tidyBody").innerHTML = (TD.engine
+      ? `<div class="hint" style="margin-top:0">엔진 영역 <code>${esc(d.workspace)}</code> · 정리 대상 ${d.items.length}개 · ${fmtSize(d.total)}. 다시 생기거나 기록뿐인 파일이라 옮겨 두지 않고 바로 지웁니다. 큐·배포 기록·처리 중 요청의 첨부·최근 로그는 남깁니다.${d.deploying ? " <b>배포 중</b> - 로그·worktree 는 건너뜁니다." : ""}</div>`
+      : `<div class="hint" style="margin-top:0">폴더 <code>${esc(d.workspace)}</code> · 정리 대상 ${d.items.length}개 · ${fmtSize(d.total)}. 지운 파일은 <code>out/.tidy/</code> 에 옮겨 두므로 되돌릴 수 있고, [비우기]로 완전히 지웁니다.</div>`)
+      + `
+      ${cats.map((c) => { const s = d.summary[c] || { count: 0, size: 0 }, list = by[c] || []; return `<details class="td-cat"${list.length && dflt.has(c) ? " open" : ""}><summary><label><input type="checkbox" data-tcat="${c}" ${list.length ? "" : "disabled"} ${list.length && dflt.has(c) ? "checked" : ""}> <b>${esc(d.categories[c])}</b> <span class="hint" style="margin:0">${s.count}개 · ${fmtSize(s.size)}</span></label>${c === "backup" ? '<span class="hint" style="margin:0 0 0 8px">되돌리기·되살리기에 쓰이므로 보통은 두세요</span>' : c === "image" ? '<span class="hint" style="margin:0 0 0 8px">백업이 참조하는 그림(표시)은 기본으로 남깁니다</span>' : TD.engine && c === "log" ? '<span class="hint" style="margin:0 0 0 8px">문제를 되짚을 때 쓰므로 기본으로 고르지 않습니다</span>' : ""}</summary>
         <div class="td-list">${list.map((it) => `<div class="td-it${it.kept ? " kept" : ""}"><span class="p" title="${esc(it.reason)}">${esc(it.path)}${it.dir ? "/" : ""}${it.kept ? ' <span class="badge">백업 참조</span>' : ""}</span><span class="s">${fmtSize(it.size)}</span></div>`).join("") || '<div class="hint" style="margin:4px 0 0 22px">없음</div>'}</div></details>`; }).join("")}
       <div class="row" style="margin-top:10px;gap:6px;flex-wrap:wrap"><button type="button" class="chip primary" id="tidyClean">고른 범주 정리</button>${d.tidy && d.tidy.count ? `<button type="button" class="chip" id="tidyPurge" title="out/.tidy/ 에 옮겨 둔 것을 완전히 지웁니다">비우기 (${d.tidy.count}건 · ${fmtSize(d.tidy.size)})</button>` : ""}<span style="flex:1"></span><button type="button" class="chip" id="tidyReload">↻ 다시 살피기</button></div>
-      <div style="margin-top:16px;border-top:1px solid var(--line);padding-top:10px"><b style="font-size:13px">압축 보관</b>
+      ${TD.engine ? "" : `<div style="margin-top:16px;border-top:1px solid var(--line);padding-top:10px"><b style="font-size:13px">압축 보관</b>
         <div class="hint">작업 공간(저장소 루트 표식이 있으면 루트째)을 zip 하나로 만듭니다 - 기본은 산출물(out/)·백업(.history)·휴지통·PC 전용 설정(.env·nexa-slide.local.json)·.git 제외, 요청 첨부(out/attach)는 포함. 보관 뒤 카드의 ✕ 로 목록에서 빼고 폴더를 지우면 공간이 비워집니다.</div>
-        <div class="row" style="gap:6px;flex-wrap:wrap"><label class="hint" style="margin:0;display:flex;align-items:center;gap:6px"><input type="checkbox" id="tidyAll"> 산출물·백업까지 전부 넣기</label><button type="button" class="chip" id="tidyArchive">zip 으로 보관</button><span class="hint" id="tidyZip" style="margin:0"></span></div></div>`;
+        <div class="row" style="gap:6px;flex-wrap:wrap"><label class="hint" style="margin:0;display:flex;align-items:center;gap:6px"><input type="checkbox" id="tidyAll"> 산출물·백업까지 전부 넣기</label><button type="button" class="chip" id="tidyArchive">zip 으로 보관</button><span class="hint" id="tidyZip" style="margin:0"></span></div></div>`}`;
     $("#tidyClean").onclick = async () => {
       const cats = [...$$("#tidyBody [data-tcat]:checked")].map((x) => x.dataset.tcat);
       if (!cats.length) { toast("정리할 범주를 고르세요"); return; }
       if (cats.includes("backup") && !confirm("백업·휴지통을 지우면 되돌리기·되살리기를 할 수 없습니다. 계속할까요?")) return;
-      const r = await post(tdBase() + "/api/tidy", { action: "clean", categories: cats });
+      if (TD.engine && !confirm("고른 범주를 바로 지웁니다(되돌릴 수 없음). 계속할까요?")) return;
+      const r = await post(tdUrl(), { action: "clean", categories: cats });
       if (!r.ok) { $("#tidyErr").innerHTML = `<div class="warn">${esc(r.data.error || "정리하지 못했습니다")}</div>`; return; }
-      toast(`정리: ${r.data.moved}개 · ${fmtSize(r.data.size)} → ${r.data.dest || "(없음)"}`); TD.rep = { ok: true, ...r.data.report }; drawTidy();
+      toast(TD.engine ? `정리: ${r.data.moved}개 · ${fmtSize(r.data.size)} 지움` : `정리: ${r.data.moved}개 · ${fmtSize(r.data.size)} → ${r.data.dest || "(없음)"}`); TD.rep = { ok: true, ...r.data.report }; drawTidy();
     };
     const pg = $("#tidyPurge"); if (pg) pg.onclick = async () => { if (!confirm("옮겨 둔 정리 파일을 완전히 지울까요? 되돌릴 수 없습니다.")) return; const r = await post(tdBase() + "/api/tidy", { action: "purge" }); if (r.ok) { toast(`비움 ${fmtSize(r.data.purged)}`); TD.rep = { ok: true, ...r.data.report }; drawTidy(); } else toast(r.data.error || "비우지 못했습니다", 5000); };
-    $("#tidyReload").onclick = () => openTidy(TD.id, TD.path, TD.title);
+    $("#tidyReload").onclick = () => openTidy(TD.id, TD.path, TD.title, TD.engine);
+    if (TD.engine) return;
     $("#tidyArchive").onclick = async () => {
       const b = $("#tidyArchive"); b.disabled = true; b.textContent = "보관하는 중…";
       const r = await post(tdBase() + "/api/tidy", { action: "archive", all: $("#tidyAll").checked });

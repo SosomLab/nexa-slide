@@ -1,5 +1,12 @@
 # 변경 이력
 
+## 0.22.35 - 2026-10-27 · 엔진 개발 영역 정리(engine-request #6)
+
+- **엔진 개발 영역 정리**(`studio/engine_tidy.py`) - 작업 공간 정리(`tidy.py`)의 엔진 쪽 짝. 허브 서버 요청 카드의 **🧹**(관리자)가 작업 공간 정리와 같은 창을 엔진 범주로 연다.
+  범주: **고아 첨부**(큐에 없는 요청의 `attach/<id>/`·하루 넘은 `_new/` - 전부터 있던 `/api/engine/tidy` 의 대상) · **worktree 첨부 사본**(`engine-dev/.nexa/attach/<id>/` 중 끝난·없는 요청) · **회귀 확인 사본·임시 파일**(`scratch/regress-*`·`engine-*.zip`·`*.tmp`, 한 시간 지난 것) · **오래된 로그**(엔진 세션 턴 로그 최근 10개·배포 로그 최근 20개 밖, 기본으로 고르지 않음) · **남은 시험용 worktree**(`.claude/worktrees/deploy-*`, `git worktree remove`·`prune`).
+  다시 생기거나 기록뿐인 파일이라 옮겨 두지 않고 바로 지운다(확인을 받음). 배포 중이면 배포 로그·worktree 는 건너뛰고, 큐·배포 기록·기준 엔진 사본·`.nexa/outbox` 는 건드리지 않는다.
+- `GET/POST /api/engine/tidy` 가 `engine_tidy` 를 쓴다(POST `{action: clean, categories: […]}`, 범주가 없으면 기본 범주). CLI: `python3 studio/engine_tidy.py [--apply] [--only …] [--json]`.
+
 ## 0.22.34 - 2026-10-27 · 엔진 세션 도구 한도 분리 · 한도에 걸리면 이어 하기 · 카드 [다시 수행]
 
 엔진 요청 #6(정리 로직 추가)이 탐색·구현·시험까지 하고 커밋·done 직전에 `--max-turns 40`(웹 세션 기본)에 걸려 "마무리하지 못함(코드 1)"으로 멈췄다 - 변경 9개가 worktree 에 커밋 없이 남고, 요청은 사람 응답 대기라 다시 돌릴 단추가 없었다.

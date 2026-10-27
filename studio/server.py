@@ -1337,10 +1337,11 @@ class H(BaseHTTPRequestHandler):
                 return self.send_json({"ok": True, "last": engine_deploy.status()})
             p = engine_deploy.plan()
             return self.send_json({**p, "ok": True, "ready": p["ok"]})
-        if what == "tidy":  # 엔진 요청 첨부 정리 보고(관리자) - 큐에 없는 요청의 attach/<id>/, 하루 넘게 요청에 붙지 않은 _new/ 파일
+        if what == "tidy":  # 엔진 개발 영역 정리 보고(관리자) - 고아 첨부·worktree 첨부 사본·회귀 사본·오래된 로그·남은 시험용 worktree(engine_tidy)
             if self.role != "admin":
                 return self.err(403, "관리자만")
-            return self.send_json({"ok": True, **engine_requests.tidy_scan()})
+            import engine_tidy
+            return self.send_json({"ok": True, **engine_tidy.scan()})
         if what == "session":
             if WS_ENGINE is None:
                 return self.err(503, "엔진 세션 관리자가 없다")
@@ -1408,11 +1409,12 @@ class H(BaseHTTPRequestHandler):
                 return self.err(409, str(e))
             self._event = "engine.deploy"
             return self.send_json({"ok": True, "last": d})
-        if what == "tidy":  # {action: clean} - 보고된 첨부를 지운다(관리자)
+        if what == "tidy":  # {action: clean, categories: […]} - 보고된 것 중 고른 범주를 지운다(관리자, 범주가 없으면 engine_tidy.DEFAULTS)
             if self.role != "admin":
                 self._event = "engine.tidy.denied"
                 return self.err(403, "관리자만")
-            r = engine_requests.tidy_clean()
+            import engine_tidy
+            r = engine_tidy.clean([c for c in (b.get("categories") or []) if c in engine_tidy.CATEGORIES] or None)
             self._event = "engine.tidy"
             return self.send_json({"ok": True, **r})
         if what == "requests":

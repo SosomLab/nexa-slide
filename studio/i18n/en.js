@@ -428,6 +428,11 @@
     "백업·휴지통을 지우면 되돌리기·되살리기를 할 수 없습니다. 계속할까요?": "Removing backups and trash disables restore and undelete. Continue?", "옮겨 둔 정리 파일을 완전히 지울까요? 되돌릴 수 없습니다.": "Permanently delete the files set aside by tidy? This cannot be undone.",
     "정리하지 못했습니다": "Could not clean", "비우지 못했습니다": "Could not empty", "보관하지 못했습니다": "Could not archive", "백업 참조": "backup ref", "되돌리기·되살리기에 쓰이므로 보통은 두세요": "used for restore and undelete - usually keep", "백업이 참조하는 그림(표시)은 기본으로 남깁니다": "images referenced by backups (marked) are kept by default",
     "산출물(다시 만들 수 있음)": "Outputs (can be regenerated)", "백업·휴지통": "Backups · trash", "참조 없는 그림": "Unreferenced images", "고아 첨부": "Orphan attachments", "세션 로그": "Session logs",
+    // 엔진 개발 영역 정리(서버 요청 카드 🧹, engine_tidy.py)
+    "엔진 개발 영역 정리 - 고아 첨부·worktree 첨부 사본·회귀 확인 사본·오래된 로그·남은 시험용 worktree": "Tidy the engine dev area - orphan attachments, worktree attachment copies, regression copies, old logs, leftover test worktrees",
+    "엔진 영역": "Engine area", "배포 중": "Deploying", " - 로그·worktree 는 건너뜁니다.": " - logs and worktrees are skipped.",
+    "worktree 첨부 사본": "Worktree attachment copies", "회귀 확인 사본·임시 파일": "Regression copies · temp files", "오래된 세션·배포 로그": "Old session · deploy logs", "남은 시험용 worktree": "Leftover test worktrees",
+    "문제를 되짚을 때 쓰므로 기본으로 고르지 않습니다": "used to trace problems - not selected by default", "고른 범주를 바로 지웁니다(되돌릴 수 없음). 계속할까요?": "Delete the selected categories now (cannot be undone). Continue?",
 
     // ---- 0.22.1 덱 탭·덱 관리
     "새 덱 만들기 - 제목만 적으면 id 는 저절로": "New deck - just give a title; the id is generated", "새 덱 제목": "New deck title", "복제한 덱의 제목": "Title of the duplicated deck",
@@ -464,7 +469,8 @@
     [/^덱 "(.+)" 을 지울까요\? (.*)$/, "Delete deck \"$1\"? It moves to decks/.trash/ together with its requests, history, attachments and content."],
     [/^(.+) \(방금\)$/, "$1 (just now)"],
     [/^· 정리 대상 (\d+)개 · (.+)\. 지운 파일은$/, "· $1 items to clean · $2. Removed files are moved to"], [/^(\d+)개 · (.+)$/, "$1 · $2"], [/^비우기 \((\d+)건 · (.+)\)$/, "Empty ($1 · $2)"],
-    [/^정리: (\d+)개 · (.+) → (.+)$/, "Cleaned: $1 · $2 → $3"], [/^비움 (.+)$/, "Emptied $1"],
+    [/^정리: (\d+)개 · (.+) → (.+)$/, "Cleaned: $1 · $2 → $3"], [/^비움 (.+)$/, "Emptied $1"], [/^정리: (\d+)개 · (.+) 지움$/, "Cleaned: deleted $1 · $2"],
+    [/^· 정리 대상 (\d+)개 · (.+)\. 다시 생기거나 기록뿐인 파일이라 옮겨 두지 않고 바로 지웁니다\. 큐·배포 기록·처리 중 요청의 첨부·최근 로그는 남깁니다\.$/, "· $1 items to clean · $2. These are regenerable or log-only files, so they are deleted right away (not set aside). The queue, deploy record, attachments of active requests and recent logs are kept."],
     // ---- 0.21.41 - 변수 든 문구
     [/^(.+): 설치됨$/, "$1: installed"], [/^로그인됨 (.+)$/, "signed in $1"], [/^(.+): 미설치 \(미확인\)$/, "$1: not installed (unverified)"], [/^(.+): 미설치$/, "$1: not installed"],
     [/^(.*)<제목>$/, "$1<Title>"], [/^([\s\S]+)\n이미지: (.*)$/, (m, a, b) => `${t(a)}\nImage: ${b.split(" · ").map((x) => t(x)).join(" · ")}`],

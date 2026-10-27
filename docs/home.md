@@ -196,6 +196,7 @@ python3 'C:\Users\me\Documents\NexaSlide\신제품-소개\nexa.py' start
 - **압축 보관**: 작업 공간(저장소 루트 표식 `.nexa-slide.json` 이 있으면 루트째)을 `<기준 폴더>/_archive/<제목>-<시각>.zip` 으로. 기본은 `out/`(요청 첨부 `out/attach` 는 포함)·`decks/.history`·`decks/.trash`·`.env`·`nexa-slide.local.json`·`.git` 제외(`.gitignore` 와 같은 기준), "전부 넣기"는 `.git` 과 실행 상태 파일만 뺀다. 보관 뒤 카드의 ✕ 로 목록에서 빼고 폴더를 지우면 된다(폴더 삭제는 사용자가 - 서버는 작업 공간 폴더 자체를 지우지 않는다).
 - CLI: `python3 nexa.py tidy`(보고) · `tidy --apply [--only output,attach,log,image,backup] [--include-kept]` · `tidy --purge` · `tidy restore --stamp …` · `nexa.py archive [--all] [--out <zip>]`.
 - **원인 쪽 수정**: 요청 초안 지우기(`discard`)·첨부 바꾸기(`update`)가 이제 파일도 지우고, 엔진 요청 삭제(`engine_requests.remove`)가 `attach/<id>/` 를 지운다. 허브의 엔진 요청 첨부는 `GET/POST /api/engine/tidy`(관리자) - 큐에 없는 요청의 첨부 폴더와 하루 넘게 요청에 붙지 않은 `attach/_new/` 파일.
+- **엔진 개발 영역 정리**(0.22.35~, `studio/engine_tidy.py`): 서버 요청 카드의 **🧹**(관리자)가 같은 창을 엔진 범주로 연다 - 고아 첨부, `engine-dev` worktree 의 `.nexa/attach/<id>/` 중 끝난·없는 요청의 사본, 회귀 확인이 남긴 `scratch/regress-*`·`engine-*.zip`·`*.tmp`(한 시간 지난 것), 최근 10개(세션)·20개(배포) 밖의 오래된 로그(기본으로 고르지 않음), 배포가 끊겨 남은 `.claude/worktrees/deploy-*`. 다시 생기거나 기록뿐이라 옮겨 두지 않고 바로 지운다. 배포 중이면 배포 로그·worktree 는 건너뛰고 큐·배포 기록·기준 엔진 사본(`scratch/engine-<해시>`)·`.nexa/outbox` 는 건드리지 않는다. CLI `python3 studio/engine_tidy.py [--apply] [--only attach,copy,scratch,log,worktree]`.
 
 ## 기본 메뉴
 
