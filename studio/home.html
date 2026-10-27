@@ -104,6 +104,18 @@
   .ritem .svc:hover { background: var(--tone); }
   .ritem .svc.stop { color: var(--err); }
   .ritem .svc:disabled { opacity: .5; cursor: default; }
+  /* 엔진 배포(관리자) - 접힌 [배포 준비 ▾] 는 눈에 띄는 주 색 단추, 펼치면 [▴ 접기] 탭이 아래 판과 이어진다 */
+  .dep-tog { display: inline-flex; align-items: center; gap: 5px; border: 1.5px solid var(--p); background: var(--p); color: #fff; font-weight: 700; font-size: 13px;
+    border-radius: 999px; padding: 4px 10px 4px 12px; white-space: nowrap; box-shadow: var(--sh1); }
+  .dep-tog:hover { filter: brightness(1.08); }
+  .dep-tog.open { background: var(--pc); color: var(--onpc); border-bottom-color: var(--pc); border-radius: 10px 10px 0 0; padding: 4px 12px 7px 9px; margin-bottom: -9px;
+    box-shadow: none; position: relative; z-index: 1; }
+  .dep-panel { border: 1.5px solid var(--p); border-radius: 12px 0 12px 12px; background: linear-gradient(var(--pc), var(--card) 34px); padding: 10px 12px; margin-top: 0;
+    animation: depOpen .18s ease-out; transform-origin: top; }
+  @keyframes depOpen { from { opacity: 0; transform: scaleY(.85); } to { opacity: 1; transform: none; } }
+  .dep-cur { display: flex; align-items: center; gap: 6px; margin-top: 2px; }
+  .spin { width: 12px; height: 12px; border: 2px solid var(--line); border-top-color: var(--p); border-radius: 50%; animation: spin .8s linear infinite; flex: none; }
+  @keyframes spin { to { transform: rotate(360deg); } }
   .empty { color: var(--ink2); padding: 10px; font-size: 13px; }
   /* 요청 첨부 축소판 칩·＋ 첨부 버튼 - 편집기(index.html)와 같은 모양 */
   .att { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0; } .att:empty { display: none; }
@@ -809,9 +821,11 @@
   function renderDeploy(admin, g, c) {
     const box = $("#engDeploy"), last = (H.engine && H.engine.deploy) || DEP.last || null;
     if (!admin || !(g.ahead || c.done || DEP.open || (last && last.state === "running"))) { box.innerHTML = ""; return; }
-    const head = `<div class="row" style="align-items:center;gap:6px;margin-top:6px;font-size:12.5px"><span style="flex:1;min-width:0">${c.done ? `완료(적용 대기) <b>${c.done}</b>건` : ""}${g.ahead ? `${c.done ? " · " : ""}${esc(g.branch || "engine-dev")} <b>+${g.ahead}</b> 커밋` : ""}${last && last.state && last.state !== "none" ? ` <span class="badge ${last.state === "running" ? "run" : last.state === "ok" ? "ok" : ""}" title="${esc(last.message || "")}">${DEP_KO[last.state] || esc(last.state)}${last.finished ? ` · ${fmtT(last.finished)}` : ""}</span>` : ""}</span>`
-      + `<button type="button" class="svc" data-eng="deploy" title="engine-dev 를 main 에 병합 → 시험 → 재시작 → push → 적용됨(관리자)">${DEP.open ? "닫기" : "배포…"}</button></div>`;
-    if (!DEP.open) { box.innerHTML = head; return; }
+    const head = `<div class="row" style="align-items:center;gap:6px;margin-top:6px;font-size:12.5px"><span style="flex:1;min-width:0">${c.done ? `완료(적용 대기) <b>${c.done}</b>건` : ""}${g.ahead ? `${c.done ? " · " : ""}${esc(g.branch || "engine-dev")} <b>+${g.ahead}</b> 커밋` : ""}${last && last.state && last.state !== "none" ? ` <span class="badge ${last.state === "running" ? "run" : last.state === "ok" ? "ok" : ""}" title="${esc(last.message || "")}">${DEP_KO[last.state] || esc(last.state)}${last.finished ? ` · ${fmtT(last.finished)}` : ""}</span>` : ""}${last && last.state === "running" && last.cur ? ` <span class="hint">${esc(last.cur.step)}…</span>` : ""}</span>`
+      + (DEP.open
+        ? `<button type="button" class="dep-tog open" data-eng="deploy" aria-expanded="true" title="배포 내용 접기">${icon("chevUp", 15)}접기</button></div>`
+        : `<button type="button" class="dep-tog" data-eng="deploy" aria-expanded="false" title="들어갈 커밋·요청을 펼쳐 보고 배포를 시작한다 - engine-dev 를 main 에 병합 → 시험 → 재시작 → push → 적용됨(관리자)">${icon("rocket", 15)}${last && last.state === "running" ? "배포 진행 보기" : "배포 준비"}${icon("chevDown", 15)}</button></div>`);
+    if (!DEP.open) { box.innerHTML = `<div class="dep">${head}</div>`; return; }
     const p = DEP.plan, L = last;
     let body = "";
     if (!p) body = `<div class="hint">확인하는 중… (git fetch)</div>`;
@@ -822,10 +836,10 @@
         + `<div class="hint" style="margin-top:3px" title="${esc(p.files.join("\n"))}">파일 ${p.files.length}개: ${esc(p.files.slice(0, 6).join(", "))}${p.files.length > 6 ? " …" : ""}</div>`
         + (p.blockers.length ? `<div class="warn">${p.blockers.map(esc).join("<br>")}</div>` : "")
         + `<div class="hint" style="margin-top:6px">순서: 시험용 worktree 에서 병합 → 시험(새로 생긴 실패만 막음, 몇 분) → 처리 중 턴 대기 → main 반영 → 허브·작업 공간 서버 재시작(엔진 세션은 끊김) → push → 적용됨 · 원 요청 재개. 허브가 뜨지 않으면 main 을 되돌린다.</div>`
-        + `<div class="row" style="justify-content:flex-end;margin-top:6px"><button type="button" class="chip sm primary" data-eng="deployrun" ${p.ready && !(L && L.state === "running") ? "" : "disabled"}>배포 시작</button></div>`;
+        + `<div class="row" style="justify-content:flex-end;margin-top:6px"><button type="button" class="chip sm primary" data-eng="deployrun" ${p.ready && !(L && L.state === "running") ? "" : "disabled"}>${icon("rocket", 15)}배포 시작</button></div>`;
     }
-    if (L && L.steps && L.steps.length) body += `<div style="margin-top:6px;border-top:1px dashed var(--line);padding-top:4px;font-size:12px">${L.steps.map((x) => `<div style="color:${x.ok ? "inherit" : "var(--err)"}">${x.ok ? "✓" : "✕"} ${esc(x.step)} <span class="hint">${esc(x.msg || "")}</span></div>`).join("")}${L.state === "running" ? `<div class="hint">진행 중… (허브가 재시작되는 동안 잠시 응답이 없을 수 있습니다)</div>` : `<div><b>${DEP_KO[L.state] || esc(L.state)}</b> ${esc(L.message || "")}</div>`}</div>`;
-    box.innerHTML = head + `<div style="border:1px solid var(--line);border-radius:10px;padding:8px 10px;margin-top:6px">${body}</div>`;
+    if (L && L.steps && (L.steps.length || L.cur)) body += `<div style="margin-top:6px;border-top:1px dashed var(--line);padding-top:4px;font-size:12px">${L.steps.map((x) => `<div style="color:${x.ok ? "inherit" : "var(--err)"}">${x.ok ? "✓" : "✕"} ${esc(x.step)} <span class="hint">${esc(x.msg || "")}</span></div>`).join("")}${L.state === "running" ? `${L.cur ? `<div class="dep-cur"><span class="spin"></span><b>${esc(L.cur.step)}</b> <span class="hint">${fmtT(L.cur.t)} 부터</span></div>` : ""}<div class="hint">진행 중… (허브가 재시작되는 동안 잠시 응답이 없을 수 있습니다)</div>` : `<div><b>${DEP_KO[L.state] || esc(L.state)}</b> ${esc(L.message || "")}</div>`}</div>`;
+    box.innerHTML = `<div class="dep open">${head}<div class="dep-panel">${body}</div></div>`;
   }
   async function loadDeploy(fetchGit) {
     try {
