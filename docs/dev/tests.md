@@ -5,6 +5,7 @@
 ```bash
 python3 studio/tests/run_all.py              # 기본 묶음(약 5분) - claude 가 필요한 것은 뺀다
 python3 studio/tests/run_all.py smoke e4     # 이름 일부로 고르기
+python3 studio/tests/run_all.py --exact e3   # 이름 그대로(엔진 배포의 비교 시험) - 묶음마다 `-- 통과|실패 <이름> <초>s` 를 바로 찍는다
 python3 studio/tests/run_all.py --sessions   # 실제 claude 턴을 도는 것(c2·c3·c3b·c4)까지 - claude CLI 설치·로그인 필요
 NEXA_TEST_DIR=/tmp/nexa-tests python3 studio/tests/run_all.py   # 산출물 자리를 밖으로
 ```

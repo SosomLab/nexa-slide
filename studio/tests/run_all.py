@@ -4,6 +4,7 @@
     python3 studio/tests/run_all.py                 # 기본 묶음(claude 가 필요한 것은 뺀다)
     python3 studio/tests/run_all.py --sessions      # 웹 세션 시험(c2 - claude CLI·로그인 필요)까지
     python3 studio/tests/run_all.py smoke e4        # 이름 일부로 고르기
+    python3 studio/tests/run_all.py --exact e3 deck # 이름 그대로 고르기(엔진 배포가 실패 묶음만 다시 돌릴 때)
     NEXA_TEST_DIR=<폴더>                            # 시험 산출물 자리(기본 <임시 폴더>/nexa-slide-tests - 저장소 밖이어야 한다)
 
 순서가 뜻이 있다: smoke 가 데모 작업 공간(_work/projects/nexa-slide-demo)을 만들고 thread 가 그것을 쓴다.
@@ -56,13 +57,16 @@ def main():
     ap = argparse.ArgumentParser(description="nexa-slide 시험 모음")
     ap.add_argument("names", nargs="*", help="이름 일부로 고르기(비우면 기본 묶음)")
     ap.add_argument("--sessions", action="store_true", help="claude 가 필요한 시험도")
+    ap.add_argument("--exact", action="store_true", help="이름 일부가 아니라 그대로 고른다(e3 가 c3·c3b 를 끌어오지 않게)")
     a = ap.parse_args()
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     work = Path(os.environ.get("NEXA_TEST_DIR") or Path(tempfile.gettempdir()) / "nexa-slide-tests")  # 저장소 밖 - 허브는 엔진 안의 작업 공간을 거절한다
     work.mkdir(parents=True, exist_ok=True)
     env = {**os.environ, "PYTHONIOENCODING": "utf-8", "NEXA_TEST_DIR": str(work)}
     env.pop("NEXA_SLIDE_WORKSPACE", None)
-    picked = [t for t in TESTS if (not a.names or any(n in t[0] for n in a.names)) and (a.sessions or not t[3])]
+    hit = (lambda n, t: n == t) if a.exact else (lambda n, t: n in t)
+    picked = [t for t in TESTS if (not a.names or any(hit(n, t[0]) for n in a.names)) and (a.sessions or not t[3])]
+    print(f"== 묶음 {len(picked)}개: {' '.join(t[0] for t in picked)}", flush=True)
     results = []
     for name, cmd, desc, _ in picked:
         print(f"\n== {name} · {desc}", flush=True)
@@ -72,6 +76,7 @@ def main():
         tail = [l for l in out.splitlines() if l.startswith(("OK", "FAIL", "실패", "전부 통과", "SKIP")) or "오류" in l][-12:]
         print("\n".join("   " + l for l in tail) if tail else out[-600:])
         results.append((name, r.returncode, time.time() - t0))
+        print(f"-- {'통과' if r.returncode == 0 else '실패'} {name} {time.time() - t0:.0f}s", flush=True)  # 묶음마다 바로 - 엔진 배포가 이 줄로 진행을 보인다
     print("\n---- 결과")
     for name, rc, dt in results:
         print(f"{'통과' if rc == 0 else '실패'}  {name:8s} {dt:5.0f}s")

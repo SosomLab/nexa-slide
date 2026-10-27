@@ -36,6 +36,10 @@ STATE_FILE = engine_requests.ENGINE_DIR / "deploy.json"  # 마지막 배포 {sta
 LOG_DIR = engine_requests.ENGINE_DIR / "deploy-logs"
 RENDER_FILES = ("studio/render.js", "studio/common.py", "studio/export_pptx.py")
 DRAIN_WAIT = 600  # 처리 중인 턴이 끝나길 기다리는 최대 초
+TEST_TIMES = engine_requests.ENGINE_DIR / "test-times.json"  # 묶음별 지난 시험 시간 {이름: 초} - 화면의 예상 시간
+BASELINE = engine_requests.ENGINE_DIR / "test-baseline.json"  # 커밋별 실패 묶음 {sha: {fail: […], t}} - 병합 전 main 을 다시 돌리지 않게
+BASELINE_DAYS = 3  # 이보다 오래된 기록은 쓰지 않는다(그사이 환경이 바뀌었을 수 있다)
+DOCS_ONLY = re.compile(r"^(docs/|.*\.md$)")  # 이것만 바뀌면 시험을 건너뛴다
 GIT_ENV = {"GIT_TERMINAL_PROMPT": "0", "GIT_SSH_COMMAND": os.environ.get("GIT_SSH_COMMAND") or "ssh -o BatchMode=yes"}  # 묻는 창이 뜨지 않게 - 답할 사람이 없다
 
 
@@ -64,6 +68,38 @@ def version():
 
 
 # ---------- 상태 기록 ----------
+def _read_json(path, default):
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return default
+
+
+def _write_json(path, d):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(d, ensure_ascii=False, indent=1), encoding="utf-8")
+
+
+def baseline(sha):
+    """그 커밋에서 실패했던 묶음(지난 배포 시험 기록) - 없거나 오래됐으면 None."""
+    b = _read_json(BASELINE, {}).get(sha)
+    if not b or (dt.datetime.now() - dt.datetime.fromisoformat(b["t"])).days >= BASELINE_DAYS:
+        return None
+    return b["fail"]
+
+
+def save_baseline(sha, fail):
+    d = _read_json(BASELINE, {})
+    d[sha] = {"fail": sorted(fail), "t": _now()}
+    _write_json(BASELINE, dict(sorted(d.items(), key=lambda kv: kv[1]["t"])[-20:]))
+
+
+def estimate(files=()):
+    """예상 시간(초) - 지난 시험 시간 합 + 재시작·push 여유. 시험 기록이 없으면 None."""
+    if files and all(DOCS_ONLY.match(f) for f in files):
+        return 30
+    t = _read_json(TEST_TIMES, {})
+    return round(sum(t.values())) + 30 if t else None
 def status():
     try:
         d = json.loads(STATE_FILE.read_text(encoding="utf-8"))
@@ -117,7 +153,7 @@ def plan(fetch=True):
         blockers.append("다른 배포가 진행 중이다")
     return {"ok": not blockers, "main": _out("rev-parse", "--short", "main"), "branch": BRANCH, "commits": commits, "files": files,
             "render": any(f in RENDER_FILES for f in files), "requests": reqs, "originAhead": origin_ahead, "localAhead": local_ahead,
-            "blockers": blockers, "version": version(), "last": st}
+            "blockers": blockers, "version": version(), "last": st, "estimate": estimate(files)}
 
 
 # ---------- 시작(허브가 부른다) ----------
@@ -128,7 +164,7 @@ def start(by, extra=()):
         raise ValueError(" · ".join(p["blockers"]))
     LOG_DIR.mkdir(parents=True, exist_ok=True)
     log = LOG_DIR / f"{dt.datetime.now().strftime('%Y%m%d-%H%M%S')}.log"
-    _save({"state": "running", "by": by, "started": _now(), "steps": [], "ids": [r["id"] for r in p["requests"]], "log": str(log), "pid": None})
+    _save({"state": "running", "by": by, "started": _now(), "steps": [], "ids": [r["id"] for r in p["requests"]], "log": str(log), "pid": None, "estimate": p["estimate"]})
     kw = {}
     if os.name == "nt":
         kw["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.CREATE_NO_WINDOW
@@ -193,16 +229,34 @@ class Run:
         self.tmp.append(w)
         return w
 
-    def _run_tests(self, root, names=()):
-        """run_all → 실패한 묶음 이름. 시험은 격리 포트(5799 등)를 써서 운영 허브와 겹치지 않는다."""
-        env = {**os.environ, "PYTHONIOENCODING": "utf-8"}
+    def _run_tests(self, root, names=(), label="병합본"):
+        """run_all → 실패한 묶음 이름. 시험은 격리 포트(5799 등)를 써서 운영 허브와 겹치지 않는다.
+        출력을 줄 단위로 따라가며 묶음이 끝날 때마다 deploy.json 의 tests[label] 에 남긴다 - 화면이 묶음별 진행(✓/✕·초)을 보인다."""
+        env = {**os.environ, "PYTHONIOENCODING": "utf-8", "PYTHONUNBUFFERED": "1"}
         env.pop("NEXA_SLIDE_WORKSPACE", None)
-        r = subprocess.run([sys.executable, str(root / "studio" / "tests" / "run_all.py"), *names], cwd=str(root), env=env,
-                           capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=1800)
-        out = (r.stdout or "") + (r.stderr or "")
-        print(out[-4000:], flush=True)
-        bad = re.findall(r"^실패\s+(\S+)", out, re.M)
-        if r.returncode and not bad:
+        cmd = [sys.executable, str(root / "studio" / "tests" / "run_all.py"), *(["--exact", *names] if names else [])]
+        p = subprocess.Popen(cmd, cwd=str(root), env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, encoding="utf-8", errors="replace")
+        T = self.d.setdefault("tests", {})[label] = {"total": 0, "names": [], "done": []}
+        times = _read_json(TEST_TIMES, {})
+        t_end = time.time() + 1800
+        for line in p.stdout:
+            print(line, end="", flush=True)
+            if m := re.match(r"^== 묶음 (\d+)개: (.*)", line):
+                T["total"], T["names"] = int(m.group(1)), m.group(2).split()
+                _save(self.d)
+            elif (m := re.match(r"^== (\S+) · ", line)) and m.group(1) in T["names"]:
+                self.doing(f"시험({label}) {len(T['done']) + 1}/{T['total']} · {m.group(1)}")
+            elif m := re.match(r"^-- (통과|실패) (\S+) (\d+)s", line):
+                T["done"].append({"name": m.group(2), "ok": m.group(1) == "통과", "sec": int(m.group(3))})
+                times[m.group(2)] = int(m.group(3))
+                _save(self.d)
+            if time.time() > t_end:
+                p.kill()
+                break
+        p.wait()
+        _write_json(TEST_TIMES, times)
+        bad = [x["name"] for x in T["done"] if not x["ok"]]
+        if p.returncode and not bad:
             bad = ["run_all"]
         return bad
 
@@ -236,20 +290,34 @@ class Run:
         self.d["merge"] = merge
         self.step("병합", True, merge[:7])
         # 2) 시험 - 병합본에서 실패한 묶음만 병합 전(main)에서 다시 돌려 새로 생긴 실패만 막는다
-        if self.tests:
-            self.doing("시험 - 병합본 전체(몇 분)")
+        if self.tests and all(DOCS_ONLY.match(f) for f in p["files"]):
+            self.step("시험", True, "건너뜀 - 문서만 바뀌었다")
+        elif self.tests:
+            self.doing("시험 - 병합본 전체")
             bad = self._run_tests(w)
+            if "run_all" not in bad:
+                save_baseline(merge, bad)  # 배포가 끝나면 main = 이 커밋 - 다음 배포는 비교 시험을 다시 돌리지 않는다
             if bad:
-                try:
-                    base = self._worktree("deploy-base", prev)
-                except RuntimeError as e:
-                    return self.fail("시험", f"비교용 worktree 를 만들지 못했다: {e}")
-                self.doing(f"시험 - 실패 {len(bad)}개 묶음을 병합 전 main 에서 다시 돌려 비교")
-                before = set(self._run_tests(base, bad)) if "run_all" not in bad else set()
+                self.step("시험(병합본)", True, f"실패 {len(bad)}개 - 병합 전 main 과 비교: " + ", ".join(bad))
+                known = baseline(prev)
+                if "run_all" in bad:
+                    before = set()
+                elif known is not None:
+                    before = set(known)
+                    self.step("비교 기준", True, f"병합 전 main {prev[:7]} 의 지난 시험 기록을 쓴다(다시 돌리지 않음) - 실패 {len(known)}개")
+                else:
+                    try:
+                        base = self._worktree("deploy-base", prev)
+                    except RuntimeError as e:
+                        return self.fail("시험", f"비교용 worktree 를 만들지 못했다: {e}")
+                    self.doing(f"시험 - 실패 {len(bad)}개 묶음을 병합 전 main 에서 다시 돌려 비교")
+                    before = set(self._run_tests(base, bad, label="병합 전"))
+                    save_baseline(prev, before)  # 그 묶음들만 돌린 기록 - 다음에 다른 묶음이 실패하면 새 실패로 본다(막는 쪽으로 안전)
+                    self.step("비교 시험(병합 전)", True, f"병합 전에도 실패: {', '.join(sorted(before)) or '없음'}")
                 new = [b for b in bad if b not in before]
                 if new:
                     return self.fail("시험", "새로 생긴 실패: " + ", ".join(new))
-                self.step("시험", True, "새 실패 없음 (원래 있던 실패: " + ", ".join(bad) + ")")
+                self.step("시험 판정", True, "새 실패 없음 (원래 있던 실패: " + ", ".join(bad) + ")")
             else:
                 self.step("시험", True, "전부 통과")
             if p["render"]:

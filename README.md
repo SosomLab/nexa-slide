@@ -30,6 +30,67 @@ python3 ../my-talk/slides/nexa.py start   # 덱이 있으면 바로 Studio
 **엔진에는 슬라이드 내용을 저장하지 않는다.** 시작 페이지에서 템플릿·작성 방향·자료를 받고 **내용을 둘 폴더·저장소를 먼저 정한다**.
 정하지 않으면 운영체제의 문서 폴더 아래 `NexaSlide/<제목>` 에 만든다. 자세히는 [docs/home.md](docs/home.md).
 
+### AI 세션 준비 — [세션 시작] 을 쓰려면
+
+편집기·시작 페이지의 **[세션 시작]**(요청 메모를 AI 가 받아 덱을 고치는 웹 세션, 서버 요청을 처리하는 엔진 세션)은 서버가 **AI CLI 를 직접 실행**해서 동작한다.
+그래서 서버를 띄운 PC 에 아래 CLI 중 하나 이상이 **설치·로그인**되어 있고, 서버를 실행하는 **같은 사용자 계정**의 터미널에서 `claude`·`codex` 명령이 실행되어야 한다.
+CLI 가 없거나 로그인하지 않았으면 [세션 시작] 이 실패한다(편집·내보내기는 CLI 없이도 된다). 설치한 뒤에는 PATH 가 반영되도록 **서버를 재시작**한다(`python3 studio/service.py restart`).
+
+<details open>
+<summary><b>Claude Code</b> (기본) — <code>claude</code></summary>
+
+```powershell
+# Windows PowerShell
+irm https://claude.ai/install.ps1 | iex
+# 또는 WinGet
+winget install Anthropic.ClaudeCode
+```
+
+```bash
+# macOS · Linux · WSL
+curl -fsSL https://claude.ai/install.sh | bash
+# 또는 Homebrew(macOS) / npm(Node.js 22 이상)
+brew install --cask claude-code
+npm install -g @anthropic-ai/claude-code
+```
+
+```bash
+claude --version     # 설치 확인
+claude               # 처음 실행 → 브라우저 로그인 → /exit
+claude -p "Reply with exactly: OK" --output-format json --max-turns 1   # 서버가 부르는 방식(비대화형) 확인 - "result": "OK"
+```
+
+자세히: [docs/claude-install.md](docs/claude-install.md)(PATH·서버에서 쓸 때·문제 해결)
+</details>
+
+<details>
+<summary><b>OpenAI Codex CLI</b> — <code>codex</code></summary>
+
+```powershell
+# Windows PowerShell
+powershell -ExecutionPolicy ByPass -c "irm https://chatgpt.com/codex/install.ps1 | iex"
+```
+
+```bash
+# macOS · Linux
+curl -fsSL https://chatgpt.com/codex/install.sh | sh
+# 또는 npm / Homebrew(macOS)
+npm install -g @openai/codex
+brew install --cask codex
+```
+
+```bash
+codex --version         # 설치 확인
+codex login             # ChatGPT 계정 로그인(API 키: codex login --with-api-key)
+codex login status      # 로그인 확인
+```
+
+**Windows 주의**: npm·chocolatey 로 깐 `codex.exe` 는 명령 실행 보조 파일이 없어 세션이 아무 명령도 못 한다 — **Codex 데스크톱 앱**을 설치하면 엔진이 앱의 `codex.exe` 를 자동으로 쓴다.
+자세히: [docs/openai-codex.md](docs/openai-codex.md)
+</details>
+
+세션 시작 창에서 AI(`claude`·`codex`)와 모델을 고른다. 다른 AI(Gemini CLI·Cursor 등)는 [세션 시작] 대신 직접 연 세션으로 쓴다 — [docs/ai-editing.md](docs/ai-editing.md).
+
 ## 여러 작업 공간을 함께 운영
 
 엔진은 **실행 코드와 디자인 템플릿**을 제공하고, 각 폴더·저장소는 `nexa-slide.json` 에서 **고르기만** 한다(포트·템플릿·글꼴 프리셋·브랜드 파일·경로) — 디자인 값은 저장소에 두지 않는다([docs/templates.md](docs/templates.md)).

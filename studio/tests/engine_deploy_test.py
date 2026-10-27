@@ -127,7 +127,7 @@ helper.write_text(f'''import sys
 sys.path.insert(0, {str(ENG / "studio")!r})
 import engine_deploy as d
 mode = sys.argv[1]
-def fake(self, root, names=()):
+def fake(self, root, names=(), label="병합본"):
     if root.name == "deploy-merge":
         return ["smoke", "share"] if mode == "new" else ["smoke"]
     return ["smoke"]
@@ -142,6 +142,36 @@ r = subprocess.run([sys.executable, str(helper), "old"], env=ENV, capture_output
 st = json.loads(deploy("status")[1])
 check("(e) 원래 있던 실패만(smoke) → 통과 · main 이동 · push 안 함(--no-push)", r.returncode == 0 and git("rev-parse", "main") != before and git("rev-parse", "main", cwd=ORIGIN) == before,
       (r.stdout + r.stderr)[-400:])
+steps = [s["step"] for s in st.get("steps", [])]
+check("(e) 같은 병합 전 main 은 지난 비교 기록을 쓴다(다시 돌리지 않음)", "비교 기준" in steps and "비교 시험(병합 전)" not in steps, steps)
+
+# (f) 시험 진행 기록 - run_all 출력을 줄 단위로 따라가 묶음마다 tests[label] 에 남긴다(가짜 run_all)
+fake_root = WORK / "fakeroot"
+(fake_root / "studio" / "tests").mkdir(parents=True)
+(fake_root / "studio" / "tests" / "run_all.py").write_text('''print("== 묶음 2개: aa bb", flush=True)
+print("== aa · 설명", flush=True)
+print("-- 통과 aa 3s", flush=True)
+print("== bb · 설명", flush=True)
+print("-- 실패 bb 5s", flush=True)
+raise SystemExit(1)
+''', encoding="utf-8")
+helper2 = WORK / "stream_tests.py"
+helper2.write_text(f'''import json, sys
+from pathlib import Path
+sys.path.insert(0, {str(ENG / "studio")!r})
+import engine_deploy as d
+r = d.Run("admin1", tests=True, restart=False, push=False)
+bad = r._run_tests(Path({str(fake_root)!r}))
+print(json.dumps({{"bad": bad, "tests": r.d["tests"], "times": json.loads(d.TEST_TIMES.read_text("utf-8")), "est": d.estimate(["studio/x.py"]), "docs": d.estimate(["docs/a.md"])}}, ensure_ascii=False))
+''', encoding="utf-8")
+r = subprocess.run([sys.executable, str(helper2)], env=ENV, capture_output=True, text=True, encoding="utf-8", errors="replace")
+try:
+    o = json.loads(r.stdout.strip().splitlines()[-1])
+except Exception:  # noqa: BLE001
+    o = {}
+T = o.get("tests", {}).get("병합본", {})
+check("(f) 묶음별 진행(total·done ✓/✕·초) · 실패 묶음", o.get("bad") == ["bb"] and T.get("total") == 2 and [(x["name"], x["ok"], x["sec"]) for x in T.get("done", [])] == [("aa", True, 3), ("bb", False, 5)], r.stdout[-400:] + r.stderr[-400:])
+check("(f) 묶음 시간 기록 → 예상 시간 · 문서만이면 짧게", o.get("times", {}).get("aa") == 3 and o.get("est") == 38 and o.get("docs") == 30, o)
 
 shutil.rmtree(WORK, ignore_errors=True)
 print("\n전부 통과" if not FAILS else f"\n실패: {FAILS}")

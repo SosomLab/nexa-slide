@@ -87,7 +87,8 @@ try:
     st, d = admin("GET", BASE + "/api/engine/notice")
     os.utime(f, ns=(t.st_atime_ns, t.st_mtime_ns))
     check("notice.ui - 허브 화면 파일이 바뀌면 값이 바뀐다", ui0 and d.get("ui") and d.get("ui") != ui0, (ui0, d.get("ui")))
-    sc = {"base": BASE, "login": {"id": "admin", "password": "el-test-pass-1"}, "pages": [
+    sc = {"base": BASE, "login": {"id": "admin", "password": "el-test-pass-1"}, "ignoreErrors": "fontfile|wsfonts",  # 이 PC 에 없는 글꼴(Pretendard 등)의 404 - share_test 와 같음
+          "pages": [
         {"url": "/studio/home.html#start", "wait": 2500, "steps": [
             {"name": "카드 목록 5건 + 더 보기(전체 7건)", "js": "const n=document.querySelectorAll('#engList .ritem').length; const m=document.querySelector('#engList a[href=\"/engine\"]'); return n===5 && m && m.textContent.includes('7') ? true : 'n='+n+' more='+(m&&m.textContent)"}]},
         {"url": "/engine", "wait": 2000, "steps": [

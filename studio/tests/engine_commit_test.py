@@ -130,5 +130,35 @@ check("  outbox 비움", not list((WT / ".nexa" / "outbox").glob("*.json")))
 r = subprocess.run([sys.executable, str(shim), "list"], cwd=str(WT), capture_output=True, text=True, encoding="utf-8", errors="replace", env={**os.environ})
 check("shim 의 다른 명령(list)은 그대로 CLI 로", r.returncode == 0 and "끊긴 세션이 남긴 것" in r.stdout, r.stdout[-200:] + r.stderr[-200:])
 
+# (f) 턴 직전 main 따라잡기(sync_main) - 뒤처졌으면 받는다: 배포 안 한 커밋이 있으면 병합, 없으면 ff, 커밋 안 한 변경·충돌이면 손대지 않음
+def main_commit(name, text):
+    (REPO / name).write_text(text, encoding="utf-8")
+    git("add", "-A", cwd=REPO); git("-c", "user.name=t", "-c", "user.email=t@x", "commit", "-q", "-m", f"main {name}", cwd=REPO)
+
+
+check("뒤처지지 않았으면 할 일 없음", prof.sync_main() == (True, ""))
+main_commit("m1.txt", "main 새 파일\n")
+(WT / "wip.txt").write_text("작업 중\n", encoding="utf-8"); git("add", "wip.txt", cwd=WT)
+ok, msg = prof.sync_main()
+check("커밋 안 한 변경이 있으면 손대지 않음", not ok and "커밋하지 않은 변경" in msg and not (WT / "m1.txt").exists(), msg)
+git("reset", "-q", "--hard", cwd=WT)
+ok, msg = prof.sync_main()
+check("배포 안 한 커밋이 있으면 main 을 병합", ok and "맞췄다" in msg and "배포 안 한 커밋" in msg and (WT / "m1.txt").is_file()
+      and not git("rev-list", "engine-dev..main", cwd=REPO).stdout.strip(), msg)
+git("reset", "-q", "--hard", "main", cwd=WT)  # 배포가 끝난 상태(engine-dev = main)
+main_commit("m2.txt", "또\n")
+ok, msg = prof.sync_main()
+check("배포 안 한 커밋이 없으면 fast-forward", ok and git("rev-parse", "HEAD", cwd=WT).stdout == git("rev-parse", "main", cwd=REPO).stdout, msg)
+(WT / "m2.txt").write_text("engine-dev 쪽\n", encoding="utf-8"); git("-c", "user.name=t", "-c", "user.email=t@x", "commit", "-qam", "dev m2", cwd=WT)
+main_commit("m2.txt", "main 쪽\n")
+ok, msg = prof.sync_main()
+check("충돌이면 되돌리고 그대로(경고)", not ok and "충돌" in msg and not git("status", "--porcelain", "--untracked-files=no", cwd=WT).stdout.strip()
+      and (WT / "m2.txt").read_text(encoding="utf-8") == "engine-dev 쪽\n", msg)
+batch = [q.add("따라잡기 알림", "", kind="cli")]
+git("reset", "-q", "--hard", "main", cwd=WT); main_commit("m3.txt", "셋\n")
+seen = []
+prof.prompt(batch, "queue", type("S", (), {"emit": lambda self, k, **kw: seen.append((k, kw))})(), type("A", (), {"shell_note": "", "engine_commit_note": ""})())
+check("prompt(턴 직전)가 따라잡고 세션 로그에 알림", any(k == "text" and "맞췄다" in kw.get("text", "") for k, kw in seen) and (WT / "m3.txt").is_file(), seen)
+
 print("\n실패:", ", ".join(FAILS) if FAILS else "없음")
 sys.exit(1 if FAILS else 0)
