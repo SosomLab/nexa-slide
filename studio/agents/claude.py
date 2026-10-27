@@ -23,7 +23,7 @@ class ClaudeAgent(Agent):
     label = "Claude Code"
     guide_file = "CLAUDE.md"
     doc = "docs/claude-install.md"
-    default_models = ["opus", "sonnet", "haiku"]
+    default_models = ["opus", "sonnet", "haiku", "claude-fable-5-1"]  # Fable 은 별칭 대신 전체 ID(CLI 판에 따라 별칭이 없을 수 있다)
     verified = True
     exe_names = ("claude", "claude.exe", "claude.cmd")
 
