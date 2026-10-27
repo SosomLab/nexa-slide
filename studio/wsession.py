@@ -340,6 +340,19 @@ class EngineProfile:
             return False, f"{self.BRANCH} 를 main({main})에 맞추지 못했다(배포 안 한 커밋 {ahead}개와 충돌) - 옛 코드 위에서 처리한다: {(r.stderr or r.stdout).strip()[-200:]}"
         return True, f"{self.BRANCH} 를 main({main})에 맞췄다 - main 의 새 커밋 {behind}개" + (f", 배포 안 한 커밋 {ahead}개는 그대로(병합)" if ahead else "")
 
+    def dirty_files(self):
+        """worktree 에 커밋하지 않은 변경(추적 파일 수정 + 새 파일, .nexa/ 제외)."""
+        r = self._git("status", "--porcelain", cwd=self.cwd)
+        return [l[3:].strip() for l in (r.stdout or "").splitlines() if l.strip() and not l[3:].startswith(".nexa")]
+
+    def continue_prompt(self, batch, max_turns):
+        """도구 한도로 끊긴 턴을 같은 대화(--resume)로 이어 갈 때 넣는 글 - 처음 프롬프트·탐색 결과는 대화에 남아 있다."""
+        x = batch[0]
+        files = self.dirty_files()
+        return (f"도구 사용 한도({max_turns}회)에 걸려 앞 턴이 끊겼다. 엔진 요청 #{x['id']}({x.get('title', '')})을 이어서 마무리하라 - 처음부터 다시 탐색하지 말고 "
+                f"지금까지 한 변경을 확인한 뒤 남은 일(구현 마무리 → 시험 → worktree 커밋 → `python3 {self.req_cli()} status {x['id']} done --commit <해시> --branch {self.BRANCH} --test \"…\" --reply \"…\"`)만 한다.\n"
+                + (f"worktree 의 커밋하지 않은 변경: {', '.join(files[:30])}" if files else "worktree 에 커밋하지 않은 변경은 없다."))
+
     def prompt(self, batch, reason, sess, ag):
         try:
             ok, msg = self.sync_main()
@@ -354,8 +367,14 @@ class EngineProfile:
         if att:  # 큐의 evidence 는 사용자 설정 폴더 기준 경로 - 세션에는 cwd 안 사본 경로로 보여 준다
             show["evidence"] = [e for e in (show.get("evidence") or []) if not str(e).startswith("attach/")] + att
             show["attachments"] = att
-        return (tpl.replace("{id}", str(x["id"])).replace("{branch}", self.BRANCH).replace("{req_cli}", self.req_cli()).replace("{shell}", ag.shell_note)
+        text = (tpl.replace("{id}", str(x["id"])).replace("{branch}", self.BRANCH).replace("{req_cli}", self.req_cli()).replace("{shell}", ag.shell_note)
                 .replace("{commit}", ag.engine_commit_note).replace("{request}", json.dumps(show, ensure_ascii=False, indent=1)))
+        files = self.dirty_files()
+        if files:  # 앞 턴이 끊기며 남긴 변경 - 같은 요청이면 이어서, 다른 요청 것이면 건드리지 않게 알린다
+            text += (f"\n\n## worktree 에 커밋하지 않은 변경이 있다(앞 턴이 끝내지 못하고 남긴 것일 수 있다)\n{', '.join(files[:30])}\n"
+                     f"- 이 요청(#{x['id']})을 하다 남은 것이면 처음부터 다시 만들지 말고 검토해 이어서 마무리한다.\n"
+                     "- 다른 요청의 것이면 지우거나 섞어 커밋하지 말고, 이 요청을 open 으로 되돌려 reply 에 그 사실을 적는다.")
+        return text
 
     def settings_json(self, allow_web=False, grants=(), repo_root=None):  # 엔진 세션은 웹·grants 를 열지 않는다(무시 - 엔진 권한 묶음이 따로 있다)
         tpl = json.loads((STUDIO / "agents" / "permissions.json").read_text(encoding="utf-8"))
@@ -425,6 +444,10 @@ class EngineProfile:
         if x and x["status"] == "working":
             note = ((result or {}).get("text") or "").strip().splitlines()
             note = (note[0] if note else f"턴이 끝났지만 요청을 마무리하지 못함(코드 {rc_code})")[:300]
+            if (result or {}).get("subtype") == "error_max_turns":  # 끊긴 까닭과 남은 변경을 분명히 - 카드의 [다시 수행] 으로 이어 간다
+                files = self.dirty_files()
+                note = (f"도구 사용 한도({result.get('maxTurns') or '?'}회)에 걸려 끊김" + (f"(이어 하기 {result['continued']}번 포함)" if result.get("continued") else "")
+                        + (f" - worktree 에 커밋 안 한 변경 {len(files)}개가 남아 있다({', '.join(files[:5])}{' …' if len(files) > 5 else ''}). [다시 수행] 하면 이어서 마무리한다" if files else " - [다시 수행] 하면 다시 처리한다"))
             engine_requests.update(x["id"], status="open", by="engine-session", reply=(x.get("reply") or "") + f"\n[세션이 끝내지 못함] {note}")
             emit("warn", message=f"엔진 요청 #{x['id']} 를 끝내지 못해 open 으로 되돌렸다", ids=[x["id"]])
             return [x["id"]]
@@ -656,12 +679,11 @@ class WebSession:
             self.state = "running"
             self.turns += 1
             n = self.turns
-            made = getattr(self, "_sid_made", True)
-            cmd = ag.turn_cmd(self.model, self.session_id if made else None, self._settings_path if self.agent == "claude" else None,
-                              max_turns=self.limits.get("sessionMaxTurns"), budget_usd=self.limits.get("sessionBudgetUsd"), flags=self.flags, allow_web=self.allow_web,
-                              add_dirs=[self.repo_root] if self.repo_root and self.agent == "claude" else None,
-                              new_session_id=None if made else self.session_id, name=f"nexa-slide {self.p.kind}: {self.p.cwd.name} #{(self.session_id or '')[:8]}")  # /resume 목록에서 ID 앞 8자리로 찾을 수 있게
             self._turn_log = self._log_dir / f"turn-{n}.jsonl"
+        # 엔진 세션은 개발 요청이라 도구 반복·시간 한도가 따로(engineMaxTurns·engineTurnMinutes) - 웹 세션의 40회·20분으로는 탐색·구현·시험·커밋을 다 못 한다(#6)
+        eng = self.p.kind == "engine"
+        max_turns = self.limits.get("engineMaxTurns" if eng else "sessionMaxTurns")
+        cont_max = int(self.limits.get("engineContinue") or 0) if eng and hasattr(self.p, "continue_prompt") else 0
         self.emit("turn.start", turn=n, count=len(batch), reason=reason, ids=self.p.ids(batch), model=self.model)
         env = {**os.environ, **ag.env(), **self.p.env(self)}
         kw = {}
@@ -669,14 +691,39 @@ class WebSession:
             kw["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.CREATE_NO_WINDOW
         else:
             kw["start_new_session"] = True
+        prompt_text, attempt, cost = self.p.prompt(batch, reason, self, ag), 0, 0.0
+        while True:  # 도구 한도로 끊기면(error_max_turns) 같은 대화(--resume)로 이어서 - 엔진 세션만, engineContinue 번까지
+            result, rc_code = self._run_once(ag, n, prompt_text, max_turns, env, kw)
+            cost += float((result or {}).get("costUsd") or 0)
+            if (result or {}).get("subtype") == "error_max_turns" and attempt < cont_max and not self._stop.is_set() and self.session_id:
+                attempt += 1
+                self.emit("warn", turn=n, message=f"도구 사용 한도({max_turns}회)에 걸려 같은 대화로 이어서 처리한다({attempt}/{cont_max})")
+                prompt_text = self.p.continue_prompt(batch, max_turns)
+                continue
+            break
+        if result is not None and attempt:
+            result = {**result, "costUsd": round(cost, 4), "continued": attempt, "maxTurns": max_turns}
+        elif result is not None:
+            result = {**result, "maxTurns": max_turns}
+        self._finish_turn(batch, n, result, rc_code)
+
+    def _run_once(self, ag, n, prompt_text, max_turns, env, kw):
+        """에이전트 프로세스 한 번 - 프롬프트를 넣고 출력(NDJSON)을 이벤트로 옮긴다. → (result, 종료 코드)"""
+        with self.lock:
+            made = getattr(self, "_sid_made", True)
+            cmd = ag.turn_cmd(self.model, self.session_id if made else None, self._settings_path if self.agent == "claude" else None,
+                              max_turns=max_turns, budget_usd=self.limits.get("sessionBudgetUsd"), flags=self.flags, allow_web=self.allow_web,
+                              add_dirs=[self.repo_root] if self.repo_root and self.agent == "claude" else None,
+                              new_session_id=None if made else self.session_id, name=f"nexa-slide {self.p.kind}: {self.p.cwd.name} #{(self.session_id or '')[:8]}")  # /resume 목록에서 ID 앞 8자리로 찾을 수 있게
         result, stderr_tail, rc_code = None, [], None
+        self._stderr_tail = stderr_tail
         try:
             proc = subprocess.Popen([str(c) for c in cmd], cwd=str(self.p.cwd), env=env, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                                     stderr=subprocess.PIPE, **kw)
             with self.lock:
                 self._proc = proc
             try:
-                proc.stdin.write(self.p.prompt(batch, reason, self, ag).encode("utf-8"))
+                proc.stdin.write(prompt_text.encode("utf-8"))
                 proc.stdin.close()
             except OSError:
                 pass
@@ -715,7 +762,7 @@ class WebSession:
             t_out = threading.Thread(target=read_out, daemon=True)
             t_err.start()
             t_out.start()
-            limit = float(self.limits.get("sessionTurnMinutes") or 20) * 60
+            limit = float(self.limits.get("engineTurnMinutes" if self.p.kind == "engine" else "sessionTurnMinutes") or 20) * 60
             try:
                 rc_code = proc.wait(timeout=limit)
             except subprocess.TimeoutExpired:
@@ -730,6 +777,10 @@ class WebSession:
         finally:
             with self.lock:
                 self._proc = None
+        return result, rc_code
+
+    def _finish_turn(self, batch, n, result, rc_code):
+        stderr_tail = getattr(self, "_stderr_tail", [])
         unhandled = self.p.reconcile(batch, result, rc_code, self.emit)
         with self.lock:
             ok = rc_code == 0 and (result is None or result.get("ok", True))
