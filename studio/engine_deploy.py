@@ -36,6 +36,7 @@ STATE_FILE = engine_requests.ENGINE_DIR / "deploy.json"  # 마지막 배포 {sta
 LOG_DIR = engine_requests.ENGINE_DIR / "deploy-logs"
 RENDER_FILES = ("studio/render.js", "studio/common.py", "studio/export_pptx.py")
 DRAIN_WAIT = 600  # 처리 중인 턴이 끝나길 기다리는 최대 초
+SESSION_OFF_WAIT = 20  # 턴 대기 뒤 허브가 웹 엔진 세션을 끄길 기다리는 최대 초(stopped 하트비트)
 TEST_TIMES = engine_requests.ENGINE_DIR / "test-times.json"  # 묶음별 지난 시험 시간 {이름: 초} - 화면의 예상 시간
 BASELINE = engine_requests.ENGINE_DIR / "test-baseline.json"  # 커밋별 실패 묶음 {sha: {fail: […], t}} - 병합 전 main 을 다시 돌리지 않게
 BASELINE_DAYS = 3  # 이보다 오래된 기록은 쓰지 않는다(그사이 환경이 바뀌었을 수 있다)
@@ -342,6 +343,10 @@ class Run:
             if busy:
                 return self.fail("턴 마무리 대기", "처리 중인 턴이 끝나지 않았다: " + ", ".join(busy))
             self.step("턴 마무리 대기", True)
+            # 허브가 이 단계를 보고 웹 엔진 세션을 끈다(server._deploy_stop_engine) - 끝날 때까지 잠깐 기다린 뒤 재시작(수동 세션은 그대로)
+            t0 = time.time()
+            while time.time() - t0 < SESSION_OFF_WAIT and (hb := engine_requests.session_state()).get("connected") and hb.get("kind") != "manual":
+                time.sleep(1)
         running = self._running_ws() if self.restart else []
         # 4) 운영 트리 main 을 병합 커밋으로(fast-forward) - 커밋하지 않은 다른 변경은 그대로 둔다
         code, out = git("merge", "--ff-only", merge)

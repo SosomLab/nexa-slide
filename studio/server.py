@@ -121,6 +121,21 @@ def ver(p: Path):
         return "0"
 
 
+def _deploy_stop_engine():
+    """배포가 '턴 마무리 대기'를 지나면(= 곧 허브 재시작) 웹 엔진 세션을 끈다 - 그 전(병합·시험)에는 세션이 계속 요청을 처리한다.
+    service.py 는 허브를 강제 종료해 세션의 자식 프로세스가 남으므로 허브가 먼저 정리한다. 배포가 실패로 끝나면 끄지 않는다."""
+    import engine_deploy
+    while True:
+        time.sleep(1)
+        d = engine_deploy.status()
+        if d.get("state") != "running":
+            return
+        if any(x.get("step") == "턴 마무리 대기" for x in d.get("steps") or []):
+            if WS_ENGINE is not None and WS_ENGINE.state != "off":
+                WS_ENGINE.stop("deploy")
+            return
+
+
 def deck_path(i):
     return DECKS / f"{i}.json"
 
@@ -1405,11 +1420,11 @@ class H(BaseHTTPRequestHandler):
                 return self.err(409, "엔진 세션이 턴을 처리 중이다 - 끝난 뒤 배포한다")
             import engine_deploy
             try:
-                if WS_ENGINE is not None and WS_ENGINE.state != "off":  # 재시작하면 어차피 끊긴다 - 허브가 먼저 정리해 자식 프로세스가 남지 않게
-                    WS_ENGINE.stop("deploy")
                 d = engine_deploy.start(who)
             except ValueError as e:
                 return self.err(409, str(e))
+            if WS_ENGINE is not None:  # 세션은 병합·시험(몇 분) 동안 그대로 두고 재시작 직전에 끈다(0.22.40)
+                threading.Thread(target=_deploy_stop_engine, name="deploy-stop-engine", daemon=True).start()
             self._event = "engine.deploy"
             return self.send_json({"ok": True, "last": d})
         if what == "tidy":  # {action: clean, categories: […]} - 보고된 것 중 고른 범주를 지운다(관리자, 범주가 없으면 engine_tidy.DEFAULTS)
