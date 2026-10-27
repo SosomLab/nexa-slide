@@ -226,10 +226,11 @@ B-1·B-2 는 기존 동작을 바꾸지 않는다. B-3 부터 새 기능. 각 �
 - 기동 잠금 `e677ff0`: `service.py start` 에 `out/.studio/start.lock`(FileLock), 서버는 bind 뒤 `server.json` 의 다른 살아 있는 서버를 보면 물러남 — 허브 중계 자동 기동과 `nexa.py restart` 의 경합.
 - 후속 요청 `148b8a7`(0.19.1): 완료된 요청에 사용자가 답할 길이 없던 문제(세션이 질문하며 `done`, "다시 열기"는 같은 text 를 다시 보낼 뿐). 요청에 `parent`·`thread`(뿌리 id)를 두고 대상은 물려받으며 원 요청은 그대로, `requests_core.brief()` 가 같은 thread 의 앞선 요청·답을 `context`(최근 6개·항목당 800자·첨부 경로)로 붙인다. `turn_prompt.md` 에 context 규칙과 "묻는 reply 면 done 금지", `WorkspaceProfile.reconcile` 이 질문으로 끝나는 reply 인데 `done` 이면 `warn` 이벤트(상태는 바꾸지 않음, `QUESTION_RX`). 결정: 선택지 자동 버튼은 두지 않는다(단순하게).
 
-### 14.1 진행 현황 (2026-10-18 갱신 · 0.22.28)
+### 14.1 진행 현황 (2026-10-28 갱신 · 0.22.42)
 
 | 단계 | 상태 |
 |---|---|
+| **엔진 배포**(카드 [배포] - 병합·시험·턴 대기·재시작·push·적용됨, `engine_deploy.py`) · 큐 #4~#11 | 운영 중(0.22.29~0.22.42). 2026-10-28 01:15 배포가 처음으로 시험 28/28 전부 통과·버튼 한 번에 완료. 막히던 원인(시험 환경 탓 실패·배포 시험과 세션 시험의 동시 실행)을 고침 - 시험 잠금(`tests/testlock.py`)·새 실패 재시도·세션은 재시작 직전까지 유지. 기록: [engine-request-design.md](engine-request-design.md) 12.4 |
 | **세션 역할 분담**(2026-10-17): 개발 세션(엔진 코드·큐 처리·브랜치/병합) · 협업 세션(요청 정리·검토·운영 반영·문서) | 운영 중 - 큐 #1~#13 을 이 분담으로 처리(개발 세션이 구현·병합, 협업 세션이 허브 재시작·검토·`applied`). 2026-10-18 사용자 지시로 **문서 작성은 협업 세션 전담**(전용 worktree `docs/<주제>` → 개발 세션 병합) |
 | **Codex 웹 세션**(서비스 유형 `codex`) | **확인됨(0.22.22, Windows · codex-cli 0.163 · gpt-6-luna)** - 작업 공간 테스트1에서 요청 처리 끝까지. 어댑터 결함 4건 고침(인자 불일치 · chocolatey 판 code-mode host 없음 → 앱 동봉 CLI · windows.sandbox 전달 · `resume` 옵션 순서), 프롬프트 `{shell}` |
 | **Codex 스킬** `$nexa-slide-session`·`$nexa-slide-server`(`.codex/skills/`, 1회 대기 반복 · `watch_engine_requests --wait`) | 완료(0.22.22). 엔진 저장소와 작업 공간(`init_workspace`·`update_launcher`) |
