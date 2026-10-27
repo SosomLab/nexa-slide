@@ -160,5 +160,46 @@ seen = []
 prof.prompt(batch, "queue", type("S", (), {"emit": lambda self, k, **kw: seen.append((k, kw))})(), type("A", (), {"shell_note": "", "engine_commit_note": ""})())
 check("prompt(턴 직전)가 따라잡고 세션 로그에 알림", any(k == "text" and "맞췄다" in kw.get("text", "") for k, kw in seen) and (WT / "m3.txt").is_file(), seen)
 
+# (g) 도구 한도(error_max_turns) - 엔진 세션은 한도 150 · 같은 대화로 2번까지 이어 하기 · 그래도 못 끝내면 까닭·남은 변경을 reply 에, awaiting(카드 [다시 수행])
+import agents  # noqa: E402
+sess = wsession.WebSession(prof)
+sess.agent, sess.model, sess.session_id, sess._sid_made = "claude", "opus", "sid-1", True
+sess.limits = dict(agents.LIMITS)
+sess._log_dir = ROOT / "logs"
+sess._log_dir.mkdir(exist_ok=True)
+runs = []
+
+
+def fake_runs(seq):
+    it = iter(seq)
+
+    def run_once(ag, n, prompt_text, max_turns, env, kw):
+        runs.append((prompt_text, max_turns))
+        r = next(it)
+        return r, 0 if r.get("ok") else 1
+    return run_once
+
+
+git("reset", "-q", "--hard", "main", cwd=WT)
+for y in q.load():  # 앞 시험이 남긴 요청은 치운다
+    if y["status"] in ("open", "working", "triage"):
+        q.update(y["id"], status="rejected", by="admin")
+it6 = q.add("한도 시험", "", kind="cli")
+batch, _ = src.poll()
+(WT / "half.txt").write_text("반쯤\n", encoding="utf-8")
+sess._run_once = fake_runs([{"subtype": "error_max_turns", "ok": False, "costUsd": 1.0}] * 3)
+sess._turn(batch, "queue")
+x6 = q.get(it6["id"])
+check("한도에 걸리면 같은 대화로 2번 이어 하기(모두 3번) · 한도 150", len(runs) == 3 and all(m == 150 for _, m in runs) and "도구 사용 한도(150회)" in runs[1][0] and "half.txt" in runs[1][0], [(p[:60], m) for p, m in runs])
+check("  첫 프롬프트에 남은 변경 안내(앞 턴이 남긴 것)", "커밋하지 않은 변경이 있다" in runs[0][0] and "half.txt" in runs[0][0])
+check("  못 끝내면 open · awaiting · reply 에 까닭(한도·이어 하기 2번)·남은 변경", x6["status"] == "open" and x6.get("awaiting") and "도구 사용 한도(150회)" in x6["reply"] and "이어 하기 2번" in x6["reply"] and "half.txt" in x6["reply"], x6.get("reply"))
+q.update(it6["id"], status="open", by="admin")
+b2, _ = src.poll()
+check("[다시 수행](관리자 status open) → awaiting 풀림 · 다시 받음", not q.get(it6["id"]).get("awaiting") and b2 and b2[0]["id"] == it6["id"], b2)
+runs.clear()
+sess._run_once = fake_runs([{"subtype": "error_max_turns", "ok": False, "costUsd": 1.0}, {"subtype": "success", "ok": True, "costUsd": 0.5, "text": "끝"}])
+sess._turn(b2, "queue")
+check("이어 하기로 끝나면 거기서 그침(2번)", len(runs) == 2, len(runs))
+
 print("\n실패:", ", ".join(FAILS) if FAILS else "없음")
 sys.exit(1 if FAILS else 0)

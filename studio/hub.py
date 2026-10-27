@@ -253,7 +253,7 @@ def workspace_info(path, state=False):
             "session": session_summary(p, cfg)}
 
 
-SESSION_KEYS = ("sessionAgent", "sessionModel", "sessionModels", "sessionIdleMinutes", "sessionTurnMinutes", "sessionMax", "sessionMaxTurns", "sessionBudgetUsd", "agentPaths",
+SESSION_KEYS = ("sessionAgent", "sessionModel", "sessionModels", "sessionIdleMinutes", "sessionTurnMinutes", "sessionMax", "sessionMaxTurns", "sessionBudgetUsd", "engineMaxTurns", "engineTurnMinutes", "engineContinue", "agentPaths",
                 "sessionAllowWeb", "sessionAllowGit", "sessionAllowPush", "sessionRepoRoot")  # 세션 단위로 열 수 있는 권한의 전역 스위치(기본 끔) - 웹 검색 · git 기록 · push · 저장소 루트 접근
 
 
@@ -379,7 +379,7 @@ def update_settings(b):
         if not isinstance(m, dict):
             raise HubError("sessionModels 는 {에이전트: [모델…]}")
         s["sessionModels"] = {str(k): [str(x).strip() for x in (v or []) if str(x).strip()] for k, v in m.items() if str(k) in ("claude", "codex")}
-    for k in ("sessionIdleMinutes", "sessionTurnMinutes", "sessionMax", "sessionMaxTurns"):
+    for k in ("sessionIdleMinutes", "sessionTurnMinutes", "sessionMax", "sessionMaxTurns", "engineMaxTurns", "engineTurnMinutes", "engineContinue"):
         if k in b:
             v = str(b[k] if b[k] is not None else "").strip()
             if v:

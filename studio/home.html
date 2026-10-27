@@ -833,6 +833,7 @@
     $("#engList").innerHTML = items.length ? items.map((x) => {
       const f = x.from || {};
       const acts = admin ? [x.status === "triage" ? `<button type="button" class="chip sm" data-er="open" data-id="${x.id}">승인</button>` : "",
+        x.status === "open" && x.awaiting ? `<button type="button" class="chip sm primary" data-er="retry" data-id="${x.id}" title="세션이 끝내지 못했거나 되묻고 멈춘 요청을 다시 보낸다 - 같은 대화로 이어 가므로 앞 턴의 작업·worktree 변경을 이어서 마무리한다">${icon("play", 13)}다시 수행</button>` : "",
         x.status === "done" ? `<button type="button" class="chip sm" data-er="applied" data-id="${x.id}" title="main 에 병합·재시작한 뒤">적용됨</button>` : "",
         ["triage", "open", "done"].includes(x.status) ? `<button type="button" class="chip sm" data-er="rejected" data-id="${x.id}">거절</button>` : "",
         ["rejected", "applied"].includes(x.status) ? `<button type="button" class="ib" data-er="remove" data-id="${x.id}" title="목록에서 지우기">${icon("x", 13)}</button>` : ""].join("") : "";
@@ -980,6 +981,13 @@
         applied = (prompt(`#${id} 의 커밋을 main 에 병합하고 서버를 재시작했나요? 적용됨으로 표시합니다.
 병합 커밋(main) 해시:`, ((H.engine || {}).git || {}).main || "") || "").trim();
         if (!applied) return;
+      }
+      if (act === "retry") {  // open 그대로 두고 '사람 응답 대기(awaiting)'만 푼다 - 세션 밖의 갱신이면 서버가 푼다, 세션이 1초 안에 다시 받는다
+        const r = await post("/api/engine/requests", { action: "status", id, status: "open" });
+        if (!r.ok) { toast(r.data.error || "실패", 5000); return; }
+        const es = (H.engine || {}).session || {};
+        toast(es.state && es.state !== "off" ? `#${id} 를 다시 보냈습니다 - 세션이 곧 이어서 처리합니다` : `#${id} 를 다시 대기열에 넣었습니다 - [세션 시작] 을 눌러야 처리됩니다`, 6000);
+        loadEngine(); return;
       }
       const r = act === "remove" ? await post("/api/engine/requests", { action: "remove", id }) : await post("/api/engine/requests", { action: "status", id, status: act, ...(applied ? { appliedCommit: applied } : {}) });
       if (!r.ok) toast(r.data.error || "실패", 5000); loadEngine(); return;

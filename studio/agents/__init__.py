@@ -18,7 +18,8 @@ from .codex import CodexAgent  # noqa: E402
 
 AGENTS = {"claude": ClaudeAgent, "codex": CodexAgent}
 DEFAULT_AGENT, DEFAULT_MODEL = "claude", "opus"
-LIMITS = {"sessionIdleMinutes": 60, "sessionTurnMinutes": 20, "sessionMax": 3, "sessionMaxTurns": 40, "sessionBudgetUsd": None}
+LIMITS = {"sessionIdleMinutes": 60, "sessionTurnMinutes": 20, "sessionMax": 3, "sessionMaxTurns": 40, "sessionBudgetUsd": None,
+          "engineMaxTurns": 150, "engineTurnMinutes": 60, "engineContinue": 2}  # 엔진 세션(개발 요청) - 도구 반복·턴 시간·한도에 걸렸을 때 같은 대화로 이어 하기 횟수
 
 
 def get(name):

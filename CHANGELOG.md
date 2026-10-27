@@ -1,11 +1,22 @@
 # 변경 이력
 
-## 0.22.34 - 2026-10-27 · 엔진 개발 영역 정리(engine-request #6)
+## 0.22.35 - 2026-10-27 · 엔진 개발 영역 정리(engine-request #6)
 
 - **엔진 개발 영역 정리**(`studio/engine_tidy.py`) - 작업 공간 정리(`tidy.py`)의 엔진 쪽 짝. 허브 서버 요청 카드의 **🧹**(관리자)가 작업 공간 정리와 같은 창을 엔진 범주로 연다.
   범주: **고아 첨부**(큐에 없는 요청의 `attach/<id>/`·하루 넘은 `_new/` - 전부터 있던 `/api/engine/tidy` 의 대상) · **worktree 첨부 사본**(`engine-dev/.nexa/attach/<id>/` 중 끝난·없는 요청) · **회귀 확인 사본·임시 파일**(`scratch/regress-*`·`engine-*.zip`·`*.tmp`, 한 시간 지난 것) · **오래된 로그**(엔진 세션 턴 로그 최근 10개·배포 로그 최근 20개 밖, 기본으로 고르지 않음) · **남은 시험용 worktree**(`.claude/worktrees/deploy-*`, `git worktree remove`·`prune`).
   다시 생기거나 기록뿐인 파일이라 옮겨 두지 않고 바로 지운다(확인을 받음). 배포 중이면 배포 로그·worktree 는 건너뛰고, 큐·배포 기록·기준 엔진 사본·`.nexa/outbox` 는 건드리지 않는다.
 - `GET/POST /api/engine/tidy` 가 `engine_tidy` 를 쓴다(POST `{action: clean, categories: […]}`, 범주가 없으면 기본 범주). CLI: `python3 studio/engine_tidy.py [--apply] [--only …] [--json]`.
+
+## 0.22.34 - 2026-10-27 · 엔진 세션 도구 한도 분리 · 한도에 걸리면 이어 하기 · 카드 [다시 수행]
+
+엔진 요청 #6(정리 로직 추가)이 탐색·구현·시험까지 하고 커밋·done 직전에 `--max-turns 40`(웹 세션 기본)에 걸려 "마무리하지 못함(코드 1)"으로 멈췄다 - 변경 9개가 worktree 에 커밋 없이 남고, 요청은 사람 응답 대기라 다시 돌릴 단추가 없었다.
+
+- **엔진 세션 한도를 따로**: 턴당 도구 반복 `engineMaxTurns` 150(웹 세션 `sessionMaxTurns` 40 은 그대로) · 턴 시간 `engineTurnMinutes` 60분(웹 20분). 전역 설정(`settings.json`·`POST /api/settings`, 관리자).
+- **한도에 걸리면 이어 하기**: `error_max_turns` 면 같은 대화(`--resume`)에 "처음부터 다시 탐색하지 말고 남은 일(시험·커밋·done)만 + worktree 의 커밋 안 한 변경 목록"을 넣어 `engineContinue`(2)번까지 이어 간다. 비용은 합쳐 기록.
+- **그래도 못 끝내면 까닭을 분명히**: reply 에 "도구 사용 한도(150회)에 걸려 끊김(이어 하기 2번 포함) - worktree 에 커밋 안 한 변경 n개(파일…)" - 전에는 "코드 1"만.
+- **카드 [다시 수행]**(관리자): 세션이 끝내지 못했거나 되묻고 멈춘(awaiting) 요청에 주 색 단추. 상태는 open 그대로 두고 대기만 풀어 세션이 1초 안에 다시 받는다(세션이 꺼져 있으면 그렇다고 알림). 터미널은 `python3 studio/engine_request.py status <id> open --by <이름>`.
+- **턴 프롬프트에 남은 변경 안내**: worktree 에 커밋 안 한 변경이 있으면 "이 요청 것이면 검토해 이어서, 다른 요청 것이면 손대지 말고 open" 을 덧붙인다.
+- 시험 `engcommit` (g) 5항목(가짜 에이전트 실행: 3번 이어 하기·첫 프롬프트 안내·reply 까닭·[다시 수행]·이어 하기로 끝나면 그침).
 
 ## 0.22.33 - 2026-10-27 · 엔진 배포 진행을 단계·시험 묶음별로 · 배포 시간 단축 · 요청 전 main 따라잡기
 
