@@ -107,7 +107,7 @@
 - Windows 에는 Bash 와 별개로 **PowerShell 도구**가 있다(Git 설치 시 기본 켜짐) — `Bash(powershell *)` 로는 막히지 않으므로 deny 에 맨 이름 `PowerShell`(또는 `--tools` 에서 제외).
 - 한계(문서 명시): Read/Edit deny 는 python 같은 하위 프로세스가 직접 여는 파일에는 적용되지 않는다 → 허용 Bash 를 **`python3 nexa.py *` 로 좁힌 것이 핵심**이고, 이 규칙은 상대 경로 형태만 맞으므로 턴 프롬프트에 "nexa.py 는 cwd 기준 `python3 nexa.py …` 로만 실행(절대 경로로 부르면 거절됨)"을 명시한다(§6).
 - MCP: 개인 설정의 MCP 서버가 `-p` 세션에 실리지 않게 `--strict-mcp-config` + deny `mcp__*`.
-- 한도: `--max-turns`(턴당 도구 반복 상한, `sessionMaxTurns` 기본 40) · `--max-budget-usd`(API 키 과금일 때, `sessionBudgetUsd` 기본 없음).
+- 한도: `--max-turns`(턴당 도구 반복 상한, `sessionMaxTurns` 기본 40 · 엔진 세션은 `engineMaxTurns` 150 - 0.22.34) · `--max-budget-usd`(API 키 과금일 때, `sessionBudgetUsd` 기본 없음).
 - `codex` 는 `--sandbox workspace-write`(cwd 안만 쓰기) + `-c approval_policy="never"`(답할 사람이 없다) + `--ignore-user-config`. 네트워크는 §4.
 - 선택(후속): 세션 전용 Windows 계정 + `icacls` 로 그 폴더에만 Modify.
 
@@ -128,7 +128,7 @@
 | 모델 | `sessionModel`(기본 `"opus"`) | `sessionModel` | 선택 + "이 작업 공간 기본으로 저장" |
 | 모델 목록 | `sessionModels: {"claude": ["fable","opus","sonnet","haiku"], "codex": [...]}` + 직접 입력 | — | — |
 | 실행 파일 | `agentPaths: {"claude": "...", "codex": "..."}`(없으면 PATH) | — | — |
-| 한도 | `sessionIdleMinutes`(60) · `sessionTurnMinutes`(20) · `sessionMax`(동시 세션 수, 3 — 구독 사용량 한도를 고려하면 2 도 검토) · `sessionMaxTurns`(40) · `sessionBudgetUsd`(없음) | — | — |
+| 한도 | `sessionIdleMinutes`(60) · `sessionTurnMinutes`(20, 엔진 `engineTurnMinutes` 60) · `sessionMax`(동시 세션 수, 3 — 구독 사용량 한도를 고려하면 2 도 검토) · `sessionMaxTurns`(40) · `sessionBudgetUsd`(없음) | — | — |
 
 - 전역 항목 변경은 **관리자만**(`POST /api/settings`). 작업 공간 기본은 로그인 사용자 누구나(`user`) — 그 작업 공간을 쓰는 사람이 정한다.
 - 잘못된 모델 값은 시작 시 CLI 오류를 그대로 보여 주고 `error`.
