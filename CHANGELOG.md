@@ -1,5 +1,12 @@
 # 변경 이력
 
+## 0.22.34 - 2026-10-27 · 엔진 개발 영역 정리(engine-request #6)
+
+- **엔진 개발 영역 정리**(`studio/engine_tidy.py`) - 작업 공간 정리(`tidy.py`)의 엔진 쪽 짝. 허브 서버 요청 카드의 **🧹**(관리자)가 작업 공간 정리와 같은 창을 엔진 범주로 연다.
+  범주: **고아 첨부**(큐에 없는 요청의 `attach/<id>/`·하루 넘은 `_new/` - 전부터 있던 `/api/engine/tidy` 의 대상) · **worktree 첨부 사본**(`engine-dev/.nexa/attach/<id>/` 중 끝난·없는 요청) · **회귀 확인 사본·임시 파일**(`scratch/regress-*`·`engine-*.zip`·`*.tmp`, 한 시간 지난 것) · **오래된 로그**(엔진 세션 턴 로그 최근 10개·배포 로그 최근 20개 밖, 기본으로 고르지 않음) · **남은 시험용 worktree**(`.claude/worktrees/deploy-*`, `git worktree remove`·`prune`).
+  다시 생기거나 기록뿐인 파일이라 옮겨 두지 않고 바로 지운다(확인을 받음). 배포 중이면 배포 로그·worktree 는 건너뛰고, 큐·배포 기록·기준 엔진 사본·`.nexa/outbox` 는 건드리지 않는다.
+- `GET/POST /api/engine/tidy` 가 `engine_tidy` 를 쓴다(POST `{action: clean, categories: […]}`, 범주가 없으면 기본 범주). CLI: `python3 studio/engine_tidy.py [--apply] [--only …] [--json]`.
+
 ## 0.22.33 - 2026-10-27 · 엔진 배포 진행을 단계·시험 묶음별로 · 배포 시간 단축 · 요청 전 main 따라잡기
 
 - **진행 표시**: 펼친 배포 판에 큰 단계 표시줄(확인→병합→시험→턴 대기→main 반영→재시작→push→적용됨, 끝난 것 ✓·지금 것 돌아감), 끝난 단계마다 한 줄과 걸린 시간, 지금 단계의 경과 시간, **시험 묶음별 진행 막대·칩**(26개 묶음이 끝날 때마다 ✓/✕·초), 경과·예상 시간. 계획 판에도 예상 시간.

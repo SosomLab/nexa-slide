@@ -26,6 +26,7 @@ NEXA_TEST_DIR=/tmp/nexa-tests python3 studio/tests/run_all.py   # 산출물 자�
 | englist | `englist_test.py` | 서버 작업 카드 최근 5건·`total`, `GET /api/engine/requests?q=`·`?status=`, `/engine` 페이지(검색·강조·상태 칩·펼치기·거절·삭제) | Node, Chrome |
 | editor | `editor_ui_test.py` + `scenarios/*.json` | 편집기 UI — 시험용 작업 공간(덱 4개)을 만들어 작업 공간 서버(5667)를 띄우고 시나리오를 돌린다: 그림 삽입(API·Ctrl+V·끌어다 놓기), 삽입 패널(도형·다이어그램·차트·아이콘 타일), 표 행·열 단추·글머리 감지 스위치, 묶기/풀기, 링크·그림자·자르기 속성·발표자 보기, 명령 팔레트·접는 절·스마트 가이드, 글꼴 세트 선택 상자 넘침, 요청 기록 창(퍼지·단어 단위·정규식 토글) | Node, Chrome |
 | tidy | `tidy_test.py` | 작업 공간 정리·보관(`tidy.py`) — 산출물·참조 없는 그림(백업 참조 표시)·고아 첨부·세션 로그·백업 보고, clean(옮김)·restore·purge, archive zip 제외 규칙, 작업 공간 서버 `/api/tidy`, 요청 첨부 삭제(discard·update) | - |
+| enginetidy | `engine_tidy_test.py` | 엔진 개발 영역 정리(`engine_tidy.py`) — 고아 첨부·worktree 첨부 사본(끝난 요청만)·회귀 사본·임시 파일·최근 N개 밖 로그·시험용 worktree 보고, 남길 것(열린 요청 첨부·새 파일·기준 엔진 사본·outbox) 제외, 고른 범주만 지움, 배포 중이면 로그·worktree 건너뜀(격리 사용자 설정 폴더) | - |
 | deck | `deck_test.py` | 덱 관리(`deck_admin`) — 짧은 해시 id 생성, 복제(content 포함), 시작 덱(`startDeck`)·목록 ★, 작업 공간 서버 `/api/decks` copy·start | - |
 | (수동) shift_bench | `shift_bench.py <작업 공간> <preset|->` | 글 세로 위치 대조 — 상자·타원(흰 글)을 크기×줄 높이로 깔고 PowerPoint 렌더와 브라우저 캡처의 글자 세로 중심 차이를 재 `shift = size×(a×lh+b)` 를 맞춘다(보정이 맞으면 a≈0·b≈0, 잔차 ±1px) | PowerPoint, Chrome, Pillow |
 | runs · effect | `runs_test.py` · `effect_test.py` | 인라인 강조 겹치기(`common.runs` ↔ `render.runs`, 취소선·첨자·형광펜·글자 링크 포함) · 그림 프레임 효과 PPTX XML·CSS | Node |
