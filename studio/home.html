@@ -853,15 +853,19 @@
     const box = $("#engDeploy"), last = (H.engine && H.engine.deploy) || DEP.last || null;
     // 같은 내용이면 DOM 을 그대로 두고, 바뀌면 스피너 위상을 문서 시계에 맞춰(--spin-d) 새로 그려도 회전이 처음부터 다시 돌지 않게
     const put = (html) => { if (html === DEP.html) return; DEP.html = html; box.style.setProperty("--spin-d", `-${Math.round(performance.now() % 800)}ms`); box.innerHTML = html; };
-    if (!admin || !(g.ahead || c.done || DEP.open || (last && last.state === "running"))) { put(""); return; }
+    // 배포할 것이 없어도 지난 배포가 있으면 머리줄(결과 배지·[지난 배포 보기])은 남긴다 - 배포가 끝나 허브가 재시작되면 판이 통째로 사라져 결과를 볼 수 없던 것(0.22.42)
+    const pending = g.ahead || c.done, had = last && last.state && last.state !== "none";
+    if (!admin || !(pending || had || DEP.open)) { put(""); return; }
     const head = `<div class="row" style="align-items:center;gap:6px;margin-top:6px;font-size:12.5px"><span style="flex:1;min-width:0">${c.done ? `완료(적용 대기) <b>${c.done}</b>건` : ""}${g.ahead ? `${c.done ? " · " : ""}${esc(g.branch || "engine-dev")} <b>+${g.ahead}</b> 커밋` : ""}${last && last.state && last.state !== "none" ? ` <span class="badge ${last.state === "running" ? "run" : last.state === "ok" ? "ok" : ""}" title="${esc(last.message || "")}">${DEP_KO[last.state] || esc(last.state)}${last.finished ? ` · ${fmtT(last.finished)}` : ""}</span>` : ""}${last && last.state === "running" && last.cur ? ` <span class="hint">${esc(last.cur.step)}…</span>` : ""}</span>`
       + (DEP.open
         ? `<button type="button" class="dep-tog open" data-eng="deploy" aria-expanded="true" title="배포 내용 접기">${icon("chevUp", 15)}접기</button></div>`
-        : `<button type="button" class="dep-tog" data-eng="deploy" aria-expanded="false" title="들어갈 커밋·요청을 펼쳐 보고 배포를 시작한다 - engine-dev 를 main 에 병합 → 시험 → 재시작 → push → 적용됨(관리자)">${icon("rocket", 15)}${last && last.state === "running" ? "배포 진행 보기" : "배포 준비"}${icon("chevDown", 15)}</button></div>`);
+        : `<button type="button" class="dep-tog" data-eng="deploy" aria-expanded="false" title="들어갈 커밋·요청을 펼쳐 보고 배포를 시작한다 - engine-dev 를 main 에 병합 → 시험 → 재시작 → push → 적용됨(관리자)">${icon("rocket", 15)}${last && last.state === "running" ? "배포 진행 보기" : pending ? "배포 준비" : "지난 배포 보기"}${icon("chevDown", 15)}</button></div>`);
     if (!DEP.open) { put(`<div class="dep">${head}</div>`); return; }
     const p = DEP.plan, L = last;
     let body = "";
+    const idle = p && !p.commits.length;  // 배포할 커밋 없음 - 빈 계획 대신 한 줄, 아래에는 지난 배포 결과
     if (!p) body = `<div class="hint">확인하는 중… (git fetch)</div>`;
+    else if (idle) body = `<div class="hint" style="margin-bottom:4px">배포할 변경 없음 - ${esc(p.branch)} 가 main <b>${esc(p.main)}</b> 과 같다 · 판 ${esc(p.version || "")}</div>`;
     else {
       body = `<div class="hint" style="margin-bottom:4px">main <b>${esc(p.main)}</b> ← ${esc(p.branch)} · 판 ${esc(p.version || "")}${p.originAhead ? ` · 원격 main 새 커밋 ${p.originAhead}개를 먼저 받음` : ""}${p.render ? ` · <b>렌더 규칙 변경</b>(check_parity 실행)` : ""}</div>`
         + `<div style="font-size:12px"><b>요청</b> ${p.requests.length ? p.requests.map((r) => `#${r.id} ${esc(r.title)}`).join(" · ") : `<span class="hint">완료 요청 없음(커밋만)</span>`}</div>`
@@ -871,8 +875,9 @@
         + `<div class="hint" style="margin-top:6px">순서: 시험용 worktree 에서 병합 → 시험(새로 생긴 실패만 막음, 몇 분) → 처리 중 턴 대기 → main 반영 → 허브·작업 공간 서버 재시작(엔진 세션은 끊김) → push → 적용됨 · 원 요청 재개. 허브가 뜨지 않으면 main 을 되돌린다.${p.estimate ? ` <b>예상 약 ${Math.ceil(p.estimate / 60)}분</b>(지난 시험 시간 기준).` : ""}</div>`
         + `<div class="row" style="justify-content:flex-end;margin-top:6px"><button type="button" class="chip sm primary" data-eng="deployrun" ${p.ready && !(L && L.state === "running") ? "" : "disabled"}>${icon("rocket", 15)}배포 시작</button></div>`;
     }
-    // 펼칠 때 이미 끝나 있던 지난 배포(hide)는 그리지 않고 진행 예정만 - 이번에 시작했거나 진행 중인 배포만 진행판으로
-    if (L && L.steps && (L.steps.length || L.cur) && (L.state === "running" || L.started !== DEP.hide)) body += depProgress(L);
+    // 펼칠 때 이미 끝나 있던 지난 배포(hide)는 그리지 않고 진행 예정만 - 이번에 시작했거나 진행 중인 배포만 진행판으로.
+    // 배포할 것이 없으면(idle) 진행 예정이 뜻이 없으므로 지난 배포 결과를 그대로 보인다
+    if (L && L.steps && (L.steps.length || L.cur) && (L.state === "running" || L.started !== DEP.hide || idle)) body += depProgress(L);
     else if (p) body += depPreview();
     put(`<div class="dep open">${head}<div class="dep-panel${DEP.anim ? " anim" : ""}">${body}</div></div>`);
     DEP.anim = false;

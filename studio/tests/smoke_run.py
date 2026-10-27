@@ -32,6 +32,10 @@ try:
     req("POST", BASE + "/api/auth/setup", {"id": "admin", "password": "smoke-pass-123"})
     d = req("POST", BASE + "/api/project", {"action": "demo"}); wid = d["id"]; ws = Path(d["path"])
     import shutil; shutil.rmtree(USER / "hub" / "engine", ignore_errors=True)
+    # 끝난 지난 배포 기록 - 배포할 것이 없어도 카드에 결과 배지·[지난 배포 보기]가 남는지(0.22.42)
+    (USER / "hub" / "engine").mkdir(parents=True, exist_ok=True)
+    (USER / "hub" / "engine" / "deploy.json").write_text(json.dumps({"state": "ok", "by": "admin", "started": "2026-10-28T01:15:42", "finished": "2026-10-28T01:23:00", "message": "main abc1234 · 시험",
+        "steps": [{"t": "2026-10-28T01:15:46", "step": "확인", "ok": True, "msg": ""}, {"t": "2026-10-28T01:23:00", "step": "적용됨 표시", "ok": True, "msg": ""}]}, ensure_ascii=False), encoding="utf-8")
     req("POST", BASE + "/api/engine/requests", {"action": "add", "title": "스모크 대기 요청", "body": "b"})
     req("POST", BASE + "/api/auth/users", {"action": "add", "id": "bob", "password": "bob-pass-123", "role": "user"})
     import base64
@@ -65,6 +69,7 @@ try:
             {"name": "설정 모달(#settings) → 웹 검색 토글 보임", "js": "location.hash='settings'; await new Promise(r=>setTimeout(r,800)); return !!document.querySelector('#setModal.on') && document.querySelector('#sgAllowWeb').checked===true"},
             {"name": "  취소", "js": "document.querySelector('#setModal [data-close]').click(); return true"},
             {"name": "서버 작업 카드: 경로·main 배지·대기 1 배지·배너(관리자 → 세션 시작 버튼)", "js": "await new Promise(r=>setTimeout(r,800)); return document.querySelector('#engPath').textContent.length>3 && document.querySelector('#engGit').textContent.includes('main') && document.querySelector('#engGit').textContent.includes('대기 2') && !!document.querySelector('#engBanner [data-eng=\"start\"]') && document.querySelector('#engBanner').textContent.includes('처리 대기 2건')"},
+            {"name": "  지난 배포(완료)가 있으면 배포할 것이 없어도 결과 배지 '배포 완료 · 시각'·펼침 단추가 남음", "js": "const d=document.querySelector('#engDeploy'); const b=d&&d.querySelector('.badge.ok'); return !!b && b.textContent.includes('배포 완료') && !!d.querySelector('[data-eng=\"deploy\"]') ? true : 'deploy='+(d?d.textContent.slice(0,80):'none')"},
             {"name": "  배너가 있으면 [세션 시작]은 배너에만(하나) · 요청 추가는 카드 하단", "js": "const foot=document.querySelector('#engFoot'); return !document.querySelector('#engSess [data-eng=\"start\"]') && document.querySelectorAll('#engineCard [data-eng=\"start\"]').length===1 && foot && foot.nextElementSibling===null && foot.previousElementSibling.id==='engForm'"},
             {"name": "  ⋯(숨김 메뉴) → 터미널로 맡기기 명령 상자·복사 단추", "js": "const b=document.querySelector('[data-eng=\"manualhow\"]'); if(!b) return 'no-dots'; b.click(); await new Promise(r=>setTimeout(r,300)); const box=document.querySelector('#engManual'); if(!box) return 'no-box'; const ok=box.style.display!=='none' && box.textContent.includes('watch_engine_requests.py --stream') && !!box.querySelector('[data-eng=\"manualcopy\"]'); (document.querySelector('[data-eng=\"manualhow\"]')||b).click(); await new Promise(r=>setTimeout(r,200)); return ok ? (document.querySelector('#engManual').style.display==='none') : 'bad:'+box.textContent.slice(0,80)"},
             {"name": "  [요청 추가] → 양식(＋ 첨부 버튼), 하단 버튼 숨김", "js": "document.querySelector('#engReqNew').click(); return document.querySelector('#engForm').style.display!=='none' && document.querySelector('#erAttach').textContent.includes('첨부') && document.querySelector('#engFoot').style.display==='none'"},
