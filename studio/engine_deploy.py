@@ -1,0 +1,373 @@
+# -*- coding: utf-8 -*-
+"""엔진 배포 - 관리자가 허브 카드의 [배포]를 누르면 engine-dev(완료된 엔진 요청)를 main 에 병합·시험·재시작·push 하고 [적용됨]까지 한 번에 한다.
+docs/dev/engine-deploy-design.md. 세션은 여전히 병합·push·재시작을 못 한다 - 이 절차는 로그인한 관리자의 HTTP 요청으로만 시작된다.
+
+    python3 studio/engine_deploy.py plan                    # 들어갈 커밋·요청·막는 이유(JSON)
+    python3 studio/engine_deploy.py status                  # 마지막 배포 기록(JSON)
+    python3 studio/engine_deploy.py run --by <관리자>        # 배포(허브가 떼어 낸 프로세스로 부른다 - 허브 재시작에도 끊기지 않게)
+        [--no-tests] [--no-restart] [--no-push]             # 시험용·비상용
+
+순서(run): 확인(운영 트리가 main·origin 새 커밋 ff) → 시험용 worktree 에서 --no-ff 병합 → 시험(run_all; 실패한 묶음은 병합 전 main 에서 다시 돌려
+원래 있던 실패면 통과) → 처리 중 턴 기다림 → 운영 트리 main 을 병합 커밋으로 ff → 허브 재시작·생존 확인(실패하면 main 을 되돌리고 다시 재시작)
+→ 떠 있던 작업 공간 서버 재시작 → push → done 요청을 applied(병합 커밋) → engine-dev 를 main 으로 ff.
+push 를 맨 뒤에 두는 것은 재시작이 실패했을 때 원격에 올라간 것을 되돌리지 않아도 되게 하려는 것이다.
+"""
+import argparse
+import datetime as dt
+import json
+import os
+import re
+import shutil
+import subprocess
+import sys
+import tempfile
+import time
+import urllib.request
+from pathlib import Path
+
+STUDIO = Path(__file__).resolve().parent
+sys.path.insert(0, str(STUDIO))
+import engine_requests  # noqa: E402
+from paths import ENGINE, hub_port, load_settings, load_ws_config  # noqa: E402
+
+BRANCH = "engine-dev"
+WORKTREE = ENGINE / ".claude" / "worktrees" / BRANCH
+STATE_FILE = engine_requests.ENGINE_DIR / "deploy.json"  # 마지막 배포 {state, by, started, finished, steps: [{t, step, ok, msg}], merge, prev, ids, log}
+LOG_DIR = engine_requests.ENGINE_DIR / "deploy-logs"
+RENDER_FILES = ("studio/render.js", "studio/common.py", "studio/export_pptx.py")
+DRAIN_WAIT = 600  # 처리 중인 턴이 끝나길 기다리는 최대 초
+GIT_ENV = {"GIT_TERMINAL_PROMPT": "0", "GIT_SSH_COMMAND": os.environ.get("GIT_SSH_COMMAND") or "ssh -o BatchMode=yes"}  # 묻는 창이 뜨지 않게 - 답할 사람이 없다
+
+
+def _now():
+    return dt.datetime.now().isoformat(timespec="seconds")
+
+
+def git(*args, cwd=None, timeout=120):
+    r = subprocess.run(["git", *args], cwd=str(cwd or ENGINE), capture_output=True, text=True, encoding="utf-8", errors="replace",
+                       timeout=timeout, env={**os.environ, **GIT_ENV})
+    return r.returncode, ((r.stdout or "") + (r.stderr or "")).strip()
+
+
+def _out(*args, cwd=None):
+    code, out = git(*args, cwd=cwd)
+    return out if code == 0 else ""
+
+
+def version():
+    """CHANGELOG 맨 위 판 번호(## 0.22.29 - …)."""
+    try:
+        m = re.search(r"^## (\d+\.\d+\.\d+)", (ENGINE / "CHANGELOG.md").read_text(encoding="utf-8"), re.M)
+        return m.group(1) if m else ""
+    except OSError:
+        return ""
+
+
+# ---------- 상태 기록 ----------
+def status():
+    try:
+        d = json.loads(STATE_FILE.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {"state": "none"}
+    if d.get("state") == "running" and d.get("pid") and not engine_requests.pid_alive(d["pid"]):  # 배포 프로세스가 죽었다(PC 꺼짐 등) - 화면이 영영 '진행 중'이 되지 않게
+        d["state"] = "failed"
+        d.setdefault("steps", []).append({"t": _now(), "step": "abort", "ok": False, "msg": "배포 프로세스가 중간에 끝났다 - 운영 트리 상태를 확인하라"})
+    return d
+
+
+def _save(d):
+    engine_requests.ENGINE_DIR.mkdir(parents=True, exist_ok=True)
+    fd, tmp = tempfile.mkstemp(prefix="deploy.", suffix=".tmp", dir=str(engine_requests.ENGINE_DIR))
+    with os.fdopen(fd, "w", encoding="utf-8", newline="\n") as f:
+        json.dump(d, f, ensure_ascii=False, indent=1)
+    os.replace(tmp, STATE_FILE)
+
+
+# ---------- 계획(화면 확인용) ----------
+def plan(fetch=True):
+    """배포에 들어갈 것과 막는 이유. {ok, main, branch, commits:[{hash, subject}], files:[…], render, requests:[{id,title,commit}], originAhead, localAhead, blockers:[…]}"""
+    blockers = []
+    if fetch:
+        code, out = git("fetch", "origin", "--quiet", timeout=60)
+        if code:
+            blockers.append(f"git fetch 실패: {out[-200:]}")
+    cur = _out("rev-parse", "--abbrev-ref", "HEAD")
+    if cur != "main":
+        blockers.append(f"운영 트리({ENGINE})가 main 이 아니라 {cur or '?'} 에 있다")
+    if not (WORKTREE / ".git").exists() and not _out("rev-parse", "--verify", "--quiet", BRANCH):
+        blockers.append(f"{BRANCH} 브랜치가 없다")
+    commits = [dict(zip(("hash", "subject"), l.split(" ", 1))) for l in _out("log", "--format=%h %s", f"main..{BRANCH}").splitlines() if l]
+    files = [l for l in _out("diff", "--name-only", f"main...{BRANCH}").splitlines() if l]
+    origin_ahead = len(_out("rev-list", "main..origin/main").splitlines())
+    local_ahead = len(_out("rev-list", "origin/main..main").splitlines())
+    if origin_ahead and local_ahead:
+        blockers.append(f"main 과 origin/main 이 갈라졌다(원격 +{origin_ahead} · 로컬 +{local_ahead}) - 터미널에서 먼저 맞춘다")
+    dirty = [l for l in _out("diff", "--name-only", "HEAD").splitlines() if l]  # 커밋하지 않은 변경(스테이징 포함)
+    clash = sorted(set(dirty) & set(files))
+    if clash:
+        blockers.append("운영 트리에 커밋하지 않은 변경이 병합할 파일과 겹친다: " + ", ".join(clash[:5]))
+    wt_dirty = _out("status", "--porcelain", "--untracked-files=no", cwd=WORKTREE) if (WORKTREE / ".git").exists() else ""
+    if wt_dirty:
+        blockers.append(f"{BRANCH} worktree 에 커밋하지 않은 변경이 있다 - 세션이 처리 중이거나 커밋을 빠뜨렸다")
+    if not commits:
+        blockers.append(f"{BRANCH} 에 main 보다 앞선 커밋이 없다")
+    reqs = [{"id": x["id"], "title": x.get("title", ""), "commit": x.get("commit", "")} for x in engine_requests.load() if x.get("status") == "done"]
+    st = status()
+    if st.get("state") == "running":
+        blockers.append("다른 배포가 진행 중이다")
+    return {"ok": not blockers, "main": _out("rev-parse", "--short", "main"), "branch": BRANCH, "commits": commits, "files": files,
+            "render": any(f in RENDER_FILES for f in files), "requests": reqs, "originAhead": origin_ahead, "localAhead": local_ahead,
+            "blockers": blockers, "version": version(), "last": st}
+
+
+# ---------- 시작(허브가 부른다) ----------
+def start(by, extra=()):
+    """배포 프로세스를 떼어 내 띄운다 - 허브를 재시작해도 끊기지 않게(service.py 의 서버 띄우기와 같은 방식)."""
+    p = plan()
+    if not p["ok"]:
+        raise ValueError(" · ".join(p["blockers"]))
+    LOG_DIR.mkdir(parents=True, exist_ok=True)
+    log = LOG_DIR / f"{dt.datetime.now().strftime('%Y%m%d-%H%M%S')}.log"
+    _save({"state": "running", "by": by, "started": _now(), "steps": [], "ids": [r["id"] for r in p["requests"]], "log": str(log), "pid": None})
+    kw = {}
+    if os.name == "nt":
+        kw["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.CREATE_NO_WINDOW
+    else:
+        kw["start_new_session"] = True
+    env = {**os.environ, "PYTHONIOENCODING": "utf-8", "PYTHONUNBUFFERED": "1"}
+    env.pop("NEXA_SLIDE_WORKSPACE", None)
+    f = open(log, "a", encoding="utf-8")
+    proc = subprocess.Popen([sys.executable, str(STUDIO / "engine_deploy.py"), "run", "--by", by, *extra], cwd=str(engine_requests.ENGINE_DIR),
+                            env=env, stdout=f, stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL, **kw)
+    d = status()
+    d["pid"] = proc.pid
+    _save(d)
+    return d
+
+
+# ---------- 실행 ----------
+class Run:
+    def __init__(self, by, tests=True, restart=True, push=True):
+        self.by, self.tests, self.restart, self.push = by, tests, restart, push
+        d = status() if STATE_FILE.exists() else {}
+        if d.get("state") != "running" or d.get("pid") not in (None, os.getpid()):  # 허브를 거치지 않고 터미널에서 바로 부른 경우
+            d = {"state": "running", "by": by, "started": _now(), "steps": [], "ids": []}
+        d["pid"] = os.getpid()
+        self.d = d
+        self.tmp = []  # 지울 시험용 worktree
+        _save(d)
+
+    def step(self, name, ok=True, msg=""):
+        print(f"[{_now()}] {'OK  ' if ok else 'FAIL'} {name} {msg}", flush=True)
+        self.d["steps"].append({"t": _now(), "step": name, "ok": ok, "msg": str(msg)[:600]})
+        _save(self.d)
+
+    def finish(self, state, msg=""):
+        self.d.update(state=state, finished=_now(), message=msg)
+        _save(self.d)
+        for w in self.tmp:
+            git("worktree", "remove", "--force", str(w))
+        print(f"[{_now()}] == {state} {msg}", flush=True)
+        return 0 if state == "ok" else 1
+
+    def fail(self, name, msg):
+        self.step(name, False, msg)
+        return self.finish("failed", f"{name}: {msg}")
+
+    def _worktree(self, name, ref):
+        w = ENGINE / ".claude" / "worktrees" / name
+        if w.exists():
+            git("worktree", "remove", "--force", str(w))
+            shutil.rmtree(w, ignore_errors=True)
+        code, out = git("worktree", "add", "--detach", str(w), ref)
+        if code:
+            raise RuntimeError(out[-300:])
+        self.tmp.append(w)
+        return w
+
+    def _run_tests(self, root, names=()):
+        """run_all → 실패한 묶음 이름. 시험은 격리 포트(5799 등)를 써서 운영 허브와 겹치지 않는다."""
+        env = {**os.environ, "PYTHONIOENCODING": "utf-8"}
+        env.pop("NEXA_SLIDE_WORKSPACE", None)
+        r = subprocess.run([sys.executable, str(root / "studio" / "tests" / "run_all.py"), *names], cwd=str(root), env=env,
+                           capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=1800)
+        out = (r.stdout or "") + (r.stderr or "")
+        print(out[-4000:], flush=True)
+        bad = re.findall(r"^실패\s+(\S+)", out, re.M)
+        if r.returncode and not bad:
+            bad = ["run_all"]
+        return bad
+
+    def run(self):
+        p = plan()
+        if not p["ok"] and not (p["blockers"] == ["다른 배포가 진행 중이다"]):  # 진행 중인 배포 = 이 프로세스
+            return self.fail("확인", " · ".join(b for b in p["blockers"] if b != "다른 배포가 진행 중이다"))
+        ids = [r["id"] for r in p["requests"]]
+        self.d["ids"] = ids
+        self.step("확인", True, f"커밋 {len(p['commits'])}개 · 요청 {', '.join('#' + str(i) for i in ids) or '없음'}")
+        if p["originAhead"]:  # 다른 곳에서 올린 main 을 먼저 받는다
+            code, out = git("merge", "--ff-only", "origin/main")
+            if code:
+                return self.fail("origin/main 받기", out[-300:])
+            self.step("origin/main 받기", True, f"+{p['originAhead']}")
+        prev = _out("rev-parse", "main")
+        self.d["prev"] = prev
+        # 1) 시험용 worktree 에서 병합 - 운영 트리는 모두 통과한 뒤에만 움직인다(정적 파일이 바로 나가므로)
+        titles = " · ".join(r["title"] for r in p["requests"])[:120] or f"{len(p['commits'])}개 커밋"
+        tag = "·".join("#" + str(i) for i in ids)
+        msg = f"merge: {BRANCH} → main - {titles}" + (f" (engine-request {tag})" if tag else "") + f"\n\nDeployed-by: {self.by}"
+        try:
+            w = self._worktree("deploy-merge", prev)
+        except RuntimeError as e:
+            return self.fail("병합", f"시험용 worktree 를 만들지 못했다: {e}")
+        code, out = git("merge", "--no-ff", BRANCH, "-m", msg, cwd=w)
+        if code:
+            git("merge", "--abort", cwd=w)
+            return self.fail("병합", "충돌 - 터미널에서 풀어야 한다: " + out[-300:])
+        merge = _out("rev-parse", "HEAD", cwd=w)
+        self.d["merge"] = merge
+        self.step("병합", True, merge[:7])
+        # 2) 시험 - 병합본에서 실패한 묶음만 병합 전(main)에서 다시 돌려 새로 생긴 실패만 막는다
+        if self.tests:
+            bad = self._run_tests(w)
+            if bad:
+                try:
+                    base = self._worktree("deploy-base", prev)
+                except RuntimeError as e:
+                    return self.fail("시험", f"비교용 worktree 를 만들지 못했다: {e}")
+                before = set(self._run_tests(base, bad)) if "run_all" not in bad else set()
+                new = [b for b in bad if b not in before]
+                if new:
+                    return self.fail("시험", "새로 생긴 실패: " + ", ".join(new))
+                self.step("시험", True, "새 실패 없음 (원래 있던 실패: " + ", ".join(bad) + ")")
+            else:
+                self.step("시험", True, "전부 통과")
+            if p["render"]:
+                r = subprocess.run([sys.executable, str(w / "studio" / "check_parity.py"), "-W", "example"], cwd=str(w), capture_output=True,
+                                   text=True, encoding="utf-8", errors="replace", timeout=600)
+                if r.returncode:
+                    return self.fail("렌더 동일성", ((r.stdout or "") + (r.stderr or ""))[-400:])
+                self.step("렌더 동일성", True, "check_parity -W example")
+        else:
+            self.step("시험", True, "건너뜀(--no-tests)")
+        # 3) 처리 중인 턴이 끝나길 기다린다 - 재시작하면 턴이 끊긴다
+        if self.restart:
+            busy = self._busy()
+            t0 = time.time()
+            while busy and time.time() - t0 < DRAIN_WAIT:
+                time.sleep(5)
+                busy = self._busy()
+            if busy:
+                return self.fail("턴 마무리 대기", "처리 중인 턴이 끝나지 않았다: " + ", ".join(busy))
+            self.step("턴 마무리 대기", True)
+        running = self._running_ws() if self.restart else []
+        # 4) 운영 트리 main 을 병합 커밋으로(fast-forward) - 커밋하지 않은 다른 변경은 그대로 둔다
+        code, out = git("merge", "--ff-only", merge)
+        if code:
+            return self.fail("main 반영", out[-300:])
+        self.step("main 반영", True, f"{prev[:7]} → {merge[:7]}")
+        # 5) 재시작 - 허브가 살아나지 않으면 main 을 되돌리고 다시 띄운다
+        if self.restart:
+            ok, out = self._restart_hub()
+            if not ok:
+                git("reset", "--keep", prev)
+                ok2, out2 = self._restart_hub()
+                self.step("허브 재시작", False, out[-300:])
+                return self.finish("rolledback", f"허브가 새 판으로 뜨지 않아 main 을 {prev[:7]} 로 되돌렸다" + ("" if ok2 else " - 되돌린 판도 뜨지 않는다, 터미널에서 확인하라: " + out2[-200:]))
+            self.step("허브 재시작", True, out[-200:])
+            for ws in running:
+                code, out = self._service(["restart"], ws)
+                self.step(f"작업 공간 재시작 {ws.name}", code == 0, out[-200:])
+        # 6) push - 실패해도 운영은 새 판이다(로컬 main 이 앞선 채 남는다)
+        warn = ""
+        if self.push:
+            code, out = git("push", "origin", "main", timeout=180)
+            self.step("push", code == 0, out[-300:])
+            if code:
+                warn = "push 실패 - 운영은 새 판, 원격에는 아직 없다(터미널에서 git push origin main)"
+        # 7) 요청 적용됨 · engine-dev 를 main 으로
+        ver = version()
+        for i in ids:
+            try:
+                engine_requests.update(i, status="applied", by=self.by, appliedCommit=merge[:7], engineVersion=ver)
+            except ValueError as e:  # 그사이 다른 사람이 상태를 바꿨다
+                self.step(f"#{i} 적용됨", False, str(e))
+        if ids:
+            self.step("적용됨 표시", True, ", ".join("#" + str(i) for i in ids))
+        if (WORKTREE / ".git").exists():
+            code, out = git("merge", "--ff-only", "main", cwd=WORKTREE)
+            self.step(f"{BRANCH} 맞춤", code == 0, out[-200:])
+        return self.finish("ok" if not warn else "warn", warn or f"main {merge[:7]} · {ver}")
+
+    # ---------- 재시작 도우미 ----------
+    def _service(self, args, ws=None):
+        env = {**os.environ, "PYTHONIOENCODING": "utf-8"}
+        env.pop("NEXA_SLIDE_WORKSPACE", None)
+        if ws:
+            env["NEXA_SLIDE_WORKSPACE"] = str(ws)
+        r = subprocess.run([sys.executable, str(STUDIO / "service.py"), *args], cwd=str(ws or engine_requests.ENGINE_DIR), env=env,
+                           capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=120)
+        return r.returncode, ((r.stdout or "") + (r.stderr or "")).strip()
+
+    def _restart_hub(self):
+        code, out = self._service(["restart"])
+        if code:
+            return False, out
+        port = hub_port()
+        for _ in range(40):  # 생존 확인 - 로그인 없이 답하는 /api/auth/state
+            try:
+                with urllib.request.urlopen(f"http://127.0.0.1:{port}/api/auth/state", timeout=3) as r:
+                    if json.loads(r.read().decode("utf-8")).get("ok"):
+                        return True, out
+            except Exception:  # noqa: BLE001 - 아직 뜨는 중
+                pass
+            time.sleep(0.5)
+        return False, out + " · /api/auth/state 응답 없음"
+
+    def _workspaces(self):
+        for r in load_settings().get("recent", []):
+            ws = Path(r.get("path", ""))
+            if (ws / "nexa-slide.json").is_file():
+                yield ws
+
+    def _running_ws(self):
+        import hub
+        return [ws for ws in self._workspaces() if hub.server_state(ws)["running"]]
+
+    def _busy(self):
+        """처리 중인 턴 - 엔진 세션·작업 공간 웹 세션의 하트비트 state=running."""
+        import hub
+        out = []
+        hb = engine_requests.session_state()
+        if hb.get("connected") and hb.get("state") == "running":
+            out.append("엔진 세션")
+        for ws in self._workspaces():
+            try:
+                s = hub.session_summary(ws, load_ws_config(ws))
+            except Exception:  # noqa: BLE001 - 깨진 설정
+                continue
+            if s.get("connected") and s.get("state") == "running":
+                out.append(ws.name)
+        return out
+
+
+def main():
+    ap = argparse.ArgumentParser(description="엔진 배포(engine-dev → main → 재시작 → push → 적용됨)")
+    ap.add_argument("cmd", choices=("plan", "status", "run"))
+    ap.add_argument("--by", default=os.environ.get("USERNAME") or os.environ.get("USER") or "cli")
+    ap.add_argument("--no-tests", action="store_true")
+    ap.add_argument("--no-restart", action="store_true")
+    ap.add_argument("--no-push", action="store_true")
+    a = ap.parse_args()
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    if a.cmd == "plan":
+        print(json.dumps(plan(), ensure_ascii=False, indent=1))
+        return 0
+    if a.cmd == "status":
+        print(json.dumps(status(), ensure_ascii=False, indent=1))
+        return 0
+    return Run(a.by, tests=not a.no_tests, restart=not a.no_restart, push=not a.no_push).run()
+
+
+if __name__ == "__main__":
+    sys.exit(main())

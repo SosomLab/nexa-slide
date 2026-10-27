@@ -1323,6 +1323,14 @@ class H(BaseHTTPRequestHandler):
                     return any(v and kw in str(v).lower() for v in vals)
                 items = [x for x in items if hit(x)]
             return self.send_json({"ok": True, "items": items, "counts": engine_requests.counts(), "total": len(engine_requests.load())})
+        if what == "deploy":  # 배포 계획(들어갈 커밋·요청·막는 이유)과 마지막 배포 기록(관리자) - ?fetch=0 이면 git fetch 없이(진행 중 화면 갱신)
+            if self.role != "admin":
+                return self.err(403, "관리자만")
+            import engine_deploy
+            if (q.get("fetch") or ["1"])[0] == "0":
+                return self.send_json({"ok": True, "last": engine_deploy.status()})
+            p = engine_deploy.plan()
+            return self.send_json({**p, "ok": True, "ready": p["ok"]})
         if what == "tidy":  # 엔진 요청 첨부 정리 보고(관리자) - 큐에 없는 요청의 attach/<id>/, 하루 넘게 요청에 붙지 않은 _new/ 파일
             if self.role != "admin":
                 return self.err(403, "관리자만")
@@ -1366,7 +1374,8 @@ class H(BaseHTTPRequestHandler):
             if att:
                 x["attachments"] = [{"name": a["name"], "size": a["size"], "url": f"/api/engine/attach/{x['id']}/{a['name']}"} for a in att]
         return self.send_json({"ok": True, "session": info, "counts": engine_requests.counts(), "recent": recent, "total": len(allq), "git": info.get("git") or {},
-                               "startRequest": engine_requests.start_request(), "sessionOff": info.get("state", "off") == "off"})  # manual 도 켜진 것
+                               "startRequest": engine_requests.start_request(), "sessionOff": info.get("state", "off") == "off",  # manual 도 켜진 것
+                               **({"deploy": __import__("engine_deploy").status()} if self.role == "admin" else {})})  # 마지막 배포(카드 배지·진행 따라가기)
 
     def api_post_engine(self, what, q):
         """requests: {action: add, title, body, …}(로그인 사용자 누구나) · {action: status, id, status, reply?…}·{action: remove, id}·{action: priority, id, priority}(관리자)
@@ -1376,6 +1385,23 @@ class H(BaseHTTPRequestHandler):
         import engine_requests
         b = self.body_json() or {}
         who = self.user or "local"
+        if what == "deploy":  # {action: run} - 엔진 배포(병합·시험·재시작·push·적용됨, 관리자). 떼어 낸 프로세스가 하므로 바로 돌아온다(진행은 GET ?fetch=0)
+            if self.role != "admin":
+                self._event = "engine.deploy.denied"
+                return self.err(403, "관리자만")
+            if b.get("action") != "run":
+                return self.err(400, "action = run")
+            if WS_ENGINE is not None and WS_ENGINE.state == "running":
+                return self.err(409, "엔진 세션이 턴을 처리 중이다 - 끝난 뒤 배포한다")
+            import engine_deploy
+            try:
+                if WS_ENGINE is not None and WS_ENGINE.state != "off":  # 재시작하면 어차피 끊긴다 - 허브가 먼저 정리해 자식 프로세스가 남지 않게
+                    WS_ENGINE.stop("deploy")
+                d = engine_deploy.start(who)
+            except ValueError as e:
+                return self.err(409, str(e))
+            self._event = "engine.deploy"
+            return self.send_json({"ok": True, "last": d})
         if what == "tidy":  # {action: clean} - 보고된 첨부를 지운다(관리자)
             if self.role != "admin":
                 self._event = "engine.tidy.denied"

@@ -71,6 +71,13 @@ try:
     check("?q=#5 → 1건(id 5)", len(d.get("items", [])) == 1 and d["items"][0]["id"] == 5, d.get("items"))
     st, d = admin("GET", BASE + "/api/engine/requests?status=rejected")
     check("?status=rejected → 1건", len(d.get("items", [])) == 1, d.get("items"))
+    # 배포 계획·기록(0.22.29) - 조회만(POST run 은 이 저장소에서 실제 배포가 될 수 있어 engine_deploy_test 의 임시 저장소에서만 본다)
+    st, d = admin("GET", BASE + "/api/engine/deploy")
+    check("/api/engine/deploy → 계획(commits·requests·blockers·ready)", st == 200 and all(k in d for k in ("commits", "requests", "blockers", "ready", "main")), (st, str(d)[:300]))
+    st, d = admin("GET", BASE + "/api/engine/deploy?fetch=0")
+    check("/api/engine/deploy?fetch=0 → 마지막 배포", st == 200 and "state" in (d.get("last") or {}), (st, str(d)[:200]))
+    st, d = admin("GET", BASE + "/api/engine")
+    check("/api/engine 에 deploy(관리자)", "deploy" in d, list(d)[:12])
     sc = {"base": BASE, "login": {"id": "admin", "password": "el-test-pass-1"}, "pages": [
         {"url": "/studio/home.html#start", "wait": 2500, "steps": [
             {"name": "카드 목록 5건 + 더 보기(전체 7건)", "js": "const n=document.querySelectorAll('#engList .ritem').length; const m=document.querySelector('#engList a[href=\"/engine\"]'); return n===5 && m && m.textContent.includes('7') ? true : 'n='+n+' more='+(m&&m.textContent)"}]},

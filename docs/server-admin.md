@@ -188,7 +188,11 @@ Register-ScheduledTask -TaskName 'nexa-slide hub' -Action $act -Trigger (New-Sch
 | 엔진 worktree | `<엔진>/.claude/worktrees/engine-dev`(브랜치 `engine-dev`) |
 | 큐 | 사용자 설정 폴더 `hub/engine/requests.json`(CLI: `python3 studio/engine_request.py list` · `show <번호>`) |
 
-### 순서
+### 카드 [배포] (0.22.29~, 권장)
+
+관리자로 로그인해 시작 페이지 "서버 요청" 카드의 **[배포…]** → 들어갈 요청·커밋·막는 이유를 확인 → **[배포 시작]**. 아래 1~5 단계를 허브가 한 번에 한다 - 시험용 worktree 병합 → 시험(새로 생긴 실패만 막음) → 처리 중 턴 대기 → main 반영 → 허브·작업 공간 서버 재시작(안 뜨면 main 되돌림) → push → 적용됨·원 요청 재개 → engine-dev 맞춤. 진행은 카드에 단계별로 보이고 기록은 사용자 설정 폴더 `hub/engine/deploy.json`·`deploy-logs/`. 설계 [engine-deploy-design.md](dev/engine-deploy-design.md). 충돌·새 시험 실패·push 실패처럼 멈춘 경우는 아래 손 절차로 마무리한다.
+
+### 순서(손으로)
 
 1. **확인** — 카드에서 완료(적용 대기) 항목의 reply·commit·test 를 본다. 터미널에서:
    ```bash
