@@ -4,6 +4,8 @@ import json
 import subprocess
 import sys
 from pathlib import Path
+
+import testlock  # noqa: F401 - 이 PC 에서 시험은 한 번에 하나(고정 포트·임시 폴더를 같이 쓴다, testlock.py)
 for _s in (sys.stdout, sys.stderr): _s.reconfigure(encoding="utf-8", errors="replace")
 HERE = Path(__file__).resolve().parent
 STUDIO = HERE.parent

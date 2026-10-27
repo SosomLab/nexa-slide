@@ -479,7 +479,8 @@ class WebSession:
         self._log_dir = None
         self._turn_log = None
         self._settings_path = None
-        self.sess_file = self.p.state_dir / "wsession.json"  # 마지막 세션 정보(서버 재시작 뒤에도 "마지막" 표시용)
+        self._pulse = {}  # 처리 중 턴의 맥박 {turn, t0, out, tool, toolT, open, tools} - 긴 도구(시험 몇 분) 동안 이벤트가 없어도 살아 있는지 보이게(#9)
+        self.sess_file =self.p.state_dir / "wsession.json"  # 마지막 세션 정보(서버 재시작 뒤에도 "마지막" 표시용)
         self.log_root = self.p.state_dir / "sessions"
         self.last = self._read_json(self.sess_file)
 
@@ -498,6 +499,8 @@ class WebSession:
                  "sessionId": self.session_id, "cwd": str(self.p.cwd), "startedBy": self.started_by, "startedAt": self.started_at, "turns": self.turns,
                  "lastError": self.last_error, "lastActivity": dt.datetime.fromtimestamp(self.last_activity).isoformat(timespec="seconds") if self.last_activity else None,
                  "allowWeb": self.allow_web, "grants": self.grants, "repoRoot": str(self.repo_root) if self.repo_root else None, "limits": self.limits, "seq": self.seq, "logDir": str(self._log_dir) if self._log_dir else None}
+            if self.state == "running":
+                d["pulse"] = self.pulse()
             try:
                 d.update(self.p.extra_info())
             except Exception as e:  # noqa: BLE001
@@ -527,6 +530,20 @@ class WebSession:
     def events_since(self, since):
         with self.lock:
             return [e for e in self.events if e["seq"] > since]
+
+    def pulse(self):
+        """처리 중 턴의 맥박 - 턴 경과·마지막 출력 뒤 경과·지금 도구(이름·요약·경과)·에이전트 프로세스 생존. 처리 중이 아니면 {state}.
+        도구가 몇 분 걸리면(시험·회귀) 그동안 에이전트 출력이 없다 - 화면은 이것으로 '도구 실행 중 n분째 · 프로세스 살아 있음'을 보인다."""
+        with self.lock:
+            p, proc, now = dict(self._pulse), self._proc, time.time()
+            d = {"state": self.state, "seq": self.seq}
+        if self.state != "running" or not p:
+            return d
+        d.update(turn=p["turn"], turnSec=round(now - p["t0"]), outSec=round(now - p["out"]), tools=p["tools"],
+                 alive=bool(proc and proc.poll() is None))
+        if p.get("tool") and p.get("open"):
+            d["tool"] = {"name": p["tool"], "summary": p.get("summary", ""), "sec": round(now - p["toolT"])}
+        return d
 
     # ---------- 시작 · 중지 · 모델 ----------
     def start(self, agent=None, model=None, user=None, allow_web=False, grants=None):
@@ -680,6 +697,7 @@ class WebSession:
             self.turns += 1
             n = self.turns
             self._turn_log = self._log_dir / f"turn-{n}.jsonl"
+            self._pulse = {"turn": n, "t0": time.time(), "out": time.time(), "tool": None, "open": 0, "tools": 0}
         # 엔진 세션은 개발 요청이라 도구 반복·시간 한도가 따로(engineMaxTurns·engineTurnMinutes) - 웹 세션의 40회·20분으로는 탐색·구현·시험·커밋을 다 못 한다(#6)
         eng = self.p.kind == "engine"
         max_turns = self.limits.get("engineMaxTurns" if eng else "sessionMaxTurns")
@@ -741,8 +759,16 @@ class WebSession:
                         line = raw.decode("utf-8", "replace").rstrip("\r\n")
                         log.write(line + "\n")
                         ev = ag.parse(line)
+                        with self.lock:
+                            self._pulse["out"] = time.time()
                         for e in (ev if isinstance(ev, list) else [ev] if ev else []):
                             kind = e.pop("type")
+                            with self.lock:  # 맥박 - 지금 도는 도구(결과가 아직 안 온 것)
+                                if kind == "tool":
+                                    self._pulse.update(tool=e.get("tool"), summary=e.get("summary", ""), toolT=time.time(), open=self._pulse.get("open", 0) + 1,
+                                                       tools=self._pulse.get("tools", 0) + 1)
+                                elif kind == "tool_result":
+                                    self._pulse["open"] = max(0, self._pulse.get("open", 0) - 1)
                             if kind == "init":
                                 with self.lock:
                                     self.session_id = e.get("sessionId") or self.session_id
@@ -790,6 +816,7 @@ class WebSession:
                 self.state = "error" if not self._stop.is_set() else self.state
                 self.last_error = ((result or {}).get("text") or "\n".join(stderr_tail[-5:]) or f"종료 코드 {rc_code}")[:500]
             self.last_activity = time.time()
+            self._pulse = {}
             self._save()
         self.emit("turn.end", turn=n, ok=ok, code=rc_code, sessionId=self.session_id, model=self.model_actual,
                   costUsd=(result or {}).get("costUsd"), usage=(result or {}).get("usage"), error=None if ok else self.last_error,

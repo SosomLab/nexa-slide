@@ -139,7 +139,7 @@
 | 세션이 넘기기 | `agents/turn_prompt.md`: 엔진 변경이 필요하면 `python3 nexa.py engine_request add …`(턴당 1건) → `triage`. 작업 공간 안에서 실행하면 `from.kind=session`·`wsId`, 같은 원 요청은 덧붙임 |
 | 엔진 개발 세션 | `wsession.py` 를 **프로필**로 일반화 — `WorkspaceProfile`(기존 동작) / `EngineProfile`(허브 안, cwd = `<엔진>/.claude/worktrees/engine-dev`(브랜치 `engine-dev`, main 에서 생성), 큐에서 한 번에 하나(`EngineQueueSource`), 프롬프트 `agents/engine_turn_prompt.md`, 권한 템플릿 `engine`+`web` 묶음, 하트비트 `hub/engine/.studio/session.json`, 로그 `hub/engine/.studio/sessions/`). 허브 `server.py` 가 `WS_ENGINE` 으로 띄운다 |
 | 큐 CLI 호출 | **`--restricted` 세션은 Bash 명령에 cwd 밖 경로가 있으면 거부**한다(allow 규칙이 있어도) → 세션 시작 때 worktree 에 `.nexa/engine_request.py`(허브 엔진의 CLI 를 `runpy` 로 실행, `.nexa/.gitignore` 로 git 제외)를 두고 프롬프트·권한은 `python3 .nexa/engine_request.py …` 를 쓴다. worktree 브랜치(옛 main)에 CLI 가 없어도 상태를 바꿀 수 있다 |
-| API | 허브 `GET /api/engine`(세션·큐 수·최근 8·git) · `GET/POST /api/engine/requests`(add 는 로그인 사용자 누구나, status/priority/remove 는 관리자) · `GET/POST /api/engine/session`(+`/events` SSE·`/log`, start/stop/model 은 **관리자만**) |
+| API | 허브 `GET /api/engine`(세션·큐 수·최근 8·git) · `GET/POST /api/engine/requests`(add 는 로그인 사용자 누구나, status/priority/remove 는 관리자) · `GET/POST /api/engine/session`(+`/events` SSE·`/log`·`/pulse` 처리 중 턴의 맥박 0.22.38, start/stop/model 은 **관리자만**) |
 | 화면 | 시작 페이지 "서버 작업" 카드(최근 작업 위): 엔진·main·작업 브랜치·앞선 커밋 수, 세션 줄 + [세션 시작](관리자, 에이전트·모델 창)/[세션 중지]/[진행](SSE 모달), 요청 목록(승인·거절·적용됨·삭제 — 관리자), [요청 추가] 양식 |
 | 보정 | 턴이 끝났는데 요청이 `working` 이면 `open` 으로 되돌리고 reply 에 `[세션이 끝내지 못함] …` |
 | 하트비트 | 세션의 하트비트를 **별도 스레드**로(턴 중에도 매초, `state`·`turn` 포함) — 턴 동안 편집기 칩이 "연결 없음"으로 바뀌던 결함(협업 세션 발견) 수정. 칩·허브 세션 줄·요청 탭 안내가 "처리 중(턴 n)" 을 보인다 |

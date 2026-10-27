@@ -18,13 +18,16 @@ import tempfile
 import time
 from pathlib import Path
 
+import testlock  # noqa: F401 - 이 PC 에서 시험은 한 번에 하나(고정 포트·임시 폴더를 같이 쓴다, testlock.py)
+
 HERE = Path(__file__).resolve().parent
 TESTS = [  # (이름, 실행, 설명, claude 필요)
     ("i18n", ["node", "i18n_check.js"], "i18n.js 문법·중복 키·번역 표본", False),
     ("smoke", [sys.executable, "smoke_run.py"], "허브·Studio 헤드리스 클릭 스모크(데모 작업 공간 생성)", False),
     ("codex", [sys.executable, "codex_adapter_test.py"], "Codex 어댑터 - turn_cmd 인자·host 있는 실행 파일·windows.sandbox·{shell} 프롬프트(설치 불필요)", False),
     ("engcommit", [sys.executable, "engine_commit_test.py"], "엔진 세션 - 허브 대신 커밋(commit auto)·세션이 되돌린 open 은 다시 보내지 않음", False),
-    ("guard", [sys.executable, "settings_guard_test.py"], "paths.remember 가드 - 임시 폴더 작업 공간은 격리 없이는 최근 작업에 올리지 않음", False),
+    ("pulse", [sys.executable, "pulse_test.py"], "처리 중 턴의 맥박(wsession.pulse) - 긴 도구 동안 지금 도구·경과·프로세스 생존(가짜 에이전트)", False),
+    ("guard",[sys.executable, "settings_guard_test.py"], "paths.remember 가드 - 임시 폴더 작업 공간은 격리 없이는 최근 작업에 올리지 않음", False),
     ("reqcli", [sys.executable, "engine_request_cli_test.py"], "엔진 요청 CLI - --body-file/stdin·래퍼에 잘린 값 거부·applied --applied-commit·--reply-file", False),
     ("regress", [sys.executable, "engine_regress_test.py"], "엔진 회귀(검증 ④) - 복제 엔진에서 변경 없음 0 · 토큰 변경 1(장별) · --allow · 깨진 덱 2 · 원본 불변", False),
     ("wizard", [sys.executable, "template_wizard_test.py"], "회사 템플릿 마법사(0.22.26) - palette 파생·/api/project template·작업 공간 파일 3종·resolve_tokens·PPTX srgbClr·거부·금지 키·권한·git status 불변", False),

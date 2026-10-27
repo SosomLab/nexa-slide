@@ -57,6 +57,7 @@ AI 세션(B 단계 - docs/dev/web-session-design.md · studio/agents/ · wsessio
                                      아니면 폴링 JSON {state, seq, events: [{seq, t, type: state|turn.start|init|text|tool|tool_result|turn.end|warn|error|model|idle, …}]}.
                                      허브 중계는 text/event-stream 응답을 줄 단위로 바로 흘린다
   GET  /api/wsession/log?turn=N      그 턴의 어댑터 출력 원문(줄 목록)
+  GET  /api/wsession/pulse           처리 중 턴의 맥박 {state, seq, turn, turnSec, outSec, tools, alive, tool?: {name, summary, sec}} - 허브 엔진 세션은 /api/engine/session/pulse
 중계(허브 한 포트로 여러 작업 공간 — hub.py ws_id·proxy_target)
   /w/<id>/…                          그 작업 공간 서버(별도 프로세스·포트)로 그대로 넘기고 응답을 돌려준다(Location 은 접두를 다시 붙임).
                                      꺼져 있으면 띄운다(--port auto — 설정 포트가 쓰는 중이면 빈 포트). nexa.py 로 띄운 서버가 있으면 그 서버로.
@@ -118,6 +119,21 @@ def ver(p: Path):
         return str(p.stat().st_mtime_ns)
     except FileNotFoundError:
         return "0"
+
+
+def _deploy_stop_engine():
+    """배포가 '턴 마무리 대기'를 지나면(= 곧 허브 재시작) 웹 엔진 세션을 끈다 - 그 전(병합·시험)에는 세션이 계속 요청을 처리한다.
+    service.py 는 허브를 강제 종료해 세션의 자식 프로세스가 남으므로 허브가 먼저 정리한다. 배포가 실패로 끝나면 끄지 않는다."""
+    import engine_deploy
+    while True:
+        time.sleep(1)
+        d = engine_deploy.status()
+        if d.get("state") != "running":
+            return
+        if any(x.get("step") == "턴 마무리 대기" for x in d.get("steps") or []):
+            if WS_ENGINE is not None and WS_ENGINE.state != "off":
+                WS_ENGINE.stop("deploy")
+            return
 
 
 def deck_path(i):
@@ -1260,6 +1276,8 @@ class H(BaseHTTPRequestHandler):
             return self.send_json({"ok": True, "state": ws.state, "seq": ws.seq, "events": ws.events_since(since)})
         if what == "log":
             return self.send_json({"ok": True, "turn": (q.get("turn") or ["1"])[0], "lines": ws.turn_log((q.get("turn") or ["1"])[0]).splitlines()})
+        if what == "pulse":  # 처리 중 턴의 맥박(지금 도구·경과·마지막 출력·프로세스 생존) - 진행 창이 몇 초마다(git 을 묻지 않는 가벼운 조회)
+            return self.send_json({"ok": True, **ws.pulse()})
         if what:
             return self.err(404, "없는 API")
         self.send_json({"ok": True, **ws.info()})
@@ -1402,11 +1420,11 @@ class H(BaseHTTPRequestHandler):
                 return self.err(409, "엔진 세션이 턴을 처리 중이다 - 끝난 뒤 배포한다")
             import engine_deploy
             try:
-                if WS_ENGINE is not None and WS_ENGINE.state != "off":  # 재시작하면 어차피 끊긴다 - 허브가 먼저 정리해 자식 프로세스가 남지 않게
-                    WS_ENGINE.stop("deploy")
                 d = engine_deploy.start(who)
             except ValueError as e:
                 return self.err(409, str(e))
+            if WS_ENGINE is not None:  # 세션은 병합·시험(몇 분) 동안 그대로 두고 재시작 직전에 끈다(0.22.40)
+                threading.Thread(target=_deploy_stop_engine, name="deploy-stop-engine", daemon=True).start()
             self._event = "engine.deploy"
             return self.send_json({"ok": True, "last": d})
         if what == "tidy":  # {action: clean, categories: […]} - 보고된 것 중 고른 범주를 지운다(관리자, 범주가 없으면 engine_tidy.DEFAULTS)

@@ -9,6 +9,8 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 
+import testlock  # noqa: F401 - 이 PC 에서 시험은 한 번에 하나(고정 포트·임시 폴더를 같이 쓴다, testlock.py)
+
 for _s in (sys.stdout, sys.stderr):
     _s.reconfigure(encoding="utf-8", errors="replace")
 HERE = Path(__file__).resolve().parent
@@ -34,7 +36,7 @@ def svc(*a):
 
 for f in (WS / "decks").glob("*.requests.json"):
     f.unlink()
-print(svc("start").stdout.strip())
+print(svc("start", "--port", "auto").stdout.strip())  # 설정 포트(5600)는 운영 작업 공간 서버가 쓰고 있을 수 있다 - 빈 포트로(배포 시험이 늘 thread 실패로 보이던 원인)
 try:
     base = json.loads((WS / "out" / ".studio" / "server.json").read_text("utf-8"))["url"].rstrip("/")
 

@@ -27,7 +27,8 @@ async function main() {
       if (d.method === "Log.entryAdded" && d.params.entry.level === "error" && !IGNORE.test(d.params.entry.text + " " + (d.params.entry.url || ""))) errors.push("log: " + d.params.entry.text + " " + (d.params.entry.url || ""));
     };
     // 콘솔 오류로 치지 않는 것 - 기본 목록 + 시나리오의 ignoreErrors(정규식 글) - 예: 일부러 틀린 그림 주소
-    const IGNORE = new RegExp("favicon|net::ERR_ABORTED|api\/engine\/notice|api\/image" + (sc.ignoreErrors ? "|" + sc.ignoreErrors : ""));
+    // fontfile·wsfonts = 이 PC 에 없는 글꼴(Pretendard 등)의 404 - 대체 글꼴로 그려지는 환경 차이라 오류가 아니다(배포 시험이 늘 smoke·editor 실패로 보이던 원인)
+    const IGNORE = new RegExp("favicon|net::ERR_ABORTED|api\/engine\/notice|api\/image|api\/fontfile\/|wsfonts" + (sc.ignoreErrors ? "|" + sc.ignoreErrors : ""));
     const send = (method, params = {}) => new Promise((r) => { const i = ++id; pending[i] = r; ws.send(JSON.stringify({ id: i, method, params })); });
     const evalJs = async (js) => {
       const r = await send("Runtime.evaluate", { expression: `(async () => { ${js.includes("return") ? js : "return (" + js + ")"} })()`, awaitPromise: true, returnByValue: true });

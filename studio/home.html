@@ -142,7 +142,7 @@
   .tcs { display: flex; flex-wrap: wrap; gap: 4px; }
   .tc { display: inline-flex; align-items: center; gap: 3px; font-size: 11px; padding: 1px 7px; border-radius: 999px; background: var(--card); color: var(--ink2); border: 1px solid var(--line); }
   .tc i { font-style: normal; opacity: .7; } .tc.ok { background: var(--okc); color: var(--ok); border-color: transparent; }
-  .tc.bad { background: #FFDAD6; color: var(--err); border-color: transparent; } .tc.now { border-color: var(--p); color: var(--p); font-weight: 700; } .tc .spin { width: 9px; height: 9px; border-width: 1.5px; }
+  .tc.bad { background: #FFDAD6; color: var(--err); border-color: transparent; } .tc.known { background: var(--warnc); color: var(--warn); border-color: transparent; } .tc.now { border-color: var(--p); color: var(--p); font-weight: 700; } .tc .spin { width: 9px; height: 9px; border-width: 1.5px; }
   .empty { color: var(--ink2); padding: 10px; font-size: 13px; }
   /* 요청 첨부 축소판 칩·＋ 첨부 버튼 - 편집기(index.html)와 같은 모양 */
   .att { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0; } .att:empty { display: none; }
@@ -528,7 +528,7 @@
 <!-- 엔진 개발 세션 진행(SSE) -->
 <div class="modal-back" id="engpModal"><div class="modal" style="width:min(720px,100%)">
   <div class="mh"><h3>엔진 개발 세션 진행</h3><button type="button" class="ib" data-close>✕</button></div>
-  <div class="mb"><div id="engpBody" style="font:12px Consolas,monospace;background:var(--tone);border-radius:10px;padding:8px 10px;max-height:52vh;overflow-y:auto;white-space:pre-wrap;word-break:break-all"></div></div>
+  <div class="mb"><div id="engpNow" style="margin-bottom:6px;font-size:12px" title="지금 하는 일 - 4초마다 확인, 경과는 1초마다"></div><div id="engpBody"style="font:12px Consolas,monospace;background:var(--tone);border-radius:10px;padding:8px 10px;max-height:52vh;overflow-y:auto;white-space:pre-wrap;word-break:break-all"></div></div>
 </div></div>
 <style>#engpBody .e { padding: 1px 0; border-bottom: 1px dashed var(--tone2); } #engpBody .e.warn, #engpBody .e.error { color: var(--err); } #engpBody .e.turn-end { color: var(--ok); }</style>
 <!-- 미리 보기 -->
@@ -807,7 +807,7 @@
     // 4줄 세션 상태 + 마지막 요약 + 오른쪽 끝 버튼(최근 작업과 같은 .svc)
     let line, btn = "";
     if (s.state === "manual") line = `<span class="badge run" title="터미널의 Claude Code 세션이 watch_engine_requests 로 큐를 맡고 있다(pid ${esc(String(s.pid || ""))})">수동 세션</span> ${esc(s.label || "")}${s.agent || s.model ? ` · ${esc([s.agent, s.model].filter(Boolean).join(" "))}` : ""}${s.entry ? ` <span class="badge" title="세션을 연 곳">${esc(s.entry)}</span>` : ""}${s.startedBy ? ` · ${esc(s.startedBy)}` : ""}${s.cwd ? ` <span class="hint" title="${esc(s.cwd)}">· ${esc(String(s.cwd).split(/[\\/]/).pop())}</span>` : ""} ${sidBadge(s.sessionId, s.cwd, 1)}`;
-    else if (on) line = `<span class="badge run">엔진 세션 ${esc(s.state)}</span> ${esc(s.agent || "")} · ${esc(s.model || "")}${s.startedBy ? ` · ${esc(s.startedBy)}` : ""} · 턴 ${s.turns || 0} ${sidBadge(s.sessionId, s.cwd, s.turns)}${s.lastError ? ` · <span style="color:var(--err)">${esc(s.lastError.slice(0, 80))}</span>` : ""}`;
+    else if (on) line = `<span class="badge run">엔진 세션 ${esc(s.state)}</span> ${esc(s.agent || "")} · ${esc(s.model || "")}${s.startedBy ? ` · ${esc(s.startedBy)}` : ""} · 턴 ${s.turns || 0} ${sidBadge(s.sessionId, s.cwd, s.turns)}${s.lastError ? ` · <span style="color:var(--err)">${esc(s.lastError.slice(0, 80))}</span>` : ""}${s.pulse && s.pulse.turn ? `<br>${pulseHtml(s.pulse)}` : ""}`;
     else line = `<span class="badge">세션 없음</span>${s.last && s.last.startedAt ? ` <span class="hint">· 마지막 · ${esc(s.last.agent || "")} ${esc(s.last.model || "")} · ${fmtT(s.last.stoppedAt || s.last.startedAt)}${s.last.reason ? ` · ${reasonKo(s.last.reason)}` : ""}</span>` : ""}`;
     const sr = d.startRequest, banner = !on && (pending || sr);  // 세션이 꺼진 채 할 일이 있으면 배너 - 그때 [세션 시작]은 배너에만(버튼이 두 개가 되지 않게)
     if (s.state === "manual") btn = admin
@@ -846,7 +846,8 @@
   }
   // 배포(관리자) - 완료된 엔진 요청(engine-dev)을 main 병합·시험·재시작·push·적용됨까지 한 번에(engine_deploy.py, docs/dev/engine-deploy-design.md)
   // anim = 막 펼침(판 애니메이션 한 번) · shown = 지난번에 그린 끝난 단계 수(그 뒤 줄만 .new) · html = 지난번 내용(같으면 다시 안 그림)
-  const DEP = { open: false, plan: null, last: null, timer: 0, anim: false, shown: 0, html: "" };
+  // hide = 펼칠 때 이미 끝나 있던 지난 배포의 started(그 기록은 진행판에 다시 그리지 않는다)
+  const DEP = { open: false, plan: null, last: null, timer: 0, anim: false, shown: 0, html: "", hide: null };
   const DEP_KO = { running: "배포 중", ok: "배포 완료", warn: "배포 완료(경고)", failed: "배포 실패", rolledback: "배포 되돌림" };
   function renderDeploy(admin, g, c) {
     const box = $("#engDeploy"), last = (H.engine && H.engine.deploy) || DEP.last || null;
@@ -870,7 +871,9 @@
         + `<div class="hint" style="margin-top:6px">순서: 시험용 worktree 에서 병합 → 시험(새로 생긴 실패만 막음, 몇 분) → 처리 중 턴 대기 → main 반영 → 허브·작업 공간 서버 재시작(엔진 세션은 끊김) → push → 적용됨 · 원 요청 재개. 허브가 뜨지 않으면 main 을 되돌린다.${p.estimate ? ` <b>예상 약 ${Math.ceil(p.estimate / 60)}분</b>(지난 시험 시간 기준).` : ""}</div>`
         + `<div class="row" style="justify-content:flex-end;margin-top:6px"><button type="button" class="chip sm primary" data-eng="deployrun" ${p.ready && !(L && L.state === "running") ? "" : "disabled"}>${icon("rocket", 15)}배포 시작</button></div>`;
     }
-    if (L && L.steps && (L.steps.length || L.cur)) body += depProgress(L);
+    // 펼칠 때 이미 끝나 있던 지난 배포(hide)는 그리지 않고 진행 예정만 - 이번에 시작했거나 진행 중인 배포만 진행판으로
+    if (L && L.steps && (L.steps.length || L.cur) && (L.state === "running" || L.started !== DEP.hide)) body += depProgress(L);
+    else if (p) body += depPreview();
     put(`<div class="dep open">${head}<div class="dep-panel${DEP.anim ? " anim" : ""}">${body}</div></div>`);
     DEP.anim = false;
   }
@@ -906,17 +909,27 @@
       return `<div class="dep-line ${x.ok ? "" : "bad"}${i >= shown ? " new" : ""}"><span class="mk">${x.ok ? "✓" : "✕"}</span><b>${esc(x.step)}</b> <span class="hint">${esc(x.msg || "")}</span><span class="dur">${depDur(d)}</span></div>`; }).join("");
     const cur = run && L.cur ? `<div class="dep-line now"><span class="mk"><span class="spin"></span></span><b>${esc(L.cur.step)}</b><span class="dur">${depDur(depSec(L.cur.t, nowLocal))}</span></div>` : "";
     const tests = Object.entries(L.tests || {}).map(([label, T]) => {
-      const n = T.total || 0, k = (T.done || []).length, fails = (T.done || []).filter((x) => !x.ok).length;
+      // known = 병합 전 main 에서도 실패한 묶음(환경 탓 등) - 배포를 막지 않으므로 빨간 ✕ 대신 노란 '기존'으로
+      // flaky = 새 실패였지만 병합본에서 다시 돌려 통과(한때의 흔들림) - 이것도 막지 않으므로 노랑
+      const n = T.total || 0, k = (T.done || []).length, flaky = new Set(T.flaky || []), known = new Set([...(T.known || []), ...flaky]);
+      const fails = (T.done || []).filter((x) => !x.ok && !known.has(x.name)).length, kn = (T.done || []).filter((x) => !x.ok && known.has(x.name)).length;
       const doneNames = new Set((T.done || []).map((x) => x.name));
-      const chips = (T.done || []).map((x) => `<span class="tc ${x.ok ? "ok" : "bad"}" title="${x.ok ? "통과" : "실패"} · ${x.sec}초">${x.ok ? "✓" : "✕"} ${esc(x.name)} <i>${x.sec}s</i></span>`).join("")
+      const chips = (T.done || []).map((x) => { const kw = !x.ok && known.has(x.name);
+        return `<span class="tc ${x.ok ? "ok" : kw ? "known" : "bad"}" title="${x.ok ? "통과" : flaky.has(x.name) ? "다시 돌려 통과 - 한때의 흔들림(배포를 막지 않음)" : kw ? "기존 실패 - 병합 전 main 에서도 실패(이번 변경 탓 아님, 배포를 막지 않음)" : "실패"} · ${x.sec}초">${x.ok ? "✓" : kw ? "!" : "✕"} ${esc(x.name)} <i>${x.sec}s</i></span>`; }).join("")
         + (T.names || []).filter((x) => !doneNames.has(x)).map((x, j) => `<span class="tc ${j === 0 && run && k < n ? "now" : ""}">${j === 0 && run && k < n ? `<span class="spin"></span>` : ""}${esc(x)}</span>`).join("");
-      return `<div class="dep-tests"><div class="row" style="gap:6px;align-items:center"><b>시험 · ${esc(label)}</b><span class="hint">${k}/${n}${fails ? ` · 실패 ${fails}` : ""}</span></div>`
+      return `<div class="dep-tests"><div class="row" style="gap:6px;align-items:center"><b>시험 · ${esc(label)}</b><span class="hint">${k}/${n}${fails ? ` · 실패 ${fails}` : ""}${kn ? ` · 기존 실패·재시도 통과 ${kn}(막지 않음)` : ""}</span></div>`
         + `<div class="dep-pbar"><i style="width:${n ? Math.round(k * 100 / n) : 0}%"></i></div><div class="tcs">${chips}</div></div>`;
     }).join("");
     const foot = run ? `<div class="hint" style="margin-top:4px">경과 ${depDur(total)}${L.estimate ? ` · 예상 약 ${Math.ceil(L.estimate / 60)}분` : ""} · 허브가 재시작되는 동안 잠시 응답이 없을 수 있습니다</div>`
       : `<div style="margin-top:4px"><b>${DEP_KO[L.state] || esc(L.state)}</b> ${esc(L.message || "")} <span class="hint">· 모두 ${depDur(total)}</span></div>`;
     return `<div class="dep-prog">${bar}${steps}${cur}${tests}${foot}</div>`;
   }
+  // 진행 예정 - 배포 시작 전, 모든 단계를 아직(번호)으로
+  function depPreview() {
+    return `<div class="dep-prog"><div class="dep-stages">${DEP_STAGES.map((s, i) => `<div class="dep-st todo"><span class="dot">${i + 1}</span><span class="lb">${s}</span></div>`).join("")}</div>`
+      + `<div class="hint" style="margin-top:4px">진행 예정 - [배포 시작]을 누르면 단계·시험 진행이 여기 표시됩니다</div></div>`;
+  }
+  const depHide = (L) => (L && L.state !== "running" ? L.started || null : null);
   async function loadDeploy(fetchGit) {
     try {
       const r = await fetch(`/api/engine/deploy${fetchGit ? "" : "?fetch=0"}`, { cache: "no-store" }); const d = await r.json();
@@ -1004,8 +1017,8 @@
     if (b.dataset.eng === "progress") { openEngProgress(); return; }
     if (b.dataset.eng === "tidy") { openTidy("", "", "nexa-slide 엔진 개발", true); return; }
     if (b.dataset.eng === "deploy") {
-      DEP.open = !DEP.open; DEP.plan = null; DEP.anim = DEP.open; DEP.shown = 0; loadEngine();
-      if (DEP.open) { const last = await loadDeploy(true); loadEngine(); if (last && last.state === "running") pollDeploy(); }
+      DEP.open = !DEP.open; DEP.plan = null; DEP.anim = DEP.open; DEP.shown = 0; DEP.hide = depHide((H.engine && H.engine.deploy) || DEP.last); loadEngine();
+      if (DEP.open) { const last = await loadDeploy(true); DEP.hide = depHide(last); loadEngine(); if (last && last.state === "running") pollDeploy(); }
       return;
     }
     if (b.dataset.eng === "deployrun") {
@@ -1048,10 +1061,32 @@
       loadEngine();
     }
   });
-  let engSrc = null;
+  // 처리 중 턴의 맥박(wsession.pulse) 한 줄 - 긴 도구(시험 몇 분) 동안 이벤트가 없어도 '무엇을 몇 분째 · 프로세스 살아 있음'을 보인다(#9)
+  // add = 받은 뒤 흐른 초(진행 창이 1초마다 다시 그릴 때). 판정: 프로세스 없음 = 빨강 · 도구 없이 출력이 5분 넘게 없음 = 노랑 · 그 밖 = 정상
+  function pulseHtml(p, add = 0) {
+    const t = (s) => depDur((s || 0) + add);
+    const head = `턴 ${p.turn} · ${t(p.turnSec)}째 · 도구 ${p.tools || 0}회`;
+    let now, tone;
+    if (!p.alive) { now = "에이전트 프로세스가 없다 - 턴이 곧 정리된다(오래가면 [세션 중지] 뒤 다시 시작)"; tone = "err"; }
+    else if (p.tool) { now = `도구 실행 중: <b>${esc(p.tool.name || "")}</b> ${esc((p.tool.summary || "").slice(0, 90))} · ${t(p.tool.sec)}째 (시험·회귀는 몇 분 걸린다)`; tone = (p.tool.sec + add) > 900 ? "warn" : "ok"; }
+    else { now = `모델 응답 대기 · 마지막 출력 ${t(p.outSec)} 전`; tone = (p.outSec + add) > 300 ? "warn" : "ok"; }
+    const c = tone === "err" ? "var(--err)" : tone === "warn" ? "var(--warn)" : "var(--ok)";
+    return `<span class="pulse" style="font-size:11.5px"><span style="color:${c}">●</span> ${head} · ${now}${p.alive ? ` <span class="hint">· 프로세스 살아 있음</span>` : ""}</span>`;
+  }
+  let engSrc = null, engPulse = { timer: 0, tick: 0, p: null, at: 0 };
+  function engPulseStop() { clearInterval(engPulse.timer); clearInterval(engPulse.tick); engPulse = { timer: 0, tick: 0, p: null, at: 0 }; }
+  function engPulseStart() {
+    engPulseStop();
+    const draw = () => { const p = engPulse.p, el = $("#engpNow"); if (!el) return;
+      el.innerHTML = p && p.turn ? pulseHtml(p, Math.round((Date.now() - engPulse.at) / 1000)) : `<span class="hint">● 대기 중 - 처리 중인 턴 없음${p && p.state ? ` (${esc(p.state)})` : ""}</span>`; };
+    const load = async () => { if (!$("#engpModal").classList.contains("on")) { engPulseStop(); return; }  // Esc 등 다른 길로 닫혔다
+      try { const r = await fetch("/api/engine/session/pulse", { cache: "no-store" }); const d = await r.json(); if (d.ok) { engPulse.p = d; engPulse.at = Date.now(); draw(); } } catch (e) { /* 다음 차례에 */ } };
+    load(); engPulse.timer = setInterval(load, 4000); engPulse.tick = setInterval(draw, 1000);
+  }
   function openEngProgress() {
     $("#engpBody").innerHTML = ""; $("#engpModal").classList.add("on");
     if (engSrc) engSrc.close();
+    engPulseStart();
     const box = $("#engpBody");
     const add = (t, cls) => { const div = document.createElement("div"); div.className = "e " + (cls || ""); div.textContent = t; box.appendChild(div); box.scrollTop = box.scrollHeight; };
     try {
@@ -1064,6 +1099,7 @@
           else if (k === "turn.start") txt = `턴 ${d.turn} 시작 - 요청 #${(d.ids || []).join(", #")} · ${d.model}`;
           else if (k === "init") txt = `세션 ${String(d.sessionId || "").slice(0, 8)} · 모델 ${d.model}`;
           else if (k === "tool") txt = `도구 ${d.tool} ${d.summary || ""}`;
+          else if (k === "tool_result") txt = `  ↳ 도구 결과 ${d.ok === false ? "오류" : "받음"}`;
           else if (k === "text") txt = `✎ ${d.text}`;
           else if (k === "turn.end") txt = `턴 ${d.turn} 끝 - ${d.ok ? "정상" : "실패"}${d.costUsd != null ? ` · $${Number(d.costUsd).toFixed(4)}` : ""}${d.error ? ` · ${d.error}` : ""}`;
           else if (k === "warn" || k === "error") txt = `${k === "warn" ? "경고" : "오류"} ${d.message || ""}`;
@@ -1074,7 +1110,7 @@
       engSrc.onerror = () => add("연결이 끊겨 다시 붙는 중…", "warn");
     } catch (err) { add("이 브라우저는 SSE 를 지원하지 않습니다"); }
   }
-  $("#engpModal").addEventListener("click", (e) => { if (e.target.closest("[data-close]") || e.target === $("#engpModal")) { if (engSrc) { engSrc.close(); engSrc = null; } } });
+  $("#engpModal").addEventListener("click", (e) => { if (e.target.closest("[data-close]") || e.target === $("#engpModal")) { if (engSrc) { engSrc.close(); engSrc = null; } engPulseStop(); } });
 
   // 세션 식별자 - claude 세션 ID 앞 8자리 배지, 누르면 ID 복사(Shift = 그 폴더에서 claude --resume <ID> 확인 명령)
   const sidBadge = (id, cwd, turns) => id ? `<button type="button" class="badge sid" data-sid="${esc(id)}" data-cwd="${esc(cwd || "")}" title="${esc(["claude 세션 ID " + id, cwd ? "폴더 " + cwd : "", "누르면 ID 복사 · Shift+누르면 확인 명령(claude --resume) 복사", "터미널에서 claude --resume <ID> 로 바로 열거나, claude --resume 목록에서 '#앞 8자리' 로 검색", turns === 0 ? "아직 첫 턴 전 - 대화 파일이 없어 claude --resume 로는 안 열린다(요청을 처리한 뒤부터)" : ""].filter(Boolean).join("\n"))}"${turns === 0 ? ' data-turn0="1" style="border-style:dashed;opacity:.75"' : ""}>ID ${esc(id.slice(0, 8))}${turns === 0 ? " · 턴 전" : ""}</button>` : "";
