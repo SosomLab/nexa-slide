@@ -846,7 +846,8 @@
   }
   // 배포(관리자) - 완료된 엔진 요청(engine-dev)을 main 병합·시험·재시작·push·적용됨까지 한 번에(engine_deploy.py, docs/dev/engine-deploy-design.md)
   // anim = 막 펼침(판 애니메이션 한 번) · shown = 지난번에 그린 끝난 단계 수(그 뒤 줄만 .new) · html = 지난번 내용(같으면 다시 안 그림)
-  const DEP = { open: false, plan: null, last: null, timer: 0, anim: false, shown: 0, html: "" };
+  // hide = 펼칠 때 이미 끝나 있던 지난 배포의 started(그 기록은 진행판에 다시 그리지 않는다)
+  const DEP = { open: false, plan: null, last: null, timer: 0, anim: false, shown: 0, html: "", hide: null };
   const DEP_KO = { running: "배포 중", ok: "배포 완료", warn: "배포 완료(경고)", failed: "배포 실패", rolledback: "배포 되돌림" };
   function renderDeploy(admin, g, c) {
     const box = $("#engDeploy"), last = (H.engine && H.engine.deploy) || DEP.last || null;
@@ -870,7 +871,9 @@
         + `<div class="hint" style="margin-top:6px">순서: 시험용 worktree 에서 병합 → 시험(새로 생긴 실패만 막음, 몇 분) → 처리 중 턴 대기 → main 반영 → 허브·작업 공간 서버 재시작(엔진 세션은 끊김) → push → 적용됨 · 원 요청 재개. 허브가 뜨지 않으면 main 을 되돌린다.${p.estimate ? ` <b>예상 약 ${Math.ceil(p.estimate / 60)}분</b>(지난 시험 시간 기준).` : ""}</div>`
         + `<div class="row" style="justify-content:flex-end;margin-top:6px"><button type="button" class="chip sm primary" data-eng="deployrun" ${p.ready && !(L && L.state === "running") ? "" : "disabled"}>${icon("rocket", 15)}배포 시작</button></div>`;
     }
-    if (L && L.steps && (L.steps.length || L.cur)) body += depProgress(L);
+    // 펼칠 때 이미 끝나 있던 지난 배포(hide)는 그리지 않고 진행 예정만 - 이번에 시작했거나 진행 중인 배포만 진행판으로
+    if (L && L.steps && (L.steps.length || L.cur) && (L.state === "running" || L.started !== DEP.hide)) body += depProgress(L);
+    else if (p) body += depPreview();
     put(`<div class="dep open">${head}<div class="dep-panel${DEP.anim ? " anim" : ""}">${body}</div></div>`);
     DEP.anim = false;
   }
@@ -920,6 +923,12 @@
       : `<div style="margin-top:4px"><b>${DEP_KO[L.state] || esc(L.state)}</b> ${esc(L.message || "")} <span class="hint">· 모두 ${depDur(total)}</span></div>`;
     return `<div class="dep-prog">${bar}${steps}${cur}${tests}${foot}</div>`;
   }
+  // 진행 예정 - 배포 시작 전, 모든 단계를 아직(번호)으로
+  function depPreview() {
+    return `<div class="dep-prog"><div class="dep-stages">${DEP_STAGES.map((s, i) => `<div class="dep-st todo"><span class="dot">${i + 1}</span><span class="lb">${s}</span></div>`).join("")}</div>`
+      + `<div class="hint" style="margin-top:4px">진행 예정 - [배포 시작]을 누르면 단계·시험 진행이 여기 표시됩니다</div></div>`;
+  }
+  const depHide = (L) => (L && L.state !== "running" ? L.started || null : null);
   async function loadDeploy(fetchGit) {
     try {
       const r = await fetch(`/api/engine/deploy${fetchGit ? "" : "?fetch=0"}`, { cache: "no-store" }); const d = await r.json();
@@ -1007,8 +1016,8 @@
     if (b.dataset.eng === "progress") { openEngProgress(); return; }
     if (b.dataset.eng === "tidy") { openTidy("", "", "nexa-slide 엔진 개발", true); return; }
     if (b.dataset.eng === "deploy") {
-      DEP.open = !DEP.open; DEP.plan = null; DEP.anim = DEP.open; DEP.shown = 0; loadEngine();
-      if (DEP.open) { const last = await loadDeploy(true); loadEngine(); if (last && last.state === "running") pollDeploy(); }
+      DEP.open = !DEP.open; DEP.plan = null; DEP.anim = DEP.open; DEP.shown = 0; DEP.hide = depHide((H.engine && H.engine.deploy) || DEP.last); loadEngine();
+      if (DEP.open) { const last = await loadDeploy(true); DEP.hide = depHide(last); loadEngine(); if (last && last.state === "running") pollDeploy(); }
       return;
     }
     if (b.dataset.eng === "deployrun") {
