@@ -23,7 +23,7 @@ class ClaudeAgent(Agent):
     label = "Claude Code"
     guide_file = "CLAUDE.md"
     doc = "docs/claude-install.md"
-    default_models = ["opus", "sonnet", "haiku"]
+    default_models = ["opus", "sonnet", "haiku", "claude-fable-5-1"]  # Fable 은 별칭 대신 전체 ID(CLI 판에 따라 별칭이 없을 수 있다)
     verified = True
     exe_names = ("claude", "claude.exe", "claude.cmd")
     shell_note = ("**다른 Bash 명령(파이썬 스크립트·heredoc·cat·sed 등)은 거절되지만 `python3 nexa.py …` 는 허용된다 — 거절을 만나도 포기하지 말고 아래 명령으로 한다.**")

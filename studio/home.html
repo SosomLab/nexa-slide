@@ -439,7 +439,7 @@
         <div><label class="f" for="sgAgent">에이전트</label><select id="sgAgent" style="width:100%"><option value="">기본(claude)</option><option value="claude">claude</option><option value="codex">codex</option></select></div>
         <div><label class="f" for="sgModel">모델</label><input type="text" id="sgModel" placeholder="기본(opus)"></div>
       </div>
-      <label class="f" for="sgModelsClaude">claude 모델 목록(쉼표)</label><input type="text" id="sgModelsClaude" placeholder="opus, sonnet, haiku">
+      <label class="f" for="sgModelsClaude">claude 모델 목록(쉼표)</label><input type="text" id="sgModelsClaude" placeholder="opus, sonnet, haiku, claude-fable-5-1">
       <label class="f" for="sgModelsCodex">codex 모델 목록(쉼표)</label><input type="text" id="sgModelsCodex" placeholder="(계정에서 쓸 수 있는 모델 ID)">
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(118px,1fr));gap:0 12px;margin-top:4px" class="sg-nums">
         <div><label class="f" for="sgIdle">유휴 (분)</label><input type="text" id="sgIdle" placeholder="60"></div>
@@ -964,7 +964,7 @@
     const models = (n) => (d.models[n] || []).map((m) => `<option value="${esc(m)}" ${m === model ? "selected" : ""}>${esc(m)}</option>`).join("") + `<option value="__custom">직접 입력</option>`;
     $("#sessBody").innerHTML = `<label class="f">에이전트</label><select id="smAgent">${opt("claude")}${opt("codex")}</select><div class="hint" id="smHint">${esc(d.agents[cur].hint || "")}</div>
       <label class="f">모델 <span class="hint">(기본 ${esc(model)}${modelDef ? " — 작업 공간" : ` — ${esc(d.sources.model)}`})</span></label>
-      <div class="row"><select id="smModel">${models(cur)}</select><input type="text" id="smModelText" placeholder="모델 ID 직접 입력" style="display:none"></div>
+      <select id="smModel">${models(cur)}</select><input type="text" id="smModelText" placeholder="모델 ID 직접 입력" style="display:none;margin-top:6px">
       <label class="f" id="sessSaveRow" style="display:flex;align-items:center;gap:8px;font-weight:400;margin-top:10px"><input type="checkbox" id="smSave" style="margin:0"> 이 작업 공간 기본으로 저장 <select id="smSaveAs" style="font-size:12px"><option value="local">이 PC 만</option><option value="shared">공유(nexa-slide.json)</option></select></label>
       ${d.allowWeb && !(path && path.engine) ? `<label class="f" style="display:flex;align-items:center;gap:8px;font-weight:400;margin-top:6px"><input type="checkbox" id="smWeb" style="margin:0" ${d.canAllowWeb ? "" : "disabled"}> 이 세션에 웹 검색 허용(WebSearch·WebFetch) ${d.canAllowWeb ? "" : '<span class="hint">- 관리자만</span>'}</label>
       <div class="warn" id="smWebWarn" style="display:none;font-size:12px">이 세션이 외부 웹을 검색·열람합니다 - 슬라이드·요청 내용이 검색어·URL 로 외부에 전달될 수 있습니다(claude 만, 실행 중 세션은 다시 시작해야 바뀜).</div>` : ""}
@@ -977,7 +977,7 @@
     }
     $("#sessSaveRow").style.display = path && path.engine ? "none" : "";  // 엔진 세션은 작업 공간 기본 저장이 없다(sessBody 를 그린 뒤에 있어야 한다 - 그 전엔 null)
     $("#smAgent").onchange = () => { const n = $("#smAgent").value; $("#smModel").innerHTML = models(n); $("#smHint").textContent = d.agents[n].hint || ""; };
-    $("#smModel").onchange = () => { $("#smModelText").style.display = $("#smModel").value === "__custom" ? "" : "none"; };
+    $("#smModel").onchange = () => { const c = $("#smModel").value === "__custom"; $("#smModelText").style.display = c ? "" : "none"; if (c) $("#smModelText").focus(); };  // 입력란은 선택 상자 아래 한 줄(같은 줄이면 둘 다 width:100% 라 입력란이 찌그러진다)
   }
   $("#sessGo").onclick = async () => {
     if (!sessTarget || !$("#smAgent")) return;
