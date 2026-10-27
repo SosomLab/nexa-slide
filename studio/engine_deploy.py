@@ -242,7 +242,10 @@ class Run:
         t_end = time.time() + 1800
         for line in p.stdout:
             print(line, end="", flush=True)
-            if m := re.match(r"^== 묶음 (\d+)개: (.*)", line):
+            if line.startswith("== 대기 · "):  # 다른 시험 실행(엔진 세션 등)이 끝나길 기다림(tests/testlock.py) - 기다린 시간은 시험 제한에 넣지 않는다
+                self.doing(f"시험({label}) " + line[5:].strip())
+                t_end = time.time() + 1800
+            elif m := re.match(r"^== 묶음 (\d+)개: (.*)", line):
                 T["total"], T["names"] = int(m.group(1)), m.group(2).split()
                 _save(self.d)
             elif (m := re.match(r"^== (\S+) · ", line)) and m.group(1) in T["names"]:
@@ -316,11 +319,21 @@ class Run:
                     save_baseline(prev, before)  # 그 묶음들만 돌린 기록 - 다음에 다른 묶음이 실패하면 새 실패로 본다(막는 쪽으로 안전)
                     self.step("비교 시험(병합 전)", True, f"병합 전에도 실패: {', '.join(sorted(before)) or '없음'}")
                 new = [b for b in bad if b not in before]
+                if new and "run_all" not in new:  # 새 실패는 병합본에서 한 번 더 - 다시 통과하면 한때의 흔들림(시간·환경)이지 변경 탓이 아니다
+                    self.doing(f"시험 - 새 실패 {len(new)}개 묶음을 병합본에서 다시 돌려 확인")
+                    still = set(self._run_tests(w, new, label="재시도"))
+                    flaky = [b for b in new if b not in still]
+                    if flaky:
+                        self.d.setdefault("tests", {}).setdefault("병합본", {})["flaky"] = flaky  # 화면은 '다시 돌려 통과'(노랑)로
+                        bad = [b for b in bad if b not in flaky]
+                        save_baseline(merge, bad)  # 기준에는 다시 돌려도 실패한 것만
+                    self.step("재시도(병합본)", True, f"다시 돌려 통과: {', '.join(flaky) or '없음'} · 여전히 실패: {', '.join(sorted(still)) or '없음'}")
+                    new = [b for b in new if b in still]
                 self.d.setdefault("tests", {}).setdefault("병합본", {})["known"] = sorted(set(bad) & before)  # 화면은 이것을 '기존 실패'(노랑)로 - 빨간 ✕ 는 새 실패만
                 _save(self.d)
                 if new:
                     return self.fail("시험", "새로 생긴 실패: " + ", ".join(new))
-                self.step("시험 판정", True, "새 실패 없음 (원래 있던 실패: " + ", ".join(bad) + ")")
+                self.step("시험 판정", True, "새 실패 없음 (원래 있던 실패: " + (", ".join(bad) or "없음") + ")")
             else:
                 self.step("시험", True, "전부 통과")
             if p["render"]:

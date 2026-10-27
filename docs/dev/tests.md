@@ -47,4 +47,6 @@ NEXA_TEST_DIR=/tmp/nexa-tests python3 studio/tests/run_all.py   # 산출물 자�
 
 렌더 동일성은 별도: `python3 studio/check_parity.py -W example`(render.js ↔ common/export_pptx), `python3 studio/export_pptx.py --selftest --workspace example`, PowerPoint 가 있으면 `render_pptx.ps1`·`compare.py` 로 픽셀 대조([mechanism.md](../mechanism.md)). 줄바꿈 대조는 `pwsh -File studio/lines_pptx.ps1 -Pptx out/<덱>.pptx`(PowerPoint COM 으로 글 상자마다 실제 줄 수를 JSON 으로) 와 브라우저의 `.rs-p` 높이/줄 높이를 비교한다.
 
-시험을 더하려면: `studio/tests/<이름>_test.py` 를 만들고(머리는 `e4_manual_stop_test.py` 를 본뜬다 — `STUDIO = parents[1]`, `WORK`/`USER`/`PROJ`, `check()`), `run_all.py` 의 `TESTS` 에 한 줄 넣는다.
+**시험 잠금(0.22.41)**: 시험들은 고정 포트(5799·5667·9333 등)와 같은 임시 폴더를 쓰므로 둘이 동시에 돌면 서로의 서버에 물어 엉뚱하게 실패한다(엔진 배포 ↔ 엔진 세션). 그래서 이 PC 에서 시험 실행은 한 번에 하나다 - `run_all.py` 와 각 시험 파일이 머리에서 `import testlock` 으로 `<임시 폴더>/nexa-slide-tests.lock` 을 잡고, 잡혀 있으면 `== 대기 · …` 를 찍고 기다린다(최대 `NEXA_TEST_LOCK_WAIT` 초, 기본 2400). 잡은 프로세스가 죽으면 저절로 풀린다.
+
+시험을 더하려면: `studio/tests/<이름>_test.py` 를 만들고(머리는 `e4_manual_stop_test.py` 를 본뜬다 — `STUDIO = parents[1]`, `WORK`/`USER`/`PROJ`, `check()`, **`import testlock`**), `run_all.py` 의 `TESTS` 에 한 줄 넣는다.

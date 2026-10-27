@@ -910,13 +910,14 @@
     const cur = run && L.cur ? `<div class="dep-line now"><span class="mk"><span class="spin"></span></span><b>${esc(L.cur.step)}</b><span class="dur">${depDur(depSec(L.cur.t, nowLocal))}</span></div>` : "";
     const tests = Object.entries(L.tests || {}).map(([label, T]) => {
       // known = 병합 전 main 에서도 실패한 묶음(환경 탓 등) - 배포를 막지 않으므로 빨간 ✕ 대신 노란 '기존'으로
-      const n = T.total || 0, k = (T.done || []).length, known = new Set(T.known || []);
+      // flaky = 새 실패였지만 병합본에서 다시 돌려 통과(한때의 흔들림) - 이것도 막지 않으므로 노랑
+      const n = T.total || 0, k = (T.done || []).length, flaky = new Set(T.flaky || []), known = new Set([...(T.known || []), ...flaky]);
       const fails = (T.done || []).filter((x) => !x.ok && !known.has(x.name)).length, kn = (T.done || []).filter((x) => !x.ok && known.has(x.name)).length;
       const doneNames = new Set((T.done || []).map((x) => x.name));
       const chips = (T.done || []).map((x) => { const kw = !x.ok && known.has(x.name);
-        return `<span class="tc ${x.ok ? "ok" : kw ? "known" : "bad"}" title="${x.ok ? "통과" : kw ? "기존 실패 - 병합 전 main 에서도 실패(이번 변경 탓 아님, 배포를 막지 않음)" : "실패"} · ${x.sec}초">${x.ok ? "✓" : kw ? "!" : "✕"} ${esc(x.name)} <i>${x.sec}s</i></span>`; }).join("")
+        return `<span class="tc ${x.ok ? "ok" : kw ? "known" : "bad"}" title="${x.ok ? "통과" : flaky.has(x.name) ? "다시 돌려 통과 - 한때의 흔들림(배포를 막지 않음)" : kw ? "기존 실패 - 병합 전 main 에서도 실패(이번 변경 탓 아님, 배포를 막지 않음)" : "실패"} · ${x.sec}초">${x.ok ? "✓" : kw ? "!" : "✕"} ${esc(x.name)} <i>${x.sec}s</i></span>`; }).join("")
         + (T.names || []).filter((x) => !doneNames.has(x)).map((x, j) => `<span class="tc ${j === 0 && run && k < n ? "now" : ""}">${j === 0 && run && k < n ? `<span class="spin"></span>` : ""}${esc(x)}</span>`).join("");
-      return `<div class="dep-tests"><div class="row" style="gap:6px;align-items:center"><b>시험 · ${esc(label)}</b><span class="hint">${k}/${n}${fails ? ` · 실패 ${fails}` : ""}${kn ? ` · 기존 실패 ${kn}(막지 않음)` : ""}</span></div>`
+      return `<div class="dep-tests"><div class="row" style="gap:6px;align-items:center"><b>시험 · ${esc(label)}</b><span class="hint">${k}/${n}${fails ? ` · 실패 ${fails}` : ""}${kn ? ` · 기존 실패·재시도 통과 ${kn}(막지 않음)` : ""}</span></div>`
         + `<div class="dep-pbar"><i style="width:${n ? Math.round(k * 100 / n) : 0}%"></i></div><div class="tcs">${chips}</div></div>`;
     }).join("");
     const foot = run ? `<div class="hint" style="margin-top:4px">경과 ${depDur(total)}${L.estimate ? ` · 예상 약 ${Math.ceil(L.estimate / 60)}분` : ""} · 허브가 재시작되는 동안 잠시 응답이 없을 수 있습니다</div>`

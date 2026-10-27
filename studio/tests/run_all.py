@@ -18,6 +18,8 @@ import tempfile
 import time
 from pathlib import Path
 
+import testlock  # noqa: F401 - 이 PC 에서 시험은 한 번에 하나(고정 포트·임시 폴더를 같이 쓴다, testlock.py)
+
 HERE = Path(__file__).resolve().parent
 TESTS = [  # (이름, 실행, 설명, claude 필요)
     ("i18n", ["node", "i18n_check.js"], "i18n.js 문법·중복 키·번역 표본", False),
