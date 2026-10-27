@@ -10,6 +10,8 @@ import sys
 import tempfile
 from pathlib import Path
 
+import testlock  # noqa: F401 - 이 PC 에서 시험은 한 번에 하나(고정 포트·임시 폴더를 같이 쓴다, testlock.py)
+
 for _s in (sys.stdout, sys.stderr):
     _s.reconfigure(encoding="utf-8", errors="replace")
 SRC = Path(__file__).resolve().parents[2]
@@ -128,8 +130,10 @@ sys.path.insert(0, {str(ENG / "studio")!r})
 import engine_deploy as d
 mode = sys.argv[1]
 def fake(self, root, names=(), label="병합본"):
+    if label == "재시도":  # 새 실패를 병합본에서 한 번 더 - flaky 는 이번엔 통과
+        return [] if mode == "flaky" else [n for n in names if n == "share"]
     if root.name == "deploy-merge":
-        return ["smoke", "share"] if mode == "new" else ["smoke"]
+        return ["smoke", "share"] if mode in ("new", "flaky") else ["smoke"]
     return ["smoke"]
 d.Run._run_tests = fake
 sys.exit(d.Run("admin1", tests=True, restart=False, push=False).run())
@@ -145,6 +149,15 @@ check("(e) 원래 있던 실패만(smoke) → 통과 · main 이동 · push 안 
 steps = [s["step"] for s in st.get("steps", [])]
 check("(e) 같은 병합 전 main 은 지난 비교 기록을 쓴다(다시 돌리지 않음)", "비교 기준" in steps and "비교 시험(병합 전)" not in steps, steps)
 check("(e) 기존 실패 묶음 기록(tests.병합본.known = smoke) - 화면은 노란 '기존 실패'로", st.get("tests", {}).get("병합본", {}).get("known") == ["smoke"], st.get("tests"))
+# (e2) 새 실패가 병합본 재시도에서 통과(한때의 흔들림 - 0.22.41) → 막지 않음 · 기준에는 다시 돌려도 실패한 것만
+dev_commit("flaky.txt", "x\n", "fix: 흔들리는 시험")
+before = git("rev-parse", "main")
+r = subprocess.run([sys.executable, str(helper), "flaky"], env=ENV, capture_output=True, text=True, encoding="utf-8", errors="replace")
+st = json.loads(deploy("status")[1])
+merged = git("rev-parse", "main")
+base = json.loads((USER / "hub" / "engine" / "test-baseline.json").read_text(encoding="utf-8"))
+check("(e2) 새 실패(share)가 재시도에서 통과 → 배포 · tests.병합본.flaky = share · 기준엔 smoke 만", r.returncode == 0 and merged != before and "재시도(병합본)" in [s["step"] for s in st.get("steps", [])]
+      and st.get("tests", {}).get("병합본", {}).get("flaky") == ["share"] and base.get(merged, {}).get("fail") == ["smoke"], (r.stdout + r.stderr)[-400:] + str(st.get("tests")))
 
 # (f) 시험 진행 기록 - run_all 출력을 줄 단위로 따라가 묶음마다 tests[label] 에 남긴다(가짜 run_all)
 fake_root = WORK / "fakeroot"
