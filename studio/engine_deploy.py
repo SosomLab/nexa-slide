@@ -315,6 +315,8 @@ class Run:
                     save_baseline(prev, before)  # 그 묶음들만 돌린 기록 - 다음에 다른 묶음이 실패하면 새 실패로 본다(막는 쪽으로 안전)
                     self.step("비교 시험(병합 전)", True, f"병합 전에도 실패: {', '.join(sorted(before)) or '없음'}")
                 new = [b for b in bad if b not in before]
+                self.d.setdefault("tests", {}).setdefault("병합본", {})["known"] = sorted(set(bad) & before)  # 화면은 이것을 '기존 실패'(노랑)로 - 빨간 ✕ 는 새 실패만
+                _save(self.d)
                 if new:
                     return self.fail("시험", "새로 생긴 실패: " + ", ".join(new))
                 self.step("시험 판정", True, "새 실패 없음 (원래 있던 실패: " + ", ".join(bad) + ")")

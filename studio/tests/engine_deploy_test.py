@@ -144,6 +144,7 @@ check("(e) 원래 있던 실패만(smoke) → 통과 · main 이동 · push 안 
       (r.stdout + r.stderr)[-400:])
 steps = [s["step"] for s in st.get("steps", [])]
 check("(e) 같은 병합 전 main 은 지난 비교 기록을 쓴다(다시 돌리지 않음)", "비교 기준" in steps and "비교 시험(병합 전)" not in steps, steps)
+check("(e) 기존 실패 묶음 기록(tests.병합본.known = smoke) - 화면은 노란 '기존 실패'로", st.get("tests", {}).get("병합본", {}).get("known") == ["smoke"], st.get("tests"))
 
 # (f) 시험 진행 기록 - run_all 출력을 줄 단위로 따라가 묶음마다 tests[label] 에 남긴다(가짜 run_all)
 fake_root = WORK / "fakeroot"

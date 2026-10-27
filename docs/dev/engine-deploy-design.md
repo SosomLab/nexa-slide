@@ -36,7 +36,18 @@ push 를 재시작 뒤에 두는 것은 새 판이 뜨지 않을 때 원격을 �
 - 기록: 사용자 설정 폴더 `hub/engine/deploy.json`(마지막 1건) · 출력 `hub/engine/deploy-logs/<시각>.log` · 묶음별 시험 시간 `test-times.json` · 커밋별 실패 묶음 `test-baseline.json`(최근 20개).
 - CLI: `python3 studio/engine_deploy.py plan|status|run [--no-tests] [--no-restart] [--no-push]`.
 
-## 5. 남은 것
+## 5. 시험 실패 분류 (0.22.37)
+
+배포 판의 시험 칩: ✓ 통과 · **! 기존 실패**(노랑 - 병합 전 main 에서도 실패, `tests.병합본.known`, 막지 않음) · **✕ 새 실패**(빨강 - 배포를 막는다).
+0.22.33~36 배포에서 늘 보이던 smoke·editor·thread 실패는 모두 시험 환경 탓이었다.
+
+| 분류 | 증상 | 원인 | 조치 |
+|---|---|---|---|
+| 글꼴 없음 | smoke·editor `콘솔 오류: 404 /api/fontfile/Pretendard-*` | 이 PC 에 Pretendard 미설치 - 대체 글꼴로 그려짐 | `smoke.js` 기본 무시 목록에 `api/fontfile/`·`wsfonts` |
+| 포트 충돌 | thread `server.json 없음` · 로그 `포트 5600 를 쓸 수 없다` | 운영 작업 공간 서버가 설정 포트를 씀 | 시험 서버는 `--port auto` |
+| 앞 묶음 연쇄 | 앞 묶음이 데모 작업 공간을 못 만들면 뒤 묶음도 실패 | `run_all` 순서 의존(smoke → thread) | 앞 묶음 원인을 고친다 |
+
+## 6. 남은 것
 
 - **턴 직전 main 따라잡기(0.22.33~)**: 엔진 세션이 요청을 받을 때마다(`EngineProfile.prompt` → `sync_main`) `engine-dev` 가 main 보다 뒤처졌으면 받는다 - 배포 안 한 커밋이 없으면 fast-forward, 있으면 main 을 병합(`merge: main → engine-dev - 요청 처리 전 따라잡기`, 허브 이름), 충돌이면 되돌리고 그대로, worktree 에 커밋 안 한 변경이 있으면 손대지 않는다. 결과는 세션 로그(✎ / 경고). 배포 말고 터미널에서 main 에 직접 병합해도 다음 요청은 최신 main 위에서 고친다.
 - **도구 한도로 끊긴 요청(0.22.34~)**: 엔진 세션 턴이 `error_max_turns` 로 끝나면 같은 Claude 대화(`--resume`)에 "이어서 마무리하라 + 남은 변경 목록"을 넣어 `engineContinue`(2)번까지 이어 간다. 그래도 못 끝내면 요청을 open·awaiting 으로 되돌리고 reply 에 까닭(한도 n회·이어 하기 횟수)과 worktree 에 남은 변경을 적는다. 카드의 **[다시 수행]**(관리자 `status open` - awaiting 만 푼다)으로 다시 보내면 같은 대화로 이어 가고, 턴 프롬프트에도 남은 변경을 "이 요청 것이면 이어서, 다른 요청 것이면 손대지 말고 open" 으로 알린다. 터미널: `python3 studio/engine_request.py status <id> open --by <이름>`.
