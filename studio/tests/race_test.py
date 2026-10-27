@@ -7,6 +7,7 @@ import subprocess
 import sys
 import time
 import urllib.request
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 for _s in (sys.stdout, sys.stderr):
@@ -43,17 +44,18 @@ def svc(*args):
 
 
 def listening():
-    """이 작업 공간을 내주는 서버 포트 목록(5600~5660 두드림)."""
-    out = []
-    for p in range(5650, 5700):
+    """이 작업 공간을 내주는 서버 포트 목록(5650~5699 두드림). 한꺼번에 두드린다 - Windows 는 닫힌 localhost 포트도 거절을 바로 주지 않아
+    시간 초과(0.4초)까지 기다리므로, 하나씩이면 한 번에 20초(시험 전체 2분)가 걸렸다."""
+    def hit(p):
         try:
             with urllib.request.urlopen(f"http://127.0.0.1:{p}/api/config", timeout=0.4) as r:
                 cfg = json.loads(r.read().decode("utf-8"))
-            if cfg.get("path") and Path(cfg["path"]).resolve() == WS.resolve():
-                out.append(p)
+            return bool(cfg.get("path")) and Path(cfg["path"]).resolve() == WS.resolve()
         except Exception:  # noqa: BLE001
-            pass
-    return out
+            return False
+    ports = list(range(5650, 5700))
+    with ThreadPoolExecutor(len(ports)) as ex:
+        return [p for p, ok in zip(ports, ex.map(hit, ports)) if ok]
 
 
 svc("stop")

@@ -116,6 +116,31 @@
   .dep-cur { display: flex; align-items: center; gap: 6px; margin-top: 2px; }
   .spin { width: 12px; height: 12px; border: 2px solid var(--line); border-top-color: var(--p); border-radius: 50%; animation: spin .8s linear infinite; flex: none; }
   @keyframes spin { to { transform: rotate(360deg); } }
+  .dep-prog { margin-top: 8px; border-top: 1px dashed var(--line); padding-top: 8px; font-size: 12px; }
+  .dep-stages { display: flex; margin: 0 0 8px; }
+  .dep-st { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px; position: relative; min-width: 0; }
+  .dep-st + .dep-st::before { content: ""; position: absolute; top: 10px; right: 50%; width: 100%; height: 2px; background: var(--line); z-index: 0; }
+  .dep-st.done + .dep-st::before, .dep-st.done + .dep-st.cur::before { background: var(--ok); }
+  .dep-st .dot { width: 21px; height: 21px; border-radius: 50%; display: grid; place-items: center; font-size: 11px; font-weight: 700; background: var(--tone2); color: var(--ink2); position: relative; z-index: 1; }
+  .dep-st.done .dot { background: var(--ok); color: #fff; }
+  .dep-st.cur .dot { background: var(--card); box-shadow: 0 0 0 2px var(--p); }
+  .dep-st.bad .dot { background: var(--err); color: #fff; }
+  .dep-st .lb { font-size: 10.5px; color: var(--ink2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+  .dep-st.cur .lb { color: var(--p); font-weight: 700; } .dep-st.done .lb { color: var(--ok); }
+  .dep-line { display: flex; gap: 6px; align-items: baseline; padding: 1px 0; animation: depIn .25s ease-out; }
+  .dep-line .mk { width: 14px; flex: none; color: var(--ok); font-weight: 700; display: inline-flex; justify-content: center; align-self: center; }
+  .dep-line.bad, .dep-line.bad .mk { color: var(--err); }
+  .dep-line .hint { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .dep-line .dur { margin-left: auto; color: var(--ink2); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .dep-line.now b { color: var(--p); }
+  @keyframes depIn { from { opacity: 0; transform: translateY(-3px); } to { opacity: 1; transform: none; } }
+  .dep-tests { margin: 6px 0 2px; padding: 6px 8px; border-radius: 8px; background: var(--tone); }
+  .dep-pbar { height: 5px; border-radius: 3px; background: var(--tone2); overflow: hidden; margin: 4px 0 6px; }
+  .dep-pbar i { display: block; height: 100%; background: var(--p); transition: width .4s; }
+  .tcs { display: flex; flex-wrap: wrap; gap: 4px; }
+  .tc { display: inline-flex; align-items: center; gap: 3px; font-size: 11px; padding: 1px 7px; border-radius: 999px; background: var(--card); color: var(--ink2); border: 1px solid var(--line); }
+  .tc i { font-style: normal; opacity: .7; } .tc.ok { background: var(--okc); color: var(--ok); border-color: transparent; }
+  .tc.bad { background: #FFDAD6; color: var(--err); border-color: transparent; } .tc.now { border-color: var(--p); color: var(--p); font-weight: 700; } .tc .spin { width: 9px; height: 9px; border-width: 1.5px; }
   .empty { color: var(--ink2); padding: 10px; font-size: 13px; }
   /* 요청 첨부 축소판 칩·＋ 첨부 버튼 - 편집기(index.html)와 같은 모양 */
   .att { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0; } .att:empty { display: none; }
@@ -835,11 +860,53 @@
         + `<div style="font-size:12px;margin-top:3px"><b>커밋</b> ${p.commits.map((x) => `<code>${esc(x.hash)}</code> ${esc(x.subject)}`).join("<br>") || "-"}</div>`
         + `<div class="hint" style="margin-top:3px" title="${esc(p.files.join("\n"))}">파일 ${p.files.length}개: ${esc(p.files.slice(0, 6).join(", "))}${p.files.length > 6 ? " …" : ""}</div>`
         + (p.blockers.length ? `<div class="warn">${p.blockers.map(esc).join("<br>")}</div>` : "")
-        + `<div class="hint" style="margin-top:6px">순서: 시험용 worktree 에서 병합 → 시험(새로 생긴 실패만 막음, 몇 분) → 처리 중 턴 대기 → main 반영 → 허브·작업 공간 서버 재시작(엔진 세션은 끊김) → push → 적용됨 · 원 요청 재개. 허브가 뜨지 않으면 main 을 되돌린다.</div>`
+        + `<div class="hint" style="margin-top:6px">순서: 시험용 worktree 에서 병합 → 시험(새로 생긴 실패만 막음, 몇 분) → 처리 중 턴 대기 → main 반영 → 허브·작업 공간 서버 재시작(엔진 세션은 끊김) → push → 적용됨 · 원 요청 재개. 허브가 뜨지 않으면 main 을 되돌린다.${p.estimate ? ` <b>예상 약 ${Math.ceil(p.estimate / 60)}분</b>(지난 시험 시간 기준).` : ""}</div>`
         + `<div class="row" style="justify-content:flex-end;margin-top:6px"><button type="button" class="chip sm primary" data-eng="deployrun" ${p.ready && !(L && L.state === "running") ? "" : "disabled"}>${icon("rocket", 15)}배포 시작</button></div>`;
     }
-    if (L && L.steps && (L.steps.length || L.cur)) body += `<div style="margin-top:6px;border-top:1px dashed var(--line);padding-top:4px;font-size:12px">${L.steps.map((x) => `<div style="color:${x.ok ? "inherit" : "var(--err)"}">${x.ok ? "✓" : "✕"} ${esc(x.step)} <span class="hint">${esc(x.msg || "")}</span></div>`).join("")}${L.state === "running" ? `${L.cur ? `<div class="dep-cur"><span class="spin"></span><b>${esc(L.cur.step)}</b> <span class="hint">${fmtT(L.cur.t)} 부터</span></div>` : ""}<div class="hint">진행 중… (허브가 재시작되는 동안 잠시 응답이 없을 수 있습니다)</div>` : `<div><b>${DEP_KO[L.state] || esc(L.state)}</b> ${esc(L.message || "")}</div>`}</div>`;
+    if (L && L.steps && (L.steps.length || L.cur)) body += depProgress(L);
     box.innerHTML = `<div class="dep open">${head}<div class="dep-panel">${body}</div></div>`;
+  }
+  // 배포 진행 - 큰 단계 표시줄 + 끝난 단계(걸린 시간) + 지금 단계 + 시험 묶음별 칩(engine_deploy.py 의 steps·cur·tests)
+  const DEP_STAGES = ["확인", "병합", "시험", "턴 대기", "main 반영", "재시작", "push", "적용됨"];
+  function depStage(name) {
+    const n = name || "";
+    if (/^(확인|origin\/main)/.test(n)) return 0;
+    if (/^병합/.test(n)) return 1;
+    if (/^(시험|비교|렌더)/.test(n)) return 2;
+    if (/턴/.test(n)) return 3;
+    if (/^main 반영/.test(n)) return 4;
+    if (/재시작/.test(n)) return 5;
+    if (/^push/.test(n)) return 6;
+    return /적용됨|맞춤|abort/.test(n) ? 7 : -1;
+  }
+  const depSec = (a, b) => Math.max(0, Math.round((new Date(b) - new Date(a)) / 1000));
+  const depDur = (s) => s >= 60 ? `${Math.floor(s / 60)}분 ${String(s % 60).padStart(2, "0")}초` : `${s}초`;
+  function depProgress(L) {
+    const run = L.state === "running";
+    const nowLocal = (() => { const d = new Date(); return new Date(d - d.getTimezoneOffset() * 60000).toISOString().slice(0, 19); })();
+    let doneTo = -1, failAt = -1;
+    L.steps.forEach((x) => { const i = depStage(x.step); if (i > doneTo) doneTo = i; if (!x.ok && i >= 0) failAt = i; });
+    const curAt = run ? (L.cur ? Math.max(depStage(L.cur.step), doneTo) : doneTo + 1) : -1;
+    const bar = `<div class="dep-stages">${DEP_STAGES.map((s, i) => {
+      const st = i === failAt && !run ? "bad" : i === curAt ? "cur" : i < curAt || (!run && i <= doneTo) || (run && i < doneTo) ? "done" : "todo";
+      return `<div class="dep-st ${st}"><span class="dot">${st === "done" ? "✓" : st === "bad" ? "✕" : st === "cur" ? `<span class="spin"></span>` : i + 1}</span><span class="lb">${s}</span></div>`;
+    }).join("")}</div>`;
+    const total = depSec(L.started, run ? nowLocal : L.finished || nowLocal);
+    let prevT = L.started;
+    const steps = L.steps.map((x) => { const d = depSec(prevT, x.t); prevT = x.t;
+      return `<div class="dep-line ${x.ok ? "" : "bad"}"><span class="mk">${x.ok ? "✓" : "✕"}</span><b>${esc(x.step)}</b> <span class="hint">${esc(x.msg || "")}</span><span class="dur">${depDur(d)}</span></div>`; }).join("");
+    const cur = run && L.cur ? `<div class="dep-line now"><span class="mk"><span class="spin"></span></span><b>${esc(L.cur.step)}</b><span class="dur">${depDur(depSec(L.cur.t, nowLocal))}</span></div>` : "";
+    const tests = Object.entries(L.tests || {}).map(([label, T]) => {
+      const n = T.total || 0, k = (T.done || []).length, fails = (T.done || []).filter((x) => !x.ok).length;
+      const doneNames = new Set((T.done || []).map((x) => x.name));
+      const chips = (T.done || []).map((x) => `<span class="tc ${x.ok ? "ok" : "bad"}" title="${x.ok ? "통과" : "실패"} · ${x.sec}초">${x.ok ? "✓" : "✕"} ${esc(x.name)} <i>${x.sec}s</i></span>`).join("")
+        + (T.names || []).filter((x) => !doneNames.has(x)).map((x, j) => `<span class="tc ${j === 0 && run && k < n ? "now" : ""}">${j === 0 && run && k < n ? `<span class="spin"></span>` : ""}${esc(x)}</span>`).join("");
+      return `<div class="dep-tests"><div class="row" style="gap:6px;align-items:center"><b>시험 · ${esc(label)}</b><span class="hint">${k}/${n}${fails ? ` · 실패 ${fails}` : ""}</span></div>`
+        + `<div class="dep-pbar"><i style="width:${n ? Math.round(k * 100 / n) : 0}%"></i></div><div class="tcs">${chips}</div></div>`;
+    }).join("");
+    const foot = run ? `<div class="hint" style="margin-top:4px">경과 ${depDur(total)}${L.estimate ? ` · 예상 약 ${Math.ceil(L.estimate / 60)}분` : ""} · 허브가 재시작되는 동안 잠시 응답이 없을 수 있습니다</div>`
+      : `<div style="margin-top:4px"><b>${DEP_KO[L.state] || esc(L.state)}</b> ${esc(L.message || "")} <span class="hint">· 모두 ${depDur(total)}</span></div>`;
+    return `<div class="dep-prog">${bar}${steps}${cur}${tests}${foot}</div>`;
   }
   async function loadDeploy(fetchGit) {
     try {
