@@ -318,6 +318,12 @@ def activity():
 ENGINE_UI = ("index.html", "studio.js", "render.js", "menu.js", "fonts.css", "i18n.js", "i18n/en.js", "i18n/en.pages.js", "i18n/en.review.js")
 
 
+def hub_ui_stamp():
+    """허브 화면(시작 페이지·/engine·계정·글꼴 등 studio/*.html·*.js·i18n/*.js) 판 - 바뀌면 열려 있는 허브 페이지가 [새로 고침]을 안내한다(menu.js, /api/engine/notice 에 실음)."""
+    files = list(STUDIO.glob("*.html")) + list(STUDIO.glob("*.js")) + list((STUDIO / "i18n").glob("*.js"))
+    return max((ver(f) for f in files), key=int, default="0")
+
+
 def workspace_stamp():
     """편집기가 새로 고침·목록 갱신을 알 수 있게 하는 값(2초 폴링에 같이 보냄).
     deckIds/decksVer = 덱 목록과 그 덱들의 마지막 변경(다른 덱 추가·삭제·수정), config = nexa-slide.json(템플릿·글꼴·로고),
@@ -1343,7 +1349,7 @@ class H(BaseHTTPRequestHandler):
             c = engine_requests.counts()
             on = bool(WS_ENGINE and WS_ENGINE.state != "off") or engine_requests.session_state().get("kind") == "manual" and engine_requests.session_state().get("connected")
             return self.send_json({"ok": True, "admin": self.role == "admin", "triage": c.get("triage", 0), "open": c.get("open", 0), "working": c.get("working", 0),
-                                   "done": c.get("done", 0), "sessionOff": not on, "startRequest": engine_requests.start_request(),
+                                   "done": c.get("done", 0), "sessionOff": not on, "startRequest": engine_requests.start_request(), "ui": hub_ui_stamp(),
                                    "titles": [f"#{x['id']} {x['title']}" for x in engine_requests.load() if x.get("status") == "triage"][:5]})
         if what == "attach":  # /api/engine/attach/<id>/<파일> - 올린 첨부 보기(로그인 사용자)
             rest = self._rest or []

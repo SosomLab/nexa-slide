@@ -126,7 +126,7 @@
 |---|---|---|---|
 | 에이전트 | `sessionAgent`(기본 `"claude"`) | `sessionAgent` | 선택 |
 | 모델 | `sessionModel`(기본 `"opus"`) | `sessionModel` | 선택 + "이 작업 공간 기본으로 저장" |
-| 모델 목록 | `sessionModels: {"claude": ["opus","sonnet","haiku","claude-fable-5-1"], "codex": [...]}` + 직접 입력 | — | — |
+| 모델 목록 | `sessionModels: {"claude": ["fable","opus","sonnet","haiku"], "codex": [...]}` + 직접 입력 | — | — |
 | 실행 파일 | `agentPaths: {"claude": "...", "codex": "..."}`(없으면 PATH) | — | — |
 | 한도 | `sessionIdleMinutes`(60) · `sessionTurnMinutes`(20) · `sessionMax`(동시 세션 수, 3 — 구독 사용량 한도를 고려하면 2 도 검토) · `sessionMaxTurns`(40) · `sessionBudgetUsd`(없음) | — | — |
 
