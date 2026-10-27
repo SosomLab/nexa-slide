@@ -160,9 +160,17 @@ class Run:
     def step(self, name, ok=True, msg=""):
         print(f"[{_now()}] {'OK  ' if ok else 'FAIL'} {name} {msg}", flush=True)
         self.d["steps"].append({"t": _now(), "step": name, "ok": ok, "msg": str(msg)[:600]})
+        self.d.pop("cur", None)
+        _save(self.d)
+
+    def doing(self, what):
+        """지금 하는 단계(오래 걸리는 시험·대기 등) - 화면이 '배포 중' 만 보이지 않게 deploy.json 에 남긴다."""
+        print(f"[{_now()}] ..   {what}", flush=True)
+        self.d["cur"] = {"t": _now(), "step": what}
         _save(self.d)
 
     def finish(self, state, msg=""):
+        self.d.pop("cur", None)
         self.d.update(state=state, finished=_now(), message=msg)
         _save(self.d)
         for w in self.tmp:
@@ -229,12 +237,14 @@ class Run:
         self.step("병합", True, merge[:7])
         # 2) 시험 - 병합본에서 실패한 묶음만 병합 전(main)에서 다시 돌려 새로 생긴 실패만 막는다
         if self.tests:
+            self.doing("시험 - 병합본 전체(몇 분)")
             bad = self._run_tests(w)
             if bad:
                 try:
                     base = self._worktree("deploy-base", prev)
                 except RuntimeError as e:
                     return self.fail("시험", f"비교용 worktree 를 만들지 못했다: {e}")
+                self.doing(f"시험 - 실패 {len(bad)}개 묶음을 병합 전 main 에서 다시 돌려 비교")
                 before = set(self._run_tests(base, bad)) if "run_all" not in bad else set()
                 new = [b for b in bad if b not in before]
                 if new:
@@ -243,6 +253,7 @@ class Run:
             else:
                 self.step("시험", True, "전부 통과")
             if p["render"]:
+                self.doing("렌더 동일성(check_parity)")
                 r = subprocess.run([sys.executable, str(w / "studio" / "check_parity.py"), "-W", "example"], cwd=str(w), capture_output=True,
                                    text=True, encoding="utf-8", errors="replace", timeout=600)
                 if r.returncode:
@@ -252,6 +263,7 @@ class Run:
             self.step("시험", True, "건너뜀(--no-tests)")
         # 3) 처리 중인 턴이 끝나길 기다린다 - 재시작하면 턴이 끊긴다
         if self.restart:
+            self.doing("처리 중인 턴이 끝나길 기다림")
             busy = self._busy()
             t0 = time.time()
             while busy and time.time() - t0 < DRAIN_WAIT:
@@ -268,6 +280,7 @@ class Run:
         self.step("main 반영", True, f"{prev[:7]} → {merge[:7]}")
         # 5) 재시작 - 허브가 살아나지 않으면 main 을 되돌리고 다시 띄운다
         if self.restart:
+            self.doing("허브 재시작")
             ok, out = self._restart_hub()
             if not ok:
                 git("reset", "--keep", prev)
@@ -281,6 +294,7 @@ class Run:
         # 6) push - 실패해도 운영은 새 판이다(로컬 main 이 앞선 채 남는다)
         warn = ""
         if self.push:
+            self.doing("push")
             code, out = git("push", "origin", "main", timeout=180)
             self.step("push", code == 0, out[-300:])
             if code:
