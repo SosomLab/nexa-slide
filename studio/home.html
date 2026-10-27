@@ -110,11 +110,12 @@
   .dep-tog:hover { filter: brightness(1.08); }
   .dep-tog.open { background: var(--pc); color: var(--onpc); border-bottom-color: var(--pc); border-radius: 10px 10px 0 0; padding: 4px 12px 7px 9px; margin-bottom: -9px;
     box-shadow: none; position: relative; z-index: 1; }
-  .dep-panel { border: 1.5px solid var(--p); border-radius: 12px 0 12px 12px; background: linear-gradient(var(--pc), var(--card) 34px); padding: 10px 12px; margin-top: 0;
-    animation: depOpen .18s ease-out; transform-origin: top; }
+  .dep-panel { border: 1.5px solid var(--p); border-radius: 12px 0 12px 12px; background: linear-gradient(var(--pc), var(--card) 34px); padding: 10px 12px; margin-top: 0; transform-origin: top; }
+  /* 펼침·새 줄 애니메이션은 처음 한 번만(.anim·.new) - 진행 갱신(2.5초)마다 다시 그려도 접혔다 펼쳐지듯 깜빡이지 않게 */
+  .dep-panel.anim { animation: depOpen .18s ease-out; }
   @keyframes depOpen { from { opacity: 0; transform: scaleY(.85); } to { opacity: 1; transform: none; } }
   .dep-cur { display: flex; align-items: center; gap: 6px; margin-top: 2px; }
-  .spin { width: 12px; height: 12px; border: 2px solid var(--line); border-top-color: var(--p); border-radius: 50%; animation: spin .8s linear infinite; flex: none; }
+  .spin { width: 12px; height: 12px; border: 2px solid var(--line); border-top-color: var(--p); border-radius: 50%; animation: spin .8s linear infinite; animation-delay: var(--spin-d, 0s); flex: none; }
   @keyframes spin { to { transform: rotate(360deg); } }
   .dep-prog { margin-top: 8px; border-top: 1px dashed var(--line); padding-top: 8px; font-size: 12px; }
   .dep-stages { display: flex; margin: 0 0 8px; }
@@ -127,7 +128,8 @@
   .dep-st.bad .dot { background: var(--err); color: #fff; }
   .dep-st .lb { font-size: 10.5px; color: var(--ink2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
   .dep-st.cur .lb { color: var(--p); font-weight: 700; } .dep-st.done .lb { color: var(--ok); }
-  .dep-line { display: flex; gap: 6px; align-items: baseline; padding: 1px 0; animation: depIn .25s ease-out; }
+  .dep-line { display: flex; gap: 6px; align-items: baseline; padding: 1px 0; }
+  .dep-line.new { animation: depIn .25s ease-out; }
   .dep-line .mk { width: 14px; flex: none; color: var(--ok); font-weight: 700; display: inline-flex; justify-content: center; align-self: center; }
   .dep-line.bad, .dep-line.bad .mk { color: var(--err); }
   .dep-line .hint { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -843,16 +845,19 @@
     }).join("") + (d.total > items.length ? `<div class="row" style="justify-content:center;padding:6px 0 2px"><a class="chip sm" href="/engine" title="전체 목록 · 검색 · 상태별 조회">더 보기 (전체 ${d.total}건)</a></div>` : "") : `<div class="empty">엔진 변경 요청이 없습니다. 작업 공간 세션이 엔진 한계를 만나면 여기로 넘기고, 직접 적을 수도 있습니다.</div>`;
   }
   // 배포(관리자) - 완료된 엔진 요청(engine-dev)을 main 병합·시험·재시작·push·적용됨까지 한 번에(engine_deploy.py, docs/dev/engine-deploy-design.md)
-  const DEP = { open: false, plan: null, last: null, timer: 0 };
+  // anim = 막 펼침(판 애니메이션 한 번) · shown = 지난번에 그린 끝난 단계 수(그 뒤 줄만 .new) · html = 지난번 내용(같으면 다시 안 그림)
+  const DEP = { open: false, plan: null, last: null, timer: 0, anim: false, shown: 0, html: "" };
   const DEP_KO = { running: "배포 중", ok: "배포 완료", warn: "배포 완료(경고)", failed: "배포 실패", rolledback: "배포 되돌림" };
   function renderDeploy(admin, g, c) {
     const box = $("#engDeploy"), last = (H.engine && H.engine.deploy) || DEP.last || null;
-    if (!admin || !(g.ahead || c.done || DEP.open || (last && last.state === "running"))) { box.innerHTML = ""; return; }
+    // 같은 내용이면 DOM 을 그대로 두고, 바뀌면 스피너 위상을 문서 시계에 맞춰(--spin-d) 새로 그려도 회전이 처음부터 다시 돌지 않게
+    const put = (html) => { if (html === DEP.html) return; DEP.html = html; box.style.setProperty("--spin-d", `-${Math.round(performance.now() % 800)}ms`); box.innerHTML = html; };
+    if (!admin || !(g.ahead || c.done || DEP.open || (last && last.state === "running"))) { put(""); return; }
     const head = `<div class="row" style="align-items:center;gap:6px;margin-top:6px;font-size:12.5px"><span style="flex:1;min-width:0">${c.done ? `완료(적용 대기) <b>${c.done}</b>건` : ""}${g.ahead ? `${c.done ? " · " : ""}${esc(g.branch || "engine-dev")} <b>+${g.ahead}</b> 커밋` : ""}${last && last.state && last.state !== "none" ? ` <span class="badge ${last.state === "running" ? "run" : last.state === "ok" ? "ok" : ""}" title="${esc(last.message || "")}">${DEP_KO[last.state] || esc(last.state)}${last.finished ? ` · ${fmtT(last.finished)}` : ""}</span>` : ""}${last && last.state === "running" && last.cur ? ` <span class="hint">${esc(last.cur.step)}…</span>` : ""}</span>`
       + (DEP.open
         ? `<button type="button" class="dep-tog open" data-eng="deploy" aria-expanded="true" title="배포 내용 접기">${icon("chevUp", 15)}접기</button></div>`
         : `<button type="button" class="dep-tog" data-eng="deploy" aria-expanded="false" title="들어갈 커밋·요청을 펼쳐 보고 배포를 시작한다 - engine-dev 를 main 에 병합 → 시험 → 재시작 → push → 적용됨(관리자)">${icon("rocket", 15)}${last && last.state === "running" ? "배포 진행 보기" : "배포 준비"}${icon("chevDown", 15)}</button></div>`);
-    if (!DEP.open) { box.innerHTML = `<div class="dep">${head}</div>`; return; }
+    if (!DEP.open) { put(`<div class="dep">${head}</div>`); return; }
     const p = DEP.plan, L = last;
     let body = "";
     if (!p) body = `<div class="hint">확인하는 중… (git fetch)</div>`;
@@ -866,7 +871,8 @@
         + `<div class="row" style="justify-content:flex-end;margin-top:6px"><button type="button" class="chip sm primary" data-eng="deployrun" ${p.ready && !(L && L.state === "running") ? "" : "disabled"}>${icon("rocket", 15)}배포 시작</button></div>`;
     }
     if (L && L.steps && (L.steps.length || L.cur)) body += depProgress(L);
-    box.innerHTML = `<div class="dep open">${head}<div class="dep-panel">${body}</div></div>`;
+    put(`<div class="dep open">${head}<div class="dep-panel${DEP.anim ? " anim" : ""}">${body}</div></div>`);
+    DEP.anim = false;
   }
   // 배포 진행 - 큰 단계 표시줄 + 끝난 단계(걸린 시간) + 지금 단계 + 시험 묶음별 칩(engine_deploy.py 의 steps·cur·tests)
   const DEP_STAGES = ["확인", "병합", "시험", "턴 대기", "main 반영", "재시작", "push", "적용됨"];
@@ -895,8 +901,9 @@
     }).join("")}</div>`;
     const total = depSec(L.started, run ? nowLocal : L.finished || nowLocal);
     let prevT = L.started;
-    const steps = L.steps.map((x) => { const d = depSec(prevT, x.t); prevT = x.t;
-      return `<div class="dep-line ${x.ok ? "" : "bad"}"><span class="mk">${x.ok ? "✓" : "✕"}</span><b>${esc(x.step)}</b> <span class="hint">${esc(x.msg || "")}</span><span class="dur">${depDur(d)}</span></div>`; }).join("");
+    const shown = DEP.shown < L.steps.length ? DEP.shown : L.steps.length; DEP.shown = L.steps.length;
+    const steps = L.steps.map((x, i) => { const d = depSec(prevT, x.t); prevT = x.t;
+      return `<div class="dep-line ${x.ok ? "" : "bad"}${i >= shown ? " new" : ""}"><span class="mk">${x.ok ? "✓" : "✕"}</span><b>${esc(x.step)}</b> <span class="hint">${esc(x.msg || "")}</span><span class="dur">${depDur(d)}</span></div>`; }).join("");
     const cur = run && L.cur ? `<div class="dep-line now"><span class="mk"><span class="spin"></span></span><b>${esc(L.cur.step)}</b><span class="dur">${depDur(depSec(L.cur.t, nowLocal))}</span></div>` : "";
     const tests = Object.entries(L.tests || {}).map(([label, T]) => {
       const n = T.total || 0, k = (T.done || []).length, fails = (T.done || []).filter((x) => !x.ok).length;
@@ -997,7 +1004,7 @@
     if (b.dataset.eng === "progress") { openEngProgress(); return; }
     if (b.dataset.eng === "tidy") { openTidy("", "", "nexa-slide 엔진 개발", true); return; }
     if (b.dataset.eng === "deploy") {
-      DEP.open = !DEP.open; DEP.plan = null; loadEngine();
+      DEP.open = !DEP.open; DEP.plan = null; DEP.anim = DEP.open; DEP.shown = 0; loadEngine();
       if (DEP.open) { const last = await loadDeploy(true); loadEngine(); if (last && last.state === "running") pollDeploy(); }
       return;
     }
