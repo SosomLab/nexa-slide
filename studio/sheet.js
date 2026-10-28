@@ -609,6 +609,7 @@
     for (let c = 0; c < cols; c++) if (!colHidden(sh, c)) h.push(`<th data-col="${c}"${colHidden(sh, c + 1) || (c > 0 && colHidden(sh, c - 1)) ? ' class="hidN" title="옆에 숨긴 열이 있습니다 - 오른쪽 클릭 → 숨기기 취소"' : ""}>${colName(c)}<span class="rz" data-rzc="${c}"></span></th>`);
     h.push("</tr></thead><tbody>");
     const visN = (a, b, hid) => { let n = 0; for (let i = a; i <= b; i++) if (!hid(sh, i)) n++; return n; };
+    const CF = window.NexaSheetX && NexaSheetX.condMap ? NexaSheetX.condMap(sh) : null;  // 조건부 서식(sheetx.js) - 칸 → 덧씌울 서식
     for (let r = 0; r < rows; r++) {
       if (rowHidden(sh, r)) continue;
       const rh = rowH(sh, r);
@@ -616,7 +617,9 @@
       for (let c = 0; c < cols; c++) {
         if (colHidden(sh, c)) continue;
         const cm = cover.get(r * 4096 + c); if (cm === "x") continue;
-        const k = key(r, c), raw = sh.cells[k], o = effCell(raw);
+        const k = key(r, c), raw = sh.cells[k];
+        let o = effCell(raw);
+        if (CF && CF.has(r * 4096 + c)) o = { ...o, ...CF.get(r * 4096 + c) };
         const txt = display(o), err = o.f && isErrStr(o.v);
         const kind = typeof o.v === "number" ? "num" : typeof o.v === "boolean" || err ? "mid" : "txt";
         const [tdS, cvS] = cellStyle(o, kind);

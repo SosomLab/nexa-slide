@@ -5,6 +5,7 @@
    - 값만 붙여넣기(Ctrl+Shift+V) · 자동 합계(Alt+=) · 정렬(도구 막대 ⇅ - 지금 열 기준, 첫 줄 머리글 자동 판정)
    - 데이터 ▾: 필터(머리글 ▼ - 값 고르기·정렬, 이 화면에서만 = 엑셀 "필터 보기") · 행·열 숨기기/숨기기 취소(저장 - 탭 hiddenRows·hiddenCols)
              드롭다운 목록(탭 validations [{range, list|source}] - 고른 칸 옆 ▼ 로 고르기, 목록에 없는 값은 칸 모서리 표시)
+             조건부 서식(탭 conds [{range, type, value, value2, style{fill,color,b}, colors}] - gt·ge·lt·le·eq·ne·between·text·dup·top·bottom·scale, xlsx 왕복)
    모든 고치기는 x.mutate 로 - 실행 취소·저장·다시 계산이 같이 된다. */
 (function () {
   "use strict";
@@ -306,6 +307,8 @@
       { label: "행 숨기기 취소(고른 범위와 그 옆)", act: () => hide("r", false) }, { label: "열 숨기기 취소(고른 범위와 그 옆)", act: () => hide("c", false) },
       "-",
       { label: "드롭다운 목록 만들기·고치기…", act: dvCreate }, { label: "드롭다운 지우기(고른 범위)", act: dvClear },
+      "-",
+      { label: "조건부 서식…", act: condDialog }, { label: "조건부 서식 지우기(고른 범위)", act: condClear },
     ]);
   }
 
@@ -371,6 +374,79 @@
     x.toast(`드롭다운 ${n}개를 지웠습니다`);
   }
 
+  // ---------------------------------------------------------------- 조건부 서식
+  const CF_TYPES = [["gt", "보다 큼"], ["ge", "이상"], ["lt", "보다 작음"], ["le", "이하"], ["eq", "같음"], ["ne", "같지 않음"], ["between", "사이(값1~값2)"],
+    ["text", "글 포함"], ["dup", "중복 값"], ["top", "상위 N"], ["bottom", "하위 N"], ["scale", "색조(작은 값 → 큰 값)"]];
+  const CF_STYLES = [["빨강 채움", { fill: "#FFC7CE", color: "#9C0006" }], ["초록 채움", { fill: "#C6EFCE", color: "#006100" }], ["노랑 채움", { fill: "#FFEB9C", color: "#9C5700" }],
+    ["굵은 빨강 글자", { color: "#C0392B", b: true }], ["파랑 채움", { fill: "#DDEBF7", color: "#1F4E79" }]];
+  const hexMix = (a, b, t) => "#" + [1, 3, 5].map((i) => Math.round(parseInt(a.slice(i, i + 2), 16) * (1 - t) + parseInt(b.slice(i, i + 2), 16) * t).toString(16).padStart(2, "0")).join("").toUpperCase();
+  /** 탭의 조건부 서식 → Map(행*4096+열 → 덧씌울 서식). 뒤 규칙이 앞 규칙을 덮는다 */
+  function condMap(sh) {
+    if (!sh.conds || !sh.conds.length) return null;
+    const x = X(), out = new Map();
+    for (const cd of sh.conds) {
+      const cells = [];
+      for (const part of String(cd.range || "").split(/\s+/)) { const g = x.parseRange(part); if (g) x.eachCell(x.clampRange(g), (r, c, k) => cells.push([r, c, valOf(sh.cells[k]), N().display(N().effCell(sh.cells[k]))])); }
+      const nums = cells.map((q) => q[2]).filter(isNum), v1 = cd.value, v2 = cd.value2;
+      const n1 = typeof v1 === "number" ? v1 : parseFloat(v1), n2 = typeof v2 === "number" ? v2 : parseFloat(v2);
+      let test;
+      if (cd.type === "scale") {
+        if (!nums.length) continue;
+        const lo = Math.min(...nums), hi = Math.max(...nums), [c1, c2] = cd.colors || ["#FFFFFF", "#63BE7B"];
+        for (const [r, c, v] of cells) if (isNum(v)) out.set(r * 4096 + c, { ...(out.get(r * 4096 + c) || {}), fill: hexMix(c1, c2, hi === lo ? 1 : (v - lo) / (hi - lo)) });
+        continue;
+      }
+      if (cd.type === "dup") { const cnt = new Map(); for (const q of cells) if (q[3] !== "") cnt.set(q[3], (cnt.get(q[3]) || 0) + 1); test = (v, t) => t !== "" && cnt.get(t) > 1; }
+      else if (cd.type === "top" || cd.type === "bottom") { const srt = [...nums].sort((a, b) => (cd.type === "top" ? b - a : a - b)), cut = srt[Math.max(0, Math.min(srt.length, n1 || 10) - 1)]; test = (v) => isNum(v) && (cd.type === "top" ? v >= cut : v <= cut); }
+      else if (cd.type === "text") test = (v, t) => t !== "" && t.toLowerCase().includes(String(v1 || "").toLowerCase());
+      else if (cd.type === "between") test = (v) => isNum(v) && v >= Math.min(n1, n2) && v <= Math.max(n1, n2);
+      else {
+        const num = !isNaN(n1);
+        test = (v, t) => {
+          if (num && !isNum(v)) return false;
+          const a = num ? v : t, b = num ? n1 : String(v1);
+          return { gt: a > b, ge: a >= b, lt: a < b, le: a <= b, eq: a === b, ne: a !== b }[cd.type];
+        };
+      }
+      for (const [r, c, v, t] of cells) if (test(v, t)) out.set(r * 4096 + c, { ...(out.get(r * 4096 + c) || {}), ...(cd.style || {}) });
+    }
+    return out;
+  }
+  function condDialog() {
+    const x = X(), S = N().S, g = x.clampRange(S.sel), sh = x.sheet();
+    document.querySelectorAll(".cfDlg").forEach((d) => d.remove());
+    const dlg = document.createElement("div"); dlg.className = "cfDlg fltPop";
+    dlg.innerHTML = `<b>조건부 서식 - ${x.rangeName(g)}</b>
+      <label>조건 <select data-k="type">${CF_TYPES.map(([k, l]) => `<option value="${k}">${l}</option>`).join("")}</select></label>
+      <label class="v1">값 <input data-k="v1" placeholder="예: 1000 · 완료"></label><label class="v2">값2 <input data-k="v2"></label>
+      <label class="st">서식 <select data-k="st">${CF_STYLES.map(([l], i) => `<option value="${i}">${l}</option>`).join("")}</select></label>
+      <div class="acts"><button data-fa="ok" class="primary">적용</button><button data-fa="no">취소</button></div>`;
+    const R = $("#xData").getBoundingClientRect(); Object.assign(dlg.style, { left: R.left + "px", top: R.bottom + 4 + "px", width: "280px" });
+    document.body.appendChild(dlg);
+    const q = (k) => dlg.querySelector(`[data-k="${k}"]`), sync = () => { const t = q("type").value; dlg.querySelector(".v1").hidden = ["dup", "scale"].includes(t); dlg.querySelector(".v2").hidden = t !== "between"; dlg.querySelector(".st").hidden = t === "scale"; };
+    q("type").onchange = sync; sync();
+    dlg.addEventListener("click", (e) => {
+      const fa = e.target.closest("[data-fa]"); if (!fa) return;
+      if (fa.dataset.fa === "ok") {
+        const t = q("type").value, cd = { range: x.rangeName(g), type: t };
+        const num = (v) => (v !== "" && !isNaN(+v) ? +v : v);
+        if (!["dup", "scale"].includes(t)) cd.value = num(q("v1").value.trim());
+        if (t === "between") cd.value2 = num(q("v2").value.trim());
+        if (t === "scale") cd.colors = ["#FFFFFF", "#63BE7B"]; else cd.style = { ...CF_STYLES[+q("st").value][1] };
+        x.mutate(() => { sh.conds = (sh.conds || []).concat([cd]); });
+        x.toast(`${cd.range} 에 조건부 서식을 걸었습니다`);
+      }
+      dlg.remove();
+    });
+  }
+  function condClear() {
+    const x = X(), S = N().S, g = x.clampRange(S.sel), sh = x.sheet();
+    const over = (d) => String(d.range || "").split(/\s+/).some((part) => { const h = x.parseRange(part); return h && !(h.r2 < g.r1 || h.r1 > g.r2 || h.c2 < g.c1 || h.c1 > g.c2); });
+    const n = (sh.conds || []).filter(over).length; if (!n) { x.toast("고른 범위에 조건부 서식이 없습니다"); return; }
+    x.mutate(() => { sh.conds = sh.conds.filter((d) => !over(d)); if (!sh.conds.length) delete sh.conds; });
+    x.toast(`조건부 서식 ${n}개를 지웠습니다`);
+  }
+
   // ---------------------------------------------------------------- 연결
   function onKey(e) {
     if (!X() || e.isComposing) return;
@@ -405,5 +481,5 @@
     if (e.target.closest("#dvBtn")) { e.preventDefault(); e.stopPropagation(); dvPick(); }
   }, true);
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", tools); else tools();
-  window.NexaSheetX = { onSel: () => { onSel(); renderFilterBtns(); renderDv(); dvMarks(); }, onChange: () => { onSel(); renderFilterBtns(); renderDv(); dvMarks(); }, dvCreate, dvClear, dvPick, sortRange, fillDir, findBox, autoSum, hide, filterToggle, applyFilter, view };
+  window.NexaSheetX = { onSel: () => { onSel(); renderFilterBtns(); renderDv(); dvMarks(); }, onChange: () => { onSel(); renderFilterBtns(); renderDv(); dvMarks(); }, dvCreate, dvClear, dvPick, condMap, condDialog, condClear, sortRange, fillDir, findBox, autoSum, hide, filterToggle, applyFilter, view };
 })();

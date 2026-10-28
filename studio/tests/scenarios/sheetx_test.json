@@ -40,6 +40,10 @@
     {
      "name": "드롭다운 - F2:F5 에 목록(대기,진행,완료) → 칸 옆 ▼ 로 '진행' 고르기, 목록에 없는 값은 모서리 표시, 저장 형식 validations",
      "js": "const X=window.NexaSheet.x, XX=window.NexaSheetX, S=window.NexaSheet.S; window.prompt=()=>'대기,진행,완료'; X.selectRange({r1:1,c1:5,r2:4,c2:5}); XX.dvCreate(); await new Promise(r=>setTimeout(r,80)); X.selectCell(2,5); await new Promise(r=>setTimeout(r,60)); const b=document.querySelector('#dvBtn'); const vis=!b.hidden; b.dispatchEvent(new MouseEvent('mousedown',{bubbles:true})); await new Promise(r=>setTimeout(r,60)); const it=[...document.querySelectorAll('.menu button')].find(x=>x.textContent.trim()==='진행'); if(!it) return 'no item'; it.click(); await new Promise(r=>setTimeout(r,100)); const sh=S.deck.sheets[0], v=(k)=>sh.cells[k]&&typeof sh.cells[k]==='object'?sh.cells[k].v:sh.cells[k]; window.NexaSheet.setInput(sh,'F4','없는값'); X.renderAll(); await new Promise(r=>setTimeout(r,60)); const marks=document.querySelectorAll('#dvLay i').length; return vis && v('F3')==='진행' && marks===1 && JSON.stringify(sh.validations)==='[{\"range\":\"F2:F5\",\"list\":[\"대기\",\"진행\",\"완료\"]}]' ? true : JSON.stringify({vis,F3:v('F3'),marks,dv:sh.validations})"
+    },
+    {
+     "name": "조건부 서식 - B2:B5 '보다 큼 700' 빨강 채움 → 해당 칸 2개만 칠함, 지우면 사라짐",
+     "js": "const X=window.NexaSheet.x, XX=window.NexaSheetX, S=window.NexaSheet.S; X.selectRange({r1:1,c1:1,r2:4,c2:1}); XX.condDialog(); await new Promise(r=>setTimeout(r,60)); const dlg=document.querySelector('.cfDlg'); dlg.querySelector('[data-k=\"type\"]').value='gt'; dlg.querySelector('[data-k=\"v1\"]').value='700'; dlg.querySelector('[data-k=\"st\"]').value='0'; dlg.querySelector('[data-fa=\"ok\"]').click(); await new Promise(r=>setTimeout(r,120)); const red=()=>[...document.querySelectorAll('#grid td[data-c=\"1\"]')].filter(td=>/255, 199, 206/.test(getComputedStyle(td).backgroundColor)).length; const n1=red(), saved=JSON.stringify(S.deck.sheets[0].conds); X.selectRange({r1:1,c1:1,r2:4,c2:1}); XX.condClear(); await new Promise(r=>setTimeout(r,100)); const n2=red(); return n1===2 && n2===0 && saved.includes('\"type\":\"gt\"') ? true : JSON.stringify({n1,n2,saved})"
     }
    ]
   }

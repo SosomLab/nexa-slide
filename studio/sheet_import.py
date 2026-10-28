@@ -91,6 +91,7 @@ def import_xlsx(src, title=None):
     fills = st.find(N + "fills") if st is not None else None
     borders = st.find(N + "borders") if st is not None else None
     xfs = st.find(N + "cellXfs") if st is not None else None
+    dxfs = list(st.find(N + "dxfs")) if st is not None and st.find(N + "dxfs") is not None else []  # 조건부 서식이 쓰는 서식
     f0 = fonts[0] if fonts is not None and len(fonts) else None
     base_font = {"name": f0.find(N + "name").get("val") if f0 is not None and f0.find(N + "name") is not None else None,
                  "size": float(f0.find(N + "sz").get("val")) if f0 is not None and f0.find(N + "sz") is not None else 11.0}
@@ -256,12 +257,80 @@ def import_xlsx(src, title=None):
             warnings.append(f"{tab['name']}: 배열 수식 {arrays}개는 일반 수식으로 옮겼다")
         if cut:
             warnings.append(f"{tab['name']}: {MAX_ROWS}행·{MAX_COLS}열을 넘는 칸은 옮기지 않았다")
-        if list(x.iter(N + "conditionalFormatting")):
-            warnings.append(f"{tab['name']}: 조건부 서식은 아직 옮기지 않는다")
+        conds, skipped = [], 0
+        for cf in x.iter(N + "conditionalFormatting"):
+            for rule in cf.findall(N + "cfRule"):
+                cd = cond_of(rule, cf.get("sqref"), dxfs, color)
+                if cd:
+                    conds.append(cd)
+                else:
+                    skipped += 1
+        if conds:
+            tab["conds"] = conds
+        if skipped:
+            warnings.append(f"{tab['name']}: 조건부 서식 {skipped}개(수식·아이콘·데이터 막대 등)는 옮기지 않았다")
         if any(r.get("Type", "").endswith("/drawing") for r in _rels_of(z, part)):
             warnings.append(f"{tab['name']}: 그림·도형·차트는 아직 옮기지 않는다")
         tabs.append(tab)
     return tabs, warnings, base_font
+
+
+CF_OPS = {"greaterThan": "gt", "greaterThanOrEqual": "ge", "lessThan": "lt", "lessThanOrEqual": "le", "equal": "eq", "notEqual": "ne", "between": "between"}
+
+
+def cond_of(rule, sqref, dxfs, color):
+    """cfRule → 시트 조건부 서식 {range, type, value, value2, style, colors} (모르는 종류면 None)."""
+    t = rule.get("type")
+    style = {}
+    if rule.get("dxfId") is not None and int(rule.get("dxfId")) < len(dxfs):
+        d = dxfs[int(rule.get("dxfId"))]
+        f = d.find(N + "font")
+        if f is not None:
+            if f.find(N + "b") is not None:
+                style["b"] = True
+            c = color(f.find(N + "color"))
+            if c:
+                style["color"] = c
+        pf = d.find(N + "fill/" + N + "patternFill")
+        if pf is not None:
+            c = color(pf.find(N + "bgColor")) or color(pf.find(N + "fgColor"))
+            if c:
+                style["fill"] = c
+    fs = [(e.text or "").strip() for e in rule.findall(N + "formula")]
+
+    def val(s):
+        s = (s or "").strip()
+        if s.startswith('"') and s.endswith('"'):
+            return s[1:-1].replace('""', '"')
+        try:
+            v = float(s)
+            return int(v) if v.is_integer() else v
+        except ValueError:
+            return None
+    cd = {"range": sqref}
+    if t == "cellIs" and rule.get("operator") in CF_OPS and fs:
+        cd.update(type=CF_OPS[rule.get("operator")], value=val(fs[0]))
+        if cd["value"] is None:
+            return None
+        if cd["type"] == "between":
+            cd["value2"] = val(fs[1]) if len(fs) > 1 else None
+    elif t == "containsText" and rule.get("text") is not None:
+        cd.update(type="text", value=rule.get("text"))
+    elif t == "duplicateValues":
+        cd.update(type="dup")
+    elif t == "top10":
+        cd.update(type="bottom" if rule.get("bottom") in ("1", "true") else "top", value=int(rule.get("rank") or 10))
+    elif t == "colorScale":
+        cs = rule.find(N + "colorScale")
+        cols = [color(c) for c in cs.findall(N + "color")] if cs is not None else []
+        if len(cols) < 2 or not all(cols):
+            return None
+        return {"range": sqref, "type": "scale", "colors": [cols[0], cols[-1]]}
+    else:
+        return None
+    if style:
+        cd["style"] = style
+    return cd
 
 
 def _rels_of(z, part):
