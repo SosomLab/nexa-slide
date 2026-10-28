@@ -142,6 +142,12 @@
   .tcs { display: flex; flex-wrap: wrap; gap: 4px; }
   .tc { display: inline-flex; align-items: center; gap: 3px; font-size: 11px; padding: 1px 7px; border-radius: 999px; background: var(--card); color: var(--ink2); border: 1px solid var(--line); }
   .tc i { font-style: normal; opacity: .7; } .tc.ok { background: var(--okc); color: var(--ok); border-color: transparent; }
+  .tc[data-eng] { cursor: pointer; } .tc.sel { outline: 2px solid var(--ink); outline-offset: 1px; }
+  .tg { margin-top: 6px; background: var(--card); border-radius: 8px; padding: 4px 8px; font-size: 12px; }
+  /* 단계 설명 - 한 줄: 단계-N · 제목 · 결과, 아래 줄: 설명(배포 판이 좁아서 두 줄) */
+  .tg-row { display: grid; grid-template-columns: 52px 1fr auto; column-gap: 8px; row-gap: 1px; padding: 4px 4px; border-bottom: 1px dashed var(--tone2); align-items: baseline; }
+  .tg-row:last-child { border-bottom: 0; } .tg-row.sel { background: var(--tone); border-radius: 6px; }
+  .tg-row .tg-t { font-weight: 700; } .tg-row .tg-d { grid-column: 2 / 4; color: var(--ink2); } .tg-row .tg-s { grid-column: 3; grid-row: 1; color: var(--ink2); white-space: nowrap; font-size: 11px; }
   .tc.bad { background: #FFDAD6; color: var(--err); border-color: transparent; } .tc.known { background: var(--warnc); color: var(--warn); border-color: transparent; } .tc.now { border-color: var(--p); color: var(--p); font-weight: 700; } .tc .spin { width: 9px; height: 9px; border-width: 1.5px; }
   .empty { color: var(--ink2); padding: 10px; font-size: 13px; }
   /* 요청 첨부 축소판 칩·＋ 첨부 버튼 - 편집기(index.html)와 같은 모양 */
@@ -907,6 +913,38 @@
     if (/^push/.test(n)) return 6;
     return /적용됨|맞춤|abort/.test(n) ? 7 : -1;
   }
+  // 시험 묶음 - 화면에는 실행 순서대로 "단계-N" 으로만 보이고, 칩을 누르거나 [단계 설명]을 펼치면 아래 설명이 보인다.
+  // 키는 run_all.py TESTS 의 이름(배포가 실패 묶음만 다시 돌릴 때 쓰는 열쇠라 바꾸지 않는다). 없는 이름은 그 이름 그대로
+  const TEST_GUIDE = {
+    i18n: ["영어 사전", "화면을 영어로 바꿀 때 쓰는 번역 파일이 깨지지 않았는지"],
+    smoke: ["기본 화면 점검", "시작 페이지와 편집기를 실제 브라우저로 열어 눌러 보는 빠른 점검(뒤 단계가 쓸 데모 작업 공간도 만든다)"],
+    codex: ["Codex 연결", "Claude 대신 OpenAI Codex 를 AI 로 고를 때의 실행 설정 - Codex 설치 없이 확인"],
+    engcommit: ["엔진 세션 커밋", "엔진을 고치는 AI 세션이 허브 대신 커밋하고, 되돌린 요청을 다시 보내지 않는지"],
+    pulse: ["처리 중 표시", "AI 가 오래 걸리는 작업을 할 때 '지금 무엇을, 얼마나' 진행 표시가 나오는지"],
+    guard: ["임시 폴더 숨김", "시험용 임시 작업 공간이 '최근 작업' 목록에 섞이지 않는지"],
+    reqcli: ["요청 명령줄", "엔진 요청을 명령줄로 넣고 답할 때 긴 글·특수 문자가 잘리지 않는지"],
+    regress: ["렌더 회귀", "엔진을 고쳐도 기존 슬라이드 결과(PPTX)가 그대로인지"],
+    wizard: ["회사 템플릿 만들기", "템플릿 마법사로 만든 색·로고가 편집기와 PPTX 에 반영되고, 잘못된 설정은 거절되는지"],
+    e3: ["직접 연 세션 - 연결 상태", "터미널에서 직접 연 AI 세션이 요청을 맡고 있으면 '직접 연결됨'으로 보이고, 웹에서 세션을 또 띄우지 못하게 막는지(같은 요청을 둘이 처리하지 않게)"],
+    e4: ["직접 연 세션 - 끊김 처리", "그 세션의 터미널을 닫거나, 새 세션이 넘겨받거나, 웹에서 [끊기]를 눌렀을 때 요청 감시도 같이 멈추는지"],
+    share: ["공유 링크", "보기 전용 링크를 만들고 열기(노트·숨긴 장은 안 보임), 비밀번호·회수·만료"],
+    englist: ["서버 작업 목록", "/engine 페이지의 요청 카드와 검색"],
+    editor: ["편집기 화면", "그림·도형·차트·표·묶음·링크·발표자 보기 등 편집기 전반(가장 오래 걸린다)"],
+    tidy: ["작업 공간 정리", "작업 공간 정리·보관·되돌리기·zip, 요청 첨부 정리"],
+    enginetidy: ["엔진 폴더 정리", "엔진 개발 영역에 남은 사본·오래된 로그 정리(배포 중에는 건너뜀)"],
+    deck: ["덱 관리", "덱(시트) 만들기·복제·시작 덱·목록"],
+    deploy: ["배포 절차", "배포 자체 - 병합·push, 충돌 때 main 보호, 새로 생긴 실패만 막는지(임시 저장소에서)"],
+    englink: ["요청 연결", "엔진 요청과 원래 편집기 요청의 연결 표시·완료 알림·적용 뒤 자동 재개"],
+    content_i18n: ["견본 글 영어판", "슬라이드 견본 내용의 영어판"],
+    runs: ["글자 강조", "굵게·색 같은 글자 강조가 겹칠 때 화면과 PPTX 가 같은지"],
+    effect: ["그림 효과", "그림 테두리 효과(부드러운 가장자리·광채·둥근 모서리 등)가 화면과 PPTX 에서 같은지"],
+    tableobj: ["표", "표 서식·셀 병합·PPTX 셀 서식"],
+    uxpack: ["접근성·인쇄", "대체 텍스트, 유인물·노트 PDF"],
+    chart: ["차트", "누적·콤보 차트, 축 제목, 숫자 형식이 화면과 PPTX 에서 같은지"],
+    docstruct: ["문서 구조", "숨긴 장·섹션·취소선·첨자·형광펜·글자 링크"],
+    race: ["동시 시작", "서버를 동시에 띄워도 하나만 뜨는지"],
+    thread: ["후속 요청", "이어서 묻는 요청에 앞의 대화가 AI 에게 함께 전달되는지"],
+  };
   const depSec = (a, b) => Math.max(0, Math.round((new Date(b) - new Date(a)) / 1000));
   const depDur = (s) => s >= 60 ? `${Math.floor(s / 60)}분 ${String(s % 60).padStart(2, "0")}초` : `${s}초`;
   function depProgress(L) {
@@ -931,11 +969,25 @@
       const n = T.total || 0, k = (T.done || []).length, flaky = new Set(T.flaky || []), known = new Set([...(T.known || []), ...flaky]);
       const fails = (T.done || []).filter((x) => !x.ok && !known.has(x.name)).length, kn = (T.done || []).filter((x) => !x.ok && known.has(x.name)).length;
       const doneNames = new Set((T.done || []).map((x) => x.name));
-      const chips = (T.done || []).map((x) => { const kw = !x.ok && known.has(x.name);
-        return `<span class="tc ${x.ok ? "ok" : kw ? "known" : "bad"}" title="${x.ok ? "통과" : flaky.has(x.name) ? "다시 돌려 통과 - 한때의 흔들림(배포를 막지 않음)" : kw ? "기존 실패 - 병합 전 main 에서도 실패(이번 변경 탓 아님, 배포를 막지 않음)" : "실패"} · ${x.sec}초">${x.ok ? "✓" : kw ? "!" : "✕"} ${esc(x.name)} <i>${x.sec}s</i></span>`; }).join("")
-        + (T.names || []).filter((x) => !doneNames.has(x)).map((x, j) => `<span class="tc ${j === 0 && run && k < n ? "now" : ""}">${j === 0 && run && k < n ? `<span class="spin"></span>` : ""}${esc(x)}</span>`).join("");
-      return `<div class="dep-tests"><div class="row" style="gap:6px;align-items:center"><b>시험 · ${esc(label)}</b><span class="hint">${k}/${n}${fails ? ` · 실패 ${fails}` : ""}${kn ? ` · 기존 실패·재시도 통과 ${kn}(막지 않음)` : ""}</span></div>`
-        + `<div class="dep-pbar"><i style="width:${n ? Math.round(k * 100 / n) : 0}%"></i></div><div class="tcs">${chips}</div></div>`;
+      // 단계 번호 = 실행 순서(names). 다시 돌린 묶음(재시도)처럼 names 에 없으면 끝에 붙인다
+      const order = [...(T.names || [])]; (T.done || []).forEach((x) => { if (!order.includes(x.name)) order.push(x.name); });
+      const no = (nm) => order.indexOf(nm) + 1, title = (nm) => (TEST_GUIDE[nm] || [nm])[0], desc = (nm) => (TEST_GUIDE[nm] || [, ""])[1];
+      const stOf = (nm) => { const x = (T.done || []).find((d) => d.name === nm); if (!x) return run && k < n && nm === order.find((o) => !doneNames.has(o)) ? "진행 중" : "대기";
+        return x.ok ? `통과 · ${x.sec}초` : flaky.has(nm) ? `다시 돌려 통과 · ${x.sec}초` : known.has(nm) ? `기존 실패(막지 않음) · ${x.sec}초` : `실패 · ${x.sec}초`; };
+      const sel = DEP.tsel && DEP.tsel.label === label ? DEP.tsel.name : null;
+      const chip = (nm, cls, mark, sec) => `<span class="tc ${cls}${nm === sel ? " sel" : ""}" data-eng="tstep" data-tl="${esc(label)}" data-tn="${esc(nm)}" title="${esc(title(nm))} - ${esc(stOf(nm))} (눌러서 설명)">${mark}단계-${no(nm)}${sec != null ? ` <i>${sec}s</i>` : ""}</span>`;
+      const next = run && k < n ? order.find((o) => !doneNames.has(o)) : null;  // 지금 도는 단계
+      const chips = order.map((nm) => {  // 단계 순서대로
+        const x = (T.done || []).find((d) => d.name === nm);
+        if (!x) return chip(nm, nm === next ? "now" : "", nm === next ? `<span class="spin"></span>` : "", null);
+        const kw = !x.ok && known.has(nm); return chip(nm, x.ok ? "ok" : kw ? "known" : "bad", `${x.ok ? "✓" : kw ? "!" : "✕"} `, x.sec);
+      }).join("");
+      const row = (nm) => `<div class="tg-row${nm === sel ? " sel" : ""}"><b>단계-${no(nm)}</b><span class="tg-t">${esc(title(nm))}</span><span class="tg-d">${esc(desc(nm))}</span><span class="tg-s">${esc(stOf(nm))}</span></div>`;
+      const all = !!(DEP.tinfo && DEP.tinfo[label]);
+      const guide = all ? `<div class="tg">${order.map(row).join("")}</div>` : sel ? `<div class="tg">${row(sel)}</div>` : "";
+      return `<div class="dep-tests"><div class="row" style="gap:6px;align-items:center"><b style="white-space:nowrap">시험 · ${esc(label)}</b><span class="hint">${k}/${n}${fails ? ` · 실패 ${fails}` : ""}${kn ? ` · 기존 실패·재시도 통과 ${kn}(막지 않음)` : ""}</span>`
+        + `<button type="button" class="chip sm tg-btn" data-eng="tinfo" data-tl="${esc(label)}" aria-expanded="${all}" style="margin-left:auto">단계 설명 ${all ? "▴" : "▾"}</button></div>`
+        + `<div class="dep-pbar"><i style="width:${n ? Math.round(k * 100 / n) : 0}%"></i></div><div class="tcs">${chips}</div>${guide}</div>`;
     }).join("");
     const foot = run ? `<div class="hint" style="margin-top:4px">경과 ${depDur(total)}${L.estimate ? ` · 예상 약 ${Math.ceil(L.estimate / 60)}분` : ""} · 허브가 재시작되는 동안 잠시 응답이 없을 수 있습니다</div>`
       : `<div style="margin-top:4px"><b>${DEP_KO[L.state] || esc(L.state)}</b> ${esc(L.message || "")} <span class="hint">· 모두 ${depDur(total)}</span></div>`;
@@ -1038,6 +1090,11 @@
       if (DEP.open) { const last = await loadDeploy(true); DEP.hide = depHide(last); loadEngine(); if (last && last.state === "running") pollDeploy(); }
       return;
     }
+    if (b.dataset.eng === "tstep") {  // 시험 단계 칩 - 그 단계 설명을 펴고 접는다
+      const same = DEP.tsel && DEP.tsel.label === b.dataset.tl && DEP.tsel.name === b.dataset.tn;
+      DEP.tsel = same ? null : { label: b.dataset.tl, name: b.dataset.tn }; loadEngine(); return;
+    }
+    if (b.dataset.eng === "tinfo") { DEP.tinfo = { ...(DEP.tinfo || {}), [b.dataset.tl]: !(DEP.tinfo && DEP.tinfo[b.dataset.tl]) }; loadEngine(); return; }
     if (b.dataset.eng === "deployrun") {
       const p = DEP.plan || {};
       const what = (p.requests || []).map((r) => `#${r.id} ${r.title}`).join("\n") || `커밋 ${(p.commits || []).length}개`;
