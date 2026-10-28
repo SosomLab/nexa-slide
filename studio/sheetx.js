@@ -5,6 +5,7 @@
    - 값만 붙여넣기(Ctrl+Shift+V) · 자동 합계(Alt+=) · 정렬(도구 막대 ⇅ - 지금 열 기준, 첫 줄 머리글 자동 판정)
    - 데이터 ▾: 필터(머리글 ▼ - 값 고르기·정렬, 이 화면에서만 = 엑셀 "필터 보기") · 행·열 숨기기/숨기기 취소(저장 - 탭 hiddenRows·hiddenCols)
              드롭다운 목록(탭 validations [{range, list|source}] - 고른 칸 옆 ▼ 로 고르기, 목록에 없는 값은 칸 모서리 표시)
+   - 함수 자동 완성: 수식 입력 중 =SU… → 맞는 함수 목록(Tab·클릭 = 넣기, ↑↓ 고르기, Esc 닫기), 괄호 안에서는 인수 안내
              조건부 서식(탭 conds [{range, type, value, value2, style{fill,color,b}, colors}] - gt·ge·lt·le·eq·ne·between·text·dup·top·bottom·scale, xlsx 왕복)
    모든 고치기는 x.mutate 로 - 실행 취소·저장·다시 계산이 같이 된다. */
 (function () {
@@ -447,11 +448,81 @@
     x.toast(`조건부 서식 ${n}개를 지웠습니다`);
   }
 
+  // ---------------------------------------------------------------- 함수 자동 완성·인수 안내
+  const FN_HELP = {
+    SUM: ["수1, [수2], …", "합계"], AVERAGE: ["수1, [수2], …", "평균"], MIN: ["수1, …", "최솟값"], MAX: ["수1, …", "최댓값"], COUNT: ["값1, …", "숫자 칸 수"],
+    COUNTA: ["값1, …", "비어 있지 않은 칸 수"], COUNTBLANK: ["범위", "빈 칸 수"], MEDIAN: ["수1, …", "가운데 값"], PRODUCT: ["수1, …", "곱"],
+    SUMIF: ["범위, 조건, [합 범위]", "조건에 맞는 합계"], SUMIFS: ["합 범위, 조건 범위1, 조건1, …", "여러 조건 합계"], COUNTIF: ["범위, 조건", "조건에 맞는 칸 수"],
+    COUNTIFS: ["조건 범위1, 조건1, …", "여러 조건 칸 수"], AVERAGEIF: ["범위, 조건, [평균 범위]", "조건에 맞는 평균"], AVERAGEIFS: ["평균 범위, 조건 범위1, 조건1, …", "여러 조건 평균"],
+    SUMPRODUCT: ["배열1, [배열2], …", "곱의 합"], ROUND: ["수, 자릿수", "반올림"], ROUNDUP: ["수, 자릿수", "올림"], ROUNDDOWN: ["수, 자릿수", "내림"], INT: ["수", "정수(내림)"],
+    MOD: ["수, 나눌 수", "나머지"], ABS: ["수", "절댓값"], IF: ["조건, 참일 때, [거짓일 때]", "조건에 따라 값"], IFS: ["조건1, 값1, …", "처음 맞는 조건의 값"],
+    IFERROR: ["값, 오류일 때", "오류면 대신할 값"], IFNA: ["값, #N/A 일 때", "#N/A 면 대신할 값"], SWITCH: ["식, 값1, 결과1, …, [기본]", "값에 맞는 결과"],
+    CHOOSE: ["번호, 값1, 값2, …", "번호째 값"], AND: ["조건1, …", "모두 참"], OR: ["조건1, …", "하나라도 참"], NOT: ["조건", "반대"],
+    VLOOKUP: ["찾을 값, 표, 열 번호, [근사=TRUE]", "세로로 찾기"], HLOOKUP: ["찾을 값, 표, 행 번호, [근사]", "가로로 찾기"], MATCH: ["찾을 값, 범위, [방식 1·0·-1]", "위치"],
+    INDEX: ["범위, 행, [열]", "그 자리의 값"], XLOOKUP: ["찾을 값, 찾을 범위, 돌려줄 범위, [없을 때]", "찾기(새)"], CONCAT: ["글1, …", "이어 붙이기"],
+    CONCATENATE: ["글1, …", "이어 붙이기"], TEXTJOIN: ["구분자, 빈칸 무시, 글1, …", "구분자로 잇기"], LEFT: ["글, [글자 수]", "왼쪽"], RIGHT: ["글, [글자 수]", "오른쪽"],
+    MID: ["글, 시작, 글자 수", "가운데"], LEN: ["글", "글자 수"], TRIM: ["글", "공백 정리"], UPPER: ["글", "대문자"], LOWER: ["글", "소문자"],
+    SUBSTITUTE: ["글, 옛 글, 새 글, [몇 번째]", "바꾸기"], FIND: ["찾을 글, 글, [시작]", "위치(대소문자 구분)"], SEARCH: ["찾을 글, 글, [시작]", "위치(* ? 가능)"],
+    VALUE: ["글", "숫자로"], TEXT: ["값, 형식", "형식 글로(#,##0 · yyyy-mm-dd)"], TODAY: ["", "오늘"], NOW: ["", "지금"], DATE: ["년, 월, 일", "날짜"],
+    YEAR: ["날짜", "년"], MONTH: ["날짜", "월"], DAY: ["날짜", "일"], WEEKDAY: ["날짜, [방식]", "요일 번호(일=1)"], EDATE: ["날짜, 개월", "몇 달 뒤"],
+    EOMONTH: ["날짜, 개월", "그 달 마지막 날"], ROW: ["[참조]", "행 번호"], COLUMN: ["[참조]", "열 번호"], ROWS: ["범위", "행 수"], COLUMNS: ["범위", "열 수"],
+    INDIRECT: ["주소 글", "글로 적은 참조"], OFFSET: ["기준, 행, 열, [높이], [너비]", "옮긴 범위"], SUBTOTAL: ["함수 번호, 범위", "부분합(9=합계)"],
+    HYPERLINK: ["주소, [보일 글]", "링크(보이는 글)"], ISBLANK: ["값", "빈 칸?"], ISNUMBER: ["값", "숫자?"], ISTEXT: ["값", "글?"], ISERROR: ["값", "오류?"], ISNA: ["값", "#N/A?"],
+  };
+  const AC = { list: [], i: 0, from: 0 };
+  function fnNames() { return (window.NexaCalc && NexaCalc.FUNCS) || Object.keys(FN_HELP); }
+  function acBox() { let b = $("#acBox"); if (!b) { b = document.createElement("div"); b.id = "acBox"; document.body.appendChild(b); } return b; }
+  function acHide() { const b = $("#acBox"); if (b) b.hidden = true; AC.list = []; }
+  function acUpdate() {
+    const S = N().S, x = X(), ed = x.ED(); if (!S.edit) { acHide(); return; }
+    const v = ed.value, pos = ed.selectionStart, before = v.slice(0, pos);
+    if (v[0] !== "=") { acHide(); return; }
+    const box = acBox(), R = ed.getBoundingClientRect();
+    const m = /([A-Za-z][A-Za-z0-9.]*)$/.exec(before);
+    const inStr = (before.match(/"/g) || []).length % 2 === 1;
+    if (m && !inStr && !/[A-Za-z0-9$:]/.test(before.slice(0, -m[1].length).slice(-1) || "")) {
+      const pre = m[1].toUpperCase();
+      AC.list = fnNames().filter((f) => f.startsWith(pre)).sort().slice(0, 8); AC.from = pos - m[1].length;
+      if (AC.list.length && !(AC.list.length === 1 && AC.list[0] === pre && v[pos] === "(")) {
+        AC.i = Math.min(AC.i, AC.list.length - 1);
+        box.innerHTML = AC.list.map((f, i) => `<div class="it${i === AC.i ? " on" : ""}" data-ac="${f}"><b>${f}</b>(${x.esc((FN_HELP[f] || [""])[0])}) <span>${x.esc((FN_HELP[f] || ["", ""])[1])}</span></div>`).join("") + `<div class="hint">Tab = 넣기 · ↑↓ 고르기 · Esc 닫기</div>`;
+        Object.assign(box.style, { left: R.left + "px", top: R.bottom + 2 + "px" }); box.hidden = false; return;
+      }
+    }
+    // 괄호 안 - 가장 안쪽 열린 함수의 인수 안내
+    let depth = 0, name = null;
+    for (let i = before.length - 1; i >= 0; i--) {
+      const ch = before[i];
+      if (ch === ")") depth++;
+      else if (ch === "(") { if (depth) depth--; else { const mm = /([A-Za-z][A-Za-z0-9.]*)$/.exec(before.slice(0, i)); name = mm && mm[1].toUpperCase(); break; } }
+    }
+    AC.list = [];
+    if (name && FN_HELP[name] && !inStr) {
+      box.innerHTML = `<div class="sig"><b>${name}</b>(${x.esc(FN_HELP[name][0])}) - ${x.esc(FN_HELP[name][1])}</div>`;
+      Object.assign(box.style, { left: R.left + "px", top: R.bottom + 2 + "px" }); box.hidden = false; return;
+    }
+    acHide();
+  }
+  function acPick(f) {
+    const x = X(), ed = x.ED(), v = ed.value, pos = ed.selectionStart;
+    const nv = v.slice(0, AC.from) + f + "(" + v.slice(pos).replace(/^\(/, "");
+    ed.value = nv; const n = AC.from + f.length + 1; ed.setSelectionRange(n, n);
+    ed.dispatchEvent(new Event("input", { bubbles: true })); acUpdate();
+  }
+  function acKey(e) {
+    const b = $("#acBox"); if (!b || b.hidden || !AC.list.length) return false;
+    if (e.key === "Tab") { e.preventDefault(); e.stopPropagation(); acPick(AC.list[AC.i]); return true; }
+    if (e.key === "ArrowDown" || e.key === "ArrowUp") { e.preventDefault(); e.stopPropagation(); AC.i = (AC.i + (e.key === "ArrowDown" ? 1 : AC.list.length - 1)) % AC.list.length; acUpdate(); return true; }
+    if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); acHide(); return true; }
+    return false;
+  }
+
   // ---------------------------------------------------------------- 연결
   function onKey(e) {
     if (!X() || e.isComposing) return;
     const S = N().S, x = X(), ctrl = e.ctrlKey || e.metaKey, k = e.key.toLowerCase();
     const inGrid = document.activeElement === x.ED();
+    if (S.edit && inGrid && acKey(e)) return;
     if (S.edit && inGrid && ctrl && e.key === "Enter") { e.preventDefault(); e.stopPropagation(); fillSelectionWithEdit(); return; }
     if (ctrl && !e.altKey && (k === "f" || k === "h") && (inGrid || document.activeElement === document.body || e.target.closest("#findBox"))) { e.preventDefault(); e.stopPropagation(); if (S.edit) x.endEdit(true); findBox(k === "h"); return; }
     if (!inGrid || S.edit) return;
@@ -481,5 +552,10 @@
     if (e.target.closest("#dvBtn")) { e.preventDefault(); e.stopPropagation(); dvPick(); }
   }, true);
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", tools); else tools();
+  // 자동 완성 - 편집칸 입력·커서 이동마다(편집이 끝나면 닫힘)
+  document.addEventListener("input", (e) => { if (X() && e.target === X().ED()) { AC.i = 0; setTimeout(acUpdate, 0); } }, true);
+  document.addEventListener("keyup", (e) => { if (X() && e.target === X().ED() && /^(Arrow(Left|Right)|Home|End)$/.test(e.key)) acUpdate(); }, true);
+  document.addEventListener("mousedown", (e) => { const it = e.target.closest("#acBox [data-ac]"); if (it) { e.preventDefault(); acPick(it.dataset.ac); } else if (!e.target.closest("#acBox")) acHide(); }, true);
+  setInterval(() => { if (X() && !N().S.edit) acHide(); }, 400);
   window.NexaSheetX = { onSel: () => { onSel(); renderFilterBtns(); renderDv(); dvMarks(); }, onChange: () => { onSel(); renderFilterBtns(); renderDv(); dvMarks(); }, dvCreate, dvClear, dvPick, condMap, condDialog, condClear, sortRange, fillDir, findBox, autoSum, hide, filterToggle, applyFilter, view };
 })();

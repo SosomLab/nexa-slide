@@ -154,6 +154,13 @@
   .fltPop .acts button.primary { background: var(--p, #A91F24); color: #fff; }
   #dvBtn { position: absolute; z-index: 4; width: 18px; height: 18px; padding: 0; border: 1px solid var(--line); border-radius: 3px; background: #fff; font-size: 9px; line-height: 16px; cursor: pointer; color: var(--ink2); }
   #dvBtn[hidden] { display: none; }
+  #acBox { position: fixed; z-index: 90; min-width: 260px; max-width: 460px; background: var(--card); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 4px 14px rgba(0,0,0,.16); font-size: 12px; padding: 3px; }
+  #acBox[hidden] { display: none; }
+  #acBox .it { padding: 3px 8px; border-radius: 5px; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #acBox .it span, #acBox .hint { color: var(--ink2); }
+  #acBox .it.on { background: var(--selFill); }
+  #acBox .hint { font-size: 11px; padding: 2px 8px; border-top: 1px solid var(--line); margin-top: 2px; }
+  #acBox .sig { padding: 3px 8px; white-space: nowrap; }
   .cfDlg label { display: flex; gap: 6px; align-items: center; justify-content: space-between; }
   .cfDlg label[hidden] { display: none; }
   .cfDlg select, .cfDlg input { font: inherit; padding: 3px 6px; border: 1px solid var(--line); border-radius: 6px; width: 170px; }
