@@ -173,6 +173,7 @@ LAUNCHER = '''# -*- coding: utf-8 -*-
     python3 {ws}/nexa.py build_deck <덱> [--force]                  # content → 덱
     python3 {ws}/nexa.py export_pptx <덱>                           # → out/<덱>.pptx
     python3 {ws}/nexa.py export_xlsx <시트 문서>                    # 시트(kind sheet) → out/<id>.xlsx
+    python3 {ws}/nexa.py sheet_theme list | import <샘플.xlsx> --name <이름>   # 시트 테마 목록 · 회사 샘플 엑셀에서 테마 만들기
     python3 {ws}/nexa.py check_layout [<덱>]                        # 레이아웃 검사
     python3 {ws}/nexa.py layout_samples                             # 레이아웃·필드 예시
     python3 {ws}/nexa.py slide_types [낱말]                         # 슬라이드 유형(목적별) — 내용에 맞는 장 고르기

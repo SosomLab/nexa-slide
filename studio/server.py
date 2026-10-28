@@ -343,7 +343,7 @@ def activity():
     return {"watcher": w, "othersBusy": sum(1 for x in out if x is not w and x["state"] == "busy"), "sessions": len(out)}
 
 
-ENGINE_UI = ("index.html", "studio.js", "sheet.html", "sheet.js", "render.js", "menu.js", "fonts.css", "i18n.js", "i18n/en.js", "i18n/en.pages.js", "i18n/en.review.js")
+ENGINE_UI = ("index.html", "studio.js", "sheet.html", "sheet.js", "sheetnew.js", "render.js", "menu.js", "fonts.css", "i18n.js", "i18n/en.js", "i18n/en.pages.js", "i18n/en.review.js")
 
 
 def hub_ui_stamp():
@@ -656,7 +656,7 @@ class H(BaseHTTPRequestHandler):
         if arg is not None and not safe_id(arg):
             return self.err(400, "잘못된 id")
         try:
-            fn = getattr(self, f"api_{method.lower()}_{name}", None)
+            fn = getattr(self, f"api_{method.lower()}_{name.replace('-', '_')}", None)  # /api/sheet-themes → api_get_sheet_themes
             if fn is None:
                 return self.err(404, "없는 API")
             return fn(arg, q)
@@ -868,7 +868,8 @@ class H(BaseHTTPRequestHandler):
         try:
             with WRITE_LOCK:
                 if act == "create":
-                    out = deck_admin.create(i, b.get("title"), b.get("layout") or "cover", b.get("part") or "day1", "sheet" if b.get("kind") == "sheet" else "deck")
+                    out = deck_admin.create(i, b.get("title"), b.get("layout") or "cover", b.get("part") or "day1", "sheet" if b.get("kind") == "sheet" else "deck",
+                                            theme=b.get("theme"), pages=b.get("pages"), vars_=b.get("vars"))
                 elif act == "copy":
                     out = deck_admin.copy(i, b.get("title"))
                 elif act == "start":
@@ -891,6 +892,19 @@ class H(BaseHTTPRequestHandler):
             return self.err(400, str(e))
         self._event = f"deck.{act}:{i}" + (f"→{out.get('id')}" if act in ("rename", "copy") else "")
         self.send_json({"ok": True, **out, "decks": deck_admin.list_decks()})
+
+    def api_get_sheet_themes(self, name, q):
+        """시트 테마 - 이름 없으면 목록, 있으면 theme.json(+ base 그림 주소 접두사, brandLogo). docs/sheets.md 5절."""
+        if HUB:
+            return self.err(404, "작업 공간 서버에서")
+        import sheet_theme
+        if not name:
+            return self.send_json(sheet_theme.list_themes())
+        t = sheet_theme.load(name)
+        if not t:
+            return self.err(404, "없는 테마")
+        t["brandLogo"] = ("/" + BRAND["logo"]) if BRAND.get("logo") else ""
+        self.send_json(t)
 
     def api_get_decks(self, _, q):
         out = []

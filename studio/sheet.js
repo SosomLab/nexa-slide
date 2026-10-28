@@ -78,7 +78,7 @@
   // ---------------------------------------------------------------- 셀 읽기·쓰기 - 값만 있는 셀은 값 그대로(문자열·숫자·불), 서식·수식이 있으면 객체
   const cellObj = (sh, k) => { const v = sh.cells[k]; return v == null ? {} : typeof v === "object" ? v : { v }; };
   function putCell(sh, k, o) {
-    const x = {}; for (const [kk, vv] of Object.entries(o)) if (vv !== undefined && vv !== null && vv !== "" && (vv !== false || kk === "v")) x[kk] = vv;  // 서식 끔(false)은 키를 지운다 - 값 FALSE 는 남긴다
+    const x = {}; for (const [kk, vv] of Object.entries(o)) if (vv !== undefined && vv !== null && vv !== "" && (vv !== false || kk === "v" || o.s)) x[kk] = vv;  // 서식 끔(false)은 키를 지운다 - 값 FALSE·스타일(s)을 덮는 false 는 남긴다
     const ks = Object.keys(x);
     if (!ks.length) delete sh.cells[k]; else if (ks.length === 1 && ks[0] === "v") sh.cells[k] = x.v; else sh.cells[k] = x;
   }
@@ -402,6 +402,7 @@
     if (S.ti >= S.deck.sheets.length) S.ti = S.deck.sheets.length - 1;
     recalc(); S.dirty = true; setStatus("dirty", "저장 대기"); updUndo();
     renderAll(); scheduleSave();
+    if ((S.deck.theme || null) !== TH.name) loadTheme(S.deck.theme).then(() => { renderThemeChip(); renderAll(); });  // 실행 취소로 테마가 바뀌었으면
   }
   /** 고치기 - snapshot → fn → afterChange */
   function mutate(fn) { snapshot(); const r = fn(); afterChange(); return r; }
@@ -439,6 +440,7 @@
     if (!Array.isArray(deck.sheets) || !deck.sheets.length) deck.sheets = [{ id: "t01", name: "Sheet1", cells: {} }];
     if (!Array.isArray(deck.slides)) deck.slides = [];
     deck.sheets.forEach(normSheet);
+    await loadTheme(deck.theme);
     S.deck = deck; S.savedJson = deckJson();
     S.dirty = false; S.conflict = false; banner(false);
     if (!keepView) {
@@ -448,7 +450,7 @@
     } else if (S.ti >= deck.sheets.length) S.ti = 0;
     document.title = `${deck.title || S.id} - 시트 - nexa-slide`;
     $("#titleText").textContent = deck.title || S.id; $("#title").title = `${deck.title || ""} · id ${S.id}`;
-    setStatus("saved", "저장됨"); updUndo();
+    setStatus("saved", "저장됨"); updUndo(); renderThemeChip();
     // 세션이 값만 넣고 계산값(v)을 비웠으면 여기서 계산해 저장(엑셀 내보내기에 계산값이 들어가게)
     if (recalc()) { S.dirty = true; setStatus("dirty", "저장 대기"); scheduleSave(); }
     renderAll();
@@ -481,6 +483,79 @@
     $("#sessLabel").textContent = st.connected ? (st.working ? `세션 처리 중 ${st.working}` : "세션 연결됨") : "세션 연결 없음";
   }
 
+  // ---------------------------------------------------------------- 테마(docs/sheets.md 5절) - 셀 s(스타일 이름)를 테마 styles 에서 찾아 셀 키 아래에 깔고(셀 키가 이긴다),
+  // 색 값이 팔레트 이름이면 #RRGGBB 로 바꾼다. 내보내기(export_xlsx.py)와 같은 규칙
+  const TH = { name: null, theme: null, brandLogo: null };
+  const theme = () => TH.theme;
+  async function loadTheme(name) {
+    if ((name || null) === TH.name) return;
+    TH.name = name || null; TH.theme = null;
+    if (!name) return;
+    const r = await api("GET", `/api/sheet-themes/${encodeURIComponent(name)}`);
+    if (r.ok && r.data && typeof r.data === "object" && !Array.isArray(r.data)) TH.theme = r.data;
+    else toast(`시트 테마 "${name}" 를 읽지 못했습니다 - 테마 없이 보입니다`, 5000);
+  }
+  const styleOf = (s) => (s && theme() && theme().styles && theme().styles[s]) || null;
+  const palColor = (c) => { if (typeof c !== "string") return c; const p = theme() && theme().palette; return p && p[c] ? p[c] : c; };
+  const LINE_DEF = "#BFBFBF";  // 팔레트에 line 이 없을 때 테두리 색
+  function bdColor(v) { if (v === true) v = "line"; if (typeof v !== "string" || !v) return null; const c = palColor(v); return /^#[0-9a-f]{3,8}$/i.test(c) ? c : LINE_DEF; }
+  /** 테두리 값 → {t, r, b, l} 색. "line"·"#hex" = 네 변, {t,r,b,l} = 변마다(없는 변은 선 없음) */
+  function bdSides(bd) {
+    if (bd == null || bd === false) return {};
+    if (typeof bd === "object") { const o = {}; for (const s of ["t", "r", "b", "l"]) { const c = bdColor(bd[s]); if (c) o[s] = c; } return o; }
+    const c = bdColor(bd); return c ? { t: c, r: c, b: c, l: c } : {};
+  }
+  /** 화면에 그릴 셀 - 스타일(s) 위에 셀 키, 글자색·배경의 팔레트 이름 → 색 */
+  function effCell(raw) {
+    const o = raw == null ? {} : typeof raw === "object" ? raw : { v: raw };
+    const st = styleOf(o.s), e = st ? { ...st, ...o } : { ...o };
+    if (e.color) e.color = palColor(e.color);
+    if (e.fill) e.fill = palColor(e.fill);
+    return e;
+  }
+  function renderThemeChip() {
+    const c = $("#themeChip"); if (!c) return;
+    c.textContent = TH.name ? `테마 ${(theme() && theme().label) || TH.name}` : "테마 없음";
+    c.title = TH.name ? `시트 테마 ${TH.name}${theme() ? "" : " (읽지 못함)"} - 눌러서 바꾸기` : "시트 테마 고르기 - 셀 스타일·색·글꼴·페이지 틀";
+  }
+  async function themeMenu(btn) {
+    const r = await api("GET", "/api/sheet-themes"), list = r.ok && Array.isArray(r.data) ? r.data : [];
+    openMenu(btn, [{ h: "시트 테마 - 셀 스타일(s)·색·글꼴" }, { label: "테마 없음", on: !TH.name, act: () => setTheme(null) },
+      ...list.map((t) => ({ label: `${t.label || t.name}${t.source === "workspace" ? " · 작업 공간" : ""}`, on: t.name === TH.name, act: () => setTheme(t.name) })),
+      ...(list.length ? [] : [{ label: "(테마 목록을 읽지 못했습니다)", disabled: true }])]);
+  }
+  async function setTheme(name) {
+    if (S.edit) endEdit(true);
+    if ((name || null) === TH.name) return;
+    snapshot(); await loadTheme(name);
+    if (name) S.deck.theme = name; else delete S.deck.theme;
+    renderThemeChip(); afterChange();
+  }
+  const defSize = () => (theme() && +theme().size) || 11;
+  /** 눈금선 - 탭 grid 가 있으면 그것, 없으면 테마 grid(기본 보임) */
+  const gridOn = (sh) => (sh.grid !== undefined ? sh.grid !== false : !(theme() && theme().grid === false));
+  /** 그림 주소 - "@brand/logo" = 작업 공간 brand 로고, "assets/…" = 작업 공간, 그 밖의 상대 경로 = 테마 폴더(base) */
+  function assetUrl(src) {
+    const pre = (u) => (u && u[0] === "/" ? BASE + u : u || "");
+    if (!src) return "";
+    if (src === "@brand/logo") return pre((theme() && theme().brandLogo) || TH.brandLogo);
+    if (/^(https?:|data:)/.test(src)) return src;
+    if (src[0] === "/") return BASE + src;
+    if (src.startsWith("assets/")) return BASE + "/" + src;
+    const b = theme() && theme().base; return b ? pre(b) + src : BASE + "/" + src;
+  }
+  /** 문서 정보 - 테마 페이지의 {{자리}} 를 채우는 값(문서 vars > 테마 vars, title·date 는 문서 제목·오늘) */
+  function docVars() {
+    const d = new Date(), today = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    return { ...((theme() && theme().vars) || {}), ...(S.deck.vars || {}), title: (S.deck.vars && S.deck.vars.title) || S.deck.title || "", date: (S.deck.vars && S.deck.vars.date) || today };
+  }
+  function fillVars(x, vars) {
+    if (typeof x === "string") return x.replace(/\{\{\s*([\w.-]+)\s*\}\}/g, (m, k) => (vars[k] != null ? String(vars[k]) : m));
+    if (Array.isArray(x)) return x.map((y) => fillVars(y, vars));
+    if (x && typeof x === "object") { const o = {}; for (const [k, v] of Object.entries(x)) o[k] = fillVars(v, vars); return o; }
+    return x;
+  }
+
   // ---------------------------------------------------------------- 그리기
   const G = { colX: [], rowY: [], rows: 0, cols: 0 };
   function renderAll() { renderGrid(); renderTabs(); renderSel(); renderReqs(); }
@@ -505,6 +580,20 @@
     const fz = parseRef(sh.freeze || "") || { r: 0, c: 0 };
     const ms = merges(sh), cover = new Map();
     for (const m of ms) for (let r = m.r1; r <= m.r2; r++) for (let c = m.c1; c <= m.c2; c++) cover.set(r * 4096 + c, r === m.r1 && c === m.c1 ? m : "x");
+    // 테두리(bd) - 칸 사이 선은 한 줄만: 아래·오른쪽 변은 그 칸의 border 색, 위·왼쪽 변은 위·왼쪽 칸의 아래·오른쪽 border 색. 1행·A열의 위·왼쪽만 안쪽 그림자
+    const eB = new Map(), eR = new Map(), eT = new Map(), eL = new Map();
+    for (const [k, raw] of Object.entries(sh.cells)) {
+      const p = parseRef(k); if (!p) continue;
+      const cm0 = cover.get(p.r * 4096 + p.c); if (cm0 === "x") continue;
+      const e = effCell(raw); if (!e.bd) continue;
+      const sd = bdSides(e.bd), g = cm0 || { r1: p.r, c1: p.c, r2: p.r, c2: p.c };
+      for (let c = g.c1; c <= g.c2; c++) { if (sd.b) eB.set(g.r2 * 4096 + c, sd.b); if (sd.t) { if (g.r1 > 0) { if (!eB.has((g.r1 - 1) * 4096 + c)) eB.set((g.r1 - 1) * 4096 + c, sd.t); } else eT.set(c, sd.t); } }
+      for (let r = g.r1; r <= g.r2; r++) { if (sd.r) eR.set(r * 4096 + g.c2, sd.r); if (sd.l) { if (g.c1 > 0) { if (!eR.has(r * 4096 + g.c1 - 1)) eR.set(r * 4096 + g.c1 - 1, sd.l); } else eL.set(r, sd.l); } }
+    }
+    const T = theme(), grid = $("#grid");
+    grid.classList.toggle("nogrid", !gridOn(sh));
+    grid.style.fontFamily = T && T.font ? `"${String(T.font).replace(/"/g, "")}", var(--font)` : "";
+    grid.style.fontSize = T && T.size ? `${+T.size}pt` : "";
     const h = [`<colgroup><col style="width:${HW}px">`];
     for (let c = 0; c < cols; c++) h.push(`<col style="width:${colW(sh, c)}px">`);
     h.push(`</colgroup><thead><tr><th class="corner" title="모두 선택 (Ctrl+A)"></th>`);
@@ -515,8 +604,8 @@
       h.push(`<tr style="height:${rh}px"><th data-row="${r}">${r + 1}<span class="rz" data-rzr="${r}"></span></th>`);
       for (let c = 0; c < cols; c++) {
         const cm = cover.get(r * 4096 + c); if (cm === "x") continue;
-        const k = key(r, c), raw = sh.cells[k], o = raw == null ? {} : typeof raw === "object" ? raw : { v: raw };
-        const txt = display(raw), err = o.f && isErrStr(o.v);
+        const k = key(r, c), raw = sh.cells[k], o = effCell(raw);
+        const txt = display(o), err = o.f && isErrStr(o.v);
         const kind = typeof o.v === "number" ? "num" : typeof o.v === "boolean" || err ? "mid" : "txt";
         const [tdS, cvS] = cellStyle(o, kind);
         let span = "", hh = rh;
@@ -525,6 +614,12 @@
         if (r < fz.r || c < fz.c) { cls.push("fz"); extra.push(r < fz.r ? `top:${G.rowY[r]}px` : "", c < fz.c ? `left:${G.colX[c]}px` : ""); if (r < fz.r && c < fz.c) extra.push("z-index:2"); }
         if (fz.r && r === fz.r - 1) cls.push("fzr"); if (fz.c && c === fz.c - 1) cls.push("fzc");
         if (err) cls.push("err");
+        {  // 테두리
+          const r2 = cm ? cm.r2 : r, c2 = cm ? cm.c2 : c, bb = eB.get(r2 * 4096 + c), br = eR.get(r * 4096 + c2), sh2 = [];
+          if (bb) extra.push(`border-bottom-color:${bb}`); if (br) extra.push(`border-right-color:${br}`);
+          if (r === 0 && eT.get(c)) sh2.push(`inset 0 1px 0 ${eT.get(c)}`); if (c === 0 && eL.get(r)) sh2.push(`inset 1px 0 0 ${eL.get(r)}`);
+          if (sh2.length) extra.push(`box-shadow:${sh2.join(",")}`);
+        }
         h.push(`<td data-r="${r}" data-c="${c}"${span}${cls.length ? ` class="${cls.join(" ")}"` : ""} style="${[tdS, ...extra.filter(Boolean)].filter(Boolean).join(";")}"${o.note ? ` title="${esc(o.note)}"` : ""}>`
           + `<div class="cv${o.wrap ? " wrap" : ""}" style="height:${hh - 1}px;${cvS}"><span>${esc(txt)}</span></div></td>`);
       }
@@ -532,7 +627,20 @@
     }
     h.push("</tbody>");
     $("#grid").innerHTML = h.join("");
-    renderMarks();
+    renderMarks(); renderDrawings();
+  }
+  /** 탭 그림(drawings) - 셀 at 의 왼쪽 위 + (dx, dy)px 에 w×h. 격자와 같이 움직이고 누르기는 통과(선택을 막지 않는다) */
+  function renderDrawings() {
+    const sh = sheet(), out = [];
+    for (const d of sh.drawings || []) {
+      if (d.type && d.type !== "image") continue;
+      const p = parseRef(d.at || "A1"); if (!p) continue;
+      const x = (G.colX[Math.min(p.c, G.colX.length - 1)] || HW) + (+d.dx || 0), y = (G.rowY[Math.min(p.r, G.rowY.length - 1)] || HH) + (+d.dy || 0);
+      const src = assetUrl(d.src); if (!src) continue;
+      out.push(`<img class="drw" src="${esc(src)}" alt="" draggable="false" style="left:${x}px;top:${y}px;width:${+d.w || 120}px;height:${+d.h || 60}px">`);
+    }
+    const box = $("#draws"); box.innerHTML = out.join("");
+    $$("img", box).forEach((i) => { i.onerror = () => { i.style.visibility = "hidden"; }; });
   }
   function rectOf(g) { return { x: G.colX[g.c1], y: G.rowY[g.r1], w: G.colX[g.c2 + 1] - G.colX[g.c1], h: G.rowY[g.r2 + 1] - G.rowY[g.r1] }; }
   function place(el, g, inset = 0) { const R = rectOf(g); Object.assign(el.style, { left: R.x - inset + "px", top: R.y - inset + "px", width: R.w + inset * 2 + 1 + "px", height: R.h + inset * 2 + 1 + "px" }); }
@@ -554,17 +662,27 @@
   function renderTabs() {
     const cnt = (sid) => activeReqs().filter((q) => reqSlide(q) === sid).length;
     $("#tabs").innerHTML = S.deck.sheets.map((s, i) => `<button class="t${i === S.ti ? " on" : ""}" data-ti="${i}" title="${esc(s.name)} · id ${esc(s.id)} - 두 번 클릭: 이름 바꾸기 · 오른쪽 클릭: 메뉴">${esc(s.name)}${cnt(s.id) ? `<span class="n">${cnt(s.id)}</span>` : ""}</button>`).join("")
-      + `<button class="ib add" data-addtab="1" title="새 탭">＋</button>`;
+      + `<button class="ib add" data-addtab="1" title="${theme() && (theme().pages || []).length ? "새 탭 · 테마 페이지 추가" : "새 탭"}">＋</button>`;
   }
   function renderToolState() {
-    const sh = sheet(), o = cellObj(sh, key(S.cur.r, S.cur.c));
+    const sh = sheet(), own = cellObj(sh, key(S.cur.r, S.cur.c)), o = effCell(own);
     for (const t of ["b", "i", "u"]) $(`#tools [data-t="${t}"]`).classList.toggle("on", !!o[t]);
     $$('#tools [data-t="al"]').forEach((b) => b.classList.toggle("on", o.align === b.dataset.v));
     $('#tools [data-t="wrap"]').classList.toggle("on", !!o.wrap);
     $('#tools [data-t="merge"]').classList.toggle("on", !!mergeAt(sh, S.cur.r, S.cur.c));
     $('#tools [data-t="freeze"]').classList.toggle("on", !!sh.freeze);
     $("#colorBar").style.background = o.color || "#000"; $("#fillBar").style.background = o.fill || "#fff";
-    fillFmtSel(o.fmt || ""); $("#sizeSel").value = String(o.size || 11);
+    fillFmtSel(o.fmt || ""); $("#sizeSel").value = String(o.size || defSize());
+    $('#tools [data-t="grid"]').classList.toggle("on", gridOn(sh));
+    $('#tools [data-t="border"]').classList.toggle("on", !!o.bd && Object.keys(bdSides(o.bd)).length > 0);
+    const ss = $("#styleSel"), names = Object.keys((theme() && theme().styles) || {});
+    ss.hidden = !names.length; $("#styleSep").hidden = !names.length;
+    if (names.length) {
+      const opts = ["", ...names, ...(own.s && !names.includes(own.s) ? [own.s] : [])];
+      const html = opts.map((n) => `<option value="${esc(n)}">${n ? esc(n) : "스타일 없음"}</option>`).join("");
+      if (ss.dataset.h !== html) { ss.innerHTML = html; ss.dataset.h = html; }
+      ss.value = own.s || "";
+    }
   }
   const FMTS = [["", "일반"], ["#,##0", "#,##0 (천 단위)"], ["#,##0.00", "#,##0.00"], ["0.0", "0.0"], ["0%", "0%"], ["0.0%", "0.0%"], ["yyyy-mm-dd", "날짜 yyyy-mm-dd"], ["@", "텍스트"]];
   function fillFmtSel(cur) {
@@ -639,8 +757,9 @@
     const R = rectOf(m), e = ED();
     Object.assign(e.style, { left: R.x - 1 + "px", top: R.y - 1 + "px", minWidth: R.w + 3 + "px", width: R.w + 3 + "px", height: Math.max(R.h + 3, 26) + "px" });
     if (S.edit) {
-      const o = cellObj(sh, key(S.cur.r, S.cur.c));
-      e.style.fontWeight = o.b ? "700" : ""; e.style.fontStyle = o.i ? "italic" : ""; e.style.fontSize = (o.size || 11) + "pt";
+      const o = effCell(sh.cells[key(S.cur.r, S.cur.c)]);
+      e.style.fontWeight = o.b ? "700" : ""; e.style.fontStyle = o.i ? "italic" : ""; e.style.fontSize = (o.size || defSize()) + "pt";
+      e.style.fontFamily = $("#grid").style.fontFamily;
       e.style.width = "1px"; e.style.width = Math.max(R.w + 3, Math.min(e.scrollWidth + 8, 640)) + "px";
       e.style.height = "1px"; e.style.height = Math.max(R.h + 3, e.scrollHeight + 2) + "px";
     }
@@ -723,7 +842,32 @@
   function applyStyle(patch) {
     mutate(() => { const sh = sheet(); eachCell(S.sel, (r, c, k) => { putCell(sh, k, { ...cellObj(sh, k), ...patch }); }); });
   }
-  function toggleStyle(t) { const on = !cellObj(sheet(), key(S.cur.r, S.cur.c))[t]; applyStyle({ [t]: on || undefined }); }
+  /** 켜고 끄기(굵게·줄바꿈 등) - 지금 셀(스타일까지 푼 값) 기준. 스타일이 켠 것을 끌 때는 false 로 덮는다 */
+  function toggleStyle(t) {
+    const on = !effCell(sheet().cells[key(S.cur.r, S.cur.c)])[t];
+    mutate(() => { const sh = sheet(); eachCell(S.sel, (r, c, k) => { const o = cellObj(sh, k), st = styleOf(o.s); putCell(sh, k, { ...o, [t]: on ? true : st && st[t] ? false : undefined }); }); });
+  }
+  /** 테두리 - all 모든 칸 네 변 · outline 바깥 · bottom 아래 · none 지움(스타일 테두리도 {} 로 덮는다) */
+  function applyBorder(kind) {
+    const g = S.sel, L = "line";
+    mutate(() => {
+      const sh = sheet();
+      eachCell(g, (r, c, k) => {
+        const o = cellObj(sh, k), st = styleOf(o.s);
+        if (kind === "none") { putCell(sh, k, { ...o, bd: st && st.bd ? {} : undefined }); return; }
+        if (kind === "all") { putCell(sh, k, { ...o, bd: L }); return; }
+        const want = kind === "bottom" ? { b: r === g.r2 } : { t: r === g.r1, b: r === g.r2, l: c === g.c1, r: c === g.c2 };
+        if (!Object.values(want).some(Boolean)) return;
+        const cur = o.bd == null ? (st && st.bd) || {} : o.bd;
+        const sides = typeof cur === "object" ? { ...cur } : { t: cur, r: cur, b: cur, l: cur };
+        for (const [s2, on] of Object.entries(want)) if (on) sides[s2] = L;
+        putCell(sh, k, { ...o, bd: ["t", "r", "b", "l"].every((x) => sides[x] === L) ? L : sides });
+      });
+    });
+  }
+  function toggleGrid() {
+    mutate(() => { const sh = sheet(), def = !(theme() && theme().grid === false), nv = !gridOn(sh); if (nv === def) delete sh.grid; else sh.grid = nv; });
+  }
   function toggleMerge() {
     const sh = sheet(), m = mergeAt(sh, S.cur.r, S.cur.c), g = S.sel;
     if (m && rangeName(g) === rangeName(m)) { mutate(() => { sh.merges = (sh.merges || []).filter((x) => rangeName(parseRange(x)) !== rangeName(m)); if (!sh.merges.length) delete sh.merges; }); return; }
@@ -802,7 +946,7 @@
   const tsvField = (s) => (/[\t\n"]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s);
   function copyRange(cut) {
     const sh = sheet(), g = S.sel, rows = [], cells = [];
-    for (let r = g.r1; r <= g.r2; r++) { const line = [], cl = []; for (let c = g.c1; c <= g.c2; c++) { const k = key(r, c); line.push(tsvField(display(sh.cells[k]))); cl.push(sh.cells[k] == null ? null : clone(sh.cells[k])); } rows.push(line.join("\t")); cells.push(cl); }
+    for (let r = g.r1; r <= g.r2; r++) { const line = [], cl = []; for (let c = g.c1; c <= g.c2; c++) { const k = key(r, c); line.push(tsvField(display(effCell(sh.cells[k])))); cl.push(sh.cells[k] == null ? null : clone(sh.cells[k])); } rows.push(line.join("\t")); cells.push(cl); }
     S.clip = { tsv: rows.join("\r\n"), cells, g: { ...g }, ti: sh.id, show: true, cut: !!cut };
     renderSel();
     return S.clip.tsv;
@@ -857,6 +1001,22 @@
   function newTabId() { const ids = new Set(S.deck.sheets.map((s) => s.id)); for (let i = 1; ; i++) { const id = "t" + String(i).padStart(2, "0"); if (!ids.has(id)) return id; } }
   function newTabName() { const ns = new Set(S.deck.sheets.map((s) => s.name.toLowerCase())); for (let i = S.deck.sheets.length + 1; ; i++) if (!ns.has("sheet" + i)) return "Sheet" + i; }
   function switchTab(i) { if (S.edit) endEdit(true); if (i === S.ti) return; S.ti = i; renderGrid(); renderTabs(); selectRange({ r1: 0, c1: 0, r2: 0, c2: 0 }); $("#gridWrap").scrollTo(0, 0); renderReqs(); focusGrid(); }
+  /** 테마 페이지(표지·이력·…)를 새 탭으로 - {{자리}} 는 문서 정보(vars)로 채운다 */
+  function addThemePage(pg) {
+    mutate(() => {
+      const t = fillVars(clone(pg), docVars()); delete t.id;
+      const ns = new Set(S.deck.sheets.map((s) => s.name.toLowerCase()));
+      let name = String(t.name || pg.kind || "Sheet").slice(0, 31); for (let i = 2; ns.has(name.toLowerCase()); i++) name = `${String(t.name || "Sheet").slice(0, 26)} (${i})`;
+      const tab = normSheet({ ...t, id: newTabId(), name }, S.deck.sheets.length);
+      S.deck.sheets.push(tab); S.ti = S.deck.sheets.length - 1;
+      S.sel = { r1: 0, c1: 0, r2: 0, c2: 0 }; S.cur = { r: 0, c: 0 }; S.anchor = { r: 0, c: 0 };
+    });
+  }
+  function addTabMenu(btn) {
+    const pages = (theme() && theme().pages) || [];
+    if (!pages.length) { addTab(); return; }
+    openMenu(btn, [{ label: "빈 탭", act: addTab }, { h: `테마 페이지 - ${theme().label || TH.name}` }, ...pages.map((pg) => ({ label: `${pg.name || pg.kind}${pg.kind && pg.kind !== pg.name ? ` (${pg.kind})` : ""}`, act: () => addThemePage(pg) }))]);
+  }
   function addTab() { mutate(() => { S.deck.sheets.push({ id: newTabId(), name: newTabName(), cells: {} }); S.ti = S.deck.sheets.length - 1; S.sel = { r1: 0, c1: 0, r2: 0, c2: 0 }; S.cur = { r: 0, c: 0 }; S.anchor = { r: 0, c: 0 }; }); }
   function renameTab(i) {
     const b = $(`#tabs [data-ti="${i}"]`); if (!b) return;
@@ -991,6 +1151,7 @@
       "-", { label: "새 시트", act: newSheet }]);
   }
   async function newSheet() {
+    if (window.NexaSheetNew) { const id = await NexaSheetNew.open(); if (id) leave(() => { location.href = `sheet.html?deck=${encodeURIComponent(id)}`; }); return; }
     const title = (prompt("새 시트 제목", "") || "").trim(); if (!title) return;
     const r = await api("POST", "/api/decks", { action: "create", kind: "sheet", title });
     if (!r.ok || !r.data || !r.data.id) { toast("시트를 만들지 못했습니다: " + ((r.data && r.data.error) || r.status), 6000); return; }
@@ -1084,6 +1245,7 @@
     fillFmtSel("");
     if (LS.get("sheetNoSide", "0") === "1") document.body.classList.add("noside");
     { const w = +LS.get("sheetSideW", 0); if (w) document.documentElement.style.setProperty("--sideW", w + "px"); }
+    { const c = await api("GET", "/api/config"); if (c.ok && c.data && c.data.brand && c.data.brand.logo) TH.brandLogo = "/" + String(c.data.brand.logo).replace(/^[/]+/, ""); }
     if (!(await loadDeck(false))) return;
     { const t = LS.get(typedKey(), ""); if (t) $("#reqText").value = t; }
     await loadReqs();
@@ -1136,23 +1298,27 @@
       const t = b.dataset.t;
       if (t === "b" || t === "i" || t === "u") toggleStyle(t);
       else if (t === "al") { const cur = cellObj(sheet(), key(S.cur.r, S.cur.c)).align; applyStyle({ align: cur === b.dataset.v ? undefined : b.dataset.v }); }
-      else if (t === "wrap") applyStyle({ wrap: cellObj(sheet(), key(S.cur.r, S.cur.c)).wrap ? undefined : true });
+      else if (t === "wrap") toggleStyle("wrap");
       else if (t === "clearClr") applyStyle({ color: undefined, fill: undefined });
       else if (t === "merge") toggleMerge();
       else if (t === "rowcol") { rowColMenu(b); return; }
       else if (t === "freeze") toggleFreeze();
+      else if (t === "grid") toggleGrid();
+      else if (t === "border") { openMenu(b, [{ label: "모든 테두리", act: () => applyBorder("all") }, { label: "바깥 테두리", act: () => applyBorder("outline") }, { label: "아래 테두리", act: () => applyBorder("bottom") }, "-", { label: "테두리 없음", act: () => applyBorder("none") }]); return; }
       focusGrid();
     });
     $("#colorIn").addEventListener("change", (e) => { applyStyle({ color: e.target.value.toUpperCase() }); focusGrid(); });
     $("#fillIn").addEventListener("change", (e) => { applyStyle({ fill: e.target.value.toUpperCase() }); focusGrid(); });
-    $("#sizeSel").addEventListener("change", (e) => { const n = +e.target.value; applyStyle({ size: n === 11 ? undefined : n }); focusGrid(); });
+    $("#sizeSel").addEventListener("change", (e) => { const n = +e.target.value; applyStyle({ size: n === defSize() ? undefined : n }); focusGrid(); });
+    $("#styleSel").addEventListener("change", (e) => { applyStyle({ s: e.target.value || undefined }); focusGrid(); });
+    $("#themeChip").onclick = (e) => themeMenu(e.currentTarget);
     $("#fmtSel").addEventListener("change", (e) => {
       let f = e.target.value;
       if (f === "__custom") { f = prompt("엑셀 표시 형식 - 예: #,##0\"원\" · 0.00% · yyyy.mm.dd", cellObj(sheet(), key(S.cur.r, S.cur.c)).fmt || ""); if (f == null) { renderToolState(); return; } f = f.trim(); }
       applyStyle({ fmt: f || undefined }); focusGrid();
     });
     // 탭
-    $("#tabs").addEventListener("click", (e) => { if (e.target.closest("[data-addtab]")) { addTab(); return; } const b = e.target.closest("[data-ti]"); if (b) switchTab(+b.dataset.ti); });
+    $("#tabs").addEventListener("click", (e) => { if (e.target.closest("[data-addtab]")) { addTabMenu(e.target.closest("[data-addtab]")); return; } const b = e.target.closest("[data-ti]"); if (b) switchTab(+b.dataset.ti); });
     $("#tabs").addEventListener("dblclick", (e) => { const b = e.target.closest("[data-ti]"); if (b) renameTab(+b.dataset.ti); });
     $("#tabs").addEventListener("contextmenu", (e) => { const b = e.target.closest("[data-ti]"); if (b) tabMenu(e, +b.dataset.ti); });
     // 머리줄
@@ -1180,6 +1346,6 @@
     window.addEventListener("beforeunload", (e) => { if (S.dirty) { save(); e.preventDefault(); e.returnValue = ""; } });
   }
   // 시험용(브라우저 콘솔·스모크) - 수식 계산·표시 형식을 따로 불러 볼 수 있게
-  window.NexaSheet = { S, recalc, parseFormula, display, fmtNumber, parseNumberText, shiftFormula, setInput, parseTsv };
+  window.NexaSheet = { S, TH, effCell, bdSides, fillVars, reload: reloadExternal, recalc, parseFormula, display, fmtNumber, parseNumberText, shiftFormula, setInput, parseTsv };
   init();
 })();

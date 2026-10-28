@@ -7,6 +7,7 @@
 <link rel="icon" id="favicon" href="data:,">
 <link rel="stylesheet" href="fonts.css">
 <script src="menu.js"></script>
+<script src="sheetnew.js"></script>
 <!-- 시트 편집 화면(docs/sheets.md) - 표시 언어(i18n.js)는 싣지 않는다: 셀 글(데이터)까지 사전으로 바뀌기 때문(i18n 은 DOM 글을 통째로 바꾼다) -->
 <style>
   :root {
@@ -83,6 +84,9 @@
   #grid td .cv > span { white-space: pre; overflow: hidden; text-overflow: clip; min-width: 0; }
   #grid td .cv.wrap > span { white-space: pre-wrap; word-break: break-word; }
   #grid td.err .cv { color: var(--err); }
+  #grid.nogrid td { border-color: transparent; }  /* 눈금선 숨김(탭·테마 grid:false) - 테두리(bd)는 칸마다 색을 따로 준다 */
+  #draws img.drw { position: absolute; z-index: 1; pointer-events: none; user-select: none; object-fit: contain; }
+  #themeChip { cursor: pointer; }
   #grid td { cursor: cell; }
   #addRows { margin: 8px 0 24px 8px; }
   .ov { position: absolute; pointer-events: none; z-index: 2; }
@@ -156,6 +160,7 @@
   <button class="chip sm" id="deckList" title="덱·시트 목록 - 골라서 이동 · 새 시트">☰ 목록</button>
   <h1 id="title"><span class="k">▦</span><span id="titleText">시트</span></h1>
   <span id="status" class="chip sm saved">저장됨</span>
+  <button id="themeChip" class="chip sm" title="시트 테마">테마 없음</button>
   <span class="sp"></span>
   <span id="sessChip" class="chip sm off" title="요청을 처리할 Claude 세션 연결 상태"><span class="dot"></span><span id="sessLabel">세션 연결 없음</span></span>
   <button class="ib" id="undoBtn" title="실행 취소 (Ctrl+Z)" disabled>↶</button>
@@ -183,6 +188,11 @@
   <button class="ib" data-t="merge" title="셀 병합 / 병합 해제">⊞ 병합</button>
   <button class="ib" data-t="rowcol" title="행·열 삽입·삭제">행·열 ▾</button>
   <button class="ib" data-t="freeze" title="틀 고정 - 지금 셀의 위·왼쪽을 고정(다시 누르면 해제)">❄ 틀 고정</button>
+  <span class="vsep"></span>
+  <button class="ib" data-t="border" title="테두리 - 모든·바깥·아래·없음">▦ 테두리 ▾</button>
+  <button class="ib" data-t="grid" title="눈금선 보이기/숨기기(이 탭)">＃ 눈금선</button>
+  <span class="vsep" id="styleSep" hidden></span>
+  <select id="styleSel" title="테마 셀 스타일 - 고른 범위에 적용(셀에 직접 준 서식이 이긴다)" hidden></select>
 </div>
 <div id="fbar">
   <input id="nameBox" title="셀 주소 - B3 · B2:D5 를 적고 Enter 로 이동" spellcheck="false">
@@ -195,6 +205,7 @@
     <div id="gridWrap">
       <div id="gridIn">
         <table id="grid"></table>
+        <div id="draws"></div>
         <div id="marks"></div>
         <div id="clipBox" class="ov" hidden></div>
         <div id="selBox" class="ov"></div>

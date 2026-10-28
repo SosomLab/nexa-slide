@@ -6,6 +6,8 @@
 
 형식은 docs/sheets.md. 수식(f)은 수식 그대로, 마지막 계산값(v)을 캐시로 넣어 엑셀이 열기 전에도 값이 보이게 한다.
 열 너비·행 높이는 px 그대로(set_column_pixels·set_row_pixels).
+테마(theme)가 있으면 셀 스타일(s)·팔레트 이름을 sheet_theme.resolve_cell 로 풀고(화면 sheet.js 와 같은 규칙), 테마 글꼴을 기본 글꼴로,
+탭의 grid(눈금선)·print(인쇄)·drawings(그림)도 옮긴다.
 """
 import argparse
 import re
@@ -14,6 +16,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from common import OUT, load_deck, safe_id  # noqa: E402
+import sheet_theme  # noqa: E402
 
 import xlsxwriter  # noqa: E402  (python-pptx 의존성)
 from xlsxwriter.utility import xl_cell_to_rowcol  # noqa: E402
@@ -42,7 +45,7 @@ def sheet_name(name, used):
 
 
 def cell_format(c):
-    """셀 객체 → XlsxWriter 서식 속성(없으면 빈 dict)."""
+    """셀 객체(테마를 푼 것) → XlsxWriter 서식 속성(없으면 빈 dict)."""
     if not isinstance(c, dict):
         return {}
     f = {}
@@ -66,6 +69,13 @@ def cell_format(c):
         f["text_wrap"] = True
     if c.get("fmt"):
         f["num_format"] = str(c["fmt"])
+    bd = c.get("bd")
+    if isinstance(bd, str) and bd:  # 네 변 가는 선
+        bd = {k: bd for k in ("t", "r", "b", "l")}
+    if isinstance(bd, dict):
+        for k, side in (("t", "top"), ("r", "right"), ("b", "bottom"), ("l", "left")):
+            if bd.get(k):
+                f[side], f[f"{side}_color"] = 1, bd[k]
     return f
 
 
@@ -73,7 +83,11 @@ def export(deck, out):
     if deck.get("kind") != "sheet":
         raise ValueError("시트 문서가 아니다(kind sheet) - 슬라이드 덱은 export_pptx.py")
     out.parent.mkdir(parents=True, exist_ok=True)
-    wb = xlsxwriter.Workbook(str(out), {"strings_to_numbers": False, "strings_to_formulas": False, "strings_to_urls": False})
+    theme = sheet_theme.load(deck["theme"]) if deck.get("theme") else None
+    opts = {"strings_to_numbers": False, "strings_to_formulas": False, "strings_to_urls": False}
+    if theme:
+        opts["default_format_properties"] = {"font_name": theme.get("font") or "맑은 고딕", "font_size": float(theme.get("size") or 10)}
+    wb = xlsxwriter.Workbook(str(out), opts)
     wb.set_properties({"title": deck.get("title") or deck.get("id") or ""})
     cache, used = {}, set()
 
@@ -105,8 +119,8 @@ def export(deck, out):
             if not mm:
                 continue
             r, col = int(mm.group(2)) - 1, col_index(mm.group(1))
-            f = fmt(cell_format(c))
-            d = c if isinstance(c, dict) else {"v": c}
+            d = sheet_theme.resolve_cell(theme, c)
+            f = fmt(cell_format(d))
             v = d.get("v")
             if ref in merged:
                 a, b = merged.pop(ref).split(":")
@@ -125,6 +139,22 @@ def export(deck, out):
                 ws.write_string(r, col, str(v), f)
             if d.get("note"):
                 ws.write_comment(r, col, str(d["note"]))
+        if t.get("grid") is False:
+            ws.hide_gridlines(2)
+        pr = t.get("print") or {}
+        if pr.get("landscape"):
+            ws.set_landscape()
+        if pr.get("fitWidth"):
+            ws.fit_to_pages(int(pr["fitWidth"]), 0)
+        for dr in t.get("drawings") or []:  # 셀에 고정한 그림(px)
+            p = sheet_theme.image_path(theme, dr.get("src")) if dr.get("type") == "image" else None
+            if not p or not CELL.match(str(dr.get("at", ""))):
+                continue
+            from PIL import Image
+            iw, ih = Image.open(p).size
+            r0, c0 = xl_cell_to_rowcol(dr["at"])
+            ws.insert_image(r0, c0, str(p), {"x_offset": max(0, int(dr.get("dx", 0))), "y_offset": max(0, int(dr.get("dy", 0))),
+                                              "x_scale": float(dr.get("w") or iw) / iw, "y_scale": float(dr.get("h") or ih) / ih, "object_position": 1})
         for rng in merged.values():  # 값 없는 병합
             a, b = rng.split(":")
             (r1, c1), (r2, c2) = xl_cell_to_rowcol(a), xl_cell_to_rowcol(b)

@@ -374,6 +374,10 @@
   }
   async function deckCreate(kind) {
     const sheet = kind === "sheet";
+    if (sheet && window.NexaSheetNew) {  // 시트 - 제목·테마·페이지·문서 정보 대화 상자(sheetnew.js)
+      const id = await NexaSheetNew.open(); if (!id) return;
+      if (S.dirty) await save(); location.href = sheetUrl(id); return;
+    }
     const title = (prompt(sheet ? "새 시트 제목" : "새 덱 제목", "") || "").trim(); if (!title) return;
     const d = await deckAdmin(sheet ? { action: "create", kind: "sheet", title } : { action: "create", title }, `만들었습니다: ${title}`);
     if (d) { if (S.dirty) await save(); if (sheet) location.href = sheetUrl(d.id); else await loadDeck(d.id); }
