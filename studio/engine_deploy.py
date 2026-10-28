@@ -113,11 +113,42 @@ def status():
 
 
 def _save(d):
+    """deploy.json 쓰기 - 시작 페이지가 진행을 보려고 이 파일을 자주 읽어 Windows 에서 바꿔 쓰기가 잠깐 막힌다(WinError 5).
+    50ms→3.2s 로 다시 시도하고, 그래도 안 되면 배포를 멈추지 않고 넘어간다(다음 저장이 덮는다). 2026-10-27·28 배포가 이것으로 죽었다."""
     engine_requests.ENGINE_DIR.mkdir(parents=True, exist_ok=True)
     fd, tmp = tempfile.mkstemp(prefix="deploy.", suffix=".tmp", dir=str(engine_requests.ENGINE_DIR))
     with os.fdopen(fd, "w", encoding="utf-8", newline="\n") as f:
         json.dump(d, f, ensure_ascii=False, indent=1)
-    os.replace(tmp, STATE_FILE)
+    for k in range(7):
+        try:
+            os.replace(tmp, STATE_FILE)
+            return True
+        except PermissionError:
+            time.sleep(0.05 * (2 ** k))
+    try:
+        os.remove(tmp)
+    except OSError:
+        pass
+    print(f"[{_now()}] ..   deploy.json 을 쓰지 못했다(다른 프로세스가 읽는 중) - 다음 저장에 남긴다", file=sys.stderr, flush=True)
+    return False
+
+
+def _kill_in(folder):
+    """그 폴더 안의 파일로 떠 있는 프로세스(시험이 띄운 server.py 등)를 끝낸다 - 남으면 폴더를 지우지 못해 다음 배포가 막힌다. 끝낸 pid 목록."""
+    if os.name != "nt":
+        return []
+    from procutil import kill_tree
+    pat = str(folder).replace("'", "''")
+    try:
+        r = subprocess.run(["powershell", "-NoProfile", "-Command",
+                            f"Get-CimInstance Win32_Process | Where-Object {{ $_.CommandLine -like '*{pat}*' -and $_.ProcessId -ne {os.getpid()} }} | ForEach-Object {{ $_.ProcessId }}"],
+                           capture_output=True, text=True, timeout=60)
+        pids = [int(x) for x in r.stdout.split() if x.strip().isdigit()]
+    except (OSError, subprocess.TimeoutExpired, ValueError):
+        return []
+    for pid in pids:
+        kill_tree(pid)
+    return pids
 
 
 # ---------- 계획(화면 확인용) ----------
@@ -192,6 +223,7 @@ class Run:
         d["pid"] = os.getpid()
         self.d = d
         self.tmp = []  # 지울 시험용 worktree
+        self.proc = None  # 돌고 있는 시험(run_all) - 배포가 어떻게 끝나든 묶어서 끝낸다
         _save(d)
 
     def step(self, name, ok=True, msg=""):
@@ -210,8 +242,7 @@ class Run:
         self.d.pop("cur", None)
         self.d.update(state=state, finished=_now(), message=msg)
         _save(self.d)
-        for w in self.tmp:
-            git("worktree", "remove", "--force", str(w))
+        self.cleanup()
         print(f"[{_now()}] == {state} {msg}", flush=True)
         return 0 if state == "ok" else 1
 
@@ -219,11 +250,28 @@ class Run:
         self.step(name, False, msg)
         return self.finish("failed", f"{name}: {msg}")
 
-    def _worktree(self, name, ref):
-        w = ENGINE / ".claude" / "worktrees" / name
-        if w.exists():
+    def cleanup(self):
+        """시험 프로세스 묶음 종료 + 시험용 worktree 지우기(그 폴더에서 뜬 서버까지) - 여러 번 불러도 된다."""
+        if self.proc is not None and self.proc.poll() is None:
+            from procutil import kill_tree
+            kill_tree(self.proc.pid)
+        self.proc = None
+        for w in self.tmp:
+            _kill_in(w)
             git("worktree", "remove", "--force", str(w))
             shutil.rmtree(w, ignore_errors=True)
+        self.tmp = []
+        git("worktree", "prune")
+
+    def _worktree(self, name, ref):
+        w = ENGINE / ".claude" / "worktrees" / name
+        if w.exists():  # 지난 배포가 남긴 것 - 그 안에서 뜬 프로세스를 먼저 끝낸다
+            _kill_in(w)
+            git("worktree", "remove", "--force", str(w))
+            shutil.rmtree(w, ignore_errors=True)
+            git("worktree", "prune")
+        if w.exists():  # 그래도 못 지우면(파일 잠김) 다른 이름으로 - 남은 폴더 하나로 배포가 막히지 않게
+            w = w.with_name(f"{name}-{time.strftime('%H%M%S')}")
         code, out = git("worktree", "add", "--detach", str(w), ref)
         if code:
             raise RuntimeError(out[-300:])
@@ -237,6 +285,7 @@ class Run:
         env.pop("NEXA_SLIDE_WORKSPACE", None)
         cmd = [sys.executable, str(root / "studio" / "tests" / "run_all.py"), *(["--exact", *names] if names else [])]
         p = subprocess.Popen(cmd, cwd=str(root), env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, encoding="utf-8", errors="replace")
+        self.proc = p
         T = self.d.setdefault("tests", {})[label] = {"total": 0, "names": [], "done": []}
         times = _read_json(TEST_TIMES, {})
         t_end = time.time() + 1800
@@ -265,6 +314,21 @@ class Run:
         return bad
 
     def run(self):
+        """배포 - 어떤 예외로 끝나도 원인을 deploy.json 에 남기고 시험 프로세스·worktree 를 정리한다(전에는 죽으면 화면에 원인이 없고 폴더가 남았다)."""
+        try:
+            return self._run()
+        except BaseException as e:  # noqa: BLE001 - KeyboardInterrupt 도 정리한다
+            import traceback
+            last = (traceback.format_exc().strip().splitlines() or [""])[-1]
+            traceback.print_exc()
+            try:
+                return self.fail("중단", f"배포 프로세스 오류 - {last[:300]}")
+            finally:
+                self.cleanup()
+        finally:
+            self.cleanup()
+
+    def _run(self):
         p = plan()
         if not p["ok"] and not (p["blockers"] == ["다른 배포가 진행 중이다"]):  # 진행 중인 배포 = 이 프로세스
             return self.fail("확인", " · ".join(b for b in p["blockers"] if b != "다른 배포가 진행 중이다"))
