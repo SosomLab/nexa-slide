@@ -156,6 +156,16 @@ def export(deck, out):
                 ws.write_string(r, col, str(v), f)
             if d.get("note"):
                 ws.write_comment(r, col, str(d["note"]))
+        for dv in t.get("validations") or []:  # 목록 유효성(드롭다운) - 가져온 엑셀·화면에서 정한 것
+            rng = str(dv.get("range") or "").split()
+            opt = {"validate": "list", "source": dv["list"]} if dv.get("list") else {"validate": "list", "source": "=" + str(dv.get("source") or "").lstrip("=")} if dv.get("source") else None
+            if opt and sum(len(str(x)) + 1 for x in opt["source"]) > 255 if isinstance(opt and opt["source"], list) else False:
+                opt = None  # 엑셀 목록은 255자까지 - 넘으면 범위 참조로 둬야 한다(가져온 것은 보통 범위)
+            for r in rng if opt else []:
+                try:
+                    ws.data_validation(r, opt)
+                except Exception:  # noqa: BLE001 - 잘못된 범위는 건너뛴다
+                    pass
         if t.get("grid") is False:
             ws.hide_gridlines(2)
         pr = t.get("print") or {}
