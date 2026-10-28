@@ -291,6 +291,9 @@
   }
   /** 모든 탭의 수식을 다시 계산해 v 에 넣는다. 바뀐 셀이 있으면 true */
   function recalc() {
+    // 계산은 sheetcalc.js(NexaCalc - Python sheet_calc 와 같은 규칙, 엑셀 함수 약 70개·배열 수식). 모르는 함수(매크로 사용자 함수)는 마지막 엑셀 값을 그대로 둔다
+    // - 아래 옛 계산기(16개 함수)는 모르는 함수를 #NAME? 로 덮어 가져온 엑셀의 계산값을 잃었다. NexaCalc 가 없을 때만 쓴다
+    if (window.NexaCalc) return NexaCalc.recalc(S.deck) > 0;
     CALC.memo = new Map(); CALC.busy = new Set(); let changed = false;
     for (const sh of S.deck.sheets) for (const [k, raw] of Object.entries(sh.cells)) {
       if (!raw || typeof raw !== "object" || !raw.f) continue;
@@ -470,7 +473,7 @@
       const r = await api("GET", `/api/version/${encodeURIComponent(S.id)}`);
       if (!r.ok) return;
       if (r.data.session) renderSession(r.data.session, r.data.activity);
-      if (r.data.requests !== S.reqVersion) { S.reqVersion = r.data.requests; await loadReqs(); }
+      if (RQ) await RQ.sync(r.data);  // 요청 파일이 바뀌었으면 다시 읽기(편집기와 같다)
       if (r.data.deck !== S.version && !S.saving) {
         if (S.dirty || S.edit) {
           if (!S.conflict) { S.conflict = true; setStatus("conflict", "충돌"); banner(true, "편집 중에 시트 파일이 밖에서(Claude 등) 바뀌었습니다. 어느 쪽을 남길까요?"); }
@@ -1183,111 +1186,58 @@
   }
 
   // ---------------------------------------------------------------- 요청 - 범위(range)와 글. 세션이 sheets[].cells 를 고치고 done + reply(docs/sheets.md 3절)
+  // 목록·카드·후속·첨부·기록 창·동기화는 nexa-requests.js(RQ, 편집기와 같은 뿌리 - docs/collab.md 0단계). 여기는 시트 쪽 대상(탭·범위)과 머리(대상 표시·보내기)만
+  let RQ = null;
   const ST = { draft: "초안", open: "대기", working: "처리 중", done: "완료" };
   const activeReqs = () => S.reqs.filter((q) => q.status !== "done");
   /** 요청의 탭 id - 후속 요청(parent)에 slide 가 없으면 뿌리 요청(thread)의 것 */
-  const reqSlide = (q) => q.slide || ((S.reqs.find((x) => x.id === q.thread) || {}).slide) || null;
-  async function loadReqs() {
-    const r = await api("GET", `/api/requests/${encodeURIComponent(S.id)}`);
-    S.reqs = r.ok && Array.isArray(r.data) ? r.data : [];
-    renderReqs(); renderMarks(); renderTabs();
-  }
+  const reqSlide = (q) => (RQ ? RQ.rootOf(q) : q).slide || null;
+  async function loadReqs() { if (RQ) await RQ.load(); }
   function reqTargetRange() { return $("#reqWhole").checked ? null : rangeName(clampRange(S.sel)); }
   function renderReqTarget() {
     const t = reqTargetRange(); $("#reqTarget").textContent = `${sheet().name}${t ? "!" + t : " (탭 전체)"}`;
   }
   const typedKey = () => `typed-${NS}${S.id}/sheet`;
+  const tabName = (sid) => { const s = S.deck && S.deck.sheets.find((x) => x.id === sid); return s ? s.name : sid || "?"; };
+  /** 시트 대상 어댑터(RQ) - 탭 · 범위 */
+  const SHEET_TARGET = {
+    scope: "탭", key: (r) => r.slide, current: () => sheet().id, num: (r) => S.deck.sheets.findIndex((s) => s.id === r.slide) + 1,
+    label: (r) => `${tabName(r.slide)}${r.range ? "!" + r.range : " (탭 전체)"}`,
+    goto: (r) => gotoReq(r),
+  };
+  /** 요청의 탭·범위로 - 카드를 누르거나 카드의 대상 링크 */
+  function gotoReq(q) {
+    const root = RQ.rootOf(q); S.reqCur = q.id;
+    const i = S.deck.sheets.findIndex((s) => s.id === root.slide); if (i >= 0 && i !== S.ti) switchTab(i);
+    const g = parseRange(root.range); if (g) selectRange(clampRange(g)); else renderSel();
+    renderReqs(); focusGrid();
+  }
   function renderReqs() {
-    if (!S.deck) return;
-    const tabName = (sid) => { const s = S.deck.sheets.find((x) => x.id === sid); return s ? s.name : sid || "?"; };
-    const recent = (q) => q.status !== "done" || Date.now() - Date.parse(q.updated || q.created || "") < 864e5 || S.reqs.some((x) => (x.thread || x.id) === (q.thread || q.id) && x.status !== "done");
-    let list = S.reqs.filter((q) => (!S.reqTab || reqSlide(q) === sheet().id) && (S.reqDone || recent(q)));
-    // 후속 요청은 뿌리 요청 아래에(같은 thread) - 묶음끼리는 최근 것이 위
-    const th = new Map(); for (const q of list) { const k = q.thread || q.id; if (!th.has(k)) th.set(k, []); th.get(k).push(q); }
-    const groups = [...th.values()].map((g) => g.sort((a, b) => String(a.created || "").localeCompare(String(b.created || ""))))
-      .sort((a, b) => String(b[b.length - 1].created || "").localeCompare(String(a[a.length - 1].created || "")));
-    $$("#reqFilter button").forEach((b) => b.classList.toggle("on", b.dataset.v === "done" ? S.reqDone : (b.dataset.v === "1") === S.reqTab));
-    const agent = (S.session && (S.session.agent || S.session.label)) || "AI";
-    $("#reqList").innerHTML = groups.length ? groups.map((g) => g.map((q, i) => `<div class="req${q.status === "done" ? " done" : ""}${i ? " fu" : ""}${S.reqCur === q.id ? " cur" : ""}" data-rid="${esc(q.id)}">
-        <div class="meta"><span class="st ${esc(q.status || "open")}">${q.status === "working" ? `<span class="spin"></span> ` : ""}${ST[q.status] || "대기"}</span><span class="rg">${esc(tabName(reqSlide(q)))}${q.range ? "!" + esc(q.range) : ""}</span><span>${esc(q.id)}</span><span>${esc(String(q.created || "").replace("T", " ").slice(0, 16))}</span></div>
-        <div class="txt">${esc(q.text)}</div>${attListHtml(q.attachments, q.id)}${q.reply ? `<div class="reply"><b>${esc(agent)}</b> ${esc(q.reply)}</div>` : ""}
-        <div class="acts">${q.status === "draft" ? `<button class="chip sm primary" data-rsend="1">보내기</button>` : `<button class="chip sm" data-rs="${q.status === "done" ? "open" : "done"}">${q.status === "done" ? "다시 열기" : "완료로 표시"}</button>`}${i === g.length - 1 && q.status !== "draft" ? `<button class="chip sm" data-fu="1" title="이 요청에 이어서 묻거나 답합니다">후속 요청</button>` : ""}<button class="chip sm" data-rdel="1">삭제</button></div></div>`).join("")).join("")
-      : `<div class="hint" style="padding:18px;text-align:center">${S.reqTab ? "이 탭에 최근 요청이 없습니다" : "최근 요청이 없습니다"}<br>셀 범위를 고르고 위에 적어 보내세요.${S.reqDone ? "" : "<br>지난 완료 요청은 [완료 포함]"}</div>`;
-    const fu = S.fu && S.reqs.find((q) => q.id === S.fu);
-    $("#fuTag").hidden = !fu; if (fu) $("#fuText").textContent = `↳ 후속: ${fu.text}`;
-    const ss = S.session;
-    $("#reqHint").textContent = ss && ss.connected ? (ss.kind === "web" && ss.state === "running" ? `웹 세션이 처리 중(턴 ${ss.turn || "?"}) - 새 요청은 이 턴 뒤에` : "") : `세션이 연결되면 전달됩니다${SESS ? SESS.offNote() : ""}`;
+    if (!S.deck || !RQ) return;
+    // 기본 보기 = 최근 24시간에 진행된 것 + 끝나지 않은 것(편집기와 같은 규칙) · 이 탭 / 최근 · 이전 것은 [더보기]
+    const recent = S.reqs.filter(RQ.recent), older = S.reqs.length - recent.length;
+    const list = recent.filter((q) => !S.reqTab || reqSlide(q) === sheet().id);
+    $("#reqFilter").innerHTML = `<span class="seg"><button data-v="1" class="${S.reqTab ? "on" : ""}">이 탭</button><button data-v="0" class="${S.reqTab ? "" : "on"}">최근 (${recent.length})</button></span><span style="flex:1"></span><button class="chip sm" id="reqMore" title="이전 요청까지 모두 찾아보기(편집 화면 위에 뜹니다)">더보기${older ? ` · 이전 ${older}` : ""}</button>`;
+    $("#reqList").innerHTML = (older ? `<div class="hint" style="font-size:11.5px;margin:2px 4px 6px">최근 24시간에 진행된 요청과 아직 끝나지 않은 요청만 보입니다 - 이전 것은 [더보기]</div>` : "")
+      + (list.length ? RQ.threadsHtml(list) : `<div class="hint" style="padding:18px;text-align:center">${S.reqTab ? "이 탭에 최근 요청이 없습니다" : "최근 요청이 없습니다"}<br>셀 범위를 고르고 위에 적어 보내세요.</div>`);
+    if (S.reqCur) { const c = $(`#reqList .req[data-rid="${CSS.escape(S.reqCur)}"]`); if (c) c.classList.add("cur"); }
+    $("#reqHint").innerHTML = RQ.sessionHint();
+    RQ.afterRender();
   }
   async function sendReq() {
-    const text = $("#reqText").value.trim(); if (!text && !ATT.list.length) { $("#reqText").focus(); return; }
-    if (ATT.busy) { toast("첨부를 올리는 중입니다"); return; }
+    const text = $("#reqText").value.trim(); if (!text && !RQ.att.slot("tab").length) { $("#reqText").focus(); return; }
     if (S.edit) endEdit(true);
     if (S.dirty) await save();  // 세션이 지금 화면 내용을 보고 고치게 먼저 저장
-    const t2 = text || "(첨부 참고)";
-    const body = S.fu ? { action: "add", status: "open", parent: S.fu, text: t2 } : { action: "add", status: "open", slide: sheet().id, text: t2 };
-    if (!S.fu) { const rg = reqTargetRange(); if (rg) body.range = rg; }
-    if (ATT.list.length) body.attachments = ATT.list;
-    const r = await api("POST", `/api/requests/${encodeURIComponent(S.id)}`, body);
-    if (!r.ok) { toast("요청하지 못했습니다: " + ((r.data && r.data.error) || r.status), 5000); return; }
-    $("#reqText").value = ""; LS.set(typedKey(), ""); S.fu = null; ATT.list = []; attRender();
-    if (Array.isArray(r.data)) S.reqs = r.data; else await loadReqs();
-    renderReqs(); renderMarks(); renderTabs();
-    if (SESS) SESS.flush(true);
-    toast(S.session && S.session.connected ? "요청을 세션에 보냈습니다" : "요청을 남겼습니다 - 세션이 연결되면 전달됩니다");
+    const body = { action: "add", status: "open", slide: sheet().id, text: text || "(첨부 참고)" };
+    const rg = reqTargetRange(); if (rg) body.range = rg;
+    const r = await RQ.add(body, "tab", { flush: true }); if (!r) return;
+    $("#reqText").value = ""; LS.set(typedKey(), "");
+    toast(RQ.connected() ? "요청을 세션에 보냈습니다" : "요청을 남겼습니다 - 세션이 연결되면 전달됩니다");
   }
-  const ATT = { list: [], busy: 0 };
-  const attIsImg = (a) => /^image\//.test(a.type || "");
-  const attUrl = (a) => BASE + (a.url || "/" + a.path);
-  function attRender() {
-    $("#reqAtt").innerHTML = ATT.list.map((a, i) => `<span class="a" title="${esc(a.name)} · ${Math.round((a.size || 0) / 1024)}KB">${attIsImg(a) ? `<img src="${esc(attUrl(a))}" alt="">` : "<span>📄</span>"}<span class="n">${esc(a.name)}</span><button class="x" data-attx="${i}" title="빼기">✕</button></span>`).join("")
-      + (ATT.busy ? `<span class="a"><span class="spin"></span><span class="n">올리는 중…</span></span>` : "");
-  }
-  function attUpload(files) {
-    [...files].filter((f) => f && f.size).forEach((f) => {
-      const rd = new FileReader(); ATT.busy++; attRender();
-      rd.onload = async () => {
-        const name = f.name && f.name !== "image.png" ? f.name : `clip-${new Date().toISOString().slice(11, 19).replace(/:/g, "")}.${(f.type.split("/")[1] || "png").replace("jpeg", "jpg")}`;
-        const r = await api("POST", `/api/attach/${encodeURIComponent(S.id)}`, { name, type: f.type, data: String(rd.result).split(",")[1] || "" });
-        ATT.busy--;
-        if (!r.ok) { toast("첨부하지 못했습니다: " + ((r.data && r.data.error) || r.status), 5000); attRender(); return; }
-        ATT.list.push(r.data); attRender();
-      };
-      rd.onerror = () => { ATT.busy--; attRender(); toast("파일을 읽지 못했습니다"); };
-      rd.readAsDataURL(f);
-    });
-  }
-  function attListHtml(list, rid) {  // 요청 카드의 축소판 - 누르면 라이트박스
-    if (!list || !list.length) return "";
-    return `<div class="att ro">${list.map((a, i) => `<a class="a" href="${esc(attUrl(a))}" data-lb="${esc(rid)}:${i}" title="${esc(a.name)}">${attIsImg(a) ? `<img src="${esc(attUrl(a))}" alt="" loading="lazy">` : "📄"}<span class="n">${esc(a.name)}</span></a>`).join("")}</div>`;
-  }
-  const lbItems = (list) => (list || []).map((a) => ({ url: attUrl(a), name: a.name, size: a.size, type: a.type }));
   async function onReqClick(e) {
-    const lb = e.target.closest("[data-lb]");
-    if (lb && window.NexaLightbox) {
-      e.preventDefault(); const [rid, i] = lb.dataset.lb.split(":"), q = S.reqs.find((x) => x.id === rid);
-      if (q) { const all = S.reqs.filter((x) => reqSlide(x) === reqSlide(q) && x.attachments && x.attachments.length).flatMap((x) => lbItems(x.attachments)); NexaLightbox.open(lbItems(q.attachments), +i, { title: `요청 ${q.id}`, alt: { label: "이 탭의 모든 요청 첨부", items: all } }); }
-      return;
-    }
-    const b = e.target.closest("button"), card = e.target.closest(".req");
-    if (!card) return;
-    const q = S.reqs.find((x) => x.id === card.dataset.rid); if (!q) return;
-    if (!b) {  // 카드 → 그 탭·범위로
-      S.reqCur = q.id;
-      const root = q.slide ? q : S.reqs.find((x) => x.id === q.thread) || q;
-      const i = S.deck.sheets.findIndex((s) => s.id === root.slide); if (i >= 0 && i !== S.ti) switchTab(i);
-      const g = parseRange(root.range); if (g) selectRange(clampRange(g)); else renderSel();
-      renderReqs(); focusGrid(); return;
-    }
-    let body = null;
-    if (b.dataset.fu) { S.fu = q.id; renderReqs(); $("#reqText").focus(); return; }
-    if (b.dataset.rs) body = { action: "update", id: q.id, status: b.dataset.rs };
-    if (b.dataset.rsend) body = { action: "send" };
-    if (b.dataset.rdel) { if (!confirm("이 요청을 지울까요?")) return; body = { action: "delete", id: q.id }; }
-    if (!body) return;
-    const r = await api("POST", `/api/requests/${encodeURIComponent(S.id)}`, body);
-    if (!r.ok) { toast("요청을 바꾸지 못했습니다: " + ((r.data && r.data.error) || r.status), 5000); return; }
-    if (Array.isArray(r.data)) S.reqs = r.data; else await loadReqs();
-    renderReqs(); renderMarks(); renderTabs();
+    if (await RQ.click(e)) return;  // 상태·삭제·후속·첨부·대상 링크 - 편집기와 같다
+    const card = e.target.closest(".req"); if (!card || e.target.closest("button, a, textarea, input, details, .fu-form")) return;
+    const q = S.reqs.find((x) => x.id === card.dataset.rid); if (q) gotoReq(q);  // 카드 → 그 탭·범위로
   }
 
   // ---------------------------------------------------------------- 내보내기·목록
@@ -1409,6 +1359,9 @@
     { const c = await api("GET", "/api/config"); if (c.ok && c.data && c.data.brand && c.data.brand.logo) TH.brandLogo = "/" + String(c.data.brand.logo).replace(/^[/]+/, ""); }
     if (window.NexaSession) SESS = NexaSession.create({ api, toast, openMenu, esc, base: BASE, deckId: () => S.id, onChange: (st, changed) => { S.session = st; if (changed && S.deck) renderReqs(); } });
     $("#sessChip").onclick = (e) => (SESS ? SESS.menu(e.currentTarget) : null);  // 웹 세션 시작·끊기·모델·진행
+    RQ = NexaRequests.create({ api, toast, esc, base: BASE, deckId: () => S.id, session: SESS,
+      getReqs: () => S.reqs, setReqs: (l) => { S.reqs = l; }, onChange: () => { if (!S.deck) return; renderReqs(); renderMarks(); renderTabs(); },
+      target: SHEET_TARGET, att: { boxes: { tab: "#reqAtt", fu: "#fuAtt" } } });
     { const [q, ss] = await Promise.all([api("GET", `/api/requests/${encodeURIComponent(S.id)}`), api("GET", "/api/session")]);
       if (q.ok && Array.isArray(q.data)) S.reqs = q.data; if (ss.ok && ss.data) renderSession(ss.data); }
     if (!(await loadDeck(false))) return;
@@ -1418,7 +1371,7 @@
     }
     { const t = LS.get(typedKey(), ""); if (t) $("#reqText").value = t; }
     await loadReqs();
-    { const v = await api("GET", `/api/version/${encodeURIComponent(S.id)}`); if (v.ok) { S.reqVersion = v.data.requests; if (v.data.session) renderSession(v.data.session); } }
+    { const v = await api("GET", `/api/version/${encodeURIComponent(S.id)}`); if (v.ok && v.data.session) renderSession(v.data.session, v.data.activity); }
     scrollIntoView(S.cur.r, S.cur.c); focusGrid();
     setInterval(poll, 2000);
 
@@ -1508,17 +1461,14 @@
     $("#reqText").addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.shiftKey && !e.isComposing) { e.preventDefault(); sendReq(); } });
     $("#reqText").addEventListener("input", () => LS.set(typedKey(), $("#reqText").value.trim() ? $("#reqText").value : ""));
     $("#reqWhole").addEventListener("change", renderReqTarget);
-    $("#fuCancel").onclick = () => { S.fu = null; renderReqs(); };
-    {  // 요청 첨부 - 붙여넣기(그림)·끌어다 놓기·＋ 첨부
-      const box = $("#side .compose"), ta = $("#reqText");
-      ta.addEventListener("paste", (e) => { const fs = [...((e.clipboardData && e.clipboardData.items) || [])].filter((it) => it.kind === "file").map((it) => it.getAsFile()).filter(Boolean); if (fs.length) { e.preventDefault(); e.stopPropagation(); attUpload(fs); } });
-      box.addEventListener("dragover", (e) => { if ([...e.dataTransfer.types].includes("Files")) { e.preventDefault(); box.classList.add("dropping"); } });
-      box.addEventListener("dragleave", () => box.classList.remove("dropping"));
-      box.addEventListener("drop", (e) => { if (e.dataTransfer.files.length) { e.preventDefault(); box.classList.remove("dropping"); attUpload(e.dataTransfer.files); } });
-      $("#reqAttach").onclick = () => { const f = $("#attFile"); f.onchange = () => { attUpload(f.files); f.value = ""; }; f.click(); };
-      $("#reqAtt").addEventListener("click", (e) => { const x = e.target.closest("[data-attx]"); if (x) { ATT.list.splice(+x.dataset.attx, 1); attRender(); } });
-    }
-    $("#reqFilter").addEventListener("click", (e) => { const b = e.target.closest("button[data-v]"); if (!b) return; if (b.dataset.v === "done") S.reqDone = !S.reqDone; else { S.reqTab = b.dataset.v === "1"; LS.set("sheetReqTab", S.reqTab ? "" : "0"); } renderReqs(); });
+    $("#reqList").addEventListener("keydown", (e) => RQ.keydown(e));  // 후속 입력칸 Enter = 보내기 · Esc = 닫기
+    RQ.att.wire($("#side .compose"), "tab");  // 요청 첨부 - 붙여넣기(그림)·끌어다 놓기
+    $("#side .compose").addEventListener("click", (e) => RQ.click(e));  // ＋ 첨부 · 빼기 · 축소판 · 세션 시작 링크
+    $("#reqFilter").addEventListener("click", (e) => {
+      const b = e.target.closest("button"); if (!b) return;
+      if (b.id === "reqMore") { RQ.openHist(); return; }
+      if (b.dataset.v) { S.reqTab = b.dataset.v === "1"; LS.set("sheetReqTab", S.reqTab ? "" : "0"); renderReqs(); }
+    });
     $("#sideSplit").addEventListener("mousedown", (e) => {
       e.preventDefault(); const x0 = e.clientX, w0 = $("#side").offsetWidth;
       const mv = (ev) => { const w = Math.max(240, Math.min(720, w0 - (ev.clientX - x0))); document.documentElement.style.setProperty("--sideW", w + "px"); LS.set("sheetSideW", String(w)); };

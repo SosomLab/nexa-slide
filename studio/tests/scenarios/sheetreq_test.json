@@ -42,6 +42,14 @@
      "js": "const r=await fetch(\"/api/deck/zsheetfill\"); const v=r.headers.get(\"X-Deck-Version\"); const d=await r.json(); delete d.sheets[0].cells.Z1; const p=await fetch(\"/api/deck/zsheetfill?base=\"+encodeURIComponent(v),{method:\"PUT\",headers:{\"Content-Type\":\"application/json\"},body:JSON.stringify(d)}); return p.ok;"
     },
     {
+     "name": "후속 요청 - 카드 안 입력칸(편집기와 같은 nexa-requests.js) · Enter 로 보내기",
+     "js": "const q=await (async()=>{ const l=await (await fetch(\"/api/requests/zsheetfill\")).json(); return l[l.length-1]; })(); for (let i=0;i<32 && !(document.querySelector(`#reqList .req[data-rid=\"${q.id}\"] [data-fu]`));i++) await new Promise(r=>setTimeout(r,250)); document.querySelector(`#reqList .req[data-rid=\"${q.id}\"] [data-fu]`).click(); await new Promise(r=>setTimeout(r,500)); const ta=document.querySelector(\"#fuText\"); if(!ta) return \"입력칸 없음\"; ta.value=\"하나 더\"; ta.dispatchEvent(new KeyboardEvent(\"keydown\",{key:\"Enter\",bubbles:true,cancelable:true})); await new Promise(r=>setTimeout(r,1500)); const n=await (async()=>{ const l=await (await fetch(\"/api/requests/zsheetfill\")).json(); return l[l.length-1]; })(); return n.parent===q.id && n.text===\"하나 더\" && !document.querySelector(\"#fuText\") ? true : JSON.stringify(n);"
+    },
+    {
+     "name": "요청 기록 창([더보기]) - 찾기·이 탭",
+     "js": "document.querySelector(\"#reqMore\").click(); await new Promise(r=>setTimeout(r,500)); const h=document.querySelector(\"#reqHist\"); if(!h) return \"창 없음\"; const inp=h.querySelector(\"input\"); inp.value=\"하나 더\"; inp.dispatchEvent(new Event(\"input\")); await new Promise(r=>setTimeout(r,300)); const n=h.querySelectorAll(\"#rhList .req\").length; h.querySelector('#rhScope [data-v=\"here\"]').click(); await new Promise(r=>setTimeout(r,200)); const scope=h.querySelector('#rhScope [data-v=\"here\"]').textContent; h.querySelector(\"#rhClose\").click(); await new Promise(r=>setTimeout(r,200)); return n>=1 && scope===\"이 탭\" && !document.querySelector(\"#reqHist\") ? true : JSON.stringify({n,scope});"
+    },
+    {
      "name": "요청 칸 Enter = 보내기 · Shift+Enter = 줄바꿈 · 조합 중 Enter 는 안 보냄",
      "js": "const ta=document.querySelector(\"#reqText\"); const n0=(await (await fetch(\"/api/requests/zsheetfill\")).json()).length; ta.value=\"줄\"; const kd=(o)=>{ const e=new KeyboardEvent(\"keydown\",{key:\"Enter\",bubbles:true,cancelable:true,...o}); ta.dispatchEvent(e); return e.defaultPrevented; }; const a=kd({shiftKey:true}), b=kd({isComposing:true}); await new Promise(r=>setTimeout(r,800)); const n1=(await (await fetch(\"/api/requests/zsheetfill\")).json()).length; const c=kd({}); await new Promise(r=>setTimeout(r,1500)); const n2=(await (await fetch(\"/api/requests/zsheetfill\")).json()).length; return !a && !b && n1===n0 && c && n2===n0+1 && ta.value===\"\" ? true : JSON.stringify({a,b,c,n0,n1,n2,v:ta.value});"
     }

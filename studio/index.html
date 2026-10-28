@@ -6,6 +6,7 @@
 <title>nexa-slide</title>
 <link rel="icon" id="favicon" href="data:,">
 <link rel="stylesheet" href="fonts.css">
+<link rel="stylesheet" href="nexa-requests.css">
 <link rel="stylesheet" href="../api/fontcss"><!-- 작업 공간 fonts/ 의 글꼴 - 상대 경로: 허브 중계(/w/<id>/studio/)로 열려도 그 작업 공간 서버로 간다 -->
 <script src="i18n/en.js"></script>
 <script src="i18n/en.pages.js"></script>
@@ -15,6 +16,7 @@
 <script src="search.js"></script>
 <script src="sheetnew.js"></script>
 <script src="wsession.js"></script>
+<script src="nexa-requests.js"></script>
 <style id="rs-css"></style>
 <style>
   :root {
@@ -250,18 +252,6 @@
   #memo .quick button:hover { background: var(--tone); }
   #memo .acts { display: flex; gap: 6px; justify-content: flex-end; align-items: center; }
   #memo .acts .mcnt { margin-right: auto; color: var(--ink2); font-size: 11px; }
-  /* 요청 첨부(클립보드 그림·파일) - 올린 파일의 축소판 칩. 메모 팝오버·요청 탭·요청 목록이 같이 쓴다 */
-  .att { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0; }
-  .att:empty { display: none; }
-  .att .a { position: relative; display: inline-flex; align-items: center; gap: 4px; max-width: 160px; border: 1px solid var(--line); border-radius: 8px; padding: 2px 4px; background: #fff; font-size: 11px; color: var(--ink2); }
-  .att .a img { width: 56px; height: 40px; object-fit: cover; border-radius: 5px; display: block; }
-  .att .a .n { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 92px; }
-  .att .a .x { border: 0; background: var(--tone2); border-radius: 50%; width: 16px; height: 16px; font-size: 10px; line-height: 16px; padding: 0; cursor: pointer; }
-  .att.ro .a { cursor: zoom-in; }
-  .dropping { outline: 2px dashed var(--p); outline-offset: -2px; }
-  .att-btn { display: inline-flex; align-items: center; gap: 4px; border: 1px solid var(--line); background: #fff; border-radius: 999px; padding: 3px 10px; font: inherit; font-size: 12px; color: var(--ink2); cursor: pointer; white-space: nowrap; }
-  .att-btn:hover { background: var(--tone); color: var(--ink); }
-  .att-btn svg { width: 14px; height: 14px; }
   /* 보낼 요청 바 */
   #markbar { position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); z-index: 15; display: none; align-items: center; gap: 10px; background: var(--ink); color: #fff; border-radius: 999px; padding: 6px 8px 6px 16px; box-shadow: var(--sh2); }
   #markbar.show { display: flex; }
@@ -361,10 +351,6 @@
   .sec .chip.sm:active, .sec .pbtn:active { background: var(--tone2); }
   .sec .chip.sm.primary { background: var(--p); border-color: var(--p); color: #fff; }
   .sec .chip.sm.danger { color: var(--err); }
-  .seg { display: inline-flex; background: var(--tone); border: 1px solid var(--line); border-radius: 8px; padding: 2px; gap: 2px; }
-  .seg button { border: 0; background: none; border-radius: 6px; padding: 3px 10px; font-size: 12.5px; color: var(--ink2); cursor: pointer; }
-  .seg button:hover { background: #fff; color: var(--ink); }
-  .seg button.on { background: #fff; color: var(--ink); font-weight: 700; box-shadow: var(--sh1); }
   .xywh { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
   .xywh .f { display: flex; align-items: center; border: 1px solid var(--line); border-radius: 8px; background: #fff; overflow: hidden; }
   .xywh .f label { width: 26px; text-align: center; font-size: 11px; color: var(--ink2); background: var(--tone); align-self: stretch; display: inline-flex; align-items: center; justify-content: center; }
@@ -384,28 +370,6 @@
   .ellist div:hover { background: #fff; }
   .ellist div.on { background: var(--pc); }
   .hint { color: var(--ink2); font-size: 12px; margin: 4px 0; }
-  .req { background: var(--tone); border-radius: 14px; padding: 10px 12px; margin-bottom: 8px; }
-  .req.done { opacity: .75; }
-  .req .meta { display: flex; gap: 6px; align-items: center; font-size: 11px; color: var(--ink2); margin-bottom: 4px; flex-wrap: wrap; }
-  .req .st { border-radius: 999px; padding: 0 8px; font-weight: 700; }
-  .req .st.draft { background: var(--mark); color: #fff; }
-  .req .st.open { background: var(--warnc); color: var(--warn); }
-  .req .st.done { background: var(--okc); color: var(--ok); }
-  .req .st.working { background: var(--infoc); color: var(--info); }
-  .req .txt { white-space: pre-wrap; }
-  .req .reply { margin-top: 6px; background: #fff; border-radius: 10px; padding: 6px 10px; white-space: pre-wrap; }
-  .req .reply.ask { border-left: 3px solid var(--warn); }  /* 아직 열려 있는 요청의 답 = 질문 */
-  /* 후속 요청 - 같은 대화(thread)를 한 상자로, 후속은 들여 쓰고 연결선 */
-  .thread.multi { border-left: 2px solid var(--line); margin-left: 4px; padding-left: 6px; margin-bottom: 8px; }
-  .thread.multi .req { margin-bottom: 6px; }
-  .req.fu { margin-left: 10px; }
-  .req .fu-tag { border-radius: 999px; padding: 0 8px; background: var(--infoc); color: var(--info); font-weight: 700; }
-  .fu-form { margin-top: 8px; border-top: 1px solid var(--line); padding-top: 8px; }
-  .fu-form textarea { width: 100%; min-height: 56px; border: 1px solid var(--line); border-radius: 10px; padding: 6px 9px; font: 13px/1.5 var(--font); resize: vertical; box-sizing: border-box; }
-  .fu-form details { font-size: 12px; color: var(--ink2); margin-bottom: 6px; }
-  .fu-form .quote { white-space: pre-wrap; border-left: 3px solid var(--line); padding: 4px 8px; margin-top: 4px; }
-  .req .reply b { color: var(--p); }
-  .req .acts { display: flex; gap: 6px; margin-top: 6px; }
   .chk { background: var(--tone); border-radius: 12px; padding: 7px 10px; margin-bottom: 6px; cursor: pointer; }
   .chk:hover { background: var(--tone2); }
   .chk .sev { border-radius: 999px; padding: 0 8px; font-weight: 700; font-size: 11px; }
@@ -551,19 +515,6 @@
   #cmdpal .it .l { flex: 1; }
   #cmdpal .it .k { color: var(--ink2); font: 11.5px Consolas, monospace; }
   #cmdpal .empty { padding: 14px; color: var(--ink2); text-align: center; }
-  /* 요청 기록·검색 창 - 요청 탭 [더보기]. 편집 화면 위에 겹쳐 뜨므로 편집 중인 덱을 벗어나지 않는다 */
-  #reqHist { position: fixed; inset: 0; background: rgba(0,0,0,.3); z-index: 70; display: flex; align-items: center; justify-content: center; }
-  #reqHist .box { width: min(820px, 94vw); height: min(780px, 90vh); background: #fff; border-radius: 16px; box-shadow: 0 12px 40px rgba(0,0,0,.3); display: flex; flex-direction: column; overflow: hidden; }
-  /* 클래스 이름은 rh- 접두 - .hd(크기 조절 손잡이)·.sb 같은 편집기 공용 클래스와 겹치지 않게 */
-  #reqHist .rh-hd { display: flex; align-items: center; gap: 10px; padding: 14px 18px 10px; }
-  #reqHist .rh-hd h3 { margin: 0; font-size: 15px; flex: 1; } #reqHist .rh-hd h3 small { color: var(--ink2); font-weight: 400; margin-left: 6px; }
-  #reqHist .rh-sb { display: flex; align-items: center; gap: 6px; padding: 4px 18px 10px; }
-  #reqHist .rh-sb input { flex: 1; height: 36px; border: 1px solid var(--line); border-radius: 10px; padding: 0 12px; font: inherit; font-size: 13.5px; outline: none; }
-  #reqHist .rh-sb input:focus { border-color: var(--p); box-shadow: 0 0 0 2px var(--pc); }
-  #reqHist .rh-fl { display: flex; align-items: center; gap: 8px; padding: 0 18px 10px; flex-wrap: wrap; font-size: 12.5px; color: var(--ink2); }
-  #reqHist .list { flex: 1; overflow: auto; padding: 4px 18px 18px; }
-  #reqHist .err { color: var(--err, #BA1A1A); }
-  #reqHist mark { background: #FFF2A8; padding: 0 1px; border-radius: 2px; }
   #ov .guide { position: absolute; border-left: 1px dashed var(--err); border-top: 1px dashed var(--err); pointer-events: none; }
   details.fold > summary { list-style: none; cursor: pointer; }
   details.fold > summary::-webkit-details-marker { display: none; }
