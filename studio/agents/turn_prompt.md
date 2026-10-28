@@ -25,10 +25,16 @@
 1. `decks/<deck>.requests.json` 에서 그 `id` 의 `status` 를 `"working"` 으로 바꾼다(Edit).
 2. `python3 nexa.py draft_deck <deck> --element <element>`(요소가 없으면 `--slide <slide>`; `elements` 가 있으면 그 요소 **모두**가 대상 — `--element e03,e05` 처럼 쉼표로) → 사본 `out/.studio/draft-<deck>.json` 이 만들어지고 고칠 줄 번호가 나온다.
 3. 사본에서 **필요한 줄만** Edit 도구로 고친다 — 요소 `id` 유지, 대상은 `slide`·`element` 로 찾는다(`region` 이 있으면 그 좌표와 겹치는 요소들). 큰 수정도 사본 안에서 Edit 를 여러 번.
-4. `python3 nexa.py save_deck <deck> --from out/.studio/draft-<deck>.json --request <id> --note "무엇을 했는지 한 줄"` 로 저장한다. 종료 코드 2(충돌)면 2 번부터 다시.
+4. `python3 nexa.py save_deck <deck> --from out/.studio/draft-<deck>.json --request <id> --note "무엇을 했는지 한 줄"` 로 저장한다. 종료 코드 2(충돌)는 사본을 만든 뒤 사용자가 같은 덱을 저장했다는 뜻이다 — 덮어쓰지 말고 2 번(draft_deck)부터 다시 해 사용자의 변경 위에 같은 수정을 한다.
 5. 같은 변경을 `content/<deck>.json` 에도 Edit 로 옮긴다(파일이 있고 그 내용이 거기서 왔을 때).
 6. `status` 를 `"done"`, `reply` 에 무엇을 했는지 한두 문장(Edit). 할 수 없거나 확인이 필요하면 `status` 는 `"open"` 그대로 두고 **반드시 `reply` 에 이유나 질문을 적는다** — 빈 reply 로 끝내지 않는다.
    **사용자에게 고르게 하거나 묻는 reply("…할까요?", "알려 주세요")면 `done` 으로 하지 않는다** — `open` 으로 두면 편집기에 질문으로 보이고 사용자가 [후속 요청]으로 답한다.
+
+**시트 문서**(덱 JSON 에 `"kind": "sheet"`, 요청에 `range`)면 슬라이드 대신 엑셀 같은 표다 — `slide` 는 시트 탭 id, `range` 는 사용자가 고른 셀 범위(`A1`·`B2:D5`).
+`draft_deck <deck> --slide <탭 id> --range <범위>` 로 사본과 줄 번호를 얻고, 그 탭의 `cells` 를 고친다: 셀 키는 `A1` 형식, 값만이면 `"B3": 1200`(숫자는 숫자로),
+서식이 있으면 `{"v": 값, "f": "=수식", "fmt": "#,##0", "b": true, "fill": "#RRGGBB", "align": "center", …}`. 수식은 `f` 에만(엑셀 수식 그대로), `v` 는 계산값 캐시라 모르면 빼도 된다(화면이 다시 계산).
+열 너비 `cols {"A": 140}`(px)·행 높이 `rows {"1": 30}`·병합 `merges ["A1:D1"]`·틀 고정 `freeze "A2"`·탭 추가는 `sheets` 에 `{id, name, cells}`. 저장은 똑같이 `save_deck`.
+문서에 `theme` 이 있으면 색을 직접 쓰지 말고 셀에 테마 스타일 이름을 `"s": "header"`(머리)·`"cell"`(본문 칸)·`"key"`(번호·ID)·`"label"`(라벨)·`"input"`(입력칸)·`"title"`·`"section"`·`"warn"` 처럼 준다 — 스타일 목록은 `python3 nexa.py sheet_theme show <테마>`. 새 표는 기존 탭의 머리·본문 스타일을 그대로 따른다.
 
 요청 파일은 편집기도 쓰므로 읽고-고치고-쓰기 사이를 짧게 한다.
 모두 끝나면 처리한 요청 `id` 와 결과를 한 줄씩 요약한다. 답변은 한국어.

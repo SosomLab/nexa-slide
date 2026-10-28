@@ -109,7 +109,7 @@ PUT /api/deck 로 들어왔나?
 python3 <작업 공간>/nexa.py save_deck <덱> --from <새 덱 JSON> [--request <요청 id>] [--note "한 줄"] [--label "<세션 이름>"] [--force]
 ```
 
-서버가 떠 있으면 `GET /api/deck` 의 `X-Deck-Version` 을 `base` 로 `PUT …?origin=claude` 를 보낸다 - 백업·충돌 검사(409)·원장 기록을 서버가 한다. 409 면 편집기가 그 사이 저장한 것이니 다시 읽어 합치거나 `--force`.
+서버가 떠 있으면 `PUT …?origin=claude&base=<기준>` 을 보낸다 - 기준은 `--from` 이 `draft_deck` 사본이면 **사본을 만든 때의 버전**(`out/.studio/draft-<덱>.base`), 아니면 저장 직전 `GET /api/deck` 의 `X-Deck-Version`. 백업·충돌 검사(409)·원장 기록을 서버가 한다. 409 면 사본을 만든 뒤 편집기가 저장한 것이니 사본을 다시 만들어 고치거나 `--force`(동시 편집 방향: [research/realtime-collab.md](research/realtime-collab.md)).
 서버가 없으면 직접 백업·원자적 쓰기 후 원장에 `claude · exact` 줄을 남긴다. 종료 코드 0 저장 · 2 충돌 · 1 오류.
 
 ## 운용

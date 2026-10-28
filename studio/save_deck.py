@@ -6,8 +6,10 @@
     실행기: python3 <작업 공간>/nexa.py save_deck <덱> --from …
 
 동작
-  - 서버가 떠 있으면 GET /api/deck/<덱> 의 X-Deck-Version 을 base 로 PUT /api/deck/<덱>?origin=claude&… 를 보낸다.
-    백업(.history)·충돌 검사(409)·원장 기록을 서버가 한다. 409 면 "편집기가 그 사이 저장했다" - 다시 읽어 합치거나 --force.
+  - 서버가 떠 있으면 PUT /api/deck/<덱>?origin=claude&base=<기준 버전> 을 보낸다. 백업(.history)·충돌 검사(409)·원장 기록을 서버가 한다.
+    기준 버전은 --from 이 draft_deck 사본이면 **사본을 만든 때의 버전**(out/.studio/draft-<덱>.base) - 그 뒤 편집기가 저장했으면 409 가 나
+    사람의 변경을 덮지 않는다. 사본이 아니면 저장 직전 GET 의 X-Deck-Version. 409 면 draft_deck 으로 다시 사본을 만들어 고치거나 --force.
+    저장되면 .base 를 새 버전으로 바꿔 같은 사본으로 이어 저장할 수 있다.
   - 서버가 없으면 직접 백업하고 원자적으로 쓴 뒤 원장에 claude(정확) 줄을 남긴다(서버 기동 때 재대조와도 맞는다).
 종료 코드: 0 저장됨 · 2 충돌(409) · 1 그 밖의 오류
 """
@@ -23,7 +25,7 @@ import urllib.request
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from common import DECKS, running_server, safe_id  # noqa: E402
+from common import DECKS, STATE, running_server, safe_id  # noqa: E402
 import ledger  # noqa: E402
 
 
@@ -32,7 +34,24 @@ def load_new(src):
     deck = json.loads(raw)
     if not isinstance(deck, dict) or not isinstance(deck.get("slides"), list):
         sys.exit("덱 형식이 아니다(slides 목록 필요)")
+    if deck.get("kind") == "sheet" and not (isinstance(deck.get("sheets"), list) and deck["sheets"]
+                                            and all(isinstance(t, dict) and t.get("id") and isinstance(t.get("cells", {}), dict) for t in deck["sheets"])):
+        sys.exit("시트 형식이 아니다(sheets 목록, 탭마다 id·cells 필요 - docs/sheets.md)")
     return deck
+
+
+def draft_base(deck_id, src):
+    """--from 이 draft_deck 사본(out/.studio/draft-<덱>.json)이면 (.base 경로, 사본을 만든 때의 버전), 아니면 (None, None)."""
+    if not src:
+        return None, None
+    try:
+        same = Path(src).resolve() == (STATE / f"draft-{deck_id}.json").resolve()
+    except OSError:
+        same = False
+    bp = STATE / f"draft-{deck_id}.base"
+    if not same or not bp.is_file():
+        return None, None
+    return bp, bp.read_text(encoding="utf-8").strip() or None
 
 
 def via_server(url, deck_id, deck, a):
@@ -45,13 +64,17 @@ def via_server(url, deck_id, deck, a):
         q["label"] = a.label[:80]
     if a.force:
         q["force"] = "1"
-    try:
-        with urllib.request.urlopen(f"{url}api/deck/{deck_id}", timeout=10) as r:
-            q["base"] = r.headers.get("X-Deck-Version") or ""
-    except urllib.error.HTTPError as e:
-        if e.code != 404:
-            raise
-        q["base"] = ""  # 새 덱
+    bp, base = draft_base(deck_id, a.src)
+    if base:
+        q["base"] = base
+    else:
+        try:
+            with urllib.request.urlopen(f"{url}api/deck/{deck_id}", timeout=10) as r:
+                q["base"] = r.headers.get("X-Deck-Version") or ""
+        except urllib.error.HTTPError as e:
+            if e.code != 404:
+                raise
+            q["base"] = ""  # 새 덱
     body = json.dumps(deck, ensure_ascii=False).encode("utf-8")
     headers = {"Content-Type": "application/json", "X-Nexa-Tab": "save_deck"}
     if os.environ.get("NEXA_SLIDE_USER"):  # 웹 세션이 준 시작 사용자 - 서버는 로컬(중계 아님) 요청에서만 받아 원장 actor.user 에 적는다
@@ -66,16 +89,23 @@ def via_server(url, deck_id, deck, a):
         except ValueError:
             res = {"error": str(e)}
         if e.code == 409:
-            print(f"충돌: 편집기가 그 사이 {deck_id} 를 저장했다(버전 {res.get('version')}). 다시 읽어 합치거나 --force 로 덮어쓴다", file=sys.stderr)
+            print(f"충돌: 사본을 만든 뒤 편집기가 {deck_id} 를 저장했다(버전 {res.get('version')}) - 사람의 변경을 덮지 않으려고 저장하지 않았다. "
+                  f"draft_deck 으로 사본을 다시 만들어 같은 수정을 다시 하거나, 꼭 덮어써야 하면 --force", file=sys.stderr)
             return 2
         print(f"저장 실패 {e.code}: {res.get('error')}", file=sys.stderr)
         return 1
+    if bp and res.get("version"):  # 같은 사본으로 이어 저장하면 내 저장이 기준
+        bp.write_text(str(res["version"]), encoding="utf-8")
     print(f"저장됨(서버 {url}): {deck_id} · 원장 seq {res.get('seq')} · 버전 {res.get('version')}")
     return 0
 
 
 def direct(deck_id, deck, a):
     p = DECKS / f"{deck_id}.json"
+    bp, base = draft_base(deck_id, a.src)
+    if base and p.exists() and str(p.stat().st_mtime_ns) != base and not a.force:
+        print(f"충돌: 사본을 만든 뒤 {deck_id} 가 바뀌었다 - draft_deck 으로 사본을 다시 만들어 고치거나 --force", file=sys.stderr)
+        return 2
     old_obj, before = None, {"ver": "0", "size": 0, "hash": None, "backup": None}
     if p.exists():
         h = DECKS / ".history" / deck_id
@@ -98,6 +128,8 @@ def direct(deck_id, deck, a):
     if os.environ.get("NEXA_SLIDE_USER"):
         actor["user"] = os.environ["NEXA_SLIDE_USER"][:40]
     seq = ledger.record(deck_id, old_obj, before, deck, ledger.meta(p), "claude", "exact", a.action, actor)
+    if bp:
+        bp.write_text(str(p.stat().st_mtime_ns), encoding="utf-8")
     print(f"저장됨(직접 - 서버 없음): {p} · 원장 seq {seq}")
     return 0
 

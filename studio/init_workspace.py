@@ -119,6 +119,23 @@ def build_decks(ws, cfg):
     return built
 
 
+def new_sheet(ws, cfg, deck, title):
+    """첫 문서를 시트로(--kind sheet) - decks/<deck>.json 빈 시트(형식은 deck_admin.new_sheet 와 같다, docs/sheets.md)를 만들고 시작 덱으로 정한다."""
+    d = ws / cfg.get("decks", "decks")
+    p = d / f"{deck}.json"
+    if not p.exists():
+        doc = {"id": deck, "title": title, "kind": "sheet", "version": "0.1", "updated": dt.datetime.now().isoformat(timespec="seconds"),
+               "slides": [], "sheets": [{"id": "t01", "name": "Sheet1", "size": {"rows": 50, "cols": 12}, "cols": {}, "rows": {}, "merges": [], "cells": {}}]}
+        d.mkdir(parents=True, exist_ok=True)
+        p.write_text(json.dumps(doc, ensure_ascii=False, indent=1) + "\n", encoding="utf-8", newline="\n")
+    cp = ws / "nexa-slide.json"
+    c = json.loads(cp.read_text(encoding="utf-8"))
+    if not c.get("startDeck"):
+        c["startDeck"] = deck
+        cp.write_text(json.dumps(c, ensure_ascii=False, indent=2) + "\n", encoding="utf-8", newline="\n")
+    return [deck]
+
+
 def ask_draft(ws, cfg, deck):
     """세션에 보낼 첫 요청 - 브리프로 초안 쓰기(대기 상태라 세션이 연결되면 전달된다)."""
     d = ws / cfg.get("decks", "decks")
@@ -128,11 +145,15 @@ def ask_draft(ws, cfg, deck):
     except (OSError, ValueError):
         items = []
     try:
-        first = (json.loads((d / f"{deck}.json").read_text(encoding="utf-8")).get("slides") or [{}])[0].get("id")
+        doc = json.loads((d / f"{deck}.json").read_text(encoding="utf-8"))
     except (OSError, ValueError):
-        first = None
+        doc = {}
+    sheet = doc.get("kind") == "sheet"
+    first = ((doc.get("sheets") if sheet else doc.get("slides")) or [{}])[0].get("id")
+    text = ("BRIEF.md 의 목적·대상·작성 방향·참고 자료로 이 시트의 초안(머리글·표·수식)을 만들어 주세요. 자료에 없는 값은 지어내지 말고 빈칸과 확인 질문으로 남겨 주세요."
+            if sheet else "BRIEF.md 의 목적·대상·작성 방향·참고 자료로 이 덱의 초안을 써 주세요. 템플릿 디자인은 그대로 두고, 자료에 없는 내용은 지어내지 말고 확인 질문으로 남겨 주세요.")
     items.append({"id": "r" + dt.datetime.now().strftime("%Y%m%d%H%M%S%f")[:17], "slide": first, "element": None,
-                  "text": "BRIEF.md 의 목적·대상·작성 방향·참고 자료로 이 덱의 초안을 써 주세요. 템플릿 디자인은 그대로 두고, 자료에 없는 내용은 지어내지 말고 확인 질문으로 남겨 주세요.",
+                  "text": text,
                   "status": "open", "reply": "", "created": dt.datetime.now().isoformat(timespec="seconds")})
     p.parent.mkdir(parents=True, exist_ok=True)
     p.write_text(json.dumps(items, ensure_ascii=False, indent=1), encoding="utf-8", newline="\n")
@@ -151,6 +172,8 @@ LAUNCHER = '''# -*- coding: utf-8 -*-
     python3 {ws}/nexa.py start | stop | restart | status | url     # 서비스(백그라운드 서버) 관리
     python3 {ws}/nexa.py build_deck <덱> [--force]                  # content → 덱
     python3 {ws}/nexa.py export_pptx <덱>                           # → out/<덱>.pptx
+    python3 {ws}/nexa.py export_xlsx <시트 문서>                    # 시트(kind sheet) → out/<id>.xlsx
+    python3 {ws}/nexa.py sheet_theme list | import <샘플.xlsx> --name <이름>   # 시트 테마 목록 · 회사 샘플 엑셀에서 테마 만들기
     python3 {ws}/nexa.py check_layout [<덱>]                        # 레이아웃 검사
     python3 {ws}/nexa.py layout_samples                             # 레이아웃·필드 예시
     python3 {ws}/nexa.py slide_types [낱말]                         # 슬라이드 유형(목적별) — 내용에 맞는 장 고르기
@@ -718,6 +741,7 @@ def main():
     ap.add_argument("--port", help="포트 번호 또는 auto(기본 — 빈 포트를 고른다)")
     ap.add_argument("--template", help="디자인 템플릿(기본: 시작용 교안이 정한 것, 없으면 lecture)")
     ap.add_argument("--deck", default="intro")
+    ap.add_argument("--kind", choices=("deck", "sheet"), default="deck", help="첫 문서 종류 - sheet 면 시작용 내용 없이 빈 시트(docs/sheets.md)")
     ap.add_argument("--asset-root", default=".", help="덱 그림 경로의 기준 폴더(작업 공간 기준). 저장소 루트 자산을 쓰려면 ..")
     ap.add_argument("--starter", help="시작용 교안(엔진 starters/ 폴더 이름) — 예: lecture-course")
     ap.add_argument("--lang", default="ko", help="시작용 내용의 언어 - starters/<이름>/content.<lang>/ 가 있으면 그것을 복사(없으면 content/)")
@@ -741,6 +765,11 @@ def main():
         if not 1024 <= port <= 65535:
             sys.exit(f"포트는 1024~65535: {port}")
     st = None
+    if a.kind == "sheet":
+        if a.starter:
+            sys.exit("--kind sheet 에는 시작용 교안(--starter)을 쓸 수 없다")
+        if a.deck == "intro":
+            a.deck = "sheet"
     if a.starter:
         if not (STARTERS / a.starter / "starter.json").is_file():
             names = ", ".join(p.name for p in STARTERS.iterdir() if (p / "starter.json").is_file())
@@ -814,7 +843,7 @@ def main():
                     else:
                         shutil.copy2(src, dst)
                     made.append(rel(dst, top))
-    else:
+    elif a.kind != "sheet":  # 시트는 content 원본 없이 decks/ 에 바로 만든다(아래 new_sheet)
         write(ws / "content" / f"{a.deck}.json", json.dumps(starter(a.deck, cfg.get("title", ws.name)), ensure_ascii=False, indent=1) + "\n")
     write(ws / "fonts" / "README.md", FONTS_README)
     write(ws / ".gitignore", GITIGNORE)
@@ -843,7 +872,7 @@ def main():
         if cm.is_file() and "BRIEF.md" not in cm.read_text(encoding="utf-8"):
             with cm.open("a", encoding="utf-8", newline="\n") as f:
                 f.write("\n## 작성 브리프\n\n- 작업 공간을 만들 때 받은 목적·대상·작성 방향·참고 자료는 `BRIEF.md` 에 있다. 초안을 쓰기 전에 먼저 읽고, 자료에 없는 내용은 지어내지 않는다.\n")
-    built = build_decks(ws, cfg) if a.build or a.ask_draft else []
+    built = new_sheet(ws, cfg, a.deck, cfg.get("title", ws.name)) if a.kind == "sheet" else build_decks(ws, cfg) if a.build or a.ask_draft else []
     if a.ask_draft and built:
         ask_draft(ws, cfg, deck_ids[0] if deck_ids[0] in built else built[0])
     if not a.no_remember:

@@ -58,6 +58,8 @@ Monitor
 요소를 **여러 개** 고른 채(Shift/Ctrl+클릭·범위 선택) 남긴 메모에는 `elements: ["e03", "e05", …]` 가 붙고 `element` 는 그 첫 요소다 — 세션은 `elements` 모두를 대상으로 처리한다(`draft_deck --element e03,e05`).
 그리기 모드 요청에는 `region` 이 붙는다 — 슬라이드 좌표(1280×720): `{"kind": "rect", "box": [x, y, w, h]}` · `{"kind": "pen", "points": [[x, y], …], "box": [...]}` · `{"kind": "pin", "points": [[x, y]]}`.
 영역 요청은 그 좌표와 겹치는 요소들을 대상으로 처리한다(`element` 는 null).
+**시트 문서**(덱 JSON `"kind": "sheet"`, 시트 화면 `sheet.html`)의 요청은 `slide` = 시트 탭 id, `range` = 고른 셀 범위(`A1`·`B2:D5`)다 — 세션은 그 탭의 `cells` 를 고친다
+(`draft_deck <덱> --slide <탭> --range <범위>` 가 줄 번호를 알려 준다). 형식은 [sheets.md](sheets.md).
 **후속 요청**(편집기 [후속 요청])이면 `parent`(바로 앞 요청 id)·`thread`(대화의 뿌리 요청 id)와 `context: [{id, status, text, reply, attachments?}…]` 가 붙는다 — 같은 대화의 앞선 요청·답이 오래된 순(최근 6개, 항목당 800자, 첨부는 경로만)이고 이번 요청은 항목 자신의 `text` 다. 대상(`slide`·`element`·`region`)은 따로 주지 않으면 원 요청에서 물려받는다. 앞선 요청의 상태는 바꾸지 않는다.
 
 **첨부**가 있으면 `attachments: [{path, name, type, size}]` 가 붙는다 — 편집기에서 클립보드 그림(Ctrl+V)·끌어다 놓기·📎 로 올린 파일로, 작업 공간 안 `out/attach/<덱>/…` 에 있다(git 제외).
@@ -73,7 +75,7 @@ Word(.docx)·Excel(.xlsx/.xlsm)·PDF 첨부는 `nexa.py import_doc <파일>` —
 1. `decks/<deck>.requests.json` 에서 그 요청의 `status` 를 **`working`** 으로 — 편집기에 "세션 처리 중"이 뜬다.
 2. `decks/<deck>.json` 을 고친다.
    - **서버가 떠 있으면 `nexa.py save_deck <덱> --from <새 덱 파일> --request <요청 id> --note "…"` 로 저장한다** - 변경 원장에 "Claude(정확)" 로 남고
-     백업·충돌 검사(409 = 편집기가 그 사이 저장함 → 다시 읽어 합치거나 `--force`)도 서버가 한다([change-ledger.md](change-ledger.md)).
+     백업·충돌 검사(409 = **사본(draft_deck)을 만든 뒤** 편집기가 저장함 — 사람의 변경을 덮지 않게 종료 코드 2 → draft_deck 부터 다시, 꼭 덮어써야 하면 `--force`)도 서버가 한다([change-ledger.md](change-ledger.md)).
      서버가 없을 때만 직접 쓴다(그때도 `save_deck` 이 원자적으로 쓰고 원장 줄을 남긴다). 파일을 직접 덮어쓰면 "Claude 추정" 또는 "외부" 로 기록된다.
    - 요소 `id` 는 유지.
    - 대상은 `slide`(슬라이드 id)·`element`(요소 id, 슬라이드 안에서 유일)로 찾는다.
