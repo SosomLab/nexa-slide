@@ -406,6 +406,7 @@
     if (S.ti >= S.deck.sheets.length) S.ti = S.deck.sheets.length - 1;
     recalc(); S.dirty = true; setStatus("dirty", "저장 대기"); updUndo();
     renderAll(); scheduleSave();
+    if (window.NexaSheetX) NexaSheetX.onChange();
     if ((S.deck.theme || null) !== TH.name) loadTheme(S.deck.theme).then(() => { renderThemeChip(); renderAll(); });  // 실행 취소로 테마가 바뀌었으면
   }
   /** 고치기 - snapshot → fn → afterChange */
@@ -661,6 +662,7 @@
     if (document.activeElement !== $("#fxIn")) $("#fxIn").value = rawText(sh, key(S.cur.r, S.cur.c));
     if (!S.edit) placeEditor();
     renderToolState(); renderReqTarget();
+    if (window.NexaSheetX) NexaSheetX.onSel();  // 엑셀 기능(sheetx.js) - 상태 표시줄 합계 등
     clearTimeout(renderSel.t); renderSel.t = setTimeout(() => history.replaceState(null, "", `#${encodeURIComponent(sh.id)}!${rangeName(g)}`), 300);  // 새로 고쳐도 같은 탭·범위
   }
   function clampRange(g) { return { r1: Math.max(0, Math.min(g.r1, G.rows - 1)), c1: Math.max(0, Math.min(g.c1, G.cols - 1)), r2: Math.max(0, Math.min(g.r2, G.rows - 1)), c2: Math.max(0, Math.min(g.c2, G.cols - 1)) }; }
@@ -1478,6 +1480,9 @@
     window.addEventListener("beforeunload", (e) => { if (S.dirty) { save(); e.preventDefault(); e.returnValue = ""; } });
   }
   // 시험용(브라우저 콘솔·스모크) - 수식 계산·표시 형식을 따로 불러 볼 수 있게
-  window.NexaSheet = { S, TH, effCell, bdSides, fillVars, reload: reloadExternal, recalc, parseFormula, display, fmtNumber, parseNumberText, shiftFormula, setInput, parseTsv, fillSeries, fillTarget };
+  window.NexaSheet = { S, TH, effCell, bdSides, fillVars, reload: reloadExternal, recalc, parseFormula, display, fmtNumber, parseNumberText, shiftFormula, setInput, parseTsv, fillSeries, fillTarget,
+    // 엑셀 기능 모듈(sheetx.js)이 쓰는 안쪽 함수 - 격자·선택·고치기(실행 취소·저장 포함)
+    x: { G, sheet, key, parseRef, parseRange, rangeName, colName, cellObj, putCell, mutate, renderAll, renderSel, selectRange, selectCell, clampRange, eachCell, toast, openMenu,
+      endEdit, startEdit, focusGrid, pasteText, scrollIntoView, growSize, clone, ED, esc } };
   init();
 })();

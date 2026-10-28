@@ -1,0 +1,35 @@
+{
+ "base": "http://127.0.0.1:5667",
+ "pages": [
+  {
+   "url": "/studio/sheet.html?deck=zsheetx",
+   "wait": 2500,
+   "steps": [
+    {
+     "name": "상태 표시줄 - B2:B5 를 고르면 평균·개수·합계, 누르면 최소·최대",
+     "js": "const X=window.NexaSheet.x; X.selectRange({r1:1,c1:1,r2:4,c2:1}); await new Promise(r=>setTimeout(r,80)); const b=document.querySelector('#sumBar'); const t1=b.textContent; b.click(); await new Promise(r=>setTimeout(r,50)); const t2=b.textContent; b.click(); return !b.hidden && t1.includes('합계 2,800') && t1.includes('평균 700') && t1.includes('개수 4') && t2.includes('최대 1,200') ? true : JSON.stringify({t1,t2})"
+    },
+    {
+     "name": "자동 합계(Alt+=) - B6 에서 =SUM(B2:B5) 를 넣고 Enter → 2800",
+     "js": "const X=window.NexaSheet.x, ed=X.ED(); X.selectCell(5,1); ed.focus(); ed.dispatchEvent(new KeyboardEvent('keydown',{key:'=',code:'Equal',altKey:true,bubbles:true})); await new Promise(r=>setTimeout(r,60)); const v=ed.value; ed.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',bubbles:true})); await new Promise(r=>setTimeout(r,120)); const c=window.NexaSheet.S.deck.sheets[0].cells.B6; return v==='=SUM(B2:B5)' && c && c.f==='=SUM(B2:B5)' && c.v===2800 ? true : JSON.stringify({v,c})"
+    },
+    {
+     "name": "정렬 - B 열 내림차순(첫 줄 머리글 자동), 수식 칸은 범위 밖이라 그대로",
+     "js": "const X=window.NexaSheet.x; X.selectRange({r1:0,c1:0,r2:4,c2:1}); window.NexaSheet.S.cur={r:0,c:1}; window.NexaSheetX.sortRange(true); await new Promise(r=>setTimeout(r,120)); const c=window.NexaSheet.S.deck.sheets[0].cells, v=(k)=>c[k]&&typeof c[k]==='object'?c[k].v:c[k]; return v('A1')==='지역' && v('A2')==='서울' && v('A5')==='광주' && v('B5')===300 ? (window.NexaSheetX.sortRange(false), await new Promise(r=>setTimeout(r,100)), v('A2')==='광주' && v('B2')===300 ? true : 'asc '+v('A2')) : JSON.stringify({A1:v('A1'),A2:v('A2'),A5:v('A5')})"
+    },
+    {
+     "name": "Ctrl+D - C2:C4 에서 첫 칸(C2) 을 아래로 · 편집 중 Ctrl+Enter 는 고른 범위 모두에",
+     "js": "const N=window.NexaSheet, X=N.x, ed=X.ED(), sh=()=>N.S.deck.sheets[0]; N.setInput(sh(),'C2','=B2*2'); X.selectRange({r1:1,c1:2,r2:3,c2:2}); ed.focus(); ed.dispatchEvent(new KeyboardEvent('keydown',{key:'d',ctrlKey:true,bubbles:true})); await new Promise(r=>setTimeout(r,100)); const f3=sh().cells.C3&&sh().cells.C3.f, f4=sh().cells.C4&&sh().cells.C4.f; X.selectRange({r1:1,c1:4,r2:3,c2:4}); X.startEdit('enter','확인'); ed.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',ctrlKey:true,bubbles:true})); await new Promise(r=>setTimeout(r,100)); const c=sh().cells, v=(k)=>c[k]&&typeof c[k]==='object'?c[k].v:c[k]; return f3==='=B3*2' && f4==='=B4*2' && v('E2')==='확인' && v('E4')==='확인' ? true : JSON.stringify({f3,f4,E2:v('E2'),E4:v('E4')})"
+    },
+    {
+     "name": "찾기·바꾸기 - '지점' → '센터' 모두 바꾸기(2칸), 실행 취소로 되돌림",
+     "js": "window.NexaSheetX.findBox(true); await new Promise(r=>setTimeout(r,50)); const q=(s)=>document.querySelector(s); q('#fbFind').value='지점'; q('#fbFind').dispatchEvent(new Event('input',{bubbles:true})); q('#fbRep').value='센터'; q('#fbAll').click(); await new Promise(r=>setTimeout(r,100)); const c=window.NexaSheet.S.deck.sheets[0].cells, v=(k)=>c[k]&&typeof c[k]==='object'?c[k].v:c[k]; const ok1=v('D2')==='서울 센터' && v('D3')==='부산 센터' && q('#fbMsg').textContent.includes('2칸'); document.querySelector('#undoBtn').click(); await new Promise(r=>setTimeout(r,100)); const c2=window.NexaSheet.S.deck.sheets[0].cells; q('#fbClose').click(); return ok1 && (typeof c2.D2==='object'?c2.D2.v:c2.D2)==='서울 지점' ? true : JSON.stringify({D2:v('D2'),msg:q('#fbMsg').textContent})"
+    },
+    {
+     "name": "찾기 - 다음(Enter) 으로 칸을 옮기고 n / m 표시",
+     "js": "window.NexaSheetX.findBox(false); const q=(s)=>document.querySelector(s); q('#fbFind').value='부산'; q('#fbFind').dispatchEvent(new Event('input',{bubbles:true})); q('#fbFind').dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',bubbles:true})); await new Promise(r=>setTimeout(r,80)); const nb=q('#nameBox').value, msg=q('#fbMsg').textContent; q('#fbClose').click(); return /^[AD]\\d$/.test(nb) && /\\d \\/ 2/.test(msg) ? true : JSON.stringify({nb,msg})"
+    }
+   ]
+  }
+ ]
+}
