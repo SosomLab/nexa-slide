@@ -46,6 +46,11 @@ M365(OneDrive·Graph API) 직접 연동은 하지 않는다 — 원래 불편(�
 `color` 글자색, `fill` 배경, `align` `left|center|right`, `valign` `top|middle|bottom`, `size` 글자 크기(pt), `wrap` 줄바꿈, `note` 메모.
 값이 문자열이어도 `=` 로 시작하면 수식이 아니다 — 수식은 `f` 에만 둔다.
 
+**동적 배열(넘침)** — `FILTER`·`SORT`·`SORTBY`·`UNIQUE`·`SEQUENCE`·`TRANSPOSE` 를 쓴 수식(또는 엑셀에서 가져온 동적 배열 `"da": true`)은 결과가 여러 칸이면
+오른쪽·아래 칸으로 넘친다. 넘친 칸은 계산기가 `{"v": 값, "sp": "기준 칸"}` 으로 채우고(사람·AI 는 쓰지 않는다), 자리에 값이 있으면 기준 칸이 `#SPILL!`,
+결과가 없으면 `#CALC!` 이다. 결과가 줄면 남은 넘친 칸은 비운다. 다른 곳에 복사된 `sp` 칸은 값만 남는다.
+내보낼 때 기준 칸은 엑셀 동적 배열 수식(`write_dynamic_array_formula`)으로 쓰고, 가져올 때 `cm`·여러 칸 배열 수식을 `da` 와 `sp` 로 되살린다.
+
 ## 3. 요청(세션 규약)
 
 편집기 요청 항목 `{deck, id, slide, range, text, …}` — `slide` 는 시트 탭 id, `range` 는 고른 셀 범위(`A1`, `B2:D5`).

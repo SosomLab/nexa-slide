@@ -156,6 +156,12 @@ def export(deck, out):
         for m in t.get("merges") or []:
             if isinstance(m, str) and ":" in m:
                 merged[m.split(":")[0]] = m
+        spill_end = {}  # 동적 배열 기준 칸 → 넘친 범위 끝 (행, 열)
+        for ref, c in (t.get("cells") or {}).items():
+            if isinstance(c, dict) and c.get("sp") and CELL.match(str(ref)):
+                rr, cc = xl_cell_to_rowcol(ref)
+                e = spill_end.get(c["sp"], (0, 0))
+                spill_end[c["sp"]] = (max(e[0], rr), max(e[1], cc))
         for ref, c in (t.get("cells") or {}).items():
             mm = CELL.match(str(ref))
             if not mm:
@@ -170,7 +176,12 @@ def export(deck, out):
                 ws.merge_range(r1, c1, r2, c2, "", f)
             if d.get("f"):
                 form = str(d["f"])
-                ws.write_formula(r, col, form if form.startswith("=") else "=" + form, f, v if v is not None else 0)
+                form = form if form.startswith("=") else "=" + form
+                if sheet_calc.dynamic(c):  # 동적 배열 - 엑셀이 넘침으로 계산하게(넘친 칸 값은 아래에서 그대로 쓴다)
+                    e = spill_end.get(ref, (r, col))
+                    ws.write_dynamic_array_formula(r, col, max(e[0], r), max(e[1], col), form, f, v if v is not None else 0)
+                else:
+                    ws.write_formula(r, col, form, f, v if v is not None else 0)
             elif isinstance(v, bool):
                 ws.write_boolean(r, col, v, f)
             elif isinstance(v, (int, float)):

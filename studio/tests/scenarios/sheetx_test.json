@@ -48,6 +48,14 @@
     {
      "name": "함수 자동 완성 - =sumi 치면 SUMIF·SUMIFS 목록, Tab 으로 SUMIF( 넣고 인수 안내",
      "js": "const X=window.NexaSheet.x, ed=X.ED(); X.selectCell(9,0); X.startEdit('enter','=sumi'); ed.setSelectionRange(5,5); ed.dispatchEvent(new Event('input',{bubbles:true})); await new Promise(r=>setTimeout(r,60)); const box=document.querySelector('#acBox'); const items=[...box.querySelectorAll('[data-ac]')].map(x=>x.dataset.ac); ed.dispatchEvent(new KeyboardEvent('keydown',{key:'Tab',bubbles:true})); await new Promise(r=>setTimeout(r,60)); const v=ed.value, sig=box.querySelector('.sig') && box.querySelector('.sig').textContent; ed.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true})); return items.join()==='SUMIF,SUMIFS' && v==='=SUMIF(' && sig && sig.includes('범위, 조건') ? true : JSON.stringify({items,v,sig})"
+    },
+    {
+     "name": "동적 배열 - H2 에 =SORT(B2:B5) → 아래 칸으로 넘쳐 보인다(H3·H5 는 sp)",
+     "js": "const X=window.NexaSheet.x, ed=X.ED(), N=window.NexaSheet; const put=async(r,c,t)=>{ X.selectCell(r,c); ed.focus(); ed.value=t; ed.dispatchEvent(new Event('input',{bubbles:true})); ed.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',bubbles:true})); await new Promise(r=>setTimeout(r,150)); }; const cells=()=>N.S.deck.sheets[0].cells, td=(r,c)=>document.querySelector(`td[data-r=\"${r}\"][data-c=\"${c}\"]`).textContent.trim(); await put(1,7,'=SORT(B2:B5)'); const c=cells(); return c.H2.v===300 && c.H3 && c.H3.sp==='H2' && c.H5.v===1200 && ['1200','1,200'].includes(td(4,7)) ? true : JSON.stringify({H2:c.H2,H3:c.H3,H5:c.H5,td:td(4,7)})"
+    },
+    {
+     "name": "넘칠 자리에 값을 쓰면 #SPILL!, 지우면 다시 넘친다",
+     "js": "const X=window.NexaSheet.x, ed=X.ED(), N=window.NexaSheet; const put=async(r,c,t)=>{ X.selectCell(r,c); ed.focus(); ed.value=t; ed.dispatchEvent(new Event('input',{bubbles:true})); ed.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',bubbles:true})); await new Promise(r=>setTimeout(r,150)); }; const cells=()=>N.S.deck.sheets[0].cells, td=(r,c)=>document.querySelector(`td[data-r=\"${r}\"][data-c=\"${c}\"]`).textContent.trim(); await put(3,7,'막음'); const a=cells().H2.v, h4=JSON.parse(JSON.stringify(cells().H4)); await put(3,7,''); const c=cells(); return a==='#SPILL!' && (h4==='막음' || (h4.v==='막음' && !h4.sp)) && c.H2.v===300 && c.H4 && c.H4.sp==='H2' && c.H4.v===800 ? true : JSON.stringify({a,h4,H2:c.H2,H4:c.H4})"
     }
    ]
   }

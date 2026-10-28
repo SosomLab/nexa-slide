@@ -113,7 +113,7 @@
   }
 
   // ---------------------------------------------------------------- 수식 - 토큰 → 구문 트리 → 계산. 사칙연산·^·&·비교·%, 셀·범위 참조(다른 탭: 이름!A1), 함수
-  const ERR = ["#DIV/0!", "#VALUE!", "#REF!", "#NAME?", "#NUM!", "#N/A", "#NULL!"];
+  const ERR = ["#DIV/0!", "#VALUE!", "#REF!", "#NAME?", "#NUM!", "#N/A", "#NULL!", "#SPILL!", "#CALC!"];
   class FErr { constructor(code) { this.code = code; } }
   const isErrStr = (v) => typeof v === "string" && ERR.includes(v);
   const TOK = new RegExp([
@@ -380,7 +380,7 @@
   }
   /** 셀에 글을 넣는다(서식은 남긴다) */
   function setInput(sh, k, text) {
-    const o = { ...cellObj(sh, k) }; delete o.f; delete o.v;
+    const o = { ...cellObj(sh, k) }; delete o.f; delete o.v; delete o.sp;  // 넘친 칸(sp)에 쓰면 내 값 - 동적 배열은 #SPILL! 이 된다
     if (text === "" || text == null) { /* 값 지움 */ }
     else if (text[0] === "=" && text.length > 1) o.f = text;
     else if (text[0] === "'") o.v = text.slice(1);
@@ -1482,7 +1482,7 @@
     $("#sessChip").onclick = (e) => (SESS ? SESS.menu(e.currentTarget) : null);  // 웹 세션 시작·끊기·모델·진행
     RQ = NexaRequests.create({ api, toast, esc, base: BASE, deckId: () => S.id, session: SESS,
       getReqs: () => S.reqs, setReqs: (l) => { S.reqs = l; }, onChange: () => { if (!S.deck) return; renderReqs(); renderMarks(); renderTabs(); aiWatch(); },
-      target: SHEET_TARGET, att: { boxes: { tab: "#reqAtt", fu: "#fuAtt" } } });
+      target: SHEET_TARGET, att: { boxes: { tab: "#reqAtt", fu: "#fuAtt" } }, onDeckChanged: () => { pollAt = 0; poll(); } });
     { const [q, ss] = await Promise.all([api("GET", `/api/requests/${encodeURIComponent(S.id)}`), api("GET", "/api/session")]);
       if (q.ok && Array.isArray(q.data)) S.reqs = q.data; if (ss.ok && ss.data) renderSession(ss.data); }
     if (!(await loadDeck(false))) return;

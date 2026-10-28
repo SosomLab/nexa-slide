@@ -168,7 +168,7 @@ def import_xlsx(src, title=None):
         if not part or part not in names:
             continue
         x = ET.fromstring(z.read(part))
-        cells, shared, arrays = {}, {}, 0
+        cells, shared, arrays, spills = {}, {}, 0, []
         maxr = maxc = 0
         cut = False
         for c in x.iter(N + "c"):
@@ -210,12 +210,24 @@ def import_xlsx(src, title=None):
                 if o.get("f"):
                     o["f"] = re.sub(r"_xl(?:fn|ws|pm)\.", "", o["f"])  # 새 함수 접두사(_xlfn.TEXTJOIN) - 화면·계산기는 맨 이름을 쓴다(내보낼 때 XlsxWriter 가 다시 붙인다)
                 if f.get("t") == "array":
-                    arrays += 1
+                    if c.get("cm") or ":" in str(f.get("ref") or ""):  # 동적 배열(넘침) · 여러 칸 배열 수식 - 넘친 칸은 아래에서 sp 로
+                        o["da"] = True
+                        spills.append((str(f.get("ref") or c.get("r")), c.get("r")))
+                    else:
+                        arrays += 1
             o = {kk: vv for kk, vv in o.items() if vv not in (None, "")}
             if not o:
                 continue
             cells[c.get("r")] = o["v"] if list(o) == ["v"] else o
             maxr, maxc = max(maxr, r0 + 1), max(maxc, c0 + 1)
+        for ref, anchor in spills:  # 넘친 칸 = 엑셀이 저장한 값 + 기준 칸(sp) - 계산기가 다시 채운다
+            a, _, b = ref.partition(":")
+            (r1, c1), (r2, c2) = split_ref(a), split_ref(b or a)
+            for rr in range(r1, min(r2, MAX_ROWS - 1) + 1):
+                for cc in range(c1, min(c2, MAX_COLS - 1) + 1):
+                    key = f"{col_name(cc)}{rr + 1}"
+                    if key != anchor and key in cells:
+                        cells[key] = {**(cells[key] if isinstance(cells[key], dict) else {"v": cells[key]}), "sp": anchor}
         tab = {"id": f"t{len(tabs) + 1:02d}", "name": sh.get("name") or f"Sheet{k + 1}", "cells": cells}
         sp = x.find(N + "sheetPr")
         if sp is not None and sp.get("codeName"):  # 매크로(VBA)가 시트를 부르는 이름

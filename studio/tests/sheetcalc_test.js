@@ -12,9 +12,17 @@ for (const [f, want] of spec.cases) {
   const got = doc.sheets[0].cells[spec.at].v;
   if (same(got, want)) ok++; else { fails.push(f); console.log(`FAIL ${f} → ${JSON.stringify(got)} (기대 ${JSON.stringify(want)})`); }
 }
+for (const sp of spec.spills || []) {  // 동적 배열 - 넘친 칸
+  const doc = { sheets: JSON.parse(JSON.stringify(spec.sheets)) };
+  Object.assign(doc.sheets[0].cells, JSON.parse(JSON.stringify(sp.cells)));
+  C.recalc(doc);
+  const cells = doc.sheets[0].cells, got = {};
+  for (const k of Object.keys(sp.expect)) { const x = cells[k]; got[k] = x && typeof x === "object" ? (x.v === undefined ? null : x.v) : x === undefined ? null : x; }
+  if (Object.entries(sp.expect).every(([k, w]) => same(got[k], w))) ok++; else { fails.push(sp.name); console.log(`FAIL ${sp.name} → ${JSON.stringify(got)} (기대 ${JSON.stringify(sp.expect)})`); }
+}
 const cyc = { sheets: [{ id: "t01", name: "S", cells: { A1: { f: "=B1+1" }, B1: { f: "=A1+1" } } }] };
 C.recalc(cyc);
 if (cyc.sheets[0].cells.A1.v !== "#REF!") { fails.push("순환 참조"); console.log("FAIL 순환 참조 →", cyc.sheets[0].cells.A1.v); }
-console.log(`사례 ${spec.cases.length}개 중 ${ok}개 같음`);
+console.log(`사례 ${spec.cases.length + (spec.spills || []).length}개 중 ${ok}개 같음`);
 console.log("\n실패:", fails.length ? fails.join(", ") : "없음");
 process.exit(fails.length ? 1 : 0);

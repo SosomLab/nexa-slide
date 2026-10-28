@@ -468,6 +468,8 @@
     EOMONTH: ["날짜, 개월", "그 달 마지막 날"], ROW: ["[참조]", "행 번호"], COLUMN: ["[참조]", "열 번호"], ROWS: ["범위", "행 수"], COLUMNS: ["범위", "열 수"],
     INDIRECT: ["주소 글", "글로 적은 참조"], OFFSET: ["기준, 행, 열, [높이], [너비]", "옮긴 범위"], SUBTOTAL: ["함수 번호, 범위", "부분합(9=합계)"],
     HYPERLINK: ["주소, [보일 글]", "링크(보이는 글)"], ISBLANK: ["값", "빈 칸?"], ISNUMBER: ["값", "숫자?"], ISTEXT: ["값", "글?"], ISERROR: ["값", "오류?"], ISNA: ["값", "#N/A?"],
+    FILTER: ["범위, 조건 배열, [없을 때]", "조건에 맞는 행만(넘침)"], SORT: ["범위, [기준 열], [1·-1], [열 방향]", "정렬(넘침)"], SORTBY: ["범위, 기준 범위1, [1·-1], …", "다른 범위로 정렬(넘침)"],
+    UNIQUE: ["범위, [열 방향], [한 번만]", "중복 빼기(넘침)"], SEQUENCE: ["행 수, [열 수], [시작], [간격]", "일련번호(넘침)"], TRANSPOSE: ["범위", "행·열 바꾸기(넘침)"],
   };
   const AC = { list: [], i: 0, from: 0 };
   function fnNames() { return (window.NexaCalc && NexaCalc.FUNCS) || Object.keys(FN_HELP); }

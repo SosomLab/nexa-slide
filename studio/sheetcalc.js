@@ -5,7 +5,8 @@
    node 에서도 쓴다(module.exports) - tests/sheetcalc_test.js. */
 (function (root) {
   "use strict";
-  const ERRS = ["#DIV/0!", "#VALUE!", "#REF!", "#NAME?", "#NUM!", "#N/A", "#NULL!"];
+  const ERRS = ["#DIV/0!", "#VALUE!", "#REF!", "#NAME?", "#NUM!", "#N/A", "#NULL!", "#SPILL!", "#CALC!"];
+  const DYN = new Set(["FILTER", "SORT", "SORTBY", "UNIQUE", "SEQUENCE", "TRANSPOSE"]);  // 동적 배열 함수 - 이 함수를 쓴(또는 가져온 동적 배열 da) 수식만 옆 칸으로 넘친다
   const DAY0 = Date.UTC(1899, 11, 30);
   class FErr { constructor(code) { this.code = code; } }
   class Rng { constructor(rows) { this.rows = rows; } get vals() { return [].concat(...this.rows); } }
@@ -37,7 +38,7 @@
       if (m[1]) continue;
       if (m[2]) out.push(["str", m[2].slice(1, -1).replace(/""/g, '"')]);
       else if (m[4]) out.push(["ref", m[4], m[3] ? m[3].slice(0, -1).replace(/^'|'$/g, "").replace(/''/g, "'") : null]);
-      else if (m[5]) out.push(["fn", m[5].toUpperCase().replace(/^_XL(?:FN|WS)\./, "")]);  // 파일에 저장된 새 함수 접두사(_xlfn.TEXTJOIN)
+      else if (m[5]) out.push(["fn", m[5].toUpperCase().replace(/^(?:_XL(?:FN|WS)\.)+/, "")]);  // 파일에 저장된 새 함수 접두사(_xlfn.TEXTJOIN)
       else if (m[6]) out.push(["bool", m[6].toUpperCase() === "TRUE"]);
       else if (m[7]) out.push(["num", parseFloat(m[7])]);
       else if (m[8]) out.push(["op", m[8]]);
@@ -154,12 +155,38 @@
 
   // ---------------------------------------------------------------- 계산기
   class Calc {
-    constructor(doc) { this.doc = doc; this.sheets = doc.sheets || []; this.memo = new Map(); this.busy = new Set(); this.ast = new Map(); this.at = []; this.dims = new Map(); }
+    constructor(doc) { this.doc = doc; this.sheets = doc.sheets || []; this.memo = new Map(); this.busy = new Set(); this.ast = new Map(); this.at = []; this.dims = new Map(); this.spill = new Map(); this.anchors = new Map(); this.dyn = new Map(); }
+    isDyn(raw) {
+      if (raw.da) return true;
+      if (!this.dyn.has(raw.f)) { let d = false; try { d = tokenize(raw.f.replace(/^=/, "")).some((t) => t[0] === "fn" && DYN.has(t[1])); } catch (e) { /* 문법 오류 */ } this.dyn.set(raw.f, d); }
+      return this.dyn.get(raw.f);
+    }
+    /** 빈 칸(또는 넘친 칸)의 값 - 왼쪽 위의 동적 배열 수식을 먼저 계산해 넘친 값이 있으면 그것 */
+    spilled(sh, r, c) {
+      if (!this.anchors.has(sh.id)) this.anchors.set(sh.id, Object.entries(sh.cells || {}).filter(([k, raw]) => raw && typeof raw === "object" && raw.f && parseRef(k) && this.isDyn(raw)).map(([k]) => [parseRef(k), k]));
+      for (const [[ar, ac], k] of this.anchors.get(sh.id)) { const id = sh.id + "!" + k; if (ar <= r && ac <= c && !this.memo.has(id) && !this.busy.has(id)) this.cell(sh, k); }
+      const hit = this.spill.get(sh.id + "!" + r + "," + c);
+      return hit ? hit[0] : null;
+    }
+    /** 배열 결과를 기준 칸 k 에서 오른쪽·아래로 넘긴다 - 자리에 값이 있으면 #SPILL! */
+    spillOut(sh, k, v) {
+      const [ar, ac] = parseRef(k), h = v.rows.length, w = v.rows[0].length, cells = sh.cells || {};
+      if (h * w > 100000) return new FErr("#SPILL!");
+      for (let i = 0; i < h; i++) for (let j = 0; j < w; j++) {
+        if (!i && !j) continue;
+        const raw = cells[colName(ac + j) + (ar + i + 1)];
+        const busy = raw && typeof raw === "object" ? !!raw.f || (raw.v != null && raw.v !== "" && !raw.sp) : raw != null && raw !== "";
+        if (busy || this.spill.has(sh.id + "!" + (ar + i) + "," + (ac + j))) return new FErr("#SPILL!");
+      }
+      for (let i = 0; i < h; i++) for (let j = 0; j < w; j++) if (i || j) { const x = v.rows[i][j]; this.spill.set(sh.id + "!" + (ar + i) + "," + (ac + j), [x == null ? 0 : x, k, sh.id, colName(ac + j) + (ar + i + 1)]); }
+      return v.rows[0][0];
+    }
     sheet(name, cur) { if (name == null) return cur; return this.sheets.find((s) => String(s.name || "").toLowerCase() === name.toLowerCase()) || null; }
     value(sh, r, c) {
       const k = colName(c) + (r + 1), raw = (sh.cells || {})[k];
       if (raw && typeof raw === "object" && raw.f) return this.cell(sh, k);
-      const v = raw && typeof raw === "object" ? (raw.v === undefined ? null : raw.v) : raw === undefined ? null : raw;
+      let v = raw && typeof raw === "object" ? (raw.v === undefined || raw.sp ? null : raw.v) : raw === undefined ? null : raw;
+      if (v == null) v = this.spilled(sh, r, c);
       return typeof v === "string" && ERRS.includes(v) ? new FErr(v) : v;
     }
     cell(sh, k) {
@@ -171,6 +198,7 @@
       try {
         let a = this.ast.get(f); if (!a) { try { a = parse(f.replace(/^=/, "")); } catch (e) { a = ["err", e instanceof FErr ? e.code : "#NAME?"]; } this.ast.set(f, a); }
         v = this.ev(a, sh);
+        if (isMulti(v) && this.isDyn(sh.cells[k])) v = this.spillOut(sh, k, v);
         if (v instanceof Rng) v = v.vals.length === 1 ? v.vals[0] : new FErr("#VALUE!");
         if (v == null) v = 0;
         if (!(v instanceof FErr)) v = fix(v);
@@ -428,6 +456,69 @@
     HYPERLINK: (c, A, sh) => (A.length > 1 ? c.one(A, 1, sh) : c.one(A, 0, sh)),  // 링크는 화면에서 열지 않는다 - 보이는 글만
     ISBLANK: isF((v) => v == null || v === ""), ISNUMBER: isF((v) => isNum(v)), ISTEXT: isF((v) => typeof v === "string"), ISERROR: isF((v) => v instanceof FErr), ISNA: isF((v) => v instanceof FErr && v.code === "#N/A"),
   };
+  // ---- 동적 배열 함수
+  const opt = (c, A, i, sh, d) => (i >= A.length || (A[i][0] === "lit" && A[i][1] == null) ? d : c.one(A, i, sh));
+  const truthy = (x) => { if (x instanceof FErr) throw x; if (x == null || x === "") return false; if (typeof x === "string") throw new FErr("#VALUE!"); return !!toNum(x); };
+  const tr = (rows) => rows[0].map((_, j) => rows.map((r) => r[j]));
+  /** 정렬 순서 - 숫자 < 글(대소문자 무시) < 논리 < 오류. 빈 칸은 따로 맨 뒤 */
+  const skey = (v) => (v instanceof FErr ? [3, v.code] : typeof v === "boolean" ? [2, v ? 1 : 0] : isNum(v) ? [0, v] : [1, String(v).toLowerCase()]);
+  function sortRows(rows, keys) {
+    return rows.slice().sort((a, b) => {
+      for (const [get, desc] of keys) {
+        const x = get(a), y = get(b);
+        if (x == null || y == null) { if ((x == null) !== (y == null)) return x == null ? 1 : -1; continue; }
+        const kx = skey(x), ky = skey(y);
+        if (kx[0] !== ky[0] || kx[1] !== ky[1]) return (kx[0] !== ky[0] ? kx[0] - ky[0] : kx[1] < ky[1] ? -1 : 1) * (desc ? -1 : 1);
+      }
+      return 0;
+    });
+  }
+  const ukey = (v) => JSON.stringify(v instanceof FErr ? ["e", v.code] : typeof v === "boolean" ? ["b", v] : isNum(v) ? ["n", v] : v == null ? ["z"] : ["s", String(v).toLowerCase()]);
+  Object.assign(FUNCS, {
+    FILTER: (c, A, sh) => {
+      const rows = c.area(A[0], sh).rows, inc = c.area(A[1], sh), h = rows.length, w = rows[0].length; let out;
+      if (inc.rows.length === h && inc.rows[0].length === 1) out = rows.filter((_, i) => truthy(inc.rows[i][0]));
+      else if (inc.rows.length === 1 && inc.rows[0].length === w) { const keep = inc.rows[0].map((x, j) => (truthy(x) ? j : -1)).filter((j) => j >= 0); out = keep.length ? rows.map((r) => keep.map((j) => r[j])) : []; }
+      else throw new FErr("#VALUE!");
+      if (!out.length) { if (A.length > 2 && !(A[2][0] === "lit" && A[2][1] == null)) return c.ev(A[2], sh); throw new FErr("#CALC!"); }
+      return new Rng(out);
+    },
+    SORT: (c, A, sh) => {
+      let rows = c.area(A[0], sh).rows; const idx = Math.trunc(toNum(opt(c, A, 1, sh, 1))), order = toNum(opt(c, A, 2, sh, 1)), byCol = toBool(opt(c, A, 3, sh, false));
+      if (byCol) rows = tr(rows);
+      if (idx < 1 || idx > rows[0].length || (order !== 1 && order !== -1)) throw new FErr("#VALUE!");
+      const out = sortRows(rows, [[(r) => r[idx - 1], order === -1]]);
+      return new Rng(byCol ? tr(out) : out);
+    },
+    SORTBY: (c, A, sh) => {
+      const rows = c.area(A[0], sh).rows, h = rows.length, w = rows[0].length, keys = []; let byCol = null;
+      for (let i = 1; i < A.length; i += 2) {
+        const b = c.area(A[i], sh), order = toNum(opt(c, A, i + 1, sh, 1));
+        if (order !== 1 && order !== -1) throw new FErr("#VALUE!");
+        const col = (b.rows.length === h && b.rows[0].length === 1 && h > 1) || (h === 1 && w === 1), row = b.rows.length === 1 && b.rows[0].length === w;
+        if (!(col || row) || (byCol !== null && byCol !== !col)) throw new FErr("#VALUE!");
+        byCol = !col; const vals = byCol ? b.rows[0] : b.rows.map((r) => r[0]); keys.push([(k) => vals[k], order === -1]);
+      }
+      if (!keys.length) throw new FErr("#VALUE!");
+      const base = byCol ? tr(rows) : rows, out = sortRows(base.map((_, i) => i), keys).map((i) => base[i]);
+      return new Rng(byCol ? tr(out) : out);
+    },
+    UNIQUE: (c, A, sh) => {
+      const rows = c.area(A[0], sh).rows, byCol = toBool(opt(c, A, 1, sh, false)), once = toBool(opt(c, A, 2, sh, false));
+      const base = byCol ? tr(rows) : rows, seen = new Map();
+      for (const r of base) { const k = r.map(ukey).join("|"); if (!seen.has(k)) seen.set(k, [r, 0]); seen.get(k)[1]++; }
+      const out = [...seen.values()].filter(([, n]) => !once || n === 1).map(([r]) => r);
+      if (!out.length) throw new FErr("#CALC!");
+      return new Rng(byCol ? tr(out) : out);
+    },
+    SEQUENCE: (c, A, sh) => {
+      const h = Math.trunc(toNum(c.one(A, 0, sh))), w = Math.trunc(toNum(opt(c, A, 1, sh, 1))), st = toNum(opt(c, A, 2, sh, 1)), step = toNum(opt(c, A, 3, sh, 1));
+      if (h < 1 || w < 1) throw new FErr("#CALC!");
+      if (h * w > 100000) throw new FErr("#NUM!");
+      return new Rng(Array.from({ length: h }, (_, i) => Array.from({ length: w }, (_, j) => st + step * (i * w + j))));
+    },
+    TRANSPOSE: (c, A, sh) => new Rng(tr(c.area(A[0], sh).rows)),
+  });
   const SCALAR = new Set(["ISNUMBER", "ISTEXT", "ISBLANK", "ISERROR", "ISNA", "SEARCH", "FIND", "LEFT", "RIGHT", "MID", "LEN", "TRIM", "UPPER", "LOWER", "SUBSTITUTE",
     "VALUE", "TEXT", "ABS", "INT", "ROUND", "ROUNDUP", "ROUNDDOWN", "MOD", "YEAR", "MONTH", "DAY", "NOT"]);
 
@@ -440,6 +531,28 @@
       let v = c.cell(sh, k); v = v instanceof FErr ? v.code : v;
       if (v === "#NAME?" && raw.v != null && raw.v !== "#NAME?" && unknownFn(raw.f)) continue;  // 매크로(VBA) 사용자 함수 - 엑셀이 마지막에 계산한 값을 그대로
       if (raw.v !== v) { raw.v = v; changed++; }
+    }
+    return changed + syncSpill(doc, c);
+  }
+  /** 계산기의 넘친 값 → 칸 {v, sp: 기준 칸}. 더는 넘치지 않는 칸은 비운다(기준 칸 오른쪽·아래이거나 기준이 없어졌으면) - 다른 곳에 복사돼 온 sp 칸은 값만 남긴다 */
+  function syncSpill(doc, c) {
+    let changed = 0;
+    for (const sh of doc.sheets || []) {
+      const cells = sh.cells || {}, nw = new Map();
+      for (const [v, a, sid, k] of c.spill.values()) if (sid === sh.id) nw.set(k, [v, a]);
+      for (const [k, raw] of Object.entries(cells)) {
+        if (!raw || typeof raw !== "object" || !raw.sp || nw.has(k)) continue;
+        const a = cells[raw.sp], p = parseRef(k), ap = parseRef(raw.sp);
+        const gone = !(a && typeof a === "object" && a.f) || (p && ap && p[0] >= ap[0] && p[1] >= ap[1]);
+        delete raw.sp;
+        if (gone) { delete raw.v; if (!Object.keys(raw).length) delete cells[k]; }
+        changed++;
+      }
+      for (const [k, [v0, a]] of nw) {
+        let raw = cells[k]; if (!raw || typeof raw !== "object") raw = cells[k] = {};
+        const v = v0 instanceof FErr ? v0.code : fix(v0);
+        if (raw.v !== v || raw.sp !== a) { raw.v = v; raw.sp = a; changed++; }
+      }
     }
     return changed;
   }
