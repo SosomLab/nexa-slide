@@ -140,5 +140,34 @@
     if (conflicts.length > limit) out.push(`… 외 ${conflicts.length - limit}건`);
     return out;
   }
-  root.NexaMerge = { merge3, describe, eq };
+  // ---------------------------------------------------------------- 화면 도우미 - 편집기(studio.js)와 시트(sheet.js)가 같은 방식으로 쓴다
+  // 실행 취소 기록은 "편집 앞" 문서 JSON 문자열의 쌓기다. 남의 변경이 들어오면 seal() 로 각 항목에 "편집 뒤"(a)를 붙여 {b, a} 로 바꾸고,
+  // 되돌릴 때 undoTarget() 이 (편집 뒤 → 편집 앞) 차이만 지금 문서 위에 병합한다 - 그래서 Ctrl+Z 가 남의 변경을 되돌리지 않는다.
+  /** 남의 변경을 받기 직전 - undo 기록의 항목마다 편집 뒤 상태를 붙인다(now = 받기 직전의 내 문서 JSON). redo 는 비운다 */
+  function seal(undo, redo, now) {
+    for (let k = 0; k < undo.length; k++) {
+      if (typeof undo[k] !== "string") continue;
+      const next = undo[k + 1];
+      undo[k] = { b: undo[k], a: k + 1 < undo.length ? (typeof next === "string" ? next : next.b) : now };
+    }
+    if (redo) redo.length = 0;
+  }
+  /** 되돌린 뒤 문서 - 봉인 안 된 항목이면 그 문서 그대로, 봉인된 항목이면 지금 문서 위에 내 편집만 거꾸로 */
+  function undoTarget(entry, nowJson) {
+    if (typeof entry === "string") return JSON.parse(entry);
+    return merge3(JSON.parse(entry.a), JSON.parse(entry.b), JSON.parse(nowJson), "ours").merged;
+  }
+  /** 병합 저장 응답을 받아 화면에 둘 문서 - 저장하는 사이 더 고친 것(now ≠ sent)이 있으면 병합 결과 위에 그것도 얹는다 */
+  function afterSave(sentJson, nowJson, merged) {
+    if (nowJson === sentJson) return merged;
+    return merge3(JSON.parse(sentJson), JSON.parse(nowJson), merged, "ours").merged;
+  }
+  /** 병합 저장 알림 문구 - 충돌이 없으면 짧게, 있으면 몇 건·어느 쪽이 남았는지 */
+  function notice(conflicts) {
+    const n = (conflicts || []).length;
+    if (!n) return { text: "그 사이 다른 곳(다른 창·AI)에서 바뀐 내용과 합쳐 저장했습니다", detail: "" };
+    const mine = conflicts.filter((c) => c.kept === "ours").length;
+    return { text: `그 사이 바뀐 내용과 합쳐 저장했습니다 · 같은 곳을 함께 고친 ${n}건은 ${mine === n ? "내 값" : mine ? `내 값 ${mine}건·상대 값 ${n - mine}건` : "상대 값"}으로 정했습니다`, detail: describe(conflicts, 12).join("\n") };
+  }
+  root.NexaMerge = { merge3, describe, eq, seal, undoTarget, afterSave, notice };
 })(typeof window !== "undefined" ? window : globalThis);
