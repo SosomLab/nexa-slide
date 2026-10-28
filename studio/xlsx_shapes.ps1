@@ -1,7 +1,7 @@
 ﻿# 엑셀 파일의 도형(그림·도형 묶음)을 PNG 로 떠낸다 - sheet_theme.py import 가 부른다(Windows + Excel 이 있을 때만).
 # 원본은 읽기 전용으로 열고 저장하지 않는다. 결과: OutDir\shape-<시트번호>-<순번>.png 와 OutDir\shapes.json(UTF-8, 도형마다 시트·이름·종류·셀·위치·크기 pt·글).
 # 한글 경로·글이 콘솔 코드 페이지에 깨지지 않게 결과는 파일로 쓴다. 이 파일은 BOM 이 있어야 pwsh 가 한글 주석을 바르게 읽는다.
-param([Parameter(Mandatory = $true)][string]$Xlsx, [Parameter(Mandatory = $true)][string]$OutDir, [double]$Zoom = 4)
+param([Parameter(Mandatory = $true)][string]$Xlsx, [Parameter(Mandatory = $true)][string]$OutDir, [double]$Zoom = 4, [switch]$WithText)  # -WithText: 글 상자도(PowerShell 변수는 대소문자를 가리지 않아 $text 와 다른 이름) 그림으로(엑셀 가져오기 - 표지 제목 등)
 $ErrorActionPreference = "Stop"
 New-Item -ItemType Directory -Force $OutDir | Out-Null
 $xl = New-Object -ComObject Excel.Application
@@ -25,7 +25,7 @@ try {
       $size = 0; $bold = $false
       try { if ($text) { $size = $sh.TextFrame2.TextRange.Font.Size; $bold = [bool]$sh.TextFrame2.TextRange.Font.Bold } } catch { }
       $png = ""
-      if (-not $text -and $sh.Type -ne 9 -and $sh.Width -gt 4 -and $sh.Height -gt 4) {  # 9 = 선 - 그림·도형 묶음만 떠낸다
+      if ((-not $text -or $WithText) -and $sh.Type -ne 9 -and $sh.Width -gt 4 -and $sh.Height -gt 4) {  # 9 = 선 - 그림·도형 묶음(-WithText 면 글 상자도)만 떠낸다
         try {
           # 벡터(xlPicture)로 복사해 4배 크기 차트에 붙여 PNG 로 - 비트맵 복사는 화면 해상도라 작고, 활성화하지 않은 차트는 빈 그림이 된다
           $sh.CopyPicture(1, -4147)
@@ -41,7 +41,8 @@ try {
           $co.Delete()
         } catch { $png = "" }
       }
-      $out += [ordered]@{ sheet = $si; sheetName = $ws.Name; name = $sh.Name; type = $sh.Type; cell = $sh.TopLeftCell.Address($false, $false);
+      $tl = $sh.TopLeftCell  # 칸 자체의 위치(pt) - 가져오기가 칸 안 오프셋을 엑셀 기준으로 계산
+      $out += [ordered]@{ sheet = $si; sheetName = $ws.Name; name = $sh.Name; type = $sh.Type; cell = $tl.Address($false, $false); cellLeft = [math]::Round($tl.Left, 1); cellTop = [math]::Round($tl.Top, 1);
         left = [math]::Round($sh.Left, 1); top = [math]::Round($sh.Top, 1); width = [math]::Round($sh.Width, 1); height = [math]::Round($sh.Height, 1);
         text = $text; size = $size; bold = $bold; png = $png }
     }

@@ -352,16 +352,16 @@ def _reddish(h):
     return r > 150 and g < 90 and b < 90
 
 
-def export_shapes(src, out):
+def export_shapes(src, out, text=False):
     """Excel(Windows)로 도형을 PNG 로 떠낸다 - [{sheet, type, cell, left, top, width, height, text, size, bold, png}]. Excel 이 없으면 []."""
     pwsh = shutil.which("pwsh") or shutil.which("powershell")
     if os.name != "nt" or not pwsh:
         return []
     out.mkdir(parents=True, exist_ok=True)
-    tmp = out / "source.xlsx"  # 원본 경로(OneDrive·& ·괄호)를 Excel 이 못 열 때가 있어 단순한 이름의 사본을 연다
+    tmp = out / ("source" + (Path(src).suffix.lower() or ".xlsx"))  # 원본 경로(OneDrive·& ·괄호)를 Excel 이 못 열 때가 있어 단순한 이름의 사본을 연다(확장자는 그대로 - .xlsm 을 .xlsx 로 두면 열지 못한다)
     try:
         shutil.copy2(src, tmp)
-        subprocess.run([pwsh, "-NoProfile", "-File", str(STUDIO / "xlsx_shapes.ps1"), "-Xlsx", str(tmp.resolve()), "-OutDir", str(out.resolve())],
+        subprocess.run([pwsh, "-NoProfile", "-File", str(STUDIO / "xlsx_shapes.ps1"), "-Xlsx", str(tmp.resolve()), "-OutDir", str(out.resolve())] + (["-WithText"] if text else []),
                        capture_output=True, timeout=300)
         return json.loads((out / "shapes.json").read_text(encoding="utf-8"))
     except (OSError, ValueError, subprocess.TimeoutExpired):

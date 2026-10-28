@@ -4,7 +4,8 @@
     python3 nexa.py sheet_import <파일.xlsx> [--id <id>] [--title "…"]     # → decks/<id>.json (id 를 비우면 짧은 해시)
 
 표준 라이브러리(zipfile·ElementTree)만 쓴다. 공유 수식(shared formula)은 셀마다 상대 참조를 옮겨 풀고, 계산값은 v 에 캐시로 둔다.
-그림·차트·피벗·조건부 서식은 아직 옮기지 않는다(결과의 warnings 에 적는다).
+그림·도형은 작업 공간 assets/sheets/<id>/ 에 PNG 로 두고 탭 drawings 로 같은 자리에 놓는다 - Excel 이 있으면(Windows) 도형 묶음·글 상자까지
+떠내고(xlsx_shapes.ps1), 없으면 파일 안의 그림(png·jpg·gif)만. 선·차트·피벗은 아직 옮기지 않는다(결과의 warnings 에 적는다).
 매크로 통합 문서(.xlsm)면 VBA 프로젝트(xl/vbaProject.bin)를 작업 공간 assets/sheets/<id>/ 에 두고 문서 macros 에 적는다 -
 내보내면 .xlsm 으로 매크로가 그대로 들어간다(통합 문서·시트 codeName 도 옮겨 매크로가 시트를 찾게). 매크로 단추·양식 컨트롤은 아직 옮기지 않는다.
 """
@@ -26,6 +27,11 @@ BUILTIN_FMT = {1: "0", 2: "0.00", 3: "#,##0", 4: "#,##0.00", 9: "0%", 10: "0.00%
                38: "#,##0 ;[Red](#,##0)", 39: "#,##0.00;(#,##0.00)", 40: "#,##0.00;[Red](#,##0.00)", 45: "mm:ss", 46: "[h]:mm:ss", 47: "mmss.0", 48: "##0.0E+0", 49: "@"}
 MAX_ROWS, MAX_COLS = 5000, 200
 REF = re.compile(r"(?<![A-Za-z0-9_.$!])(\$?)([A-Z]{1,3})(\$?)(\d{1,7})(?![A-Za-z0-9_(])")
+
+
+def col_px(width):
+    """엑셀 열 너비(파일 값 - 글자 폭 단위, 여백 포함) → px. ECMA-376: trunc((256·w + trunc(128/7)) / 256 · 7)."""
+    return int((256 * float(width) + 18) / 256 * 7)
 
 
 def col_index(letters):
@@ -219,7 +225,7 @@ def import_xlsx(src, title=None):
         cols = {}
         for cc in x.iter(N + "col"):
             if cc.get("width"):
-                w = round(float(cc.get("width")) * 7 + 5)
+                w = col_px(cc.get("width"))
                 for ci in range(int(cc.get("min")) - 1, min(int(cc.get("max")), MAX_COLS)):
                     cols[col_name(ci)] = w
         if cols:
@@ -253,6 +259,11 @@ def import_xlsx(src, title=None):
         if dvs:
             tab["validations"] = dvs
         tab["size"] = {"rows": max(maxr + 20, 50), "cols": max(maxc + 2, 12)}
+        fp = x.find(N + "sheetFormatPr")  # 그림 자리 계산용 기본 열 너비·행 높이(px) - to_doc 이 쓰고 지운다
+        tab["_defW"] = col_px(fp.get("defaultColWidth")) if fp is not None and fp.get("defaultColWidth") else 64
+        tab["_rowsAll"] = {r.get("r"): round(float(r.get("ht")) / 0.75) for r in x.iter(N + "row") if r.get("ht")}  # 사용자 지정이 아닌 행 높이도(그림 자리)
+        tab["_defH"] = round(float(fp.get("defaultRowHeight")) / 0.75) if fp is not None and fp.get("defaultRowHeight") else 20
+        tab["_part"] = part
         if arrays:
             warnings.append(f"{tab['name']}: 배열 수식 {arrays}개는 일반 수식으로 옮겼다")
         if cut:
@@ -269,10 +280,103 @@ def import_xlsx(src, title=None):
             tab["conds"] = conds
         if skipped:
             warnings.append(f"{tab['name']}: 조건부 서식 {skipped}개(수식·아이콘·데이터 막대 등)는 옮기지 않았다")
-        if any(r.get("Type", "").endswith("/drawing") for r in _rels_of(z, part)):
-            warnings.append(f"{tab['name']}: 그림·도형·차트는 아직 옮기지 않는다")
+
         tabs.append(tab)
     return tabs, warnings, base_font
+
+
+def _offset_px(tab, r, c):
+    """탭 칸 (r, c) 의 왼쪽 위 px - 열 너비·행 높이(숨김은 0)."""
+    from sheet_calc import col_name as cn
+    cols, rows = tab.get("cols") or {}, {**(tab.get("_rowsAll") or {}), **(tab.get("rows") or {})}
+    hc, hr = set(tab.get("hiddenCols") or []), set(tab.get("hiddenRows") or [])
+    x = sum(0 if cn(k) in hc else cols.get(cn(k), tab["_defW"]) for k in range(c))
+    y = sum(0 if str(k + 1) in hr else rows.get(str(k + 1), tab["_defH"]) for k in range(r))
+    return x, y
+
+
+def import_drawings(src, z, tabs, asset_root, i, warnings):
+    """그림·도형 → assets/sheets/<id>/d<탭>-<n>.png + 탭 drawings[{type:image, src, at, dx, dy, w, h}]."""
+    import shutil
+    import tempfile
+    dest_rel = f"assets/sheets/{i}"
+    dest = asset_root / dest_rel
+    shapes = []
+    try:
+        import sheet_theme
+        tmp = Path(tempfile.mkdtemp(prefix="nexa-shapes-"))
+        shapes = sheet_theme.export_shapes(Path(src), tmp, text=True)
+    except Exception:  # noqa: BLE001 - Excel 없음·실패면 파일 안 그림으로
+        shapes = []
+    lines = 0
+    if shapes:
+        for s in shapes:
+            ti = int(s.get("sheet") or 0) - 1
+            if not (0 <= ti < len(tabs)):
+                continue
+            if not s.get("png"):
+                lines += int(s.get("type") == 9)
+                continue
+            tab = tabs[ti]
+            m = re.fullmatch(r"\$?([A-Z]{1,3})\$?(\d+)", str(s.get("cell") or "A1"))
+            r0, c0 = (int(m.group(2)) - 1, col_index(m.group(1))) if m else (0, 0)
+            x0, y0 = _offset_px(tab, r0, c0)
+            n = len(tab.get("drawings") or []) + 1
+            dest.mkdir(parents=True, exist_ok=True)
+            name = f"d{ti + 1:02d}-{n:02d}.png"
+            shutil.copy2(s["png"], dest / name)
+            tab.setdefault("drawings", []).append({"type": "image", "src": f"{dest_rel}/{name}", "at": f"{col_name(c0)}{r0 + 1}",
+                                                   "dx": max(0, round((float(s["left"]) - float(s.get("cellLeft", x0 * 0.75))) / 0.75)),
+                                                   "dy": max(0, round((float(s["top"]) - float(s.get("cellTop", y0 * 0.75))) / 0.75)),
+                                                   "w": round(float(s["width"]) / 0.75), "h": round(float(s["height"]) / 0.75)})
+        if lines:
+            warnings.append(f"선 {lines}개는 옮기지 않았다(그림·글 상자·도형 묶음은 그림으로 옮김)")
+        return
+    # Excel 이 없을 때 - drawing XML 의 그림(pic)만, 앵커 칸 + 오프셋(EMU → px)
+    XD = "{http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing}"
+    A = "{http://schemas.openxmlformats.org/drawingml/2006/main}"
+    moved = skipped = 0
+    for ti, tab in enumerate(tabs):
+        part = tab.get("_part")
+        drw = next((("xl/" + r.get("Target").replace("../", "")) for r in _rels_of(z, part) if r.get("Type", "").endswith("/drawing")), None) if part else None
+        if not drw or drw not in z.namelist():
+            continue
+        rels = {r.get("Id"): "xl/" + r.get("Target").replace("../", "") for r in _rels_of(z, drw)}
+        for anc in ET.fromstring(z.read(drw)):
+            pic = anc.find(XD + "pic")
+            if pic is None:
+                skipped += 1
+                continue
+            blip = pic.find(f".//{A}blip")
+            media = rels.get(blip.get(R + "embed")) if blip is not None else None
+            if not media or not media.lower().endswith((".png", ".jpg", ".jpeg", ".gif")) or media not in z.namelist():
+                skipped += 1
+                continue
+            fr = anc.find(XD + "from")
+            if fr is None:
+                skipped += 1
+                continue
+            c0, r0 = int(fr.find(XD + "col").text), int(fr.find(XD + "row").text)
+            dx, dy = int(fr.find(XD + "colOff").text) // 9525, int(fr.find(XD + "rowOff").text) // 9525
+            ext = anc.find(XD + "ext") if anc.find(XD + "ext") is not None else pic.find(f"{XD}spPr/{A}xfrm/{A}ext")  # oneCellAnchor 의 ext · 그림 변형 크기
+            to = anc.find(XD + "to")
+            if to is None and ext is not None and ext.get("cx"):
+                w, h = int(ext.get("cx")) // 9525, int(ext.get("cy")) // 9525
+            elif to is not None:
+                x1, y1 = _offset_px(tab, int(to.find(XD + "row").text), int(to.find(XD + "col").text))
+                x0, y0 = _offset_px(tab, r0, c0)
+                w = x1 + int(to.find(XD + "colOff").text) // 9525 - x0 - dx
+                h = y1 + int(to.find(XD + "rowOff").text) // 9525 - y0 - dy
+            else:
+                skipped += 1
+                continue
+            dest.mkdir(parents=True, exist_ok=True)
+            name = f"d{ti + 1:02d}-{len(tab.get('drawings') or []) + 1:02d}{Path(media).suffix.lower()}"
+            (dest / name).write_bytes(z.read(media))
+            tab.setdefault("drawings", []).append({"type": "image", "src": f"{dest_rel}/{name}", "at": f"{col_name(c0)}{r0 + 1}", "dx": dx, "dy": dy, "w": max(w, 1), "h": max(h, 1)})
+            moved += 1
+    if skipped:
+        warnings.append(f"도형·글 상자·그 밖의 그림 {skipped}개는 옮기지 않았다(Excel 이 있는 PC 에서 가져오면 그림으로 옮긴다)")
 
 
 CF_OPS = {"greaterThan": "gt", "greaterThanOrEqual": "ge", "lessThan": "lt", "lessThanOrEqual": "le", "equal": "eq", "notEqual": "ne", "between": "between"}
@@ -348,6 +452,14 @@ def to_doc(i, title, src, asset_root=None):
     doc = {"id": i, "title": title, "kind": "sheet", "version": "0.1", "updated": dt.datetime.now().isoformat(timespec="seconds"), "slides": [], "sheets": tabs,
            "source": Path(src).name}
     z = zipfile.ZipFile(src)
+    if asset_root is not None:
+        try:
+            import_drawings(src, z, tabs, Path(asset_root), i, warnings)
+        except Exception as e:  # noqa: BLE001 - 그림은 덤 - 실패해도 값·수식은 가져온다
+            warnings.append(f"그림·도형을 옮기지 못했다: {e}")
+    for t in tabs:
+        for k in ("_defW", "_defH", "_part", "_rowsAll"):
+            t.pop(k, None)
     if "xl/vbaProject.bin" in z.namelist():
         if asset_root is None:
             warnings.append("매크로(VBA)가 있지만 둘 곳(작업 공간)이 없어 옮기지 않았다")
