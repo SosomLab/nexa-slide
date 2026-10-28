@@ -126,7 +126,46 @@
   #editor { position: absolute; z-index: 2; border: 2px solid var(--sel); background: #fff; padding: 1px 3px; resize: none; outline: none; overflow: hidden; font: 11pt var(--font); opacity: 0; pointer-events: none; white-space: pre; box-shadow: 0 2px 8px rgba(0,0,0,.18); }
   #editor.on { opacity: 1; pointer-events: auto; }
   /* 시트 탭(아래) */
-  #tabs { display: flex; align-items: center; gap: 2px; padding: 3px 8px; background: var(--card); border-top: 1px solid var(--line); min-height: 34px; overflow-x: auto; }
+  #tabsRow { display: flex; align-items: stretch; background: var(--card); border-top: 1px solid var(--line); }
+  #tabsRow #tabs { flex: 1; min-width: 0; border-top: 0; }
+  #sumBar { flex: none; align-self: center; padding: 0 12px; font-size: 12px; color: var(--ink2); white-space: nowrap; cursor: pointer; user-select: none; }
+  #sumBar:hover { color: var(--ink); }
+  #findBox { position: fixed; top: 96px; right: 380px; z-index: 60; background: var(--card); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 4px 16px rgba(0,0,0,.14); padding: 8px 10px; display: flex; flex-direction: column; gap: 6px; font-size: 12.5px; }
+  #findBox[hidden] { display: none; }
+  #findBox .row { display: flex; gap: 6px; align-items: center; }
+  #findBox input:not([type]) { width: 220px; font: inherit; padding: 4px 8px; border: 1px solid var(--line); border-radius: 8px; }
+  #findBox .rp { display: none; }
+  #findBox.rep .rp { display: flex; }
+  #findBox .opt { gap: 10px; color: var(--ink2); }
+  #findBox .opt label { display: inline-flex; gap: 3px; align-items: center; }
+  #fbMsg { margin-left: auto; color: var(--ink); }
+  #grid th.hidN { box-shadow: inset 0 0 0 1px var(--sel); }  /* 옆에 숨긴 행·열 */
+  #fltLay .flt { position: absolute; z-index: 3; width: 16px; height: 16px; padding: 0; border: 1px solid var(--line); border-radius: 3px; background: #fff; font-size: 9px; line-height: 14px; cursor: pointer; color: var(--ink2); }
+  #fltLay .flt.on { background: var(--sel); color: #fff; border-color: var(--sel); }
+  .fltPop { position: fixed; z-index: 80; width: 240px; background: var(--card); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 4px 16px rgba(0,0,0,.16); padding: 6px; font-size: 12.5px; display: flex; flex-direction: column; gap: 2px; }
+  .fltPop > button { text-align: left; border: 0; background: none; padding: 4px 6px; border-radius: 6px; cursor: pointer; font: inherit; }
+  .fltPop > button:hover { background: var(--tone, #F2EFEF); }
+  .fltPop hr { border: 0; border-top: 1px solid var(--line); margin: 4px 0; width: 100%; }
+  .fltPop .vals { max-height: 220px; overflow-y: auto; display: flex; flex-direction: column; }
+  .fltPop label { display: flex; gap: 6px; align-items: center; padding: 2px 4px; }
+  .fltPop label small { margin-left: auto; color: var(--ink2); }
+  .fltPop .acts { display: flex; gap: 6px; justify-content: flex-end; margin-top: 4px; }
+  .fltPop .acts button { border: 0; border-radius: 999px; padding: 4px 12px; cursor: pointer; font: inherit; background: var(--tone, #F2EFEF); }
+  .fltPop .acts button.primary { background: var(--p, #A91F24); color: #fff; }
+  #dvBtn { position: absolute; z-index: 4; width: 18px; height: 18px; padding: 0; border: 1px solid var(--line); border-radius: 3px; background: #fff; font-size: 9px; line-height: 16px; cursor: pointer; color: var(--ink2); }
+  #dvBtn[hidden] { display: none; }
+  #acBox { position: fixed; z-index: 90; min-width: 260px; max-width: 460px; background: var(--card); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 4px 14px rgba(0,0,0,.16); font-size: 12px; padding: 3px; }
+  #acBox[hidden] { display: none; }
+  #acBox .it { padding: 3px 8px; border-radius: 5px; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #acBox .it span, #acBox .hint { color: var(--ink2); }
+  #acBox .it.on { background: var(--selFill); }
+  #acBox .hint { font-size: 11px; padding: 2px 8px; border-top: 1px solid var(--line); margin-top: 2px; }
+  #acBox .sig { padding: 3px 8px; white-space: nowrap; }
+  .cfDlg label { display: flex; gap: 6px; align-items: center; justify-content: space-between; }
+  .cfDlg label[hidden] { display: none; }
+  .cfDlg select, .cfDlg input { font: inherit; padding: 3px 6px; border: 1px solid var(--line); border-radius: 6px; width: 170px; }
+  #dvLay i { position: absolute; z-index: 2; width: 0; height: 0; border-top: 6px solid #E5484D; border-left: 6px solid transparent; pointer-events: none; }
+  #tabs { align-items: center; gap: 2px; padding: 3px 8px; background: var(--card); border-top: 1px solid var(--line); min-height: 34px; overflow-x: auto; }
   #tabs button.t { border: 0; background: none; border-radius: 0 0 8px 8px; padding: 4px 14px; white-space: nowrap; color: var(--ink2); }
   #tabs button.t:hover { background: var(--tone); }
   #tabs button.t.on { background: var(--pc); color: var(--onpc); font-weight: 700; }
@@ -226,7 +265,7 @@
         <button class="chip sm" id="addRows" title="아래에 빈 행을 더 둡니다">＋ 행 20개 더</button>
       </div>
     </div>
-    <div id="tabs"></div>
+    <div id="tabsRow"><div id="tabs"></div><div id="sumBar" hidden title="누르면 숫자 개수·최소·최대도"></div></div>
   </div>
   <aside id="side">
     <div id="sideSplit" title="끌어서 폭 조절"></div>
@@ -249,5 +288,6 @@
 <script src="nexa-requests.js"></script>
 <script src="sheetcalc.js"></script><!-- 수식 계산(NexaCalc) - Python sheet_calc 와 같은 규칙 -->
 <script src="sheet.js"></script>
+<script src="sheetx.js"></script>
 </body>
 </html>

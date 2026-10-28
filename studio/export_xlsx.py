@@ -79,6 +79,31 @@ def cell_format(c):
     return f
 
 
+CF_CRIT = {"gt": ">", "ge": ">=", "lt": "<", "le": "<=", "eq": "==", "ne": "!="}
+
+
+def cond_option(wb, cd):
+    """조건부 서식 하나 → XlsxWriter conditional_format 옵션(모르는 종류면 None)."""
+    st = cd.get("style") or {}
+    fmt = wb.add_format({k: v for k, v in (("bg_color", st.get("fill")), ("font_color", st.get("color")), ("bold", bool(st.get("b")) or None)) if v}) if st else None
+    t, v = cd.get("type"), cd.get("value")
+    lit = v if isinstance(v, (int, float)) and not isinstance(v, bool) else f'"{v}"'
+    if t in CF_CRIT:
+        return {"type": "cell", "criteria": CF_CRIT[t], "value": lit, "format": fmt}
+    if t == "between":
+        return {"type": "cell", "criteria": "between", "minimum": v, "maximum": cd.get("value2"), "format": fmt}
+    if t == "text":
+        return {"type": "text", "criteria": "containing", "value": str(v or ""), "format": fmt}
+    if t == "dup":
+        return {"type": "duplicate", "format": fmt}
+    if t in ("top", "bottom"):
+        return {"type": t, "value": int(v or 10), "format": fmt}
+    if t == "scale":
+        c = cd.get("colors") or ["#FFFFFF", "#63BE7B"]
+        return {"type": "2_color_scale", "min_color": c[0], "max_color": c[-1]}
+    return None
+
+
 def export(deck, out):
     if deck.get("kind") != "sheet":
         raise ValueError("시트 문서가 아니다(kind sheet) - 슬라이드 덱은 export_pptx.py")
@@ -166,6 +191,20 @@ def export(deck, out):
                     ws.data_validation(r, opt)
                 except Exception:  # noqa: BLE001 - 잘못된 범위는 건너뛴다
                     pass
+        for cd in t.get("conds") or []:  # 조건부 서식(sheetx.js 와 같은 형식)
+            opt = cond_option(wb, cd)
+            for r in str(cd.get("range") or "").split() if opt else []:
+                try:
+                    ws.conditional_format(r, opt)
+                except Exception:  # noqa: BLE001 - 잘못된 범위는 건너뛴다
+                    pass
+        for c in t.get("hiddenCols") or []:  # 숨긴 열·행
+            if re.fullmatch(r"[A-Z]{1,3}", str(c)):
+                ci = col_index(c)
+                ws.set_column(ci, ci, None, None, {"hidden": True})
+        for r in t.get("hiddenRows") or []:
+            if str(r).isdigit():
+                ws.set_row(int(r) - 1, None, None, {"hidden": True})
         if t.get("grid") is False:
             ws.hide_gridlines(2)
         pr = t.get("print") or {}

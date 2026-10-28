@@ -14,6 +14,7 @@ API
   GET  /api/decks                    덱 목록
   GET  /api/deck/<id>                덱 JSON (헤더 X-Deck-Version = 파일 mtime_ns)
   PUT  /api/deck/<id>?base=<ver>     덱 저장(원자적 쓰기, .history 백업 50개). base 가 현재와 다르면 409 (force=1 이면 무시)
+                     &merge=1           base 가 다르면 409 대신 3-way 병합(deckmerge.py, docs/collab.md 1단계) → {merged, conflicts, deck}. 기준본이 없으면 409 reason=no-base
   GET  /api/version/<id>             {"deck": ver, "requests": ver}
   GET  /api/requests/<id>            요청 메모 목록
   POST /api/requests/<id>            {"action": "add"|"update"|"delete"|"send"|"discard", ...} — add 는 status draft(초안)·region(영역)·attachments 가능
@@ -87,6 +88,7 @@ import time
 from http import HTTPStatus
 from email.utils import formatdate
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from collections import OrderedDict
 from pathlib import Path
 from urllib.parse import parse_qs, quote, unquote, urlparse
 
@@ -95,6 +97,7 @@ sys.path.insert(0, str(STUDIO))
 from common import ASSET_ROOT, BRAND, CONFIG, DECKS, DEFAULT_PORT, HUB, OUT, REFUSED, SERVER_INFO, STATE, TEMPLATE, WORKSPACE, fonts_dir, list_templates, read_config, resolve_tokens, running_server, safe_id  # noqa: E402
 from watch_requests import session_status  # noqa: E402
 import auth  # noqa: E402
+import deckmerge  # noqa: E402
 import ledger  # noqa: E402
 import hub  # noqa: E402
 import share  # noqa: E402
@@ -185,6 +188,30 @@ def _load(p: Path):
 def _remember(i, p, data, obj):
     LAST[i] = {"sig": ledger.sig(p), "hash": ledger.sha256(data), "data": data, "obj": obj}
     PENDING.pop(i, None)
+    _keep_base(i, ver(p), obj)
+
+
+# ---------- 병합 저장의 기준본(docs/collab.md 1단계) - 이 서버가 보여 주거나 쓴 판(버전 → 문서)을 덱마다 최근 BASE_KEEP 개 기억한다 ----------
+# 편집기·AI 가 PUT ?merge=1&base=<판> 으로 보내면 그 판을 기준본으로 3-way 병합한다(deckmerge.py). 없으면(서버 재시작 등) 409 - 데이터는 잃지 않는다
+BASES = {}     # deck → OrderedDict(버전 → 문서)
+BASE_KEEP = 40
+BASE_LOCK = threading.Lock()
+
+
+def _keep_base(i, v, obj):
+    if not isinstance(obj, dict) or not v or v == "0":
+        return
+    with BASE_LOCK:
+        d = BASES.setdefault(i, OrderedDict())
+        d[v] = obj
+        d.move_to_end(v)
+        while len(d) > BASE_KEEP:
+            d.popitem(last=False)
+
+
+def _base_doc(i, v):
+    with BASE_LOCK:
+        return (BASES.get(i) or {}).get(v)
 
 
 def _meta(p, data):
@@ -344,7 +371,7 @@ def activity():
     return {"watcher": w, "othersBusy": sum(1 for x in out if x is not w and x["state"] == "busy"), "sessions": len(out)}
 
 
-ENGINE_UI = ("index.html", "studio.js", "sheet.html", "sheet.js", "sheetnew.js", "sheetcalc.js", "wsession.js", "render.js", "menu.js", "fonts.css", "i18n.js", "i18n/en.js", "i18n/en.pages.js", "i18n/en.review.js")
+ENGINE_UI = ("index.html", "studio.js", "sheet.html", "sheet.js", "sheetnew.js", "sheetcalc.js", "sheetx.js", "wsession.js", "nexa-requests.js", "nexa-requests.css", "render.js", "menu.js", "fonts.css", "i18n.js", "i18n/en.js", "i18n/en.pages.js", "i18n/en.review.js")
 
 
 def hub_ui_stamp():
@@ -957,6 +984,11 @@ class H(BaseHTTPRequestHandler):
             return self.err(404, "덱 없음")
         v = ver(p)
         data = p.read_bytes()
+        if v == ver(p):  # 읽는 사이 바뀌지 않았으면 이 판을 기준본으로 기억(편집기가 이 판에서 고치기 시작한다)
+            try:
+                _keep_base(i, v, json.loads(data.decode("utf-8")))
+            except ValueError:
+                pass
         self.send_response(200)
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Content-Length", str(len(data)))
@@ -967,6 +999,7 @@ class H(BaseHTTPRequestHandler):
 
     def api_put_deck(self, i, q):
         deck = self.body_json()
+        base_doc = deck.pop("__base", None) if isinstance(deck, dict) else None  # 병합 기준본(save_deck 사본의 원본) - 서버가 그 판을 기억하지 못할 때
         if not isinstance(deck, dict) or not isinstance(deck.get("slides"), list):
             return self.err(400, "덱 형식 아님(slides 목록 필요)")
         if deck.get("id", i) != i:
@@ -982,6 +1015,7 @@ class H(BaseHTTPRequestHandler):
                 return self.err(400, "시트 탭 id 중복")
         base = (q.get("base") or [self.headers.get("X-Base-Version") or ""])[0]
         force = (q.get("force") or ["0"])[0] == "1"
+        merge = (q.get("merge") or ["0"])[0] == "1"
         origin = (q.get("origin") or ["editor"])[0]
         action = (q.get("action") or ["save"])[0]
         if origin not in ("editor", "claude"):
@@ -998,8 +1032,24 @@ class H(BaseHTTPRequestHandler):
             p = deck_path(i)
             track(i)
             cur = ver(p)
+            conflicts = None  # 병합했으면 충돌 목록(없으면 [])
             if p.exists() and base and base != cur and not force:
-                return self.send_json({"ok": False, "error": "conflict", "version": cur}, 409)
+                bdoc = _base_doc(i, base) if merge else None
+                if bdoc is None and merge and isinstance(base_doc, dict):
+                    bdoc = base_doc
+                if bdoc is None:
+                    return self.send_json({"ok": False, "error": "conflict", "version": cur, **({"reason": "no-base"} if merge else {})}, 409)
+                # 병합 저장 - 기준본 · 보낸 것 · 지금 파일을 요소·셀 단위로 합친다. 같은 곳 충돌은 사람끼리면 나중 저장, AI 저장이면 사람이 이긴다
+                try:
+                    detect(i, immediate=True)
+                except Exception as e:  # noqa: BLE001
+                    sys.stderr.write(f"ledger detect {i}: {e}\n")
+                _, theirs = _load(p)
+                if theirs is None:
+                    return self.send_json({"ok": False, "error": "conflict", "version": cur}, 409)
+                deck, conflicts = deckmerge.merge3(bdoc, deck, theirs, prefer="theirs" if origin == "claude" else "ours")
+                if conflicts:
+                    actor["note"] = ((actor.get("note") or "") + f" · 병합 충돌 {len(conflicts)}건")[:200].lstrip(" ·")
             try:
                 detect(i, immediate=True)  # 밖에서 바뀐 것이 있으면 먼저 그 줄을 남긴다(force 덮어쓰기에 묻히지 않게)
             except Exception as e:  # noqa: BLE001
@@ -1013,11 +1063,15 @@ class H(BaseHTTPRequestHandler):
             data = text.encode("utf-8")
             seq = None
             try:
-                seq = ledger.record(i, old["obj"] if old else None, before, deck, _meta(p, data), origin, "exact", action, actor)
+                ev = {"merge": {"base": base, "conflicts": conflicts[:50]}} if conflicts is not None else None  # 병합 저장 - 진 값을 원장에 남긴다
+                seq = ledger.record(i, old["obj"] if old else None, before, deck, _meta(p, data), origin, "exact", action, actor, ev)
             except Exception as e:  # noqa: BLE001
                 sys.stderr.write(f"ledger put {i}: {e}\n")
             _remember(i, p, data, deck)
-            self.send_json({"ok": True, "version": ver(p), "updated": deck["updated"], "seq": seq})
+            res = {"ok": True, "version": ver(p), "updated": deck["updated"], "seq": seq}
+            if conflicts is not None:  # 병합했으면 결과 문서와 충돌 - 보낸 쪽(편집기·save_deck)이 이것을 새 기준으로 삼는다
+                res.update({"merged": True, "conflicts": conflicts, "deck": deck})
+            self.send_json(res)
 
     def api_get_version(self, i, q):
         with WRITE_LOCK:

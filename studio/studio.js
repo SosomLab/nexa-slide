@@ -95,7 +95,8 @@
   // ---------------------------------------------------------------- 기록(실행 취소)·저장
   function snapshot() { S.undo.push(deckJson()); if (S.undo.length > 150) S.undo.shift(); S.redo = []; updUndo(); }
   function updUndo() { $("#undoBtn").disabled = !S.undo.length; $("#redoBtn").disabled = !S.redo.length; }
-  function undo() { if (!S.undo.length) return; S.redo.push(deckJson()); S.deck = JSON.parse(S.undo.pop()); afterChange(true); }
+  // 남의 변경(다른 창·AI·병합 저장)을 받은 뒤의 실행 취소는 내 편집만 되돌린다 - NexaMerge.seal/undoTarget(nexa-merge.js, docs/collab.md 1단계)
+  function undo() { if (!S.undo.length) return; const now = deckJson(); S.redo.push(now); S.deck = NexaMerge.undoTarget(S.undo.pop(), now); afterChange(true); }
   function redo() { if (!S.redo.length) return; S.undo.push(deckJson()); S.deck = JSON.parse(S.redo.pop()); afterChange(true); }
   /** 변경 후: 화면 갱신 + 자동 저장 예약 */
   function afterChange(full) {
@@ -115,17 +116,31 @@
     if (!force && body === S.savedJson) { S.dirty = false; setStatus("saved", "저장됨"); return; } // 바뀐 것이 없으면 저장하지 않는다
     S.saving = true; setStatus("dirty", "저장 중…");
     const qs = extra ? "&" + new URLSearchParams(extra).toString() : "";
-    const r = await api("PUT", `/api/deck/${S.id}?base=${encodeURIComponent(S.version || "")}${force ? "&force=1" : ""}${qs}`, JSON.parse(body));
+    // 병합 저장(merge=1) - 그 사이 다른 창·AI 가 저장했어도 서버가 요소 단위로 합친다(같은 곳은 나중 저장인 내 값). 409 는 기준본을 모를 때뿐
+    const r = await api("PUT", `/api/deck/${S.id}?base=${encodeURIComponent(S.version || "")}${force ? "&force=1" : "&merge=1"}${qs}`, JSON.parse(body));
     S.saving = false;
-    if (r.ok) {
+    if (r.ok && r.data.merged && r.data.deck) {  // 합쳐졌다 - 병합 결과(+ 저장하는 사이 더 고친 것)를 화면에, 남의 변경은 내 실행 취소에 섞지 않는다
+      const now = deckJson();
+      NexaMerge.seal(S.undo, S.redo, now); updUndo();
+      S.version = r.data.version; S.savedJson = JSON.stringify(r.data.deck);
+      S.deck = NexaMerge.afterSave(body, now, r.data.deck);
+      S.dirty = deckJson() !== S.savedJson; S.conflict = false; banner(false);
+      if (S.cur >= S.deck.slides.length) S.cur = Math.max(0, S.deck.slides.length - 1);
+      if (S.sel && !selEl()) S.sel = null;
+      renderAll(); scheduleCheck();
+      setStatus(S.dirty ? "dirty" : "saved", S.dirty ? "저장 대기" : "저장됨");
+      const nt = NexaMerge.notice(r.data.conflicts);
+      if (r.data.conflicts && r.data.conflicts.length) { notice(nt.text, [{ act: "changes", label: "변경 보기", primary: true }]); $("#noticeMsg").title = nt.detail; } else toast(nt.text, 3500);
+      if (S.dirty) scheduleSave();
+    } else if (r.ok) {
       S.version = r.data.version; S.deck.updated = r.data.updated; S.savedJson = deckJson(); scheduleCheck();
       if (JSON.parse(body).slides && deckJson() === S.savedJson) S.dirty = false;
       S.conflict = false; banner(false);
       setStatus(S.dirty ? "dirty" : "saved", S.dirty ? "저장 대기" : "저장됨");
       if (S.dirty) scheduleSave();
-    } else if (r.status === 409) {
+    } else if (r.status === 409) {  // 병합할 기준본을 서버가 모른다(서버 재시작 등) - 예전처럼 사람이 고른다
       S.conflict = true; setStatus("conflict", "충돌");
-      banner(true, "저장하려는 사이 덱 파일이 밖에서(Claude 등) 바뀌었습니다. 어느 쪽을 남길까요?");
+      banner(true, "저장하려는 사이 덱 파일이 밖에서(Claude 등) 바뀌었고, 자동으로 합칠 수 없습니다(서버가 다시 시작됨 등). 어느 쪽을 남길까요?");
     } else { setStatus("error", "저장 실패"); toast("저장 실패: " + (r.data && r.data.error || r.status)); }
   }
   function banner(on, msg) { $("#banner").classList.toggle("show", !!on); if (msg) $("#bannerMsg").textContent = msg; }
@@ -137,7 +152,8 @@
     if (!r.ok) { toast("덱을 불러오지 못했습니다"); return false; }
     const deck = await r.json();
     if (deck.kind === "sheet") { location.href = sheetUrl(id); return false; }  // 시트(엑셀) 문서는 시트 화면(sheet.html)에서 - docs/sheets.md
-    if (keep && S.deck && S.id === id) snapshot(); else { S.undo = []; S.redo = []; }
+    if (keep && S.deck && S.id === id) { NexaMerge.seal(S.undo, S.redo, deckJson()); }  // 밖의 변경을 받는다 - 내 실행 취소에 넣지 않고, 이전 기록은 내 편집만 되돌리게 봉인
+    else { S.undo = []; S.redo = []; }
     S.id = id; S.deck = deck; S.version = r.headers.get("X-Deck-Version"); S.savedJson = deckJson();
     Render.setDeckFonts(deck.fontPreset);  // 덱 글꼴 세트(있으면)
     S.dirty = false; S.conflict = false; banner(false);
@@ -162,9 +178,9 @@
       await checkWorkspace(r.data);
       await RQ.sync(r.data);  // 요청 파일이 바뀌었으면 다시 읽기
       if (r.data.deck !== S.version && !S.saving) {
-        if (S.dirty || S.editing) {
-          if (!S.conflict) { S.conflict = true; setStatus("conflict", "충돌"); banner(true, "편집 중에 덱 파일이 밖에서(Claude 등) 바뀌었습니다. 어느 쪽을 남길까요?"); }
-        } else await reloadExternal("밖에서 바뀐 덱을 다시 불러왔습니다");
+        // 편집 중에 밖에서 바뀌었다 - 배너로 고르게 하지 않고, 내 저장이 서버에서 합쳐지게 바로 저장한다(글 편집 중이면 편집이 끝난 뒤 저장 때)
+        if (S.dirty || S.editing) { if (S.dirty && !S.editing && !S.conflict) { clearTimeout(saveT); await save(); } }
+        else await reloadExternal("밖에서 바뀐 덱을 다시 불러왔습니다");
       }
       if (r.data.changes !== undefined && r.data.changes !== S.chgVersion) await loadChanges();  // 내 저장·다른 창·Claude·빌드 - 원장이 자라면 변경 탭 갱신
     } catch (e) { setStatus("error", "서버 끊김"); }
@@ -233,7 +249,7 @@
   async function reloadExternal(msg) {
     await loadDeck(S.id, true);  // loadDeck 가 원장도 다시 불러온다
     const g = S.changes.find((x) => !isMine(x));
-    if (g && g.last > +LS.get(seenKey(), 0)) notice(`${msg} - ${ORG[g.origin] || g.origin}${g.confidence === "inferred" ? "(추정)" : ""} · ${chgSummary(g.summary) || "덱 설정"}. Ctrl+Z 로 되돌릴 수 있습니다.`, [{ act: "changes", label: "변경 보기", primary: true }]);
+    if (g && g.last > +LS.get(seenKey(), 0)) notice(`${msg} - ${ORG[g.origin] || g.origin}${g.confidence === "inferred" ? "(추정)" : ""} · ${chgSummary(g.summary) || "덱 설정"}. 되돌리려면 변경 탭에서(Ctrl+Z 는 내 편집만 되돌립니다).`, [{ act: "changes", label: "변경 보기", primary: true }]);
     else toast(msg + " (바뀐 내용 없음)");
   }
   function renderChanges() {

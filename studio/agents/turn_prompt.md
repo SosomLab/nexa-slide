@@ -25,7 +25,7 @@
 1. `decks/<deck>.requests.json` 에서 그 `id` 의 `status` 를 `"working"` 으로 바꾼다(Edit).
 2. `python3 nexa.py draft_deck <deck> --element <element>`(요소가 없으면 `--slide <slide>`; `elements` 가 있으면 그 요소 **모두**가 대상 — `--element e03,e05` 처럼 쉼표로) → 사본 `out/.studio/draft-<deck>.json` 이 만들어지고 고칠 줄 번호가 나온다.
 3. 사본에서 **필요한 줄만** Edit 도구로 고친다 — 요소 `id` 유지, 대상은 `slide`·`element` 로 찾는다(`region` 이 있으면 그 좌표와 겹치는 요소들). 큰 수정도 사본 안에서 Edit 를 여러 번.
-4. `python3 nexa.py save_deck <deck> --from out/.studio/draft-<deck>.json --request <id> --note "무엇을 했는지 한 줄"` 로 저장한다. 종료 코드 2(충돌)는 사본을 만든 뒤 사용자가 같은 덱을 저장했다는 뜻이다 — 덮어쓰지 말고 2 번(draft_deck)부터 다시 해 사용자의 변경 위에 같은 수정을 한다.
+4. `python3 nexa.py save_deck <deck> --from out/.studio/draft-<deck>.json --request <id> --note "무엇을 했는지 한 줄"` 로 저장한다. 사본을 만든 뒤 사용자가 같은 덱을 저장했으면 save_deck 이 **병합**한다 — 같은 곳을 사용자와 다르게 고쳤으면 사용자의 값이 남고 "충돌 n건" 이 출력되니, 그 내용을 reply 에 알린다(필요하면 다시 고칠지 묻는다). 종료 코드 2(병합할 수 없음)면 덮어쓰지 말고 2 번(draft_deck)부터 다시 해 사용자의 변경 위에 같은 수정을 한다.
 5. 같은 변경을 `content/<deck>.json` 에도 Edit 로 옮긴다(파일이 있고 그 내용이 거기서 왔을 때).
 6. `status` 를 `"done"`, `reply` 에 무엇을 했는지 한두 문장(Edit). 할 수 없거나 확인이 필요하면 `status` 는 `"open"` 그대로 두고 **반드시 `reply` 에 이유나 질문을 적는다** — 빈 reply 로 끝내지 않는다.
    **사용자에게 고르게 하거나 묻는 reply("…할까요?", "알려 주세요")면 `done` 으로 하지 않는다** — `open` 으로 두면 편집기에 질문으로 보이고 사용자가 [후속 요청]으로 답한다.

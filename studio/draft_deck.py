@@ -74,6 +74,8 @@ def main():
     (STATE / f"draft-{a.deck}.base").write_text(base, encoding="utf-8")  # save_deck --from 이 사본이면 이것을 base 로 보낸다
     text = json.dumps(deck, ensure_ascii=False, indent=1)
     out.write_text(text + "\n", encoding="utf-8", newline="\n")
+    # 사본을 만든 때의 원본 - save_deck 이 병합 저장(3-way)의 기준본으로 쓴다(서버가 그 판을 기억하지 못할 때·서버 없이 저장할 때)
+    (STATE / f"draft-{a.deck}.orig.json").write_text(text + "\n", encoding="utf-8", newline="\n")
     lines = text.splitlines()
     try:  # cwd(작업 공간) 기준 상대 경로로 알려 준다 - 명령에 그대로 쓰기 쉽게
         shown = out.resolve().relative_to(Path.cwd().resolve()).as_posix()

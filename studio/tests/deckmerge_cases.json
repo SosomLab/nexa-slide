@@ -1,0 +1,3076 @@
+[
+ {
+  "name": "서로 다른 요소 - 둘 다 남는다",
+  "prefer": "ours",
+  "base": {
+   "id": "d",
+   "title": "덱",
+   "slides": [
+    {
+     "id": "s1",
+     "layout": "blank",
+     "elements": [
+      {
+       "id": "e1",
+       "type": "text",
+       "x": 10,
+       "y": 10,
+       "w": 100,
+       "h": 40,
+       "text": "e1"
+      },
+      {
+       "id": "e2",
+       "type": "text",
+       "x": 10,
+       "y": 10,
+       "w": 100,
+       "h": 40,
+       "text": "e2"
+      }
+     ]
+    },
+    {
+     "id": "s2",
+     "layout": "blank",
+     "elements": [
+      {
+       "id": "e3",
+       "type": "text",
+       "x": 10,
+       "y": 10,
+       "w": 100,
+       "h": 40,
+       "text": "e3"
+      }
+     ]
+    }
+   ]
+  },
+  "ours": {
+   "id": "d",
+   "title": "덱",
+   "slides": [
+    {
+     "id": "s1",
+     "layout": "blank",
+     "elements": [
+      {
+       "id": "e1",
+       "type": "text",
+       "x": 10,
+       "y": 10,
+       "w": 100,
+       "h": 40,
+       "text": "나"
+      },
+      {
+       "id": "e2",
+       "type": "text",
+       "x": 10,
+       "y": 10,
+       "w": 100,
+       "h": 40,
+       "text": "e2"
+      }
+     ]
+    },
+    {
+     "id": "s2",
+     "layout": "blank",
+     "elements": [
+      {
+       "id": "e3",
+       "type": "text",
+       "x": 10,
+       "y": 10,
+       "w": 100,
+       "h": 40,
+       "text": "e3"
+      }
+     ]
+    }
+   ]
+  },
+  "theirs": {
+   "id": "d",
+   "title": "덱",
+   "slides": [
+    {
+     "id": "s1",
+     "layout": "blank",
+     "elements": [
+      {
+       "id": "e1",
+       "type": "text",
+       "x": 10,
+       "y": 10,
+       "w": 100,
+       "h": 40,
+       "text": "e1"
+      },
+      {
+       "id": "e2",
+       "type": "text",
+       "x": 10,
+       "y": 10,
+       "w": 100,
+       "h": 40,
+       "text": "e2"
+      }
+     ]
+    },
+    {
+     "id": "s2",
+     "layout": "blank",
+     "elements": [
+      {
+       "id": "e3",
+       "type": "text",
+       "x": 10,
+       "y": 10,
+       "w": 100,
+       "h": 40,
+       "text": "너"
+      }
+     ]
+    }
+   ]
+  },
+  "expect": {
+   "id": "d",
+   "title": "덱",
+   "slides": [
+    {
+     "id": "s1",
+     "layout": "blank",
+     "elements": [
+      {
+       "id": "e1",
+       "type": "text",
+       "x": 10,
+       "y": 10,
+       "w": 100,
+       "h": 40,
+       "text": "나"
+      },
+      {
+       "id": "e2",
+       "type": "text",
+       "x": 10,
+       "y": 10,
+       "w": 100,
+       "h": 40,
+       "text": "e2"
+      }
+     ]
+    },
+    {
+     "id": "s2",
+     "layout": "blank",
+     "elements": [
+      {
+       "id": "e3",
+       "type": "text",
+       "x": 10,
+       "y": 10,
+       "w": 100,
+       "h": 40,
+       "text": "너"
+      }
+     ]
+    }
+   ]
+  },
+  "conflicts": 0
+ },
+ {
+  "name": "같은 요소 다른 속성(글·채우기) - 둘 다",
+  "prefer": "ours",
+  "base": {
+   "id": "d",
+   "title": "덱",
+   "slides": [
+    {
+     "id": "s1",
+     "layout": "blank",
+     "elements": [
+      {
+       "id": "e1",
+       "type": "text",
+       "x": 10,
+       "y": 10,
+       "w": 100,
+       "h": 40,
+       "text": "e1"
+      },
+      {
+       "id": "e2",
+       "type": "text",
+       "x": 10,
+       "y": 10,
+       "w": 100,
+       "h": 40,
+       "text": "e2"
+      }
+     ]
+    },
+    {
+     "id": "s2",
+     "layout": "blank",
+     "elements": [
+      {
+       "id": "e3",
+       "type": "text",
+       "x": 10,
+       "y": 10,
+       "w": 100,
+       "h": 40,
+       "text": "e3"
+      }
+     ]
+    }
+   ]
+  },
+  "ours": {
+   "id": "d",
+   "title": "덱",
+   "slides": [
+    {
+     "id": "s1",
+     "layout": "blank",
+     "elements": [
+      {
+       "id": "e1",
+       "type": "text",
+       "x": 10,
+       "y": 10,
+       "w": 100,
+       "h": 40,
+       "text": "나"
+      },
+      {
+       "id": "e2",
+       "type": "text",
+       "x": 10,
+       "y": 10,
+       "w": 100,
+       "h": 40,
+       "text": "e2"
+      }
+     ]
+    },
+    {
+     "id": "s2",
+     "layout": "blank",
+     "elements": [
+      {
+       "id": "e3",
+       "type": "text",
+       "x": 10,
+       "y": 10,
+       "w": 100,
+       "h": 40,
+       "text": "e3"
+      }
+     ]
+    }
+   ]
+  },
+  "theirs": {
+   "id": "d",
+   "title": "덱",
+   "slides": [
+    {
+     "id": "s1",
+     "layout": "blank",
+     "elements": [
+      {
+       "id": "e1",
+       "type": "text",
+       "x": 10,
+       "y": 10,
+       "w": 100,
+       "h": 40,
+       "text": "e1",
+       "fill": "primary"
+      },
+      {
+       "id": "e2",
+       "type": "text",
+       "x": 10,
+       "y": 10,
+       "w": 100,
+       "h": 40,
+       "text": "e2"
+      }
+     ]
+    },
+    {
+     "id": "s2",
+     "layout": "blank",
+     "elements": [
+      {
+       "id": "e3",
+       "type": "text",
+       "x": 10,
+       "y": 10,
+       "w": 100,
+       "h": 40,
+       "text": "e3"
+      }
+     ]
+    }
+   ]
+  },
+  "expect": {
+   "id": "d",
+   "title": "덱",
+   "slides": [
+    {
+     "id": "s1",
+     "layout": "blank",
+     "elements": [
+      {
+       "id": "e1",
+       "type": "text",
+       "x": 10,
+       "y": 10,
+       "w": 100,
+       "h": 40,
+       "text": "나",
+       "fill": "primary"
+      },
+      {
+       "id": "e2",
+       "type": "text",
+       "x": 10,
+       "y": 10,
+       "w": 100,
+       "h": 40,
+       "text": "e2"
+      }
+     ]
+    },
+    {
+     "id": "s2",
+     "layout": "blank",
+     "elements": [
+      {
+       "id": "e3",
+       "type": "text",
+       "x": 10,
+       "y": 10,
+       "w": 100,
+       "h": 40,
+       "text": "e3"
+      }
+     ]
+    }
+   ]
+  },
+  "conflicts": 0
+ },
+ {
+  "name": "같은 속성 충돌 - 나중 저장(ours)",
+  "prefer": "ours",
+  "base": {
+   "id": "d",
+   "title": "덱",
+   "slides": [
+    {
+     "id": "s1",
+     "layout": "blank",
+     "elements": [
+      {
+       "id": "e1",
+       "type": "text",
+       "x": 10,
+       "y": 10,
+       "w": 100,
+       "h": 40,
+       "text": "e1"
+      },
+      {
+       "id": "e2",
+       "type": "text",
+       "x": 10,
+       "y": 10,
+       "w": 100,
+       "h": 40,
+       "text": "e2"
+      }
+     ]
+    },
+    {
+     "id": "s2",
+     "layout": "blank",
+     "elements": [
+      {
+       "id": "e3",
+       "type": "text",
+       "x": 10,
+       "y": 10,
+       "w": 100,
+       "h": 40,
+       "text": "e3"
+      }
+     ]
+    }
+   ]
+  },
+  "ours": {
+   "id": "d",
+   "title": "덱",
+   "slides": [
+    {
+     "id": "s1",
+     "layout": "blank",
+     "elements": [
+      {
+       "id": "e1",
+       "type": "text",
+       "x": 10,
+       "y": 10,
+       "w": 100,
+       "h": 40,
+       "text": "나"
+      },
+      {
+       "id": "e2",
+       "type": "text",
+       "x": 10,
+       "y": 10,
+       "w": 100,
+       "h": 40,
+       "text": "e2"
+      }
+     ]
+    },
+    {
+     "id": "s2",
+     "layout": "blank",
+     "elements": [
+      {
+       "id": "e3",
+       "type": "text",
+       "x": 10,
+       "y": 10,
+       "w": 100,
+       "h": 40,
+       "text": "e3"
+      }
+     ]
+    }
+   ]
+  },
+  "theirs": {
+   "id": "d",
+   "title": "덱",
+   "slides": [
+    {
+     "id": "s1",
+     "layout": "blank",
+     "elements": [
+      {
+       "id": "e1",
+       "type": "text",
+       "x": 10,
+       "y": 10,
+       "w": 100,
+       "h": 40,
+       "text": "너"
+      },
+      {
+       "id": "e2",
+       "type": "text",
+       "x": 10,
+       "y": 10,
+       "w": 100,
+       "h": 40,
+       "text": "e2"
+      }
+     ]
+    },
+    {
+     "id": "s2",
+     "layout": "blank",
+     "elements": [
+      {
+       "id": "e3",
+       "type": "text",
+       "x": 10,
+       "y": 10,
+       "w": 100,
+       "h": 40,
+       "text": "e3"
+      }
+     ]
+    }
+   ]
+  },
+  "expect": {
+   "id": "d",
+   "title": "덱",
+   "slides": [
+    {
+     "id": "s1",
+     "layout": "blank",
+     "elements": [
+      {
+       "id": "e1",
+       "type": "text",
+       "x": 10,
+       "y": 10,
+       "w": 100,
+       "h": 40,
+       "text": "나"
+      },
+      {
+       "id": "e2",
+       "type": "text",
+       "x": 10,
+       "y": 10,
+       "w": 100,
+       "h": 40,
+       "text": "e2"
+      }
+     ]
+    },
+    {
+     "id": "s2",
+     "layout": "blank",
+     "elements": [
+      {
+       "id": "e3",
+       "type": "text",
+       "x": 10,
+       "y": 10,
+       "w": 100,
+       "h": 40,
+       "text": "e3"
+      }
+     ]
+    }
+   ]
+  },
+  "conflicts": 1
+ },
+ {
+  "name": "같은 속성 충돌 - AI 저장이면 사람(theirs)",
+  "prefer": "theirs",
+  "base": {
+   "id": "d",
+   "title": "덱",
+   "slides": [
+    {
+     "id": "s1",
+     "layout": "blank",
+     "elements": [
+      {
+       "id": "e1",
+       "type": "text",
+       "x": 10,
+       "y": 10,
+       "w": 100,
+       "h": 40,
+       "text": "e1"
+      },
+      {
+       "id": "e2",
+       "type": "text",
+       "x": 10,
+       "y": 10,
+       "w": 100,
+       "h": 40,
+       "text": "e2"
+      }
+     ]
+    },
+    {
+     "id": "s2",
+     "layout": "blank",
+     "elements": [
+      {
+       "id": "e3",
+       "type": "text",
+       "x": 10,
+       "y": 10,
+       "w": 100,
+       "h": 40,
+       "text": "e3"
+      }
+     ]
+    }
+   ]
+  },
+  "ours": {
+   "id": "d",
+   "title": "덱",
+   "slides": [
+    {
+     "id": "s1",
+     "layout": "blank",
+     "elements": [
+      {
+       "id": "e1",
+       "type": "text",
+       "x": 10,
+       "y": 10,
+       "w": 100,
+       "h": 40,
+       "text": "AI"
+      },
+      {
+       "id": "e2",
+       "type": "text",
+       "x": 10,
+       "y": 10,
+       "w": 100,
+       "h": 40,
+       "text": "e2"
+      }
+     ]
+    },
+    {
+     "id": "s2",
+     "layout": "blank",
+     "elements": [
+      {
+       "id": "e3",
+       "type": "text",
+       "x": 10,
+       "y": 10,
+       "w": 100,
+       "h": 40,
+       "text": "e3"
+      }
+     ]
+    }
+   ]
+  },
+  "theirs": {
+   "id": "d",
+   "title": "덱",
+   "slides": [
+    {
+     "id": "s1",
+     "layout": "blank",
+     "elements": [
+      {
+       "id": "e1",
+       "type": "text",
+       "x": 10,
+       "y": 10,
+       "w": 100,
+       "h": 40,
+       "text": "사람"
+      },
+      {
+       "id": "e2",
+       "type": "text",
+       "x": 10,
+       "y": 10,
+       "w": 100,
+       "h": 40,
+       "text": "e2"
+      }
+     ]
+    },
+    {
+     "id": "s2",
+     "layout": "blank",
+     "elements": [
+      {
+       "id": "e3",
+       "type": "text",
+       "x": 10,
+       "y": 10,
+       "w": 100,
+       "h": 40,
+       "text": "e3"
+      }
+     ]
+    }
+   ]
+  },
+  "expect": {
+   "id": "d",
+   "title": "덱",
+   "slides": [
+    {
+     "id": "s1",
+     "layout": "blank",
+     "elements": [
+      {
+       "id": "e1",
+       "type": "text",
+       "x": 10,
+       "y": 10,
+       "w": 100,
+       "h": 40,
+       "text": "사람"
+      },
+      {
+       "id": "e2",
+       "type": "text",
+       "x": 10,
+       "y": 10,
+       "w": 100,
+       "h": 40,
+       "text": "e2"
+      }
+     ]
+    },
+    {
+     "id": "s2",
+     "layout": "blank",
+     "elements": [
+      {
+       "id": "e3",
+       "type": "text",
+       "x": 10,
+       "y": 10,
+       "w": 100,
+       "h": 40,
+       "text": "e3"
+      }
+     ]
+    }
+   ]
+  },
+  "conflicts": 1
+ },
+ {
+  "name": "같게 고침 - 충돌 없음",
+  "prefer": "ours",
+  "base": {
+   "id": "d",
+   "title": "덱",
+   "slides": [
+    {
+     "id": "s1",
+     "layout": "blank",
+     "elements": [
+      {
+       "id": "e1",
+       "type": "text",
+       "x": 10,
+       "y": 10,
+       "w": 100,
+       "h": 40,
+       "text": "e1"
+      },
+      {
+       "id": "e2",
+       "type": "text",
+       "x": 10,
+       "y": 10,
+       "w": 100,
+       "h": 40,
+       "text": "e2"
+      }
+     ]
+    },
+    {
+     "id": "s2",
+     "layout": "blank",
+     "elements": [
+      {
+       "id": "e3",
+       "type": "text",
+       "x": 10,
+       "y": 10,
+       "w": 100,
+       "h": 40,
+       "text": "e3"
+      }
+     ]
+    }
+   ]
+  },
+  "ours": {
+   "id": "d",
+   "title": "덱",
+   "slides": [
+    {
+     "id": "s1",
+     "layout": "blank",
+     "elements": [
+      {
+       "id": "e1",
+       "type": "text",
+       "x": 10,
+       "y": 10,
+       "w": 100,
+       "h": 40,
+       "text": "같"
+      },
+      {
+       "id": "e2",
+       "type": "text",
+       "x": 10,
+       "y": 10,
+       "w": 100,
+       "h": 40,
+       "text": "e2"
+      }
+     ]
+    },
+    {
+     "id": "s2",
+     "layout": "blank",
+     "elements": [
+      {
+       "id": "e3",
+       "type": "text",
+       "x": 10,
+       "y": 10,
+       "w": 100,
+       "h": 40,
+       "text": "e3"
+      }
+     ]
+    }
+   ]
+  },
+  "theirs": {
+   "id": "d",
+   "title": "덱",
+   "slides": [
+    {
+     "id": "s1",
+     "layout": "blank",
+     "elements": [
+      {
+       "id": "e1",
+       "type": "text",
+       "x": 10,
+       "y": 10,
+       "w": 100,
+       "h": 40,
+       "text": "같"
+      },
+      {
+       "id": "e2",
+       "type": "text",
+       "x": 10,
+       "y": 10,
+       "w": 100,
+       "h": 40,
+       "text": "e2"
+      }
+     ]
+    },
+    {
+     "id": "s2",
+     "layout": "blank",
+     "elements": [
+      {
+       "id": "e3",
+       "type": "text",
+       "x": 10,
+       "y": 10,
+       "w": 100,
+       "h": 40,
+       "text": "e3"
+      }
+     ]
+    }
+   ]
+  },
+  "expect": {
+   "id": "d",
+   "title": "덱",
+   "slides": [
+    {
+     "id": "s1",
+     "layout": "blank",
+     "elements": [
+      {
+       "id": "e1",
+       "type": "text",
+       "x": 10,
+       "y": 10,
+       "w": 100,
+       "h": 40,
+       "text": "같"
+      },
+      {
+       "id": "e2",
+       "type": "text",
+       "x": 10,
+       "y": 10,
+       "w": 100,
+       "h": 40,
+       "text": "e2"
+      }
+     ]
+    },
+    {
+     "id": "s2",
+     "layout": "blank",
+     "elements": [
+      {
+       "id": "e3",
+       "type": "text",
+       "x": 10,
+       "y": 10,
+       "w": 100,
+       "h": 40,
+       "text": "e3"
+      }
+     ]
+    }
+   ]
+  },
+  "conflicts": 0
+ },
+ {
+  "name": "위치·크기는 한 묶음 - x 와 w 를 따로 고치면 충돌",
+  "prefer": "ours",
+  "base": {
+   "id": "d",
+   "title": "덱",
+   "slides": [
+    {
+     "id": "s1",
+     "layout": "blank",
+     "elements": [
+      {
+       "id": "e1",
+       "type": "text",
+       "x": 10,
+       "y": 10,
+       "w": 100,
+       "h": 40,
+       "text": "e1"
+      },
+      {
+       "id": "e2",
+       "type": "text",
+       "x": 10,
+       "y": 10,
+       "w": 100,
+       "h": 40,
+       "text": "e2"
+      }
+     ]
+    },
+    {
+     "id": "s2",
+     "layout": "blank",
+     "elements": [
+      {
+       "id": "e3",
+       "type": "text",
+       "x": 10,
+       "y": 10,
+       "w": 100,
+       "h": 40,
+       "text": "e3"
+      }
+     ]
+    }
+   ]
+  },
+  "ours": {
+   "id": "d",
+   "title": "덱",
+   "slides": [
+    {
+     "id": "s1",
+     "layout": "blank",
+     "elements": [
+      {
+       "id": "e1",
+       "type": "text",
+       "x": 50,
+       "y": 10,
+       "w": 100,
+       "h": 40,
+       "text": "e1"
+      },
+      {
+       "id": "e2",
+       "type": "text",
+       "x": 10,
+       "y": 10,
+       "w": 100,
+       "h": 40,
+       "text": "e2"
+      }
+     ]
+    },
+    {
+     "id": "s2",
+     "layout": "blank",
+     "elements": [
+      {
+       "id": "e3",
+       "type": "text",
+       "x": 10,
+       "y": 10,
+       "w": 100,
+       "h": 40,
+       "text": "e3"
+      }
+     ]
+    }
+   ]
+  },
+  "theirs": {
+   "id": "d",
+   "title": "덱",
+   "slides": [
+    {
+     "id": "s1",
+     "layout": "blank",
+     "elements": [
+      {
+       "id": "e1",
+       "type": "text",
+       "x": 10,
+       "y": 10,
+       "w": 300,
+       "h": 40,
+       "text": "e1"
+      },
+      {
+       "id": "e2",
+       "type": "text",
+       "x": 10,
+       "y": 10,
+       "w": 100,
+       "h": 40,
+       "text": "e2"
+      }
+     ]
+    },
+    {
+     "id": "s2",
+     "layout": "blank",
+     "elements": [
+      {
+       "id": "e3",
+       "type": "text",
+       "x": 10,
+       "y": 10,
+       "w": 100,
+       "h": 40,
+       "text": "e3"
+      }
+     ]
+    }
+   ]
+  },
+  "expect": {
+   "id": "d",
+   "title": "덱",
+   "slides": [
+    {
+     "id": "s1",
+     "layout": "blank",
+     "elements": [
+      {
+       "id": "e1",
+       "type": "text",
+       "x": 50,
+       "y": 10,
+       "w": 100,
+       "h": 40,
+       "text": "e1"
+      },
+      {
+       "id": "e2",
+       "type": "text",
+       "x": 10,
+       "y": 10,
+       "w": 100,
+       "h": 40,
+       "text": "e2"
+      }
+     ]
+    },
+    {
+     "id": "s2",
+     "layout": "blank",
+     "elements": [
+      {
+       "id": "e3",
+       "type": "text",
+       "x": 10,
+       "y": 10,
+       "w": 100,
+       "h": 40,
+       "text": "e3"
+      }
+     ]
+    }
+   ]
+  },
+  "conflicts": 1
+ },
+ {
+  "name": "위치 대 글 - 둘 다",
+  "prefer": "ours",
+  "base": {
+   "id": "d",
+   "title": "덱",
+   "slides": [
+    {
+     "id": "s1",
+     "layout": "blank",
+     "elements": [
+      {
+       "id": "e1",
+       "type": "text",
+       "x": 10,
+       "y": 10,
+       "w": 100,
+       "h": 40,
+       "text": "e1"
+      },
+      {
+       "id": "e2",
+       "type": "text",
+       "x": 10,
+       "y": 10,
+       "w": 100,
+       "h": 40,
+       "text": "e2"
+      }
+     ]
+    },
+    {
+     "id": "s2",
+     "layout": "blank",
+     "elements": [
+      {
+       "id": "e3",
+       "type": "text",
+       "x": 10,
+       "y": 10,
+       "w": 100,
+       "h": 40,
+       "text": "e3"
+      }
+     ]
+    }
+   ]
+  },
+  "ours": {
+   "id": "d",
+   "title": "덱",
+   "slides": [
+    {
+     "id": "s1",
+     "layout": "blank",
+     "elements": [
+      {
+       "id": "e1",
+       "type": "text",
+       "x": 50,
+       "y": 60,
+       "w": 100,
+       "h": 40,
+       "text": "e1"
+      },
+      {
+       "id": "e2",
+       "type": "text",
+       "x": 10,
+       "y": 10,
+       "w": 100,
+       "h": 40,
+       "text": "e2"
+      }
+     ]
+    },
+    {
+     "id": "s2",
+     "layout": "blank",
+     "elements": [
+      {
+       "id": "e3",
+       "type": "text",
+       "x": 10,
+       "y": 10,
+       "w": 100,
+       "h": 40,
+       "text": "e3"
+      }
+     ]
+    }
+   ]
+  },
+  "theirs": {
+   "id": "d",
+   "title": "덱",
+   "slides": [
+    {
+     "id": "s1",
+     "layout": "blank",
+     "elements": [
+      {
+       "id": "e1",
+       "type": "text",
+       "x": 10,
+       "y": 10,
+       "w": 100,
+       "h": 40,
+       "text": "너"
+      },
+      {
+       "id": "e2",
+       "type": "text",
+       "x": 10,
+       "y": 10,
+       "w": 100,
+       "h": 40,
+       "text": "e2"
+      }
+     ]
+    },
+    {
+     "id": "s2",
+     "layout": "blank",
+     "elements": [
+      {
+       "id": "e3",
+       "type": "text",
+       "x": 10,
+       "y": 10,
+       "w": 100,
+       "h": 40,
+       "text": "e3"
+      }
+     ]
+    }
+   ]
+  },
+  "expect": {
+   "id": "d",
+   "title": "덱",
+   "slides": [
+    {
+     "id": "s1",
+     "layout": "blank",
+     "elements": [
+      {
+       "id": "e1",
+       "type": "text",
+       "x": 50,
+       "y": 60,
+       "w": 100,
+       "h": 40,
+       "text": "너"
+      },
+      {
+       "id": "e2",
+       "type": "text",
+       "x": 10,
+       "y": 10,
+       "w": 100,
+       "h": 40,
+       "text": "e2"
+      }
+     ]
+    },
+    {
+     "id": "s2",
+     "layout": "blank",
+     "elements": [
+      {
+       "id": "e3",
+       "type": "text",
+       "x": 10,
+       "y": 10,
+       "w": 100,
+       "h": 40,
+       "text": "e3"
+      }
+     ]
+    }
+   ]
+  },
+  "conflicts": 0
+ },
+ {
+  "name": "양쪽이 장 추가 - 둘 다, 자리 유지",
+  "prefer": "ours",
+  "base": {
+   "id": "d",
+   "title": "덱",
+   "slides": [
+    {
+     "id": "s1",
+     "layout": "blank",
+     "elements": [
+      {
+       "id": "e1",
+       "type": "text",
+       "x": 10,
+       "y": 10,
+       "w": 100,
+       "h": 40,
+       "text": "e1"
+      },
+      {
+       "id": "e2",
+       "type": "text",
+       "x": 10,
+       "y": 10,
+       "w": 100,
+       "h": 40,
+       "text": "e2"
+      }
+     ]
+    },
+    {
+     "id": "s2",
+     "layout": "blank",
+     "elements": [
+      {
+       "id": "e3",
+       "type": "text",
+       "x": 10,
+       "y": 10,
+       "w": 100,
+       "h": 40,
+       "text": "e3"
+      }
+     ]
+    }
+   ]
+  },
+  "ours": {
+   "id": "d",
+   "title": "덱",
+   "slides": [
+    {
+     "id": "s1",
+     "layout": "blank",
+     "elements": [
+      {
+       "id": "e1",
+       "type": "text",
+       "x": 10,
+       "y": 10,
+       "w": 100,
+       "h": 40,
+       "text": "e1"
+      },
+      {
+       "id": "e2",
+       "type": "text",
+       "x": 10,
+       "y": 10,
+       "w": 100,
+       "h": 40,
+       "text": "e2"
+      }
+     ]
+    },
+    {
+     "id": "sA",
+     "layout": "blank",
+     "elements": [
+      {
+       "id": "a1",
+       "type": "text",
+       "x": 10,
+       "y": 10,
+       "w": 100,
+       "h": 40,
+       "text": "a1"
+      }
+     ]
+    },
+    {
+     "id": "s2",
+     "layout": "blank",
+     "elements": [
+      {
+       "id": "e3",
+       "type": "text",
+       "x": 10,
+       "y": 10,
+       "w": 100,
+       "h": 40,
+       "text": "e3"
+      }
+     ]
+    }
+   ]
+  },
+  "theirs": {
+   "id": "d",
+   "title": "덱",
+   "slides": [
+    {
+     "id": "s1",
+     "layout": "blank",
+     "elements": [
+      {
+       "id": "e1",
+       "type": "text",
+       "x": 10,
+       "y": 10,
+       "w": 100,
+       "h": 40,
+       "text": "e1"
+      },
+      {
+       "id": "e2",
+       "type": "text",
+       "x": 10,
+       "y": 10,
+       "w": 100,
+       "h": 40,
+       "text": "e2"
+      }
+     ]
+    },
+    {
+     "id": "s2",
+     "layout": "blank",
+     "elements": [
+      {
+       "id": "e3",
+       "type": "text",
+       "x": 10,
+       "y": 10,
+       "w": 100,
+       "h": 40,
+       "text": "e3"
+      }
+     ]
+    },
+    {
+     "id": "sB",
+     "layout": "blank",
+     "elements": [
+      {
+       "id": "b1",
+       "type": "text",
+       "x": 10,
+       "y": 10,
+       "w": 100,
+       "h": 40,
+       "text": "b1"
+      }
+     ]
+    }
+   ]
+  },
+  "expect": {
+   "id": "d",
+   "title": "덱",
+   "slides": [
+    {
+     "id": "s1",
+     "layout": "blank",
+     "elements": [
+      {
+       "id": "e1",
+       "type": "text",
+       "x": 10,
+       "y": 10,
+       "w": 100,
+       "h": 40,
+       "text": "e1"
+      },
+      {
+       "id": "e2",
+       "type": "text",
+       "x": 10,
+       "y": 10,
+       "w": 100,
+       "h": 40,
+       "text": "e2"
+      }
+     ]
+    },
+    {
+     "id": "sA",
+     "layout": "blank",
+     "elements": [
+      {
+       "id": "a1",
+       "type": "text",
+       "x": 10,
+       "y": 10,
+       "w": 100,
+       "h": 40,
+       "text": "a1"
+      }
+     ]
+    },
+    {
+     "id": "s2",
+     "layout": "blank",
+     "elements": [
+      {
+       "id": "e3",
+       "type": "text",
+       "x": 10,
+       "y": 10,
+       "w": 100,
+       "h": 40,
+       "text": "e3"
+      }
+     ]
+    },
+    {
+     "id": "sB",
+     "layout": "blank",
+     "elements": [
+      {
+       "id": "b1",
+       "type": "text",
+       "x": 10,
+       "y": 10,
+       "w": 100,
+       "h": 40,
+       "text": "b1"
+      }
+     ]
+    }
+   ]
+  },
+  "conflicts": 0
+ },
+ {
+  "name": "지움 대 그대로 - 지운다",
+  "prefer": "ours",
+  "base": {
+   "id": "d",
+   "title": "덱",
+   "slides": [
+    {
+     "id": "s1",
+     "layout": "blank",
+     "elements": [
+      {
+       "id": "e1",
+       "type": "text",
+       "x": 10,
+       "y": 10,
+       "w": 100,
+       "h": 40,
+       "text": "e1"
+      },
+      {
+       "id": "e2",
+       "type": "text",
+       "x": 10,
+       "y": 10,
+       "w": 100,
+       "h": 40,
+       "text": "e2"
+      }
+     ]
+    },
+    {
+     "id": "s2",
+     "layout": "blank",
+     "elements": [
+      {
+       "id": "e3",
+       "type": "text",
+       "x": 10,
+       "y": 10,
+       "w": 100,
+       "h": 40,
+       "text": "e3"
+      }
+     ]
+    }
+   ]
+  },
+  "ours": {
+   "id": "d",
+   "title": "덱",
+   "slides": [
+    {
+     "id": "s1",
+     "layout": "blank",
+     "elements": [
+      {
+       "id": "e2",
+       "type": "text",
+       "x": 10,
+       "y": 10,
+       "w": 100,
+       "h": 40,
+       "text": "e2"
+      }
+     ]
+    },
+    {
+     "id": "s2",
+     "layout": "blank",
+     "elements": [
+      {
+       "id": "e3",
+       "type": "text",
+       "x": 10,
+       "y": 10,
+       "w": 100,
+       "h": 40,
+       "text": "e3"
+      }
+     ]
+    }
+   ]
+  },
+  "theirs": {
+   "id": "d",
+   "title": "덱",
+   "slides": [
+    {
+     "id": "s1",
+     "layout": "blank",
+     "elements": [
+      {
+       "id": "e1",
+       "type": "text",
+       "x": 10,
+       "y": 10,
+       "w": 100,
+       "h": 40,
+       "text": "e1"
+      },
+      {
+       "id": "e2",
+       "type": "text",
+       "x": 10,
+       "y": 10,
+       "w": 100,
+       "h": 40,
+       "text": "e2"
+      }
+     ]
+    },
+    {
+     "id": "s2",
+     "layout": "blank",
+     "elements": [
+      {
+       "id": "e3",
+       "type": "text",
+       "x": 10,
+       "y": 10,
+       "w": 100,
+       "h": 40,
+       "text": "e3"
+      }
+     ]
+    }
+   ]
+  },
+  "expect": {
+   "id": "d",
+   "title": "덱",
+   "slides": [
+    {
+     "id": "s1",
+     "layout": "blank",
+     "elements": [
+      {
+       "id": "e2",
+       "type": "text",
+       "x": 10,
+       "y": 10,
+       "w": 100,
+       "h": 40,
+       "text": "e2"
+      }
+     ]
+    },
+    {
+     "id": "s2",
+     "layout": "blank",
+     "elements": [
+      {
+       "id": "e3",
+       "type": "text",
+       "x": 10,
+       "y": 10,
+       "w": 100,
+       "h": 40,
+       "text": "e3"
+      }
+     ]
+    }
+   ]
+  },
+  "conflicts": 0
+ },
+ {
+  "name": "지움 대 수정 - 수정을 남긴다",
+  "prefer": "ours",
+  "base": {
+   "id": "d",
+   "title": "덱",
+   "slides": [
+    {
+     "id": "s1",
+     "layout": "blank",
+     "elements": [
+      {
+       "id": "e1",
+       "type": "text",
+       "x": 10,
+       "y": 10,
+       "w": 100,
+       "h": 40,
+       "text": "e1"
+      },
+      {
+       "id": "e2",
+       "type": "text",
+       "x": 10,
+       "y": 10,
+       "w": 100,
+       "h": 40,
+       "text": "e2"
+      }
+     ]
+    },
+    {
+     "id": "s2",
+     "layout": "blank",
+     "elements": [
+      {
+       "id": "e3",
+       "type": "text",
+       "x": 10,
+       "y": 10,
+       "w": 100,
+       "h": 40,
+       "text": "e3"
+      }
+     ]
+    }
+   ]
+  },
+  "ours": {
+   "id": "d",
+   "title": "덱",
+   "slides": [
+    {
+     "id": "s1",
+     "layout": "blank",
+     "elements": [
+      {
+       "id": "e2",
+       "type": "text",
+       "x": 10,
+       "y": 10,
+       "w": 100,
+       "h": 40,
+       "text": "e2"
+      }
+     ]
+    },
+    {
+     "id": "s2",
+     "layout": "blank",
+     "elements": [
+      {
+       "id": "e3",
+       "type": "text",
+       "x": 10,
+       "y": 10,
+       "w": 100,
+       "h": 40,
+       "text": "e3"
+      }
+     ]
+    }
+   ]
+  },
+  "theirs": {
+   "id": "d",
+   "title": "덱",
+   "slides": [
+    {
+     "id": "s1",
+     "layout": "blank",
+     "elements": [
+      {
+       "id": "e1",
+       "type": "text",
+       "x": 10,
+       "y": 10,
+       "w": 100,
+       "h": 40,
+       "text": "고침"
+      },
+      {
+       "id": "e2",
+       "type": "text",
+       "x": 10,
+       "y": 10,
+       "w": 100,
+       "h": 40,
+       "text": "e2"
+      }
+     ]
+    },
+    {
+     "id": "s2",
+     "layout": "blank",
+     "elements": [
+      {
+       "id": "e3",
+       "type": "text",
+       "x": 10,
+       "y": 10,
+       "w": 100,
+       "h": 40,
+       "text": "e3"
+      }
+     ]
+    }
+   ]
+  },
+  "expect": {
+   "id": "d",
+   "title": "덱",
+   "slides": [
+    {
+     "id": "s1",
+     "layout": "blank",
+     "elements": [
+      {
+       "id": "e1",
+       "type": "text",
+       "x": 10,
+       "y": 10,
+       "w": 100,
+       "h": 40,
+       "text": "고침"
+      },
+      {
+       "id": "e2",
+       "type": "text",
+       "x": 10,
+       "y": 10,
+       "w": 100,
+       "h": 40,
+       "text": "e2"
+      }
+     ]
+    },
+    {
+     "id": "s2",
+     "layout": "blank",
+     "elements": [
+      {
+       "id": "e3",
+       "type": "text",
+       "x": 10,
+       "y": 10,
+       "w": 100,
+       "h": 40,
+       "text": "e3"
+      }
+     ]
+    }
+   ]
+  },
+  "conflicts": 1
+ },
+ {
+  "name": "장 순서(ours) + 글(theirs)",
+  "prefer": "ours",
+  "base": {
+   "id": "d",
+   "title": "덱",
+   "slides": [
+    {
+     "id": "s1",
+     "layout": "blank",
+     "elements": [
+      {
+       "id": "e1",
+       "type": "text",
+       "x": 10,
+       "y": 10,
+       "w": 100,
+       "h": 40,
+       "text": "e1"
+      },
+      {
+       "id": "e2",
+       "type": "text",
+       "x": 10,
+       "y": 10,
+       "w": 100,
+       "h": 40,
+       "text": "e2"
+      }
+     ]
+    },
+    {
+     "id": "s2",
+     "layout": "blank",
+     "elements": [
+      {
+       "id": "e3",
+       "type": "text",
+       "x": 10,
+       "y": 10,
+       "w": 100,
+       "h": 40,
+       "text": "e3"
+      }
+     ]
+    }
+   ]
+  },
+  "ours": {
+   "id": "d",
+   "title": "덱",
+   "slides": [
+    {
+     "id": "s2",
+     "layout": "blank",
+     "elements": [
+      {
+       "id": "e3",
+       "type": "text",
+       "x": 10,
+       "y": 10,
+       "w": 100,
+       "h": 40,
+       "text": "e3"
+      }
+     ]
+    },
+    {
+     "id": "s1",
+     "layout": "blank",
+     "elements": [
+      {
+       "id": "e1",
+       "type": "text",
+       "x": 10,
+       "y": 10,
+       "w": 100,
+       "h": 40,
+       "text": "e1"
+      },
+      {
+       "id": "e2",
+       "type": "text",
+       "x": 10,
+       "y": 10,
+       "w": 100,
+       "h": 40,
+       "text": "e2"
+      }
+     ]
+    }
+   ]
+  },
+  "theirs": {
+   "id": "d",
+   "title": "덱",
+   "slides": [
+    {
+     "id": "s1",
+     "layout": "blank",
+     "elements": [
+      {
+       "id": "e1",
+       "type": "text",
+       "x": 10,
+       "y": 10,
+       "w": 100,
+       "h": 40,
+       "text": "e1"
+      },
+      {
+       "id": "e2",
+       "type": "text",
+       "x": 10,
+       "y": 10,
+       "w": 100,
+       "h": 40,
+       "text": "너"
+      }
+     ]
+    },
+    {
+     "id": "s2",
+     "layout": "blank",
+     "elements": [
+      {
+       "id": "e3",
+       "type": "text",
+       "x": 10,
+       "y": 10,
+       "w": 100,
+       "h": 40,
+       "text": "e3"
+      }
+     ]
+    }
+   ]
+  },
+  "expect": {
+   "id": "d",
+   "title": "덱",
+   "slides": [
+    {
+     "id": "s2",
+     "layout": "blank",
+     "elements": [
+      {
+       "id": "e3",
+       "type": "text",
+       "x": 10,
+       "y": 10,
+       "w": 100,
+       "h": 40,
+       "text": "e3"
+      }
+     ]
+    },
+    {
+     "id": "s1",
+     "layout": "blank",
+     "elements": [
+      {
+       "id": "e1",
+       "type": "text",
+       "x": 10,
+       "y": 10,
+       "w": 100,
+       "h": 40,
+       "text": "e1"
+      },
+      {
+       "id": "e2",
+       "type": "text",
+       "x": 10,
+       "y": 10,
+       "w": 100,
+       "h": 40,
+       "text": "너"
+      }
+     ]
+    }
+   ]
+  },
+  "conflicts": 0
+ },
+ {
+  "name": "덱 속성·장 속성 - 둘 다, updated 는 보낸 쪽",
+  "prefer": "ours",
+  "base": {
+   "id": "d",
+   "title": "덱",
+   "slides": [
+    {
+     "id": "s1",
+     "layout": "blank",
+     "elements": [
+      {
+       "id": "e1",
+       "type": "text",
+       "x": 10,
+       "y": 10,
+       "w": 100,
+       "h": 40,
+       "text": "e1"
+      },
+      {
+       "id": "e2",
+       "type": "text",
+       "x": 10,
+       "y": 10,
+       "w": 100,
+       "h": 40,
+       "text": "e2"
+      }
+     ]
+    },
+    {
+     "id": "s2",
+     "layout": "blank",
+     "elements": [
+      {
+       "id": "e3",
+       "type": "text",
+       "x": 10,
+       "y": 10,
+       "w": 100,
+       "h": 40,
+       "text": "e3"
+      }
+     ]
+    }
+   ]
+  },
+  "ours": {
+   "id": "d",
+   "title": "새 제목",
+   "slides": [
+    {
+     "id": "s1",
+     "layout": "blank",
+     "elements": [
+      {
+       "id": "e1",
+       "type": "text",
+       "x": 10,
+       "y": 10,
+       "w": 100,
+       "h": 40,
+       "text": "e1"
+      },
+      {
+       "id": "e2",
+       "type": "text",
+       "x": 10,
+       "y": 10,
+       "w": 100,
+       "h": 40,
+       "text": "e2"
+      }
+     ]
+    },
+    {
+     "id": "s2",
+     "layout": "blank",
+     "elements": [
+      {
+       "id": "e3",
+       "type": "text",
+       "x": 10,
+       "y": 10,
+       "w": 100,
+       "h": 40,
+       "text": "e3"
+      }
+     ]
+    }
+   ],
+   "updated": "2026-10-29T10:00:00"
+  },
+  "theirs": {
+   "id": "d",
+   "title": "덱",
+   "slides": [
+    {
+     "id": "s1",
+     "layout": "blank",
+     "elements": [
+      {
+       "id": "e1",
+       "type": "text",
+       "x": 10,
+       "y": 10,
+       "w": 100,
+       "h": 40,
+       "text": "e1"
+      },
+      {
+       "id": "e2",
+       "type": "text",
+       "x": 10,
+       "y": 10,
+       "w": 100,
+       "h": 40,
+       "text": "e2"
+      }
+     ]
+    },
+    {
+     "id": "s2",
+     "layout": "blank",
+     "elements": [
+      {
+       "id": "e3",
+       "type": "text",
+       "x": 10,
+       "y": 10,
+       "w": 100,
+       "h": 40,
+       "text": "e3"
+      }
+     ],
+     "notes": "노트"
+    }
+   ],
+   "updated": "2026-10-29T09:00:00"
+  },
+  "expect": {
+   "id": "d",
+   "title": "새 제목",
+   "slides": [
+    {
+     "id": "s1",
+     "layout": "blank",
+     "elements": [
+      {
+       "id": "e1",
+       "type": "text",
+       "x": 10,
+       "y": 10,
+       "w": 100,
+       "h": 40,
+       "text": "e1"
+      },
+      {
+       "id": "e2",
+       "type": "text",
+       "x": 10,
+       "y": 10,
+       "w": 100,
+       "h": 40,
+       "text": "e2"
+      }
+     ]
+    },
+    {
+     "id": "s2",
+     "layout": "blank",
+     "elements": [
+      {
+       "id": "e3",
+       "type": "text",
+       "x": 10,
+       "y": 10,
+       "w": 100,
+       "h": 40,
+       "text": "e3"
+      }
+     ],
+     "notes": "노트"
+    }
+   ],
+   "updated": "2026-10-29T10:00:00"
+  },
+  "conflicts": 0
+ },
+ {
+  "name": "시트 - 다른 셀 둘 다",
+  "prefer": "ours",
+  "base": {
+   "id": "d",
+   "kind": "sheet",
+   "title": "시트",
+   "slides": [],
+   "sheets": [
+    {
+     "id": "t01",
+     "name": "t01",
+     "cells": {
+      "A1": "제목",
+      "B2": 10,
+      "C3": {
+       "f": "=B2*2",
+       "v": 20
+      }
+     },
+     "cols": {
+      "A": 120
+     }
+    }
+   ]
+  },
+  "ours": {
+   "id": "d",
+   "kind": "sheet",
+   "title": "시트",
+   "slides": [],
+   "sheets": [
+    {
+     "id": "t01",
+     "name": "t01",
+     "cells": {
+      "A1": "제목",
+      "B2": 11,
+      "C3": {
+       "f": "=B2*2",
+       "v": 20
+      }
+     },
+     "cols": {
+      "A": 120
+     }
+    }
+   ]
+  },
+  "theirs": {
+   "id": "d",
+   "kind": "sheet",
+   "title": "시트",
+   "slides": [],
+   "sheets": [
+    {
+     "id": "t01",
+     "name": "t01",
+     "cells": {
+      "A1": "제목",
+      "B2": 10,
+      "C3": {
+       "f": "=B2*2",
+       "v": 20
+      },
+      "D4": "새"
+     },
+     "cols": {
+      "A": 120
+     }
+    }
+   ]
+  },
+  "expect": {
+   "id": "d",
+   "kind": "sheet",
+   "title": "시트",
+   "slides": [],
+   "sheets": [
+    {
+     "id": "t01",
+     "name": "t01",
+     "cells": {
+      "A1": "제목",
+      "B2": 11,
+      "C3": {
+       "f": "=B2*2",
+       "v": 20
+      },
+      "D4": "새"
+     },
+     "cols": {
+      "A": 120
+     }
+    }
+   ]
+  },
+  "conflicts": 0
+ },
+ {
+  "name": "시트 - 같은 셀 값 대 서식 - 둘 다",
+  "prefer": "ours",
+  "base": {
+   "id": "d",
+   "kind": "sheet",
+   "title": "시트",
+   "slides": [],
+   "sheets": [
+    {
+     "id": "t01",
+     "name": "t01",
+     "cells": {
+      "A1": "제목",
+      "B2": 10,
+      "C3": {
+       "f": "=B2*2",
+       "v": 20
+      }
+     },
+     "cols": {
+      "A": 120
+     }
+    }
+   ]
+  },
+  "ours": {
+   "id": "d",
+   "kind": "sheet",
+   "title": "시트",
+   "slides": [],
+   "sheets": [
+    {
+     "id": "t01",
+     "name": "t01",
+     "cells": {
+      "A1": "바꾼 제목",
+      "B2": 10,
+      "C3": {
+       "f": "=B2*2",
+       "v": 20
+      }
+     },
+     "cols": {
+      "A": 120
+     }
+    }
+   ]
+  },
+  "theirs": {
+   "id": "d",
+   "kind": "sheet",
+   "title": "시트",
+   "slides": [],
+   "sheets": [
+    {
+     "id": "t01",
+     "name": "t01",
+     "cells": {
+      "A1": {
+       "v": "제목",
+       "b": true,
+       "fill": "#FFFF00"
+      },
+      "B2": 10,
+      "C3": {
+       "f": "=B2*2",
+       "v": 20
+      }
+     },
+     "cols": {
+      "A": 120
+     }
+    }
+   ]
+  },
+  "expect": {
+   "id": "d",
+   "kind": "sheet",
+   "title": "시트",
+   "slides": [],
+   "sheets": [
+    {
+     "id": "t01",
+     "name": "t01",
+     "cells": {
+      "A1": {
+       "b": true,
+       "fill": "#FFFF00",
+       "v": "바꾼 제목"
+      },
+      "B2": 10,
+      "C3": {
+       "f": "=B2*2",
+       "v": 20
+      }
+     },
+     "cols": {
+      "A": 120
+     }
+    }
+   ]
+  },
+  "conflicts": 0
+ },
+ {
+  "name": "시트 - 같은 셀 값 충돌 - ours",
+  "prefer": "ours",
+  "base": {
+   "id": "d",
+   "kind": "sheet",
+   "title": "시트",
+   "slides": [],
+   "sheets": [
+    {
+     "id": "t01",
+     "name": "t01",
+     "cells": {
+      "A1": "제목",
+      "B2": 10,
+      "C3": {
+       "f": "=B2*2",
+       "v": 20
+      }
+     },
+     "cols": {
+      "A": 120
+     }
+    }
+   ]
+  },
+  "ours": {
+   "id": "d",
+   "kind": "sheet",
+   "title": "시트",
+   "slides": [],
+   "sheets": [
+    {
+     "id": "t01",
+     "name": "t01",
+     "cells": {
+      "A1": "제목",
+      "B2": 11,
+      "C3": {
+       "f": "=B2*2",
+       "v": 20
+      }
+     },
+     "cols": {
+      "A": 120
+     }
+    }
+   ]
+  },
+  "theirs": {
+   "id": "d",
+   "kind": "sheet",
+   "title": "시트",
+   "slides": [],
+   "sheets": [
+    {
+     "id": "t01",
+     "name": "t01",
+     "cells": {
+      "A1": "제목",
+      "B2": 12,
+      "C3": {
+       "f": "=B2*2",
+       "v": 20
+      }
+     },
+     "cols": {
+      "A": 120
+     }
+    }
+   ]
+  },
+  "expect": {
+   "id": "d",
+   "kind": "sheet",
+   "title": "시트",
+   "slides": [],
+   "sheets": [
+    {
+     "id": "t01",
+     "name": "t01",
+     "cells": {
+      "A1": "제목",
+      "B2": 11,
+      "C3": {
+       "f": "=B2*2",
+       "v": 20
+      }
+     },
+     "cols": {
+      "A": 120
+     }
+    }
+   ]
+  },
+  "conflicts": 1
+ },
+ {
+  "name": "시트 - 수식 바꿈(ours) 대 계산값만 바뀜(theirs) - 수식",
+  "prefer": "ours",
+  "base": {
+   "id": "d",
+   "kind": "sheet",
+   "title": "시트",
+   "slides": [],
+   "sheets": [
+    {
+     "id": "t01",
+     "name": "t01",
+     "cells": {
+      "A1": "제목",
+      "B2": 10,
+      "C3": {
+       "f": "=B2*2",
+       "v": 20
+      }
+     },
+     "cols": {
+      "A": 120
+     }
+    }
+   ]
+  },
+  "ours": {
+   "id": "d",
+   "kind": "sheet",
+   "title": "시트",
+   "slides": [],
+   "sheets": [
+    {
+     "id": "t01",
+     "name": "t01",
+     "cells": {
+      "A1": "제목",
+      "B2": 10,
+      "C3": {
+       "f": "=B2*3",
+       "v": 30
+      }
+     },
+     "cols": {
+      "A": 120
+     }
+    }
+   ]
+  },
+  "theirs": {
+   "id": "d",
+   "kind": "sheet",
+   "title": "시트",
+   "slides": [],
+   "sheets": [
+    {
+     "id": "t01",
+     "name": "t01",
+     "cells": {
+      "A1": "제목",
+      "B2": 10,
+      "C3": {
+       "f": "=B2*2",
+       "v": 22
+      }
+     },
+     "cols": {
+      "A": 120
+     }
+    }
+   ]
+  },
+  "expect": {
+   "id": "d",
+   "kind": "sheet",
+   "title": "시트",
+   "slides": [],
+   "sheets": [
+    {
+     "id": "t01",
+     "name": "t01",
+     "cells": {
+      "A1": "제목",
+      "B2": 10,
+      "C3": {
+       "f": "=B2*3",
+       "v": 30
+      }
+     },
+     "cols": {
+      "A": 120
+     }
+    }
+   ]
+  },
+  "conflicts": 0
+ },
+ {
+  "name": "시트 - 셀 지움 대 그대로 - 지운다",
+  "prefer": "ours",
+  "base": {
+   "id": "d",
+   "kind": "sheet",
+   "title": "시트",
+   "slides": [],
+   "sheets": [
+    {
+     "id": "t01",
+     "name": "t01",
+     "cells": {
+      "A1": "제목",
+      "B2": 10,
+      "C3": {
+       "f": "=B2*2",
+       "v": 20
+      }
+     },
+     "cols": {
+      "A": 120
+     }
+    }
+   ]
+  },
+  "ours": {
+   "id": "d",
+   "kind": "sheet",
+   "title": "시트",
+   "slides": [],
+   "sheets": [
+    {
+     "id": "t01",
+     "name": "t01",
+     "cells": {
+      "B2": 10,
+      "C3": {
+       "f": "=B2*2",
+       "v": 20
+      }
+     },
+     "cols": {
+      "A": 120
+     }
+    }
+   ]
+  },
+  "theirs": {
+   "id": "d",
+   "kind": "sheet",
+   "title": "시트",
+   "slides": [],
+   "sheets": [
+    {
+     "id": "t01",
+     "name": "t01",
+     "cells": {
+      "A1": "제목",
+      "B2": 10,
+      "C3": {
+       "f": "=B2*2",
+       "v": 20
+      }
+     },
+     "cols": {
+      "A": 120
+     }
+    }
+   ]
+  },
+  "expect": {
+   "id": "d",
+   "kind": "sheet",
+   "title": "시트",
+   "slides": [],
+   "sheets": [
+    {
+     "id": "t01",
+     "name": "t01",
+     "cells": {
+      "B2": 10,
+      "C3": {
+       "f": "=B2*2",
+       "v": 20
+      }
+     },
+     "cols": {
+      "A": 120
+     }
+    }
+   ]
+  },
+  "conflicts": 0
+ },
+ {
+  "name": "시트 - 열 너비는 열마다",
+  "prefer": "ours",
+  "base": {
+   "id": "d",
+   "kind": "sheet",
+   "title": "시트",
+   "slides": [],
+   "sheets": [
+    {
+     "id": "t01",
+     "name": "t01",
+     "cells": {
+      "A1": "제목",
+      "B2": 10,
+      "C3": {
+       "f": "=B2*2",
+       "v": 20
+      }
+     },
+     "cols": {
+      "A": 120
+     }
+    }
+   ]
+  },
+  "ours": {
+   "id": "d",
+   "kind": "sheet",
+   "title": "시트",
+   "slides": [],
+   "sheets": [
+    {
+     "id": "t01",
+     "name": "t01",
+     "cells": {
+      "A1": "제목",
+      "B2": 10,
+      "C3": {
+       "f": "=B2*2",
+       "v": 20
+      }
+     },
+     "cols": {
+      "A": 120,
+      "B": 80
+     }
+    }
+   ]
+  },
+  "theirs": {
+   "id": "d",
+   "kind": "sheet",
+   "title": "시트",
+   "slides": [],
+   "sheets": [
+    {
+     "id": "t01",
+     "name": "t01",
+     "cells": {
+      "A1": "제목",
+      "B2": 10,
+      "C3": {
+       "f": "=B2*2",
+       "v": 20
+      }
+     },
+     "cols": {
+      "A": 200
+     }
+    }
+   ]
+  },
+  "expect": {
+   "id": "d",
+   "kind": "sheet",
+   "title": "시트",
+   "slides": [],
+   "sheets": [
+    {
+     "id": "t01",
+     "name": "t01",
+     "cells": {
+      "A1": "제목",
+      "B2": 10,
+      "C3": {
+       "f": "=B2*2",
+       "v": 20
+      }
+     },
+     "cols": {
+      "A": 200,
+      "B": 80
+     }
+    }
+   ]
+  },
+  "conflicts": 0
+ },
+ {
+  "name": "시트 - 양쪽이 탭 추가(ours 탭은 ours 에서 바로 앞 탭 뒤에)",
+  "prefer": "ours",
+  "base": {
+   "id": "d",
+   "kind": "sheet",
+   "title": "시트",
+   "slides": [],
+   "sheets": [
+    {
+     "id": "t01",
+     "name": "t01",
+     "cells": {
+      "A1": "제목",
+      "B2": 10,
+      "C3": {
+       "f": "=B2*2",
+       "v": 20
+      }
+     },
+     "cols": {
+      "A": 120
+     }
+    }
+   ]
+  },
+  "ours": {
+   "id": "d",
+   "kind": "sheet",
+   "title": "시트",
+   "slides": [],
+   "sheets": [
+    {
+     "id": "t01",
+     "name": "t01",
+     "cells": {
+      "A1": "제목",
+      "B2": 10,
+      "C3": {
+       "f": "=B2*2",
+       "v": 20
+      }
+     },
+     "cols": {
+      "A": 120
+     }
+    },
+    {
+     "id": "t02",
+     "name": "t02",
+     "cells": {
+      "A1": 1
+     }
+    }
+   ]
+  },
+  "theirs": {
+   "id": "d",
+   "kind": "sheet",
+   "title": "시트",
+   "slides": [],
+   "sheets": [
+    {
+     "id": "t01",
+     "name": "t01",
+     "cells": {
+      "A1": "제목",
+      "B2": 10,
+      "C3": {
+       "f": "=B2*2",
+       "v": 20
+      }
+     },
+     "cols": {
+      "A": 120
+     }
+    },
+    {
+     "id": "t03",
+     "name": "t03",
+     "cells": {
+      "A1": 2
+     }
+    }
+   ]
+  },
+  "expect": {
+   "id": "d",
+   "kind": "sheet",
+   "title": "시트",
+   "slides": [],
+   "sheets": [
+    {
+     "id": "t01",
+     "name": "t01",
+     "cells": {
+      "A1": "제목",
+      "B2": 10,
+      "C3": {
+       "f": "=B2*2",
+       "v": 20
+      }
+     },
+     "cols": {
+      "A": 120
+     }
+    },
+    {
+     "id": "t02",
+     "name": "t02",
+     "cells": {
+      "A1": 1
+     }
+    },
+    {
+     "id": "t03",
+     "name": "t03",
+     "cells": {
+      "A1": 2
+     }
+    }
+   ]
+  },
+  "conflicts": 0
+ },
+ {
+  "name": "시트 - 같은 수식, 양쪽 계산값이 다름 - 충돌 아님, 바뀐 쪽 값",
+  "prefer": "ours",
+  "base": {
+   "id": "d",
+   "kind": "sheet",
+   "title": "시트",
+   "slides": [],
+   "sheets": [
+    {
+     "id": "t01",
+     "name": "t01",
+     "cells": {
+      "A1": "제목",
+      "B2": 10,
+      "C3": {
+       "f": "=B2*2",
+       "v": 20
+      }
+     },
+     "cols": {
+      "A": 120
+     }
+    }
+   ]
+  },
+  "ours": {
+   "id": "d",
+   "kind": "sheet",
+   "title": "시트",
+   "slides": [],
+   "sheets": [
+    {
+     "id": "t01",
+     "name": "t01",
+     "cells": {
+      "A1": "제목",
+      "B2": 10,
+      "C3": {
+       "f": "=B2*2",
+       "v": 20
+      }
+     },
+     "cols": {
+      "A": 120
+     }
+    }
+   ]
+  },
+  "theirs": {
+   "id": "d",
+   "kind": "sheet",
+   "title": "시트",
+   "slides": [],
+   "sheets": [
+    {
+     "id": "t01",
+     "name": "t01",
+     "cells": {
+      "A1": "제목",
+      "B2": 10,
+      "C3": {
+       "f": "=B2*2",
+       "v": 24
+      }
+     },
+     "cols": {
+      "A": 120
+     }
+    }
+   ]
+  },
+  "expect": {
+   "id": "d",
+   "kind": "sheet",
+   "title": "시트",
+   "slides": [],
+   "sheets": [
+    {
+     "id": "t01",
+     "name": "t01",
+     "cells": {
+      "A1": "제목",
+      "B2": 10,
+      "C3": {
+       "f": "=B2*2",
+       "v": 24
+      }
+     },
+     "cols": {
+      "A": 120
+     }
+    }
+   ]
+  },
+  "conflicts": 0
+ }
+]
