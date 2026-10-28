@@ -870,6 +870,8 @@ class H(BaseHTTPRequestHandler):
                 if act == "create":
                     out = deck_admin.create(i, b.get("title"), b.get("layout") or "cover", b.get("part") or "day1", "sheet" if b.get("kind") == "sheet" else "deck",
                                             theme=b.get("theme"), pages=b.get("pages"), vars_=b.get("vars"))
+                elif act == "import":  # 엑셀 파일 → 시트 문서 {name, data(base64), title?} (sheet_import.py)
+                    out = self._import_xlsx(b)
                 elif act == "copy":
                     out = deck_admin.copy(i, b.get("title"))
                 elif act == "start":
@@ -887,11 +889,37 @@ class H(BaseHTTPRequestHandler):
                     out = deck_admin.delete(i)
                     LAST.pop(i, None)
                 else:
-                    return self.err(400, "action = create|copy|start|rename|retitle|delete")
+                    return self.err(400, "action = create|import|copy|start|rename|retitle|delete")
         except ValueError as e:
             return self.err(400, str(e))
         self._event = f"deck.{act}:{i}" + (f"→{out.get('id')}" if act in ("rename", "copy") else "")
         self.send_json({"ok": True, **out, "decks": deck_admin.list_decks()})
+
+    def _import_xlsx(self, b):
+        import base64
+        import deck_admin
+        import sheet_import
+        import zipfile
+        name = str(b.get("name") or "시트.xlsx")[:120]
+        if not name.lower().endswith((".xlsx", ".xlsm")):
+            raise ValueError("엑셀 통합 문서(.xlsx·.xlsm)만 가져온다")
+        try:
+            data = base64.b64decode(str(b.get("data") or ""), validate=True)
+        except (ValueError, TypeError):
+            raise ValueError("data 는 base64")
+        if not data or len(data) > 30 * 1024 * 1024:
+            raise ValueError("내용 없음" if not data else "30MB 보다 크다")
+        d = OUT / "import"
+        d.mkdir(parents=True, exist_ok=True)
+        src = d / f"{dt.datetime.now().strftime('%Y%m%d-%H%M%S')}-{re.sub(r'[^0-9A-Za-z가-힣._-]+', '_', name)}"
+        src.write_bytes(data)
+        i = deck_admin.new_id()
+        try:
+            doc, warnings = sheet_import.to_doc(i, " ".join(str(b.get("title") or Path(name).stem).split())[:200] or i, src)
+        except zipfile.BadZipFile:
+            raise ValueError("엑셀 파일이 아니다(zip 형식 아님)")
+        atomic_write(DECKS / f"{i}.json", dumps(doc))
+        return {"id": i, "title": doc["title"], "kind": "sheet", "slides": 0, "sheets": len(doc["sheets"]), "warnings": warnings}
 
     def api_get_sheet_themes(self, name, q):
         """시트 테마 - 이름 없으면 목록, 있으면 theme.json(+ base 그림 주소 접두사, brandLogo). docs/sheets.md 5절."""
