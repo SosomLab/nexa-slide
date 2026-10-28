@@ -31,7 +31,7 @@
   ["=EDATE(F1,1)", 46354], ["=EOMONTH(F1,0)", 46326], ["=ISBLANK(C5)", true], ["=ISNUMBER(B2)", true], ["=ISTEXT(A2)", true], ["=ISERROR(F4)", true],
   ["=요약!A1+요약!A3", 40], ["=SUM('요약'!A1:A3)", 60], ["=ROW()", 10], ["=COLUMN(C7)", 3], ["=ROWS(A2:A5)", 4], ["=COLUMNS(A1:D1)", 4],
   ["=SUM(INDIRECT(\"B2:B3\"))", 2000], ["=SUM(OFFSET(B2,1,0,2,1))", 1300], ["=SUBTOTAL(9,B2:B5)", 2800], ["=SUM(B:B)", 2800],
-  ["=SUMPRODUCT(--ISNUMBER(SEARCH(\"산\",A2:A5)))", 1], ["=MAX(IF(B2:B5>600,B2:B5))", 1200], ["=NOFUNC(1)", "#NAME?"], ["=SUM(B2", "#NAME?"]
+  ["=SUMPRODUCT(--ISNUMBER(SEARCH(\"산\",A2:A5)))", 1], ["=MAX(IF(B2:B5>600,B2:B5))", 1200], ["=HYPERLINK(\"#목록!A1\",\"이동\")", "이동"], ["=_xlfn.TEXTJOIN(\",\",TRUE,A2:A3)", "서울,부산"], ["=NOFUNC(1)", "#NAME?"], ["=SUM(B2", "#NAME?"]
  ],
  "at": "H10"
 }

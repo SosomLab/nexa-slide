@@ -86,7 +86,7 @@ def tokenize(src):
             sheet = g[2][:-1].strip("'").replace("''", "'") if g[2] else None
             out.append(("ref", g[3], sheet))
         elif g[4]:
-            out.append(("fn", g[4].upper()))
+            out.append(("fn", re.sub(r"^_XL(?:FN|WS)\.", "", g[4].upper())))  # 파일에 저장된 새 함수 접두사(_xlfn.TEXTJOIN)
         elif g[5]:
             out.append(("bool", g[5].upper() == "TRUE"))
         elif g[6]:
@@ -981,6 +981,7 @@ FUNCS = {
     "EDATE": lambda c, A, sh: serial(add_months(date_of(c.one(A, 0, sh)), int(to_num(c.one(A, 1, sh))))), "EOMONTH": _eomonth,
     "ROW": _row_col(0), "COLUMN": _row_col(1), "ROWS": _rows_cols(0), "COLUMNS": _rows_cols(1),
     "INDIRECT": _indirect, "OFFSET": _offset, "SUBTOTAL": _subtotal,
+    "HYPERLINK": lambda c, A, sh: c.one(A, 1, sh) if len(A) > 1 else c.one(A, 0, sh),  # 링크는 화면에서 열지 않는다 - 보이는 글만
     "ISBLANK": _is(lambda v: v is None or v == ""), "ISNUMBER": _is(lambda v: isinstance(v, (int, float)) and not isinstance(v, bool)),
     "ISTEXT": _is(lambda v: isinstance(v, str)), "ISERROR": _is(lambda v: isinstance(v, FErr)), "ISNA": _is(lambda v: isinstance(v, FErr) and v.code == "#N/A"),
 }
@@ -1043,10 +1044,20 @@ def recalc(doc):
             if isinstance(raw, dict) and raw.get("f"):
                 v = c.cell(sh, k)
                 v = v.code if isinstance(v, FErr) else v
+                if v == "#NAME?" and raw.get("v") not in (None, "#NAME?") and unknown_fn(raw["f"]):
+                    continue  # 매크로(VBA) 사용자 함수 - 계산할 수 없어 엑셀이 마지막에 계산한 값을 그대로 둔다
                 if raw.get("v") != v:
                     raw["v"] = v
                     changed += 1
     return changed
+
+
+def unknown_fn(f):
+    """수식에 계산기가 모르는 함수(매크로 사용자 함수 등)가 있나."""
+    try:
+        return any(t[0] == "fn" and t[1] not in FUNCS for t in tokenize(f[1:] if f.startswith("=") else f))
+    except FErr:
+        return False
 
 
 def main():

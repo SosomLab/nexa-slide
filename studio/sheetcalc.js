@@ -37,7 +37,7 @@
       if (m[1]) continue;
       if (m[2]) out.push(["str", m[2].slice(1, -1).replace(/""/g, '"')]);
       else if (m[4]) out.push(["ref", m[4], m[3] ? m[3].slice(0, -1).replace(/^'|'$/g, "").replace(/''/g, "'") : null]);
-      else if (m[5]) out.push(["fn", m[5].toUpperCase()]);
+      else if (m[5]) out.push(["fn", m[5].toUpperCase().replace(/^_XL(?:FN|WS)\./, "")]);  // 파일에 저장된 새 함수 접두사(_xlfn.TEXTJOIN)
       else if (m[6]) out.push(["bool", m[6].toUpperCase() === "TRUE"]);
       else if (m[7]) out.push(["num", parseFloat(m[7])]);
       else if (m[8]) out.push(["op", m[8]]);
@@ -425,17 +425,20 @@
     ROWS: (c, A, sh) => c.area(A[0], sh).rows.length, COLUMNS: (c, A, sh) => { const r = c.area(A[0], sh); return r.rows.length ? r.rows[0].length : 0; },
     INDIRECT: (c, A, sh) => c.ev(c.refnode(["fn", "INDIRECT", A], sh), sh), OFFSET: (c, A, sh) => c.ev(c.refnode(["fn", "OFFSET", A], sh), sh),
     SUBTOTAL: (c, A, sh) => { const k = n0(c, A, sh, 0) % 100, fn = { 1: "AVERAGE", 2: "COUNT", 3: "COUNTA", 4: "MAX", 5: "MIN", 6: "PRODUCT", 9: "SUM" }[k]; if (!fn) throw new FErr("#VALUE!"); return FUNCS[fn](c, A.slice(1), sh); },
+    HYPERLINK: (c, A, sh) => (A.length > 1 ? c.one(A, 1, sh) : c.one(A, 0, sh)),  // 링크는 화면에서 열지 않는다 - 보이는 글만
     ISBLANK: isF((v) => v == null || v === ""), ISNUMBER: isF((v) => isNum(v)), ISTEXT: isF((v) => typeof v === "string"), ISERROR: isF((v) => v instanceof FErr), ISNA: isF((v) => v instanceof FErr && v.code === "#N/A"),
   };
   const SCALAR = new Set(["ISNUMBER", "ISTEXT", "ISBLANK", "ISERROR", "ISNA", "SEARCH", "FIND", "LEFT", "RIGHT", "MID", "LEN", "TRIM", "UPPER", "LOWER", "SUBSTITUTE",
     "VALUE", "TEXT", "ABS", "INT", "ROUND", "ROUNDUP", "ROUNDDOWN", "MOD", "YEAR", "MONTH", "DAY", "NOT"]);
 
+  function unknownFn(f) { try { return tokenize(f.replace(/^=/, "")).some((t) => t[0] === "fn" && !FUNCS[t[1]]); } catch (e) { return false; } }
   /** 모든 탭의 수식 칸 v 를 계산값으로 - 바뀐 칸 수 */
   function recalc(doc) {
     const c = new Calc(doc); let changed = 0;
     for (const sh of doc.sheets || []) for (const [k, raw] of Object.entries(sh.cells || {})) {
       if (!raw || typeof raw !== "object" || !raw.f) continue;
       let v = c.cell(sh, k); v = v instanceof FErr ? v.code : v;
+      if (v === "#NAME?" && raw.v != null && raw.v !== "#NAME?" && unknownFn(raw.f)) continue;  // 매크로(VBA) 사용자 함수 - 엑셀이 마지막에 계산한 값을 그대로
       if (raw.v !== v) { raw.v = v; changed++; }
     }
     return changed;

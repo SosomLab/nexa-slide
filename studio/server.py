@@ -113,6 +113,7 @@ PREVIEW_LOCK = threading.Lock()
 mimetypes.add_type("application/javascript", ".js")
 mimetypes.add_type("application/vnd.openxmlformats-officedocument.presentationml.presentation", ".pptx")
 mimetypes.add_type("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", ".xlsx")
+mimetypes.add_type("application/vnd.ms-excel.sheet.macroEnabled.12", ".xlsm")
 
 
 def ver(p: Path):
@@ -848,7 +849,7 @@ class H(BaseHTTPRequestHandler):
             self.send_header("Cache-Control", "private, max-age=0, must-revalidate")
         else:
             self.send_header("Cache-Control", "no-store")
-        if parts and parts[0] == "out" and p.parent == root and p.suffix.lower() in (".pptx", ".pdf", ".xlsx"):  # 내보내기 결과는 덱 제목으로 받게
+        if parts and parts[0] == "out" and p.parent == root and p.suffix.lower() in (".pptx", ".pdf", ".xlsx", ".xlsm"):  # 내보내기 결과는 덱 제목으로 받게
             from urllib.parse import quote as _q
             nm = export_name(p.stem, p.suffix.lower())
             self.send_header("Content-Disposition", f"attachment; filename=\"{p.name}\"; filename*=UTF-8''{_q(nm)}")
@@ -915,7 +916,7 @@ class H(BaseHTTPRequestHandler):
         src.write_bytes(data)
         i = deck_admin.new_id()
         try:
-            doc, warnings = sheet_import.to_doc(i, " ".join(str(b.get("title") or Path(name).stem).split())[:200] or i, src)
+            doc, warnings = sheet_import.to_doc(i, " ".join(str(b.get("title") or Path(name).stem).split())[:200] or i, src, ASSET_ROOT)
         except zipfile.BadZipFile:
             raise ValueError("엑셀 파일이 아니다(zip 형식 아님)")
         atomic_write(DECKS / f"{i}.json", dumps(doc))
@@ -2039,12 +2040,15 @@ class H(BaseHTTPRequestHandler):
     def api_post_export(self, i, q):
         if not deck_path(i).exists():
             return self.err(404, "덱 없음")
-        if deck_kind(i) == "sheet":  # 시트 문서 → out/<id>.xlsx (export_xlsx.py)
+        if deck_kind(i) == "sheet":  # 시트 문서 → out/<id>.xlsx, 매크로(VBA)가 있으면 .xlsm (export_xlsx.py)
             code, log = run([sys.executable, str(STUDIO / "export_xlsx.py"), i], 120)
             f = OUT / f"{i}.xlsx"
+            m = re.search(r"^xls[xm]: (.+)$", log, re.M)  # export_xlsx 가 실제로 쓴 파일(매크로면 .xlsm)
+            if m:
+                f = Path(m.group(1).strip())
             if code != 0 or not f.exists():
-                return self.send_json({"ok": False, "error": "xlsx 내보내기 실패", "log": log}, 500)
-            return self.send_json({"ok": True, "path": str(f), "url": f"/out/{i}.xlsx?v={ver(f)}", "log": log, "name": export_name(i, ".xlsx")})
+                return self.send_json({"ok": False, "error": "엑셀 내보내기 실패", "log": log}, 500)
+            return self.send_json({"ok": True, "path": str(f), "url": f"/out/{f.name}?v={ver(f)}", "log": log, "name": export_name(i, f.suffix), "macros": f.suffix == ".xlsm"})
         if (q.get("embed") or ["0"])[0] == "1":  # 글꼴 포함 PPTX(PowerPoint) — 작업 공간 글꼴이 설치 안 됐으면 409 needInstall
             args = [sys.executable, str(STUDIO / "embed_fonts.py"), i] + (["--install"] if (q.get("install") or ["0"])[0] == "1" else [])
             code, log = run(args, 420)

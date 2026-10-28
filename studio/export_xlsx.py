@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """시트 문서(kind sheet) JSON → 엑셀 .xlsx (XlsxWriter - python-pptx 의존성으로 이미 설치돼 있다).
 
-    python3 studio/export_xlsx.py <id>              # → out/<id>.xlsx
+    python3 studio/export_xlsx.py <id>              # → out/<id>.xlsx (문서에 매크로(macros.vba)가 있으면 out/<id>.xlsm)
     python3 studio/export_xlsx.py <id> --out x.xlsx
 
 형식은 docs/sheets.md. 수식(f)은 수식 그대로, 마지막 계산값(v)을 캐시로 넣어 엑셀이 열기 전에도 값이 보이게 한다.
@@ -91,7 +91,16 @@ def export(deck, out):
     opts = {"strings_to_numbers": False, "strings_to_formulas": False, "strings_to_urls": False}
     if theme:
         opts["default_format_properties"] = {"font_name": theme.get("font") or "맑은 고딕", "font_size": float(theme.get("size") or 10)}
+    vba = None
+    if (deck.get("macros") or {}).get("vba"):  # 매크로 통합 문서 - VBA 프로젝트를 넣고 .xlsm 으로(엑셀은 확장자가 .xlsm 이어야 매크로를 연다)
+        from common import ASSET_ROOT
+        vp = ASSET_ROOT / deck["macros"]["vba"]
+        if vp.is_file():
+            vba, out = vp, out.with_suffix(".xlsm")
     wb = xlsxwriter.Workbook(str(out), opts)
+    if vba:
+        wb.add_vba_project(str(vba))
+        wb.set_vba_name(deck["macros"].get("codeName") or "ThisWorkbook")
     wb.set_properties({"title": deck.get("title") or deck.get("id") or ""})
     cache, used = {}, set()
 
@@ -105,6 +114,10 @@ def export(deck, out):
 
     for t in deck.get("sheets") or [{}]:
         ws = wb.add_worksheet(sheet_name(t.get("name"), used))
+        if vba:
+            ws.set_vba_name(t.get("codeName") or f"Sheet{len(used)}")  # 매크로가 시트를 부르는 이름(가져올 때 옮긴 codeName)
+        if t.get("hidden"):
+            ws.hide()
         for letters, w in (t.get("cols") or {}).items():
             if re.fullmatch(r"[A-Z]{1,3}", str(letters)) and isinstance(w, (int, float)):
                 c = col_index(letters)
@@ -183,7 +196,7 @@ def main():
         out = export(load_deck(a.id), Path(a.out) if a.out else OUT / f"{a.id}.xlsx")
     except (OSError, ValueError) as e:
         sys.exit(str(e))
-    print(f"xlsx: {out}")
+    print(f"{out.suffix[1:]}: {out}")
 
 
 if __name__ == "__main__":

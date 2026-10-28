@@ -5,6 +5,8 @@
 
 표준 라이브러리(zipfile·ElementTree)만 쓴다. 공유 수식(shared formula)은 셀마다 상대 참조를 옮겨 풀고, 계산값은 v 에 캐시로 둔다.
 그림·차트·피벗·조건부 서식은 아직 옮기지 않는다(결과의 warnings 에 적는다).
+매크로 통합 문서(.xlsm)면 VBA 프로젝트(xl/vbaProject.bin)를 작업 공간 assets/sheets/<id>/ 에 두고 문서 macros 에 적는다 -
+내보내면 .xlsm 으로 매크로가 그대로 들어간다(통합 문서·시트 codeName 도 옮겨 매크로가 시트를 찾게). 매크로 단추·양식 컨트롤은 아직 옮기지 않는다.
 """
 import argparse
 import json
@@ -198,6 +200,8 @@ def import_xlsx(src, title=None):
                         o["f"] = "=" + shift_formula(txt, r0 - sr, c0 - sc)
                 elif f.text:
                     o["f"] = "=" + f.text
+                if o.get("f"):
+                    o["f"] = re.sub(r"_xl(?:fn|ws|pm)\.", "", o["f"])  # 새 함수 접두사(_xlfn.TEXTJOIN) - 화면·계산기는 맨 이름을 쓴다(내보낼 때 XlsxWriter 가 다시 붙인다)
                 if f.get("t") == "array":
                     arrays += 1
             o = {kk: vv for kk, vv in o.items() if vv not in (None, "")}
@@ -206,6 +210,9 @@ def import_xlsx(src, title=None):
             cells[c.get("r")] = o["v"] if list(o) == ["v"] else o
             maxr, maxc = max(maxr, r0 + 1), max(maxc, c0 + 1)
         tab = {"id": f"t{len(tabs) + 1:02d}", "name": sh.get("name") or f"Sheet{k + 1}", "cells": cells}
+        sp = x.find(N + "sheetPr")
+        if sp is not None and sp.get("codeName"):  # 매크로(VBA)가 시트를 부르는 이름
+            tab["codeName"] = sp.get("codeName")
         if sh.get("state") in ("hidden", "veryHidden"):
             tab["hidden"] = True
         cols = {}
@@ -257,13 +264,26 @@ def _rels_of(z, part):
     return list(ET.fromstring(z.read(rp))) if rp in z.namelist() else []
 
 
-def to_doc(i, title, src):
+def to_doc(i, title, src, asset_root=None):
+    """xlsx·xlsm → (문서, warnings). asset_root(작업 공간 assetRoot)를 주면 매크로(VBA)를 assets/sheets/<id>/vbaProject.bin 으로 둔다."""
     import datetime as dt
     tabs, warnings, font = import_xlsx(src)
     if not tabs:
         raise ValueError("시트가 없다")
     doc = {"id": i, "title": title, "kind": "sheet", "version": "0.1", "updated": dt.datetime.now().isoformat(timespec="seconds"), "slides": [], "sheets": tabs,
            "source": Path(src).name}
+    z = zipfile.ZipFile(src)
+    if "xl/vbaProject.bin" in z.namelist():
+        if asset_root is None:
+            warnings.append("매크로(VBA)가 있지만 둘 곳(작업 공간)이 없어 옮기지 않았다")
+        else:
+            rel = f"assets/sheets/{i}/vbaProject.bin"
+            (Path(asset_root) / rel).parent.mkdir(parents=True, exist_ok=True)
+            (Path(asset_root) / rel).write_bytes(z.read("xl/vbaProject.bin"))
+            wbx = ET.fromstring(z.read("xl/workbook.xml"))
+            pr = wbx.find(N + "workbookPr")
+            doc["macros"] = {"vba": rel, "codeName": (pr.get("codeName") if pr is not None else None) or "ThisWorkbook"}
+            warnings.append("매크로(VBA)를 옮겼다 - 엑셀로 내보내면 .xlsm(매크로 포함). 매크로 단추·양식 컨트롤은 옮기지 않았다")
     if font.get("name"):
         doc["font"] = {"name": font["name"], "size": font["size"]}
     return doc, warnings
@@ -287,8 +307,9 @@ def main():
     p = deck_admin.DECKS / f"{i}.json"
     if p.exists():
         sys.exit(f"이미 있는 덱: {i}")
+    from common import ASSET_ROOT
     try:
-        doc, warnings = to_doc(i, a.title or Path(a.file).stem, a.file)
+        doc, warnings = to_doc(i, a.title or Path(a.file).stem, a.file, ASSET_ROOT)
     except (OSError, ValueError, zipfile.BadZipFile) as e:
         sys.exit(f"가져오지 못했다: {e}")
     deck_admin.DECKS.mkdir(parents=True, exist_ok=True)
