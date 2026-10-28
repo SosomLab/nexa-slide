@@ -358,7 +358,7 @@ def export_shapes(src, out, text=False):
     if os.name != "nt" or not pwsh:
         return []
     out.mkdir(parents=True, exist_ok=True)
-    tmp = out / "source.xlsx"  # 원본 경로(OneDrive·& ·괄호)를 Excel 이 못 열 때가 있어 단순한 이름의 사본을 연다
+    tmp = out / ("source" + (Path(src).suffix.lower() or ".xlsx"))  # 원본 경로(OneDrive·& ·괄호)를 Excel 이 못 열 때가 있어 단순한 이름의 사본을 연다(확장자는 그대로 - .xlsm 을 .xlsx 로 두면 열지 못한다)
     try:
         shutil.copy2(src, tmp)
         subprocess.run([pwsh, "-NoProfile", "-File", str(STUDIO / "xlsx_shapes.ps1"), "-Xlsx", str(tmp.resolve()), "-OutDir", str(out.resolve())] + (["-WithText"] if text else []),
