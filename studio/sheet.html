@@ -152,6 +152,9 @@
   .fltPop .acts { display: flex; gap: 6px; justify-content: flex-end; margin-top: 4px; }
   .fltPop .acts button { border: 0; border-radius: 999px; padding: 4px 12px; cursor: pointer; font: inherit; background: var(--tone, #F2EFEF); }
   .fltPop .acts button.primary { background: var(--p, #A91F24); color: #fff; }
+  #dvBtn { position: absolute; z-index: 4; width: 18px; height: 18px; padding: 0; border: 1px solid var(--line); border-radius: 3px; background: #fff; font-size: 9px; line-height: 16px; cursor: pointer; color: var(--ink2); }
+  #dvBtn[hidden] { display: none; }
+  #dvLay i { position: absolute; z-index: 2; width: 0; height: 0; border-top: 6px solid #E5484D; border-left: 6px solid transparent; pointer-events: none; }
   #tabs { align-items: center; gap: 2px; padding: 3px 8px; background: var(--card); border-top: 1px solid var(--line); min-height: 34px; overflow-x: auto; }
   #tabs button.t { border: 0; background: none; border-radius: 0 0 8px 8px; padding: 4px 14px; white-space: nowrap; color: var(--ink2); }
   #tabs button.t:hover { background: var(--tone); }

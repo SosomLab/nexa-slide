@@ -4,6 +4,7 @@
    - 채우기 단축키: Ctrl+D 아래로 · Ctrl+R 오른쪽으로 · 편집 중 Ctrl+Enter 고른 범위 모두에 같은 값(수식은 상대 참조 이동)
    - 값만 붙여넣기(Ctrl+Shift+V) · 자동 합계(Alt+=) · 정렬(도구 막대 ⇅ - 지금 열 기준, 첫 줄 머리글 자동 판정)
    - 데이터 ▾: 필터(머리글 ▼ - 값 고르기·정렬, 이 화면에서만 = 엑셀 "필터 보기") · 행·열 숨기기/숨기기 취소(저장 - 탭 hiddenRows·hiddenCols)
+             드롭다운 목록(탭 validations [{range, list|source}] - 고른 칸 옆 ▼ 로 고르기, 목록에 없는 값은 칸 모서리 표시)
    모든 고치기는 x.mutate 로 - 실행 취소·저장·다시 계산이 같이 된다. */
 (function () {
   "use strict";
@@ -303,7 +304,71 @@
       "-",
       { label: "고른 행 숨기기", act: () => hide("r", true) }, { label: "고른 열 숨기기", act: () => hide("c", true) },
       { label: "행 숨기기 취소(고른 범위와 그 옆)", act: () => hide("r", false) }, { label: "열 숨기기 취소(고른 범위와 그 옆)", act: () => hide("c", false) },
+      "-",
+      { label: "드롭다운 목록 만들기·고치기…", act: dvCreate }, { label: "드롭다운 지우기(고른 범위)", act: dvClear },
     ]);
+  }
+
+  // ---------------------------------------------------------------- 드롭다운(목록 유효성)
+  function dvAt(sh, r, c) {  // 이 칸에 걸린 목록 유효성(뒤에 정한 것이 이긴다)
+    const x = X(); let hit = null;
+    for (const dv of sh.validations || []) for (const part of String(dv.range || "").split(/\s+/)) { const g = x.parseRange(part); if (g && r >= g.r1 && r <= g.r2 && c >= g.c1 && c <= g.c2) hit = dv; }
+    return hit;
+  }
+  function dvItems(dv) {  // 목록 - 직접 적은 것 또는 범위('탭'!A1:A5 · $D$1:$D$3)의 보이는 값
+    if (dv.list) return dv.list.map(String);
+    const x = X(), S = N().S, src = String(dv.source || "").replace(/^=/, "");
+    const m = /^(?:'?(.+?)'?!)?(.+)$/.exec(src); if (!m) return [];
+    const sh = m[1] ? S.deck.sheets.find((t) => t.name === m[1]) : x.sheet(), g = sh && x.parseRange(m[2].replace(/\$/g, ""));
+    if (!g) return [];
+    const out = []; x.eachCell(g, (r, c, k) => { const t = N().display(N().effCell(sh.cells[k])); if (t !== "" && !out.includes(t)) out.push(t); });
+    return out;
+  }
+  function renderDv() {
+    const x = X(); if (!x) return;
+    let b = $("#dvBtn"); if (!b) { b = document.createElement("button"); b.id = "dvBtn"; b.textContent = "▼"; b.title = "목록에서 고르기 (Alt+↓)"; $("#gridIn").appendChild(b); }
+    const S = N().S, sh = x.sheet(), dv = dvAt(sh, S.cur.r, S.cur.c);
+    if (!dv || S.edit) { b.hidden = true; return; }
+    const R = x.rectOf({ r1: S.cur.r, c1: S.cur.c, r2: S.cur.r, c2: S.cur.c });
+    Object.assign(b.style, { left: R.x + R.w + 1 + "px", top: R.y + R.h - 18 + "px" }); b.hidden = false;
+  }
+  function dvMarks() {  // 목록에 없는 값 - 칸 오른쪽 위 붉은 삼각형
+    const x = X(); if (!x) return;
+    let lay = $("#dvLay"); if (!lay) { lay = document.createElement("div"); lay.id = "dvLay"; $("#gridIn").appendChild(lay); }
+    const sh = x.sheet(), out = [];
+    for (const dv of sh.validations || []) {
+      const items = new Set(dvItems(dv));
+      for (const part of String(dv.range || "").split(/\s+/)) {
+        const g = x.parseRange(part); if (!g) continue;
+        x.eachCell(x.clampRange(g), (r, c, k) => {
+          const t = N().display(N().effCell(sh.cells[k])); if (t === "" || items.has(t)) return;
+          const R = x.rectOf({ r1: r, c1: c, r2: r, c2: c }); out.push(`<i style="left:${R.x + R.w - 7}px;top:${R.y + 1}px" title="목록에 없는 값"></i>`);
+        });
+      }
+    }
+    lay.innerHTML = out.join("");
+  }
+  function dvPick() {
+    const x = X(), S = N().S, sh = x.sheet(), dv = dvAt(sh, S.cur.r, S.cur.c); if (!dv) return;
+    const items = dvItems(dv), at = { r: S.cur.r, c: S.cur.c };
+    x.openMenu($("#dvBtn"), items.length ? items.map((t) => ({ label: t, act: () => { x.mutate(() => N().setInput(x.sheet(), x.key(at.r, at.c), t)); x.focusGrid(); } })) : [{ h: "목록이 비었습니다" }]);
+  }
+  function dvCreate() {
+    const x = X(), S = N().S, g = x.clampRange(S.sel), sh = x.sheet();
+    const cur = dvAt(sh, S.cur.r, S.cur.c);
+    const t = prompt(`드롭다운 목록 - ${x.rangeName(g)}\n쉼표로 항목을 적거나(대기,진행,완료) = 로 범위를 적습니다(=$D$1:$D$5 · ='코드'!A2:A20)`, cur ? (cur.list ? cur.list.join(",") : "=" + String(cur.source || "").replace(/^=/, "")) : "");
+    if (t == null || !t.trim()) return;
+    const dv = { range: x.rangeName(g) };
+    if (t.trim().startsWith("=")) dv.source = t.trim().slice(1); else dv.list = t.split(",").map((y) => y.trim()).filter(Boolean);
+    x.mutate(() => { sh.validations = (sh.validations || []).filter((d) => d.range !== dv.range).concat([dv]); });
+    x.toast(`${dv.range} 에 드롭다운을 걸었습니다 - 칸을 고르면 ▼`);
+  }
+  function dvClear() {
+    const x = X(), S = N().S, g = x.clampRange(S.sel), sh = x.sheet();
+    const over = (d) => String(d.range || "").split(/\s+/).some((part) => { const h = x.parseRange(part); return h && !(h.r2 < g.r1 || h.r1 > g.r2 || h.c2 < g.c1 || h.c1 > g.c2); });
+    const n = (sh.validations || []).filter(over).length; if (!n) { x.toast("고른 범위에 드롭다운이 없습니다"); return; }
+    x.mutate(() => { sh.validations = sh.validations.filter((d) => !over(d)); if (!sh.validations.length) delete sh.validations; });
+    x.toast(`드롭다운 ${n}개를 지웠습니다`);
   }
 
   // ---------------------------------------------------------------- 연결
@@ -318,6 +383,7 @@
     if (ctrl && !e.altKey && !e.shiftKey && k === "r") { e.preventDefault(); e.stopPropagation(); fillDir(false); return; }
     if (ctrl && e.shiftKey && k === "v") { e.preventDefault(); e.stopPropagation(); pasteValues(); return; }
     if (e.altKey && !ctrl && (e.key === "=" || e.code === "Equal")) { e.preventDefault(); e.stopPropagation(); autoSum(); return; }
+    if (e.altKey && !ctrl && e.key === "ArrowDown" && !$("#dvBtn").hidden) { e.preventDefault(); e.stopPropagation(); dvPick(); return; }
   }
   function tools() {
     const t = $("#tools"); if (!t || $("#xSort")) return;
@@ -334,7 +400,10 @@
   }
   document.addEventListener("keydown", onKey, true);
   document.addEventListener("click", (e) => { if (e.target.closest("#sumBar")) { more = !more; onSel(); } });
-  document.addEventListener("mousedown", (e) => { const b = e.target.closest("#fltLay .flt"); if (b) { e.preventDefault(); e.stopPropagation(); filterMenu(b, +b.dataset.fc); } }, true);
+  document.addEventListener("mousedown", (e) => {
+    const b = e.target.closest("#fltLay .flt"); if (b) { e.preventDefault(); e.stopPropagation(); filterMenu(b, +b.dataset.fc); return; }
+    if (e.target.closest("#dvBtn")) { e.preventDefault(); e.stopPropagation(); dvPick(); }
+  }, true);
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", tools); else tools();
-  window.NexaSheetX = { onSel: () => { onSel(); renderFilterBtns(); }, onChange: () => { onSel(); renderFilterBtns(); }, sortRange, fillDir, findBox, autoSum, hide, filterToggle, applyFilter, view };
+  window.NexaSheetX = { onSel: () => { onSel(); renderFilterBtns(); renderDv(); dvMarks(); }, onChange: () => { onSel(); renderFilterBtns(); renderDv(); dvMarks(); }, dvCreate, dvClear, dvPick, sortRange, fillDir, findBox, autoSum, hide, filterToggle, applyFilter, view };
 })();
