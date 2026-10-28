@@ -53,6 +53,11 @@ M365(OneDrive·Graph API) 직접 연동은 하지 않는다 — 원래 불편(�
 넘친 범위 전체는 `H2#` 로 참조한다(`=SUM(H2#)` · `=H2#*10` 도 넘친다 · 넘치지 않는 칸이면 `#REF!`). 엑셀 파일에는 `ANCHORARRAY(H2)` 로 저장된다.
 새 함수(LET·XMATCH·TEXTJOIN·FILTER …)는 내보낼 때 `_xlfn.`·LET 이름은 `_xlpm.` 을 붙이고(엑셀이 `#NAME?` 없이 연다 - Excel 로 확인), 가져올 때 뗀다.
 
+**표(엑셀 표)** — 탭 `tables: [{"name": "매출표", "ref": "A1:D5", "cols": ["지역", "1분기", …], "header": true, "totals": false, "style": "TableStyleMedium2"}]`.
+수식에서 구조적 참조로 쓴다 - `매출표[1분기]`(데이터 행) · `매출표[[#Headers],[2분기]]` · `매출표[#All]` · `매출표[[1분기]:[2분기]]` · 표 안에서 `[@1분기]`(이 행).
+가져올 때 `xl/tables` 를 읽고(파일 형식 `[#This Row],` → `@`), 내보낼 때 `add_table` 과 파일 형식으로 되돌린다(Excel 로 확인).
+표 정의 없이 가져온 옛 문서의 구조적 참조·외부 통합 문서 참조처럼 계산기가 읽지 못하는 수식은 엑셀이 마지막에 계산한 값을 그대로 둔다.
+
 ## 3. 요청(세션 규약)
 
 편집기 요청 항목 `{deck, id, slide, range, text, …}` — `slide` 는 시트 탭 id, `range` 는 고른 셀 범위(`A1`, `B2:D5`).

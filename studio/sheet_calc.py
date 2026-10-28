@@ -46,6 +46,7 @@ TOK = re.compile("|".join([
     r"(\d+(?:\.\d*)?(?:[eE][+-]?\d+)?|\.\d+(?:[eE][+-]?\d+)?)",
     r"(<=|>=|<>|[-+*/^&=<>(),%])",
     r"(#[A-Z/0]+[!?])",
+    rf"((?:{L}[\w.]*)?\[(?:[^\[\]]|\[[^\[\]]*\])*\])",  # 표 구조적 참조 표1[열] · [@열] · 표1[[#Headers],[열]]
     rf"({L}[\w.]*)",
 ]), re.I)
 
@@ -100,8 +101,11 @@ def tokenize(src):
             out.append(("op", g[7]))
         elif g[8]:
             out.append(("err", g[8]))
+        elif g[9]:
+            k = g[9].index("[")
+            out.append(("sref", g[9][:k] or None, g[9][k + 1:-1]))
         else:
-            out.append(("name", g[9]))
+            out.append(("name", g[10]))
     return out
 
 
@@ -155,6 +159,8 @@ def parse(src):
             return ("err", t[1])
         if k == "name":
             return ("name", t[1].upper())  # LET 이름 - 밖에서는 #NAME?
+        if k == "sref":
+            return ("sref", t[1], t[2])
         if k == "ref":
             if len(t) > 3:
                 a = parse_ref(t[1])
@@ -349,6 +355,53 @@ class Calc:
             self.dyn[raw["f"]] = dynamic(raw)
         return self.dyn[raw["f"]]
 
+    def sref(self, n, sh):
+        """표1[열] · [@열] · 표1[[#Headers],[열1]:[열2]] → ("ref"|"range", 탭 이름, …)."""
+        _, name, inner = n
+        hit = None
+        for s in self.sheets:
+            for t in s.get("tables") or []:
+                if name and str(t.get("name", "")).lower() == name.lower():
+                    hit = (s, t)
+                elif not name and s is sh and self.at:
+                    r1, c1, r2, c2 = _tref(t)
+                    if r1 <= self.at[-1][0] <= r2 and c1 <= self.at[-1][1] <= c2:
+                        hit = (s, t)
+        if hit is None:
+            raise FErr("#REF!")
+        s, t = hit
+        spec, cols = table_spec(inner)
+        r1, c1, r2, c2 = _tref(t)
+        names = [str(x).lower() for x in t.get("cols") or []]
+        d1 = r1 + (1 if t.get("header", True) else 0)
+        d2 = r2 - (1 if t.get("totals") else 0)
+        if "@" in spec or "#this row" in spec:
+            if not self.at or not d1 <= self.at[-1][0] <= d2:
+                raise FErr("#VALUE!")
+            ra = rb = self.at[-1][0]
+        elif "#all" in spec:
+            ra, rb = r1, r2
+        else:
+            ra, rb = d1, d2
+            if "#headers" in spec:
+                ra = r1 if t.get("header", True) else d1
+                rb = rb if "#data" in spec else ra
+            if "#totals" in spec:
+                if not t.get("totals"):
+                    raise FErr("#REF!")
+                rb = r2
+                ra = ra if "#data" in spec else r2
+        if cols:
+            try:
+                k = [c1 + names.index(x.lower()) for x in cols]
+            except ValueError:
+                raise FErr("#REF!")
+            ca, cb = min(k), max(k)
+        else:
+            ca, cb = c1, c2
+        tab = None if s is sh else s.get("name")
+        return ("ref", tab, ra, ca) if ra == rb and ca == cb else ("range", tab, ra, ca, rb, cb)
+
     def spilled(self, sh, r, c):
         """빈 칸(또는 넘친 칸)의 값 - 왼쪽 위의 동적 배열 수식을 먼저 계산해 넘친 값이 있으면 그것."""
         sid = sh.get("id")
@@ -492,6 +545,8 @@ class Calc:
             if not h:
                 raise FErr("#REF!")
             return self.rng(("range", n[1], n[2], n[3], n[2] + h - 1, n[3] + w - 1), sh)
+        if k == "sref":  # 표 구조적 참조 → 셀·범위
+            return self.ev(self.sref(n, sh), sh)
         if k == "name":
             for sc in reversed(self.scope):
                 if n[1] in sc:
@@ -639,6 +694,35 @@ class Calc:
                 raise FErr("#REF!")
             return ("ref", base[1], r1, c1) if h == w == 1 else ("range", base[1], r1, c1, r1 + h - 1, c1 + w - 1)
         raise FErr("#REF!")
+
+
+def _tref(t):
+    a, _, b = str(t.get("ref", "")).partition(":")
+    pa, pb = parse_ref(a), parse_ref(b or a)
+    if not pa or not pb:
+        raise FErr("#REF!")
+    return pa[0], pa[1], pb[0], pb[1]
+
+
+def table_spec(inner):
+    """구조적 참조 안쪽 → (특수 지정 집합 {#all,#data,#headers,#totals,#this row,@}, 열 이름 [처음, 끝])."""
+    inner = inner.strip()
+    spec, cols = set(), []
+    if inner.startswith("@"):
+        spec.add("@")
+        inner = inner[1:].strip()
+    if "[" not in inner:
+        items = [inner] if inner else []
+    else:
+        items = re.findall(r"\[([^\]]*)\]", inner)
+    for it in items:
+        if it.startswith("#"):
+            spec.add(it.lower())
+        elif it:
+            cols.append(it.replace("'", ""))
+    if len(cols) > 2:
+        cols = [cols[0], cols[-1]]
+    return spec, cols
 
 
 def _cellv(f, *xs):
@@ -1257,6 +1341,7 @@ def recalc(doc):
     """모든 탭의 수식을 계산해 v 에 넣는다(오류는 "#…" 문자열). 바뀐 셀 수."""
     c = Calc(doc)
     changed = 0
+    no_tables = not any(s.get("tables") for s in doc.get("sheets") or [])
     for sh in doc.get("sheets") or []:
         for k, raw in (sh.get("cells") or {}).items():
             if isinstance(raw, dict) and raw.get("f"):
@@ -1264,6 +1349,8 @@ def recalc(doc):
                 v = v.code if isinstance(v, FErr) else v
                 if v == "#NAME?" and raw.get("v") not in (None, "#NAME?") and unknown_fn(raw["f"]):
                     continue  # 매크로(VBA) 사용자 함수 - 계산할 수 없어 엑셀이 마지막에 계산한 값을 그대로 둔다
+                if v == "#REF!" and no_tables and "[" in raw["f"] and raw.get("v") not in (None, "#REF!"):
+                    continue  # 표 정의 없이 가져온 옛 문서의 구조적 참조 - 엑셀 값을 그대로
                 if raw.get("v") != v:
                     raw["v"] = v
                     changed += 1
@@ -1484,11 +1571,13 @@ def sync_spill(doc, c):
 
 
 def unknown_fn(f):
-    """수식에 계산기가 모르는 함수(매크로 사용자 함수 등)가 있나."""
+    """수식에 계산기가 모르는 함수(매크로 사용자 함수 등)가 있나 - 읽지 못하는 수식(외부 통합 문서 참조 등)도."""
+    src = f[1:] if f.startswith("=") else f
     try:
-        return any(t[0] == "fn" and t[1] not in FUNCS for t in tokenize(f[1:] if f.startswith("=") else f))
+        parse(src)
+        return any(t[0] == "fn" and t[1] not in FUNCS for t in tokenize(src))
     except FErr:
-        return False
+        return True
 
 
 def main():

@@ -23,6 +23,7 @@
     "(\\d+(?:\\.\\d*)?(?:[eE][+-]?\\d+)?|\\.\\d+(?:[eE][+-]?\\d+)?)",
     "(<=|>=|<>|[-+*/^&=<>(),%])",
     "(#[A-Z/0]+[!?])",
+    `((?:${L}[\\p{L}\\p{N}_.]*)?\\[(?:[^\\[\\]]|\\[[^\\[\\]]*\\])*\\])`,  // 표 구조적 참조 표1[열] · [@열] · 표1[[#Headers],[열]]
     `(${L}[\\p{L}\\p{N}_.]*)`,
   ].join("|"), "uiy");
   const colIndex = (s) => { let n = 0; for (const ch of s.toUpperCase()) n = n * 26 + ch.charCodeAt(0) - 64; return n - 1; };
@@ -47,7 +48,8 @@
       else if (m[7]) out.push(["num", parseFloat(m[7])]);
       else if (m[8]) out.push(["op", m[8]]);
       else if (m[9]) out.push(["err", m[9]]);
-      else out.push(["name", m[10]]);
+      else if (m[10]) { const k = m[10].indexOf("["); out.push(["sref", m[10].slice(0, k) || null, m[10].slice(k + 1, -1)]); }
+      else out.push(["name", m[11]]);
     }
     return out;
   }
@@ -67,6 +69,7 @@
       if (k === "num" || k === "str" || k === "bool") return ["lit", t[1]];
       if (k === "err") return ["err", t[1]];
       if (k === "name") return ["name", t[1].toUpperCase()];  // LET 이름 - 밖에서는 #NAME?
+      if (k === "sref") return ["sref", t[1], t[2]];
       if (k === "ref") {
         if (t.length > 3) { const a = parseRef(t[1]); return ["spill", t[2], a[0], a[1]]; }
         const ends = t[1].split(":");
@@ -144,6 +147,16 @@
     if (op === "=" && rest === "") return (v) => v == null || v === "";
     return (v) => (typeof v === "string" || v == null || op === "<>" ? compare(v == null ? "" : v, rest, op) : op === "<>");
   }
+  function tref(t) { const [a, b] = String(t.ref || "").split(":"), pa = parseRef(a), pb = parseRef(b || a); if (!pa || !pb) throw new FErr("#REF!"); return [pa[0], pa[1], pb[0], pb[1]]; }
+  /** 구조적 참조 안쪽 → [특수 지정 집합 {#all,#data,#headers,#totals,#this row,@}, 열 이름 [처음, 끝]] */
+  function tableSpec(inner) {
+    inner = inner.trim(); const spec = new Set(); let cols = [];
+    if (inner.startsWith("@")) { spec.add("@"); inner = inner.slice(1).trim(); }
+    const items = !inner.includes("[") ? (inner ? [inner] : []) : [...inner.matchAll(/\[([^\]]*)\]/g)].map((m) => m[1]);
+    for (const it of items) { if (it.startsWith("#")) spec.add(it.toLowerCase()); else if (it) cols.push(it.replace(/'/g, "")); }
+    if (cols.length > 2) cols = [cols[0], cols[cols.length - 1]];
+    return [spec, cols];
+  }
   const cellv = (f) => { try { return f(); } catch (e) { if (e instanceof FErr) return e; throw e; } };
   const amap = (f, r) => new Rng(r.rows.map((row) => row.map((v) => cellv(() => f(v)))));
   function azip(f, a, b) {
@@ -165,6 +178,29 @@
       if (raw.da) return true;
       if (!this.dyn.has(raw.f)) { let d = false; try { d = tokenize(raw.f.replace(/^=/, "")).some((t) => (t[0] === "fn" && DYN.has(t[1])) || (t[0] === "ref" && t.length > 3)); } catch (e) { /* 문법 오류 */ } this.dyn.set(raw.f, d); }
       return this.dyn.get(raw.f);
+    }
+    /** 표1[열] · [@열] · 표1[[#Headers],[열1]:[열2]] → ["ref"|"range", 탭 이름, …] */
+    sref(n, sh) {
+      const [, name, inner] = n, at = this.at[this.at.length - 1]; let hit = null;
+      for (const s of this.sheets) for (const t of s.tables || []) {
+        if (name && String(t.name || "").toLowerCase() === name.toLowerCase()) hit = [s, t];
+        else if (!name && s === sh && at) { const [r1, c1, r2, c2] = tref(t); if (r1 <= at[0] && at[0] <= r2 && c1 <= at[1] && at[1] <= c2) hit = [s, t]; }
+      }
+      if (!hit) throw new FErr("#REF!");
+      const [s, t] = hit, [spec, cols] = tableSpec(inner), [r1, c1, r2, c2] = tref(t), names = (t.cols || []).map((x) => String(x).toLowerCase());
+      const head = t.header !== false, d1 = r1 + (head ? 1 : 0), d2 = r2 - (t.totals ? 1 : 0);
+      let ra, rb;
+      if (spec.has("@") || spec.has("#this row")) { if (!at || at[0] < d1 || at[0] > d2) throw new FErr("#VALUE!"); ra = rb = at[0]; }
+      else if (spec.has("#all")) { ra = r1; rb = r2; }
+      else {
+        ra = d1; rb = d2;
+        if (spec.has("#headers")) { ra = head ? r1 : d1; if (!spec.has("#data")) rb = ra; }
+        if (spec.has("#totals")) { if (!t.totals) throw new FErr("#REF!"); rb = r2; if (!spec.has("#data")) ra = r2; }
+      }
+      let ca = c1, cb = c2;
+      if (cols.length) { const k = cols.map((x) => names.indexOf(x.toLowerCase())); if (k.some((i) => i < 0)) throw new FErr("#REF!"); ca = c1 + Math.min(...k); cb = c1 + Math.max(...k); }
+      const tab = s === sh ? null : s.name;
+      return ra === rb && ca === cb ? ["ref", tab, ra, ca] : ["range", tab, ra, ca, rb, cb];
     }
     /** 빈 칸(또는 넘친 칸)의 값 - 왼쪽 위의 동적 배열 수식을 먼저 계산해 넘친 값이 있으면 그것 */
     spilled(sh, r, c) {
@@ -243,6 +279,7 @@
           const [h, w] = this.extent.get(s.id + "!" + key) || [0, 0]; if (!h) throw new FErr("#REF!");
           return this.rng(["range", n[1], n[2], n[3], n[2] + h - 1, n[3] + w - 1], sh);
         }
+        case "sref": return this.ev(this.sref(n, sh), sh);  // 표 구조적 참조 → 셀·범위
         case "name": {
           for (let i = this.scope.length - 1; i >= 0; i--) if (this.scope[i].has(n[1])) { const v = this.scope[i].get(n[1]); if (v instanceof FErr) throw v; return v; }
           throw new FErr("#NAME?");
@@ -633,14 +670,16 @@
   const SCALAR = new Set(["ISNUMBER", "ISTEXT", "ISBLANK", "ISERROR", "ISNA", "SEARCH", "FIND", "LEFT", "RIGHT", "MID", "LEN", "TRIM", "UPPER", "LOWER", "SUBSTITUTE",
     "VALUE", "TEXT", "ABS", "INT", "ROUND", "ROUNDUP", "ROUNDDOWN", "MOD", "YEAR", "MONTH", "DAY", "NOT"]);
 
-  function unknownFn(f) { try { return tokenize(f.replace(/^=/, "")).some((t) => t[0] === "fn" && !FUNCS[t[1]]); } catch (e) { return false; } }
+  // 모르는 함수(매크로 사용자 함수 등)·읽지 못하는 수식(외부 통합 문서 참조 등) - 엑셀이 마지막에 계산한 값을 둔다
+  function unknownFn(f) { try { const src = f.replace(/^=/, ""); parse(src); return tokenize(src).some((t) => t[0] === "fn" && !FUNCS[t[1]]); } catch (e) { return true; } }
   /** 모든 탭의 수식 칸 v 를 계산값으로 - 바뀐 칸 수 */
   function recalc(doc) {
-    const c = new Calc(doc); let changed = 0;
+    const c = new Calc(doc); let changed = 0; const noTables = !(doc.sheets || []).some((s) => s.tables && s.tables.length);
     for (const sh of doc.sheets || []) for (const [k, raw] of Object.entries(sh.cells || {})) {
       if (!raw || typeof raw !== "object" || !raw.f) continue;
       let v = c.cell(sh, k); v = v instanceof FErr ? v.code : v;
       if (v === "#NAME?" && raw.v != null && raw.v !== "#NAME?" && unknownFn(raw.f)) continue;  // 매크로(VBA) 사용자 함수 - 엑셀이 마지막에 계산한 값을 그대로
+      if (v === "#REF!" && noTables && raw.f.includes("[") && raw.v != null && raw.v !== "#REF!") continue;  // 표 정의 없이 가져온 옛 문서의 구조적 참조 - 엑셀 값을 그대로
       if (raw.v !== v) { raw.v = v; changed++; }
     }
     return changed + syncSpill(doc, c);

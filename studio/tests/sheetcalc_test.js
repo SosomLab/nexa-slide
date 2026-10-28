@@ -15,6 +15,7 @@ for (const [f, want] of spec.cases) {
 for (const sp of spec.spills || []) {  // 동적 배열 - 넘친 칸
   const doc = { sheets: JSON.parse(JSON.stringify(spec.sheets)) };
   Object.assign(doc.sheets[0].cells, JSON.parse(JSON.stringify(sp.cells)));
+  if (sp.tables) doc.sheets[0].tables = JSON.parse(JSON.stringify(sp.tables));
   C.recalc(doc);
   const cells = doc.sheets[0].cells, got = {};
   for (const k of Object.keys(sp.expect)) { const x = cells[k]; got[k] = x && typeof x === "object" ? (x.v === undefined ? null : x.v) : x === undefined ? null : x; }

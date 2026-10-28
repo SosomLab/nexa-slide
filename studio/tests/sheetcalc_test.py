@@ -42,6 +42,8 @@ def main():
     for sp in spec.get("spills", []):  # 동적 배열 - 넘친 칸
         doc = {"sheets": copy.deepcopy(spec["sheets"])}
         doc["sheets"][0]["cells"].update(copy.deepcopy(sp["cells"]))
+        if sp.get("tables"):
+            doc["sheets"][0]["tables"] = copy.deepcopy(sp["tables"])
         sheet_calc.recalc(doc)
         cells = doc["sheets"][0]["cells"]
         got = {k: (cells.get(k).get("v") if isinstance(cells.get(k), dict) else cells.get(k)) for k in sp["expect"]}

@@ -209,6 +209,7 @@ def import_xlsx(src, title=None):
                     o["f"] = "=" + f.text
                 if o.get("f"):
                     o["f"] = re.sub(r"_xl(?:fn|ws|pm)\.", "", o["f"])  # 새 함수 접두사(_xlfn.TEXTJOIN) - 화면·계산기는 맨 이름을 쓴다(내보낼 때 XlsxWriter 가 다시 붙인다)
+                    o["f"] = o["f"].replace("[#This Row],", "@")  # 파일 형식 표1[[#This Row],[열]] → 화면 형식 표1[@[열]]
                     o["f"] = re.sub(r"ANCHORARRAY\(((?:'[^']+'|[^\W\d][\w.]*)!)?(\$?[A-Z]{1,3}\$?\d+)\)", r"\1\2#", o["f"])  # 넘친 범위 참조 - 화면에서 쓰는 H2#
                 if f.get("t") == "array":
                     if c.get("cm") or ":" in str(f.get("ref") or ""):  # 동적 배열(넘침) · 여러 칸 배열 수식 - 넘친 칸은 아래에서 sp 로
@@ -293,6 +294,27 @@ def import_xlsx(src, title=None):
             tab["conds"] = conds
         if skipped:
             warnings.append(f"{tab['name']}: 조건부 서식 {skipped}개(수식·아이콘·데이터 막대 등)는 옮기지 않았다")
+        tables = []  # 엑셀 표 - 이름·범위·열 이름(구조적 참조 표1[열] 계산)·머리글/요약 행·스타일
+        for rel in _rels_of(z, part):
+            if not rel.get("Type", "").endswith("/table"):
+                continue
+            tp = "xl/" + rel.get("Target").replace("../", "")
+            if tp not in names:
+                continue
+            tx = ET.fromstring(z.read(tp))
+            t = {"name": tx.get("displayName") or tx.get("name"), "ref": tx.get("ref"),
+                 "cols": [c.get("name") for c in tx.iter(N + "tableColumn")]}
+            if tx.get("headerRowCount") == "0":
+                t["header"] = False
+            if int(tx.get("totalsRowCount") or 0):
+                t["totals"] = True
+            si = tx.find(N + "tableStyleInfo")
+            if si is not None and si.get("name"):
+                t["style"] = si.get("name")
+            if t["name"] and t["ref"]:
+                tables.append(t)
+        if tables:
+            tab["tables"] = tables
 
         tabs.append(tab)
     return tabs, warnings, base_font
