@@ -489,22 +489,39 @@
     if (!(await loadDeck(true))) return;
     const i = S.deck.sheets.findIndex((s) => s.id === was.ti); S.ti = i >= 0 ? i : 0;
     S.sel = was.sel; S.cur = was.cur; S.anchor = was.anchor;
-    renderAll(); if (msg) toast(msg);
+    renderAll(); if (msg && !(AI.at && Date.now() - AI.at < 5000)) toast(msg);  // 방금 AI 변경 알림을 띄웠으면 그것을 덮지 않는다
   }
+  // 갱신 - 실시간 연결(nexa-live.js SSE, 동시 편집 2단계)이 살아 있으면 바뀔 때마다 applyVersion 이 바로 불리고, 2초 폴링은 15초 안전망만(편집기와 같다)
+  let LIVE = null, pollAt = 0, applying = false, pendingV = null;
   async function poll() {
     if (!S.deck) return;
+    if (LIVE && LIVE.healthy() && Date.now() - pollAt < 15000) return;
+    pollAt = Date.now();
     try {
       const r = await api("GET", `/api/version/${encodeURIComponent(S.id)}`);
       if (!r.ok) return;
-      if (r.data.session) renderSession(r.data.session, r.data.activity);
-      if (RQ) await RQ.sync(r.data);  // 요청 파일이 바뀌었으면 다시 읽기(편집기와 같다)
-      if (r.data.deck !== S.version && !S.saving) {
+      await applyVersion(r.data);
+    } catch (e) { setStatus("error", "서버 끊김"); }
+  }
+  async function applyVersion(v) {
+    if (!S.deck) return;
+    if (applying) { pendingV = v; return; }
+    applying = true;
+    try {
+      if (v.session) renderSession(v.session, v.activity);
+      if (RQ) await RQ.sync(v);  // 요청 파일이 바뀌었으면 다시 읽기(편집기와 같다)
+      if (v.deck !== S.version && !S.saving) {
         // 편집 중에 밖에서 바뀌었다 - 배너로 고르게 하지 않고, 내 저장이 서버에서 합쳐지게 바로 저장한다(셀 입력 중이면 입력을 넣고 저장할 때)
         if (S.dirty || S.edit) { if (S.dirty && !S.edit && !S.conflict) { clearTimeout(saveT); await save(); } }
         else await reloadExternal("밖에서 바뀐 시트를 다시 불러왔습니다");
       }
-    } catch (e) { setStatus("error", "서버 끊김"); }
+    } finally {
+      applying = false;
+      if (pendingV) { const n = pendingV; pendingV = null; await applyVersion(n); }
+    }
   }
+  /** 함께 보는 사람에게 내 위치 - 탭·고른 범위·셀 입력 중(바뀔 때만 보낸다) */
+  function livePresence() { if (LIVE && S.deck) LIVE.where({ tab: sheet().id, range: rangeName(clampRange(S.sel)) }, !!S.edit); }
   // 세션 칩·웹 AI 세션 - wsession.js(NexaSession, 슬라이드 편집기와 같다)
   let SESS = null;
   function renderSession(st, act) { if (SESS) SESS.render(st, act); else S.session = st; }
@@ -732,8 +749,20 @@
     activeReqs().filter((q) => q.slide === sh.id && q.range).forEach((q) => {
       const g = parseRange(q.range); if (!g) return;
       const R = rectOf(clampRange(g));
-      html.push(`<div class="ov reqBox ${esc(q.status)}" style="left:${R.x}px;top:${R.y}px;width:${R.w + 1}px;height:${R.h + 1}px"><span class="reqTag">${esc(ST[q.status] || "요청")}</span></div>`);
+      const tag = q.status === "working" ? `${RQ ? RQ.agentName() : "AI"} 처리 중` : ST[q.status] || "요청";  // AI 가 처리 중인 범위 - 사람이 같은 곳을 고치기 전에 알 수 있게
+      html.push(`<div class="ov reqBox ${esc(q.status)}" style="left:${R.x}px;top:${R.y}px;width:${R.w + 1}px;height:${R.h + 1}px"><span class="reqTag">${esc(tag)}</span></div>`);
     });
+    if (AI.hl) AI.hl.cells.filter((c) => c.tab === sh.id).forEach((c, k) => {  // AI 가 바꾼 셀 - 초록 테두리
+      const p = parseRef(c.key); if (!p) return;
+      const m = mergeAt(sh, p.r, p.c) || { r1: p.r, c1: p.c, r2: p.r, c2: p.c }, R = rectOf(clampRange(m));
+      html.push(`<div class="ov aiCell" style="left:${R.x}px;top:${R.y}px;width:${R.w + 1}px;height:${R.h + 1}px">${k ? "" : '<span class="aiTag">AI 변경</span>'}</div>`);
+    });
+    if (LIVE) for (const x of LIVE.others()) {  // 함께 보는 사람(동시 편집 2단계) - 다른 창이 고른 범위에 그 창 색 테두리·이름
+      if (!x.where || x.where.tab !== sh.id) continue;
+      const g = parseRange(x.where.range); if (!g) continue;
+      const R = rectOf(clampRange(g));
+      html.push(`<div class="ov presBox" style="left:${R.x}px;top:${R.y}px;width:${R.w + 1}px;height:${R.h + 1}px;border-color:${esc(x.color)}"><span class="presTag" style="background:${esc(x.color)}">${esc(x.user || "다른 창")}${x.editing ? " · 입력 중" : ""}</span></div>`);
+    }
     $("#marks").innerHTML = html.join("");
   }
   function scrollIntoView(r, c) {
@@ -1237,6 +1266,7 @@
     scope: "탭", key: (r) => r.slide, current: () => sheet().id, num: (r) => S.deck.sheets.findIndex((s) => s.id === r.slide) + 1,
     label: (r) => `${tabName(r.slide)}${r.range ? "!" + r.range : " (탭 전체)"}`,
     goto: (r) => gotoReq(r),
+    extra: (r) => aiDiffHtml(r),  // 완료된 요청 - AI 가 바꾼 셀 n개 · 보기 · 되돌리기
   };
   /** 요청의 탭·범위로 - 카드를 누르거나 카드의 대상 링크 */
   function gotoReq(q) {
@@ -1267,7 +1297,65 @@
     $("#reqText").value = ""; LS.set(typedKey(), "");
     toast(RQ.connected() ? "요청을 세션에 보냈습니다" : "요청을 남겼습니다 - 세션이 연결되면 전달됩니다");
   }
+  // ---- AI 가 바꾼 셀 - 요청 하나로 AI 가 저장한 변경(/api/reqdiff, 원장 백업 비교). 카드에 "바뀐 셀 n개 · 보기 · 되돌리기",
+  //      이 화면을 연 동안 요청이 완료되면 그 셀을 초록 테두리로 강조한다. 되돌리기는 그 뒤 아무도 고치지 않은 셀만(지금 값 = AI 가 넣은 값)
+  const AI = { diff: {}, hl: null, prev: null };
+  async function loadAiDiff(rid) {
+    if (AI.diff[rid] && AI.diff[rid] !== "loading") return AI.diff[rid];
+    AI.diff[rid] = "loading";
+    const r = await api("GET", `/api/reqdiff/${encodeURIComponent(S.id)}?request=${encodeURIComponent(rid)}`);
+    AI.diff[rid] = r.ok ? r.data : { found: false };
+    renderReqs();
+    return AI.diff[rid];
+  }
+  function aiDiffHtml(r) {
+    if (r.status !== "done") return "";
+    const D = AI.diff[r.id];
+    if (D === undefined) { loadAiDiff(r.id); return ""; }
+    if (D === "loading" || !D.found || !D.count) return "";
+    const on = AI.hl && AI.hl.rid === r.id;
+    return `<div class="aichg"><span>AI 가 바꾼 셀 <b>${D.count}</b>개</span><span style="flex:1"></span><button class="chip sm" data-aishow="${esc(r.id)}">${on ? "강조 끄기" : "보기"}</button><button class="chip sm" data-aiundo="${esc(r.id)}" title="그 뒤 아무도 고치지 않은 셀만 AI 전 값으로 (Ctrl+Z 로 다시)">되돌리기</button></div>`;
+  }
+  /** 바뀐 셀 강조 - 지금 탭에 없으면 바뀐 셀이 있는 첫 탭으로 */
+  function showAi(rid, on) {
+    const D = AI.diff[rid];
+    if (!on || !D || !D.cells || !D.cells.length) { AI.hl = null; renderMarks(); renderReqs(); return; }
+    AI.hl = { rid, cells: D.cells };
+    if (!D.cells.some((c) => c.tab === sheet().id)) { const i = S.deck.sheets.findIndex((s) => s.id === D.cells[0].tab); if (i >= 0) switchTab(i); }
+    const first = D.cells.find((c) => c.tab === sheet().id), p = first && parseRef(first.key);
+    if (p) scrollIntoView(p.r, p.c);
+    renderMarks(); renderReqs();
+  }
+  function aiUndo(rid) {
+    const D = AI.diff[rid]; if (!D || !D.cells) return;
+    const norm = (x) => (x == null ? null : typeof x === "object" ? x : { v: x });
+    let done = 0, kept = 0;
+    mutate(() => {
+      for (const c of D.cells) {
+        const sh = S.deck.sheets.find((t) => t.id === c.tab); if (!sh) { kept++; continue; }
+        if (!NexaMerge.eq(norm(sh.cells[c.key]), norm(c.after))) { kept++; continue; }  // 그 뒤 누가 고쳤다 - 두기
+        if (c.before == null) delete sh.cells[c.key]; else sh.cells[c.key] = JSON.parse(JSON.stringify(c.before));
+        done++;
+      }
+    });
+    AI.hl = null; renderMarks(); renderReqs();
+    toast(`AI 가 바꾼 셀 ${done}개를 되돌렸습니다${kept ? ` · 그 뒤 고친 ${kept}개는 그대로` : ""} (Ctrl+Z 로 다시)`, 4500);
+  }
+  /** 요청 목록이 바뀔 때 - 이 화면을 연 동안 완료로 바뀐 요청이면 바뀐 셀을 강조하고 알린다 */
+  async function aiWatch() {
+    const now = Object.fromEntries(S.reqs.map((q) => [q.id, q.status]));
+    const prev = AI.prev; AI.prev = now;
+    if (!prev) return;  // 처음 열 때는 강조하지 않는다
+    for (const q of S.reqs) {
+      if (q.status !== "done" || !prev[q.id] || prev[q.id] === "done") continue;
+      delete AI.diff[q.id];
+      const D = await loadAiDiff(q.id);
+      if (D && D.count) { showAi(q.id, true); AI.at = Date.now(); toast(`${RQ.agentName()} 가 셀 ${D.count}개를 바꿨습니다 - 초록 테두리 · 요청 카드에서 되돌리기`, 4500); }
+    }
+  }
   async function onReqClick(e) {
+    const ab = e.target.closest("[data-aishow],[data-aiundo]");
+    if (ab) { if (ab.dataset.aishow) showAi(ab.dataset.aishow, !(AI.hl && AI.hl.rid === ab.dataset.aishow)); else aiUndo(ab.dataset.aiundo); return; }
     if (await RQ.click(e)) return;  // 상태·삭제·후속·첨부·대상 링크 - 편집기와 같다
     const card = e.target.closest(".req"); if (!card || e.target.closest("button, a, textarea, input, details, .fu-form")) return;
     const q = S.reqs.find((x) => x.id === card.dataset.rid); if (q) gotoReq(q);  // 카드 → 그 탭·범위로
@@ -1393,7 +1481,7 @@
     if (window.NexaSession) SESS = NexaSession.create({ api, toast, openMenu, esc, base: BASE, deckId: () => S.id, onChange: (st, changed) => { S.session = st; if (changed && S.deck) renderReqs(); } });
     $("#sessChip").onclick = (e) => (SESS ? SESS.menu(e.currentTarget) : null);  // 웹 세션 시작·끊기·모델·진행
     RQ = NexaRequests.create({ api, toast, esc, base: BASE, deckId: () => S.id, session: SESS,
-      getReqs: () => S.reqs, setReqs: (l) => { S.reqs = l; }, onChange: () => { if (!S.deck) return; renderReqs(); renderMarks(); renderTabs(); },
+      getReqs: () => S.reqs, setReqs: (l) => { S.reqs = l; }, onChange: () => { if (!S.deck) return; renderReqs(); renderMarks(); renderTabs(); aiWatch(); },
       target: SHEET_TARGET, att: { boxes: { tab: "#reqAtt", fu: "#fuAtt" } } });
     { const [q, ss] = await Promise.all([api("GET", `/api/requests/${encodeURIComponent(S.id)}`), api("GET", "/api/session")]);
       if (q.ok && Array.isArray(q.data)) S.reqs = q.data; if (ss.ok && ss.data) renderSession(ss.data); }
@@ -1407,6 +1495,8 @@
     { const v = await api("GET", `/api/version/${encodeURIComponent(S.id)}`); if (v.ok && v.data.session) renderSession(v.data.session, v.data.activity); }
     scrollIntoView(S.cur.r, S.cur.c); focusGrid();
     setInterval(poll, 2000);
+    // 실시간 연결(동시 편집 2단계) - 바뀌면 바로 applyVersion · 함께 보는 사람은 격자 테두리와 머리줄 칩. 내 위치는 1초마다 보고 바뀐 때만 보낸다
+    if (window.NexaLive) { LIVE = NexaLive.create({ api, base: BASE, deckId: () => S.id, tab: TAB, onVersion: (v) => applyVersion(v), onPresence: () => renderMarks(), chip: "#sessChip" }); setInterval(livePresence, 1000); }
 
     const W = $("#gridWrap");
     W.addEventListener("mousedown", onGridDown);

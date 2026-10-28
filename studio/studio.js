@@ -167,24 +167,42 @@
     renderAll(); revealThumb(S.cur, true);
     if (S.tab === "hist") loadHist();
     await loadChanges();
+    if (!keep) refreshLinks(null, true);  // 시트 연결 - 원본이 바뀌었으면 따라 바꾼다(바뀐 것이 있을 때만 알림)
     return true;
   }
+  // 갱신 - 실시간 연결(nexa-live.js SSE, 동시 편집 2단계)이 살아 있으면 바뀔 때마다 applyVersion 이 바로 불리고, 2초 폴링은 15초 안전망만.
+  // 끊기면 예전처럼 2초 폴링. 둘 다 같은 applyVersion 을 거친다(처리 중에 온 것은 하나만 남겨 이어서)
+  let LIVE = null, pollAt = 0, applying = false, pendingV = null;
   async function poll() {
     if (!S.id) return;
+    if (LIVE && LIVE.healthy() && Date.now() - pollAt < 15000) return;
+    pollAt = Date.now();
     try {
       const r = await api("GET", `/api/version/${S.id}`);
       if (!r.ok) return;
-      if (r.data.session) renderSession(r.data.session, r.data.activity);
-      await checkWorkspace(r.data);
-      await RQ.sync(r.data);  // 요청 파일이 바뀌었으면 다시 읽기
-      if (r.data.deck !== S.version && !S.saving) {
+      await applyVersion(r.data);
+    } catch (e) { setStatus("error", "서버 끊김"); }
+  }
+  async function applyVersion(v) {
+    if (applying) { pendingV = v; return; }
+    applying = true;
+    try {
+      if (v.session) renderSession(v.session, v.activity);
+      await checkWorkspace(v);
+      await RQ.sync(v);  // 요청 파일이 바뀌었으면 다시 읽기
+      if (v.deck !== S.version && !S.saving) {
         // 편집 중에 밖에서 바뀌었다 - 배너로 고르게 하지 않고, 내 저장이 서버에서 합쳐지게 바로 저장한다(글 편집 중이면 편집이 끝난 뒤 저장 때)
         if (S.dirty || S.editing) { if (S.dirty && !S.editing && !S.conflict) { clearTimeout(saveT); await save(); } }
         else await reloadExternal("밖에서 바뀐 덱을 다시 불러왔습니다");
       }
-      if (r.data.changes !== undefined && r.data.changes !== S.chgVersion) await loadChanges();  // 내 저장·다른 창·Claude·빌드 - 원장이 자라면 변경 탭 갱신
-    } catch (e) { setStatus("error", "서버 끊김"); }
+      if (v.changes !== undefined && v.changes !== S.chgVersion) await loadChanges();  // 내 저장·다른 창·Claude·빌드 - 원장이 자라면 변경 탭 갱신
+    } finally {
+      applying = false;
+      if (pendingV) { const n = pendingV; pendingV = null; await applyVersion(n); }
+    }
   }
+  /** 함께 보는 사람에게 내 위치 - 장·고른 요소·글 편집 중(바뀔 때만 보낸다) */
+  function livePresence() { const s = slide(); if (LIVE && s) LIVE.where({ slide: s.id, els: selIds() }, !!S.editing); }
 
   // ---------------------------------------------------------------- 변경(서버 원장) - 편집기·Claude·빌드·외부의 모든 변경을 서버가 decks/.history/<덱>/changes.jsonl 에 남기고
   // 편집기는 묶음(group)과 슬라이드별 최근 수정(recent)을 받아 그린다. 비교 규칙은 서버 deckdiff.py 한 곳(0.16.0 전에는 여기 JS 에 있었다 - tests/deckdiff_ref.js).
@@ -595,6 +613,22 @@
       });
     }
     if (S.drawing) svg += S.drawing.svg || "";
+    if (s && LIVE) {  // 함께 보는 사람(동시 편집 2단계) - 다른 창이 고른 요소에 그 창 색 테두리·이름
+      const inv = 1 / scale;
+      for (const x of LIVE.others()) {
+        if (!x.where || x.where.slide !== s.id) continue;
+        (x.where.els || []).forEach((id, k) => {
+          const el = elById(id, s); if (!el) return; const b = boxOf(el);
+          h += `<div class="pres" style="left:${b.x - 5}px;top:${b.y - 5}px;width:${b.w + 10}px;height:${b.h + 10}px;border-color:${esc(x.color)};border-width:${2 * inv}px"></div>`;
+          if (!k) h += `<div class="presnm" style="left:${b.x - 5}px;top:${b.y - 5}px;background:${esc(x.color)};transform:translateY(-100%) scale(${inv});transform-origin:0 100%">${esc(x.user || "다른 창")}${x.editing ? " · 편집 중" : ""}</div>`;
+        });
+      }
+      for (const r of S.reqs) {  // AI 가 처리 중인 요청의 대상 - "Claude 처리 중"(사람이 같은 곳을 고치기 전에 알 수 있게)
+        if (r.status !== "working" || r.slide !== s.id) continue;
+        const id = (r.elements && r.elements[0]) || r.element, el = id && elById(id, s); if (!el) continue; const b = boxOf(el);
+        h += `<div class="presnm ai" style="left:${b.x + b.w + 5}px;top:${b.y - 5}px;transform:translate(-100%,-100%) scale(${inv});transform-origin:100% 100%">${esc(agentName())} 처리 중</div>`;
+      }
+    }
     const cm = s && chgOf(s.id);  // 밖에서 바뀐 요소 - 파란 점선
     if (cm) for (const id of cm) { const el = elById(id); if (!el) continue; const b = boxOf(el); h += `<div class="chgbox" style="left:${b.x - 4}px;top:${b.y - 4}px;width:${b.w + 8}px;height:${b.h + 8}px;border-width:${2 / scale}px"></div>`; }
     M.innerHTML = h; D.innerHTML = svg;
@@ -1095,6 +1129,9 @@
       { label: "서식 복사", key: "Ctrl+Shift+C", act: () => fmtCopy(false) }, ...(S.fmt ? [{ label: "서식 적용", key: "Ctrl+Shift+V", act: () => fmtPasteTo(selIds()) }] : []),
       { label: `이 서식을 새 ${TYPE_KO[el.type] || el.type} 요소의 기본으로`, act: () => setDefStyle(el) }, ...(defStyleOf(el.type) ? [{ label: `${TYPE_KO[el.type] || el.type} 기본 서식 지우기`, act: () => { LS.set(defStyleKey(el.type), ""); toast("기본 서식을 지웠습니다"); } }] : []), "-",
       { label: isMulti() ? `이 요소 ${selIds().length}개에 요청 메모` : "이 요소에 요청 메모", act: () => openMemo({ element: el.id, elements: selIds() }) },
+      ...(el.link && el.link.deck && !isMulti() ? ["-", { label: `시트에서 새로 고침 (${el.link.range})`, act: () => refreshLinks(el) },
+        { label: "원본 시트 열기", act: () => window.open(`${sheetUrl(el.link.deck)}#${encodeURIComponent(el.link.tab)}!${el.link.range}`, "_blank") },
+        { label: "시트 연결 끊기(지금 값은 남김)", act: () => { snapshot(); delete el.link; afterChange(); toast("연결을 끊었습니다 - 값은 그대로입니다"); } }] : []),
     ]);
   }
 
@@ -2349,7 +2386,7 @@ ${names}
   // ---- 삽입 패널: 한 단에 검색 + 묶음별 타일(하위 메뉴 없음). 글자를 치면 바로 걸러지고 Enter 는 첫 타일. Canva·Figma 의 '요소' 패널 꼴
   function insertItems() {
     const base = [["text", "T", "글자", "텍스트 text"], ["bullets", "≡", "글머리 목록", "bullets list 번호"], ["pill", "◖◗", "칩", "pill badge 태그"], ["rect", "▭", "상자", "사각형 rect box"], ["ellipse", "◯", "원", "타원 circle"], ["arrow", "→", "화살표", "선 line connector"]];
-    const data = [["table", "▦", "표", "table 격자 렌더"], ["tableobj", "▦+", "표 객체", "table object cells 셀 서식"], ["code", "{ }", "코드", "code sql"]].concat(CHART_KINDS.map(([k, i, l]) => [`chart:${k}`, i, l, `차트 chart ${k}`]));
+    const data = [["table", "▦", "표", "table 격자 렌더"], ["tableobj", "▦+", "표 객체", "table object cells 셀 서식"], ["sheetlink", "▦⇢", "시트에서 표·차트", "sheet 시트 엑셀 연결 link 범위"], ["code", "{ }", "코드", "code sql"]].concat(CHART_KINDS.map(([k, i, l]) => [`chart:${k}`, i, l, `차트 chart ${k}`]));
     const icons = Render.iconNames().map(([k, ko]) => [`icon:${k}`, `<svg viewBox="0 0 24 24" width="22" height="22"><g>${(Render.ICONS ? Render.ICONS[k] : null) ? "" : ""}</g>${iconSvgInner(k)}</svg>`, ko, `아이콘 icon ${k}`]);
     const media = [["imgfile", "🖼", "그림 파일", "image photo 사진 업로드"], ["image", "🏷", "로고", "brand logo"], ["mermaid", "⤳", "다이어그램 코드", "mermaid flowchart sequence 코드"]];
     const shapes = Render.shapeNames().map(([k, ko]) => [`shape:${k}`, `<svg viewBox="-2 -2 52 40" width="34" height="26"><path d="${Render.shapePath(k, 48, 36)}" fill="currentColor"/></svg>`, ko, `도형 shape ${k}`]);
@@ -2360,8 +2397,69 @@ ${names}
   function runInsert(kind) {
     if (kind === "imgfile") return imagePick(null);
     if (kind === "mermaid") return mermaidDialog(null);
+    if (kind === "sheetlink") return sheetLinkDialog();
     if (kind.startsWith("diagram:")) return addDiagram(kind.slice(8));
     return addEl(kind);
+  }
+  // ---- 시트 → 슬라이드 연결: 시트 범위를 표·차트로 넣고(요소 link {deck, tab, range, as, header}), 덱을 열 때·[시트에서 새로 고침] 에 원본 값으로 맞춘다
+  const linkData = (el) => JSON.stringify(el.link.as === "chart" ? [el.categories, el.series, el.numFmt || null] : [el.rows]);
+  async function sheetRange(lk) {
+    const q = new URLSearchParams({ deck: lk.deck, tab: lk.tab, range: lk.range, as: lk.as === "chart" ? "chart" : "table", header: lk.header === false ? "0" : "1" });
+    const r = await api("GET", `/api/sheet-range?${q}`);
+    return r.ok ? r.data : { error: (r.data && r.data.error) || r.status };
+  }
+  function applyLink(el, d) {
+    if (el.link.as === "chart") { el.categories = d.categories; el.series = d.series; if (d.numFmt) el.numFmt = d.numFmt; else delete el.numFmt; }
+    else { el.rows = d.rows; const n = (d.rows[0] || []).length; if (!el.colW || el.colW.length !== n) el.colW = Array(n).fill(1); }
+  }
+  /** 연결된 요소 새로 고침 - only 를 주면 그 요소만. 바뀐 것이 있으면 한 번의 실행 취소로 */
+  async function refreshLinks(only, quiet) {
+    if (!S.deck) return;
+    const els = only ? [only] : S.deck.slides.flatMap((sl) => sl.elements.filter((e) => e.link && e.link.deck));
+    if (!els.length) return;
+    const got = await Promise.all(els.map((e) => sheetRange(e.link)));
+    const bad = got.filter((d) => d.error).length, chg = [];
+    els.forEach((e, i) => { const d = got[i]; if (d.error) return; const t = { link: e.link, ...e }; applyLink(t, d); if (linkData(t) !== linkData(e)) chg.push([e, d]); });
+    if (chg.length) { snapshot(); for (const [e, d] of chg) applyLink(e, d); afterChange(); }
+    if (chg.length || !quiet) toast(chg.length ? `시트 연결 ${chg.length}개를 원본 값으로 새로 고쳤습니다` + (bad ? ` · ${bad}개는 원본을 찾지 못함` : "") : bad ? `시트 연결 ${bad}개의 원본을 찾지 못했습니다` : "시트 원본과 같습니다", chg.length ? 4000 : 2400);
+  }
+  async function sheetLinkDialog() {
+    const sheets = (S.decks || []).filter((d) => d.kind === "sheet");
+    if (!sheets.length) { toast("이 작업 공간에 시트가 없습니다 - 덱 메뉴 ☰ → 새 시트(엑셀)로 만듭니다", 4500); return; }
+    document.querySelectorAll(".lnkDlg").forEach((d) => d.remove());
+    const dlg = document.createElement("div"); dlg.className = "lnkDlg menu";
+    dlg.innerHTML = `<div class="h">시트에서 표·차트 넣기</div>
+      <label>시트 <select data-k="deck">${sheets.map((d) => `<option value="${esc(d.id)}">${esc(d.title || d.id)}</option>`).join("")}</select></label>
+      <label>탭 <select data-k="tab"></select></label>
+      <label>범위 <input data-k="range" value="A1:D10" spellcheck="false"></label>
+      <label>넣기 <select data-k="as"><option value="table">표</option>${CHART_KINDS.map(([k, , l]) => `<option value="chart:${k}">차트 - ${esc(l)}</option>`).join("")}</select></label>
+      <label class="ck"><input type="checkbox" data-k="header" checked> 첫 줄은 머리글(차트는 계열 이름)</label>
+      <div class="hint">원본 시트 값이 바뀌면 덱을 열 때 따라 바뀝니다(오른쪽 클릭 → 시트에서 새로 고침).</div>
+      <div class="err"></div>
+      <div class="acts"><button data-a="ok" class="primary">넣기</button><button data-a="no">취소</button></div>`;
+    Object.assign(dlg.style, { left: "50%", top: "120px", transform: "translateX(-50%)", position: "fixed", width: "360px", padding: "10px 12px" });
+    document.body.appendChild(dlg);
+    const q = (k) => dlg.querySelector(`[data-k="${k}"]`);
+    const loadTabs = async () => {
+      const r = await api("GET", `/api/deck/${encodeURIComponent(q("deck").value)}`);
+      q("tab").innerHTML = r.ok ? (r.data.sheets || []).map((t) => `<option value="${esc(t.id)}">${esc(t.name || t.id)}</option>`).join("") : "";
+    };
+    q("deck").onchange = loadTabs; await loadTabs();
+    dlg.addEventListener("click", async (e) => {
+      const b = e.target.closest("[data-a]"); if (!b) return;
+      if (b.dataset.a === "no") { dlg.remove(); return; }
+      const as = q("as").value, lk = { deck: q("deck").value, tab: q("tab").value, range: q("range").value.trim().toUpperCase(), as: as === "table" ? "table" : "chart", header: q("header").checked };
+      const d = await sheetRange(lk);
+      if (d.error) { dlg.querySelector(".err").textContent = "가져오지 못했습니다: " + d.error; return; }
+      const s = slide(); if (!s) return;
+      const part = S.deck.part || "day1";
+      let el;
+      if (lk.as === "chart") { el = { ...chartBase(as.slice(6)), link: lk }; }
+      else { const n = d.rows.length; el = { type: "table", x: 64, y: 184, w: 760, h: Math.min(480, 32 * n), rows: [], colW: [], size: 14, headFill: `${part}-container`, headColor: `on-${part}-container`, rule: "surface-container-high", link: lk }; }
+      applyLink(el, d);
+      snapshot(); el.id = newElId(s); s.elements.push(el); S.sel = el.id; afterChange();
+      dlg.remove(); toast(`${lk.range} 를 ${lk.as === "chart" ? "차트" : "표"}로 넣었습니다 - 원본 시트와 연결됨`, 3500);
+    });
   }
   function addMenu(btn) {
     const groups = insertItems();
@@ -2967,7 +3065,7 @@ ${names}
     if (S.brand.logo) { const l = $("#brandLogo"); l.src = BASE + "/" + S.brand.logo; l.alt = S.brand.name || ""; l.style.display = ""; l.onerror = () => (l.style.display = "none"); }
     if (S.brand.favicon) $("#favicon").href = BASE + "/" + S.brand.favicon;
   }
-  async function switchDeck(id) { if (id === S.id) return; if (S.dirty) await save(); if (isSheet(S.decks.find((d) => d.id === id))) { location.href = sheetUrl(id); return; } await loadDeck(id); }
+  async function switchDeck(id) { if (id === S.id) return; if (S.dirty) await save(); if (isSheet(S.decks.find((d) => d.id === id))) { location.href = sheetUrl(id); return; } await loadDeck(id); if (LIVE) LIVE.reconnect(); }
   async function init() {
     if (window.NexaMenu) NexaMenu.mount($("#menuBtn"));
     if ((await loadConfig()) === false) return;
@@ -3145,6 +3243,9 @@ ${names}
     window.addEventListener("resize", () => { fitStage(); fitThumbs(); if ($("#present").classList.contains("show")) renderPresent(); });
     window.addEventListener("beforeunload", (e) => { if (S.dirty) { save(); e.preventDefault(); e.returnValue = ""; } });
     setInterval(poll, 2000);
+    // 실시간 연결(동시 편집 2단계) - 바뀌면 바로 applyVersion · 함께 보는 사람은 캔버스 테두리와 머리줄 칩. 내 위치는 1초마다 보고 바뀐 때만 보낸다
+    if (window.NexaLive) { LIVE = NexaLive.create({ api, base: BASE, deckId: () => S.id, tab: TAB, onVersion: (v) => applyVersion(v), onPresence: () => renderMarks(), chip: "#sessChip" }); setInterval(livePresence, 1000); }
   }
+  window.NexaStudioLink = { refreshLinks, sheetLinkDialog, S };  // 시트 연결 - 시험·다른 모듈용
   init().catch((e) => { console.error(e); setStatus("error", "오류"); toast("초기화 오류: " + e.message, 6000); });
 })();

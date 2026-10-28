@@ -65,6 +65,19 @@ def hb():
         return {}
 
 
+def is_proc(pid, p):
+    """하트비트 pid 가 띄운 프로세스인가 - Windows venv 의 python.exe 는 진짜 파이썬을 자식으로 띄우는 실행기라 감시의 os.getpid() 는 p.pid 의 자식이다."""
+    if not pid:
+        return False
+    if pid == p.pid:
+        return True
+    if os.name == "nt":
+        r = subprocess.run(["powershell", "-NoProfile", "-Command", f"(Get-CimInstance Win32_Process -Filter 'ProcessId={int(pid)}').ParentProcessId"],
+                           capture_output=True, text=True)
+        return r.stdout.strip() == str(p.pid)
+    return False
+
+
 def wait_dead(pid, sec=5):
     t0 = time.time()
     while procutil.pid_alive(pid) and time.time() - t0 < sec:
@@ -88,7 +101,7 @@ try:
     procs.append(p1)
     time.sleep(2.0)
     h1 = hb()
-    check("감시 1 하트비트(manual, pid)", h1.get("kind") == "manual" and h1.get("pid") == p1.pid and not h1.get("stopped"), h1)
+    check("감시 1 하트비트(manual, pid)", h1.get("kind") == "manual" and is_proc(h1.get("pid"), p1) and not h1.get("stopped"), h1)
     p1.stdout.close()  # Monitor 를 건 세션이 닫힌 상황
     try:
         p1.wait(6)
@@ -106,7 +119,7 @@ try:
     time.sleep(3.0)
     check("takeover → 이전 감시 2 종료", wait_dead(p2.pid, 5), f"p2 alive={procutil.pid_alive(p2.pid)}")
     h3 = hb()
-    check("  하트비트는 감시 3(pid)", h3.get("pid") == p3.pid and h3.get("label") == "e4:three" and not h3.get("stopped"), h3)
+    check("  하트비트는 감시 3(pid)", is_proc(h3.get("pid"), p3) and h3.get("label") == "e4:three" and not h3.get("stopped"), h3)
     first = "".join(p3.stdout.readline().decode("utf-8", "replace") for _ in range(2))  # takeover 뒤 idle - 드물게 순서가 섞여 두 줄을 본다
     check("  감시 3 첫 이벤트 takeover", '"event": "takeover"' in first, first)
     st, d = admin("GET", BASE + "/api/engine")
@@ -114,7 +127,7 @@ try:
 
     # 3) 웹 [끊기] - /api/engine/session stop 이 수동 감시를 끝낸다
     st, r = admin("POST", BASE + "/api/engine/session", {"action": "stop", "reason": "web"})
-    check("웹 끊기 응답 stopped·manual.pid", st == 200 and r.get("stopped") is True and r.get("manual", {}).get("pid") == p3.pid, (st, r))
+    check("웹 끊기 응답 stopped·manual.pid", st == 200 and r.get("stopped") is True and r.get("manual", {}).get("pid") in (p3.pid, h3.get("pid")), (st, r))
     check("  감시 3 프로세스 종료", wait_dead(p3.pid, 5), f"alive={procutil.pid_alive(p3.pid)}")
     time.sleep(0.5)
     st, d = admin("GET", BASE + "/api/engine")
@@ -140,7 +153,7 @@ try:
             h4 = json.loads(shb.read_text(encoding="utf-8"))
         except (OSError, ValueError):
             h4 = {}
-        check("작업 공간 감시 하트비트(pid)", h4.get("pid") == p4.pid and not h4.get("stopped"), h4)
+        check("작업 공간 감시 하트비트(pid)", is_proc(h4.get("pid"), p4) and not h4.get("stopped"), h4)
         p4.stdout.close()
         try:
             p4.wait(6)

@@ -120,6 +120,13 @@
   .reqBox { border: 2px dashed #E0A100; }
   .reqBox.working { border-color: var(--info); }
   .reqBox.draft { border-color: #E5484D; }
+  /* 함께 보는 사람(동시 편집 2단계 - nexa-live.js) - 다른 창이 고른 범위 */
+  .presBox { border: 2px solid; }
+  /* AI 가 바꾼 셀 - 요청이 완료되면 초록 테두리(요청 카드에서 보기·되돌리기) */
+  .aiCell { border: 2px solid #16A34A; background: rgba(22, 163, 74, .10); }
+  .aiTag { position: absolute; left: -2px; top: 0; transform: translateY(-100%); background: #16A34A; color: #fff; font: 700 10px/15px var(--font); padding: 0 6px; border-radius: 6px 6px 6px 0; white-space: nowrap; }
+  #reqList .aichg { display: flex; gap: 6px; align-items: center; margin-top: 6px; padding: 5px 8px; border-radius: 8px; background: #E7F6EC; color: #14532D; font-size: 12px; }
+  .presTag { position: absolute; left: -2px; top: 0; transform: translateY(-100%); color: #fff; font: 700 10px/15px var(--font); padding: 0 6px; border-radius: 6px 6px 6px 0; white-space: nowrap; }
   .reqTag { position: absolute; top: 0; right: 0; background: #E0A100; color: #fff; font: 700 10px/15px var(--font); padding: 0 5px; border-radius: 0 0 0 6px; white-space: nowrap; }
   .reqBox.working .reqTag { background: var(--info); }
   .reqBox.draft .reqTag { background: #E5484D; }
@@ -286,7 +293,8 @@
 <div id="sessDlg"><div class="box"></div></div>
 <script src="wsession.js"></script>
 <script src="nexa-requests.js"></script>
-<script src="nexa-merge.js"></script><!-- 병합 저장·실행 취소(편집기와 같다) -->
+<script src="nexa-merge.js"></script>
+<script src="nexa-live.js"></script><!-- 실시간 연결·함께 보는 사람(편집기와 같다) --><!-- 병합 저장·실행 취소(편집기와 같다) -->
 <script src="sheetcalc.js"></script><!-- 수식 계산(NexaCalc) - Python sheet_calc 와 같은 규칙 -->
 <script src="sheet.js"></script>
 <script src="sheetx.js"></script>

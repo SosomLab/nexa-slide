@@ -28,6 +28,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from common import DECKS, STATE, running_server, safe_id  # noqa: E402
+import deckdiff  # noqa: E402
 import deckmerge  # noqa: E402
 import ledger  # noqa: E402
 
@@ -77,6 +78,16 @@ def after_merge(deck_id, bp, merged):
     (STATE / f"draft-{deck_id}.orig.json").write_text(text, encoding="utf-8", newline="\n")
 
 
+def show_cells(orig, deck):
+    """시트 문서 - 이 저장으로 바뀐 셀 수와 앞 몇 개(reply 에 그대로 쓰라고). 편집기 요청 카드에도 "바뀐 셀 n개"가 뜬다."""
+    if not isinstance(orig, dict) or deck.get("kind") != "sheet":
+        return
+    cells = deckdiff.cell_diff(orig, deck)
+    if cells:
+        names = ", ".join(f"{c['name'] or c['tab']}!{c['key']}" for c in cells[:12]) + (" …" if len(cells) > 12 else "")
+        print(f"시트: 바뀐 셀 {len(cells)}개 - {names}")
+
+
 def show_conflicts(conflicts):
     if conflicts:
         print(f"충돌 {len(conflicts)}건 - 사람이 같은 곳을 고쳐 사람의 값을 남겼다(reply 에 알려 줄 것):")
@@ -108,6 +119,7 @@ def via_server(url, deck_id, deck, a):
                 raise
             q["base"] = ""  # 새 덱
     orig = draft_orig(deck_id, bp) if q.get("merge") else None
+    cells_from = draft_orig(deck_id, bp)  # 시트면 사본을 만든 때와 비교한 바뀐 셀을 알려 준다
     body = json.dumps({**deck, "__base": orig} if orig else deck, ensure_ascii=False).encode("utf-8")  # __base = 서버가 그 판을 기억하지 못할 때의 기준본
     headers = {"Content-Type": "application/json", "X-Nexa-Tab": "save_deck"}
     if os.environ.get("NEXA_SLIDE_USER"):  # 웹 세션이 준 시작 사용자 - 서버는 로컬(중계 아님) 요청에서만 받아 원장 actor.user 에 적는다
@@ -134,6 +146,7 @@ def via_server(url, deck_id, deck, a):
         after_merge(deck_id, bp, res.get("deck"))
     print(f"저장됨(서버 {url}): {deck_id} · 원장 seq {res.get('seq')} · 버전 {res.get('version')}"
           + (" · 그 사이 편집기의 변경과 병합함" if res.get("merged") else ""))
+    show_cells(cells_from, deck)
     show_conflicts(res.get("conflicts") or [])
     return 0
 
