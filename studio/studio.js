@@ -167,6 +167,7 @@
     renderAll(); revealThumb(S.cur, true);
     if (S.tab === "hist") loadHist();
     await loadChanges();
+    if (!keep) refreshLinks(null, true);  // 시트 연결 - 원본이 바뀌었으면 따라 바꾼다(바뀐 것이 있을 때만 알림)
     return true;
   }
   async function poll() {
@@ -1095,6 +1096,9 @@
       { label: "서식 복사", key: "Ctrl+Shift+C", act: () => fmtCopy(false) }, ...(S.fmt ? [{ label: "서식 적용", key: "Ctrl+Shift+V", act: () => fmtPasteTo(selIds()) }] : []),
       { label: `이 서식을 새 ${TYPE_KO[el.type] || el.type} 요소의 기본으로`, act: () => setDefStyle(el) }, ...(defStyleOf(el.type) ? [{ label: `${TYPE_KO[el.type] || el.type} 기본 서식 지우기`, act: () => { LS.set(defStyleKey(el.type), ""); toast("기본 서식을 지웠습니다"); } }] : []), "-",
       { label: isMulti() ? `이 요소 ${selIds().length}개에 요청 메모` : "이 요소에 요청 메모", act: () => openMemo({ element: el.id, elements: selIds() }) },
+      ...(el.link && el.link.deck && !isMulti() ? ["-", { label: `시트에서 새로 고침 (${el.link.range})`, act: () => refreshLinks(el) },
+        { label: "원본 시트 열기", act: () => window.open(`${sheetUrl(el.link.deck)}#${encodeURIComponent(el.link.tab)}!${el.link.range}`, "_blank") },
+        { label: "시트 연결 끊기(지금 값은 남김)", act: () => { snapshot(); delete el.link; afterChange(); toast("연결을 끊었습니다 - 값은 그대로입니다"); } }] : []),
     ]);
   }
 
@@ -2349,7 +2353,7 @@ ${names}
   // ---- 삽입 패널: 한 단에 검색 + 묶음별 타일(하위 메뉴 없음). 글자를 치면 바로 걸러지고 Enter 는 첫 타일. Canva·Figma 의 '요소' 패널 꼴
   function insertItems() {
     const base = [["text", "T", "글자", "텍스트 text"], ["bullets", "≡", "글머리 목록", "bullets list 번호"], ["pill", "◖◗", "칩", "pill badge 태그"], ["rect", "▭", "상자", "사각형 rect box"], ["ellipse", "◯", "원", "타원 circle"], ["arrow", "→", "화살표", "선 line connector"]];
-    const data = [["table", "▦", "표", "table 격자 렌더"], ["tableobj", "▦+", "표 객체", "table object cells 셀 서식"], ["code", "{ }", "코드", "code sql"]].concat(CHART_KINDS.map(([k, i, l]) => [`chart:${k}`, i, l, `차트 chart ${k}`]));
+    const data = [["table", "▦", "표", "table 격자 렌더"], ["tableobj", "▦+", "표 객체", "table object cells 셀 서식"], ["sheetlink", "▦⇢", "시트에서 표·차트", "sheet 시트 엑셀 연결 link 범위"], ["code", "{ }", "코드", "code sql"]].concat(CHART_KINDS.map(([k, i, l]) => [`chart:${k}`, i, l, `차트 chart ${k}`]));
     const icons = Render.iconNames().map(([k, ko]) => [`icon:${k}`, `<svg viewBox="0 0 24 24" width="22" height="22"><g>${(Render.ICONS ? Render.ICONS[k] : null) ? "" : ""}</g>${iconSvgInner(k)}</svg>`, ko, `아이콘 icon ${k}`]);
     const media = [["imgfile", "🖼", "그림 파일", "image photo 사진 업로드"], ["image", "🏷", "로고", "brand logo"], ["mermaid", "⤳", "다이어그램 코드", "mermaid flowchart sequence 코드"]];
     const shapes = Render.shapeNames().map(([k, ko]) => [`shape:${k}`, `<svg viewBox="-2 -2 52 40" width="34" height="26"><path d="${Render.shapePath(k, 48, 36)}" fill="currentColor"/></svg>`, ko, `도형 shape ${k}`]);
@@ -2360,8 +2364,69 @@ ${names}
   function runInsert(kind) {
     if (kind === "imgfile") return imagePick(null);
     if (kind === "mermaid") return mermaidDialog(null);
+    if (kind === "sheetlink") return sheetLinkDialog();
     if (kind.startsWith("diagram:")) return addDiagram(kind.slice(8));
     return addEl(kind);
+  }
+  // ---- 시트 → 슬라이드 연결: 시트 범위를 표·차트로 넣고(요소 link {deck, tab, range, as, header}), 덱을 열 때·[시트에서 새로 고침] 에 원본 값으로 맞춘다
+  const linkData = (el) => JSON.stringify(el.link.as === "chart" ? [el.categories, el.series, el.numFmt || null] : [el.rows]);
+  async function sheetRange(lk) {
+    const q = new URLSearchParams({ deck: lk.deck, tab: lk.tab, range: lk.range, as: lk.as === "chart" ? "chart" : "table", header: lk.header === false ? "0" : "1" });
+    const r = await api("GET", `/api/sheet-range?${q}`);
+    return r.ok ? r.data : { error: (r.data && r.data.error) || r.status };
+  }
+  function applyLink(el, d) {
+    if (el.link.as === "chart") { el.categories = d.categories; el.series = d.series; if (d.numFmt) el.numFmt = d.numFmt; else delete el.numFmt; }
+    else { el.rows = d.rows; const n = (d.rows[0] || []).length; if (!el.colW || el.colW.length !== n) el.colW = Array(n).fill(1); }
+  }
+  /** 연결된 요소 새로 고침 - only 를 주면 그 요소만. 바뀐 것이 있으면 한 번의 실행 취소로 */
+  async function refreshLinks(only, quiet) {
+    if (!S.deck) return;
+    const els = only ? [only] : S.deck.slides.flatMap((sl) => sl.elements.filter((e) => e.link && e.link.deck));
+    if (!els.length) return;
+    const got = await Promise.all(els.map((e) => sheetRange(e.link)));
+    const bad = got.filter((d) => d.error).length, chg = [];
+    els.forEach((e, i) => { const d = got[i]; if (d.error) return; const t = { link: e.link, ...e }; applyLink(t, d); if (linkData(t) !== linkData(e)) chg.push([e, d]); });
+    if (chg.length) { snapshot(); for (const [e, d] of chg) applyLink(e, d); afterChange(); }
+    if (chg.length || !quiet) toast(chg.length ? `시트 연결 ${chg.length}개를 원본 값으로 새로 고쳤습니다` + (bad ? ` · ${bad}개는 원본을 찾지 못함` : "") : bad ? `시트 연결 ${bad}개의 원본을 찾지 못했습니다` : "시트 원본과 같습니다", chg.length ? 4000 : 2400);
+  }
+  async function sheetLinkDialog() {
+    const sheets = (S.decks || []).filter((d) => d.kind === "sheet");
+    if (!sheets.length) { toast("이 작업 공간에 시트가 없습니다 - 덱 메뉴 ☰ → 새 시트(엑셀)로 만듭니다", 4500); return; }
+    document.querySelectorAll(".lnkDlg").forEach((d) => d.remove());
+    const dlg = document.createElement("div"); dlg.className = "lnkDlg menu";
+    dlg.innerHTML = `<div class="h">시트에서 표·차트 넣기</div>
+      <label>시트 <select data-k="deck">${sheets.map((d) => `<option value="${esc(d.id)}">${esc(d.title || d.id)}</option>`).join("")}</select></label>
+      <label>탭 <select data-k="tab"></select></label>
+      <label>범위 <input data-k="range" value="A1:D10" spellcheck="false"></label>
+      <label>넣기 <select data-k="as"><option value="table">표</option>${CHART_KINDS.map(([k, , l]) => `<option value="chart:${k}">차트 - ${esc(l)}</option>`).join("")}</select></label>
+      <label class="ck"><input type="checkbox" data-k="header" checked> 첫 줄은 머리글(차트는 계열 이름)</label>
+      <div class="hint">원본 시트 값이 바뀌면 덱을 열 때 따라 바뀝니다(오른쪽 클릭 → 시트에서 새로 고침).</div>
+      <div class="err"></div>
+      <div class="acts"><button data-a="ok" class="primary">넣기</button><button data-a="no">취소</button></div>`;
+    Object.assign(dlg.style, { left: "50%", top: "120px", transform: "translateX(-50%)", position: "fixed", width: "360px", padding: "10px 12px" });
+    document.body.appendChild(dlg);
+    const q = (k) => dlg.querySelector(`[data-k="${k}"]`);
+    const loadTabs = async () => {
+      const r = await api("GET", `/api/deck/${encodeURIComponent(q("deck").value)}`);
+      q("tab").innerHTML = r.ok ? (r.data.sheets || []).map((t) => `<option value="${esc(t.id)}">${esc(t.name || t.id)}</option>`).join("") : "";
+    };
+    q("deck").onchange = loadTabs; await loadTabs();
+    dlg.addEventListener("click", async (e) => {
+      const b = e.target.closest("[data-a]"); if (!b) return;
+      if (b.dataset.a === "no") { dlg.remove(); return; }
+      const as = q("as").value, lk = { deck: q("deck").value, tab: q("tab").value, range: q("range").value.trim().toUpperCase(), as: as === "table" ? "table" : "chart", header: q("header").checked };
+      const d = await sheetRange(lk);
+      if (d.error) { dlg.querySelector(".err").textContent = "가져오지 못했습니다: " + d.error; return; }
+      const s = slide(); if (!s) return;
+      const part = S.deck.part || "day1";
+      let el;
+      if (lk.as === "chart") { el = { ...chartBase(as.slice(6)), link: lk }; }
+      else { const n = d.rows.length; el = { type: "table", x: 64, y: 184, w: 760, h: Math.min(480, 32 * n), rows: [], colW: [], size: 14, headFill: `${part}-container`, headColor: `on-${part}-container`, rule: "surface-container-high", link: lk }; }
+      applyLink(el, d);
+      snapshot(); el.id = newElId(s); s.elements.push(el); S.sel = el.id; afterChange();
+      dlg.remove(); toast(`${lk.range} 를 ${lk.as === "chart" ? "차트" : "표"}로 넣었습니다 - 원본 시트와 연결됨`, 3500);
+    });
   }
   function addMenu(btn) {
     const groups = insertItems();
@@ -3146,5 +3211,6 @@ ${names}
     window.addEventListener("beforeunload", (e) => { if (S.dirty) { save(); e.preventDefault(); e.returnValue = ""; } });
     setInterval(poll, 2000);
   }
+  window.NexaStudioLink = { refreshLinks, sheetLinkDialog, S };  // 시트 연결 - 시험·다른 모듈용
   init().catch((e) => { console.error(e); setStatus("error", "오류"); toast("초기화 오류: " + e.message, 6000); });
 })();

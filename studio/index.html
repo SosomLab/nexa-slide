@@ -121,6 +121,14 @@
   .menu button .k { margin-left: auto; color: var(--ink2); font-size: 11px; }
   .menu hr { border: 0; border-top: 1px solid var(--tone2); margin: 4px 2px; }
   .menu .h { font-size: 11px; color: var(--ink2); padding: 4px 10px 2px; font-weight: 700; }
+  .lnkDlg label { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 4px 6px; font-size: 13px; }
+  .lnkDlg label.ck { justify-content: flex-start; }
+  .lnkDlg select, .lnkDlg input:not([type=checkbox]) { width: 220px; font: inherit; padding: 4px 8px; border: 1px solid var(--line); border-radius: 8px; }
+  .lnkDlg .hint { font-size: 12px; color: var(--ink2); padding: 2px 6px; }
+  .lnkDlg .err { color: var(--err); font-size: 12px; padding: 0 6px; min-height: 1em; }
+  .lnkDlg .acts { display: flex; gap: 6px; justify-content: flex-end; padding: 4px 6px; }
+  .lnkDlg .acts button { border: 0; border-radius: 999px; padding: 5px 14px; cursor: pointer; font: inherit; background: var(--tone, #F2EFEF); }
+  .lnkDlg .acts button.primary { background: var(--p); color: #fff; }
   /* ---------- 가운데 ---------- */
   #center { display: flex; flex-direction: column; min-width: 0; min-height: 0; position: relative; }
   #banner { margin: 8px 12px 0; padding: 10px 14px; border-radius: 12px; background: var(--pc); color: var(--onpc); display: none; align-items: center; gap: 10px; }

@@ -107,7 +107,20 @@ M365(OneDrive·Graph API) 직접 연동은 하지 않는다 — 원래 불편(�
 - 샘플 엑셀의 글꼴·주요 색(머리·라벨·테두리·입력칸·강조), 열 너비, 표지의 그림(로고)과 글 상자(과제명·문서명·날짜 자리)를 읽는다.
 - 결과는 `assets/sheet-themes/<이름>/` 에 테마와 그림으로 만든다. Excel 이 있으면(Windows) 도형 묶음 로고도 그림으로 떠낸다. 만든 뒤 `theme.json` 을 사람이나 AI 가 다듬는다.
 
-## 6. 개발 방향 (조사: [research/sheet-survey.md](research/sheet-survey.md) — M365 Excel · Google Sheets 기준)
+## 6. 시트 → 슬라이드 연결
+
+시트 범위를 슬라이드의 **표·차트**로 넣는다(편집기 ＋ 추가 → 데이터 → "시트에서 표·차트"). 요소에는 연결 정보와 지금 값이 함께 들어간다 - 렌더·PPTX 규칙은 그대로.
+
+```jsonc
+{"type": "table", "rows": [["지역", "매출"], ["서울", "1,200"]], "link": {"deck": "<시트 문서 id>", "tab": "t01", "range": "A1:B5", "as": "table", "header": true}}
+{"type": "chart", "chart": "column", "categories": ["서울", …], "series": [{"name": "매출", "values": [1200, …]}], "link": {…, "as": "chart"}}
+```
+
+- 표는 **보이는 글**(표시 형식 반영 - `1,200`·`15.0%`·날짜), 차트는 첫 열 = 범주, 첫 줄 = 계열 이름, 나머지 = 계산값(수식은 계산해서).
+- 편집기가 덱을 열 때 연결된 요소의 원본을 다시 읽어 바뀌었으면 맞춘다(실행 취소 한 번). 오른쪽 클릭 → 시트에서 새로 고침 · 원본 시트 열기 · 시트 연결 끊기(값은 남김).
+- API `GET /api/sheet-range?deck=&tab=&range=&as=table|chart&header=1`, CLI `nexa.py sheet_link <시트> <탭> <범위> [--as chart]`(세션이 요소를 만들 때 - 결과 JSON 의 데이터와 link 를 그대로 요소에).
+
+## 7. 개발 방향 (조사: [research/sheet-survey.md](research/sheet-survey.md) — M365 Excel · Google Sheets 기준)
 
 기준 제품의 흐름도 우리와 같다. Excel 은 `=COPILOT()` 셀 함수를 2026-09 에 폐지하고 **사이드 패널 + 계획/적용**으로 옮겼다.
 Gemini in Sheets 도 **미리보기 카드 → 적용 → 실행 취소** 로 움직인다. "범위를 고르고 → 요청 → AI 가 고치고 → 답(reply)" 은 지금 구조 그대로 그 방향이다.

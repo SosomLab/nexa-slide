@@ -14,6 +14,7 @@ COMMANDS = [
     ("export_pptx <덱>", "PPTX 내보내기 → out/<덱>.pptx"),
     ("export_xlsx <시트 문서>", "시트 문서(kind sheet) xlsx 내보내기 → out/<id>.xlsx"),
     ("sheet_import <파일.xlsx> [--title …]", "엑셀 파일 → 시트 문서(값·수식·서식·병합·틀 고정) - decks/<새 id>.json"),
+    ("sheet_link <시트 문서> <탭> <범위> [--as chart]", "시트 범위 → 슬라이드 표·차트 데이터와 link(JSON) - 요소에 넣으면 원본이 바뀔 때 편집기가 따라 고친다"),
     ("sheet_calc <시트 문서> [--cell 탭!B3]", "시트 수식 계산 - 오류 셀(#DIV/0! 등)·순환 참조 찾기, 한 칸 값 보기(수식을 고친 뒤 확인)"),
     ("sheet_theme list|show <이름>|import <샘플.xlsx>… --name <이름>", "시트 테마(색·셀 스타일·표지/이력/개요/요약/목록 틀·로고) 목록·보기·샘플 엑셀에서 만들기 → assets/sheet-themes/<이름>/"),
     ("set_fonts <세트>", "글꼴 세트 고르기"),

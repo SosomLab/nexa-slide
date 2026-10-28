@@ -1,0 +1,23 @@
+{
+ "base": "http://127.0.0.1:5667",
+ "pages": [
+  {
+   "url": "/studio/#zlinktest/1",
+   "wait": 2500,
+   "steps": [
+    {
+     "name": "시트에서 표 넣기 - zsheetx 매출!A1:B5 → 표(보이는 글), 요소에 link",
+     "js": "const L=window.NexaStudioLink; L.sheetLinkDialog(); await new Promise(r=>setTimeout(r,400)); const q=(k)=>document.querySelector(`.lnkDlg [data-k=\"${k}\"]`); q('deck').value='zsheetx'; q('deck').dispatchEvent(new Event('change')); await new Promise(r=>setTimeout(r,400)); q('range').value='A1:B5'; q('as').value='table'; document.querySelector('.lnkDlg [data-a=\"ok\"]').click(); await new Promise(r=>setTimeout(r,500)); const els=L.S.deck.slides[0].elements, e=els[els.length-1]; return e.type==='table' && e.link && e.link.deck==='zsheetx' && e.link.range==='A1:B5' && JSON.stringify(e.rows[1])==='[\"서울\",\"1200\"]' && e.colW.length===2 ? true : JSON.stringify(e)"
+    },
+    {
+     "name": "시트에서 차트 넣기 - 같은 범위 → 세로 막대(범주 = 첫 열, 계열 = 머리글)",
+     "js": "const L=window.NexaStudioLink; L.sheetLinkDialog(); await new Promise(r=>setTimeout(r,400)); const q=(k)=>document.querySelector(`.lnkDlg [data-k=\"${k}\"]`); q('deck').value='zsheetx'; q('deck').dispatchEvent(new Event('change')); await new Promise(r=>setTimeout(r,400)); q('range').value='A1:B5'; q('as').value='chart:column'; document.querySelector('.lnkDlg [data-a=\"ok\"]').click(); await new Promise(r=>setTimeout(r,500)); const els=L.S.deck.slides[0].elements, e=els[els.length-1]; return e.type==='chart' && e.chart==='column' && e.categories.join()==='서울,부산,대구,광주' && e.series.length===1 && e.series[0].name==='매출' && e.series[0].values.join()==='1200,800,500,300' ? true : JSON.stringify({c:e.categories,s:e.series})"
+    },
+    {
+     "name": "원본이 바뀌면 새로 고침 - 시트 B2=999 저장 → 표·차트가 따라 바뀜(실행 취소 한 번), 원본은 되돌림",
+     "js": "const L=window.NexaStudioLink; const put=async(v)=>{const r=await fetch('/api/deck/zsheetx',{cache:'no-store'}); const ver=r.headers.get('X-Deck-Version'); const d=await r.json(); d.sheets[0].cells.B2=v; return (await fetch('/api/deck/zsheetx?base='+ver,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(d)})).ok;}; await put(999); await L.refreshLinks(null,true); await new Promise(r=>setTimeout(r,300)); const els=L.S.deck.slides[0].elements, t=els[els.length-2], c=els[els.length-1]; const ok=t.rows[1][1]==='999' && c.series[0].values[0]===999; await put(1200); await L.refreshLinks(null,true); await new Promise(r=>setTimeout(r,300)); const back=els[els.length-2].rows[1][1]==='1200'; return ok && back ? true : JSON.stringify({t:t.rows[1],c:c.series[0].values,back})"
+    }
+   ]
+  }
+ ]
+}

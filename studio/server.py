@@ -949,6 +949,22 @@ class H(BaseHTTPRequestHandler):
         atomic_write(DECKS / f"{i}.json", dumps(doc))
         return {"id": i, "title": doc["title"], "kind": "sheet", "slides": 0, "sheets": len(doc["sheets"]), "warnings": warnings}
 
+    def api_get_sheet_range(self, _, q):
+        """시트 → 슬라이드 연결 데이터 ?deck=&tab=&range=&as=table|chart&header=1 → {rows} · {categories, series, numFmt?} (sheet_link.py)."""
+        if HUB:
+            return self.err(404, "작업 공간 서버에서")
+        import sheet_link
+        g = lambda k, d="": (q.get(k) or [d])[0]  # noqa: E731
+        i = g("deck")
+        if not safe_id(i) or not deck_path(i).exists():
+            return self.err(404, "없는 시트 문서")
+        try:
+            out = sheet_link.range_data(json.loads(deck_path(i).read_text(encoding="utf-8")), g("tab"), g("range"),
+                                        "chart" if g("as") == "chart" else "table", g("header", "1") != "0")
+        except ValueError as e:
+            return self.err(400, str(e))
+        self.send_json({"ok": True, **out, "version": ver(deck_path(i))})
+
     def api_get_sheet_themes(self, name, q):
         """시트 테마 - 이름 없으면 목록, 있으면 theme.json(+ base 그림 주소 접두사, brandLogo). docs/sheets.md 5절."""
         if HUB:
