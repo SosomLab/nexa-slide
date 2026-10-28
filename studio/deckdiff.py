@@ -171,3 +171,28 @@ def summary(items):
 def summary_text(items):
     c = summary(items)
     return " · ".join(f"{c[k]}장 {k}" for k in ("수정", "추가", "삭제", "이동") if c.get(k))
+
+
+def _cell_norm(raw):
+    """셀 값 비교용 - 값만 있는 셀(1)과 {"v": 1} 을 같게 본다"""
+    if raw is None:
+        return None
+    return raw if isinstance(raw, dict) else {"v": raw}
+
+
+def cell_diff(old, new, limit=2000):
+    """시트 문서 두 판의 바뀐 셀 - [{"tab", "name", "key", "before", "after"}] (before/after 는 셀 원래 모양, 없으면 None).
+    요청 카드의 "AI 가 바꾼 셀 n개 · 보기 · 되돌리기"(/api/reqdiff)와 save_deck 출력에 쓴다. 탭은 id 로 짝짓는다."""
+    out = []
+    ot = {t.get("id"): t for t in (old or {}).get("sheets") or [] if isinstance(t, dict)}
+    for t in (new or {}).get("sheets") or []:
+        if not isinstance(t, dict):
+            continue
+        a = (ot.get(t.get("id")) or {}).get("cells") or {}
+        b = t.get("cells") or {}
+        for k in list(b) + [k for k in a if k not in b]:
+            if _cell_norm(a.get(k)) != _cell_norm(b.get(k)):
+                out.append({"tab": t.get("id"), "name": t.get("name", ""), "key": k, "before": a.get(k), "after": b.get(k)})
+                if len(out) >= limit:
+                    return out
+    return out

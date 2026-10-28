@@ -18,6 +18,8 @@ API
   GET  /api/version/<id>             {"deck": ver, "requests": ver}
   GET  /api/stream/<id>?tab=<탭>      실시간(동시 편집 2단계, collab.py) - SSE. event: version(= /api/version 내용, 바뀔 때만) · presence({list}) · ping(10초).
                                      파일 버전을 0.5초마다 보므로 편집기 저장·AI 의 save_deck·요청 파일 Edit 가 곧바로 간다. 끊기면 그 탭의 presence 를 지운다
+  GET  /api/reqdiff/<id>?request=<요청> 그 요청으로 AI 가 저장한 변경 - 시트면 바뀐 셀 {cells: [{tab, name, key, before, after}], count}.
+                                     원장에서 그 요청의 첫 저장 직전 백업 ↔ 마지막 저장 직후(다음 원장 줄의 직전 백업 또는 지금 파일)를 비교한다
   POST /api/presence/<id>            {tab, where, editing, user?} → 함께 보는 사람(메모리, 15초) · {leave: true} 로 뺀다. 응답 {color, list}
   GET  /api/requests/<id>            요청 메모 목록
   POST /api/requests/<id>            {"action": "add"|"update"|"delete"|"send"|"discard", ...} — add 는 status draft(초안)·region(영역)·attachments 가능
@@ -101,6 +103,7 @@ from common import ASSET_ROOT, BRAND, CONFIG, DECKS, DEFAULT_PORT, HUB, OUT, REF
 from watch_requests import session_status  # noqa: E402
 import auth  # noqa: E402
 import collab  # noqa: E402
+import deckdiff  # noqa: E402
 import deckmerge  # noqa: E402
 import ledger  # noqa: E402
 import hub  # noqa: E402
@@ -1153,6 +1156,37 @@ class H(BaseHTTPRequestHandler):
             pass
         finally:
             collab.PRESENCE.leave(i, tab)
+
+    def api_get_reqdiff(self, i, q):
+        """요청 하나로 AI 가 바꾼 것 - 요청 카드의 "바뀐 셀 n개 · 보기 · 되돌리기". 백업이 없으면 found 는 true, cells 는 null."""
+        rid = (q.get("request") or [""])[0]
+        if not rid:
+            return self.err(400, "request 필요")
+        entries = ledger.read(i)
+        idx = [k for k, e in enumerate(entries) if (e.get("actor") or {}).get("request") == rid and e.get("kind") == "change"]
+        if not idx:
+            return self.send_json({"ok": True, "found": False, "cells": [], "count": 0})
+        hdir = DECKS / ".history" / i
+
+        def load(name):
+            try:
+                return json.loads((hdir / name).read_text(encoding="utf-8")) if name and (hdir / name).is_file() else None
+            except (OSError, ValueError):
+                return None
+        before = load((entries[idx[0]].get("before") or {}).get("backup"))
+        after = None
+        for e in entries[idx[-1] + 1:]:  # 마지막 AI 저장 직후 = 그다음 원장 줄이 쓰기 직전에 뜬 백업
+            b = (e.get("before") or {}).get("backup")
+            if b:
+                after = load(b)
+                break
+        if after is None:
+            p = deck_path(i)
+            after = _load(p)[1] if p.exists() else None
+        if before is None or after is None:
+            return self.send_json({"ok": True, "found": True, "cells": None, "count": None, "error": "그때 백업이 없어 비교할 수 없다"})
+        cells = deckdiff.cell_diff(before, after) if after.get("kind") == "sheet" else []
+        self.send_json({"ok": True, "found": True, "cells": cells, "count": len(cells), "saves": len(idx), "seq": [entries[k].get("seq") for k in idx]})
 
     def api_post_presence(self, i, q):
         """함께 보는 사람 - {tab, where, editing, user?}. 허브 로그인 사용자면 그 이름을 쓴다(보낸 user 보다 우선). {leave: true} = 뺀다."""

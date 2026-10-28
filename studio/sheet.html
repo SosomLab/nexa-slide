@@ -122,6 +122,10 @@
   .reqBox.draft { border-color: #E5484D; }
   /* 함께 보는 사람(동시 편집 2단계 - nexa-live.js) - 다른 창이 고른 범위 */
   .presBox { border: 2px solid; }
+  /* AI 가 바꾼 셀 - 요청이 완료되면 초록 테두리(요청 카드에서 보기·되돌리기) */
+  .aiCell { border: 2px solid #16A34A; background: rgba(22, 163, 74, .10); }
+  .aiTag { position: absolute; left: -2px; top: 0; transform: translateY(-100%); background: #16A34A; color: #fff; font: 700 10px/15px var(--font); padding: 0 6px; border-radius: 6px 6px 6px 0; white-space: nowrap; }
+  #reqList .aichg { display: flex; gap: 6px; align-items: center; margin-top: 6px; padding: 5px 8px; border-radius: 8px; background: #E7F6EC; color: #14532D; font-size: 12px; }
   .presTag { position: absolute; left: -2px; top: 0; transform: translateY(-100%); color: #fff; font: 700 10px/15px var(--font); padding: 0 6px; border-radius: 6px 6px 6px 0; white-space: nowrap; }
   .reqTag { position: absolute; top: 0; right: 0; background: #E0A100; color: #fff; font: 700 10px/15px var(--font); padding: 0 5px; border-radius: 0 0 0 6px; white-space: nowrap; }
   .reqBox.working .reqTag { background: var(--info); }
