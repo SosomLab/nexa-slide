@@ -45,7 +45,14 @@ def main():
     if doc["sheets"][0]["cells"]["A1"]["v"] != "#REF!":
         FAILS.append("순환 참조")
         print("FAIL 순환 참조 →", doc["sheets"][0]["cells"]["A1"]["v"])
-    print(f"사례 {len(spec['cases'])}개 중 {ok}개 같음")
+    print(f"사례 {len(spec['cases'])}개 중 {ok}개 같음(Python)")
+    import shutil
+    import subprocess
+    if shutil.which("node"):  # 화면 계산기(sheetcalc.js)도 같은 사례로 - 두 곳 동일성
+        r = subprocess.run(["node", str(HERE / "sheetcalc_test.js")], capture_output=True, text=True, encoding="utf-8", errors="replace")
+        print((r.stdout or "").strip().replace("실패:", "화면 실패:"))
+        if r.returncode:
+            FAILS.append("화면 계산기(sheetcalc.js)")
     print("\n실패:", FAILS or "없음")
     sys.exit(1 if FAILS else 0)
 
