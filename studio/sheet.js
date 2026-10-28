@@ -51,7 +51,8 @@
     closeMenu();
     const m = document.createElement("div"); m.className = "menu";
     m.innerHTML = items.map((it, i) => it === "-" ? "<hr>" : it.h ? `<div class="h">${esc(it.h)}</div>`
-      : `<button data-i="${i}" ${it.disabled ? "disabled" : ""}>${it.on ? "✓ " : ""}<span>${esc(it.label)}</span>${it.key ? `<span class="k">${esc(it.key)}</span>` : ""}</button>`).join("");
+      : it.html ? `<div data-i="${i}">${it.html}</div>`
+      : `<button data-i="${i}" ${it.disabled ? "disabled" : ""}>${it.on ? "✓ " : ""}${it.icon ? `<span>${it.icon}</span>` : ""}<span>${esc(it.label)}</span>${it.key ? `<span class="k">${esc(it.key)}</span>` : ""}</button>`).join("");
     document.body.appendChild(m);
     let x, y;
     if (anchor.getBoundingClientRect) { const r = anchor.getBoundingClientRect(); x = r.left; y = r.bottom + 4; } else { x = anchor.x; y = anchor.y; }
@@ -290,6 +291,9 @@
   }
   /** 모든 탭의 수식을 다시 계산해 v 에 넣는다. 바뀐 셀이 있으면 true */
   function recalc() {
+    // 계산은 sheetcalc.js(NexaCalc - Python sheet_calc 와 같은 규칙, 엑셀 함수 약 70개·배열 수식). 모르는 함수(매크로 사용자 함수)는 마지막 엑셀 값을 그대로 둔다
+    // - 아래 옛 계산기(16개 함수)는 모르는 함수를 #NAME? 로 덮어 가져온 엑셀의 계산값을 잃었다. NexaCalc 가 없을 때만 쓴다
+    if (window.NexaCalc) return NexaCalc.recalc(S.deck) > 0;
     CALC.memo = new Map(); CALC.busy = new Set(); let changed = false;
     for (const sh of S.deck.sheets) for (const [k, raw] of Object.entries(sh.cells)) {
       if (!raw || typeof raw !== "object" || !raw.f) continue;
@@ -452,7 +456,7 @@
     $("#titleText").textContent = deck.title || S.id; $("#title").title = `${deck.title || ""} · id ${S.id}`;
     setStatus("saved", "저장됨"); updUndo(); renderThemeChip();
     // 세션이 값만 넣고 계산값(v)을 비웠으면 여기서 계산해 저장(엑셀 내보내기에 계산값이 들어가게)
-    if (recalc()) { S.dirty = true; setStatus("dirty", "저장 대기"); scheduleSave(); }
+    if (recalc() && !reqBusy()) { S.dirty = true; setStatus("dirty", "저장 대기"); scheduleSave(); }
     renderAll();
     return true;
   }
@@ -468,8 +472,8 @@
     try {
       const r = await api("GET", `/api/version/${encodeURIComponent(S.id)}`);
       if (!r.ok) return;
-      if (r.data.session) renderSession(r.data.session);
-      if (r.data.requests !== S.reqVersion) { S.reqVersion = r.data.requests; await loadReqs(); }
+      if (r.data.session) renderSession(r.data.session, r.data.activity);
+      if (RQ) await RQ.sync(r.data);  // 요청 파일이 바뀌었으면 다시 읽기(편집기와 같다)
       if (r.data.deck !== S.version && !S.saving) {
         if (S.dirty || S.edit) {
           if (!S.conflict) { S.conflict = true; setStatus("conflict", "충돌"); banner(true, "편집 중에 시트 파일이 밖에서(Claude 등) 바뀌었습니다. 어느 쪽을 남길까요?"); }
@@ -477,11 +481,11 @@
       }
     } catch (e) { setStatus("error", "서버 끊김"); }
   }
-  function renderSession(st) {
-    S.session = st;
-    const c = $("#sessChip"); c.className = "chip sm " + (st.connected ? (st.working ? "busy" : "on") : "off");
-    $("#sessLabel").textContent = st.connected ? (st.working ? `세션 처리 중 ${st.working}` : "세션 연결됨") : "세션 연결 없음";
-  }
+  // 세션 칩·웹 AI 세션 - wsession.js(NexaSession, 슬라이드 편집기와 같다)
+  let SESS = null;
+  function renderSession(st, act) { if (SESS) SESS.render(st, act); else S.session = st; }
+  /** 세션이 요청을 처리하는 중 - 세션이 시트 파일을 고칠 수 있으므로 화면의 자동 저장(계산값 채우기)을 미룬다 */
+  const reqBusy = () => S.reqs.some((q) => q.status === "working") || !!(SESS && SESS.busy());
 
   // ---------------------------------------------------------------- 테마(docs/sheets.md 5절) - 셀 s(스타일 이름)를 테마 styles 에서 찾아 셀 키 아래에 깔고(셀 키가 이긴다),
   // 색 값이 팔레트 이름이면 #RRGGBB 로 바꾼다. 내보내기(export_xlsx.py)와 같은 규칙
@@ -648,6 +652,7 @@
     const sh = sheet(), g = clampRange(S.sel), cm = mergeAt(sh, S.cur.r, S.cur.c) || { r1: S.cur.r, c1: S.cur.c, r2: S.cur.r, c2: S.cur.c };
     place($("#selBox"), g); $("#selBox").hidden = g.r1 === g.r2 && g.c1 === g.c2 || rangeName(g) === rangeName(cm);
     place($("#curBox"), cm, 1);
+    { const R = rectOf(g), H = $("#fillHandle"); H.style.left = R.x + R.w - 3 + "px"; H.style.top = R.y + R.h - 3 + "px"; H.hidden = !!S.edit; }  // 채우기 핸들 - 선택 범위 오른쪽 아래
     $$("#grid th.on").forEach((t) => t.classList.remove("on"));
     for (let c = g.c1; c <= g.c2; c++) { const t = $(`#grid th[data-col="${c}"]`); if (t) t.classList.add("on"); }
     for (let r = g.r1; r <= g.r2; r++) { const t = $(`#grid th[data-row="${r}"]`); if (t) t.classList.add("on"); }
@@ -661,7 +666,7 @@
   function clampRange(g) { return { r1: Math.max(0, Math.min(g.r1, G.rows - 1)), c1: Math.max(0, Math.min(g.c1, G.cols - 1)), r2: Math.max(0, Math.min(g.r2, G.rows - 1)), c2: Math.max(0, Math.min(g.c2, G.cols - 1)) }; }
   function renderTabs() {
     const cnt = (sid) => activeReqs().filter((q) => reqSlide(q) === sid).length;
-    $("#tabs").innerHTML = S.deck.sheets.map((s, i) => `<button class="t${i === S.ti ? " on" : ""}" data-ti="${i}" title="${esc(s.name)} · id ${esc(s.id)} - 두 번 클릭: 이름 바꾸기 · 오른쪽 클릭: 메뉴">${esc(s.name)}${cnt(s.id) ? `<span class="n">${cnt(s.id)}</span>` : ""}</button>`).join("")
+    $("#tabs").innerHTML = S.deck.sheets.map((s, i) => `<button class="t${i === S.ti ? " on" : ""}${s.hidden ? " hid" : ""}" data-ti="${i}" title="${esc(s.name)} · id ${esc(s.id)}${s.hidden ? " · 엑셀에서 숨긴 시트" : ""} - 두 번 클릭: 이름 바꾸기 · 오른쪽 클릭: 메뉴">${esc(s.name)}${cnt(s.id) ? `<span class="n">${cnt(s.id)}</span>` : ""}</button>`).join("")
       + `<button class="ib add" data-addtab="1" title="${theme() && (theme().pages || []).length ? "새 탭 · 테마 페이지 추가" : "새 탭"}">＋</button>`;
   }
   function renderToolState() {
@@ -998,6 +1003,127 @@
   }
 
   // ---------------------------------------------------------------- 탭
+  // ---------------------------------------------------------------- 채우기 핸들 - 선택 오른쪽 아래 사각을 끌어 엑셀처럼 채운다
+  // 숫자 2개 이상은 직선 추세(최소제곱), 숫자 1개는 복사(Ctrl = 1씩 증가 - 날짜는 반대로 기본이 1일씩), 글+숫자(항목1)·요일·월 목록은 이어서,
+  // 수식은 상대 참조 이동($ 고정), 서식은 원본 칸을 돌아가며 복사. 범위 안으로 되끌면 빠지는 칸의 값을 지운다. 두 번 누르면 옆 열 데이터 끝까지 아래로.
+  const FILL_LISTS = [
+    ["일", "월", "화", "수", "목", "금", "토"], ["일요일", "월요일", "화요일", "수요일", "목요일", "금요일", "토요일"],
+    ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"], ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"],
+    ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"],
+    ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"],
+    ["1월", "2월", "3월", "4월", "5월", "6월", "7월", "8월", "9월", "10월", "11월", "12월"], ["1분기", "2분기", "3분기", "4분기"],
+  ];
+  const mod = (a, n) => ((a % n) + n) % n;
+  const isDateFmt = (f) => !!f && /[yd]/i.test(f.replace(/"[^"]*"/g, "")) && !/[#0]/.test(f.replace(/"[^"]*"/g, ""));
+  function fillKind(o) {
+    if (o.f) return { k: "f" };
+    const v = o.v;
+    if (typeof v === "number") return { k: "n", v, date: isDateFmt(o.fmt) };
+    if (typeof v === "string" && v !== "") {
+      for (const L of FILL_LISTS) { const i = L.findIndex((x) => x.toLowerCase() === v.toLowerCase()); if (i >= 0) return { k: "l", L, i, up: v.length > 1 && v === v.toUpperCase() && v !== v.toLowerCase() }; }
+      const m = /^(.*?)(\d+)(\D*)$/.exec(v);  // 마지막 숫자를 늘린다(엑셀과 같이) - 앞자리 0 은 자릿수 유지
+      if (m) return { k: "t", pre: m[1], num: +m[2], post: m[3], w: m[2][0] === "0" ? m[2].length : 0 };
+    }
+    return { k: "s" };
+  }
+  function trend(ys) {  // 최소제곱 직선 a + b·x (x = 0..n-1)
+    const n = ys.length, mx = (n - 1) / 2, my = ys.reduce((a, b) => a + b, 0) / n;
+    let sxy = 0, sxx = 0; ys.forEach((y, x) => { sxy += (x - mx) * (y - my); sxx += (x - mx) ** 2; });
+    const b = sxx ? sxy / sxx : 0; return { a: my - b * mx, b };
+  }
+  /** 한 줄(원본 src[0..n-1])을 위치 ks(원본 첫 칸 기준, 앞으로는 n…, 뒤로는 -1…)로 늘린 셀 객체들 */
+  function fillSeries(src, ks, ctrl, vert) {
+    const n = src.length, K = src.map(fillKind);
+    const base = (j) => { const o = { ...src[j] }; delete o.v; delete o.f; return o; };
+    const all = (k) => K.every((x) => x.k === k);
+    const line = (vals) => { if (n === 1) return (k) => fix(vals[0] + k); const { a, b } = trend(vals); return (k) => fix(a + b * k); };
+    if (all("n") && (n === 1 ? K[0].date !== ctrl : !ctrl)) {
+      const f = line(K.map((x) => x.v)); return ks.map((k) => ({ ...base(mod(k, n)), v: f(k) }));
+    }
+    if (!ctrl && all("l") && K.every((x) => x.L === K[0].L)) {
+      const L = K[0].L, st = n === 1 ? 1 : mod(K[1].i - K[0].i, L.length);
+      if (K.every((x, j) => !j || mod(x.i - K[j - 1].i, L.length) === st)) return ks.map((k) => { const w = L[mod(K[0].i + st * k, L.length)]; return { ...base(mod(k, n)), v: K[0].up ? w.toUpperCase() : w }; });
+    }
+    const tnum = (x, v) => x.pre + String(Math.abs(v)).padStart(x.w, "0") + x.post;
+    if (!ctrl && all("t") && K.every((x) => x.pre === K[0].pre && x.post === K[0].post)) {
+      const f = line(K.map((x) => x.num)); return ks.map((k) => ({ ...base(mod(k, n)), v: tnum(K[0], Math.round(f(k))) }));
+    }
+    return ks.map((k) => {  // 돌아가며 복사 - 수식은 상대 이동, 글+숫자는 한 바퀴마다 +1(Ctrl 이면 그대로)
+      const j = mod(k, n), x = K[j], o = { ...src[j] };
+      if (x.k === "f") { o.f = shiftFormula(src[j].f, vert ? k - j : 0, vert ? 0 : k - j); delete o.v; }
+      else if (x.k === "t" && !ctrl) o.v = tnum(x, x.num + Math.floor(k / n));
+      return o;
+    });
+  }
+  /** 끌어 놓은 셀 → {axis r|c, dir ±1, area 채울(또는 지울) 범위, shrink} - 범위 밖으로 더 멀리 나간 축으로 */
+  function fillTarget(g, r, c) {
+    const outR = r > g.r2 ? r - g.r2 : r < g.r1 ? g.r1 - r : 0, outC = c > g.c2 ? c - g.c2 : c < g.c1 ? g.c1 - c : 0;
+    if (!outR && !outC) {  // 범위 안 - 줄여서 빠지는 칸을 지운다
+      if (g.r2 - r >= g.c2 - c && r < g.r2) return { axis: "r", shrink: true, area: { r1: r + 1, r2: g.r2, c1: g.c1, c2: g.c2 }, keep: { ...g, r2: r } };
+      if (c < g.c2) return { axis: "c", shrink: true, area: { r1: g.r1, r2: g.r2, c1: c + 1, c2: g.c2 }, keep: { ...g, c2: c } };
+      return null;
+    }
+    if (outR >= outC) return r > g.r2 ? { axis: "r", dir: 1, area: { r1: g.r2 + 1, r2: r, c1: g.c1, c2: g.c2 } } : { axis: "r", dir: -1, area: { r1: r, r2: g.r1 - 1, c1: g.c1, c2: g.c2 } };
+    return c > g.c2 ? { axis: "c", dir: 1, area: { r1: g.r1, r2: g.r2, c1: g.c2 + 1, c2: c } } : { axis: "c", dir: -1, area: { r1: g.r1, r2: g.r2, c1: c, c2: g.c1 - 1 } };
+  }
+  const unionRange = (a, b) => ({ r1: Math.min(a.r1, b.r1), c1: Math.min(a.c1, b.c1), r2: Math.max(a.r2, b.r2), c2: Math.max(a.c2, b.c2) });
+  /** 채울 값 계산 - [{k: 셀 주소, o: 셀 객체}] (줄마다 fillSeries) */
+  function fillPlan(sh, g, t, ctrl) {
+    const vert = t.axis === "r", n = vert ? g.r2 - g.r1 + 1 : g.c2 - g.c1 + 1, m = vert ? t.area.r2 - t.area.r1 + 1 : t.area.c2 - t.area.c1 + 1;
+    const ks = Array.from({ length: m }, (_, i) => (t.dir > 0 ? n + i : -1 - i));
+    const out = [];
+    for (let L = vert ? g.c1 : g.r1; L <= (vert ? g.c2 : g.r2); L++) {
+      const at = (j) => (vert ? key(g.r1 + j, L) : key(L, g.c1 + j));
+      const src = Array.from({ length: n }, (_, j) => cellObj(sh, at(j)));
+      fillSeries(src, ks, ctrl, vert).forEach((o, i) => out.push({ k: at(ks[i]), o }));
+    }
+    return out;
+  }
+  function doFill(g, t, ctrl) {
+    if (t.shrink) { clearRange(t.area); S.sel = t.keep; renderSel(); return; }
+    mutate(() => {
+      const sh = sheet();
+      for (const { k, o } of fillPlan(sh, g, t, ctrl)) putCell(sh, k, o);
+      growSize(sh, Math.max(g.r2, t.area.r2), Math.max(g.c2, t.area.c2));
+    });
+    S.sel = unionRange(g, t.area); renderSel();
+  }
+  function startFill(e) {
+    e.preventDefault(); e.stopPropagation();
+    if (S.edit) endEdit(true);
+    const g = clampRange(S.sel), box = $("#fillBox"), tip = $("#fillTip"), H = $("#fillHandle");
+    let tgt = null;
+    H.style.pointerEvents = "none";
+    const onMove = (ev) => {
+      const el = document.elementFromPoint(ev.clientX, ev.clientY), d = el && el.closest("td[data-r]"); if (!d) return;
+      tgt = fillTarget(g, +d.dataset.r, +d.dataset.c);
+      if (!tgt) { box.hidden = tip.hidden = true; return; }
+      place(box, tgt.shrink ? tgt.area : unionRange(g, tgt.area)); box.classList.toggle("shrink", !!tgt.shrink); box.hidden = false;
+      if (tgt.shrink) { tip.hidden = true; return; }
+      const a = tgt.area, lastK = tgt.axis === "r" ? key(tgt.dir > 0 ? a.r2 : a.r1, g.c1) : key(g.r1, tgt.dir > 0 ? a.c2 : a.c1);  // 미리보기 글 - 첫 줄의 마지막 칸 값
+      const p = fillPlan(sheet(), g, tgt, ev.ctrlKey || ev.metaKey).find((x) => x.k === lastK), R = $("#gridIn").getBoundingClientRect();
+      tip.textContent = p ? p.o.f || display(p.o) : "";
+      tip.hidden = !tip.textContent; tip.style.left = ev.clientX - R.left + 14 + "px"; tip.style.top = ev.clientY - R.top + 16 + "px";
+    };
+    const onUp = (ev) => {
+      removeEventListener("mousemove", onMove); removeEventListener("mouseup", onUp);
+      box.hidden = tip.hidden = true; H.style.pointerEvents = "";
+      if (tgt) doFill(g, tgt, ev.ctrlKey || ev.metaKey);
+      focusGrid();
+    };
+    addEventListener("mousemove", onMove); addEventListener("mouseup", onUp);
+  }
+  /** 핸들 두 번 누르기 - 왼쪽(없으면 오른쪽) 이웃 열의 이어진 데이터 끝까지 아래로 채운다 */
+  function fillDownAuto() {
+    if (S.edit) endEdit(true);
+    const sh = sheet(), g = clampRange(S.sel);
+    const has = (r, c) => { if (c < 0) return false; const o = cellObj(sh, key(r, c)); return !!o.f || (o.v != null && o.v !== ""); };
+    const col = has(g.r2 + 1, g.c1 - 1) ? g.c1 - 1 : has(g.r2 + 1, g.c2 + 1) ? g.c2 + 1 : -1;
+    if (col < 0) return;
+    let end = g.r2; while (has(end + 1, col)) end++;
+    doFill(g, { axis: "r", dir: 1, area: { r1: g.r2 + 1, r2: end, c1: g.c1, c2: g.c2 } }, false);
+  }
+
   function newTabId() { const ids = new Set(S.deck.sheets.map((s) => s.id)); for (let i = 1; ; i++) { const id = "t" + String(i).padStart(2, "0"); if (!ids.has(id)) return id; } }
   function newTabName() { const ns = new Set(S.deck.sheets.map((s) => s.name.toLowerCase())); for (let i = S.deck.sheets.length + 1; ; i++) if (!ns.has("sheet" + i)) return "Sheet" + i; }
   function switchTab(i) { if (S.edit) endEdit(true); if (i === S.ti) return; S.ti = i; renderGrid(); renderTabs(); selectRange({ r1: 0, c1: 0, r2: 0, c2: 0 }); $("#gridWrap").scrollTo(0, 0); renderReqs(); focusGrid(); }
@@ -1060,74 +1186,58 @@
   }
 
   // ---------------------------------------------------------------- 요청 - 범위(range)와 글. 세션이 sheets[].cells 를 고치고 done + reply(docs/sheets.md 3절)
+  // 목록·카드·후속·첨부·기록 창·동기화는 nexa-requests.js(RQ, 편집기와 같은 뿌리 - docs/collab.md 0단계). 여기는 시트 쪽 대상(탭·범위)과 머리(대상 표시·보내기)만
+  let RQ = null;
   const ST = { draft: "초안", open: "대기", working: "처리 중", done: "완료" };
   const activeReqs = () => S.reqs.filter((q) => q.status !== "done");
   /** 요청의 탭 id - 후속 요청(parent)에 slide 가 없으면 뿌리 요청(thread)의 것 */
-  const reqSlide = (q) => q.slide || ((S.reqs.find((x) => x.id === q.thread) || {}).slide) || null;
-  async function loadReqs() {
-    const r = await api("GET", `/api/requests/${encodeURIComponent(S.id)}`);
-    S.reqs = r.ok && Array.isArray(r.data) ? r.data : [];
-    renderReqs(); renderMarks(); renderTabs();
-  }
+  const reqSlide = (q) => (RQ ? RQ.rootOf(q) : q).slide || null;
+  async function loadReqs() { if (RQ) await RQ.load(); }
   function reqTargetRange() { return $("#reqWhole").checked ? null : rangeName(clampRange(S.sel)); }
   function renderReqTarget() {
     const t = reqTargetRange(); $("#reqTarget").textContent = `${sheet().name}${t ? "!" + t : " (탭 전체)"}`;
   }
   const typedKey = () => `typed-${NS}${S.id}/sheet`;
+  const tabName = (sid) => { const s = S.deck && S.deck.sheets.find((x) => x.id === sid); return s ? s.name : sid || "?"; };
+  /** 시트 대상 어댑터(RQ) - 탭 · 범위 */
+  const SHEET_TARGET = {
+    scope: "탭", key: (r) => r.slide, current: () => sheet().id, num: (r) => S.deck.sheets.findIndex((s) => s.id === r.slide) + 1,
+    label: (r) => `${tabName(r.slide)}${r.range ? "!" + r.range : " (탭 전체)"}`,
+    goto: (r) => gotoReq(r),
+  };
+  /** 요청의 탭·범위로 - 카드를 누르거나 카드의 대상 링크 */
+  function gotoReq(q) {
+    const root = RQ.rootOf(q); S.reqCur = q.id;
+    const i = S.deck.sheets.findIndex((s) => s.id === root.slide); if (i >= 0 && i !== S.ti) switchTab(i);
+    const g = parseRange(root.range); if (g) selectRange(clampRange(g)); else renderSel();
+    renderReqs(); focusGrid();
+  }
   function renderReqs() {
-    if (!S.deck) return;
-    const tabName = (sid) => { const s = S.deck.sheets.find((x) => x.id === sid); return s ? s.name : sid || "?"; };
-    let list = S.reqs.filter((q) => (!S.reqTab || reqSlide(q) === sheet().id) && (S.reqDone || q.status !== "done" || (q.thread && S.reqs.some((x) => (x.thread || x.id) === q.thread && x.status !== "done"))));
-    // 후속 요청은 뿌리 요청 아래에(같은 thread) - 묶음끼리는 최근 것이 위
-    const th = new Map(); for (const q of list) { const k = q.thread || q.id; if (!th.has(k)) th.set(k, []); th.get(k).push(q); }
-    const groups = [...th.values()].map((g) => g.sort((a, b) => String(a.created || "").localeCompare(String(b.created || ""))))
-      .sort((a, b) => String(b[b.length - 1].created || "").localeCompare(String(a[a.length - 1].created || "")));
-    $$("#reqFilter button").forEach((b) => b.classList.toggle("on", b.dataset.v === "done" ? S.reqDone : (b.dataset.v === "1") === S.reqTab));
-    const agent = (S.session && (S.session.agent || S.session.label)) || "AI";
-    $("#reqList").innerHTML = groups.length ? groups.map((g) => g.map((q, i) => `<div class="req${q.status === "done" ? " done" : ""}${i ? " fu" : ""}${S.reqCur === q.id ? " cur" : ""}" data-rid="${esc(q.id)}">
-        <div class="meta"><span class="st ${esc(q.status || "open")}">${ST[q.status] || "대기"}</span><span class="rg">${esc(tabName(reqSlide(q)))}${q.range ? "!" + esc(q.range) : ""}</span><span>${esc(q.id)}</span><span>${esc(String(q.created || "").replace("T", " ").slice(0, 16))}</span></div>
-        <div class="txt">${esc(q.text)}</div>${q.reply ? `<div class="reply"><b>${esc(agent)}</b> ${esc(q.reply)}</div>` : ""}
-        <div class="acts">${q.status === "draft" ? `<button class="chip sm primary" data-rsend="1">보내기</button>` : `<button class="chip sm" data-rs="${q.status === "done" ? "open" : "done"}">${q.status === "done" ? "다시 열기" : "완료로 표시"}</button>`}${i === g.length - 1 && q.status !== "draft" ? `<button class="chip sm" data-fu="1" title="이 요청에 이어서 묻거나 답합니다">후속 요청</button>` : ""}<button class="chip sm" data-rdel="1">삭제</button></div></div>`).join("")).join("")
-      : `<div class="hint" style="padding:18px;text-align:center">${S.reqTab ? "이 탭에 남은 요청이 없습니다" : "요청이 없습니다"}<br>셀 범위를 고르고 위에 적어 보내세요.</div>`;
-    const fu = S.fu && S.reqs.find((q) => q.id === S.fu);
-    $("#fuTag").hidden = !fu; if (fu) $("#fuText").textContent = `↳ 후속: ${fu.text}`;
-    $("#reqHint").textContent = S.session && S.session.connected ? "" : "세션이 연결되면 전달됩니다";
+    if (!S.deck || !RQ) return;
+    // 기본 보기 = 최근 24시간에 진행된 것 + 끝나지 않은 것(편집기와 같은 규칙) · 이 탭 / 최근 · 이전 것은 [더보기]
+    const recent = S.reqs.filter(RQ.recent), older = S.reqs.length - recent.length;
+    const list = recent.filter((q) => !S.reqTab || reqSlide(q) === sheet().id);
+    $("#reqFilter").innerHTML = `<span class="seg"><button data-v="1" class="${S.reqTab ? "on" : ""}">이 탭</button><button data-v="0" class="${S.reqTab ? "" : "on"}">최근 (${recent.length})</button></span><span style="flex:1"></span><button class="chip sm" id="reqMore" title="이전 요청까지 모두 찾아보기(편집 화면 위에 뜹니다)">더보기${older ? ` · 이전 ${older}` : ""}</button>`;
+    $("#reqList").innerHTML = (older ? `<div class="hint" style="font-size:11.5px;margin:2px 4px 6px">최근 24시간에 진행된 요청과 아직 끝나지 않은 요청만 보입니다 - 이전 것은 [더보기]</div>` : "")
+      + (list.length ? RQ.threadsHtml(list) : `<div class="hint" style="padding:18px;text-align:center">${S.reqTab ? "이 탭에 최근 요청이 없습니다" : "최근 요청이 없습니다"}<br>셀 범위를 고르고 위에 적어 보내세요.</div>`);
+    if (S.reqCur) { const c = $(`#reqList .req[data-rid="${CSS.escape(S.reqCur)}"]`); if (c) c.classList.add("cur"); }
+    $("#reqHint").innerHTML = RQ.sessionHint();
+    RQ.afterRender();
   }
   async function sendReq() {
-    const text = $("#reqText").value.trim(); if (!text) { $("#reqText").focus(); return; }
+    const text = $("#reqText").value.trim(); if (!text && !RQ.att.slot("tab").length) { $("#reqText").focus(); return; }
     if (S.edit) endEdit(true);
     if (S.dirty) await save();  // 세션이 지금 화면 내용을 보고 고치게 먼저 저장
-    const body = S.fu ? { action: "add", status: "open", parent: S.fu, text } : { action: "add", status: "open", slide: sheet().id, text };
-    if (!S.fu) { const rg = reqTargetRange(); if (rg) body.range = rg; }
-    const r = await api("POST", `/api/requests/${encodeURIComponent(S.id)}`, body);
-    if (!r.ok) { toast("요청하지 못했습니다: " + ((r.data && r.data.error) || r.status), 5000); return; }
-    $("#reqText").value = ""; LS.set(typedKey(), ""); S.fu = null;
-    if (Array.isArray(r.data)) S.reqs = r.data; else await loadReqs();
-    renderReqs(); renderMarks(); renderTabs();
-    api("POST", `/api/flush/${encodeURIComponent(S.id)}`).then((x) => x.ok && x.data && x.data.session && renderSession(x.data.session));
-    toast(S.session && S.session.connected ? "요청을 세션에 보냈습니다" : "요청을 남겼습니다 - 세션이 연결되면 전달됩니다");
+    const body = { action: "add", status: "open", slide: sheet().id, text: text || "(첨부 참고)" };
+    const rg = reqTargetRange(); if (rg) body.range = rg;
+    const r = await RQ.add(body, "tab", { flush: true }); if (!r) return;
+    $("#reqText").value = ""; LS.set(typedKey(), "");
+    toast(RQ.connected() ? "요청을 세션에 보냈습니다" : "요청을 남겼습니다 - 세션이 연결되면 전달됩니다");
   }
   async function onReqClick(e) {
-    const b = e.target.closest("button"), card = e.target.closest(".req");
-    if (!card) return;
-    const q = S.reqs.find((x) => x.id === card.dataset.rid); if (!q) return;
-    if (!b) {  // 카드 → 그 탭·범위로
-      S.reqCur = q.id;
-      const root = q.slide ? q : S.reqs.find((x) => x.id === q.thread) || q;
-      const i = S.deck.sheets.findIndex((s) => s.id === root.slide); if (i >= 0 && i !== S.ti) switchTab(i);
-      const g = parseRange(root.range); if (g) selectRange(clampRange(g)); else renderSel();
-      renderReqs(); focusGrid(); return;
-    }
-    let body = null;
-    if (b.dataset.fu) { S.fu = q.id; renderReqs(); $("#reqText").focus(); return; }
-    if (b.dataset.rs) body = { action: "update", id: q.id, status: b.dataset.rs };
-    if (b.dataset.rsend) body = { action: "send" };
-    if (b.dataset.rdel) { if (!confirm("이 요청을 지울까요?")) return; body = { action: "delete", id: q.id }; }
-    if (!body) return;
-    const r = await api("POST", `/api/requests/${encodeURIComponent(S.id)}`, body);
-    if (!r.ok) { toast("요청을 바꾸지 못했습니다: " + ((r.data && r.data.error) || r.status), 5000); return; }
-    if (Array.isArray(r.data)) S.reqs = r.data; else await loadReqs();
-    renderReqs(); renderMarks(); renderTabs();
+    if (await RQ.click(e)) return;  // 상태·삭제·후속·첨부·대상 링크 - 편집기와 같다
+    const card = e.target.closest(".req"); if (!card || e.target.closest("button, a, textarea, input, details, .fu-form")) return;
+    const q = S.reqs.find((x) => x.id === card.dataset.rid); if (q) gotoReq(q);  // 카드 → 그 탭·범위로
   }
 
   // ---------------------------------------------------------------- 내보내기·목록
@@ -1162,6 +1272,7 @@
   // ---------------------------------------------------------------- 끌기(범위 선택·열 너비·행 높이·패널 폭)
   function onGridDown(e) {
     if (e.button !== 0 && e.button !== 2) return;
+    if (e.button === 0 && e.target.closest("#fillHandle")) { startFill(e); return; }
     const rzc = e.target.closest("[data-rzc]"), rzr = e.target.closest("[data-rzr]");
     if (rzc || rzr) { e.preventDefault(); startResize(e, rzc ? "c" : "r", +(rzc || rzr).dataset[rzc ? "rzc" : "rzr"]); return; }
     const td = e.target.closest("td[data-r]"), thc = e.target.closest("th[data-col]"), thr = e.target.closest("th[data-row]");
@@ -1246,17 +1357,31 @@
     if (LS.get("sheetNoSide", "0") === "1") document.body.classList.add("noside");
     { const w = +LS.get("sheetSideW", 0); if (w) document.documentElement.style.setProperty("--sideW", w + "px"); }
     { const c = await api("GET", "/api/config"); if (c.ok && c.data && c.data.brand && c.data.brand.logo) TH.brandLogo = "/" + String(c.data.brand.logo).replace(/^[/]+/, ""); }
+    if (window.NexaSession) SESS = NexaSession.create({ api, toast, openMenu, esc, base: BASE, deckId: () => S.id, onChange: (st, changed) => { S.session = st; if (changed && S.deck) renderReqs(); } });
+    $("#sessChip").onclick = (e) => (SESS ? SESS.menu(e.currentTarget) : null);  // 웹 세션 시작·끊기·모델·진행
+    RQ = NexaRequests.create({ api, toast, esc, base: BASE, deckId: () => S.id, session: SESS,
+      getReqs: () => S.reqs, setReqs: (l) => { S.reqs = l; }, onChange: () => { if (!S.deck) return; renderReqs(); renderMarks(); renderTabs(); },
+      target: SHEET_TARGET, att: { boxes: { tab: "#reqAtt", fu: "#fuAtt" } } });
+    { const [q, ss] = await Promise.all([api("GET", `/api/requests/${encodeURIComponent(S.id)}`), api("GET", "/api/session")]);
+      if (q.ok && Array.isArray(q.data)) S.reqs = q.data; if (ss.ok && ss.data) renderSession(ss.data); }
     if (!(await loadDeck(false))) return;
+    {  // 엑셀 가져오기 경고(그림·조건부 서식·배열 수식 등 - sheetnew.js 가 남김) - 한 번 보이고 지운다
+      let w = ""; try { w = sessionStorage.getItem("nexaImportWarn") || ""; sessionStorage.removeItem("nexaImportWarn"); } catch (e) { /* 저장소 없음 */ }
+      if (w) toast(`엑셀에서 가져오며 바뀐 것\n${w}`, 12000);
+    }
     { const t = LS.get(typedKey(), ""); if (t) $("#reqText").value = t; }
     await loadReqs();
-    { const v = await api("GET", `/api/version/${encodeURIComponent(S.id)}`); if (v.ok) { S.reqVersion = v.data.requests; if (v.data.session) renderSession(v.data.session); } }
+    { const v = await api("GET", `/api/version/${encodeURIComponent(S.id)}`); if (v.ok && v.data.session) renderSession(v.data.session, v.data.activity); }
     scrollIntoView(S.cur.r, S.cur.c); focusGrid();
     setInterval(poll, 2000);
 
     const W = $("#gridWrap");
     W.addEventListener("mousedown", onGridDown);
     W.addEventListener("contextmenu", gridMenu);
-    W.addEventListener("dblclick", (e) => { const td = e.target.closest("td[data-r]"); if (td) { e.preventDefault(); startEdit("edit"); } });
+    W.addEventListener("dblclick", (e) => {
+      if (e.target.closest("#fillHandle")) { e.preventDefault(); fillDownAuto(); return; }
+      const td = e.target.closest("td[data-r]"); if (td) { e.preventDefault(); startEdit("edit"); }
+    });
     W.addEventListener("click", (e) => { if (!S.edit && !e.target.closest("button")) focusGrid(); });
     const ed = ED();
     ed.addEventListener("keydown", onEditorKey);
@@ -1332,11 +1457,18 @@
     // 요청 패널
     $("#reqList").addEventListener("click", onReqClick);
     $("#reqSend").onclick = sendReq;
-    $("#reqText").addEventListener("keydown", (e) => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey) && !e.isComposing) { e.preventDefault(); sendReq(); } });
+    // Enter = 보내기, Shift+Enter = 줄바꿈(편집기 요청 칸과 같다 - 한글 조합 중 Enter 는 조합 확정만)
+    $("#reqText").addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.shiftKey && !e.isComposing) { e.preventDefault(); sendReq(); } });
     $("#reqText").addEventListener("input", () => LS.set(typedKey(), $("#reqText").value.trim() ? $("#reqText").value : ""));
     $("#reqWhole").addEventListener("change", renderReqTarget);
-    $("#fuCancel").onclick = () => { S.fu = null; renderReqs(); };
-    $("#reqFilter").addEventListener("click", (e) => { const b = e.target.closest("button[data-v]"); if (!b) return; if (b.dataset.v === "done") S.reqDone = !S.reqDone; else { S.reqTab = b.dataset.v === "1"; LS.set("sheetReqTab", S.reqTab ? "" : "0"); } renderReqs(); });
+    $("#reqList").addEventListener("keydown", (e) => RQ.keydown(e));  // 후속 입력칸 Enter = 보내기 · Esc = 닫기
+    RQ.att.wire($("#side .compose"), "tab");  // 요청 첨부 - 붙여넣기(그림)·끌어다 놓기
+    $("#side .compose").addEventListener("click", (e) => RQ.click(e));  // ＋ 첨부 · 빼기 · 축소판 · 세션 시작 링크
+    $("#reqFilter").addEventListener("click", (e) => {
+      const b = e.target.closest("button"); if (!b) return;
+      if (b.id === "reqMore") { RQ.openHist(); return; }
+      if (b.dataset.v) { S.reqTab = b.dataset.v === "1"; LS.set("sheetReqTab", S.reqTab ? "" : "0"); renderReqs(); }
+    });
     $("#sideSplit").addEventListener("mousedown", (e) => {
       e.preventDefault(); const x0 = e.clientX, w0 = $("#side").offsetWidth;
       const mv = (ev) => { const w = Math.max(240, Math.min(720, w0 - (ev.clientX - x0))); document.documentElement.style.setProperty("--sideW", w + "px"); LS.set("sheetSideW", String(w)); };
@@ -1346,6 +1478,6 @@
     window.addEventListener("beforeunload", (e) => { if (S.dirty) { save(); e.preventDefault(); e.returnValue = ""; } });
   }
   // 시험용(브라우저 콘솔·스모크) - 수식 계산·표시 형식을 따로 불러 볼 수 있게
-  window.NexaSheet = { S, TH, effCell, bdSides, fillVars, reload: reloadExternal, recalc, parseFormula, display, fmtNumber, parseNumberText, shiftFormula, setInput, parseTsv };
+  window.NexaSheet = { S, TH, effCell, bdSides, fillVars, reload: reloadExternal, recalc, parseFormula, display, fmtNumber, parseNumberText, shiftFormula, setInput, parseTsv, fillSeries, fillTarget };
   init();
 })();

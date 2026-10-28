@@ -42,6 +42,7 @@ TESTS = [  # (이름, 실행, 설명, claude 필요)
     ("deploy", [sys.executable, "engine_deploy_test.py"], "엔진 배포(engine_deploy) - 계획·병합 커밋·push·적용됨·충돌 시 main 불변·겹치는 미커밋 변경·새 실패만 막는 시험 비교(임시 저장소)", False),
     ("englink", [sys.executable, "engine_link_test.py"], "엔진 요청 ↔ 원 요청 연결(engineRequest 배지)·done 알림·applied 자동 재개", False),
     ("content_i18n", [sys.executable, "content_i18n_test.py"], "견본 내용 언어(content_i18n) - layout_samples --lang en · /api/slidetypes?lang=en · tr()", False),
+    ("sheetcalc", [sys.executable, "sheetcalc_test.py"], "시트 수식 계산기(sheet_calc) - 사례 93개(집계·조건·조회·글·날짜·배열·다른 탭·순환 참조)", False),
     ("runs", [sys.executable, "runs_test.py"], "인라인 강조 겹치기(runs) - Python·render.js 같은 결과", False),
     ("effect", [sys.executable, "effect_test.py"], "그림 프레임 효과(effect·effectLevel) - PPTX XML(softEdge·glow·roundRect·ellipse·테두리)·render.js CSS", False),
     ("tableobj", [sys.executable, "tableobj_test.py"], "표 객체(table-obj, 0.22.17) - 리졸버 우선순위·span·변환 왕복·PPTX 셀 서식", False),

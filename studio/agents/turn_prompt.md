@@ -35,6 +35,7 @@
 서식이 있으면 `{"v": 값, "f": "=수식", "fmt": "#,##0", "b": true, "fill": "#RRGGBB", "align": "center", …}`. 수식은 `f` 에만(엑셀 수식 그대로), `v` 는 계산값 캐시라 모르면 빼도 된다(화면이 다시 계산).
 열 너비 `cols {"A": 140}`(px)·행 높이 `rows {"1": 30}`·병합 `merges ["A1:D1"]`·틀 고정 `freeze "A2"`·탭 추가는 `sheets` 에 `{id, name, cells}`. 저장은 똑같이 `save_deck`.
 문서에 `theme` 이 있으면 색을 직접 쓰지 말고 셀에 테마 스타일 이름을 `"s": "header"`(머리)·`"cell"`(본문 칸)·`"key"`(번호·ID)·`"label"`(라벨)·`"input"`(입력칸)·`"title"`·`"section"`·`"warn"` 처럼 준다 — 스타일 목록은 `python3 nexa.py sheet_theme show <테마>`. 새 표는 기존 탭의 머리·본문 스타일을 그대로 따른다.
+수식을 넣거나 고쳤으면 저장 전에 `python3 nexa.py sheet_calc <deck>` 로 계산해 오류 칸(#DIV/0!·#NAME? 등)이 없는지 확인한다(엑셀 함수 약 70개 - 화면·xlsx 내보내기와 같은 계산).
 
 요청 파일은 편집기도 쓰므로 읽고-고치고-쓰기 사이를 짧게 한다.
 모두 끝나면 처리한 요청 `id` 와 결과를 한 줄씩 요약한다. 답변은 한국어.

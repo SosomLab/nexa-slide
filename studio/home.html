@@ -87,7 +87,15 @@
   .ritem:hover { background: var(--tone); }
   .ritem .rb { flex: 1; min-width: 0; }  /* 1줄 제목 · 2줄 경로 · 3줄 덱·포트·버튼 */
   .ritem .t { min-width: 0; cursor: pointer; }
-  .ritem .rm { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 6px; margin-top: 5px; }  /* 3줄은 오른쪽 정렬 */
+  .ritem .rm { display: flex; align-items: flex-start; gap: 8px; margin-top: 5px; }  /* 3·4줄 - 버튼은 왼쪽, 설명은 오른쪽에서 줄바꿈 */
+  .ritem .rm > .svc, .ritem .rm > .ib, .ritem .rm > .chip { flex: none; }
+  #engGit { flex-wrap: wrap; }
+  .ritem .rdesc { flex: 1; min-width: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; overflow-wrap: anywhere; word-break: break-word; line-height: 1.5; }
+  .av { position: relative; }
+  .av .kind { position: absolute; right: -6px; bottom: -5px; display: inline-flex; gap: 1px; background: var(--card); border-radius: 5px; padding: 1px; box-shadow: 0 0 0 1px var(--line); }
+  .av .kind svg, .kb svg { width: 14px; height: 14px; display: block; }
+  .kb { display: inline-flex; align-items: center; gap: 4px; }
+  .natt { margin-top: 6px; }
   .ritem .rm .ib { height: 24px; min-width: 24px; padding: 0 4px; }
   .ritem .t b { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .ritem .t small { display: block; color: var(--ink2); font-size: 11.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -292,6 +300,11 @@
             <div class="hint" style="margin:4px 0 0">내용을 고르면 어울리는 템플릿으로 자동으로 바뀝니다 - 템플릿은 그 뒤에 따로 골라도 됩니다(템플릿을 바꿔도 내용은 그대로).</div>
           </div>
           </div>
+          <div id="sheetOpts" style="display:none">
+            <label class="f" style="margin:8px 0 4px">템플릿(시트 테마)</label>
+            <div class="tpls" id="fSheetThemes"></div>
+            <div class="hint" style="margin:4px 0 0">테마의 색·셀 스타일과 표지·이력·개요·요약·상세목록 페이지로 첫 시트를 만듭니다. 다른 작업 공간의 회사 테마(로고 포함)는 새 작업 공간으로 복사합니다.</div>
+          </div>
         </div></div>
         <div class="step"><span class="num">2</span><div>
           <label class="f" for="fPurpose">목적</label>
@@ -301,7 +314,10 @@
           <label class="f" for="fDirection">작성 방향</label>
           <textarea id="fDirection" rows="3" maxlength="3000" placeholder="분량·구성·말투·강조할 점 - 예: 3시간 강의, 장마다 실습 1개, 용어는 표준 용어로"></textarea>
           <label class="f" for="fMaterials">참고 자료</label>
-          <textarea id="fMaterials" rows="3" maxlength="5000" placeholder="한 줄에 하나 - 파일 경로, 웹 주소, 메모"></textarea>
+          <textarea id="fMaterials" rows="3" maxlength="5000" placeholder="한 줄에 하나 - 파일 경로, 웹 주소, 메모 · 그림·파일은 붙여넣기(Ctrl+V)·끌어다 놓기·＋ 첨부"></textarea>
+          <div class="att natt" id="nAtt"></div>
+          <div class="row" style="gap:6px;margin-top:6px"><button type="button" class="att-btn" id="nAttach" title="그림 붙여넣기(Ctrl+V) · 끌어다 놓기 · 파일 고르기 - 만들 때 작업 공간 materials/ 에 두고 BRIEF.md 에 적는다"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 11.5l-8.5 8.5a5 5 0 0 1-7-7l9-9a3.3 3.3 0 0 1 4.7 4.7l-9 9a1.6 1.6 0 0 1-2.3-2.3l8-8"/></svg>＋ 첨부</button><span class="hint" style="margin:0">그림·PDF·글·pptx/docx/xlsx</span></div>
+          <input type="file" id="nFile" multiple accept="image/*,.pdf,.txt,.md,.csv,.json,.pptx,.docx,.xlsx" style="display:none">
           <div class="hint">적은 내용은 작업 공간의 <code>BRIEF.md</code> 에 남습니다. Claude 세션이 초안을 쓸 때 먼저 읽습니다.</div>
         </div></div>
         <div class="step"><span class="num">3</span><div>
@@ -599,11 +615,12 @@
   const { icon, mark, esc, post, toast, go } = NexaMenu;
   const $ = (s) => document.querySelector(s), $$ = (s) => [...document.querySelectorAll(s)];
   const PAGES = ["start", "tutorial", "demo", "templates", "samples"];
-  const H = { home: null, tpl: "lecture", kind: "deck" };  // kind = 첫 문서 종류(deck 슬라이드 · sheet 시트, docs/sheets.md)
+  const H = { home: null, tpl: "lecture", kind: "deck", sheetTheme: "engine:basic", att: [], attBusy: 0 };  // kind = 첫 문서 종류(deck 슬라이드 · sheet 시트, docs/sheets.md) · att = 참고 자료 첨부
   function setKind(k) {
     H.kind = k === "sheet" ? "sheet" : "deck";
     $$("#fKind [data-kind]").forEach((b) => b.classList.toggle("on", b.dataset.kind === H.kind));
-    $("#deckOpts").style.display = H.kind === "sheet" ? "none" : "";  // 시트는 템플릿·시작용 내용을 쓰지 않는다
+    $("#deckOpts").style.display = H.kind === "sheet" ? "none" : "";  // 시트는 슬라이드 템플릿·시작용 내용 대신 시트 테마
+    $("#sheetOpts").style.display = H.kind === "sheet" ? "" : "none";
     $("#fHead").textContent = I18N.t(H.kind === "sheet" ? "새 시트 만들기" : "새 슬라이드 만들기");
   }
   const color = (s) => { let h = 0; for (const c of s) h = (h * 31 + c.charCodeAt(0)) >>> 0; return `hsl(${h % 360} 45% 45%)`; };
@@ -639,12 +656,40 @@
         : `${icon("folder")}<span>이 서버의 작업 공간 <b>${esc(cur.title)}</b> 에는 아직 덱이 없습니다. <code>content/</code> 를 빌드하면 Studio 로 바로 열립니다.</span>`;
       $("#curBox").title = cur.path;
     }
-    renderTpls(); renderRecent(); renderTemplates(); renderSamples(); updatePath(); loadEngine();
+    renderTpls(); renderSheetThemes(); renderRecent(); renderTemplates(); renderSamples(); updatePath(); loadEngine();
     $("#demoPath").textContent = `복사 위치: ${d.demo}`;
     $("#locDefaultHint").textContent = `${d.projectsRoot}${sep()}<제목>`;
   }
 
   // ---------- 새로 만들기 ----------
+  // 시트 테마 카드 - 엔진 테마 + 최근 작업 공간의 회사 테마(hub.sheet_themes)
+  function renderSheetThemes() {
+    const ts = (H.home && H.home.sheetThemes) || [];
+    if (ts.length && !ts.some((t) => t.key === H.sheetTheme)) H.sheetTheme = ts[0].key;
+    $("#fSheetThemes").innerHTML = ts.map((t) => `<button type="button" class="tpl${t.key === H.sheetTheme ? " on" : ""}" data-sth="${esc(t.key)}" title="${esc((t.pages || []).join(" · "))}">
+      <div class="sw">${(t.swatches || []).map((c) => `<i style="background:${esc(c)}"></i>`).join("")}</div><b>${esc(t.label)}</b><small>${t.source === "engine" ? "엔진 기본" : `${esc(t.wsTitle)}${t.logo ? " · 로고" : ""}`}</small></button>`).join("")
+      || `<div class="hint">시트 테마가 없습니다 - 빈 시트로 만듭니다</div>`;
+  }
+  const sheetThemeBody = () => { const t = ((H.home && H.home.sheetThemes) || []).find((x) => x.key === H.sheetTheme); return t ? { name: t.name, from: t.from || "" } : null; };
+  // 참고 자료 첨부 - 붙여넣기·끌어다 놓기·＋ 첨부 → /api/project {action: attach} → 만들 때 작업 공간 materials/ 로
+  function nRender() {
+    $("#nAtt").innerHTML = H.att.map((a, i) => `<span class="a" title="${esc(a.orig)} · ${Math.round((a.size || 0) / 1024)}KB">${a.thumb ? `<img src="${esc(a.thumb)}" alt="">` : "📄"}<span class="n">${esc(a.orig)}</span><button type="button" class="x" data-nx="${i}" title="빼기">✕</button></span>`).join("")
+      + (H.attBusy ? `<span class="a"><span class="n">올리는 중…</span></span>` : "");
+  }
+  function nUpload(files) {
+    [...files].filter((f) => f && f.size).forEach((f) => {
+      const rd = new FileReader(); H.attBusy++; nRender();
+      rd.onload = async () => {
+        const name = f.name && f.name !== "image.png" ? f.name : `clip-${new Date().toISOString().slice(11, 19).replace(/:/g, "")}.${(f.type.split("/")[1] || "png").replace("jpeg", "jpg")}`;
+        const r = await post("/api/project", { action: "attach", name, type: f.type, data: String(rd.result).split(",")[1] || "" });
+        H.attBusy--;
+        if (!r.ok) { toast("첨부하지 못했습니다: " + (r.data.error || r.status), 5000); nRender(); return; }
+        H.att.push({ ...r.data, orig: name, thumb: /^image\//.test(f.type) ? URL.createObjectURL(f) : "" }); nRender();
+      };
+      rd.onerror = () => { H.attBusy--; nRender(); toast("파일을 읽지 못했습니다"); };
+      rd.readAsDataURL(f);
+    });
+  }
   function renderTpls() {
     const d = H.home;
     const wizOn = !!(H.wiz && H.wiz.on);  // 마법사로 골라 둔 회사 템플릿(작업 공간을 만들 때 함께 만든다) - 엔진 템플릿 카드 뒤에
@@ -667,6 +712,13 @@
   }
   $("#fTpls").addEventListener("click", (e) => { const b = e.target.closest("[data-tpl]"); if (!b) return; pickTpl(b.dataset.tpl); renderTpls(); schedulePlan(); });
   $("#fKind").addEventListener("click", (e) => { const b = e.target.closest("[data-kind]"); if (!b) return; setKind(b.dataset.kind); schedulePlan(); });
+  $("#fSheetThemes").addEventListener("click", (e) => { const b = e.target.closest("[data-sth]"); if (!b) return; H.sheetTheme = b.dataset.sth; renderSheetThemes(); schedulePlan(); });
+  $("#fMaterials").addEventListener("paste", (e) => { const fs = [...((e.clipboardData && e.clipboardData.items) || [])].filter((it) => it.kind === "file").map((it) => it.getAsFile()).filter(Boolean); if (fs.length) { e.preventDefault(); nUpload(fs); } });
+  $("#fMaterials").addEventListener("dragover", (e) => { if ([...e.dataTransfer.types].includes("Files")) { e.preventDefault(); $("#fMaterials").classList.add("dropping"); } });
+  $("#fMaterials").addEventListener("dragleave", () => $("#fMaterials").classList.remove("dropping"));
+  $("#fMaterials").addEventListener("drop", (e) => { if (e.dataTransfer.files.length) { e.preventDefault(); $("#fMaterials").classList.remove("dropping"); nUpload(e.dataTransfer.files); } });
+  $("#nAttach").onclick = () => { const f = $("#nFile"); f.onchange = () => { nUpload(f.files); f.value = ""; }; f.click(); };
+  $("#nAtt").addEventListener("click", (e) => { const b = e.target.closest("[data-nx]"); if (b) { H.att.splice(+b.dataset.nx, 1); nRender(); } });
   $("#fStarter").addEventListener("change", () => { const s = H.home.starters.find((x) => x.name === $("#fStarter").value); if (s && s.template) { H.tpl = s.template; renderTpls(); } schedulePlan(); });
   const loc = () => (document.querySelector("input[name=loc]:checked") || {}).value;
   // 하위 폴더 자동값 - 폴더·저장소 지정일 때만 제목으로 채운다(저장소를 골랐으면 비움 = 그 저장소가 루트). 사용자가 직접 고치면 그 뒤로는 건드리지 않는다.
@@ -702,7 +754,7 @@
   let shell = (() => { try { return localStorage.getItem("nx-shell"); } catch (e) { return null; } })();
   function formBody() {
     const custom = loc() === "custom";
-    const b = { title: $("#fTitle").value.trim(), template: H.tpl, starter: H.kind === "sheet" ? null : $("#fStarter").value || null, kind: H.kind, port: $("#fPort").value.trim(),
+    const b = { title: $("#fTitle").value.trim(), template: H.tpl, starter: H.kind === "sheet" ? null : $("#fStarter").value || null, kind: H.kind, sheetTheme: H.kind === "sheet" ? sheetThemeBody() : null, port: $("#fPort").value.trim(),
       purpose: $("#fPurpose").value, audience: $("#fAudience").value, direction: $("#fDirection").value, materials: $("#fMaterials").value,
       askDraft: $("#fAsk").checked, loc: loc(), slidesDir: wsName(), defaultTitle: I18N.t("제목"), lang: I18N.effective() };  // 제목이 비었을 때 명령·경로에 쓰는 자리 글(표시 언어대로) · lang = 시작용 내용 언어
     if (custom) { b.folder = $("#fFolder").value.trim(); b.sub = $("#fSub").value.trim(); }
@@ -752,7 +804,9 @@
     $("#fErr").innerHTML = "";
     const custom = loc() === "custom";
     if (custom && !$("#fFolder").value.trim()) { toast("저장할 폴더를 고르세요"); return; }
+    if (H.attBusy) { toast("첨부를 올리는 중입니다 - 잠시 뒤에 만드세요"); return; }
     const body = { action: "create", title: $("#fTitle").value.trim(), template: H.tpl, starter: H.kind === "sheet" ? null : $("#fStarter").value || null, kind: H.kind,
+      sheetTheme: H.kind === "sheet" ? sheetThemeBody() : null, attachments: H.att.map((a) => ({ name: a.name, orig: a.orig })),
       purpose: $("#fPurpose").value, audience: $("#fAudience").value, direction: $("#fDirection").value, materials: $("#fMaterials").value,
       askDraft: $("#fAsk").checked, port: $("#fPort").value.trim() || (H.plan && H.plan.port) || "", loc: loc(), slidesDir: wsName(), lang: I18N.effective() };
     if (custom) { body.folder = $("#fFolder").value.trim(); body.sub = $("#fSub").value.trim(); }
@@ -783,28 +837,39 @@
   $("#oBrowse").onclick = () => pickFolder("열 폴더 고르기", $("#oPath").value, (p) => { $("#oPath").value = p; openPath(p); });
 
   // ---------- 최근 ----------
+  // 문서 종류 아이콘 - 슬라이드(주황 화면) · 시트(초록 격자). 최근 작업 아바타 모서리와 3줄 배지에 쓴다
+  const KIND_SVG = {
+    slide: `<svg viewBox="0 0 16 16" aria-hidden="true"><rect x="1" y="2.5" width="14" height="11" rx="2" fill="#E8742A"/><rect x="3.5" y="5" width="9" height="1.6" rx=".8" fill="#fff"/><rect x="3.5" y="8" width="6" height="1.4" rx=".7" fill="#fff" opacity=".85"/><rect x="3.5" y="10.5" width="4" height="1.2" rx=".6" fill="#fff" opacity=".7"/></svg>`,
+    sheet: `<svg viewBox="0 0 16 16" aria-hidden="true"><rect x="1" y="1.5" width="14" height="13" rx="2" fill="#1E8E4E"/><path d="M1 6h14M1 10h14M6 1.5v13M10.5 1.5v13" stroke="#fff" stroke-width="1.1" opacity=".9"/></svg>`,
+  };
+  function kindCounts(r) { const sh = (r.sheets || []).length; return { slide: (r.decks || []).length - sh, sheet: sh }; }
+  function kindMini(r) { const k = kindCounts(r); const ks = ["slide", "sheet"].filter((x) => k[x]); return ks.length ? `<span class="kind" title="${ks.map((x) => (x === "slide" ? `슬라이드 ${k.slide}` : `시트 ${k.sheet}`)).join(" · ")}">${ks.map((x) => KIND_SVG[x]).join("")}</span>` : ""; }
+  function kindBadges(r) { const k = kindCounts(r); return (k.slide ? `<span class="badge kb" title="슬라이드 덱">${KIND_SVG.slide}슬라이드 ${k.slide}</span>` : "") + (k.sheet ? `<span class="badge kb" title="시트 문서">${KIND_SVG.sheet}시트 ${k.sheet}</span>` : "") || `<span class="badge">덱 0</span>`; }
   function renderRecent() {
     const q = $("#rFind").value.toLowerCase();
     const admin = !!(H.home.user && H.home.user.role === "admin"), mode = H.home.mode;
     const list = H.home.recent.filter((r) => !q || `${r.title} ${r.path}`.toLowerCase().includes(q));
     $("#recent").innerHTML = list.length ? list.map((r) => `<div class="ritem">
-      <span class="av" style="background:${color(r.path)}">${esc((r.title || "?").trim().charAt(0).toUpperCase())}</span>
+      <span class="av" style="background:${color(r.path)}">${esc((r.title || "?").trim().charAt(0).toUpperCase())}${r.workspace ? kindMini(r) : ""}</span>
       <div class="rb"><div style="display:flex;align-items:flex-start;gap:6px"><div class="t" style="flex:1;min-width:0" data-open="${esc(r.path)}" title="${esc(r.path)}"><b>${esc(r.title || r.path)}</b><small>${esc(r.path)}</small></div>
           <button type="button" class="ib" data-info="${esc(r.path)}" title="이 작업 공간을 다른 PC 에서 받았을 때 할 일(명령·복사)" style="height:24px;min-width:24px;padding:0 4px;font-size:14px">ⓘ</button>${r.workspace && r.exists && (admin || mode !== "hub") ? `<button type="button" class="ib" data-tidy="${esc(r.id || "")}" data-path="${esc(r.path)}" data-title="${esc(r.title || r.path)}" title="정리·보관 - 산출물·고아 첨부·세션 로그·참조 없는 그림 정리, 작업 공간 zip 보관" style="height:24px;min-width:24px;padding:0 4px;font-size:13px">🧹</button>` : ""}<button type="button" class="ib" data-forget="${esc(r.path)}" title="목록에서 빼기(폴더는 그대로)" style="height:24px;min-width:24px;padding:0 4px">${icon("x", 14)}</button></div>
-        <div class="rm">${!r.exists ? '<span class="badge">폴더 없음</span>' : r.workspace ? `${r.git ? `<span class="badge git">git</span>` : ""}<span class="badge">덱 ${r.decks.length}</span>${svc(r)}` : '<span class="badge">작업 공간 아님</span>'}</div>
+        <div class="rm">${!r.exists ? '<span class="rdesc"><span class="badge">폴더 없음</span></span>' : r.workspace ? `${svcBtn(r)}<span class="rdesc">${r.git ? `<span class="badge git">git</span>` : ""}${kindBadges(r)}${svcBadge(r)}</span>` : '<span class="rdesc"><span class="badge">작업 공간 아님</span></span>'}</div>
         ${r.workspace ? sessLine(r) : ""}</div></div>`).join("")
       : `<div class="empty">${q ? "찾는 작업이 없습니다" : "아직 연 작업이 없습니다. 새로 만들거나 폴더를 열어 보세요."}</div>`;
   }
   // 실행 상태 - 실행 중이면 쓰는 포트와 중지, 꺼져 있으면 설정 포트와 시작. 이 페이지를 내주는 작업 공간 서버는 끄지 않는다.
   // 중계가 켜져 있으면 제목을 눌러 /w/<이름>/ 으로 가고, 포트 배지는 그 서버로 바로 가는 링크(새 탭)다.
-  function svc(r) {
+  function svcBadge(r) {
     const port = r.url ? (r.url.match(/:(\d+)/) || [])[1] : "";
-    const self = H.home.current && H.home.current.path === r.path;
     return r.running
       ? (H.home.proxy && r.url ? `<a class="badge run" href="${esc(r.url)}" target="_blank" rel="noopener" style="text-decoration:none" title="작업 공간 서버로 바로 열기(새 탭) - ${esc(r.url)}">포트 ${port || r.port || "?"} ↗</a>`
-                                : `<span class="badge run" title="${esc(r.url || "")}">포트 ${port || r.port || "?"}</span>`) +
-        (self ? "" : `<button type="button" class="svc stop" data-svc="stop" data-path="${esc(r.path)}" title="이 작업 공간 서버 끄기">${icon("stop", 14)}서버 중지</button>`)
-      : `<span class="badge off" title="설정 포트(nexa-slide.json · nexa-slide.local.json)">포트 ${r.port || "?"}</span><button type="button" class="svc" data-svc="start" data-path="${esc(r.path)}" title="서버만 띄우기(페이지는 그대로)">${icon("play", 14)}서버 시작</button>`;
+                                : `<span class="badge run" title="${esc(r.url || "")}">포트 ${port || r.port || "?"}</span>`)
+      : `<span class="badge off" title="설정 포트(nexa-slide.json · nexa-slide.local.json)">포트 ${r.port || "?"}</span>`;
+  }
+  function svcBtn(r) {  // 줄 왼쪽 버튼 - 이 페이지를 내주는 작업 공간 서버는 끄지 않는다
+    const self = H.home.current && H.home.current.path === r.path;
+    return r.running ? (self ? "" : `<button type="button" class="svc stop" data-svc="stop" data-path="${esc(r.path)}" title="이 작업 공간 서버 끄기">${icon("stop", 14)}서버 중지</button>`)
+      : `<button type="button" class="svc" data-svc="start" data-path="${esc(r.path)}" title="서버만 띄우기(페이지는 그대로)">${icon("play", 14)}서버 시작</button>`;
   }
   // ISO 시각 → "10/14 16:39" · 세션이 끝난 이유를 우리말로
   const fmtT = (iso) => { const m = /^\d{4}-(\d\d)-(\d\d)T(\d\d:\d\d)/.exec(iso || ""); return m ? `${+m[1]}/${+m[2]} ${m[3]}` : (iso || ""); };
@@ -838,14 +903,14 @@
     else if (on) btn = `<button type="button" class="chip sm" data-eng="progress">진행</button>`;
     if (admin) btn += `<button type="button" class="ib" data-eng="tidy" title="엔진 개발 영역 정리 - 고아 첨부·worktree 첨부 사본·회귀 확인 사본·오래된 로그·남은 시험용 worktree" style="height:24px;min-width:24px;padding:0 4px;font-size:13px">🧹</button>`;
     if (admin) btn += `<button type="button" class="ib" data-eng="manualhow" title="터미널의 Claude Code 세션이 큐를 맡게 하는 방법(숨김 메뉴)" style="height:24px;min-width:24px;padding:0 4px">⋯</button>`;
-    $("#engSess").innerHTML = `<span style="flex:1;min-width:0">${line}</span>${btn}`;
+    $("#engSess").innerHTML = `${btn}<span class="rdesc">${line}</span>`;
     // 배너 - 처리·승인 대기가 있는데 세션이 꺼져 있으면(관리자: 시작 버튼 · 일반: 관리자에게 시작 요청)
     const srLine = sr ? `${esc((sr.by || []).join(", ") || "사용자")} 님이 ${fmtT(sr.at)} 에 시작을 요청${sr.count > 1 ? ` (${sr.count}회)` : ""}` : "";
     const what = [c.triage ? `승인 대기 ${c.triage}건` : "", c.open ? `처리 대기 ${c.open}건` : ""].filter(Boolean).join(" · ") || "시작 요청";
     $("#engBanner").innerHTML = banner
-      ? `<div class="warn" style="display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px"><span style="flex:1;min-width:0">${what} · 엔진 세션 꺼짐${c.triage && !c.open ? " - 승인하면 세션이 처리한다" : ""}${srLine ? ` — ${srLine}` : ""}</span>${admin
+      ? `<div class="warn" style="display:flex;align-items:flex-start;gap:6px 10px">${admin
         ? `<button type="button" class="svc" data-eng="start" style="flex:none">${icon("play", 14)}세션 시작</button>`
-        : sr ? `<span class="badge">관리자에게 시작 요청됨</span>` : `<button type="button" class="svc" data-eng="askstart" style="flex:none">관리자에게 시작 요청</button>`}</div>`
+        : sr ? `<span class="badge" style="flex:none">관리자에게 시작 요청됨</span>` : `<button type="button" class="svc" data-eng="askstart" style="flex:none">관리자에게 시작 요청</button>`}<span style="flex:1;min-width:0;overflow-wrap:anywhere">${what} · 엔진 세션 꺼짐${c.triage && !c.open ? " - 승인하면 세션이 처리한다" : ""}${srLine ? ` — ${srLine}` : ""}</span></div>`
       : "";
     renderDeploy(admin, g, c);
     if (admin && d.deploy && d.deploy.state === "running" && !DEP.timer) pollDeploy();  // 다른 창에서 시작한 배포도 따라간다
@@ -916,6 +981,7 @@
   // 시험 묶음 - 화면에는 실행 순서대로 "단계-N" 으로만 보이고, 칩을 누르거나 [단계 설명]을 펼치면 아래 설명이 보인다.
   // 키는 run_all.py TESTS 의 이름(배포가 실패 묶음만 다시 돌릴 때 쓰는 열쇠라 바꾸지 않는다). 없는 이름은 그 이름 그대로
   const TEST_GUIDE = {
+    sheetcalc: ["시트 수식", "시트 수식(합계·조건·찾기·글·날짜·배열)이 엑셀과 같은 값을 내는지 - 엑셀로 내보낼 때 계산값도 이것으로 채운다"],
     i18n: ["영어 사전", "화면을 영어로 바꿀 때 쓰는 번역 파일이 깨지지 않았는지"],
     smoke: ["기본 화면 점검", "시작 페이지와 편집기를 실제 브라우저로 열어 눌러 보는 빠른 점검(뒤 단계가 쓸 데모 작업 공간도 만든다)"],
     codex: ["Codex 연결", "Claude 대신 OpenAI Codex 를 AI 로 고를 때의 실행 설정 - Codex 설치 없이 확인"],
@@ -1211,7 +1277,7 @@
     else info = `<span class="badge">세션 없음</span>${s.open ? ` 대기 요청 ${s.open}` : ""}${s.last && s.last.startedAt ? ` <span class="hint">· 마지막 · ${esc(s.last.agent || "")} ${esc(s.last.model || "")} · ${fmtT(s.last.stoppedAt || s.last.startedAt)}${s.last.reason ? ` · ${reasonKo(s.last.reason)}` : ""}</span>` : ""}`;
     const btn = s.kind === "web" ? `<button type="button" class="svc stop" data-sess="stop" data-path="${esc(r.path)}" title="이 작업 공간의 웹 세션 중지(실행 중 턴도 끝낸다)">${icon("stop", 14)}세션 중지</button>`
       : s.kind === "manual" ? `<button type="button" class="svc stop" data-sess="stop" data-path="${esc(r.path)}" title="터미널 세션(watch_requests)의 요청 감시를 끝냅니다 - 그 뒤 웹 세션을 시작할 수 있다">${icon("stop", 14)}끊기</button>` : `<button type="button" class="svc" data-sess="start" data-path="${esc(r.path)}" data-title="${esc(r.title || "")}" data-agent="${esc((s.defaults || {}).agent || "")}" data-model="${esc((s.defaults || {}).model || "")}" title="웹 세션 시작(서버가 꺼져 있으면 먼저 띄움)">${icon("play", 14)}세션 시작</button>`;
-    return `<div class="rm" style="margin-top:3px;font-size:12px">${info}${btn}</div>`;
+    return `<div class="rm" style="margin-top:3px;font-size:12px">${btn}<span class="rdesc">${info}</span></div>`;
   }
   const GRANTS = [["git", "git 기록", "add·commit·branch·switch·merge·stash·tag"], ["push", "push", "git push·pull·fetch - 원격으로 보냄"], ["root", "저장소 루트 접근", "작업 공간을 품은 저장소 루트의 문서(작업일지·README·docs) 읽기·쓰기"]];
   // 세션 시작 창 - 에이전트·모델(전역 probe + 작업 공간 기본) · 작업 공간 기본으로 저장

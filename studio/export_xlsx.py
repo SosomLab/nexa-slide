@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """시트 문서(kind sheet) JSON → 엑셀 .xlsx (XlsxWriter - python-pptx 의존성으로 이미 설치돼 있다).
 
-    python3 studio/export_xlsx.py <id>              # → out/<id>.xlsx
+    python3 studio/export_xlsx.py <id>              # → out/<id>.xlsx (문서에 매크로(macros.vba)가 있으면 out/<id>.xlsm)
     python3 studio/export_xlsx.py <id> --out x.xlsx
 
 형식은 docs/sheets.md. 수식(f)은 수식 그대로, 마지막 계산값(v)을 캐시로 넣어 엑셀이 열기 전에도 값이 보이게 한다.
@@ -82,12 +82,25 @@ def cell_format(c):
 def export(deck, out):
     if deck.get("kind") != "sheet":
         raise ValueError("시트 문서가 아니다(kind sheet) - 슬라이드 덱은 export_pptx.py")
+    import copy
+    import sheet_calc
+    deck = copy.deepcopy(deck)
+    sheet_calc.recalc(deck)  # 수식 계산값 캐시 - AI 세션이 f 만 쓴 칸도 뷰어·미리보기에서 0 이 아니라 값이 보이게(엑셀은 열 때 다시 계산)
     out.parent.mkdir(parents=True, exist_ok=True)
     theme = sheet_theme.load(deck["theme"]) if deck.get("theme") else None
     opts = {"strings_to_numbers": False, "strings_to_formulas": False, "strings_to_urls": False}
     if theme:
         opts["default_format_properties"] = {"font_name": theme.get("font") or "맑은 고딕", "font_size": float(theme.get("size") or 10)}
+    vba = None
+    if (deck.get("macros") or {}).get("vba"):  # 매크로 통합 문서 - VBA 프로젝트를 넣고 .xlsm 으로(엑셀은 확장자가 .xlsm 이어야 매크로를 연다)
+        from common import ASSET_ROOT
+        vp = ASSET_ROOT / deck["macros"]["vba"]
+        if vp.is_file():
+            vba, out = vp, out.with_suffix(".xlsm")
     wb = xlsxwriter.Workbook(str(out), opts)
+    if vba:
+        wb.add_vba_project(str(vba))
+        wb.set_vba_name(deck["macros"].get("codeName") or "ThisWorkbook")
     wb.set_properties({"title": deck.get("title") or deck.get("id") or ""})
     cache, used = {}, set()
 
@@ -101,6 +114,10 @@ def export(deck, out):
 
     for t in deck.get("sheets") or [{}]:
         ws = wb.add_worksheet(sheet_name(t.get("name"), used))
+        if vba:
+            ws.set_vba_name(t.get("codeName") or f"Sheet{len(used)}")  # 매크로가 시트를 부르는 이름(가져올 때 옮긴 codeName)
+        if t.get("hidden"):
+            ws.hide()
         for letters, w in (t.get("cols") or {}).items():
             if re.fullmatch(r"[A-Z]{1,3}", str(letters)) and isinstance(w, (int, float)):
                 c = col_index(letters)
@@ -139,6 +156,16 @@ def export(deck, out):
                 ws.write_string(r, col, str(v), f)
             if d.get("note"):
                 ws.write_comment(r, col, str(d["note"]))
+        for dv in t.get("validations") or []:  # 목록 유효성(드롭다운) - 가져온 엑셀·화면에서 정한 것
+            rng = str(dv.get("range") or "").split()
+            opt = {"validate": "list", "source": dv["list"]} if dv.get("list") else {"validate": "list", "source": "=" + str(dv.get("source") or "").lstrip("=")} if dv.get("source") else None
+            if opt and sum(len(str(x)) + 1 for x in opt["source"]) > 255 if isinstance(opt and opt["source"], list) else False:
+                opt = None  # 엑셀 목록은 255자까지 - 넘으면 범위 참조로 둬야 한다(가져온 것은 보통 범위)
+            for r in rng if opt else []:
+                try:
+                    ws.data_validation(r, opt)
+                except Exception:  # noqa: BLE001 - 잘못된 범위는 건너뛴다
+                    pass
         if t.get("grid") is False:
             ws.hide_gridlines(2)
         pr = t.get("print") or {}
@@ -179,7 +206,7 @@ def main():
         out = export(load_deck(a.id), Path(a.out) if a.out else OUT / f"{a.id}.xlsx")
     except (OSError, ValueError) as e:
         sys.exit(str(e))
-    print(f"xlsx: {out}")
+    print(f"{out.suffix[1:]}: {out}")
 
 
 if __name__ == "__main__":

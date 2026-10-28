@@ -50,6 +50,9 @@ def fixture():
             {"id": "e05", "type": "image", "x": 940, "y": 100, "w": 280, "h": 160, "src": "assets/images/t.png", "crop": [0.3, 0, 0.3, 0], "opacity": 0.5}]},
             {"id": "s2", "notes": "둘째 노트", "elements": [{"id": "f01", "type": "text", "x": 60, "y": 30, "w": 800, "h": 40, "text": "둘째", "size": 22}]}]},
     }
+    decks["zsheetfill"] = {"title": "채우기", "kind": "sheet", "slides": [], "sheets": [{"id": "t01", "name": "채우기", "cells": {  # 시트 채우기 핸들(sheetfill_test) - 이름이 맨 뒤로 가게(다른 시나리오가 첫 덱·다음 덱을 고른다)
+        "B3": 1, "C3": 4, "B5": "항목1", "B7": {"v": 46323, "fmt": "yyyy-mm-dd"}, "B9": "월", "B11": 5,
+        "A13": 1, "A14": 2, "A15": 3, "A16": 4, "B13": 10, "C13": {"f": "=A13*B13"}}}]}
     for n in range(12):  # 그림 많은 덱(12장 × 6장 그림) - lazy 로딩·재시도 시험
         (WS / "assets" / "images" / f"m{n}.png").write_bytes(PNG)
     decks["imgmany"] = {"title": "그림 많음", "slides": [{"id": f"s{si + 1:02d}", "elements": [{"id": f"i{si + 1:02d}{k}", "type": "image", "x": 40 + k * 200, "y": 120, "w": 180, "h": 120, "src": f"assets/images/m{(si + k) % 12}.png"} for k in range(6)]} for si in range(12)]}

@@ -113,6 +113,7 @@ PREVIEW_LOCK = threading.Lock()
 mimetypes.add_type("application/javascript", ".js")
 mimetypes.add_type("application/vnd.openxmlformats-officedocument.presentationml.presentation", ".pptx")
 mimetypes.add_type("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", ".xlsx")
+mimetypes.add_type("application/vnd.ms-excel.sheet.macroEnabled.12", ".xlsm")
 
 
 def ver(p: Path):
@@ -343,7 +344,7 @@ def activity():
     return {"watcher": w, "othersBusy": sum(1 for x in out if x is not w and x["state"] == "busy"), "sessions": len(out)}
 
 
-ENGINE_UI = ("index.html", "studio.js", "sheet.html", "sheet.js", "sheetnew.js", "render.js", "menu.js", "fonts.css", "i18n.js", "i18n/en.js", "i18n/en.pages.js", "i18n/en.review.js")
+ENGINE_UI = ("index.html", "studio.js", "sheet.html", "sheet.js", "sheetnew.js", "sheetcalc.js", "wsession.js", "render.js", "menu.js", "fonts.css", "i18n.js", "i18n/en.js", "i18n/en.pages.js", "i18n/en.review.js")
 
 
 def hub_ui_stamp():
@@ -848,7 +849,7 @@ class H(BaseHTTPRequestHandler):
             self.send_header("Cache-Control", "private, max-age=0, must-revalidate")
         else:
             self.send_header("Cache-Control", "no-store")
-        if parts and parts[0] == "out" and p.parent == root and p.suffix.lower() in (".pptx", ".pdf", ".xlsx"):  # 내보내기 결과는 덱 제목으로 받게
+        if parts and parts[0] == "out" and p.parent == root and p.suffix.lower() in (".pptx", ".pdf", ".xlsx", ".xlsm"):  # 내보내기 결과는 덱 제목으로 받게
             from urllib.parse import quote as _q
             nm = export_name(p.stem, p.suffix.lower())
             self.send_header("Content-Disposition", f"attachment; filename=\"{p.name}\"; filename*=UTF-8''{_q(nm)}")
@@ -870,6 +871,8 @@ class H(BaseHTTPRequestHandler):
                 if act == "create":
                     out = deck_admin.create(i, b.get("title"), b.get("layout") or "cover", b.get("part") or "day1", "sheet" if b.get("kind") == "sheet" else "deck",
                                             theme=b.get("theme"), pages=b.get("pages"), vars_=b.get("vars"))
+                elif act == "import":  # 엑셀 파일 → 시트 문서 {name, data(base64), title?} (sheet_import.py)
+                    out = self._import_xlsx(b)
                 elif act == "copy":
                     out = deck_admin.copy(i, b.get("title"))
                 elif act == "start":
@@ -887,11 +890,37 @@ class H(BaseHTTPRequestHandler):
                     out = deck_admin.delete(i)
                     LAST.pop(i, None)
                 else:
-                    return self.err(400, "action = create|copy|start|rename|retitle|delete")
+                    return self.err(400, "action = create|import|copy|start|rename|retitle|delete")
         except ValueError as e:
             return self.err(400, str(e))
         self._event = f"deck.{act}:{i}" + (f"→{out.get('id')}" if act in ("rename", "copy") else "")
         self.send_json({"ok": True, **out, "decks": deck_admin.list_decks()})
+
+    def _import_xlsx(self, b):
+        import base64
+        import deck_admin
+        import sheet_import
+        import zipfile
+        name = str(b.get("name") or "시트.xlsx")[:120]
+        if not name.lower().endswith((".xlsx", ".xlsm")):
+            raise ValueError("엑셀 통합 문서(.xlsx·.xlsm)만 가져온다")
+        try:
+            data = base64.b64decode(str(b.get("data") or ""), validate=True)
+        except (ValueError, TypeError):
+            raise ValueError("data 는 base64")
+        if not data or len(data) > 30 * 1024 * 1024:
+            raise ValueError("내용 없음" if not data else "30MB 보다 크다")
+        d = OUT / "import"
+        d.mkdir(parents=True, exist_ok=True)
+        src = d / f"{dt.datetime.now().strftime('%Y%m%d-%H%M%S')}-{re.sub(r'[^0-9A-Za-z가-힣._-]+', '_', name)}"
+        src.write_bytes(data)
+        i = deck_admin.new_id()
+        try:
+            doc, warnings = sheet_import.to_doc(i, " ".join(str(b.get("title") or Path(name).stem).split())[:200] or i, src, ASSET_ROOT)
+        except zipfile.BadZipFile:
+            raise ValueError("엑셀 파일이 아니다(zip 형식 아님)")
+        atomic_write(DECKS / f"{i}.json", dumps(doc))
+        return {"id": i, "title": doc["title"], "kind": "sheet", "slides": 0, "sheets": len(doc["sheets"]), "warnings": warnings}
 
     def api_get_sheet_themes(self, name, q):
         """시트 테마 - 이름 없으면 목록, 있으면 theme.json(+ base 그림 주소 접두사, brandLogo). docs/sheets.md 5절."""
@@ -2011,12 +2040,15 @@ class H(BaseHTTPRequestHandler):
     def api_post_export(self, i, q):
         if not deck_path(i).exists():
             return self.err(404, "덱 없음")
-        if deck_kind(i) == "sheet":  # 시트 문서 → out/<id>.xlsx (export_xlsx.py)
+        if deck_kind(i) == "sheet":  # 시트 문서 → out/<id>.xlsx, 매크로(VBA)가 있으면 .xlsm (export_xlsx.py)
             code, log = run([sys.executable, str(STUDIO / "export_xlsx.py"), i], 120)
             f = OUT / f"{i}.xlsx"
+            m = re.search(r"^xls[xm]: (.+)$", log, re.M)  # export_xlsx 가 실제로 쓴 파일(매크로면 .xlsm)
+            if m:
+                f = Path(m.group(1).strip())
             if code != 0 or not f.exists():
-                return self.send_json({"ok": False, "error": "xlsx 내보내기 실패", "log": log}, 500)
-            return self.send_json({"ok": True, "path": str(f), "url": f"/out/{i}.xlsx?v={ver(f)}", "log": log, "name": export_name(i, ".xlsx")})
+                return self.send_json({"ok": False, "error": "엑셀 내보내기 실패", "log": log}, 500)
+            return self.send_json({"ok": True, "path": str(f), "url": f"/out/{f.name}?v={ver(f)}", "log": log, "name": export_name(i, f.suffix), "macros": f.suffix == ".xlsm"})
         if (q.get("embed") or ["0"])[0] == "1":  # 글꼴 포함 PPTX(PowerPoint) — 작업 공간 글꼴이 설치 안 됐으면 409 needInstall
             args = [sys.executable, str(STUDIO / "embed_fonts.py"), i] + (["--install"] if (q.get("install") or ["0"])[0] == "1" else [])
             code, log = run(args, 420)

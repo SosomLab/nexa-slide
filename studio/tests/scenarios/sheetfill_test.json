@@ -1,0 +1,39 @@
+{
+ "base": "http://127.0.0.1:5667",
+ "pages": [
+  {
+   "url": "/studio/sheet.html?deck=zsheetfill",
+   "wait": 2500,
+   "steps": [
+    {
+     "name": "계산 - 1,4 → 7,10 (등차) · 숫자 하나는 복사, Ctrl 이면 +1 · 1,2,4 는 최소제곱 추세",
+     "js": "const N=window.NexaSheet, v=(xs)=>xs.map(x=>x.v); const a=v(N.fillSeries([{v:1},{v:4}],[2,3],false,false)); const b=v(N.fillSeries([{v:5}],[1,2],false,true)); const c=v(N.fillSeries([{v:5}],[1,2],true,true)); const d=v(N.fillSeries([{v:1},{v:2},{v:4}],[3],false,true)); const ok=a.join()==='7,10' && b.join()==='5,5' && c.join()==='6,7' && Math.abs(d[0]-16/3)<1e-9; return ok ? true : JSON.stringify({a,b,c,d})"
+    },
+    {
+     "name": "계산 - 글+숫자 · 요일·월 · 날짜 · 위로 끌기 · 수식 상대 이동($ 고정) · 서식 복사",
+     "js": "const N=window.NexaSheet, v=(xs)=>xs.map(x=>x.v); const t=v(N.fillSeries([{v:'항목1'}],[1,2],false,true)); const t2=v(N.fillSeries([{v:'A09'}],[1],false,true)); const w=v(N.fillSeries([{v:'금'}],[1,2,3],false,true)); const m=v(N.fillSeries([{v:'Jan'},{v:'Mar'}],[2],false,false)); const dt=v(N.fillSeries([{v:100,fmt:'yyyy-mm-dd'}],[1],false,true)); const up=v(N.fillSeries([{v:1},{v:4}],[-1],false,false)); const f=N.fillSeries([{f:'=A1*$B$1+B1',b:true}],[1],false,true)[0]; const ok=t.join()==='항목2,항목3' && t2[0]==='A10' && w.join()==='토,일,월' && m[0]==='May' && dt[0]===101 && up[0]===-2 && f.f==='=A2*$B$1+B2' && f.b===true && f.v===undefined; return ok ? true : JSON.stringify({t,t2,w,m,dt,up,f})"
+    },
+    {
+     "name": "끌 방향 - 범위 밖으로 더 나간 축 · 안으로 되끌면 줄이기",
+     "js": "const T=window.NexaSheet.fillTarget, g={r1:2,c1:1,r2:2,c2:2}; const a=T(g,2,5), b=T(g,6,3), c=T(g,2,1); return a.axis==='c' && a.dir===1 && a.area.c2===5 && b.axis==='r' && b.area.r2===6 && c.shrink && c.keep.c2===1 ? true : JSON.stringify({a,b,c})"
+    },
+    {
+     "name": "화면 - B3:C3 을 고르고 핸들을 E3 까지 끌면 D3=7, E3=10 · 선택이 B3:E3",
+     "js": "const td=(r,c)=>document.querySelector(`#grid td[data-r=\"${r}\"][data-c=\"${c}\"]`); const pt=(el)=>{const r=el.getBoundingClientRect(); return {clientX:r.left+r.width/2, clientY:r.top+r.height/2, bubbles:true, button:0};}; const W=document.querySelector('#gridWrap'); td(2,1).dispatchEvent(new MouseEvent('mousedown',pt(td(2,1)))); window.dispatchEvent(new MouseEvent('mousemove',pt(td(2,2)))); window.dispatchEvent(new MouseEvent('mouseup',pt(td(2,2)))); await new Promise(r=>setTimeout(r,100)); const H=document.querySelector('#fillHandle'); const hr=H.getBoundingClientRect(); H.dispatchEvent(new MouseEvent('mousedown',{clientX:hr.left+3,clientY:hr.top+3,bubbles:true,button:0})); window.dispatchEvent(new MouseEvent('mousemove',pt(td(2,4)))); await new Promise(r=>setTimeout(r,50)); const prev=document.querySelector('#fillBox').hidden===false && document.querySelector('#fillTip').textContent; window.dispatchEvent(new MouseEvent('mouseup',pt(td(2,4)))); await new Promise(r=>setTimeout(r,150)); const c=window.NexaSheet.S.deck.sheets[0].cells; const sel=document.querySelector('#nameBox').value; return c.D3===7 && c.E3===10 && sel==='B3:E3' && prev==='10' ? true : JSON.stringify({D3:c.D3,E3:c.E3,sel,prev})"
+    },
+    {
+     "name": "실행 취소(Ctrl+Z) - 채운 칸이 사라진다",
+     "js": "document.querySelector('#undoBtn').click(); await new Promise(r=>setTimeout(r,150)); const c=window.NexaSheet.S.deck.sheets[0].cells; return c.D3===undefined && c.E3===undefined && c.C3===4 ? true : JSON.stringify({D3:c.D3,E3:c.E3})"
+    },
+    {
+     "name": "화면 - 항목1 을 아래로 끌기 → 항목2·항목3, 날짜는 1일씩, 요일 이어짐",
+     "js": "const td=(r,c)=>document.querySelector(`#grid td[data-r=\"${r}\"][data-c=\"${c}\"]`); const pt=(el)=>{const r=el.getBoundingClientRect(); return {clientX:r.left+r.width/2, clientY:r.top+r.height/2, bubbles:true, button:0};}; const drag=async(r0,c0,r1,c1)=>{td(r0,c0).dispatchEvent(new MouseEvent('mousedown',pt(td(r0,c0)))); window.dispatchEvent(new MouseEvent('mouseup',pt(td(r0,c0)))); await new Promise(r=>setTimeout(r,60)); const H=document.querySelector('#fillHandle'), hr=H.getBoundingClientRect(); H.dispatchEvent(new MouseEvent('mousedown',{clientX:hr.left+3,clientY:hr.top+3,bubbles:true,button:0})); window.dispatchEvent(new MouseEvent('mousemove',pt(td(r1,c1)))); window.dispatchEvent(new MouseEvent('mouseup',pt(td(r1,c1)))); await new Promise(r=>setTimeout(r,120));}; await drag(4,1,4,3); await drag(6,1,6,2); await drag(8,1,8,3); const c=window.NexaSheet.S.deck.sheets[0].cells, v=(k)=>c[k]&&typeof c[k]==='object'?c[k].v:c[k]; const ok=v('C5')==='항목2' && v('D5')==='항목3' && v('C7')===46324 && (c.C7.fmt==='yyyy-mm-dd') && v('C9')==='화' && v('D9')==='수'; return ok ? true : JSON.stringify({C5:v('C5'),D5:v('D5'),C7:c.C7,C9:v('C9'),D9:v('D9')})"
+    },
+    {
+     "name": "핸들 두 번 누르기 - B13 을 왼쪽 열(A) 데이터 끝(16행)까지 아래로",
+     "js": "const td=(r,c)=>document.querySelector(`#grid td[data-r=\"${r}\"][data-c=\"${c}\"]`); const pt=(el)=>{const r=el.getBoundingClientRect(); return {clientX:r.left+r.width/2, clientY:r.top+r.height/2, bubbles:true, button:0};}; td(12,1).dispatchEvent(new MouseEvent('mousedown',pt(td(12,1)))); window.dispatchEvent(new MouseEvent('mouseup',pt(td(12,1)))); await new Promise(r=>setTimeout(r,60)); const H=document.querySelector('#fillHandle'); H.dispatchEvent(new MouseEvent('dblclick',{bubbles:true})); await new Promise(r=>setTimeout(r,150)); const c=window.NexaSheet.S.deck.sheets[0].cells, v=(k)=>c[k]&&typeof c[k]==='object'?c[k].v:c[k]; return v('B14')===10 && v('B16')===10 && v('B17')===undefined ? true : JSON.stringify({B14:c.B14,B16:c.B16,B17:c.B17})"
+    }
+   ]
+  }
+ ]
+}

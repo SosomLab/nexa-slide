@@ -27,6 +27,7 @@ TEMPLATES = STUDIO / "templates"
 CONFIG_NAME = "nexa-slide.json"
 DEMO_DIR = "nexa-slide-demo"
 PREVIEW_ROOT = user_dir() / "hub" / "preview"  # 미리보기용 임시 작업 공간(엔진·기준 폴더 밖, 사용자 설정 폴더)
+NEW_ATTACH = user_dir() / "hub" / "new-attach"  # 새로 만들기 "참고 자료" 첨부 - 만들 때 작업 공간 materials/ 로 옮긴다
 
 
 class HubError(Exception):
@@ -238,6 +239,99 @@ def session_summary(ws, cfg=None):
     return out
 
 
+def _is_sheet(p):
+    """덱 파일이 시트 문서(kind sheet)인가 - 큰 덱을 다 읽지 않게 앞부분만 본다(kind 는 id·title 다음에 쓴다)."""
+    try:
+        with open(p, encoding="utf-8", errors="replace") as f:
+            head = f.read(4096)
+    except OSError:
+        return False
+    return re.search(r'"kind"\s*:\s*"sheet"', head) is not None
+
+
+def sheet_themes(rows=None):
+    """새 시트에 고를 테마 - 엔진 테마 + 최근 작업 공간의 회사 테마(assets/sheet-themes/<이름>/). 고르면 새 작업 공간으로 복사한다."""
+    out = []
+
+    def add(d, src, ws=None, title=None):
+        try:
+            t = json.loads((d / "theme.json").read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            return
+        pal = t.get("palette") or {}
+        out.append({"key": f"{src}:{d.name}", "name": d.name, "label": t.get("label") or d.name, "source": src, "from": str(ws) if ws else "",
+                    "wsTitle": title or "", "font": t.get("font") or "", "swatches": [pal.get(k) for k in ("primary", "secondary", "line", "band", "input") if pal.get(k)],
+                    "pages": [p.get("name") for p in t.get("pages", [])], "logo": (d / "logo.png").is_file()})
+    for d in sorted((STUDIO / "sheet_themes").glob("*")) if (STUDIO / "sheet_themes").is_dir() else []:
+        if (d / "theme.json").is_file():
+            add(d, "engine")
+    for r in rows if rows is not None else load_settings().get("recent", []):
+        p = Path(r["path"])
+        cfg = load_ws_config(p) if (p / CONFIG_NAME).is_file() else None
+        if cfg is None:
+            continue
+        base = p / cfg.get("assetRoot", ".") / "assets" / "sheet-themes"
+        for d in sorted(base.glob("*")) if base.is_dir() else []:
+            if (d / "theme.json").is_file() and not any(x["source"] == "ws" and x["name"] == d.name for x in out):  # 같은 이름은 먼저 본(최근) 작업 공간 것
+                add(d, "ws", p, cfg.get("title") or p.name)
+    return out
+
+
+def save_attach(b):
+    """새로 만들기 참고 자료 첨부 {name, type, data(base64)} → hub/new-attach/<id><확장자>. 만들 때 attachments=[{name, orig}] 로 넘긴다."""
+    import base64
+    import datetime as dt
+    types = {"image/png": ".png", "image/jpeg": ".jpg", "image/gif": ".gif", "image/webp": ".webp", "application/pdf": ".pdf", "text/plain": ".txt",
+             "text/markdown": ".md", "text/csv": ".csv", "application/json": ".json",
+             "application/vnd.openxmlformats-officedocument.presentationml.presentation": ".pptx",
+             "application/vnd.openxmlformats-officedocument.wordprocessingml.document": ".docx",
+             "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": ".xlsx"}
+    name = str(b.get("name") or "")[:120]
+    ctype = str(b.get("type") or "").split(";")[0].strip().lower()
+    ext = types.get(ctype) or (Path(name).suffix.lower() if Path(name).suffix.lower() in types.values() else None)
+    if not ext:
+        raise HubError(f"지원하지 않는 형식: {ctype or name or '?'} (그림·PDF·글·pptx/docx/xlsx)")
+    try:
+        data = base64.b64decode(str(b.get("data") or ""), validate=True)
+    except (ValueError, TypeError):
+        raise HubError("data 는 base64")
+    if not data or len(data) > 20 * 1024 * 1024:
+        raise HubError("내용 없음" if not data else "20MB 보다 크다")
+    NEW_ATTACH.mkdir(parents=True, exist_ok=True)
+    fid = dt.datetime.now().strftime("%Y%m%d-%H%M%S-%f") + ext
+    (NEW_ATTACH / fid).write_bytes(data)
+    return {"ok": True, "name": fid, "orig": name or fid, "size": len(data), "type": ctype}
+
+
+def claim_attachments(ws, items):
+    """첨부를 작업 공간 materials/ 로 옮기고 BRIEF.md 참고 자료에 적는다 - 옮긴 경로(작업 공간 기준) 목록."""
+    if not isinstance(items, list) or not items:
+        return []
+    dest = ws / "materials"
+    moved = []
+    for a in items[:30]:
+        fid = str((a or {}).get("name") or "")
+        src = NEW_ATTACH / fid
+        if not re.fullmatch(r"[\w.-]+", fid) or not src.is_file():
+            continue
+        orig = re.sub(r'[\\/:*?"<>|\x00-\x1f]+', " ", str(a.get("orig") or fid)).strip()[:100] or fid
+        if not Path(orig).suffix:
+            orig += src.suffix
+        dest.mkdir(parents=True, exist_ok=True)
+        p, k = dest / orig, 2
+        while p.exists():
+            p, k = dest / f"{Path(orig).stem}-{k}{Path(orig).suffix}", k + 1
+        shutil.move(str(src), str(p))
+        moved.append(p.relative_to(ws).as_posix())
+    if moved:
+        brief = ws / "BRIEF.md"
+        lines = "\n".join(f"- {m} (첨부 - 세션이 Read 로 연다. pptx·docx·xlsx·pdf 는 `python3 nexa.py import_doc {m}` / import_pptx)" for m in moved)
+        text = brief.read_text(encoding="utf-8") if brief.is_file() else f"# 작성 브리프\n"
+        text = text.rstrip() + f"\n\n## 첨부한 참고 자료\n\n{lines}\n"
+        brief.write_text(text, encoding="utf-8", newline="\n")
+    return moved
+
+
 def workspace_info(path, state=False):
     """작업 공간 요약 - 제목·템플릿·덱 수·세션. state 면 실행 상태(running·url)까지 확인한다(응답을 두드려 본다)."""
     p = Path(path)
@@ -246,9 +340,10 @@ def workspace_info(path, state=False):
     cfg = load_ws_config(p)  # PC 별 nexa-slide.local.json(포트 등)까지
     decks_dir = p / cfg.get("decks", "decks")
     decks = sorted(f.stem for f in decks_dir.glob("*.json") if not f.name.endswith(".requests.json")) if decks_dir.is_dir() else []
+    sheets = [d for d in decks if _is_sheet(decks_dir / f"{d}.json")]
     info = server_state(p, cfg) if state else {"running": None, "url": (_read_json(p / cfg.get("out", "out") / ".studio" / "server.json") or {}).get("url")}
     return {"path": str(p), "exists": True, "workspace": True, "title": cfg.get("title", p.name), "template": cfg.get("template", "lecture"),
-            "port": cfg.get("port"), "decks": decks, "url": info.get("url"), "running": info.get("running"), "git": _git_root(p) is not None,
+            "port": cfg.get("port"), "decks": decks, "sheets": sheets, "url": info.get("url"), "running": info.get("running"), "git": _git_root(p) is not None,
             "brief": (p / "BRIEF.md").is_file(), "root": str((p / cfg["repo"]["root"]).resolve()) if isinstance(cfg.get("repo"), dict) else "",
             "session": session_summary(p, cfg)}
 
@@ -336,7 +431,7 @@ def home(current=None, refused=None):
             "projectsRootFromEnv": bool(os.environ.get("NEXA_SLIDE_PROJECTS")), "engine": str(ENGINE),
             "current": cur, "refused": str(refused) if refused else None, "proxy": proxy_on(),
             "sessionGlobal": {k: s.get(k) for k in SESSION_KEYS if s.get(k) is not None},
-            "recent": recent, "templates": templates(current), "starters": starters() if _supports_starter() else [],
+            "recent": recent, "templates": templates(current), "starters": starters() if _supports_starter() else [], "sheetThemes": sheet_themes(rows),
             "samples": s.get("samples", []), "demo": str(projects_root() / DEMO_DIR)}
 
 
@@ -550,6 +645,11 @@ def plan(b):
     if sheet:
         args += ["--kind", "sheet"]
         starter = None
+        st = b.get("sheetTheme") if isinstance(b.get("sheetTheme"), dict) else {}
+        if re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_-]{0,39}", str(st.get("name") or "")):
+            args += ["--sheet-theme", st["name"]]
+            if st.get("from"):
+                args += ["--sheet-theme-from", str(st["from"])]
     if starter:
         args += ["--starter", starter]
         lang = re.sub(r"[^a-z]", "", str(b.get("lang") or "ko").lower())[:5]
@@ -608,6 +708,9 @@ def create(b):
         except HubError as e:
             raise HubError(f"작업 공간은 만들었지만 회사 템플릿을 만들지 못했다: {e}", path=str(ws), log=log, **e.extra)
         log += "\n" + "\n".join(f"템플릿 {tr['name']}: {f}" for f in tr["files"])
+    moved = claim_attachments(ws, b.get("attachments"))  # 참고 자료 첨부 → materials/ · BRIEF.md
+    if moved:
+        log += "\n첨부: " + ", ".join(moved)
     url, slog = start_server(ws, auto=proxy_on())
     cfg = _read_json(ws / CONFIG_NAME) or {}
     decks = sorted(f.stem for f in (ws / cfg.get("decks", "decks")).glob("*.json") if not f.name.endswith(".requests.json"))
@@ -828,9 +931,11 @@ def project(b):
         return {"ok": True}
     if act == "palette":
         return palette_preview(b)
+    if act == "attach":
+        return save_attach(b)
     if act == "template":
         return create_template(b)
-    raise HubError("action = create|plan|open|start|stop|demo|forget|palette|template")
+    raise HubError("action = create|plan|open|start|stop|demo|forget|palette|attach|template")
 
 
 # ---------- 회사 템플릿 만들기(마법사) - 작업 공간에만 쓴다(docs/dev/template-wizard-design.md, 안 A) ----------

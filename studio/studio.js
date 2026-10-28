@@ -160,7 +160,7 @@
       if (!r.ok) return;
       if (r.data.session) renderSession(r.data.session, r.data.activity);
       await checkWorkspace(r.data);
-      if (r.data.requests !== S.reqVersion) await loadReqs();
+      await RQ.sync(r.data);  // 요청 파일이 바뀌었으면 다시 읽기
       if (r.data.deck !== S.version && !S.saving) {
         if (S.dirty || S.editing) {
           if (!S.conflict) { S.conflict = true; setStatus("conflict", "충돌"); banner(true, "편집 중에 덱 파일이 밖에서(Claude 등) 바뀌었습니다. 어느 쪽을 남길까요?"); }
@@ -661,58 +661,27 @@
     toast("메모를 남겼습니다 - 아래 바에서 한꺼번에 보내기");
   }
 
-  // ---------------------------------------------------------------- 요청 첨부 - 클립보드 그림(Ctrl+V)·끌어다 놓기·📎. 올리면 out/attach/<덱>/ 에 저장되고 요청의 attachments 로 담긴다
-  const ATT = { memo: [], tab: [], fu: [], busy: 0 };
-  const attIsImg = (a) => /^image\//.test(a.type || "");
-  function attRender(which) {
-    const box = $({ memo: "#memoAtt", tab: "#reqAtt", fu: "#fuAtt" }[which]); if (!box) return;
-    box.innerHTML = ATT[which].map((a, i) => `<span class="a" title="${esc(a.name)} · ${Math.round((a.size || 0) / 1024)}KB" data-attv="${which}:${i}">${attIsImg(a) ? `<img src="${esc(BASE + a.url)}" alt="">` : `<span>📄</span>`}<span class="n">${esc(a.name)}</span><button class="x" data-attx="${which}:${i}" title="빼기">✕</button></span>`).join("")
-      + (ATT.busy ? `<span class="a"><span class="spin"></span><span class="n">올리는 중…</span></span>` : "");
-    if (which === "memo") memoInput();
-  }
-  function attUpload(which, files) {
-    const list = [...files].filter((f) => f && f.size);
-    if (!list.length) return;
-    list.forEach((f) => {
-      const rd = new FileReader();
-      ATT.busy++; attRender(which);
-      rd.onload = async () => {
-        const data = String(rd.result).split(",")[1] || "";
-        const name = f.name && f.name !== "image.png" ? f.name : `clip-${new Date().toISOString().slice(11, 19).replace(/:/g, "")}.${(f.type.split("/")[1] || "png").replace("jpeg", "jpg")}`;
-        const r = await api("POST", `/api/attach/${S.id}`, { name, type: f.type, data });
-        ATT.busy--;
-        if (!r.ok) { toast("첨부하지 못했습니다: " + ((r.data && r.data.error) || r.status), 5000); attRender(which); return; }
-        ATT[which].push(r.data); attRender(which);
-      };
-      rd.onerror = () => { ATT.busy--; attRender(which); toast("파일을 읽지 못했습니다"); };
-      rd.readAsDataURL(f);
-    });
-  }
-  function attFromClipboard(which, e) {
-    const files = [];
-    for (const it of (e.clipboardData && e.clipboardData.items) || []) if (it.kind === "file") { const f = it.getAsFile(); if (f) files.push(f); }
-    if (!files.length) return false;
-    e.preventDefault(); e.stopPropagation(); attUpload(which, files); return true;  // 같은 이벤트가 바깥(팝오버)의 핸들러에도 닿아 두 번 올라가지 않게
-  }
-  function attWire(el, which) {  // 붙여넣기·끌어다 놓기
-    if (!el || el.dataset.attWired) return; el.dataset.attWired = "1";
-    el.addEventListener("paste", (e) => attFromClipboard(which, e));
-    el.addEventListener("dragover", (e) => { if ([...e.dataTransfer.types].includes("Files")) { e.preventDefault(); el.classList.add("dropping"); } });
-    el.addEventListener("dragleave", () => el.classList.remove("dropping"));
-    el.addEventListener("drop", (e) => { if (e.dataTransfer.files.length) { e.preventDefault(); e.stopPropagation(); el.classList.remove("dropping"); attUpload(which, e.dataTransfer.files); } });
-  }
-  function attPick(which) { const f = $("#attFile"); f.onchange = () => { attUpload(which, f.files); f.value = ""; }; f.click(); }
-  const attUrl = (a) => BASE + (a.url || "/" + a.path);  // 중계(/w/<id>/)면 접두를 붙인 주소
-  function attListHtml(list, rid) {  // 요청 목록의 축소판(읽기 전용) - 누르면 라이트박스(새 창 없음)
-    if (!list || !list.length) return "";
-    return `<div class="att ro">${list.map((a, i) => `<a class="a" href="${esc(attUrl(a))}" data-lb="${esc(rid || "")}:${i}" title="${esc(a.name)}">${attIsImg(a) ? `<img src="${esc(attUrl(a))}" alt="" loading="lazy">` : "📄"}<span class="n">${esc(a.name)}</span></a>`).join("")}</div>`;
-  }
-  const lbItems = (list) => (list || []).map((a) => ({ url: attUrl(a), name: a.name, size: a.size, type: a.type }));
-  function attLightbox(rid, i) {  // 그 요청의 첨부부터, 토글로 이 슬라이드의 모든 요청 첨부
-    const r = S.reqs.find((x) => x.id === rid); if (!r) return;
-    const all = S.reqs.filter((x) => x.slide === r.slide && x.attachments && x.attachments.length).flatMap((x) => lbItems(x.attachments));
-    NexaLightbox.open(lbItems(r.attachments), i, { title: `슬라이드 ${S.deck.slides.findIndex((s) => s.id === r.slide) + 1}`, alt: { label: "이 슬라이드의 모든 요청 첨부", items: all } });
-  }
+  // ---------------------------------------------------------------- 세션·요청 관리 - 시트 화면과 같은 뿌리(docs/collab.md 0단계)
+  // 세션 칩·웹 AI 세션 = wsession.js(NexaSession) · 요청 목록·카드·후속·첨부·기록 창 = nexa-requests.js(NexaRequests). 여기는 슬라이드 쪽 대상(장·요소·영역)만
+  const SESS = NexaSession.create({ api, toast, openMenu, esc, base: BASE, deckId: () => S.id,
+    onChange: (st, changed) => { S.session = st; if (changed && $("#tab-reqs") && $("#tab-reqs").classList.contains("on")) renderReqs(); } });
+  const RQ = NexaRequests.create({
+    api, toast, esc, base: BASE, deckId: () => S.id, session: SESS,
+    getReqs: () => S.reqs, setReqs: (l) => { S.reqs = l; },
+    onChange: () => { renderReqs(); if (S.deck) { renderThumbs(); renderMarks(); } },
+    target: {  // 슬라이드 대상 - 장 · 요소(들) · 영역
+      scope: "슬라이드", key: (r) => r.slide, current: () => (slide() || {}).id, num: (r) => reqIdx(r.slide),
+      label: (r) => `슬라이드 ${reqIdx(r.slide) || "?"}${r.elements && r.elements.length > 1 ? ` · ${r.elements[0]} 외 ${r.elements.length - 1}` : r.element ? " · " + r.element : ""}${r.region ? " · 영역" : ""}`,
+      goto: (r) => { const i = S.deck.slides.findIndex((x) => x.id === r.slide); if (i >= 0) { S.cur = i; S.sel = r.element && elById(r.element, S.deck.slides[i]) ? r.element : null; renderAll(); revealThumb(S.cur); } },
+      extra: (r) => chkDelta(r),
+    },
+    att: { boxes: { memo: "#memoAtt", tab: "#reqAtt", fu: "#fuAtt" }, onRender: (w) => { if (w === "memo") memoInput(); } },
+  });
+  ["memo", "tab", "fu"].forEach((w) => RQ.att.slot(w));
+  // 요청 첨부 - 클립보드 그림(Ctrl+V)·끌어다 놓기·📎. 올리면 out/attach/<덱>/ 에 저장되고 요청의 attachments 로 담긴다(메모 팝오버 memo · 요청 탭 tab · 후속 fu)
+  const ATT = RQ.att.store;
+  const attRender = (w) => RQ.att.render(w), attWire = (el, w) => RQ.att.wire(el, w), attPick = (w) => RQ.att.pick(w);
+  const attListHtml = RQ.att.listHtml, lbItems = RQ.att.lbItems, attLightbox = RQ.att.lightbox;
   async function sendDrafts() {
     const n = S.reqs.filter((r) => r.status === "draft").length; if (!n) return;
     const r = await api("POST", `/api/requests/${S.id}`, { action: "send" });
@@ -1758,151 +1727,47 @@ ${names}
     if (b.dataset.act === "reqEl") openMemo({ element: el.id });
   }
 
-  // ---------------------------------------------------------------- 요청 목록(오른쪽 탭)
-  async function loadReqs() {
-    const r = await api("GET", `/api/requests/${S.id}`);
-    S.reqs = r.ok ? r.data : [];
-    const v = await api("GET", `/api/version/${S.id}`); if (v.ok) S.reqVersion = v.data.requests;
-    renderReqs(); if (S.deck) { renderThumbs(); renderMarks(); }
-  }
-  const ST = { draft: "초안", open: "대기", working: "처리 중", done: "완료" };
-  // 후속 요청 - 같은 thread(뿌리 요청 id)를 한 묶음으로. 묶음 안은 오래된 순, 묶음끼리는 최근 활동이 위
-  const threadKey = (r) => r.thread || r.id;
-  function threadsOf(list) {
-    const m = new Map();
-    for (const r of list) { const k = threadKey(r); if (!m.has(k)) m.set(k, []); m.get(k).push(r); }
-    const gs = [...m.values()].map((g) => g.sort((a, b) => String(a.created || "").localeCompare(String(b.created || "")) || String(a.id).localeCompare(String(b.id))));
-    return gs.sort((a, b) => String(b[b.length - 1].created || "").localeCompare(String(a[a.length - 1].created || "")));
-  }
-  function fuFormHtml(r) {  // 마지막 요청 아래 인라인 입력칸 - 앞선 답은 접어서 인용
-    return `<div class="fu-form">${r.reply ? `<details><summary>앞선 답 보기</summary><div class="quote">${esc(r.reply)}</div></details>` : ""}
-      <textarea id="fuText" placeholder="이어서 묻거나 답하기 (Enter = 보내기, Shift+Enter = 줄바꿈 · 그림은 Ctrl+V)"></textarea><div class="att" id="fuAtt"></div>
-      <div class="row" style="gap:6px;justify-content:flex-end"><button class="att-btn" data-attach="fu" title="그림 붙여넣기(Ctrl+V) · 끌어다 놓기 · 파일 고르기"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 11.5l-8.5 8.5a5 5 0 0 1-7-7l9-9a3.3 3.3 0 0 1 4.7 4.7l-9 9a1.6 1.6 0 0 1-2.3-2.3l8-8"/></svg>＋ 첨부</button><span style="flex:1"></span><button class="chip sm" data-fucancel="1">취소</button><button class="chip sm primary" data-fusend="1">보내기</button></div></div>`;
-  }
-  async function fuSend(parentId) {
-    const t = ($("#fuText") && $("#fuText").value.trim()) || ""; if (!t && !ATT.fu.length) return;
-    if (ATT.busy) { toast("첨부를 올리는 중입니다"); return; }
-    const body = { action: "add", status: "open", parent: parentId, text: t || "(첨부 참고)" };
-    if (ATT.fu.length) body.attachments = ATT.fu;
-    const r = await api("POST", `/api/requests/${S.id}`, body);
-    if (!r.ok) { toast("요청하지 못했습니다: " + ((r.data && r.data.error) || r.status), 5000); return; }
-    S.fu = null; ATT.fu = []; S.reqs = r.data; afterReqs(); await flushReqs(true);
-    toast(S.session && S.session.connected ? "후속 요청을 세션에 보냈습니다" : "후속 요청을 남겼습니다 - 세션이 연결되면 전달됩니다");
-  }
-  // 요청 탭 기본 보기 = 최근 24시간에 진행(만듦·상태 변경·답)된 것 + 아직 끝나지 않은 것. 이전 것은 [더보기] 기록 창(reqHist)에서 찾는다
-  const DAY_MS = 864e5;
-  const reqRecent = (r) => r.status !== "done" || Date.now() - Date.parse(r.updated || r.created || "") < DAY_MS;
+  // ---------------------------------------------------------------- 요청 목록(오른쪽 탭) - 목록·카드·후속·기록 창은 nexa-requests.js(RQ). 여기는 슬라이드 쪽 머리(메모 남기기·초안 보내기·필터)
+  async function loadReqs() { await RQ.load(); }
+  const ST = RQ.ST;
   const reqIdx = (sid) => S.deck.slides.findIndex((x) => x.id === sid) + 1;
-  /** 요청 카드 한 장 - 요청 탭과 기록 창이 같이 쓴다. hl = 찾기 강조 함수, fu = 후속 요청 단추·입력칸 */
+  /** 레이아웃 고치기 요청 - 보낼 때 검사 건수(글에 적힘) → 완료 뒤 지금 건수(카드에 덧붙임) */
   function chkDelta(r) {  // 레이아웃 고치기 요청 - 보낼 때 검사 건수(글에 적힘) → 완료 뒤 지금 건수
     const m = /레이아웃 검사 결과를 고쳐 줘 \(검사 (\d+)건\)/.exec(r.text || ""); if (!m || r.status !== "done" || !S.check) return "";
     const now = S.check.issues.filter((x) => x.slide === r.slide).length, b = +m[1];
     return `<div class="hint" style="margin:2px 0 0"><span class="bd ${now < b ? "work" : now > b ? "chk err" : "chk"}" style="margin:0">검사 ${b} → ${now}건${now > b ? " · 늘었음" : now === 0 ? " · 해결" : ""}</span></div>`;
   }
-  function reqCardHtml(r, k, last, o) {
-    const hl = (o && o.hl) || esc, fu = !o || o.fu !== false;
-    return `<div class="req ${r.status === "done" ? "done" : ""}${k ? " fu" : ""}" data-rid="${esc(r.id)}">
-        <div class="meta"><span class="st ${esc(r.status || "open")}">${ST[r.status] || "대기"}</span>${k ? `<span class="fu-tag">후속</span>` : `<a href="#" data-goto="${esc(r.slide)}" data-el="${esc(r.element || "")}">슬라이드 ${reqIdx(r.slide) || "?"}${r.elements && r.elements.length > 1 ? ` · ${esc(r.elements[0])} 외 ${r.elements.length - 1}` : r.element ? " · " + esc(r.element) : ""}${r.region ? " · 영역" : ""}</a>`}<span>${esc((r.created || "").replace("T", " "))}</span>${r.updated && r.updated !== r.created ? `<span title="마지막 진행">↻ ${esc(r.updated.replace("T", " "))}</span>` : ""}${r.engineRequest ? `<a class="fu-tag" href="${esc(BASE.startsWith("/w/") ? `/engine?q=%23${r.engineRequest}` : "#")}" ${BASE.startsWith("/w/") ? 'target="_blank"' : ""} title="${esc(r.engineNote || "엔진 변경 요청으로 넘긴 요청 - 관리자 승인·처리·적용 뒤 자동으로 다시 열린다")}" style="text-decoration:none">엔진 요청 #${r.engineRequest}</a>` : ""}</div>${r.engineNote ? `<div class="hint" style="margin:2px 0 4px">${esc(r.engineNote)}</div>` : ""}
-        <div class="txt">${hl(r.text)}</div>${chkDelta(r)}${attListHtml(r.attachments, r.id)}${r.reply ? `<div class="reply${r.status !== "done" ? " ask" : ""}"><b>${agentName()}</b> ${hl(r.reply)}</div>` : ""}
-        <div class="acts">${r.status === "draft" ? "" : `<button class="chip sm" data-rs="${r.status === "done" ? "open" : "done"}" ${r.status === "done" ? 'title="같은 요청을 세션에 다시 보냅니다(답을 달려면 후속 요청)"' : ""}>${r.status === "done" ? "다시 열기" : "완료로 표시"}</button>`}${fu && last && r.status !== "draft" ? `<button class="chip sm primary" data-fu="1" title="이 요청에 이어서 묻거나 답합니다 - 앞선 요청과 답이 함께 세션에 전달됩니다">후속 요청</button>` : ""}<button class="chip sm" data-rdel="1">삭제</button></div>
-        ${fu && last && S.fu === r.id ? fuFormHtml(r) : ""}</div>`;
-  }
-  const reqThreadsHtml = (list, o) => threadsOf(list).map((g) => `<div class="thread${g.length > 1 ? " multi" : ""}">${g.map((r, k) => reqCardHtml(r, k, k === g.length - 1, o)).join("")}</div>`).join("");
   function renderReqs() {
     const R = $("#tab-reqs"), s = slide(); if (!s) return;
     const open = S.reqs.filter((r) => r.status !== "done").length;
     const c = $("#reqCnt"); c.textContent = open; c.style.display = open ? "" : "none";
-    const recent = S.reqs.filter(reqRecent), older = S.reqs.length - recent.length;
+    const recent = S.reqs.filter(RQ.recent), older = S.reqs.length - recent.length;
     const list = recent.filter((r) => !S.reqOnlySlide || r.slide === s.id);
     const drafts = S.reqs.filter((r) => r.status === "draft").length;
     R.innerHTML = `<div class="sec"><h3>${agentName()} 에게 요청</h3>
       <div class="hint">◎ <b>선택</b> 모드에서 요소를 누르거나 ✐ <b>그리기</b> 모드에서 영역을 그려 메모를 단 뒤, 아래 바의 <b>보내기</b>로 한꺼번에 보낸다. 슬라이드 전체 요청은 여기에.</div>
       <textarea id="reqText" data-key="${esc(S.id + "/" + s.id)}" style="min-height:60px;font-family:var(--font);font-size:13px" placeholder="슬라이드 ${S.cur + 1} 전체에 대한 요청 - 예: 이 표를 두 장으로 나눠 줘 (Enter = 남기기, Shift+Enter = 줄바꿈)">${esc(typed(S.id + "/" + s.id))}</textarea>
       <div class="att" id="reqAtt"></div>
-      <div class="row"><button class="chip sm primary" id="reqAdd">메모 남기기</button><button class="att-btn" data-attach="tab" title="그림 붙여넣기(Ctrl+V) · 끌어다 놓기 · 파일 고르기"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 11.5l-8.5 8.5a5 5 0 0 1-7-7l9-9a3.3 3.3 0 0 1 4.7 4.7l-9 9a1.6 1.6 0 0 1-2.3-2.3l8-8"/></svg>＋ 첨부</button>${drafts ? `<button class="chip sm" id="reqSend">초안 ${drafts}개 보내기</button>` : ""}</div>
-      <div class="hint">${S.session && S.session.connected ? (S.session.kind === "web" ? (S.session.state === "running" ? `웹 세션이 처리 중(턴 ${S.session.turn || "?"}) - 새로 보낸 요청은 이 턴이 끝난 뒤 바로 처리된다` : "웹 세션 대기 중 - 보낸 요청은 바로 처리된다") : "세션 연결됨 - 보낸 요청은 바로 전달된다") : `세션 연결 없음 - 보낸 요청은 저장되고, 세션이 감시를 시작하면 전달된다${sessOffNote()}`}</div>
-      ${!(S.session && S.session.connected) && S.reqs.some((r) => r.status === "open") ? `<div class="warn" style="font-size:12px;margin-top:6px">세션이 꺼져 있어 대기 요청 ${S.reqs.filter((r) => r.status === "open").length}건이 처리되지 않습니다 - <a href="#" data-sess-start>웹 세션 시작</a></div>` : ""}</div>
+      <div class="row"><button class="chip sm primary" id="reqAdd">메모 남기기</button>${RQ.attButton("tab")}${drafts ? `<button class="chip sm" id="reqSend">초안 ${drafts}개 보내기</button>` : ""}</div>
+      ${RQ.sessionHint()}</div>
       <div class="row" style="align-items:center"><span class="seg" id="reqFilter"><button data-v="1" class="${S.reqOnlySlide ? "on" : ""}">이 슬라이드</button><button data-v="0" class="${S.reqOnlySlide ? "" : "on"}">최근 (${recent.length})</button></span><span style="flex:1"></span><button class="chip sm" id="reqMore" title="이전 요청까지 모두 찾아보기(편집 화면 위에 뜹니다)">더보기${older ? ` · 이전 ${older}` : ""}</button></div>
       ${older ? `<div class="hint" style="font-size:11.5px;margin:2px 0 6px">최근 24시간에 진행된 요청과 아직 끝나지 않은 요청만 보입니다 - 이전 것은 [더보기]</div>` : ""}
-      ${list.length ? reqThreadsHtml(list) : `<div class="hint">요청이 없다.</div>`}`;
-    attRender("tab"); attWire($("#reqText"), "tab");
-    if (S.fu && $("#fuText")) { attRender("fu"); attWire($("#fuText"), "fu"); $("#fuText").focus(); }
-    if ($("#reqHist")) renderReqHist();
+      ${list.length ? RQ.threadsHtml(list) : `<div class="hint">요청이 없다.</div>`}`;
+    attWire($("#reqText"), "tab"); RQ.afterRender();
   }
-  // ---- 요청 기록·찾기 창([더보기]) - 편집 화면 위에 겹쳐 뜨는 창이라 편집 중인 덱·선택·저장 상태를 벗어나지 않는다. 슬라이드 링크를 누르면 닫고 그 슬라이드로.
-  const RH = { q: "", scope: "all", st: "", tg: null };
-  function openReqHist() {
-    if ($("#reqHist")) { $("#reqHist input").focus(); return; }
-    closeMenu();
-    const back = document.createElement("div"); back.id = "reqHist";
-    back.innerHTML = `<div class="box"><div class="rh-hd"><h3>요청 기록<small id="rhCnt"></small></h3><button type="button" class="chip sm" id="rhClose" title="닫기 (Esc)">✕</button></div>
-      <div class="rh-sb"><input type="search" placeholder="내용·답으로 찾기 - 기본 퍼지(띄어쓰기·한두 글자 차이 허용) · #4 = 슬라이드 4, #4,5,7-10 = 여러 장" autocomplete="off" value="${esc(RH.q)}"><span id="rhTg" title="찾기 방식 - 기본은 퍼지(띄어쓰기·한두 글자 차이 허용)"></span></div>
-      <div class="rh-fl"><span>범위</span><span class="seg" id="rhScope"><button data-v="all">전체</button><button data-v="slide">이 슬라이드</button></span><span>상태</span><span class="seg" id="rhSt"><button data-v="">전체</button>${Object.entries(ST).map(([k, v]) => `<button data-v="${k}">${v}</button>`).join("")}</span><span class="err" id="rhErr"></span></div>
-      <div class="list" id="rhList"></div></div>`;
-    document.body.appendChild(back);
-    RH.tg = NexaSearch.toggles(back.querySelector("#rhTg"), "reqs", renderReqHist);
-    const q = back.querySelector("input");
-    q.addEventListener("input", () => { RH.q = q.value; renderReqHist(); });
-    back.addEventListener("keydown", (e) => { if (e.key === "Escape") { closeReqHist(); e.preventDefault(); } e.stopPropagation(); });
-    back.addEventListener("mousedown", (e) => { if (e.target === back) closeReqHist(); });
-    back.querySelector("#rhClose").onclick = closeReqHist;
-    back.addEventListener("click", (e) => {
-      const b = e.target.closest("#rhScope button, #rhSt button"); if (!b) return;
-      if (b.closest("#rhScope")) RH.scope = b.dataset.v; else RH.st = b.dataset.v;
-      renderReqHist();
-    });
-    back.querySelector("#rhList").addEventListener("click", onReqClick);
-    renderReqHist(); q.focus();
-  }
-  function closeReqHist() { const b = $("#reqHist"); if (b) b.remove(); }
-  function renderReqHist() {
-    const back = $("#reqHist"), s = slide(); if (!back || !s) return;
-    // "#4" = 슬라이드 4 의 요청("#4,5,7-10" 처럼 여러 장·범위) - 나머지 낱말만 글 찾기에 쓴다
-    const { nums, text } = NexaSearch.split(RH.q);
-    const M = NexaSearch.matcher(text, RH.tg ? RH.tg() : {});
-    const all = S.reqs.filter((r) => (RH.scope !== "slide" || r.slide === s.id) && (!RH.st || r.status === RH.st) && (!nums.size || nums.has(reqIdx(r.slide))));
-    // 찾기는 대화(묶음) 단위 - 묶음 안 어느 요청이든 맞으면 묶음 전체를 보여 준다(앞뒤 맥락)
-    const hit = M.empty ? all : threadsOf(all).filter((g) => g.some((r) => M.any([r.text, r.reply, r.element, ...(r.elements || []), ...((r.attachments || []).map((a) => a.name))]))).flat();
-    back.querySelectorAll("#rhScope button").forEach((b) => b.classList.toggle("on", b.dataset.v === RH.scope));
-    back.querySelectorAll("#rhSt button").forEach((b) => b.classList.toggle("on", b.dataset.v === RH.st));
-    back.querySelector("#rhErr").textContent = M.error ? `정규식 오류: ${M.error}` : "";
-    back.querySelector("#rhCnt").textContent = M.empty && !nums.size && !RH.st && RH.scope === "all" ? `전체 ${S.reqs.length}건` : `${hit.length} / ${S.reqs.length}건`;
-    back.querySelector("#rhList").innerHTML = hit.length ? reqThreadsHtml(hit, { hl: M.hl, fu: false }) : `<div class="hint" style="padding:20px;text-align:center">${S.reqs.length ? "찾는 요청이 없습니다" : "요청이 없다."}</div>`;
-  }
+  const openReqHist = () => RQ.openHist();
+  const fuSend = (id) => RQ.fuSend(id);
   async function onReqClick(e) {
     const b = e.target.closest("button, a"); if (!b) return;
-    if (b.dataset.sessStart !== undefined) { e.preventDefault(); sessStartDlg(); return; }
-    if (b.dataset.lb !== undefined) { e.preventDefault(); const [rid, i] = b.dataset.lb.split(":"); attLightbox(rid, +i); return; }
     if (b.id === "reqAdd") {
       const t = $("#reqText").value.trim(); if (!t && !ATT.tab.length) return;
-      const body = { action: "add", status: "draft", slide: slide().id, element: null, text: t || "(첨부 참고)" };
-      if (ATT.tab.length) body.attachments = ATT.tab;
-      const r = await api("POST", `/api/requests/${S.id}`, body);
-      if (r.ok) { keep(S.id + "/" + slide().id, ""); ATT.tab = []; S.reqs = r.data; afterReqs(); toast("메모를 남겼습니다 - 아래 바에서 보내기"); }
+      const r = await RQ.add({ action: "add", status: "draft", slide: slide().id, element: null, text: t || "(첨부 참고)" }, "tab");
+      if (r) { keep(S.id + "/" + slide().id, ""); renderReqs(); toast("메모를 남겼습니다 - 아래 바에서 보내기"); }
       return;
     }
-    if (b.dataset.attach) { attPick(b.dataset.attach); return; }
-    if (b.dataset.attx) { const [w, i] = b.dataset.attx.split(":"); ATT[w].splice(+i, 1); attRender(w); return; }
-    const v = e.target.closest("[data-attv]"); if (v) { const [w, i] = v.dataset.attv.split(":"); NexaLightbox.open(lbItems(ATT[w]), +i); return; }
     if (b.id === "reqSend") { await sendDrafts(); return; }
     if (b.closest("#reqFilter")) { S.reqOnlySlide = b.dataset.v === "1"; renderReqs(); return; }
-    if (b.id === "reqMore") { openReqHist(); return; }
-    const card = b.closest(".req"); if (!card) return;
-    const rid = card.dataset.rid;
-    if (b.dataset.goto !== undefined) {
-      e.preventDefault();
-      if (b.closest("#reqHist")) closeReqHist();  // 기록 창에서 슬라이드 링크 → 창을 닫고 그 슬라이드로
-      const i = S.deck.slides.findIndex((x) => x.id === b.dataset.goto);
-      if (i >= 0) { S.cur = i; S.sel = b.dataset.el && elById(b.dataset.el, S.deck.slides[i]) ? b.dataset.el : null; renderAll(); revealThumb(S.cur); }
-      return;
-    }
-    if (b.dataset.fu) { S.fu = S.fu === rid ? null : rid; ATT.fu = []; renderReqs(); return; }
-    if (b.dataset.fucancel) { S.fu = null; ATT.fu = []; renderReqs(); return; }
-    if (b.dataset.fusend) { await fuSend(rid); return; }
-    let body = null;
-    if (b.dataset.rs) body = { action: "update", id: rid, status: b.dataset.rs };
-    if (b.dataset.rdel) { if (!confirm("이 요청을 지울까요?")) return; body = { action: "delete", id: rid }; }
-    if (body) { const r = await api("POST", `/api/requests/${S.id}`, body); if (r.ok) { S.reqs = r.data; renderReqs(); renderThumbs(); renderMarks(); } }
+    await RQ.click(e);
   }
 
   // ---------------------------------------------------------------- 레이아웃 검사 (아래 "검사" 탭)
@@ -1946,179 +1811,13 @@ ${names}
     renderAll(); revealThumb(S.cur); drawChkBox();
   }
 
-  // ---------------------------------------------------------------- 세션 연결(요청 감시)
-  // 요청 상대 이름 - 연결된 세션의 에이전트(웹: agent · 수동: label 의 "claude"/"codex")에 따라, 연결 없으면 "AI"
-  function agentName() {
-    const st = S.session || {};
-    if (!st.connected) return "AI";
-    const a = (st.agent || st.label || "").toLowerCase();
-    return /codex/.test(a) ? "Codex" : /claude/.test(a) ? "Claude" : "AI";
-  }
-  // 세션이 없을 때 마지막 웹 세션이 왜 끝났는지(서버 재시작·유휴·사용자 중지) - /api/session 의 last
-  function sessOffNote() {
-    const l = (S.session || {}).last; if (!l || !l.reason) return "";
-    const why = { "server-stop": "서버 재시작으로 세션 종료됨", idle: "유휴로 세션 종료됨", user: "사용자가 세션 중지", error: "오류로 세션 종료됨" }[l.reason] || `세션 종료됨(${l.reason})`;
-    const m = /^\d{4}-(\d\d)-(\d\d)T(\d\d:\d\d)/.exec(l.stoppedAt || ""); return ` · ${why}${m ? `(${+m[1]}/${+m[2]} ${m[3]})` : ""}`;
-  }
-  function renderSession(st, act) {
-    const before = S.session && (S.session.connected + "/" + (S.session.agent || S.session.label || "")) ;
-    S.session = st;
-    if (before !== (st.connected + "/" + (st.agent || st.label || "")) && $("#tab-reqs") && $("#tab-reqs").classList.contains("on")) renderReqs();
-    const c = $("#sessChip"); if (!c) return;
-    // 활동(Claude Code 훅 - 작업 공간 .claude/settings.json): 감시 담당 세션이 대화 입력을 처리 중인지·요청 처리 중인지·대기인지
-    const w = act && act.watcher;
-    let label = st.connected ? (st.working ? `세션 처리 중 ${st.working}` : "세션 연결됨") : "세션 연결 없음";
-    if (st.connected && w) {
-      if (w.state === "busy" && w.source === "chat") label = `대화 작업 중 ${w.minutes ? w.minutes + "분째" : ""}${st.working ? ` · 요청 ${st.working} 대기` : st.open ? ` · 요청 ${st.open} 대기` : ""}`;
-      else if (w.state === "busy") label = st.working ? `요청 처리 중 ${st.working}` : "작업 중";
-      else if (w.state === "idle") label = st.working ? `세션 처리 중 ${st.working}` : "대기 - 요청 바로 처리";
-    }
-    if (act && act.othersBusy) label += ` · 다른 세션 ${act.othersBusy}`;
-    const webBusy = st.connected && st.kind === "web" && st.state === "running";  // 하트비트의 state - 턴 실행 중(요청 status 와 무관하게 파랑)
-    if (st.connected && st.kind === "web") label = `웹 세션${webBusy ? ` 처리 중 (턴 ${st.turn || "?"})` : ""} · ${st.model || st.agent || ""}${st.user ? ` · ${st.user}` : ""}${st.allowWeb ? " · 웹 허용" : ""}${(st.grants || []).map((g) => " · " + g).join("")}${st.working ? ` · 요청 ${st.working}` : ""}`;
-    c.className = "chip sm " + (st.connected ? (st.working || webBusy || (w && w.state === "busy") ? "busy" : "on") : "off");
-    c.innerHTML = `<span class="dot"></span>${esc(label)} ▾`;
-    if (w && w.state === "busy" && w.source === "chat" && w.prompt) c.dataset.prompt = w.prompt; else delete c.dataset.prompt;
-    c.title = st.connected ? `${st.sessionId ? `claude 세션 ID ${st.sessionId}\n` : ""}${st.label || "Claude Code"} · 마지막 확인 ${st.last_seen} (${st.age}초 전) · 대기 ${st.open} · 처리 중 ${st.working}${c.dataset.prompt ? `
-대화 입력: ${c.dataset.prompt}` : ""}`
-      : `세션 연결 없음${st.last_seen ? ` - 마지막 확인 ${st.last_seen}` : ""}${sessOffNote()}. 눌러서 웹 세션을 시작하거나, 터미널 세션에서 watch_requests.py --stream 을 Monitor 로 실행하면 연결된다`;
-  }
-
-  // ---------------------------------------------------------------- 웹 AI 세션(B-5) - 세션 칩 메뉴 · 시작 창 · 진행 패널(SSE) · 턴 로그
-  const WSS = { src: null, events: [], agent: null };
-  const GRANTS = [["git", "git 기록", "add·commit·branch·switch·merge·stash·tag"], ["push", "push", "git push·pull·fetch - 원격으로 보냄"], ["root", "저장소 루트 접근", "작업 공간을 품은 저장소 루트의 문서(작업일지·README·docs) 읽기·쓰기"]];
-  function sessMenu(btn) {
-    const st = S.session || {};
-    const web = st.connected && st.kind === "web";
-    const items = web
-      ? [{ h: `웹 세션 · ${st.agent || ""} · ${st.model || ""}${st.user ? ` · ${st.user}` : ""}${st.allowWeb ? " · 웹 허용" : ""}${(st.grants || []).map((g) => " · " + g).join("")}` },
-         ...(st.sessionId ? [{ icon: "#", label: `세션 ID ${st.sessionId.slice(0, 8)} 복사`, act: () => sidCopy(st) }, { icon: "›", label: "확인 명령(claude --resume) 복사", act: () => sidCopy(st, true) }] : []),
-         { icon: "▶", label: "진행 보기", act: sessProgress }, { icon: "⟳", label: "모델 바꾸기", act: sessModelDlg },
-         { icon: "📄", label: "턴 로그", act: () => sessLog(1) }, "-",
-         { icon: "■", label: "세션 중지", act: sessStop }]
-      : st.connected
-        ? [{ h: `수동 세션 · ${st.label || ""}` }, { html: `<div class="hint" style="padding:4px 10px;max-width:280px">터미널의 Claude Code 세션이 요청 감시(watch_requests)로 맡고 있습니다. 웹 세션으로 바꾸려면 그 감시를 끝내세요.</div>` }]
-        : [...(sessOffNote() ? [{ h: sessOffNote().replace(/^ · /, "") }] : []), { icon: "▶", label: "웹 세션 시작", act: sessStartDlg }, { html: `<div class="hint" style="padding:4px 10px;max-width:280px">서버가 AI(claude·codex)를 띄워 편집기 요청을 처리합니다. 터미널 세션(Monitor)과 함께 쓸 수 없습니다.</div>` }];
-    openMenu(btn, items, { right: false });
-  }
-  async function sidCopy(st, cmd) {  // 세션 식별자 - ID 복사, cmd 면 그 폴더에서 claude --resume <ID>(보기만; 웹 세션이 도는 중에 이어 쓰면 대화가 섞인다)
-    const text = cmd ? (st.cwd ? `cd "${st.cwd}"; ` : "") + `claude --resume ${st.sessionId}` : st.sessionId, what = cmd ? "확인 명령을" : "세션 ID 를";
-    try { await navigator.clipboard.writeText(text); toast(`${what} 복사했습니다 - ${text}`, 5000); }
-    catch (e) { const ta = document.createElement("textarea"); ta.value = text; ta.style.position = "fixed"; ta.style.opacity = "0"; document.body.appendChild(ta); ta.select(); const ok = document.execCommand && document.execCommand("copy"); ta.remove(); if (ok) toast(`${what} 복사했습니다 - ${text}`, 5000); else prompt(what, text); }
-    if (!(st.turn > 0)) setTimeout(() => toast("이 세션은 아직 첫 턴 전이라 claude --resume 로 열리지 않습니다 - 요청을 하나 처리한 뒤에 다시 시도", 6000), 600);
-  }
-  function sessBox(html) { $("#sessDlg .box").innerHTML = html; $("#sessDlg").classList.add("show"); }
-  function sessClose() { $("#sessDlg").classList.remove("show"); if (WSS.src) { WSS.src.close(); WSS.src = null; } }
-  async function sessStartDlg() {
-    sessBox(`<div class="hint">에이전트·로그인 상태를 확인하는 중…</div>`);
-    const r = await api("GET", "/api/agent");
-    if (!r.ok) { sessBox(`<div class="hint">확인 실패: ${esc((r.data && r.data.error) || r.status)}</div><div class="row"><button class="chip sm" data-sd="close">닫기</button></div>`); return; }
-    WSS.agent = r.data;
-    const ag = r.data.agents, cur = r.data.agent, model = r.data.model;
-    const opt = (name) => { const a = ag[name]; const ok = a.installed && a.loggedIn; return `<option value="${name}" ${name === cur ? "selected" : ""} ${ok ? "" : "disabled"}>${esc(a.label)}${a.verified ? "" : " (미확인)"}${ok ? "" : a.installed ? " - 로그인 안 됨" : " - 미설치"}</option>`; };
-    const models = (name) => (r.data.models[name] || []).map((m) => `<option value="${esc(m)}" ${m === model ? "selected" : ""}>${esc(m)}</option>`).join("") + `<option value="__custom">직접 입력</option>`;
-    sessBox(`<div class="row" style="align-items:center;gap:8px"><h3 style="margin:0;flex:1">웹 세션 시작</h3><button class="chip sm" data-sd="close">닫기</button></div>
-      <div class="hint">서버가 이 작업 공간에서 AI 를 턴마다 실행해 편집기 요청을 처리합니다. 쓰기 범위는 이 작업 공간 폴더뿐이며 <code>nexa.py</code> 명령만 허용됩니다.</div>
-      <label class="f">에이전트</label><select id="sdAgent">${opt("claude")}${opt("codex")}</select>
-      <div class="hint" id="sdHint">${esc(ag[cur].hint || "")}${ag[cur].hint && ag[cur].doc ? ` (엔진 ${esc(ag[cur].doc)})` : ""}</div>
-      <label class="f">모델 <span class="hint">(기본: ${esc(model)} — ${esc(r.data.sources.model)})</span></label>
-      <div class="row" style="gap:6px"><select id="sdModel">${models(cur)}</select><input type="text" id="sdModelText" placeholder="모델 ID 직접 입력" style="display:none;flex:1"></div>
-      <label class="f" style="display:flex;align-items:center;gap:8px;font-weight:400"><input type="checkbox" id="sdSave"> 이 작업 공간 기본으로 저장 <select id="sdSaveAs" style="font-size:12px"><option value="local">이 PC 만(nexa-slide.local.json)</option><option value="shared">공유(nexa-slide.json)</option></select></label>
-      ${r.data.allowWeb ? `<label class="f" style="display:flex;align-items:center;gap:8px;font-weight:400"><input type="checkbox" id="sdWeb" ${r.data.canAllowWeb ? "" : "disabled"}> 이 세션에 웹 검색 허용(WebSearch·WebFetch) ${r.data.canAllowWeb ? "" : '<span class="hint">- 관리자만</span>'}</label>
-      <div class="hint" id="sdWebWarn" style="display:none;color:var(--err)">이 세션이 외부 웹을 검색·열람합니다 - 슬라이드·요청 내용이 검색어·URL 로 외부에 전달될 수 있습니다(claude 만).</div>` : ""}
-      <div class="hint">한도: 유휴 ${esc(String(r.data.limits.sessionIdleMinutes))}분 · 턴 ${esc(String(r.data.limits.sessionTurnMinutes))}분 · 동시 ${esc(String(r.data.limits.sessionMax))}</div>
-      <div class="row" style="justify-content:flex-end;gap:8px"><button class="chip sm" data-sd="close">취소</button><button class="chip sm primary" data-sd="start">시작</button></div>`);
-    $("#sdAgent").onchange = () => { const n = $("#sdAgent").value; $("#sdModel").innerHTML = models(n); $("#sdHint").textContent = (ag[n].hint || "") + (ag[n].hint && ag[n].doc ? ` (엔진 ${ag[n].doc})` : ""); };
-    if ($("#sdWeb")) $("#sdWeb").onchange = () => { $("#sdWebWarn").style.display = $("#sdWeb").checked ? "" : "none"; };
-    const av = GRANTS.filter(([k]) => (r.data.grants || {})[k]);  // git·push·저장소 루트 - 전역이 켜진 것만(관리자만 체크)
-    if (av.length) $("#sessDlg [data-sd=start]").parentElement.insertAdjacentHTML("beforebegin", `<div id="sdGrants">${av.map(([k, l, h]) => `<label class="f" style="display:flex;align-items:center;gap:8px;font-weight:400"><input type="checkbox" data-grant="${k}" ${r.data.canGrant ? "" : "disabled"}> 이 세션에 ${l} 허용 <span class="hint">- ${h}${r.data.canGrant ? "" : " · 관리자만"}</span></label>`).join("")}</div>`);
-    $$("#sdGrants [data-grant]").forEach((c) => (c.onchange = () => { if (c.dataset.grant === "push" && c.checked) { const g = $("#sdGrants [data-grant=git]"); if (g) g.checked = true; } }));
-    $("#sdModel").onchange = () => { $("#sdModelText").style.display = $("#sdModel").value === "__custom" ? "" : "none"; };
-  }
-  async function sessStart() {
-    const agent = $("#sdAgent").value, model = $("#sdModel").value === "__custom" ? $("#sdModelText").value.trim() : $("#sdModel").value;
-    if (!model) { toast("모델을 고르거나 입력하세요"); return; }
-    const body = { action: "start", agent, model }; if ($("#sdSave").checked) body.saveAs = $("#sdSaveAs").value;
-    if ($("#sdWeb") && $("#sdWeb").checked) body.allowWeb = true;
-    const gr = $$("#sdGrants [data-grant]").filter((c) => c.checked).map((c) => c.dataset.grant); if (gr.length) body.grants = gr;
-    const r = await api("POST", "/api/wsession", body);
-    if (!r.ok) { toast("시작 실패: " + ((r.data && r.data.error) || r.status), 6000); return; }
-    toast(`웹 세션 시작 - ${agent} · ${model}${r.data.allowWeb ? " · 웹 허용" : ""}${(r.data.grants || []).map((g) => " · " + g).join("")}`); renderSession({ ...(S.session || {}), connected: true, kind: "web", agent, model, user: r.data.startedBy, allowWeb: !!r.data.allowWeb, grants: r.data.grants || [], label: `web:${agent}`, open: r.data.open, working: r.data.working, last_seen: "", age: 0 });
-    sessProgress();
-  }
-  async function sessStop() {
-    if (!confirm("웹 세션을 중지할까요? 실행 중인 턴이 있으면 바로 종료됩니다.")) return;
-    const r = await api("POST", "/api/wsession", { action: "stop" });
-    if (!r.ok) { toast("중지하지 못했습니다: " + ((r.data && r.data.error) || r.status), 5000); return; }
-    toast("웹 세션을 중지했습니다"); sessClose(); api("GET", "/api/session").then((x) => x.ok && renderSession(x.data));
-  }
-  async function sessModelDlg() {
-    const r = await api("GET", "/api/agent"); const st = S.session || {};
-    const list = r.ok ? (r.data.models[st.agent] || []) : [];
-    sessBox(`<div class="row" style="align-items:center;gap:8px"><h3 style="margin:0;flex:1">모델 바꾸기</h3><button class="chip sm" data-sd="close">닫기</button></div>
-      <div class="hint">지금 ${esc(st.model || "")} · 턴 실행 중이면 끝난 뒤 적용됩니다.</div>
-      <div class="row" style="gap:6px"><select id="sdModel">${list.map((m) => `<option value="${esc(m)}" ${m === st.model ? "selected" : ""}>${esc(m)}</option>`).join("")}<option value="__custom">직접 입력</option></select><input type="text" id="sdModelText" placeholder="모델 ID" style="display:none;flex:1"></div>
-      <label class="f" style="display:flex;align-items:center;gap:8px;font-weight:400"><input type="checkbox" id="sdSave"> 이 작업 공간 기본으로 저장 <select id="sdSaveAs" style="font-size:12px"><option value="local">이 PC 만</option><option value="shared">공유</option></select></label>
-      <div class="row" style="justify-content:flex-end;gap:8px"><button class="chip sm" data-sd="close">취소</button><button class="chip sm primary" data-sd="modelgo">바꾸기</button></div>`);
-    $("#sdModel").onchange = () => { $("#sdModelText").style.display = $("#sdModel").value === "__custom" ? "" : "none"; };
-  }
-  async function sessModel() {
-    const model = $("#sdModel").value === "__custom" ? $("#sdModelText").value.trim() : $("#sdModel").value;
-    if (!model) { toast("모델을 고르거나 입력하세요"); return; }
-    const body = { action: "model", model }; if ($("#sdSave").checked) body.saveAs = $("#sdSaveAs").value;
-    const r = await api("POST", "/api/wsession", body);
-    if (!r.ok) { toast("바꾸지 못했습니다: " + ((r.data && r.data.error) || r.status), 5000); return; }
-    toast(r.data.pendingModel ? `턴이 끝난 뒤 ${model} 로 바뀝니다` : `모델을 ${model} 로 바꿨습니다`); sessClose();
-  }
-  function sessProgress() {
-    sessBox(`<div class="row" style="align-items:center;gap:8px"><h3 style="margin:0;flex:1">웹 세션 진행</h3><span class="hint" id="sdState"></span><button class="chip sm" data-sd="log">턴 로그</button><button class="chip sm" data-sd="close">닫기</button></div>
-      <div class="ev" id="sdEv"><div class="hint">연결 중…</div></div>
-      <div class="row" style="justify-content:flex-end;gap:8px"><button class="chip sm" data-sd="model">모델 바꾸기</button><button class="chip sm" data-sd="stop">세션 중지</button></div>`);
-    if (WSS.src) WSS.src.close();
-    WSS.events = [];
-    const box = $("#sdEv"); box.innerHTML = "";
-    const line = (e) => {
-      const d = e.data || e; const t = (d.t || "").slice(11, 19);
-      let txt = d.type;
-      if (d.type === "state") txt = `상태 ${d.state}${d.reason ? ` (${d.reason})` : ""}${d.model ? ` · ${d.model}` : ""}`;
-      else if (d.type === "turn.start") txt = `턴 ${d.turn} 시작 - 요청 ${d.count}건 (${d.reason}) · ${d.model}`;
-      else if (d.type === "init") txt = `세션 ${String(d.sessionId || "").slice(0, 8)} · 모델 ${d.model}`;
-      else if (d.type === "tool") txt = `도구 ${d.tool} ${d.summary || ""}`;
-      else if (d.type === "text") txt = `✎ ${d.text}`;
-      else if (d.type === "turn.end") txt = `턴 ${d.turn} 끝 - ${d.ok ? "정상" : "실패"}${d.costUsd != null ? ` · $${Number(d.costUsd).toFixed(4)}` : ""}${d.unhandled && d.unhandled.length ? ` · 처리 못 함 ${d.unhandled.length}` : ""}${d.error ? ` · ${d.error}` : ""}`;
-      else if (d.type === "model") txt = `모델 → ${d.model}${d.pending ? " (턴 끝난 뒤)" : ""}`;
-      else if (d.type === "warn" || d.type === "error") txt = `${d.type === "warn" ? "경고" : "오류"} ${d.message || ""}`;
-      else if (d.type === "idle") txt = `유휴 ${d.minutes}분 초과 - 끊음`;
-      const div = document.createElement("div"); div.className = "e " + d.type; div.textContent = `${t} ${txt}`;
-      box.appendChild(div); box.scrollTop = box.scrollHeight;
-    };
-    try {
-      const src = new EventSource(`${BASE}/api/wsession/events`); WSS.src = src;
-      ["state", "turn.start", "init", "text", "tool", "tool_result", "turn.end", "warn", "error", "model", "idle"].forEach((k) => src.addEventListener(k, (ev) => { try { const d = JSON.parse(ev.data); if (k === "state" && !d.seq) { $("#sdState").textContent = `${d.state} · ${d.agent || ""} · ${d.model || ""}`; } line({ ...d, type: d.type || k }); if (d.type === "state" || k === "state") $("#sdState").textContent = `${d.state}`; } catch (e) { /* 무시 */ } }));
-      src.onerror = () => { const div = document.createElement("div"); div.className = "e warn"; div.textContent = "연결이 끊겨 다시 붙는 중…"; box.appendChild(div); };
-    } catch (e) { box.textContent = "이 브라우저는 SSE 를 지원하지 않습니다"; }
-  }
-  async function sessLog(n) {
-    const r = await api("GET", `/api/wsession/log?turn=${n}`);
-    const lines = r.ok ? r.data.lines : [];
-    sessBox(`<div class="row" style="align-items:center;gap:8px"><h3 style="margin:0;flex:1">턴 ${n} 로그 <span class="hint">(어댑터 출력 원문 ${lines.length}줄)</span></h3>
-      <button class="chip sm" data-sd="logprev">◀</button><button class="chip sm" data-sd="lognext">▶</button><button class="chip sm" data-sd="progress">진행</button><button class="chip sm" data-sd="close">닫기</button></div>
-      <div class="ev">${lines.length ? lines.map((l) => `<div class="e">${esc(l.length > 400 ? l.slice(0, 400) + " …" : l)}</div>`).join("") : '<div class="hint">로그 없음</div>'}</div>`);
-    WSS.logTurn = n;
-  }
-  $("#sessDlg").addEventListener("click", (e) => {
-    if (e.target === $("#sessDlg")) { sessClose(); return; }
-    const b = e.target.closest("[data-sd]"); if (!b) return;
-    const k = b.dataset.sd;
-    if (k === "close") sessClose(); else if (k === "start") sessStart(); else if (k === "model") sessModelDlg(); else if (k === "modelgo") sessModel();
-    else if (k === "stop") sessStop(); else if (k === "log") sessLog(1); else if (k === "progress") sessProgress();
-    else if (k === "logprev") sessLog(Math.max(1, (WSS.logTurn || 1) - 1)); else if (k === "lognext") sessLog((WSS.logTurn || 1) + 1);
-  });
-  async function flushReqs(quiet) {
-    const r = await api("POST", `/api/flush/${S.id}`);
-    if (!r.ok) { if (!quiet) toast("보내기 신호를 쓰지 못했습니다"); return; }
-    renderSession(r.data.session);
-  }
+  // ---------------------------------------------------------------- 세션 연결(요청 감시) - SESS(wsession.js)·RQ(nexa-requests.js) 는 위 "세션·요청 관리"에서 만든다
+  const agentName = () => RQ.agentName();  // 요청 상대 이름 - 연결된 세션의 에이전트, 연결 없으면 "AI"
+  const sessOffNote = () => SESS.offNote();
+  function renderSession(st, act) { SESS.render(st, act); }
+  function sessMenu(btn) { SESS.menu(btn); }
+  function sessStartDlg() { SESS.startDlg(); }
+  async function flushReqs(quiet) { await SESS.flush(quiet); }
 
   // ---------------------------------------------------------------- 아래 패널(노트·개요·검사)
   function setBtab(b) {
@@ -2762,7 +2461,7 @@ ${names}
   async function openImportDlg() {
     closeMenu(); if (!S.deck) return;
     const r = await api("GET", "/api/decks"); if (!r.ok) { toast("덱 목록을 읽지 못했습니다"); return; }
-    const decks = r.data.filter((d) => d.id !== S.id);
+    const decks = r.data.filter((d) => d.id !== S.id && d.kind !== "sheet");  // 시트 문서에는 장이 없다
     if (!decks.length) { toast("이 작업 공간에 다른 덱이 없습니다 - 덱 탭의 ＋ 로 만들 수 있습니다"); return; }
     const back = document.createElement("div"); back.id = "impDlg";
     back.innerHTML = `<div class="box"><h3 style="margin:0 0 8px">다른 덱에서 장 가져오기</h3><div class="fr"><label>덱</label><select class="ideck">${decks.map((d) => `<option value="${esc(d.id)}">${esc(d.title)} (${d.slides}장)</option>`).join("")}</select><button class="chip sm" data-ia="all">모두 선택</button><button class="chip sm" data-ia="none">선택 해제</button></div>
@@ -3413,8 +3112,7 @@ ${names}
     $("#tab-reqs").addEventListener("input", (e) => { if (e.target.id === "reqText") keep(e.target.dataset.key, e.target.value); });
     $("#tab-reqs").addEventListener("keydown", (e) => { // 슬라이드 요청 칸도 메모 팝오버처럼: Enter = 메모 남기기(초안), Shift+Enter = 줄바꿈
       if (e.target.id === "reqText" && e.key === "Enter" && !e.shiftKey && !e.isComposing) { e.preventDefault(); $("#reqAdd").click(); }
-      if (e.target.id === "fuText" && e.key === "Enter" && !e.shiftKey && !e.isComposing) { e.preventDefault(); fuSend(e.target.closest(".req").dataset.rid); }
-      if (e.target.id === "fuText" && e.key === "Escape") { S.fu = null; ATT.fu = []; renderReqs(); }
+      RQ.keydown(e);  // 후속 입력칸 Enter = 보내기 · Esc = 닫기
     });
     $("#tab-hist").addEventListener("click", onHistClick);
     $("#notesTa").addEventListener("input", onNotes);

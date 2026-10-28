@@ -119,10 +119,29 @@ def build_decks(ws, cfg):
     return built
 
 
-def new_sheet(ws, cfg, deck, title):
-    """첫 문서를 시트로(--kind sheet) - decks/<deck>.json 빈 시트(형식은 deck_admin.new_sheet 와 같다, docs/sheets.md)를 만들고 시작 덱으로 정한다."""
+def copy_sheet_theme(ws, cfg, name, src_ws=None):
+    """회사 시트 테마를 새 작업 공간으로 - 다른 작업 공간의 assets/sheet-themes/<이름>/ 을 복사한다(엔진 테마는 복사하지 않아도 보인다)."""
+    if not src_ws:
+        return
+    s = Path(src_ws)
+    scfg = json.loads((s / "nexa-slide.json").read_text(encoding="utf-8")) if (s / "nexa-slide.json").is_file() else {}
+    src = s / scfg.get("assetRoot", ".") / "assets" / "sheet-themes" / name
+    dst = ws / cfg.get("assetRoot", ".") / "assets" / "sheet-themes" / name
+    if (src / "theme.json").is_file() and not dst.exists():
+        shutil.copytree(src, dst)
+
+
+def new_sheet(ws, cfg, deck, title, theme=None):
+    """첫 문서를 시트로(--kind sheet) - decks/<deck>.json 빈 시트(형식은 deck_admin.new_sheet 와 같다, docs/sheets.md)를 만들고 시작 덱으로 정한다.
+    theme 이면 deck_admin(작업 공간을 이 폴더로)으로 그 테마의 페이지를 넣어 만든다."""
     d = ws / cfg.get("decks", "decks")
     p = d / f"{deck}.json"
+    if theme and not p.exists():
+        env = {**os.environ, "NEXA_SLIDE_WORKSPACE": str(ws), "PYTHONIOENCODING": "utf-8"}
+        r = subprocess.run([sys.executable, str(ENGINE / "studio" / "deck_admin.py"), "create", deck, "--kind", "sheet", "--title", title, "--theme", theme,
+                            "--vars", json.dumps({"project": title}, ensure_ascii=False)], cwd=str(ws), env=env, capture_output=True)
+        if r.returncode:
+            print(f"  테마 시트 실패({theme}) - 빈 시트로: {(r.stderr or r.stdout).decode('utf-8', 'replace').strip()[-200:]}", file=sys.stderr)
     if not p.exists():
         doc = {"id": deck, "title": title, "kind": "sheet", "version": "0.1", "updated": dt.datetime.now().isoformat(timespec="seconds"),
                "slides": [], "sheets": [{"id": "t01", "name": "Sheet1", "size": {"rows": 50, "cols": 12}, "cols": {}, "rows": {}, "merges": [], "cells": {}}]}
@@ -742,6 +761,8 @@ def main():
     ap.add_argument("--template", help="디자인 템플릿(기본: 시작용 교안이 정한 것, 없으면 lecture)")
     ap.add_argument("--deck", default="intro")
     ap.add_argument("--kind", choices=("deck", "sheet"), default="deck", help="첫 문서 종류 - sheet 면 시작용 내용 없이 빈 시트(docs/sheets.md)")
+    ap.add_argument("--sheet-theme", help="시트 테마 - 첫 시트를 이 테마의 페이지로(엔진 studio/sheet_themes 또는 --sheet-theme-from 작업 공간의 테마를 복사)")
+    ap.add_argument("--sheet-theme-from", help="테마를 가져올 작업 공간 폴더(assets/sheet-themes/<이름>/ 을 새 작업 공간으로 복사)")
     ap.add_argument("--asset-root", default=".", help="덱 그림 경로의 기준 폴더(작업 공간 기준). 저장소 루트 자산을 쓰려면 ..")
     ap.add_argument("--starter", help="시작용 교안(엔진 starters/ 폴더 이름) — 예: lecture-course")
     ap.add_argument("--lang", default="ko", help="시작용 내용의 언어 - starters/<이름>/content.<lang>/ 가 있으면 그것을 복사(없으면 content/)")
@@ -872,7 +893,9 @@ def main():
         if cm.is_file() and "BRIEF.md" not in cm.read_text(encoding="utf-8"):
             with cm.open("a", encoding="utf-8", newline="\n") as f:
                 f.write("\n## 작성 브리프\n\n- 작업 공간을 만들 때 받은 목적·대상·작성 방향·참고 자료는 `BRIEF.md` 에 있다. 초안을 쓰기 전에 먼저 읽고, 자료에 없는 내용은 지어내지 않는다.\n")
-    built = new_sheet(ws, cfg, a.deck, cfg.get("title", ws.name)) if a.kind == "sheet" else build_decks(ws, cfg) if a.build or a.ask_draft else []
+    if a.kind == "sheet" and a.sheet_theme:
+        copy_sheet_theme(ws, cfg, a.sheet_theme, a.sheet_theme_from)
+    built = new_sheet(ws, cfg, a.deck, cfg.get("title", ws.name), a.sheet_theme) if a.kind == "sheet" else build_decks(ws, cfg) if a.build or a.ask_draft else []
     if a.ask_draft and built:
         ask_draft(ws, cfg, deck_ids[0] if deck_ids[0] in built else built[0])
     if not a.no_remember:

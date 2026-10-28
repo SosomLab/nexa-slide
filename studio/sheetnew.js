@@ -1,6 +1,7 @@
 /* nexa-slide 새 시트 대화 상자 - 제목 · 테마 · 넣을 페이지 · 문서 정보(과제명·고객사·작성자·버전). docs/sheets.md 5절.
    편집기(studio.js)와 시트 화면(sheet.js)이 같이 쓴다.
      NexaSheetNew.open()   → 만든 시트 id(취소면 null). POST /api/decks {action:"create", kind:"sheet", title, theme?, pages?, vars?}
+                           엑셀 파일을 고르면 POST /api/decks {action:"import", name, data(base64), title} - 값·수식·서식·병합을 옮긴 시트(sheet_import.py)
    테마 목록 GET /api/sheet-themes, 테마 내용(vars 기본값) GET /api/sheet-themes/<이름>. 목록을 못 읽으면 테마 없는 빈 시트만 만든다. */
 (function () {
   "use strict";
@@ -38,6 +39,9 @@
       back.innerHTML = `<div class="box" role="dialog" aria-label="새 시트">
         <h3>▦ 새 시트(엑셀)</h3>
         <div><label class="f" for="snTitle">제목</label><input type="text" id="snTitle" placeholder="예: 요구사항 정의서"></div>
+        <div><label class="f">엑셀 파일에서 가져오기 <span class="hint" style="font-weight:400">- 고르면 테마 대신 그 파일의 값·수식·서식·병합으로 만듭니다</span></label>
+          <div style="display:flex;gap:6px;align-items:center"><button type="button" id="snPick">파일 고르기…</button><span class="hint" id="snFile">(고르지 않음)</span><button type="button" id="snClear" hidden>✕</button></div>
+          <input type="file" id="snInput" accept=".xlsx,.xlsm" hidden></div>
         <div><label class="f" for="snTheme">테마</label><select id="snTheme"><option value="">테마 없음 - 빈 시트</option></select><div class="hint" id="snThemeHint">테마 목록을 읽는 중…</div></div>
         <div id="snPagesBox" hidden><label class="f">넣을 페이지</label><div class="pages" id="snPages"></div></div>
         <div id="snVarsBox" hidden><label class="f">문서 정보 <span class="hint" style="font-weight:400">- 페이지의 {{자리}} 에 들어갑니다(나중에 비워 둔 칸은 그대로)</span></label>
@@ -46,7 +50,7 @@
         <div class="acts"><button id="snCancel">취소</button><button class="primary" id="snOk">만들기</button></div></div>`;
       document.body.appendChild(back);
       const $ = (s) => back.querySelector(s);
-      let list = [], done = false;
+      let list = [], done = false, file = null;
       const close = (v) => { if (done) return; done = true; back.remove(); document.removeEventListener("keydown", onKey, true); resolve(v); };
       const onKey = (e) => { if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); close(null); } if (e.key === "Enter" && !e.isComposing && e.target.tagName === "INPUT") { e.preventDefault(); create(); } };
       document.addEventListener("keydown", onKey, true);
@@ -68,6 +72,14 @@
       }
       back.addEventListener("input", (e) => { if (e.target.dataset && e.target.dataset.var) e.target.dataset.auto = ""; });
       $("#snTheme").onchange = pickTheme;
+      const setFile = (f) => {
+        file = f || null; $("#snFile").textContent = file ? `${file.name} · ${Math.round(file.size / 1024)}KB` : "(고르지 않음)"; $("#snClear").hidden = !file;
+        $("#snTheme").disabled = !!file; $("#snPagesBox").hidden = $("#snVarsBox").hidden = !!file || !$("#snTheme").value;
+        if (file && !$("#snTitle").value.trim()) $("#snTitle").value = file.name.replace(/\.(xlsx|xlsm)$/i, "");
+      };
+      $("#snPick").onclick = () => $("#snInput").click();
+      $("#snInput").onchange = () => { setFile($("#snInput").files[0]); $("#snInput").value = ""; };
+      $("#snClear").onclick = () => setFile(null);
       call("GET", "/api/sheet-themes").then((r) => {
         list = r.ok && Array.isArray(r.data) ? r.data : [];
         const sel = $("#snTheme");
@@ -81,6 +93,15 @@
       async function create() {
         const title = $("#snTitle").value.trim();
         if (!title) { $("#snErr").textContent = "제목을 적어 주세요"; $("#snTitle").focus(); return; }
+        if (file) {  // 엑셀 가져오기
+          $("#snOk").disabled = true; $("#snErr").textContent = "가져오는 중…";
+          const data = await new Promise((ok) => { const rd = new FileReader(); rd.onload = () => ok(String(rd.result).split(",")[1] || ""); rd.onerror = () => ok(""); rd.readAsDataURL(file); });
+          const r = await call("POST", "/api/decks", { action: "import", name: file.name, data, title });
+          $("#snOk").disabled = false;
+          if (!r.ok || !r.data || !r.data.id) { $("#snErr").textContent = "가져오지 못했습니다: " + ((r.data && r.data.error) || r.status); return; }
+          if (r.data.warnings && r.data.warnings.length) try { sessionStorage.setItem("nexaImportWarn", r.data.warnings.slice(0, 6).join("\n")); } catch (e) { /* 안내만 */ }
+          close(r.data.id); return;
+        }
         const theme = $("#snTheme").value, body = { action: "create", kind: "sheet", title };
         if (theme) {
           body.theme = theme;
