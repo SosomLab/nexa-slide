@@ -3,6 +3,7 @@
    - 찾기·바꾸기(Ctrl+F · Ctrl+H): 이 탭/모든 탭, 대소문자, 셀 전체 일치, 수식 안
    - 채우기 단축키: Ctrl+D 아래로 · Ctrl+R 오른쪽으로 · 편집 중 Ctrl+Enter 고른 범위 모두에 같은 값(수식은 상대 참조 이동)
    - 값만 붙여넣기(Ctrl+Shift+V) · 자동 합계(Alt+=) · 정렬(도구 막대 ⇅ - 지금 열 기준, 첫 줄 머리글 자동 판정)
+   - 데이터 ▾: 필터(머리글 ▼ - 값 고르기·정렬, 이 화면에서만 = 엑셀 "필터 보기") · 행·열 숨기기/숨기기 취소(저장 - 탭 hiddenRows·hiddenCols)
    모든 고치기는 x.mutate 로 - 실행 취소·저장·다시 계산이 같이 된다. */
 (function () {
   "use strict";
@@ -181,7 +182,7 @@
     }
     return g;
   }
-  function sortRange(desc) {
+  function sortRange(desc, header) {
     const S = N().S, x = X(), sh = x.sheet();
     let g = x.clampRange(S.sel);
     if (g.r1 === g.r2 && g.c1 === g.c2) g = region(sh, S.cur.r, S.cur.c);
@@ -192,7 +193,7 @@
     for (let c = g.c1; c <= g.c2; c++) first.push(sh.cells[x.key(g.r1, c)]);
     const styled = first.some((o) => o && typeof o === "object" && (o.b || o.s || o.fill));
     const below = valOf(sh.cells[x.key(g.r1 + 1, col)]);
-    const header = first.every((o) => typeof valOf(o) === "string" || valOf(o) == null) && (styled || (typeof keyFirst === "string" && isNum(below)));
+    if (header === undefined) header = first.every((o) => typeof valOf(o) === "string" || valOf(o) == null) && (styled || (typeof keyFirst === "string" && isNum(below)));
     const r0 = header ? g.r1 + 1 : g.r1;
     const rows = [];
     for (let r = r0; r <= g.r2; r++) { const cells = []; for (let c = g.c1; c <= g.c2; c++) cells.push(sh.cells[x.key(r, c)]); rows.push({ r, cells, key: valOf(sh.cells[x.key(r, col)]) }); }
@@ -220,6 +221,91 @@
     x.toast(`${x.rangeName({ ...g, r1: r0 })} 를 ${x.colName(col)} 열 ${desc ? "내림차순" : "오름차순"}으로 정렬했습니다${header ? " (첫 줄은 머리글)" : ""}`, 3500);
   }
 
+  // ---------------------------------------------------------------- 행·열 숨기기(저장)
+  function hide(axis, on) {
+    const S = N().S, x = X(), g = x.clampRange(S.sel), sh = x.sheet();
+    x.mutate(() => {
+      const keyN = axis === "r" ? "hiddenRows" : "hiddenCols", set = new Set(sh[keyN] || []);
+      const a = axis === "r" ? g.r1 : g.c1, b = axis === "r" ? g.r2 : g.c2;
+      for (let i = on ? a : Math.max(0, a - 1); i <= (on ? b : b + 1); i++) { const id = axis === "r" ? String(i + 1) : x.colName(i); if (on) set.add(id); else set.delete(id); }
+      if (set.size) sh[keyN] = [...set].sort((p, q) => (axis === "r" ? p - q : x.colIndex(p) - x.colIndex(q))); else delete sh[keyN];
+    });
+  }
+
+  // ---------------------------------------------------------------- 필터(이 화면에서만)
+  const view = () => { const S = N().S, id = X().sheet().id; return (S.view[id] = S.view[id] || {}); };
+  function filterToggle() {
+    const S = N().S, x = X(), v = view();
+    if (v.filter) { delete v.filter; v.rows = new Set(); x.renderAll(); renderFilterBtns(); x.toast("필터를 껐습니다"); return; }
+    let g = x.clampRange(S.sel);
+    if (g.r1 === g.r2) g = region(x.sheet(), S.cur.r, S.cur.c);
+    if (g.r2 <= g.r1) { x.toast("머리글과 데이터가 있는 범위에서 켭니다"); return; }
+    v.filter = { r1: g.r1, c1: g.c1, r2: g.r2, c2: g.c2, crit: {} }; v.rows = new Set();
+    x.renderAll(); renderFilterBtns(); x.toast(`필터: ${x.rangeName(g)} - 머리글의 ▼ 로 값을 고릅니다(이 화면에서만, 저장되지 않음)`, 4000);
+  }
+  function applyFilter() {
+    const x = X(), v = view(), f = v.filter, sh = x.sheet(); if (!f) return;
+    const rows = new Set();
+    for (let r = f.r1 + 1; r <= f.r2; r++) for (const [c, ex] of Object.entries(f.crit)) {
+      if (ex.size && ex.has(N().display(N().effCell(sh.cells[x.key(r, +c)])))) { rows.add(r); break; }
+    }
+    v.rows = rows; x.renderAll(); renderFilterBtns();
+    const shown = f.r2 - f.r1 - rows.size;
+    x.toast(`${f.r2 - f.r1}줄 중 ${shown}줄 보임`);
+  }
+  function renderFilterBtns() {
+    let lay = $("#fltLay"); const x = X(); if (!x) return;
+    if (!lay) { lay = document.createElement("div"); lay.id = "fltLay"; $("#gridIn").appendChild(lay); }
+    const v = view(), f = v.filter;
+    if (!f) { lay.innerHTML = ""; return; }
+    const out = [];
+    for (let c = f.c1; c <= f.c2; c++) {
+      if (x.colHidden(x.sheet(), c)) continue;
+      const R = x.rectOf({ r1: f.r1, c1: c, r2: f.r1, c2: c }), on = f.crit[c] && f.crit[c].size;
+      out.push(`<button class="flt${on ? " on" : ""}" data-fc="${c}" style="left:${R.x + R.w - 17}px;top:${R.y + R.h - 17}px" title="${on ? "필터 걸림 - " : ""}값 고르기·정렬">${on ? "⏷" : "▼"}</button>`);
+    }
+    lay.innerHTML = out.join("");
+  }
+  function filterMenu(btn, c) {
+    const x = X(), v = view(), f = v.filter, sh = x.sheet();
+    const vals = new Map();
+    for (let r = f.r1 + 1; r <= f.r2; r++) { const t = N().display(N().effCell(sh.cells[x.key(r, c)])); vals.set(t, (vals.get(t) || 0) + 1); }
+    const ex = f.crit[c] || new Set();
+    const list = [...vals.keys()].sort((a, b) => (a === "" ? 1 : b === "" ? -1 : a.localeCompare(b, "ko", { numeric: true })));
+    document.querySelectorAll(".fltPop").forEach((m) => m.remove());
+    const pop = document.createElement("div"); pop.className = "fltPop";
+    pop.innerHTML = `<button data-fs="a">오름차순 정렬</button><button data-fs="d">내림차순 정렬</button><hr>
+      <label class="all"><input type="checkbox" data-all ${ex.size ? "" : "checked"}> (모두 선택)</label>
+      <div class="vals">${list.map((t, i) => `<label><input type="checkbox" data-i="${i}" ${ex.has(t) ? "" : "checked"}> ${x.esc(t === "" ? "(빈 칸)" : t)} <small>${vals.get(t)}</small></label>`).join("")}</div>
+      <div class="acts"><button data-fa="ok" class="primary">확인</button><button data-fa="no">취소</button></div>`;
+    const R = btn.getBoundingClientRect(); Object.assign(pop.style, { left: Math.min(R.left, innerWidth - 260) + "px", top: R.bottom + 2 + "px" });
+    document.body.appendChild(pop);
+    const boxes = () => [...pop.querySelectorAll("input[data-i]")];
+    pop.querySelector("[data-all]").onchange = (e) => boxes().forEach((b) => (b.checked = e.target.checked));
+    pop.addEventListener("click", (e) => {
+      const fs = e.target.closest("[data-fs]"), fa = e.target.closest("[data-fa]");
+      if (fs) {
+        pop.remove(); const S = N().S, keep = { sel: S.sel, cur: S.cur };
+        S.sel = { r1: f.r1, c1: f.c1, r2: f.r2, c2: f.c2 }; S.cur = { r: f.r1, c: c };
+        sortRange(fs.dataset.fs === "d", true); S.sel = keep.sel; S.cur = keep.cur; applyFilter();
+      }
+      if (fa) {
+        if (fa.dataset.fa === "ok") { f.crit[c] = new Set(boxes().filter((b) => !b.checked).map((b) => list[+b.dataset.i])); applyFilter(); }
+        pop.remove();
+      }
+    });
+    setTimeout(() => document.addEventListener("mousedown", function off(e) { if (!pop.contains(e.target)) { pop.remove(); document.removeEventListener("mousedown", off); } }), 0);
+  }
+  function dataMenu(btn) {
+    const x = X(), v = view();
+    x.openMenu(btn, [
+      { label: v.filter ? "필터 끄기" : "필터 켜기 (머리글 ▼ - 이 화면에서만)", act: filterToggle },
+      "-",
+      { label: "고른 행 숨기기", act: () => hide("r", true) }, { label: "고른 열 숨기기", act: () => hide("c", true) },
+      { label: "행 숨기기 취소(고른 범위와 그 옆)", act: () => hide("r", false) }, { label: "열 숨기기 취소(고른 범위와 그 옆)", act: () => hide("c", false) },
+    ]);
+  }
+
   // ---------------------------------------------------------------- 연결
   function onKey(e) {
     if (!X() || e.isComposing) return;
@@ -242,10 +328,13 @@
     sum.onclick = () => autoSum();
     const find = document.createElement("button"); find.className = "ib"; find.title = "찾기·바꾸기 (Ctrl+F · Ctrl+H)"; find.textContent = "🔍";
     find.onclick = () => findBox(true);
-    t.append(sep, sum, sort, find);
+    const data = document.createElement("button"); data.className = "ib"; data.id = "xData"; data.title = "필터·행/열 숨기기"; data.textContent = "데이터 ▾";
+    data.onclick = () => dataMenu(data);
+    t.append(sep, sum, sort, data, find);
   }
   document.addEventListener("keydown", onKey, true);
   document.addEventListener("click", (e) => { if (e.target.closest("#sumBar")) { more = !more; onSel(); } });
+  document.addEventListener("mousedown", (e) => { const b = e.target.closest("#fltLay .flt"); if (b) { e.preventDefault(); e.stopPropagation(); filterMenu(b, +b.dataset.fc); } }, true);
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", tools); else tools();
-  window.NexaSheetX = { onSel, onChange: onSel, sortRange, fillDir, findBox, autoSum };
+  window.NexaSheetX = { onSel: () => { onSel(); renderFilterBtns(); }, onChange: () => { onSel(); renderFilterBtns(); }, sortRange, fillDir, findBox, autoSum, hide, filterToggle, applyFilter, view };
 })();

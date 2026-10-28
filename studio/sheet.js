@@ -28,6 +28,7 @@
     dirty: false, saving: false, conflict: false, undo: [], redo: [], decks: [],
     ti: 0, cur: { r: 0, c: 0 }, anchor: { r: 0, c: 0 }, sel: { r1: 0, c1: 0, r2: 0, c2: 0 },
     edit: null,  // {r, c, mode:"enter"|"edit", orig}
+    view: {},  // 탭 id → {filter, rows:Set(가린 행)} - 이 화면에서만(저장하지 않음, 엑셀 "필터 보기"처럼 사람마다)
     clip: null, reqs: [], reqTab: LS.get("sheetReqTab", "1") !== "0", reqDone: false, fu: null, reqCur: null, session: null,
   };
   const sheet = () => S.deck.sheets[S.ti];
@@ -98,8 +99,11 @@
     for (const m of merges(sh)) { rows = Math.max(rows, m.r2 + 1); cols = Math.max(cols, m.c2 + 1); }
     return { rows, cols };
   }
-  const colW = (sh, c) => (sh.cols && +sh.cols[colName(c)]) || DEF_W;
-  const rowH = (sh, r) => (sh.rows && +sh.rows[String(r + 1)]) || DEF_H;
+  // 숨긴 행·열 - 탭 hiddenRows(["5", …] 행 번호)·hiddenCols(["C", …]) 는 저장, 필터로 가린 행(S.view[탭].rows)은 이 화면만(sheetx.js)
+  const colHidden = (sh, c) => !!(sh.hiddenCols && sh.hiddenCols.includes(colName(c)));
+  const rowHidden = (sh, r) => !!((sh.hiddenRows && sh.hiddenRows.includes(String(r + 1))) || (S.view && S.view[sh.id] && S.view[sh.id].rows && S.view[sh.id].rows.has(r)));
+  const colW = (sh, c) => (colHidden(sh, c) ? 0 : (sh.cols && +sh.cols[colName(c)]) || DEF_W);
+  const rowH = (sh, r) => (rowHidden(sh, r) ? 0 : (sh.rows && +sh.rows[String(r + 1)]) || DEF_H);
   const merges = (sh) => (sh.merges || []).map(parseRange).filter(Boolean);
   const mergeAt = (sh, r, c) => merges(sh).find((m) => inRange(m, r, c)) || null;
   function expandForMerges(sh, g) {  // 범위가 병합 셀에 걸치면 병합 전체가 들어가게 넓힌다
@@ -600,21 +604,24 @@
     grid.style.fontFamily = T && T.font ? `"${String(T.font).replace(/"/g, "")}", var(--font)` : "";
     grid.style.fontSize = T && T.size ? `${+T.size}pt` : "";
     const h = [`<colgroup><col style="width:${HW}px">`];
-    for (let c = 0; c < cols; c++) h.push(`<col style="width:${colW(sh, c)}px">`);
+    for (let c = 0; c < cols; c++) if (!colHidden(sh, c)) h.push(`<col style="width:${colW(sh, c)}px">`);
     h.push(`</colgroup><thead><tr><th class="corner" title="모두 선택 (Ctrl+A)"></th>`);
-    for (let c = 0; c < cols; c++) h.push(`<th data-col="${c}">${colName(c)}<span class="rz" data-rzc="${c}"></span></th>`);
+    for (let c = 0; c < cols; c++) if (!colHidden(sh, c)) h.push(`<th data-col="${c}"${colHidden(sh, c + 1) || (c > 0 && colHidden(sh, c - 1)) ? ' class="hidN" title="옆에 숨긴 열이 있습니다 - 오른쪽 클릭 → 숨기기 취소"' : ""}>${colName(c)}<span class="rz" data-rzc="${c}"></span></th>`);
     h.push("</tr></thead><tbody>");
+    const visN = (a, b, hid) => { let n = 0; for (let i = a; i <= b; i++) if (!hid(sh, i)) n++; return n; };
     for (let r = 0; r < rows; r++) {
+      if (rowHidden(sh, r)) continue;
       const rh = rowH(sh, r);
-      h.push(`<tr style="height:${rh}px"><th data-row="${r}">${r + 1}<span class="rz" data-rzr="${r}"></span></th>`);
+      h.push(`<tr style="height:${rh}px"><th data-row="${r}"${rowHidden(sh, r + 1) || (r > 0 && rowHidden(sh, r - 1)) ? ' class="hidN"' : ""}>${r + 1}<span class="rz" data-rzr="${r}"></span></th>`);
       for (let c = 0; c < cols; c++) {
+        if (colHidden(sh, c)) continue;
         const cm = cover.get(r * 4096 + c); if (cm === "x") continue;
         const k = key(r, c), raw = sh.cells[k], o = effCell(raw);
         const txt = display(o), err = o.f && isErrStr(o.v);
         const kind = typeof o.v === "number" ? "num" : typeof o.v === "boolean" || err ? "mid" : "txt";
         const [tdS, cvS] = cellStyle(o, kind);
         let span = "", hh = rh;
-        if (cm) { span = ` rowspan="${cm.r2 - cm.r1 + 1}" colspan="${cm.c2 - cm.c1 + 1}"`; hh = G.rowY[cm.r2 + 1] - G.rowY[cm.r1]; }
+        if (cm) { span = ` rowspan="${visN(cm.r1, cm.r2, rowHidden)}" colspan="${visN(cm.c1, cm.c2, colHidden)}"`; hh = G.rowY[cm.r2 + 1] - G.rowY[cm.r1]; }
         const cls = [], extra = [];
         if (r < fz.r || c < fz.c) { cls.push("fz"); extra.push(r < fz.r ? `top:${G.rowY[r]}px` : "", c < fz.c ? `left:${G.colX[c]}px` : ""); if (r < fz.r && c < fz.c) extra.push("z-index:2"); }
         if (fz.r && r === fz.r - 1) cls.push("fzr"); if (fz.c && c === fz.c - 1) cls.push("fzc");
@@ -745,6 +752,8 @@
       else if (filled(r, c) && filled(r + dr, c + dc)) { while (inb(r + dr, c + dc) && filled(r + dr, c + dc)) { r += dr; c += dc; } }
       else { r += dr; c += dc; while (inb(r + dr, c + dc) && !filled(r, c)) { r += dr; c += dc; } }
     } else { r += dr; c += dc; }
+    while (dr && r > 0 && r < G.rows - 1 && rowHidden(sh, r)) r += dr > 0 ? 1 : -1;  // 숨긴 행·열은 건너뛴다
+    while (dc && c > 0 && c < G.cols - 1 && colHidden(sh, c)) c += dc > 0 ? 1 : -1;
     selectCell(r, c, extend);
   }
   /** Enter·Tab 이동 - 범위가 골라져 있으면 그 안에서 돈다 */
@@ -1482,7 +1491,7 @@
   // 시험용(브라우저 콘솔·스모크) - 수식 계산·표시 형식을 따로 불러 볼 수 있게
   window.NexaSheet = { S, TH, effCell, bdSides, fillVars, reload: reloadExternal, recalc, parseFormula, display, fmtNumber, parseNumberText, shiftFormula, setInput, parseTsv, fillSeries, fillTarget,
     // 엑셀 기능 모듈(sheetx.js)이 쓰는 안쪽 함수 - 격자·선택·고치기(실행 취소·저장 포함)
-    x: { G, sheet, key, parseRef, parseRange, rangeName, colName, cellObj, putCell, mutate, renderAll, renderSel, selectRange, selectCell, clampRange, eachCell, toast, openMenu,
+    x: { G, sheet, key, parseRef, colHidden, rowHidden, rectOf, colIndex, parseRange, rangeName, colName, cellObj, putCell, mutate, renderAll, renderSel, selectRange, selectCell, clampRange, eachCell, toast, openMenu,
       endEdit, startEdit, focusGrid, pasteText, scrollIntoView, growSize, clone, ED, esc } };
   init();
 })();

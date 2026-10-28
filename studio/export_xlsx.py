@@ -166,6 +166,13 @@ def export(deck, out):
                     ws.data_validation(r, opt)
                 except Exception:  # noqa: BLE001 - 잘못된 범위는 건너뛴다
                     pass
+        for c in t.get("hiddenCols") or []:  # 숨긴 열·행
+            if re.fullmatch(r"[A-Z]{1,3}", str(c)):
+                ci = col_index(c)
+                ws.set_column(ci, ci, None, None, {"hidden": True})
+        for r in t.get("hiddenRows") or []:
+            if str(r).isdigit():
+                ws.set_row(int(r) - 1, None, None, {"hidden": True})
         if t.get("grid") is False:
             ws.hide_gridlines(2)
         pr = t.get("print") or {}

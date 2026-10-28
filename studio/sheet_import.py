@@ -224,6 +224,12 @@ def import_xlsx(src, title=None):
         if cols:
             tab["cols"] = cols
         rows = {r.get("r"): round(float(r.get("ht")) / 0.75) for r in x.iter(N + "row") if r.get("ht") and r.get("customHeight") in ("1", "true")}
+        hr = [r.get("r") for r in x.iter(N + "row") if r.get("hidden") in ("1", "true")][:2000]
+        if hr:
+            tab["hiddenRows"] = hr
+        hc = [col_name(ci) for cc in x.iter(N + "col") if cc.get("hidden") in ("1", "true") for ci in range(int(cc.get("min")) - 1, min(int(cc.get("max")), MAX_COLS))]
+        if hc:
+            tab["hiddenCols"] = hc
         if rows:
             tab["rows"] = rows
         merges = [m.get("ref") for m in x.iter(N + "mergeCell")]

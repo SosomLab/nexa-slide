@@ -28,6 +28,14 @@
     {
      "name": "찾기 - 다음(Enter) 으로 칸을 옮기고 n / m 표시",
      "js": "window.NexaSheetX.findBox(false); const q=(s)=>document.querySelector(s); q('#fbFind').value='부산'; q('#fbFind').dispatchEvent(new Event('input',{bubbles:true})); q('#fbFind').dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',bubbles:true})); await new Promise(r=>setTimeout(r,80)); const nb=q('#nameBox').value, msg=q('#fbMsg').textContent; q('#fbClose').click(); return /^[AD]\\d$/.test(nb) && /\\d \\/ 2/.test(msg) ? true : JSON.stringify({nb,msg})"
+    },
+    {
+     "name": "행·열 숨기기 - 3행·C열을 숨기면 그 머리·칸이 화면에서 빠지고 저장, 숨기기 취소로 되돌림",
+     "js": "const X=window.NexaSheet.x, XX=window.NexaSheetX, sh=()=>window.NexaSheet.S.deck.sheets[0]; X.selectRange({r1:2,c1:0,r2:2,c2:0}); XX.hide('r',true); X.selectRange({r1:0,c1:2,r2:0,c2:2}); XX.hide('c',true); await new Promise(r=>setTimeout(r,100)); const gone=!document.querySelector('#grid th[data-row=\"2\"]') && !document.querySelector('#grid th[data-col=\"2\"]'); const saved=JSON.stringify([sh().hiddenRows,sh().hiddenCols]); X.selectRange({r1:2,c1:0,r2:2,c2:0}); XX.hide('r',false); X.selectRange({r1:0,c1:2,r2:0,c2:2}); XX.hide('c',false); await new Promise(r=>setTimeout(r,100)); const back=!!document.querySelector('#grid th[data-row=\"2\"]') && !sh().hiddenRows && !sh().hiddenCols; return gone && saved==='[[\"3\"],[\"C\"]]' && back ? true : JSON.stringify({gone,saved,back})"
+    },
+    {
+     "name": "필터 - 머리글 ▼ 에서 '부산' 빼기 → 그 행만 가림(저장 안 함), 끄면 다시 보임",
+     "js": "const X=window.NexaSheet.x, XX=window.NexaSheetX, S=window.NexaSheet.S; X.selectCell(0,0); XX.filterToggle(); await new Promise(r=>setTimeout(r,80)); const b=document.querySelector('#fltLay .flt[data-fc=\"0\"]'); if(!b) return 'no button'; b.dispatchEvent(new MouseEvent('mousedown',{bubbles:true})); await new Promise(r=>setTimeout(r,60)); const pop=document.querySelector('.fltPop'); const lab=[...pop.querySelectorAll('label')].find(l=>l.textContent.includes('부산')); lab.querySelector('input').checked=false; pop.querySelector('[data-fa=\"ok\"]').click(); await new Promise(r=>setTimeout(r,80)); const c=S.deck.sheets[0].cells, rowOf=Object.keys(c).find(k=>/^A\\d+$/.test(k) && (typeof c[k]==='object'?c[k].v:c[k])==='부산'), r=+rowOf.slice(1)-1; const hidden=!document.querySelector(`#grid th[data-row=\"${r}\"]`), notSaved=!S.deck.sheets[0].hiddenRows, on=document.querySelector('#fltLay .flt.on'); XX.filterToggle(); await new Promise(r2=>setTimeout(r2,80)); const back=!!document.querySelector(`#grid th[data-row=\"${r}\"]`) && !document.querySelector('#fltLay .flt'); return hidden && notSaved && on && back ? true : JSON.stringify({hidden,notSaved,on:!!on,back})"
     }
    ]
   }

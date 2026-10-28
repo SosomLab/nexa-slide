@@ -139,6 +139,19 @@
   #findBox .opt { gap: 10px; color: var(--ink2); }
   #findBox .opt label { display: inline-flex; gap: 3px; align-items: center; }
   #fbMsg { margin-left: auto; color: var(--ink); }
+  #grid th.hidN { box-shadow: inset 0 0 0 1px var(--sel); }  /* 옆에 숨긴 행·열 */
+  #fltLay .flt { position: absolute; z-index: 3; width: 16px; height: 16px; padding: 0; border: 1px solid var(--line); border-radius: 3px; background: #fff; font-size: 9px; line-height: 14px; cursor: pointer; color: var(--ink2); }
+  #fltLay .flt.on { background: var(--sel); color: #fff; border-color: var(--sel); }
+  .fltPop { position: fixed; z-index: 80; width: 240px; background: var(--card); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 4px 16px rgba(0,0,0,.16); padding: 6px; font-size: 12.5px; display: flex; flex-direction: column; gap: 2px; }
+  .fltPop > button { text-align: left; border: 0; background: none; padding: 4px 6px; border-radius: 6px; cursor: pointer; font: inherit; }
+  .fltPop > button:hover { background: var(--tone, #F2EFEF); }
+  .fltPop hr { border: 0; border-top: 1px solid var(--line); margin: 4px 0; width: 100%; }
+  .fltPop .vals { max-height: 220px; overflow-y: auto; display: flex; flex-direction: column; }
+  .fltPop label { display: flex; gap: 6px; align-items: center; padding: 2px 4px; }
+  .fltPop label small { margin-left: auto; color: var(--ink2); }
+  .fltPop .acts { display: flex; gap: 6px; justify-content: flex-end; margin-top: 4px; }
+  .fltPop .acts button { border: 0; border-radius: 999px; padding: 4px 12px; cursor: pointer; font: inherit; background: var(--tone, #F2EFEF); }
+  .fltPop .acts button.primary { background: var(--p, #A91F24); color: #fff; }
   #tabs { align-items: center; gap: 2px; padding: 3px 8px; background: var(--card); border-top: 1px solid var(--line); min-height: 34px; overflow-x: auto; }
   #tabs button.t { border: 0; background: none; border-radius: 0 0 8px 8px; padding: 4px 14px; white-space: nowrap; color: var(--ink2); }
   #tabs button.t:hover { background: var(--tone); }
