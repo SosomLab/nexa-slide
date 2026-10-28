@@ -13,6 +13,8 @@
     기준본은 서버가 기억한 그 판, 없으면 사본과 함께 만든 원본(draft-<덱>.orig.json)을 보낸다. 병합되면 사본을 병합 결과로 바꿔 이어 고칠 수 있다.
     --no-merge 면 예전처럼 409(종료 코드 2)로 멈춘다. --force 는 덮어쓴다(사람의 변경을 지운다 - 꼭 필요할 때만).
   - 서버가 없으면 같은 병합을 여기서 하고, 백업한 뒤 원자적으로 쓰고 원장에 claude(정확) 줄을 남긴다(서버 기동 때 재대조와도 맞는다).
+  - **제안(--propose, 동시 편집 3단계 첫 조각)**: 장 재구성처럼 큰 변경·요청 글에 "제안"이 있을 때 - 파일에 쓰지 않고 제안으로 남긴다(서버 필요).
+    사람이 요청 카드에서 장(시트는 탭)마다 골라 받는다. reply 에 "제안을 남겼습니다(n곳)" 라고 적고 status 는 done.
 종료 코드: 0 저장됨(병합 포함) · 2 충돌(409 - 병합할 수 없거나 --no-merge) · 1 그 밖의 오류
 """
 import argparse
@@ -151,6 +153,27 @@ def via_server(url, deck_id, deck, a):
     return 0
 
 
+def propose(url, deck_id, deck, a):
+    """제안으로 남기기 - POST /api/proposals/<덱> {action: create, request, deck, base, baseDoc}. 기준본은 사본을 만든 때의 원본."""
+    bp, base = draft_base(deck_id, a.src)
+    body = {"action": "create", "request": a.request, "deck": deck, "base": base, "baseDoc": draft_orig(deck_id, bp)}
+    req = urllib.request.Request(f"{url}api/proposals/{deck_id}", data=json.dumps(body, ensure_ascii=False).encode("utf-8"), method="POST",
+                                 headers={"Content-Type": "application/json", "X-Nexa-Tab": "save_deck"})
+    try:
+        with urllib.request.urlopen(req, timeout=30) as r:
+            res = json.loads(r.read().decode("utf-8"))
+    except urllib.error.HTTPError as e:
+        print(f"제안 실패 {e.code}: {e.read().decode('utf-8', 'replace')[:200]}", file=sys.stderr)
+        return 1
+    its = res.get("items") or []
+    if not its:
+        print("제안할 변경이 없다(사본이 기준본과 같다)")
+        return 0
+    print(f"제안을 남겼습니다(파일은 그대로): {len(its)}곳 - " + ", ".join(f"{it['kind']} {it['title']}" + (f"({it['detail']})" if it.get("detail") else "") for it in its[:10]) + (" …" if len(its) > 10 else ""))
+    print(f'reply 에 "제안을 남겼습니다({len(its)}곳) - 요청 카드에서 골라 받으세요" 라고 쓰고 status 를 done 으로.')
+    return 0
+
+
 def direct(deck_id, deck, a):
     p = DECKS / f"{deck_id}.json"
     bp, base = draft_base(deck_id, a.src)
@@ -203,6 +226,7 @@ def main():
     ap.add_argument("--action", default="save", choices=("save", "restore"))
     ap.add_argument("--force", action="store_true", help="편집기가 그 사이 저장했어도 덮어쓴다(사람의 변경을 지운다)")
     ap.add_argument("--no-merge", action="store_true", help="병합하지 않는다 - 그 사이 바뀌었으면 409(종료 코드 2)")
+    ap.add_argument("--propose", action="store_true", help="파일에 쓰지 않고 제안으로 남긴다 - 사람이 장(탭)마다 골라 받는다(서버·--request 필요)")
     a = ap.parse_args()
     if not safe_id(a.deck):
         sys.exit("잘못된 덱 id")
@@ -217,6 +241,10 @@ def main():
         except Exception:  # noqa: BLE001
             a.label = ""
     run = running_server()
+    if a.propose:
+        if not run or not a.request:
+            sys.exit("--propose 는 서버가 떠 있고 --request 가 있어야 한다")
+        return propose(run["url"], a.deck, deck, a)
     if run:
         return via_server(run["url"], a.deck, deck, a)
     return direct(a.deck, deck, a)

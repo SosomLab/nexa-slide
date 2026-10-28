@@ -1,0 +1,27 @@
+{
+ "base": "http://127.0.0.1:5667",
+ "pages": [
+  {
+   "url": "/studio/#grptest/1",
+   "wait": 2500,
+   "steps": [
+    {
+     "name": "제안 만들기(요청 + POST create) → 요청 카드에 'AI 제안 2곳' 과 장마다 체크",
+     "js": "document.querySelector('[data-tab=\"reqs\"]').click(); await new Promise(r=>setTimeout(r,300));\n      let l=await (await fetch('/api/requests/grptest',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'add',status:'open',slide:'s1',text:'제안 시험'})})).json(); const q=l[l.length-1]; window.__rid=q.id;\n      const d=(await (await fetch('/api/deck/grptest',{cache:'no-store'})).json()); d.slides[0].elements.find(x=>x.id==='e01').text='제안 글'; d.slides.push({id:'sP',elements:[{id:'p1',type:'text',x:40,y:40,w:300,h:60,text:'제안 장',size:20}]});\n      const c=await (await fetch('/api/proposals/grptest',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'create',request:q.id,deck:d})})).json();\n      await fetch('/api/requests/grptest',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'update',id:q.id,status:'done',reply:'제안을 남겼습니다(2곳)'})});\n      for (let i=0;i<40 && !(document.querySelectorAll('#tab-reqs .prop [data-pit]').length===2);i++) await new Promise(r=>setTimeout(r,200)); const t=document.querySelector('#tab-reqs .prop')?.textContent||'';\n      return c.count===2 && t.includes('AI 제안 2곳') ? true : JSON.stringify({c, t});"
+    },
+    {
+     "name": "추가 장(sP)을 빼고 [고른 것 받기] - s1 만 반영, 제안은 1곳 남음",
+     "js": "document.querySelector('#tab-reqs .prop [data-pit=\"s:sP\"]').checked=false; document.querySelector('#tab-reqs .prop [data-pacc]').click();\n      for (let i=0;i<40 && !(document.querySelectorAll('#tab-reqs .prop [data-pit]').length===1);i++) await new Promise(r=>setTimeout(r,200)); await new Promise(r=>setTimeout(r,800)); const d=(await (await fetch('/api/deck/grptest',{cache:'no-store'})).json());\n      return d.slides[0].elements.find(x=>x.id==='e01').text==='제안 글' && !d.slides.some(s=>s.id==='sP') && document.querySelectorAll('#tab-reqs .prop [data-pit]').length===1 ? true : JSON.stringify({ids:d.slides.map(s=>s.id), t:d.slides[0].elements.find(x=>x.id==='e01').text});"
+    },
+    {
+     "name": "편집기가 받은 내용으로 다시 읽고, 변경 탭에 'AI 제안 받기'",
+     "js": "for (let i=0;i<40 && !([...document.querySelectorAll('#host .rs-el .rs-p, #host .rs-el')].some(x=>x.textContent.includes('제안 글')));i++) await new Promise(r=>setTimeout(r,200)); const seen=[...document.querySelectorAll('#host .rs-el')].some(x=>x.textContent.includes('제안 글'));\n      document.querySelector('[data-tab=\"chg\"]').click(); for (let i=0;i<40 && !(document.querySelector('#tab-chg') && document.querySelector('#tab-chg').textContent.includes('AI 제안 받기'));i++) await new Promise(r=>setTimeout(r,200)); const chg=document.querySelector('#tab-chg').textContent.includes('AI 제안 받기');\n      return seen && chg ? true : JSON.stringify({seen, chg});"
+    },
+    {
+     "name": "[버리기] - 남은 제안이 사라지고 문서는 그대로",
+     "js": "document.querySelector('[data-tab=\"reqs\"]').click(); await new Promise(r=>setTimeout(r,300)); window.confirm=()=>true; document.querySelector('#tab-reqs .prop [data-pdis]').click(); for (let i=0;i<40 && !(!document.querySelector('#tab-reqs .prop'));i++) await new Promise(r=>setTimeout(r,200)); const d=(await (await fetch('/api/deck/grptest',{cache:'no-store'})).json()); const p=await (await fetch('/api/proposals/grptest')).json();\n      { const l=await (await fetch('/api/requests/grptest')).json(); for (const q of l.filter(x=>x.text==='제안 시험')) await fetch('/api/requests/grptest',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'delete',id:q.id})}); }\n      return !document.querySelector('#tab-reqs .prop') && p.length===0 && !d.slides.some(s=>s.id==='sP') ? true : JSON.stringify({p, ids:d.slides.map(s=>s.id)});"
+    }
+   ]
+  }
+ ]
+}

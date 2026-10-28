@@ -309,7 +309,7 @@
   }
   function groupHtml(g) {
     const on = isOn(g), mine = isMine(g);
-    const tag = g.action === "restore" ? " · 되돌리기" : g.action === "startup" ? " · 서버 꺼진 사이" : g.action === "build" ? "" : "";
+    const tag = g.action === "accept" ? " · AI 제안 받기" : g.action === "restore" ? " · 되돌리기" : g.action === "startup" ? " · 서버 꺼진 사이" : g.action === "build" ? "" : "";
     return `<div class="chg-rec${on ? " on" : ""}"><div class="chg-h"><b title="${esc(g.ts || "")}${g.count > 1 ? ` ~ ${esc(g.ts_end || "")}` : ""}">${esc(dayText(g.ts))} ${esc(hhmm(g.ts))}</b>${orgBadge(g)}<span class="hint" style="margin:0">${g.actor && g.actor.label ? esc(g.actor.label) + " · " : ""}${esc(chgSummary(g.summary))}${g.fields && g.fields.length ? ` · 덱 ${esc(g.fields.join("·"))}` : ""}${g.count > 1 ? ` · 저장 ${g.count}회${g.approx ? "(요약)" : ""}` : ""}${tag}${g.merge ? ` · <span class="chg-mtag" title="그 사이 바뀐 내용과 합쳐 저장됨(동시 편집)">병합${g.merge.conflicts.length ? ` · 충돌 ${g.merge.conflicts.length}` : ""}</span>` : ""}</span>
       ${g.backupExists ? `<button class="chip sm" data-chg-restore="${esc(g.backup)}" data-chg-at="${esc((g.ts || "").replace("T", " ").slice(0, 16))}" title="이 변경 직전 상태로 되돌린다(지금 상태도 기록에 남는다)">직전으로</button>` : `<button class="chip sm" disabled title="백업이 50개 상한으로 지워져 되돌릴 수 없습니다">직전으로</button>`}
       <button class="chip sm chg-tg" data-chg-tg="${g.seq}" title="이 묶음의 변경을 썸네일 배지·캔버스 파란 점선으로 ${on ? "그만 표시" : "표시"}${mine ? "(내 편집은 기본으로 표시하지 않는다)" : ""}">${on ? "숨기기" : "표시"}</button></div>` +
@@ -732,6 +732,7 @@
     api, toast, esc, base: BASE, deckId: () => S.id, session: SESS,
     getReqs: () => S.reqs, setReqs: (l) => { S.reqs = l; },
     onChange: () => { renderReqs(); if (S.deck) { renderThumbs(); renderMarks(); } },
+    onDeckChanged: () => { pollAt = 0; poll(); },  // AI 제안을 받아 덱이 바뀜 - 바로 확인
     target: {  // 슬라이드 대상 - 장 · 요소(들) · 영역
       scope: "슬라이드", key: (r) => r.slide, current: () => (slide() || {}).id, num: (r) => reqIdx(r.slide),
       label: (r) => `슬라이드 ${reqIdx(r.slide) || "?"}${r.elements && r.elements.length > 1 ? ` · ${r.elements[0]} 외 ${r.elements.length - 1}` : r.element ? " · " + r.element : ""}${r.region ? " · 영역" : ""}`,

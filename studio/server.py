@@ -18,6 +18,10 @@ API
   GET  /api/version/<id>             {"deck": ver, "requests": ver}
   GET  /api/stream/<id>?tab=<탭>      실시간(동시 편집 2단계, collab.py) - SSE. event: version(= /api/version 내용, 바뀔 때만) · presence({list}) · ping(10초).
                                      파일 버전을 0.5초마다 보므로 편집기 저장·AI 의 save_deck·요청 파일 Edit 가 곧바로 간다. 끊기면 그 탭의 presence 를 지운다
+  GET  /api/proposals/<id>            AI 제안 목록(동시 편집 3단계 첫 조각, proposals.py) [{request, created, items: [{id, kind, title, detail}]}]
+  POST /api/proposals/<id>            {action: create, request, deck, base?, baseDoc?} - save_deck --propose 가 남긴다(파일은 그대로)
+                                     {action: accept, request, items?} - 고른 단위(없으면 전부)를 기준본에 얹어 지금 파일과 병합 저장(원장 action accept)
+                                     {action: discard, request, items?} - 버리기
   GET  /api/reqdiff/<id>?request=<요청> 그 요청으로 AI 가 저장한 변경 - 시트면 바뀐 셀 {cells: [{tab, name, key, before, after}], count}.
                                      원장에서 그 요청의 첫 저장 직전 백업 ↔ 마지막 저장 직후(다음 원장 줄의 직전 백업 또는 지금 파일)를 비교한다
   POST /api/presence/<id>            {tab, where, editing, user?} → 함께 보는 사람(메모리, 15초) · {leave: true} 로 뺀다. 응답 {color, list}
@@ -105,6 +109,7 @@ import auth  # noqa: E402
 import collab  # noqa: E402
 import deckdiff  # noqa: E402
 import deckmerge  # noqa: E402
+import proposals  # noqa: E402
 import ledger  # noqa: E402
 import hub  # noqa: E402
 import share  # noqa: E402
@@ -1156,6 +1161,91 @@ class H(BaseHTTPRequestHandler):
             pass
         finally:
             collab.PRESENCE.leave(i, tab)
+
+    # ---------- AI 제안(동시 편집 3단계 첫 조각, docs/collab.md) - 큰 변경을 파일에 바로 쓰지 않고 남겨 두고, 사람이 장·탭마다 골라 받는다 ----------
+    def _save_doc(self, i, deck, origin, action, actor, evidence=None):
+        """서버가 직접 만든 문서를 저장(WRITE_LOCK 안에서) - PUT 과 같은 백업·원장·기억. 원장 seq"""
+        p = deck_path(i)
+        track(i)
+        try:
+            detect(i, immediate=True)
+        except Exception as e:  # noqa: BLE001
+            sys.stderr.write(f"ledger detect {i}: {e}\n")
+        cur = ver(p)
+        deck["id"] = i
+        deck["updated"] = dt.datetime.now().isoformat(timespec="seconds")
+        old = LAST.get(i)
+        before = {"ver": cur, "size": old["sig"][1] if old else 0, "hash": old["hash"] if old else None, "backup": backup(i)}
+        text = dumps(deck)
+        atomic_write(p, text)
+        data = text.encode("utf-8")
+        seq = None
+        try:
+            seq = ledger.record(i, old["obj"] if old else None, before, deck, _meta(p, data), origin, "exact", action, actor, evidence)
+        except Exception as e:  # noqa: BLE001
+            sys.stderr.write(f"ledger {action} {i}: {e}\n")
+        _remember(i, p, data, deck)
+        return seq
+
+    def api_get_proposals(self, i, q):
+        d = DECKS / ".history" / i / "proposals"
+        out = []
+        for f in sorted(d.glob("*.json")) if d.is_dir() else []:
+            x = proposals.load(f)
+            if x and x.get("items"):
+                out.append({"request": x.get("request"), "created": x.get("created"), "items": x["items"]})
+        self.send_json(out)
+
+    def api_post_proposals(self, i, q):
+        b = self.body_json()
+        if not isinstance(b, dict):
+            return self.err(400, "본문 없음")
+        act, rid = b.get("action"), str(b.get("request") or "")
+        if not rid or not safe_id(rid.replace(".", "_")) or not deck_path(i).exists():
+            return self.err(400, "request·덱 필요")
+        f = proposals.path(DECKS, i, rid)
+        actor = {"label": "", "tab": self.headers.get("X-Nexa-Tab") or None, "request": rid, "note": None}
+        if self.user:
+            actor["user"] = self.user
+        if act == "create":
+            deck = b.get("deck")
+            if not isinstance(deck, dict):
+                return self.err(400, "deck 필요")
+            base_doc = b.get("baseDoc") if isinstance(b.get("baseDoc"), dict) else _base_doc(i, str(b.get("base") or "")) or _load(deck_path(i))[1]
+            its = proposals.items(base_doc, deck)
+            if its:
+                f.parent.mkdir(parents=True, exist_ok=True)
+                atomic_write(f, json.dumps({"request": rid, "created": dt.datetime.now().isoformat(timespec="seconds"), "base": b.get("base"),
+                                            "baseDoc": base_doc, "deck": deck, "items": its}, ensure_ascii=False))
+            return self.send_json({"ok": True, "count": len(its), "items": its})
+        x = proposals.load(f)
+        if not x:
+            return self.err(404, "제안 없음")
+        all_ids = [it["id"] for it in x.get("items") or []]
+        chosen = [k for k in (b.get("items") or all_ids) if k in all_ids]
+        if act == "accept":
+            if not chosen:
+                return self.err(400, "받을 항목 없음")
+            ours = proposals.apply(x["baseDoc"], x["deck"], chosen)
+            with WRITE_LOCK:
+                cur = _load(deck_path(i))[1]
+                if cur is None:
+                    return self.err(409, "덱을 읽는 중 - 다시 시도")
+                merged, conflicts = deckmerge.merge3(x["baseDoc"], ours, cur, prefer="ours")  # 사람이 고른 것이니 고른 단위는 제안 값이 이긴다
+                names = [next((it["title"] for it in x["items"] if it["id"] == k), k) for k in chosen]
+                actor["note"] = f"AI 제안 받기 {len(chosen)}곳: " + ", ".join(names)[:150]
+                seq = self._save_doc(i, merged, "editor", "accept", actor, {"proposal": {"request": rid, "items": chosen}, "merge": {"conflicts": conflicts[:50]}} if conflicts else {"proposal": {"request": rid, "items": chosen}})
+            x["items"] = [it for it in x["items"] if it["id"] not in chosen]
+        elif act == "discard":
+            x["items"] = [it for it in x["items"] if it["id"] not in chosen]
+            seq, conflicts = None, []
+        else:
+            return self.err(400, "action = create | accept | discard")
+        if x["items"]:
+            atomic_write(f, json.dumps(x, ensure_ascii=False))
+        else:
+            f.unlink(missing_ok=True)
+        self.send_json({"ok": True, "seq": seq, "version": ver(deck_path(i)), "conflicts": conflicts, "left": len(x["items"])})
 
     def api_get_reqdiff(self, i, q):
         """요청 하나로 AI 가 바꾼 것 - 요청 카드의 "바뀐 셀 n개 · 보기 · 되돌리기". 백업이 없으면 found 는 true, cells 는 null."""
