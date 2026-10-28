@@ -85,7 +85,11 @@ def tokenize(src):
             out.append(("str", g[1][1:-1].replace('""', '"')))
         elif g[3]:
             sheet = g[2][:-1].strip("'").replace("''", "'") if g[2] else None
-            out.append(("ref", g[3], sheet))
+            if src[i:i + 1] == "#" and ":" not in g[3]:  # 넘친 범위 참조 H2# (엑셀 파일에는 ANCHORARRAY(H2))
+                i += 1
+                out.append(("ref", g[3], sheet, "#"))
+            else:
+                out.append(("ref", g[3], sheet))
         elif g[4]:
             out.append(("fn", re.sub(r"^(?:_XL(?:FN|WS)\.)+", "", g[4].upper())))  # 파일에 저장된 새 함수 접두사(_xlfn.TEXTJOIN)
         elif g[5]:
@@ -150,8 +154,11 @@ def parse(src):
         if k == "err":
             return ("err", t[1])
         if k == "name":
-            return ("err", "#NAME?")
+            return ("name", t[1].upper())  # LET 이름 - 밖에서는 #NAME?
         if k == "ref":
+            if len(t) > 3:
+                a = parse_ref(t[1])
+                return ("spill", t[2], a[0], a[1])
             ends = t[1].split(":")
             if re.fullmatch(r"\$?[A-Za-z]{1,3}", ends[0]):  # 열 전체 A:A - 끝 행은 계산할 때 그 탭의 데이터 끝으로
                 return ("range", t[2], 0, col_index(ends[0].lstrip("$")), -1, col_index(ends[-1].lstrip("$")))
@@ -332,7 +339,8 @@ class Calc:
         self.memo, self.busy, self.ast = {}, set(), {}
         self.at = []  # 계산 중인 셀 (행, 열) - ROW()·COLUMN() 인수 없음
         self.dims = {}
-        self.spill, self.anchors, self.dyn = {}, {}, {}  # 넘친 칸 (탭 id, 행, 열) → (값, 기준 칸) · 탭별 동적 배열 수식 칸 · 수식 → 동적인가
+        self.spill, self.anchors, self.dyn = {}, {}, {}
+        self.extent, self.scope = {}, []  # 동적 배열 기준 칸 → 넘친 크기 (행 수, 열 수) · LET 이름 묶음  # 넘친 칸 (탭 id, 행, 열) → (값, 기준 칸) · 탭별 동적 배열 수식 칸 · 수식 → 동적인가
 
     def is_dyn(self, raw):
         if raw.get("da"):
@@ -373,6 +381,7 @@ class Calc:
                 if i or j:
                     x = v.rows[i][j]
                     self.spill[(sid, ar + i, ac + j)] = (0 if x is None else x, k)
+        self.extent[(sid, k)] = (h, w)
         return v.rows[0][0]
 
     def sheet(self, name, cur):
@@ -408,8 +417,11 @@ class Calc:
                 except FErr as e:
                     self.ast[f] = ("err", e.code)
             v = self.ev(self.ast[f], sh)
-            if isinstance(v, Rng) and len(v.vals) > 1 and self.is_dyn(sh["cells"][k]):
-                v = self.spill_out(sh, k, v)
+            if self.is_dyn(sh["cells"][k]):
+                if isinstance(v, Rng) and len(v.vals) > 1:
+                    v = self.spill_out(sh, k, v)
+                if not isinstance(v, FErr) and (sh.get("id"), k) not in self.extent:
+                    self.extent[(sh.get("id"), k)] = (1, 1)
             if isinstance(v, Rng):
                 v = v.vals[0] if len(v.vals) == 1 else FErr("#VALUE!")
             if v is None:
@@ -468,6 +480,26 @@ class Calc:
             return v
         if k == "range":
             return self.rng(n, sh)
+        if k == "spill":  # H2# - 그 칸의 동적 배열이 넘친 범위 전체
+            s = self.sheet(n[1], sh)
+            if s is None:
+                raise FErr("#REF!")
+            key = f"{col_name(n[3])}{n[2] + 1}"
+            raw = (s.get("cells") or {}).get(key)
+            if isinstance(raw, dict) and raw.get("f"):
+                self.cell(s, key)
+            h, w = self.extent.get((s.get("id"), key), (0, 0))
+            if not h:
+                raise FErr("#REF!")
+            return self.rng(("range", n[1], n[2], n[3], n[2] + h - 1, n[3] + w - 1), sh)
+        if k == "name":
+            for sc in reversed(self.scope):
+                if n[1] in sc:
+                    v = sc[n[1]]
+                    if isinstance(v, FErr):
+                        raise v
+                    return v
+            raise FErr("#NAME?")
         if k == "neg":
             x = self.ev(n[1], sh)
             if isinstance(x, Rng) and len(x.vals) > 1:  # 배열 - 칸마다
@@ -1238,6 +1270,90 @@ def recalc(doc):
     return changed + sync_spill(doc, c)
 
 
+def _let(c, A, sh):
+    """LET(이름1, 값1, …, 계산) - 이름은 뒤의 값·계산에서 쓴다."""
+    if len(A) < 3 or len(A) % 2 == 0:
+        raise FErr("#VALUE!")
+    c.scope.append({})
+    try:
+        for i in range(0, len(A) - 1, 2):
+            if A[i][0] != "name":
+                raise FErr("#NAME?")
+            c.scope[-1][A[i][1]] = _cellv(lambda i=i: c.ev(A[i + 1], sh))
+        return c.ev(A[-1], sh)
+    finally:
+        c.scope.pop()
+
+
+def _datedif(c, A, sh):
+    a, b, u = date_of(c.one(A, 0, sh)), date_of(c.one(A, 1, sh)), to_str(c.one(A, 2, sh)).upper()
+    if a > b:
+        raise FErr("#NUM!")
+    months = (b.year - a.year) * 12 + b.month - a.month - (1 if b.day < a.day else 0)
+    if u == "Y":
+        return months // 12
+    if u == "M":
+        return months
+    if u == "D":
+        return (b - a).days
+    if u == "YM":
+        return months % 12
+    if u == "MD":
+        return (b - add_months(a, months)).days
+    if u == "YD":
+        k = (b.year - a.year) - (1 if (b.month, b.day) < (a.month, a.day) else 0)
+        return (b - add_months(a, 12 * k)).days
+    raise FErr("#NUM!")
+
+
+def _holidays(c, A, i, sh):
+    if i >= len(A) or A[i] == ("lit", None):
+        return set()
+    return {int(to_num(v)) for v in c.area(A[i], sh).vals if v not in (None, "")}
+
+
+def _networkdays(c, A, sh):
+    a, b = int(to_num(c.one(A, 0, sh))), int(to_num(c.one(A, 1, sh)))
+    hol, sign = _holidays(c, A, 2, sh), 1
+    if a > b:
+        a, b, sign = b, a, -1
+    return sign * sum(1 for d in range(a, b + 1) if date_of(d).weekday() < 5 and d not in hol)
+
+
+def _workday(c, A, sh):
+    d, n = int(to_num(c.one(A, 0, sh))), int(to_num(c.one(A, 1, sh)))
+    hol, step = _holidays(c, A, 2, sh), 1 if n >= 0 else -1
+    while n:
+        d += step
+        if date_of(d).weekday() < 5 and d not in hol:
+            n -= step
+    return d
+
+
+def _xmatch(c, A, sh):
+    look, vals = c.one(A, 0, sh), c.area(A[1], sh).vals
+    mode, order = int(to_num(_opt(c, A, 2, sh, 0))), int(to_num(_opt(c, A, 3, sh, 1)))
+    idx = list(range(len(vals)))[::-1 if order < 0 else 1]
+    if mode == 2:
+        ok = criteria(look)
+        hit = next((i for i in idx if ok(vals[i])), None)
+    else:
+        hit = next((i for i in idx if vals[i] is not None and rank(vals[i]) == rank(look) and compare(vals[i], look, "=")), None)
+        if hit is None and mode in (1, -1):
+            cand = [i for i in idx if vals[i] is not None and rank(vals[i]) == rank(look) and compare(vals[i], look, ">" if mode == 1 else "<")]
+            if cand:
+                hit = cand[0]
+                for i in cand:
+                    if compare(vals[i], vals[hit], "<" if mode == 1 else ">"):
+                        hit = i
+    if hit is None:
+        raise FErr("#N/A")
+    return hit + 1
+
+
+FUNCS.update({"LET": _let, "DATEDIF": _datedif, "NETWORKDAYS": _networkdays, "WORKDAY": _workday, "XMATCH": _xmatch})
+
+
 def dynamic(raw):
     """동적 배열 수식인가 - 가져온 동적 배열(da) 이거나 FILTER·SORT·UNIQUE·SEQUENCE … 를 쓴 수식."""
     if not isinstance(raw, dict) or not raw.get("f"):
@@ -1246,7 +1362,7 @@ def dynamic(raw):
         return True
     f = raw["f"]
     try:
-        return any(t[0] == "fn" and t[1] in DYN for t in tokenize(f[1:] if f.startswith("=") else f))
+        return any((t[0] == "fn" and t[1] in DYN) or (t[0] == "ref" and len(t) > 3) for t in tokenize(f[1:] if f.startswith("=") else f))
     except FErr:
         return False
 

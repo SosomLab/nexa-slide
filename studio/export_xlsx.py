@@ -16,6 +16,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from common import OUT, load_deck, safe_id  # noqa: E402
+import sheet_calc  # noqa: E402
 import sheet_theme  # noqa: E402
 
 import xlsxwriter  # noqa: E402  (python-pptx 의존성)
@@ -104,16 +105,41 @@ def cond_option(wb, cd):
     return None
 
 
+def xlpm(form):
+    """LET 의 이름 → 엑셀 파일 형식 _xlpm.이름 (따옴표 안 글은 그대로)."""
+    if "LET(" not in form.upper():
+        return form
+    names = set()
+
+    def walk(n):
+        if isinstance(n, tuple):
+            if n[:2] == ("fn", "LET"):
+                names.update(a[1] for a in n[2][:-1:2] if a[0] == "name")
+            for x in n[1:]:
+                walk(x)
+        elif isinstance(n, list):
+            for x in n:
+                walk(x)
+    try:
+        walk(sheet_calc.parse(form.lstrip("=")))
+    except sheet_calc.FErr:
+        return form
+    if not names:
+        return form
+    rx = re.compile(r"(?<![\w.$!'])(" + "|".join(map(re.escape, sorted(names, key=len, reverse=True))) + r")(?![\w(!])", re.I)
+    return "".join(part if part.startswith('"') else rx.sub(r"_xlpm.\1", part) for part in re.split(r'("(?:[^"]|"")*")', form))
+
+
 def export(deck, out):
     if deck.get("kind") != "sheet":
         raise ValueError("시트 문서가 아니다(kind sheet) - 슬라이드 덱은 export_pptx.py")
     import copy
-    import sheet_calc
     deck = copy.deepcopy(deck)
     sheet_calc.recalc(deck)  # 수식 계산값 캐시 - AI 세션이 f 만 쓴 칸도 뷰어·미리보기에서 0 이 아니라 값이 보이게(엑셀은 열 때 다시 계산)
     out.parent.mkdir(parents=True, exist_ok=True)
     theme = sheet_theme.load(deck["theme"]) if deck.get("theme") else None
-    opts = {"strings_to_numbers": False, "strings_to_formulas": False, "strings_to_urls": False}
+    opts = {"strings_to_numbers": False, "strings_to_formulas": False, "strings_to_urls": False,
+            "use_future_functions": True}  # 새 함수(TEXTJOIN·XMATCH·LET …)에 _xlfn. 을 붙여야 엑셀이 #NAME? 없이 연다(가져올 때 뗀다)
     if theme:
         opts["default_format_properties"] = {"font_name": theme.get("font") or "맑은 고딕", "font_size": float(theme.get("size") or 10)}
     vba = None
@@ -177,6 +203,8 @@ def export(deck, out):
             if d.get("f"):
                 form = str(d["f"])
                 form = form if form.startswith("=") else "=" + form
+                form = xlpm(form)  # LET 이름 → _xlpm.이름
+                form = re.sub(r"((?:'[^']+'|[^\W\d][\w.]*)!)?(\$?[A-Z]{1,3}\$?\d+)#", r"ANCHORARRAY(\1\2)", form)  # 넘친 범위 참조 H2# → 엑셀 파일 형식
                 if sheet_calc.dynamic(c):  # 동적 배열 - 엑셀이 넘침으로 계산하게(넘친 칸 값은 아래에서 그대로 쓴다)
                     e = spill_end.get(ref, (r, col))
                     ws.write_dynamic_array_formula(r, col, max(e[0], r), max(e[1], col), form, f, v if v is not None else 0)

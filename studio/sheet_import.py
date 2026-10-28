@@ -209,6 +209,7 @@ def import_xlsx(src, title=None):
                     o["f"] = "=" + f.text
                 if o.get("f"):
                     o["f"] = re.sub(r"_xl(?:fn|ws|pm)\.", "", o["f"])  # 새 함수 접두사(_xlfn.TEXTJOIN) - 화면·계산기는 맨 이름을 쓴다(내보낼 때 XlsxWriter 가 다시 붙인다)
+                    o["f"] = re.sub(r"ANCHORARRAY\(((?:'[^']+'|[^\W\d][\w.]*)!)?(\$?[A-Z]{1,3}\$?\d+)\)", r"\1\2#", o["f"])  # 넘친 범위 참조 - 화면에서 쓰는 H2#
                 if f.get("t") == "array":
                     if c.get("cm") or ":" in str(f.get("ref") or ""):  # 동적 배열(넘침) · 여러 칸 배열 수식 - 넘친 칸은 아래에서 sp 로
                         o["da"] = True

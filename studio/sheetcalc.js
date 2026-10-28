@@ -37,7 +37,11 @@
       i = TOK.lastIndex;
       if (m[1]) continue;
       if (m[2]) out.push(["str", m[2].slice(1, -1).replace(/""/g, '"')]);
-      else if (m[4]) out.push(["ref", m[4], m[3] ? m[3].slice(0, -1).replace(/^'|'$/g, "").replace(/''/g, "'") : null]);
+      else if (m[4]) {
+        const t = ["ref", m[4], m[3] ? m[3].slice(0, -1).replace(/^'|'$/g, "").replace(/''/g, "'") : null];
+        if (src[i] === "#" && !m[4].includes(":")) { i++; t.push("#"); }  // 넘친 범위 참조 H2# (엑셀 파일에는 ANCHORARRAY(H2))
+        out.push(t);
+      }
       else if (m[5]) out.push(["fn", m[5].toUpperCase().replace(/^(?:_XL(?:FN|WS)\.)+/, "")]);  // 파일에 저장된 새 함수 접두사(_xlfn.TEXTJOIN)
       else if (m[6]) out.push(["bool", m[6].toUpperCase() === "TRUE"]);
       else if (m[7]) out.push(["num", parseFloat(m[7])]);
@@ -62,8 +66,9 @@
       const k = t[0];
       if (k === "num" || k === "str" || k === "bool") return ["lit", t[1]];
       if (k === "err") return ["err", t[1]];
-      if (k === "name") return ["err", "#NAME?"];
+      if (k === "name") return ["name", t[1].toUpperCase()];  // LET 이름 - 밖에서는 #NAME?
       if (k === "ref") {
+        if (t.length > 3) { const a = parseRef(t[1]); return ["spill", t[2], a[0], a[1]]; }
         const ends = t[1].split(":");
         if (/^\$?[A-Za-z]{1,3}$/.test(ends[0])) return ["range", t[2], 0, colIndex(ends[0].replace("$", "")), -1, colIndex(ends[ends.length - 1].replace("$", ""))];
         if (/^\$?\d+$/.test(ends[0])) return ["range", t[2], +ends[0].replace("$", "") - 1, 0, +ends[ends.length - 1].replace("$", "") - 1, -1];
@@ -155,10 +160,10 @@
 
   // ---------------------------------------------------------------- 계산기
   class Calc {
-    constructor(doc) { this.doc = doc; this.sheets = doc.sheets || []; this.memo = new Map(); this.busy = new Set(); this.ast = new Map(); this.at = []; this.dims = new Map(); this.spill = new Map(); this.anchors = new Map(); this.dyn = new Map(); }
+    constructor(doc) { this.doc = doc; this.sheets = doc.sheets || []; this.memo = new Map(); this.busy = new Set(); this.ast = new Map(); this.at = []; this.dims = new Map(); this.spill = new Map(); this.anchors = new Map(); this.dyn = new Map(); this.extent = new Map(); this.scope = []; }
     isDyn(raw) {
       if (raw.da) return true;
-      if (!this.dyn.has(raw.f)) { let d = false; try { d = tokenize(raw.f.replace(/^=/, "")).some((t) => t[0] === "fn" && DYN.has(t[1])); } catch (e) { /* 문법 오류 */ } this.dyn.set(raw.f, d); }
+      if (!this.dyn.has(raw.f)) { let d = false; try { d = tokenize(raw.f.replace(/^=/, "")).some((t) => (t[0] === "fn" && DYN.has(t[1])) || (t[0] === "ref" && t.length > 3)); } catch (e) { /* 문법 오류 */ } this.dyn.set(raw.f, d); }
       return this.dyn.get(raw.f);
     }
     /** 빈 칸(또는 넘친 칸)의 값 - 왼쪽 위의 동적 배열 수식을 먼저 계산해 넘친 값이 있으면 그것 */
@@ -179,6 +184,7 @@
         if (busy || this.spill.has(sh.id + "!" + (ar + i) + "," + (ac + j))) return new FErr("#SPILL!");
       }
       for (let i = 0; i < h; i++) for (let j = 0; j < w; j++) if (i || j) { const x = v.rows[i][j]; this.spill.set(sh.id + "!" + (ar + i) + "," + (ac + j), [x == null ? 0 : x, k, sh.id, colName(ac + j) + (ar + i + 1)]); }
+      this.extent.set(sh.id + "!" + k, [h, w]);
       return v.rows[0][0];
     }
     sheet(name, cur) { if (name == null) return cur; return this.sheets.find((s) => String(s.name || "").toLowerCase() === name.toLowerCase()) || null; }
@@ -198,7 +204,10 @@
       try {
         let a = this.ast.get(f); if (!a) { try { a = parse(f.replace(/^=/, "")); } catch (e) { a = ["err", e instanceof FErr ? e.code : "#NAME?"]; } this.ast.set(f, a); }
         v = this.ev(a, sh);
-        if (isMulti(v) && this.isDyn(sh.cells[k])) v = this.spillOut(sh, k, v);
+        if (this.isDyn(sh.cells[k])) {
+          if (isMulti(v)) v = this.spillOut(sh, k, v);
+          if (!(v instanceof FErr) && !this.extent.has(id)) this.extent.set(id, [1, 1]);
+        }
         if (v instanceof Rng) v = v.vals.length === 1 ? v.vals[0] : new FErr("#VALUE!");
         if (v == null) v = 0;
         if (!(v instanceof FErr)) v = fix(v);
@@ -227,6 +236,17 @@
         case "err": throw new FErr(n[1]);
         case "ref": { const s = this.sheet(n[1], sh); if (!s) throw new FErr("#REF!"); const v = this.value(s, n[2], n[3]); if (v instanceof FErr) throw v; return v; }
         case "range": return this.rng(n, sh);
+        case "spill": {  // H2# - 그 칸의 동적 배열이 넘친 범위 전체
+          const s = this.sheet(n[1], sh); if (!s) throw new FErr("#REF!");
+          const key = colName(n[3]) + (n[2] + 1), raw = (s.cells || {})[key];
+          if (raw && typeof raw === "object" && raw.f) this.cell(s, key);
+          const [h, w] = this.extent.get(s.id + "!" + key) || [0, 0]; if (!h) throw new FErr("#REF!");
+          return this.rng(["range", n[1], n[2], n[3], n[2] + h - 1, n[3] + w - 1], sh);
+        }
+        case "name": {
+          for (let i = this.scope.length - 1; i >= 0; i--) if (this.scope[i].has(n[1])) { const v = this.scope[i].get(n[1]); if (v instanceof FErr) throw v; return v; }
+          throw new FErr("#NAME?");
+        }
         case "neg": { const x = this.ev(n[1], sh); return isMulti(x) ? amap((v) => -toNum(v), x) : -toNum(this.sc(x)); }
         case "pct": return toNum(this.sc(this.ev(n[1], sh))) / 100;
         case "bin": {
@@ -518,7 +538,56 @@
       return new Rng(Array.from({ length: h }, (_, i) => Array.from({ length: w }, (_, j) => st + step * (i * w + j))));
     },
     TRANSPOSE: (c, A, sh) => new Rng(tr(c.area(A[0], sh).rows)),
+    LET: (c, A, sh) => {  // LET(이름1, 값1, …, 계산)
+      if (A.length < 3 || A.length % 2 === 0) throw new FErr("#VALUE!");
+      c.scope.push(new Map());
+      try {
+        for (let i = 0; i + 1 < A.length; i += 2) { if (A[i][0] !== "name") throw new FErr("#NAME?"); c.scope[c.scope.length - 1].set(A[i][1], cellv(() => c.ev(A[i + 1], sh))); }
+        return c.ev(A[A.length - 1], sh);
+      } finally { c.scope.pop(); }
+    },
+    DATEDIF: (c, A, sh) => {
+      const a = dateOf(c.one(A, 0, sh)), b = dateOf(c.one(A, 1, sh)), u = toStr(c.one(A, 2, sh)).toUpperCase();
+      if (a > b) throw new FErr("#NUM!");
+      const months = (b.getUTCFullYear() - a.getUTCFullYear()) * 12 + b.getUTCMonth() - a.getUTCMonth() - (b.getUTCDate() < a.getUTCDate() ? 1 : 0), days = (x, y) => Math.round((y - x) / 864e5);
+      if (u === "Y") return Math.floor(months / 12);
+      if (u === "M") return months;
+      if (u === "D") return days(a, b);
+      if (u === "YM") return months % 12;
+      if (u === "MD") return days(addMonths(a, months), b);
+      if (u === "YD") { const k = b.getUTCFullYear() - a.getUTCFullYear() - (b.getUTCMonth() * 100 + b.getUTCDate() < a.getUTCMonth() * 100 + a.getUTCDate() ? 1 : 0); return days(addMonths(a, 12 * k), b); }
+      throw new FErr("#NUM!");
+    },
+    NETWORKDAYS: (c, A, sh) => {
+      let a = Math.trunc(toNum(c.one(A, 0, sh))), b = Math.trunc(toNum(c.one(A, 1, sh))), sign = 1; const hol = holidays(c, A, 2, sh);
+      if (a > b) { [a, b] = [b, a]; sign = -1; }
+      let n = 0; for (let d = a; d <= b; d++) if (isWork(d) && !hol.has(d)) n++;
+      return sign * n;
+    },
+    WORKDAY: (c, A, sh) => {
+      let d = Math.trunc(toNum(c.one(A, 0, sh))), n = Math.trunc(toNum(c.one(A, 1, sh))); const hol = holidays(c, A, 2, sh), step = n >= 0 ? 1 : -1;
+      while (n) { d += step; if (isWork(d) && !hol.has(d)) n -= step; }
+      return d;
+    },
+    XMATCH: (c, A, sh) => {
+      const look = c.one(A, 0, sh), vals = c.area(A[1], sh).vals, mode = Math.trunc(toNum(opt(c, A, 2, sh, 0))), order = Math.trunc(toNum(opt(c, A, 3, sh, 1)));
+      const idx = vals.map((_, i) => i); if (order < 0) idx.reverse();
+      const same = (v) => v != null && rank(v) === rank(look);
+      let hit;
+      if (mode === 2) { const ok = criteria(look); hit = idx.find((i) => ok(vals[i])); }
+      else {
+        hit = idx.find((i) => same(vals[i]) && compare(vals[i], look, "="));
+        if (hit === undefined && (mode === 1 || mode === -1)) {
+          const cand = idx.filter((i) => same(vals[i]) && compare(vals[i], look, mode === 1 ? ">" : "<"));
+          if (cand.length) { hit = cand[0]; for (const i of cand) if (compare(vals[i], vals[hit], mode === 1 ? "<" : ">")) hit = i; }
+        }
+      }
+      if (hit === undefined) throw new FErr("#N/A");
+      return hit + 1;
+    },
   });
+  function holidays(c, A, i, sh) { return i >= A.length || (A[i][0] === "lit" && A[i][1] == null) ? new Set() : new Set(c.area(A[i], sh).vals.filter((v) => v != null && v !== "").map((v) => Math.trunc(toNum(v)))); }
+  function isWork(d) { const w = dateOf(d).getUTCDay(); return w !== 0 && w !== 6; }
   const SCALAR = new Set(["ISNUMBER", "ISTEXT", "ISBLANK", "ISERROR", "ISNA", "SEARCH", "FIND", "LEFT", "RIGHT", "MID", "LEN", "TRIM", "UPPER", "LOWER", "SUBSTITUTE",
     "VALUE", "TEXT", "ABS", "INT", "ROUND", "ROUNDUP", "ROUNDDOWN", "MOD", "YEAR", "MONTH", "DAY", "NOT"]);
 
