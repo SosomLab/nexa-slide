@@ -491,20 +491,37 @@
     S.sel = was.sel; S.cur = was.cur; S.anchor = was.anchor;
     renderAll(); if (msg) toast(msg);
   }
+  // 갱신 - 실시간 연결(nexa-live.js SSE, 동시 편집 2단계)이 살아 있으면 바뀔 때마다 applyVersion 이 바로 불리고, 2초 폴링은 15초 안전망만(편집기와 같다)
+  let LIVE = null, pollAt = 0, applying = false, pendingV = null;
   async function poll() {
     if (!S.deck) return;
+    if (LIVE && LIVE.healthy() && Date.now() - pollAt < 15000) return;
+    pollAt = Date.now();
     try {
       const r = await api("GET", `/api/version/${encodeURIComponent(S.id)}`);
       if (!r.ok) return;
-      if (r.data.session) renderSession(r.data.session, r.data.activity);
-      if (RQ) await RQ.sync(r.data);  // 요청 파일이 바뀌었으면 다시 읽기(편집기와 같다)
-      if (r.data.deck !== S.version && !S.saving) {
+      await applyVersion(r.data);
+    } catch (e) { setStatus("error", "서버 끊김"); }
+  }
+  async function applyVersion(v) {
+    if (!S.deck) return;
+    if (applying) { pendingV = v; return; }
+    applying = true;
+    try {
+      if (v.session) renderSession(v.session, v.activity);
+      if (RQ) await RQ.sync(v);  // 요청 파일이 바뀌었으면 다시 읽기(편집기와 같다)
+      if (v.deck !== S.version && !S.saving) {
         // 편집 중에 밖에서 바뀌었다 - 배너로 고르게 하지 않고, 내 저장이 서버에서 합쳐지게 바로 저장한다(셀 입력 중이면 입력을 넣고 저장할 때)
         if (S.dirty || S.edit) { if (S.dirty && !S.edit && !S.conflict) { clearTimeout(saveT); await save(); } }
         else await reloadExternal("밖에서 바뀐 시트를 다시 불러왔습니다");
       }
-    } catch (e) { setStatus("error", "서버 끊김"); }
+    } finally {
+      applying = false;
+      if (pendingV) { const n = pendingV; pendingV = null; await applyVersion(n); }
+    }
   }
+  /** 함께 보는 사람에게 내 위치 - 탭·고른 범위·셀 입력 중(바뀔 때만 보낸다) */
+  function livePresence() { if (LIVE && S.deck) LIVE.where({ tab: sheet().id, range: rangeName(clampRange(S.sel)) }, !!S.edit); }
   // 세션 칩·웹 AI 세션 - wsession.js(NexaSession, 슬라이드 편집기와 같다)
   let SESS = null;
   function renderSession(st, act) { if (SESS) SESS.render(st, act); else S.session = st; }
@@ -732,8 +749,15 @@
     activeReqs().filter((q) => q.slide === sh.id && q.range).forEach((q) => {
       const g = parseRange(q.range); if (!g) return;
       const R = rectOf(clampRange(g));
-      html.push(`<div class="ov reqBox ${esc(q.status)}" style="left:${R.x}px;top:${R.y}px;width:${R.w + 1}px;height:${R.h + 1}px"><span class="reqTag">${esc(ST[q.status] || "요청")}</span></div>`);
+      const tag = q.status === "working" ? `${RQ ? RQ.agentName() : "AI"} 처리 중` : ST[q.status] || "요청";  // AI 가 처리 중인 범위 - 사람이 같은 곳을 고치기 전에 알 수 있게
+      html.push(`<div class="ov reqBox ${esc(q.status)}" style="left:${R.x}px;top:${R.y}px;width:${R.w + 1}px;height:${R.h + 1}px"><span class="reqTag">${esc(tag)}</span></div>`);
     });
+    if (LIVE) for (const x of LIVE.others()) {  // 함께 보는 사람(동시 편집 2단계) - 다른 창이 고른 범위에 그 창 색 테두리·이름
+      if (!x.where || x.where.tab !== sh.id) continue;
+      const g = parseRange(x.where.range); if (!g) continue;
+      const R = rectOf(clampRange(g));
+      html.push(`<div class="ov presBox" style="left:${R.x}px;top:${R.y}px;width:${R.w + 1}px;height:${R.h + 1}px;border-color:${esc(x.color)}"><span class="presTag" style="background:${esc(x.color)}">${esc(x.user || "다른 창")}${x.editing ? " · 입력 중" : ""}</span></div>`);
+    }
     $("#marks").innerHTML = html.join("");
   }
   function scrollIntoView(r, c) {
@@ -1407,6 +1431,8 @@
     { const v = await api("GET", `/api/version/${encodeURIComponent(S.id)}`); if (v.ok && v.data.session) renderSession(v.data.session, v.data.activity); }
     scrollIntoView(S.cur.r, S.cur.c); focusGrid();
     setInterval(poll, 2000);
+    // 실시간 연결(동시 편집 2단계) - 바뀌면 바로 applyVersion · 함께 보는 사람은 격자 테두리와 머리줄 칩. 내 위치는 1초마다 보고 바뀐 때만 보낸다
+    if (window.NexaLive) { LIVE = NexaLive.create({ api, base: BASE, deckId: () => S.id, tab: TAB, onVersion: (v) => applyVersion(v), onPresence: () => renderMarks(), chip: "#sessChip" }); setInterval(livePresence, 1000); }
 
     const W = $("#gridWrap");
     W.addEventListener("mousedown", onGridDown);

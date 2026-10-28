@@ -16,6 +16,9 @@ API
   PUT  /api/deck/<id>?base=<ver>     덱 저장(원자적 쓰기, .history 백업 50개). base 가 현재와 다르면 409 (force=1 이면 무시)
                      &merge=1           base 가 다르면 409 대신 3-way 병합(deckmerge.py, docs/collab.md 1단계) → {merged, conflicts, deck}. 기준본이 없으면 409 reason=no-base
   GET  /api/version/<id>             {"deck": ver, "requests": ver}
+  GET  /api/stream/<id>?tab=<탭>      실시간(동시 편집 2단계, collab.py) - SSE. event: version(= /api/version 내용, 바뀔 때만) · presence({list}) · ping(10초).
+                                     파일 버전을 0.5초마다 보므로 편집기 저장·AI 의 save_deck·요청 파일 Edit 가 곧바로 간다. 끊기면 그 탭의 presence 를 지운다
+  POST /api/presence/<id>            {tab, where, editing, user?} → 함께 보는 사람(메모리, 15초) · {leave: true} 로 뺀다. 응답 {color, list}
   GET  /api/requests/<id>            요청 메모 목록
   POST /api/requests/<id>            {"action": "add"|"update"|"delete"|"send"|"discard", ...} — add 는 status draft(초안)·region(영역)·attachments 가능
   POST /api/attach/<id>              요청 첨부 올리기 {name, type, data(base64)} → {path, name, type, size, url} — out/attach/<덱>/ (그림·PDF·글·오피스, 12MB)
@@ -97,6 +100,7 @@ sys.path.insert(0, str(STUDIO))
 from common import ASSET_ROOT, BRAND, CONFIG, DECKS, DEFAULT_PORT, HUB, OUT, REFUSED, SERVER_INFO, STATE, TEMPLATE, WORKSPACE, fonts_dir, list_templates, read_config, resolve_tokens, running_server, safe_id  # noqa: E402
 from watch_requests import session_status  # noqa: E402
 import auth  # noqa: E402
+import collab  # noqa: E402
 import deckmerge  # noqa: E402
 import ledger  # noqa: E402
 import hub  # noqa: E402
@@ -371,7 +375,7 @@ def activity():
     return {"watcher": w, "othersBusy": sum(1 for x in out if x is not w and x["state"] == "busy"), "sessions": len(out)}
 
 
-ENGINE_UI = ("index.html", "studio.js", "sheet.html", "sheet.js", "sheetnew.js", "sheetcalc.js", "sheetx.js", "wsession.js", "nexa-requests.js", "nexa-requests.css", "render.js", "menu.js", "fonts.css", "i18n.js", "i18n/en.js", "i18n/en.pages.js", "i18n/en.review.js")
+ENGINE_UI = ("index.html", "studio.js", "sheet.html", "sheet.js", "sheetnew.js", "sheetcalc.js", "sheetx.js", "wsession.js", "nexa-requests.js", "nexa-requests.css", "nexa-merge.js", "nexa-live.js", "render.js", "menu.js", "fonts.css", "i18n.js", "i18n/en.js", "i18n/en.pages.js", "i18n/en.review.js")
 
 
 def hub_ui_stamp():
@@ -439,7 +443,7 @@ def render_list(i):
 
 MUTATING = {"POST", "PUT", "DELETE", "PATCH"}
 AUTH_FREE = {"/login", "/setup", "/api/auth/state", "/api/auth/login", "/api/auth/setup", "/studio/i18n.js"}  # 허브에서 로그인 없이 닿는 전부(페이지는 CSS·JS 내장 + 표시 언어 사전)
-POLL_RX = re.compile(r"(^|/w/[^/]+)/api/(version/[^/?]+|session|engine/notice|home/live)$")  # 주기 폴링 - /api/version/<덱> · /api/session · 알림·시작 페이지 갱신 (/api/wsession 은 아님)
+POLL_RX = re.compile(r"(^|/w/[^/]+)/api/(version/[^/?]+|presence/[^/?]+|session|engine/notice|home/live)$")  # 주기 폴링 - /api/version/<덱> · /api/session · 알림·시작 페이지 갱신 (/api/wsession 은 아님)
 SERVER_NAME = "hub" if HUB else None  # 접근 로그 server 필드 - 작업 공간은 중계 이름(ws id, 저장소형은 모두 slides/ 라 폴더 이름으로는 구분이 안 된다)
 
 
@@ -1097,6 +1101,72 @@ class H(BaseHTTPRequestHandler):
                 sys.stderr.write(f"ledger detect {i}: {e}\n")
         self.send_json({"deck": ver(deck_path(i)), "requests": ver(req_path(i)), "changes": ver(ledger.path(i)),
                         "session": session_status(), "activity": activity(), **workspace_stamp()})
+
+    # ---------- 실시간(동시 편집 2단계, docs/collab.md) - 탭당 SSE 하나로 버전·함께 보는 사람을 밀어 준다. 폴링(/api/version)은 끊겼을 때의 안전망 ----------
+    def api_get_stream(self, i, q):
+        """event: version = /api/version 과 같은 내용(파일·세션·작업 공간이 바뀔 때만) · presence = 함께 보는 사람 · ping = 10초마다(살아 있음).
+        파일 버전은 0.5초마다 stat 으로 보고, 덱이 바뀌었으면 /api/version 처럼 detect 로 원장에 남긴 뒤 보낸다. 끊기면 그 탭의 presence 를 지운다."""
+        if not deck_path(i).exists():
+            return self.err(404, "덱 없음")
+        tab = ((q.get("tab") or [""])[0] or self.headers.get("X-Nexa-Tab") or "")[:40]
+        self.send_response(200)
+        self.send_header("Content-Type", "text/event-stream; charset=utf-8")
+        self.send_header("Cache-Control", "no-cache")
+        self.send_header("X-Accel-Buffering", "no")
+        self.end_headers()
+        closed = self._watch_close()
+
+        def send(ev, data):
+            self.wfile.write(f"event: {ev}\ndata: {json.dumps(data, ensure_ascii=False)}\n\n".encode("utf-8"))
+            self.wfile.flush()
+        last_key, last_files, last_pv, n = None, None, -1, 0
+        sess, act, stamp = {}, {}, {}
+        try:
+            self.wfile.write(b"retry: 3000\n\n")
+            self.wfile.flush()
+            while not closed.is_set():
+                if n % 4 == 0:  # 세션·활동·작업 공간은 2초마다(파일을 더 읽는다)
+                    sess, act, stamp = session_status(), activity(), workspace_stamp()
+                files = (ver(deck_path(i)), ver(req_path(i)), ver(ledger.path(i)))
+                if last_files is not None and files[0] != last_files[0]:  # 덱이 바뀌었다 - 밖의 쓰기면 원장에 먼저 남긴다(/api/version 과 같다)
+                    with WRITE_LOCK:
+                        try:
+                            detect(i)
+                        except Exception as e:  # noqa: BLE001
+                            sys.stderr.write(f"ledger detect {i}: {e}\n")
+                    files = (ver(deck_path(i)), ver(req_path(i)), ver(ledger.path(i)))
+                w = (act or {}).get("watcher") or {}
+                key = json.dumps([files, {k: (sess or {}).get(k) for k in ("connected", "kind", "state", "working", "open", "turn", "agent", "model", "label", "user")},
+                                  w.get("state"), w.get("source"), (act or {}).get("othersBusy"), stamp], sort_keys=True, default=str)
+                if key != last_key:
+                    send("version", {"deck": files[0], "requests": files[1], "changes": files[2], "session": sess, "activity": act, **stamp})
+                    last_key, last_files = key, files
+                pv = collab.PRESENCE.version(i)
+                if pv != last_pv:
+                    send("presence", {"list": collab.PRESENCE.snapshot(i)})
+                    last_pv = pv
+                if n % 20 == 19:
+                    send("ping", {})
+                time.sleep(0.5)
+                n += 1
+        except (OSError, ValueError):  # 연결 끊김
+            pass
+        finally:
+            collab.PRESENCE.leave(i, tab)
+
+    def api_post_presence(self, i, q):
+        """함께 보는 사람 - {tab, where, editing, user?}. 허브 로그인 사용자면 그 이름을 쓴다(보낸 user 보다 우선). {leave: true} = 뺀다."""
+        b = self.body_json()
+        if not isinstance(b, dict):
+            return self.err(400, "본문 없음")
+        tab = str(b.get("tab") or self.headers.get("X-Nexa-Tab") or "")[:40]
+        if not tab:
+            return self.err(400, "tab 필요")
+        if b.get("leave"):
+            collab.PRESENCE.leave(i, tab)
+        else:
+            collab.PRESENCE.update(i, tab, {"user": self.user or b.get("user") or "", "where": b.get("where"), "editing": b.get("editing")})
+        self.send_json({"ok": True, "color": collab.color_of(tab), "list": collab.PRESENCE.snapshot(i)})
 
     # ---------- 변경 원장 ----------
     def api_get_changes(self, i, q):

@@ -170,22 +170,39 @@
     if (!keep) refreshLinks(null, true);  // 시트 연결 - 원본이 바뀌었으면 따라 바꾼다(바뀐 것이 있을 때만 알림)
     return true;
   }
+  // 갱신 - 실시간 연결(nexa-live.js SSE, 동시 편집 2단계)이 살아 있으면 바뀔 때마다 applyVersion 이 바로 불리고, 2초 폴링은 15초 안전망만.
+  // 끊기면 예전처럼 2초 폴링. 둘 다 같은 applyVersion 을 거친다(처리 중에 온 것은 하나만 남겨 이어서)
+  let LIVE = null, pollAt = 0, applying = false, pendingV = null;
   async function poll() {
     if (!S.id) return;
+    if (LIVE && LIVE.healthy() && Date.now() - pollAt < 15000) return;
+    pollAt = Date.now();
     try {
       const r = await api("GET", `/api/version/${S.id}`);
       if (!r.ok) return;
-      if (r.data.session) renderSession(r.data.session, r.data.activity);
-      await checkWorkspace(r.data);
-      await RQ.sync(r.data);  // 요청 파일이 바뀌었으면 다시 읽기
-      if (r.data.deck !== S.version && !S.saving) {
+      await applyVersion(r.data);
+    } catch (e) { setStatus("error", "서버 끊김"); }
+  }
+  async function applyVersion(v) {
+    if (applying) { pendingV = v; return; }
+    applying = true;
+    try {
+      if (v.session) renderSession(v.session, v.activity);
+      await checkWorkspace(v);
+      await RQ.sync(v);  // 요청 파일이 바뀌었으면 다시 읽기
+      if (v.deck !== S.version && !S.saving) {
         // 편집 중에 밖에서 바뀌었다 - 배너로 고르게 하지 않고, 내 저장이 서버에서 합쳐지게 바로 저장한다(글 편집 중이면 편집이 끝난 뒤 저장 때)
         if (S.dirty || S.editing) { if (S.dirty && !S.editing && !S.conflict) { clearTimeout(saveT); await save(); } }
         else await reloadExternal("밖에서 바뀐 덱을 다시 불러왔습니다");
       }
-      if (r.data.changes !== undefined && r.data.changes !== S.chgVersion) await loadChanges();  // 내 저장·다른 창·Claude·빌드 - 원장이 자라면 변경 탭 갱신
-    } catch (e) { setStatus("error", "서버 끊김"); }
+      if (v.changes !== undefined && v.changes !== S.chgVersion) await loadChanges();  // 내 저장·다른 창·Claude·빌드 - 원장이 자라면 변경 탭 갱신
+    } finally {
+      applying = false;
+      if (pendingV) { const n = pendingV; pendingV = null; await applyVersion(n); }
+    }
   }
+  /** 함께 보는 사람에게 내 위치 - 장·고른 요소·글 편집 중(바뀔 때만 보낸다) */
+  function livePresence() { const s = slide(); if (LIVE && s) LIVE.where({ slide: s.id, els: selIds() }, !!S.editing); }
 
   // ---------------------------------------------------------------- 변경(서버 원장) - 편집기·Claude·빌드·외부의 모든 변경을 서버가 decks/.history/<덱>/changes.jsonl 에 남기고
   // 편집기는 묶음(group)과 슬라이드별 최근 수정(recent)을 받아 그린다. 비교 규칙은 서버 deckdiff.py 한 곳(0.16.0 전에는 여기 JS 에 있었다 - tests/deckdiff_ref.js).
@@ -596,6 +613,22 @@
       });
     }
     if (S.drawing) svg += S.drawing.svg || "";
+    if (s && LIVE) {  // 함께 보는 사람(동시 편집 2단계) - 다른 창이 고른 요소에 그 창 색 테두리·이름
+      const inv = 1 / scale;
+      for (const x of LIVE.others()) {
+        if (!x.where || x.where.slide !== s.id) continue;
+        (x.where.els || []).forEach((id, k) => {
+          const el = elById(id, s); if (!el) return; const b = boxOf(el);
+          h += `<div class="pres" style="left:${b.x - 5}px;top:${b.y - 5}px;width:${b.w + 10}px;height:${b.h + 10}px;border-color:${esc(x.color)};border-width:${2 * inv}px"></div>`;
+          if (!k) h += `<div class="presnm" style="left:${b.x - 5}px;top:${b.y - 5}px;background:${esc(x.color)};transform:translateY(-100%) scale(${inv});transform-origin:0 100%">${esc(x.user || "다른 창")}${x.editing ? " · 편집 중" : ""}</div>`;
+        });
+      }
+      for (const r of S.reqs) {  // AI 가 처리 중인 요청의 대상 - "Claude 처리 중"(사람이 같은 곳을 고치기 전에 알 수 있게)
+        if (r.status !== "working" || r.slide !== s.id) continue;
+        const id = (r.elements && r.elements[0]) || r.element, el = id && elById(id, s); if (!el) continue; const b = boxOf(el);
+        h += `<div class="presnm ai" style="left:${b.x + b.w + 5}px;top:${b.y - 5}px;transform:translate(-100%,-100%) scale(${inv});transform-origin:100% 100%">${esc(agentName())} 처리 중</div>`;
+      }
+    }
     const cm = s && chgOf(s.id);  // 밖에서 바뀐 요소 - 파란 점선
     if (cm) for (const id of cm) { const el = elById(id); if (!el) continue; const b = boxOf(el); h += `<div class="chgbox" style="left:${b.x - 4}px;top:${b.y - 4}px;width:${b.w + 8}px;height:${b.h + 8}px;border-width:${2 / scale}px"></div>`; }
     M.innerHTML = h; D.innerHTML = svg;
@@ -3032,7 +3065,7 @@ ${names}
     if (S.brand.logo) { const l = $("#brandLogo"); l.src = BASE + "/" + S.brand.logo; l.alt = S.brand.name || ""; l.style.display = ""; l.onerror = () => (l.style.display = "none"); }
     if (S.brand.favicon) $("#favicon").href = BASE + "/" + S.brand.favicon;
   }
-  async function switchDeck(id) { if (id === S.id) return; if (S.dirty) await save(); if (isSheet(S.decks.find((d) => d.id === id))) { location.href = sheetUrl(id); return; } await loadDeck(id); }
+  async function switchDeck(id) { if (id === S.id) return; if (S.dirty) await save(); if (isSheet(S.decks.find((d) => d.id === id))) { location.href = sheetUrl(id); return; } await loadDeck(id); if (LIVE) LIVE.reconnect(); }
   async function init() {
     if (window.NexaMenu) NexaMenu.mount($("#menuBtn"));
     if ((await loadConfig()) === false) return;
@@ -3210,6 +3243,8 @@ ${names}
     window.addEventListener("resize", () => { fitStage(); fitThumbs(); if ($("#present").classList.contains("show")) renderPresent(); });
     window.addEventListener("beforeunload", (e) => { if (S.dirty) { save(); e.preventDefault(); e.returnValue = ""; } });
     setInterval(poll, 2000);
+    // 실시간 연결(동시 편집 2단계) - 바뀌면 바로 applyVersion · 함께 보는 사람은 캔버스 테두리와 머리줄 칩. 내 위치는 1초마다 보고 바뀐 때만 보낸다
+    if (window.NexaLive) { LIVE = NexaLive.create({ api, base: BASE, deckId: () => S.id, tab: TAB, onVersion: (v) => applyVersion(v), onPresence: () => renderMarks(), chip: "#sessChip" }); setInterval(livePresence, 1000); }
   }
   window.NexaStudioLink = { refreshLinks, sheetLinkDialog, S };  // 시트 연결 - 시험·다른 모듈용
   init().catch((e) => { console.error(e); setStatus("error", "오류"); toast("초기화 오류: " + e.message, 6000); });

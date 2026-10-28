@@ -18,6 +18,7 @@
 <script src="wsession.js"></script>
 <script src="nexa-requests.js"></script>
 <script src="nexa-merge.js"></script>
+<script src="nexa-live.js"></script>
 <style id="rs-css"></style>
 <style>
   :root {
@@ -195,6 +196,10 @@
   /* 밖에서 바뀐 내용(변경 탭·배지·점선) */
   #marks .langtag { position: absolute; font: 600 11px/1 var(--font); color: #fff; background: #3B4252; border-radius: 6px 6px 0 0; padding: 4px 8px 3px; white-space: nowrap; opacity: .9; }
   #marks .chgbox { position: absolute; border: 2px dashed #1D5FD1; border-radius: 4px; background: rgba(29, 95, 209, .06); }
+  /* 함께 보는 사람(동시 편집 2단계 - nexa-live.js) - 다른 창이 고른 요소 테두리·이름표, AI 처리 중 */
+  #marks .pres { position: absolute; border: 2px solid; border-radius: 5px; pointer-events: none; }
+  #marks .presnm { position: absolute; color: #fff; font: 600 11px/1 var(--font); padding: 3px 7px; border-radius: 6px 6px 6px 0; white-space: nowrap; pointer-events: none; }
+  #marks .presnm.ai { background: var(--info); border-radius: 6px 6px 0 6px; }
   .bd.chg { background: #D6E3FF; color: #0B2E6B; }
   .chg-rec { border-top: 1px solid var(--tone2); padding: 8px 0; }
   .chg-h { margin-bottom: 4px; word-break: keep-all; overflow-wrap: anywhere; display: flex; gap: 6px; align-items: baseline; flex-wrap: wrap; }
