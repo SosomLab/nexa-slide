@@ -294,6 +294,22 @@ def import_xlsx(src, title=None):
             tab["conds"] = conds
         if skipped:
             warnings.append(f"{tab['name']}: 조건부 서식 {skipped}개(수식·아이콘·데이터 막대 등)는 옮기지 않았다")
+        for rel in _rels_of(z, part):  # 메모(옛 형식 comments - 엑셀이 스레드 메모도 함께 남긴다) → 셀 note
+            if not rel.get("Type", "").endswith("/comments"):
+                continue
+            cp = "xl/" + rel.get("Target").replace("../", "")
+            if cp not in names:
+                continue
+            cx = ET.fromstring(z.read(cp))
+            authors = [a.text or "" for a in cx.iter(N + "author")]
+            for cm in cx.iter(N + "comment"):
+                ref, txt = cm.get("ref"), "".join(t.text or "" for t in cm.iter(N + "t")).strip()
+                au = authors[int(cm.get("authorId") or 0)] if authors and int(cm.get("authorId") or 0) < len(authors) else ""
+                if au and txt.startswith(au + ":"):  # 엑셀이 앞에 붙이는 "작성자:" 줄
+                    txt = txt[len(au) + 1:].strip()
+                if ref and txt and split_ref(ref)[0] is not None:
+                    c0 = cells.get(ref)
+                    cells[ref] = {**(c0 if isinstance(c0, dict) else {} if c0 is None else {"v": c0}), "note": txt}
         tables = []  # 엑셀 표 - 이름·범위·열 이름(구조적 참조 표1[열] 계산)·머리글/요약 행·스타일
         for rel in _rels_of(z, part):
             if not rel.get("Type", "").endswith("/table"):
