@@ -2762,7 +2762,7 @@ ${names}
   async function openImportDlg() {
     closeMenu(); if (!S.deck) return;
     const r = await api("GET", "/api/decks"); if (!r.ok) { toast("덱 목록을 읽지 못했습니다"); return; }
-    const decks = r.data.filter((d) => d.id !== S.id);
+    const decks = r.data.filter((d) => d.id !== S.id && d.kind !== "sheet");  // 시트 문서에는 장이 없다
     if (!decks.length) { toast("이 작업 공간에 다른 덱이 없습니다 - 덱 탭의 ＋ 로 만들 수 있습니다"); return; }
     const back = document.createElement("div"); back.id = "impDlg";
     back.innerHTML = `<div class="box"><h3 style="margin:0 0 8px">다른 덱에서 장 가져오기</h3><div class="fr"><label>덱</label><select class="ideck">${decks.map((d) => `<option value="${esc(d.id)}">${esc(d.title)} (${d.slides}장)</option>`).join("")}</select><button class="chip sm" data-ia="all">모두 선택</button><button class="chip sm" data-ia="none">선택 해제</button></div>

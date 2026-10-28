@@ -648,6 +648,7 @@
     const sh = sheet(), g = clampRange(S.sel), cm = mergeAt(sh, S.cur.r, S.cur.c) || { r1: S.cur.r, c1: S.cur.c, r2: S.cur.r, c2: S.cur.c };
     place($("#selBox"), g); $("#selBox").hidden = g.r1 === g.r2 && g.c1 === g.c2 || rangeName(g) === rangeName(cm);
     place($("#curBox"), cm, 1);
+    { const R = rectOf(g), H = $("#fillHandle"); H.style.left = R.x + R.w - 3 + "px"; H.style.top = R.y + R.h - 3 + "px"; H.hidden = !!S.edit; }  // 채우기 핸들 - 선택 범위 오른쪽 아래
     $$("#grid th.on").forEach((t) => t.classList.remove("on"));
     for (let c = g.c1; c <= g.c2; c++) { const t = $(`#grid th[data-col="${c}"]`); if (t) t.classList.add("on"); }
     for (let r = g.r1; r <= g.r2; r++) { const t = $(`#grid th[data-row="${r}"]`); if (t) t.classList.add("on"); }
@@ -998,6 +999,127 @@
   }
 
   // ---------------------------------------------------------------- 탭
+  // ---------------------------------------------------------------- 채우기 핸들 - 선택 오른쪽 아래 사각을 끌어 엑셀처럼 채운다
+  // 숫자 2개 이상은 직선 추세(최소제곱), 숫자 1개는 복사(Ctrl = 1씩 증가 - 날짜는 반대로 기본이 1일씩), 글+숫자(항목1)·요일·월 목록은 이어서,
+  // 수식은 상대 참조 이동($ 고정), 서식은 원본 칸을 돌아가며 복사. 범위 안으로 되끌면 빠지는 칸의 값을 지운다. 두 번 누르면 옆 열 데이터 끝까지 아래로.
+  const FILL_LISTS = [
+    ["일", "월", "화", "수", "목", "금", "토"], ["일요일", "월요일", "화요일", "수요일", "목요일", "금요일", "토요일"],
+    ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"], ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"],
+    ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"],
+    ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"],
+    ["1월", "2월", "3월", "4월", "5월", "6월", "7월", "8월", "9월", "10월", "11월", "12월"], ["1분기", "2분기", "3분기", "4분기"],
+  ];
+  const mod = (a, n) => ((a % n) + n) % n;
+  const isDateFmt = (f) => !!f && /[yd]/i.test(f.replace(/"[^"]*"/g, "")) && !/[#0]/.test(f.replace(/"[^"]*"/g, ""));
+  function fillKind(o) {
+    if (o.f) return { k: "f" };
+    const v = o.v;
+    if (typeof v === "number") return { k: "n", v, date: isDateFmt(o.fmt) };
+    if (typeof v === "string" && v !== "") {
+      for (const L of FILL_LISTS) { const i = L.findIndex((x) => x.toLowerCase() === v.toLowerCase()); if (i >= 0) return { k: "l", L, i, up: v.length > 1 && v === v.toUpperCase() && v !== v.toLowerCase() }; }
+      const m = /^(.*?)(\d+)(\D*)$/.exec(v);  // 마지막 숫자를 늘린다(엑셀과 같이) - 앞자리 0 은 자릿수 유지
+      if (m) return { k: "t", pre: m[1], num: +m[2], post: m[3], w: m[2][0] === "0" ? m[2].length : 0 };
+    }
+    return { k: "s" };
+  }
+  function trend(ys) {  // 최소제곱 직선 a + b·x (x = 0..n-1)
+    const n = ys.length, mx = (n - 1) / 2, my = ys.reduce((a, b) => a + b, 0) / n;
+    let sxy = 0, sxx = 0; ys.forEach((y, x) => { sxy += (x - mx) * (y - my); sxx += (x - mx) ** 2; });
+    const b = sxx ? sxy / sxx : 0; return { a: my - b * mx, b };
+  }
+  /** 한 줄(원본 src[0..n-1])을 위치 ks(원본 첫 칸 기준, 앞으로는 n…, 뒤로는 -1…)로 늘린 셀 객체들 */
+  function fillSeries(src, ks, ctrl, vert) {
+    const n = src.length, K = src.map(fillKind);
+    const base = (j) => { const o = { ...src[j] }; delete o.v; delete o.f; return o; };
+    const all = (k) => K.every((x) => x.k === k);
+    const line = (vals) => { if (n === 1) return (k) => fix(vals[0] + k); const { a, b } = trend(vals); return (k) => fix(a + b * k); };
+    if (all("n") && (n === 1 ? K[0].date !== ctrl : !ctrl)) {
+      const f = line(K.map((x) => x.v)); return ks.map((k) => ({ ...base(mod(k, n)), v: f(k) }));
+    }
+    if (!ctrl && all("l") && K.every((x) => x.L === K[0].L)) {
+      const L = K[0].L, st = n === 1 ? 1 : mod(K[1].i - K[0].i, L.length);
+      if (K.every((x, j) => !j || mod(x.i - K[j - 1].i, L.length) === st)) return ks.map((k) => { const w = L[mod(K[0].i + st * k, L.length)]; return { ...base(mod(k, n)), v: K[0].up ? w.toUpperCase() : w }; });
+    }
+    const tnum = (x, v) => x.pre + String(Math.abs(v)).padStart(x.w, "0") + x.post;
+    if (!ctrl && all("t") && K.every((x) => x.pre === K[0].pre && x.post === K[0].post)) {
+      const f = line(K.map((x) => x.num)); return ks.map((k) => ({ ...base(mod(k, n)), v: tnum(K[0], Math.round(f(k))) }));
+    }
+    return ks.map((k) => {  // 돌아가며 복사 - 수식은 상대 이동, 글+숫자는 한 바퀴마다 +1(Ctrl 이면 그대로)
+      const j = mod(k, n), x = K[j], o = { ...src[j] };
+      if (x.k === "f") { o.f = shiftFormula(src[j].f, vert ? k - j : 0, vert ? 0 : k - j); delete o.v; }
+      else if (x.k === "t" && !ctrl) o.v = tnum(x, x.num + Math.floor(k / n));
+      return o;
+    });
+  }
+  /** 끌어 놓은 셀 → {axis r|c, dir ±1, area 채울(또는 지울) 범위, shrink} - 범위 밖으로 더 멀리 나간 축으로 */
+  function fillTarget(g, r, c) {
+    const outR = r > g.r2 ? r - g.r2 : r < g.r1 ? g.r1 - r : 0, outC = c > g.c2 ? c - g.c2 : c < g.c1 ? g.c1 - c : 0;
+    if (!outR && !outC) {  // 범위 안 - 줄여서 빠지는 칸을 지운다
+      if (g.r2 - r >= g.c2 - c && r < g.r2) return { axis: "r", shrink: true, area: { r1: r + 1, r2: g.r2, c1: g.c1, c2: g.c2 }, keep: { ...g, r2: r } };
+      if (c < g.c2) return { axis: "c", shrink: true, area: { r1: g.r1, r2: g.r2, c1: c + 1, c2: g.c2 }, keep: { ...g, c2: c } };
+      return null;
+    }
+    if (outR >= outC) return r > g.r2 ? { axis: "r", dir: 1, area: { r1: g.r2 + 1, r2: r, c1: g.c1, c2: g.c2 } } : { axis: "r", dir: -1, area: { r1: r, r2: g.r1 - 1, c1: g.c1, c2: g.c2 } };
+    return c > g.c2 ? { axis: "c", dir: 1, area: { r1: g.r1, r2: g.r2, c1: g.c2 + 1, c2: c } } : { axis: "c", dir: -1, area: { r1: g.r1, r2: g.r2, c1: c, c2: g.c1 - 1 } };
+  }
+  const unionRange = (a, b) => ({ r1: Math.min(a.r1, b.r1), c1: Math.min(a.c1, b.c1), r2: Math.max(a.r2, b.r2), c2: Math.max(a.c2, b.c2) });
+  /** 채울 값 계산 - [{k: 셀 주소, o: 셀 객체}] (줄마다 fillSeries) */
+  function fillPlan(sh, g, t, ctrl) {
+    const vert = t.axis === "r", n = vert ? g.r2 - g.r1 + 1 : g.c2 - g.c1 + 1, m = vert ? t.area.r2 - t.area.r1 + 1 : t.area.c2 - t.area.c1 + 1;
+    const ks = Array.from({ length: m }, (_, i) => (t.dir > 0 ? n + i : -1 - i));
+    const out = [];
+    for (let L = vert ? g.c1 : g.r1; L <= (vert ? g.c2 : g.r2); L++) {
+      const at = (j) => (vert ? key(g.r1 + j, L) : key(L, g.c1 + j));
+      const src = Array.from({ length: n }, (_, j) => cellObj(sh, at(j)));
+      fillSeries(src, ks, ctrl, vert).forEach((o, i) => out.push({ k: at(ks[i]), o }));
+    }
+    return out;
+  }
+  function doFill(g, t, ctrl) {
+    if (t.shrink) { clearRange(t.area); S.sel = t.keep; renderSel(); return; }
+    mutate(() => {
+      const sh = sheet();
+      for (const { k, o } of fillPlan(sh, g, t, ctrl)) putCell(sh, k, o);
+      growSize(sh, Math.max(g.r2, t.area.r2), Math.max(g.c2, t.area.c2));
+    });
+    S.sel = unionRange(g, t.area); renderSel();
+  }
+  function startFill(e) {
+    e.preventDefault(); e.stopPropagation();
+    if (S.edit) endEdit(true);
+    const g = clampRange(S.sel), box = $("#fillBox"), tip = $("#fillTip"), H = $("#fillHandle");
+    let tgt = null;
+    H.style.pointerEvents = "none";
+    const onMove = (ev) => {
+      const el = document.elementFromPoint(ev.clientX, ev.clientY), d = el && el.closest("td[data-r]"); if (!d) return;
+      tgt = fillTarget(g, +d.dataset.r, +d.dataset.c);
+      if (!tgt) { box.hidden = tip.hidden = true; return; }
+      place(box, tgt.shrink ? tgt.area : unionRange(g, tgt.area)); box.classList.toggle("shrink", !!tgt.shrink); box.hidden = false;
+      if (tgt.shrink) { tip.hidden = true; return; }
+      const a = tgt.area, lastK = tgt.axis === "r" ? key(tgt.dir > 0 ? a.r2 : a.r1, g.c1) : key(g.r1, tgt.dir > 0 ? a.c2 : a.c1);  // 미리보기 글 - 첫 줄의 마지막 칸 값
+      const p = fillPlan(sheet(), g, tgt, ev.ctrlKey || ev.metaKey).find((x) => x.k === lastK), R = $("#gridIn").getBoundingClientRect();
+      tip.textContent = p ? p.o.f || display(p.o) : "";
+      tip.hidden = !tip.textContent; tip.style.left = ev.clientX - R.left + 14 + "px"; tip.style.top = ev.clientY - R.top + 16 + "px";
+    };
+    const onUp = (ev) => {
+      removeEventListener("mousemove", onMove); removeEventListener("mouseup", onUp);
+      box.hidden = tip.hidden = true; H.style.pointerEvents = "";
+      if (tgt) doFill(g, tgt, ev.ctrlKey || ev.metaKey);
+      focusGrid();
+    };
+    addEventListener("mousemove", onMove); addEventListener("mouseup", onUp);
+  }
+  /** 핸들 두 번 누르기 - 왼쪽(없으면 오른쪽) 이웃 열의 이어진 데이터 끝까지 아래로 채운다 */
+  function fillDownAuto() {
+    if (S.edit) endEdit(true);
+    const sh = sheet(), g = clampRange(S.sel);
+    const has = (r, c) => { if (c < 0) return false; const o = cellObj(sh, key(r, c)); return !!o.f || (o.v != null && o.v !== ""); };
+    const col = has(g.r2 + 1, g.c1 - 1) ? g.c1 - 1 : has(g.r2 + 1, g.c2 + 1) ? g.c2 + 1 : -1;
+    if (col < 0) return;
+    let end = g.r2; while (has(end + 1, col)) end++;
+    doFill(g, { axis: "r", dir: 1, area: { r1: g.r2 + 1, r2: end, c1: g.c1, c2: g.c2 } }, false);
+  }
+
   function newTabId() { const ids = new Set(S.deck.sheets.map((s) => s.id)); for (let i = 1; ; i++) { const id = "t" + String(i).padStart(2, "0"); if (!ids.has(id)) return id; } }
   function newTabName() { const ns = new Set(S.deck.sheets.map((s) => s.name.toLowerCase())); for (let i = S.deck.sheets.length + 1; ; i++) if (!ns.has("sheet" + i)) return "Sheet" + i; }
   function switchTab(i) { if (S.edit) endEdit(true); if (i === S.ti) return; S.ti = i; renderGrid(); renderTabs(); selectRange({ r1: 0, c1: 0, r2: 0, c2: 0 }); $("#gridWrap").scrollTo(0, 0); renderReqs(); focusGrid(); }
@@ -1162,6 +1284,7 @@
   // ---------------------------------------------------------------- 끌기(범위 선택·열 너비·행 높이·패널 폭)
   function onGridDown(e) {
     if (e.button !== 0 && e.button !== 2) return;
+    if (e.button === 0 && e.target.closest("#fillHandle")) { startFill(e); return; }
     const rzc = e.target.closest("[data-rzc]"), rzr = e.target.closest("[data-rzr]");
     if (rzc || rzr) { e.preventDefault(); startResize(e, rzc ? "c" : "r", +(rzc || rzr).dataset[rzc ? "rzc" : "rzr"]); return; }
     const td = e.target.closest("td[data-r]"), thc = e.target.closest("th[data-col]"), thr = e.target.closest("th[data-row]");
@@ -1256,7 +1379,10 @@
     const W = $("#gridWrap");
     W.addEventListener("mousedown", onGridDown);
     W.addEventListener("contextmenu", gridMenu);
-    W.addEventListener("dblclick", (e) => { const td = e.target.closest("td[data-r]"); if (td) { e.preventDefault(); startEdit("edit"); } });
+    W.addEventListener("dblclick", (e) => {
+      if (e.target.closest("#fillHandle")) { e.preventDefault(); fillDownAuto(); return; }
+      const td = e.target.closest("td[data-r]"); if (td) { e.preventDefault(); startEdit("edit"); }
+    });
     W.addEventListener("click", (e) => { if (!S.edit && !e.target.closest("button")) focusGrid(); });
     const ed = ED();
     ed.addEventListener("keydown", onEditorKey);
@@ -1346,6 +1472,6 @@
     window.addEventListener("beforeunload", (e) => { if (S.dirty) { save(); e.preventDefault(); e.returnValue = ""; } });
   }
   // 시험용(브라우저 콘솔·스모크) - 수식 계산·표시 형식을 따로 불러 볼 수 있게
-  window.NexaSheet = { S, TH, effCell, bdSides, fillVars, reload: reloadExternal, recalc, parseFormula, display, fmtNumber, parseNumberText, shiftFormula, setInput, parseTsv };
+  window.NexaSheet = { S, TH, effCell, bdSides, fillVars, reload: reloadExternal, recalc, parseFormula, display, fmtNumber, parseNumberText, shiftFormula, setInput, parseTsv, fillSeries, fillTarget };
   init();
 })();
