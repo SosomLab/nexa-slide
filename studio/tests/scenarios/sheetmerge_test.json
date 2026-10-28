@@ -1,0 +1,37 @@
+{
+ "base": "http://127.0.0.1:5667",
+ "pages": [
+  {
+   "url": "/studio/sheet.html?deck=zsheetfill",
+   "wait": 1500,
+   "steps": [
+    {
+     "name": "시험 시트 zsheetmerge 만들기(PUT - 새 문서)",
+     "js": "const p=await fetch('/api/deck/zsheetmerge',{method:'PUT',headers:{'Content-Type':'application/json'},body:\"{\\\"id\\\":\\\"zsheetmerge\\\",\\\"kind\\\":\\\"sheet\\\",\\\"title\\\":\\\"병합 시험\\\",\\\"slides\\\":[],\\\"sheets\\\":[{\\\"id\\\":\\\"t01\\\",\\\"name\\\":\\\"병합\\\",\\\"cells\\\":{\\\"A1\\\":\\\"하나\\\",\\\"B1\\\":\\\"둘\\\"}}]}\"}); return p.ok || ('put '+p.status);"
+    }
+   ]
+  },
+  {
+   "url": "/studio/sheet.html?deck=zsheetmerge",
+   "wait": 2500,
+   "steps": [
+    {
+     "name": "다른 셀 - 내 입력(A2) + 다른 창(B1) → 둘 다 남고 '합쳐 저장' 알림(충돌 배너 없음)",
+     "js": "{ const td=document.querySelector('td[data-r=\"1\"][data-c=\"0\"]'); td.dispatchEvent(new MouseEvent(\"mousedown\",{bubbles:true,button:0})); window.dispatchEvent(new MouseEvent(\"mouseup\")); const ed=document.querySelector(\"#editor\"); ed.value=\"내 값\"; ed.dispatchEvent(new Event(\"input\",{bubbles:true})); ed.dispatchEvent(new KeyboardEvent(\"keydown\",{key:\"Enter\",bubbles:true,cancelable:true})); } { const r=await fetch('/api/deck/zsheetmerge',{cache:'no-store'}); const v=r.headers.get('X-Deck-Version'); const d=await r.json(); const c=d.sheets[0].cells; ((c)=>{ c.B1='밖'; })(c); const p=await fetch('/api/deck/zsheetmerge?base='+encodeURIComponent(v),{method:'PUT',headers:{'Content-Type':'application/json','X-Nexa-Tab':'other-window'},body:JSON.stringify(d)}); if(!p.ok) return 'external put '+p.status; } for (let i=0;i<40 && !(document.querySelector('#toast').classList.contains('show') && document.querySelector('#toast').textContent.includes(\"합쳐\"));i++) await new Promise(r=>setTimeout(r,200)); await new Promise(r=>setTimeout(r,800)); const c=(await (await fetch('/api/deck/zsheetmerge',{cache:'no-store'})).json()).sheets[0].cells; return c.A2==='내 값' && c.B1==='밖' && !document.querySelector('#banner.show') ? true : JSON.stringify({c, t:document.querySelector('#toast').textContent});"
+    },
+    {
+     "name": "Ctrl+Z - 내 입력만 되돌리고 다른 창의 B1 은 남는다",
+     "js": "document.querySelector(\"#editor\").focus(); document.querySelector(\"#editor\").dispatchEvent(new KeyboardEvent(\"keydown\",{key:\"z\",ctrlKey:true,bubbles:true,cancelable:true})); await new Promise(r=>setTimeout(r,1800)); const c=(await (await fetch('/api/deck/zsheetmerge',{cache:'no-store'})).json()).sheets[0].cells; return c.A2===undefined && c.B1==='밖' && c.A1==='하나' ? true : JSON.stringify(c);"
+    },
+    {
+     "name": "같은 셀(A1)을 동시에 - 나중 저장(내 값)이 남고 '같은 곳 1건' 알림",
+     "js": "await new Promise(r=>setTimeout(r,2500)); { const td=document.querySelector('td[data-r=\"0\"][data-c=\"0\"]'); td.dispatchEvent(new MouseEvent(\"mousedown\",{bubbles:true,button:0})); window.dispatchEvent(new MouseEvent(\"mouseup\")); const ed=document.querySelector(\"#editor\"); ed.value=\"안\"; ed.dispatchEvent(new Event(\"input\",{bubbles:true})); ed.dispatchEvent(new KeyboardEvent(\"keydown\",{key:\"Enter\",bubbles:true,cancelable:true})); } { const r=await fetch('/api/deck/zsheetmerge',{cache:'no-store'}); const v=r.headers.get('X-Deck-Version'); const d=await r.json(); const c=d.sheets[0].cells; ((c)=>{ c.A1='밖'; })(c); const p=await fetch('/api/deck/zsheetmerge?base='+encodeURIComponent(v),{method:'PUT',headers:{'Content-Type':'application/json','X-Nexa-Tab':'other-window'},body:JSON.stringify(d)}); if(!p.ok) return 'external put '+p.status; } for (let i=0;i<40 && !(document.querySelector('#toast').classList.contains('show') && document.querySelector('#toast').textContent.includes(\"1건\"));i++) await new Promise(r=>setTimeout(r,200)); await new Promise(r=>setTimeout(r,800)); const c=(await (await fetch('/api/deck/zsheetmerge',{cache:'no-store'})).json()).sheets[0].cells; const t=document.querySelector('#toast').textContent; return c.A1==='안' && t.includes('1건') && t.includes('내 값') ? true : JSON.stringify({c, t});"
+    },
+    {
+     "name": "편집하지 않을 때 밖의 변경 → 그대로 다시 읽기",
+     "js": "await new Promise(r=>setTimeout(r,2500)); { const r=await fetch('/api/deck/zsheetmerge',{cache:'no-store'}); const v=r.headers.get('X-Deck-Version'); const d=await r.json(); const c=d.sheets[0].cells; ((c)=>{ c.B1='다시'; })(c); const p=await fetch('/api/deck/zsheetmerge?base='+encodeURIComponent(v),{method:'PUT',headers:{'Content-Type':'application/json','X-Nexa-Tab':'other-window'},body:JSON.stringify(d)}); if(!p.ok) return 'external put '+p.status; } for (let i=0;i<40 && !(window.NexaSheet.S.deck.sheets[0].cells.B1==='다시');i++) await new Promise(r=>setTimeout(r,200)); const c=window.NexaSheet.S.deck.sheets[0].cells; return c.B1==='다시' && c.A1==='안' && !window.NexaSheet.S.dirty ? true : JSON.stringify(c);"
+    }
+   ]
+  }
+ ]
+}

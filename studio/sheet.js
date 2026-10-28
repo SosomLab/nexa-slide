@@ -403,7 +403,8 @@
   const deckJson = () => JSON.stringify(S.deck);
   function snapshot() { S.undo.push(deckJson()); if (S.undo.length > 150) S.undo.shift(); S.redo = []; updUndo(); }
   function updUndo() { $("#undoBtn").disabled = !S.undo.length; $("#redoBtn").disabled = !S.redo.length; }
-  function undo() { if (!S.undo.length) return; S.redo.push(deckJson()); S.deck = JSON.parse(S.undo.pop()); afterChange(); }
+  // 남의 변경(다른 창·AI·병합 저장)을 받은 뒤의 실행 취소는 내 편집만 되돌린다 - NexaMerge.seal/undoTarget(nexa-merge.js, 편집기와 같다 - docs/collab.md 1단계)
+  function undo() { if (!S.undo.length) return; const now = deckJson(); S.redo.push(now); S.deck = NexaMerge.undoTarget(S.undo.pop(), now); afterChange(); }
   function redo() { if (!S.redo.length) return; S.undo.push(deckJson()); S.deck = JSON.parse(S.redo.pop()); afterChange(); }
   /** 바꾼 뒤: 다시 계산 · 그리기 · 자동 저장 예약 */
   function afterChange() {
@@ -423,9 +424,26 @@
     const body = deckJson();
     if (!force && body === S.savedJson) { S.dirty = false; setStatus("saved", "저장됨"); return; }
     S.saving = true; setStatus("dirty", "저장 중…");
-    const r = await api("PUT", `/api/deck/${encodeURIComponent(S.id)}?base=${encodeURIComponent(S.version || "")}${force ? "&force=1" : ""}`, JSON.parse(body));
+    // 병합 저장(merge=1) - 그 사이 다른 창·AI 가 저장했어도 서버가 탭·셀 단위로 합친다(같은 셀은 나중 저장인 내 값). 409 는 기준본을 모를 때뿐
+    const r = await api("PUT", `/api/deck/${encodeURIComponent(S.id)}?base=${encodeURIComponent(S.version || "")}${force ? "&force=1" : "&merge=1"}`, JSON.parse(body));
     S.saving = false;
-    if (r.ok) {
+    if (r.ok && r.data.merged && r.data.deck) {  // 합쳐졌다 - 병합 결과(+ 저장하는 사이 더 고친 것)를 화면에, 남의 변경은 내 실행 취소에 섞지 않는다
+      const now = deckJson();
+      NexaMerge.seal(S.undo, S.redo, now); updUndo();
+      S.version = r.data.version; S.savedJson = JSON.stringify(r.data.deck);
+      const d = NexaMerge.afterSave(body, now, r.data.deck);
+      if (!Array.isArray(d.slides)) d.slides = [];
+      (d.sheets || []).forEach(normSheet);
+      S.deck = d; if (S.ti >= S.deck.sheets.length) S.ti = Math.max(0, S.deck.sheets.length - 1);
+      recalc();  // 합쳐진 셀의 계산값을 다시
+      S.dirty = deckJson() !== S.savedJson; S.conflict = false; banner(false);
+      renderAll();
+      if (window.NexaSheetX) NexaSheetX.onChange();
+      setStatus(S.dirty ? "dirty" : "saved", S.dirty ? "저장 대기" : "저장됨");
+      const nt = NexaMerge.notice(r.data.conflicts), n = (r.data.conflicts || []).length;
+      toast(nt.text + (n ? "\n" + nt.detail : ""), n ? 7000 : 3500);
+      if (S.dirty) scheduleSave();
+    } else if (r.ok) {
       S.version = r.data.version; if (r.data.updated) S.deck.updated = r.data.updated;
       S.savedJson = body; if (r.data.updated) { const o = JSON.parse(body); o.updated = r.data.updated; S.savedJson = JSON.stringify(o); }
       S.dirty = deckJson() !== S.savedJson; S.conflict = false; banner(false);
@@ -433,7 +451,7 @@
       if (S.dirty) scheduleSave();
     } else if (r.status === 409) {
       S.conflict = true; setStatus("conflict", "충돌");
-      banner(true, "저장하려는 사이 시트 파일이 밖에서(Claude 등) 바뀌었습니다. 어느 쪽을 남길까요?");
+      banner(true, "저장하려는 사이 시트 파일이 밖에서(Claude 등) 바뀌었고, 자동으로 합칠 수 없습니다(서버가 다시 시작됨 등). 어느 쪽을 남길까요?");
     } else { setStatus("error", "저장 실패"); toast("저장 실패: " + ((r.data && r.data.error) || r.status), 5000); }
   }
 
@@ -444,7 +462,8 @@
     if (!r.ok) { setStatus("error", "읽기 실패"); toast("시트를 불러오지 못했습니다 (" + r.status + ")", 6000); return false; }
     const deck = await r.json();
     if (deck.kind !== "sheet") { location.replace(`index.html#${encodeURIComponent(S.id)}`); return false; }  // 슬라이드 덱이면 편집기로
-    if (keepView && S.deck) snapshot(); else { S.undo = []; S.redo = []; }
+    if (keepView && S.deck) NexaMerge.seal(S.undo, S.redo, deckJson());  // 밖의 변경을 받는다 - 내 실행 취소에 넣지 않고, 이전 기록은 내 편집만 되돌리게 봉인
+    else { S.undo = []; S.redo = []; }
     S.version = r.headers.get("X-Deck-Version");
     if (!Array.isArray(deck.sheets) || !deck.sheets.length) deck.sheets = [{ id: "t01", name: "Sheet1", cells: {} }];
     if (!Array.isArray(deck.slides)) deck.slides = [];
@@ -480,9 +499,9 @@
       if (r.data.session) renderSession(r.data.session, r.data.activity);
       if (RQ) await RQ.sync(r.data);  // 요청 파일이 바뀌었으면 다시 읽기(편집기와 같다)
       if (r.data.deck !== S.version && !S.saving) {
-        if (S.dirty || S.edit) {
-          if (!S.conflict) { S.conflict = true; setStatus("conflict", "충돌"); banner(true, "편집 중에 시트 파일이 밖에서(Claude 등) 바뀌었습니다. 어느 쪽을 남길까요?"); }
-        } else await reloadExternal("밖에서 바뀐 시트를 다시 불러왔습니다");
+        // 편집 중에 밖에서 바뀌었다 - 배너로 고르게 하지 않고, 내 저장이 서버에서 합쳐지게 바로 저장한다(셀 입력 중이면 입력을 넣고 저장할 때)
+        if (S.dirty || S.edit) { if (S.dirty && !S.edit && !S.conflict) { clearTimeout(saveT); await save(); } }
+        else await reloadExternal("밖에서 바뀐 시트를 다시 불러왔습니다");
       }
     } catch (e) { setStatus("error", "서버 끊김"); }
   }
