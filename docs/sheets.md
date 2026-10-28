@@ -146,7 +146,7 @@ Gemini in Sheets 도 **미리보기 카드 → 적용 → 실행 취소** 로 �
 - **라이선스(MIT)**: 쓰지 않는다 — HyperFormula(GPL)·Handsontable 7+(상용)·Luckysheet(보관)·Univer Pro. 조건부로 쓴다 — Apache-2.0(Univer OSS·SheetJS CE)은 NOTICE 를 지키면 쓸 수 있다.
 - **필터·정렬 보기는 사용자별 상태**(Sheets 필터 보기와 같다): 사람과 AI 가 같은 문서를 보므로 공유 JSON 을 바꾸지 않는다.
 
-진행(2026-10-29 · 0.23.0): **1 완료**, **2 대부분 완료**(아래 ✅), 3·4 는 앞으로. 동시 편집은 [collab.md](collab.md) 1단계(병합 저장)까지.
+진행(2026-10-29 · 0.24.0): **1 완료**, **2 대부분 완료**(아래 ✅), **3 일부**(동적 배열·`H2#`·LET/XMATCH·엑셀 표·시트 → 슬라이드 연결 ✅), **4 일부**(xlsx 왕복 시험 ✅). 동시 편집은 [collab.md](collab.md) 2단계(SSE·presence)와 3단계 첫 조각(AI 제안 골라 받기)까지.
 
 | 단계 | 내용 |
 |---|---|

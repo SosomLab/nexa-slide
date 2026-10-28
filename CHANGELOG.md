@@ -1,5 +1,22 @@
 # 변경 이력
 
+## 0.24.0 - 2026-10-29 · 시트 동적 배열·엑셀 표 · 시트 → 슬라이드 연결 · 동시 편집 2단계·AI 제안
+
+시트가 M365 엑셀의 동적 배열과 엑셀 표를 계산하고, 슬라이드는 시트 범위를 표·차트로 이어 받는다. 동시 편집은 실시간 연결(SSE)·함께 보는 사람·AI 제안 부분 수락까지. 설계 [docs/sheets.md](docs/sheets.md) · [docs/collab.md](docs/collab.md).
+
+- **동적 배열(넘침)**: `FILTER`·`SORT`·`SORTBY`·`UNIQUE`·`SEQUENCE`·`TRANSPOSE`·`TAKE`·`DROP`·`CHOOSECOLS`·`CHOOSEROWS`·`HSTACK`·`VSTACK`·`TOCOL`·`TOROW`·`TEXTSPLIT`. 결과가 여러 칸이면 오른쪽·아래로 넘치고(넘친 칸 `{v, sp}`), 막히면 `#SPILL!`, 결과가 없으면 `#CALC!`. 넘친 범위 참조 `H2#`. 동적 배열 함수를 쓰지 않은 수식은 예전과 같다(기존 문서 계산값 그대로).
+- **함수**: `LET`·`XMATCH`·`DATEDIF`·`NETWORKDAYS`·`WORKDAY` - 계산기 두 곳(Python·화면) 같은 사례 174개.
+- **엑셀 표·구조적 참조**: 탭 `tables` - `표1[열]`·`[@열]`(이 행)·`표1[[#Headers],[열]]`·`#All`·열 범위. 가져오기(`xl/tables`)·내보내기(`add_table`).
+- **엑셀 파일과 맞춤**(내보낸 파일을 Excel 로 열어 값 확인): 동적 배열은 `write_dynamic_array_formula`, 새 함수는 `_xlfn.`(전에는 TEXTJOIN 등이 엑셀에서 `#NAME?`), LET 이름 `_xlpm.`, `H2#` ↔ `ANCHORARRAY(H2)`, 이 행 `@` ↔ `[#This Row],`. 가져오기에 셀 메모를 더했다.
+- **결함**: 구조적 참조·외부 통합 문서 참조처럼 계산기가 읽지 못하는 수식이 엑셀 값을 `#NAME?` 로 덮었다 - 이제 엑셀이 마지막에 계산한 값을 둔다.
+- **시트 → 슬라이드 연결**: 편집기 ＋ 추가 → "시트에서 표·차트" - 시트 범위를 표(보이는 글)·차트(첫 열 범주·첫 줄 계열)로 넣고 요소에 `link` 를 남긴다. 덱을 열 때 원본이 바뀌었으면 따라 바꾼다(실행 취소 한 번). `sheet_link.py`·`GET /api/sheet-range`.
+- **시작 페이지 "엑셀 파일로 시작"**: 새 시트에서 .xlsx·.xlsm 을 고르면 그 파일이 첫 시트(값·수식·서식·그림·매크로), 원본은 `materials/`.
+- **동시 편집 2단계 - 실시간 연결**(협업 세션): `GET /api/stream/<덱>` SSE 로 밖의 저장이 폴링 없이 반영, `POST /api/presence` 로 함께 보는 사람의 위치(색 테두리·이름표·"함께 n" 칩), AI 처리 중 표시. 편집기·시트 공용 `nexa-live.js`.
+- **AI 가 바꾼 셀**(협업 세션): 시트 요청 카드에 "AI 가 바꾼 셀 n개 · 보기 · 되돌리기" - 완료되면 바뀐 셀을 강조하고, 되돌리기는 사람이 고친 셀은 둔다(`GET /api/reqdiff`).
+- **변경 탭에 병합 저장·충돌**(협업 세션): 병합된 묶음에 "병합 · 충돌 n" - 어디서 누구 값이 남았는지.
+- **AI 제안 - 골라 받기**(동시 편집 3단계 첫 조각, 협업 세션): 큰 변경은 `save_deck --propose` 로 파일에 바로 쓰지 않고, 요청 카드에서 장·탭마다 골라 받기·모두 받기·버리기(받는 사이 사람 변경은 3-way 병합으로 남는다). `/api/proposals/<덱>`.
+- 시험: `sheetcalc`(두 곳 같은 사례 174개 - 넘침·표 포함), 새 `sheetrt`(엑셀 왕복 - 내보내기 → 가져오기), 편집기 시나리오 `sheetx`(넘침 2단계)·`sheetlink`·`sheetai`·`live`·`proposal`. `e4`(Windows venv 실행기 pid)·`ux6`(표 줄무늬 대기) 흔들림을 고쳤다.
+
 ## 0.23.0 - 2026-10-29 · 시트(엑셀) 문서 · 동시 편집 1단계 · 관리 기능 한 뿌리(engine-request #12·#13)
 
 슬라이드와 함께 **엑셀 같은 시트**를 AI 와 주고받으며 만든다. 슬라이드와 시트는 편집 대상·편집 기능만 다르고 세션·서버·요청·저장은 한 뿌리다. 설계 [docs/sheets.md](docs/sheets.md), 조사 [research/sheet-survey.md](docs/research/sheet-survey.md), 동시 편집 계획 [docs/collab.md](docs/collab.md).
