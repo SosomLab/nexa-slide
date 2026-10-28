@@ -13,6 +13,8 @@ COMMANDS = [
     ("scale_fonts <덱> --ratio 1.2 [--role body,title] [--dry-run]", "덱 전체 글자 크기를 비율로 키우고 상자 높이·세로 배치를 다시 잡는다(바닥을 넘치면 그 장만 비율을 낮춤)"),
     ("export_pptx <덱>", "PPTX 내보내기 → out/<덱>.pptx"),
     ("export_xlsx <시트 문서>", "시트 문서(kind sheet) xlsx 내보내기 → out/<id>.xlsx"),
+    ("sheet_import <파일.xlsx> [--title …]", "엑셀 파일 → 시트 문서(값·수식·서식·병합·틀 고정) - decks/<새 id>.json"),
+    ("sheet_calc <시트 문서> [--cell 탭!B3]", "시트 수식 계산 - 오류 셀(#DIV/0! 등)·순환 참조 찾기, 한 칸 값 보기(수식을 고친 뒤 확인)"),
     ("sheet_theme list|show <이름>|import <샘플.xlsx>… --name <이름>", "시트 테마(색·셀 스타일·표지/이력/개요/요약/목록 틀·로고) 목록·보기·샘플 엑셀에서 만들기 → assets/sheet-themes/<이름>/"),
     ("set_fonts <세트>", "글꼴 세트 고르기"),
     ("set_template [<이름>] [--json]", "템플릿(디자인) 목록 보기·고르기 - 바꾼 뒤 서버 재시작(사용자에게 안내) → build_deck --force"),

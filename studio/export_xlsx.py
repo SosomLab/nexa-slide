@@ -82,6 +82,10 @@ def cell_format(c):
 def export(deck, out):
     if deck.get("kind") != "sheet":
         raise ValueError("시트 문서가 아니다(kind sheet) - 슬라이드 덱은 export_pptx.py")
+    import copy
+    import sheet_calc
+    deck = copy.deepcopy(deck)
+    sheet_calc.recalc(deck)  # 수식 계산값 캐시 - AI 세션이 f 만 쓴 칸도 뷰어·미리보기에서 0 이 아니라 값이 보이게(엑셀은 열 때 다시 계산)
     out.parent.mkdir(parents=True, exist_ok=True)
     theme = sheet_theme.load(deck["theme"]) if deck.get("theme") else None
     opts = {"strings_to_numbers": False, "strings_to_formulas": False, "strings_to_urls": False}
