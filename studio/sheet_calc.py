@@ -16,7 +16,7 @@ import sys
 from pathlib import Path
 
 ERRS = ("#DIV/0!", "#VALUE!", "#REF!", "#NAME?", "#NUM!", "#N/A", "#NULL!", "#SPILL!", "#CALC!")
-DYN = {"FILTER", "SORT", "SORTBY", "UNIQUE", "SEQUENCE", "TRANSPOSE"}  # 동적 배열 함수 - 이 함수를 쓴(또는 가져온 동적 배열 da) 수식만 옆 칸으로 넘친다
+DYN = {"FILTER", "SORT", "SORTBY", "UNIQUE", "SEQUENCE", "TRANSPOSE", "TAKE", "DROP", "CHOOSECOLS", "CHOOSEROWS", "HSTACK", "VSTACK", "TOCOL", "TOROW", "TEXTSPLIT"}  # 동적 배열 함수 - 이 함수를 쓴(또는 가져온 동적 배열 da) 수식만 옆 칸으로 넘친다
 DAY0 = dt.date(1899, 12, 30)
 
 
@@ -1351,6 +1351,93 @@ def _xmatch(c, A, sh):
     return hit + 1
 
 
+def _rows(c, A, i, sh):
+    return [list(r) for r in c.area(A[i], sh).rows]
+
+
+def _take_drop(drop):
+    def f(c, A, sh):
+        rows = _rows(c, A, 0, sh)
+        h, w = len(rows), len(rows[0])
+        r = _opt(c, A, 1, sh, None)
+        k = _opt(c, A, 2, sh, None)
+
+        def cut(n, size):
+            if n is None:
+                return 0, size
+            n = int(to_num(n))
+            if drop:
+                return (n, size) if n >= 0 else (0, size + n)
+            return (0, n) if n >= 0 else (size + n, size)
+        r1, r2 = cut(r, h)
+        c1, c2 = cut(k, w)
+        out = [row[max(c1, 0):max(c2, 0)] for row in rows[max(r1, 0):max(r2, 0)]]
+        if not out or not out[0]:
+            raise FErr("#CALC!")
+        return Rng(out)
+    return f
+
+
+def _choose(cols):
+    def f(c, A, sh):
+        rows = _rows(c, A, 0, sh)
+        size = len(rows[0]) if cols else len(rows)
+        idx = []
+        for i in range(1, len(A)):
+            for v in c.area(A[i], sh).vals:
+                n = int(to_num(v))
+                if n == 0 or abs(n) > size:
+                    raise FErr("#VALUE!")
+                idx.append(n - 1 if n > 0 else size + n)
+        if not idx:
+            raise FErr("#VALUE!")
+        return Rng([[r[j] for j in idx] for r in rows] if cols else [rows[j] for j in idx])
+    return f
+
+
+def _stack(horiz):
+    def f(c, A, sh):
+        parts = [_rows(c, A, i, sh) for i in range(len(A))]
+        if horiz:
+            h = max(len(p) for p in parts)
+            return Rng([[x for p in parts for x in (p[i] if i < len(p) else [FErr("#N/A")] * len(p[0]))] for i in range(h)])
+        w = max(len(p[0]) for p in parts)
+        return Rng([r + [FErr("#N/A")] * (w - len(r)) for p in parts for r in p])
+    return f
+
+
+def _to_line(col):
+    def f(c, A, sh):
+        rows = _rows(c, A, 0, sh)
+        ignore = int(to_num(_opt(c, A, 1, sh, 0)))
+        by_col = to_bool(_opt(c, A, 2, sh, False))
+        vals = [r[j] for j in range(len(rows[0])) for r in rows] if by_col else [x for r in rows for x in r]
+        vals = [x for x in vals if not ((ignore in (1, 3) and x is None) or (ignore in (2, 3) and isinstance(x, FErr)))]
+        if not vals:
+            raise FErr("#CALC!")
+        return Rng([[x] for x in vals] if col else [vals])
+    return f
+
+
+def _textsplit(c, A, sh):
+    text = to_str(c.one(A, 0, sh))
+    cd = to_str(_opt(c, A, 1, sh, ""))
+    rd = _opt(c, A, 2, sh, None)
+    skip = to_bool(_opt(c, A, 3, sh, False))
+    pad = _opt(c, A, 5, sh, FErr("#N/A")) if len(A) > 5 and A[5] != ("lit", None) else FErr("#N/A")
+    lines = text.split(to_str(rd)) if rd not in (None, "") else [text]
+    rows = [(ln.split(cd) if cd else [ln]) for ln in lines]
+    if skip:
+        rows = [[x for x in r if x != ""] for r in rows]
+        rows = [r for r in rows if r]
+    if not rows:
+        raise FErr("#CALC!")
+    w = max(len(r) for r in rows)
+    return Rng([r + [pad] * (w - len(r)) for r in rows])
+
+
+FUNCS.update({"TAKE": _take_drop(False), "DROP": _take_drop(True), "CHOOSECOLS": _choose(True), "CHOOSEROWS": _choose(False),
+              "HSTACK": _stack(True), "VSTACK": _stack(False), "TOCOL": _to_line(True), "TOROW": _to_line(False), "TEXTSPLIT": _textsplit})
 FUNCS.update({"LET": _let, "DATEDIF": _datedif, "NETWORKDAYS": _networkdays, "WORKDAY": _workday, "XMATCH": _xmatch})
 
 

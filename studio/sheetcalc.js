@@ -6,7 +6,7 @@
 (function (root) {
   "use strict";
   const ERRS = ["#DIV/0!", "#VALUE!", "#REF!", "#NAME?", "#NUM!", "#N/A", "#NULL!", "#SPILL!", "#CALC!"];
-  const DYN = new Set(["FILTER", "SORT", "SORTBY", "UNIQUE", "SEQUENCE", "TRANSPOSE"]);  // 동적 배열 함수 - 이 함수를 쓴(또는 가져온 동적 배열 da) 수식만 옆 칸으로 넘친다
+  const DYN = new Set(["FILTER", "SORT", "SORTBY", "UNIQUE", "SEQUENCE", "TRANSPOSE", "TAKE", "DROP", "CHOOSECOLS", "CHOOSEROWS", "HSTACK", "VSTACK", "TOCOL", "TOROW", "TEXTSPLIT"]);  // 동적 배열 함수 - 이 함수를 쓴(또는 가져온 동적 배열 da) 수식만 옆 칸으로 넘친다
   const DAY0 = Date.UTC(1899, 11, 30);
   class FErr { constructor(code) { this.code = code; } }
   class Rng { constructor(rows) { this.rows = rows; } get vals() { return [].concat(...this.rows); } }
@@ -584,6 +584,48 @@
       }
       if (hit === undefined) throw new FErr("#N/A");
       return hit + 1;
+    },
+  });
+  // ---- 배열 모양 함수
+  const rowsOf = (c, A, i, sh) => c.area(A[i], sh).rows.map((r) => r.slice());
+  const takeDrop = (drop) => (c, A, sh) => {
+    const rows = rowsOf(c, A, 0, sh), h = rows.length, w = rows[0].length, r = opt(c, A, 1, sh, null), k = opt(c, A, 2, sh, null);
+    const cut = (n, size) => { if (n == null) return [0, size]; n = Math.trunc(toNum(n)); if (drop) return n >= 0 ? [n, size] : [0, size + n]; return n >= 0 ? [0, n] : [size + n, size]; };
+    const [r1, r2] = cut(r, h), [c1, c2] = cut(k, w);
+    const out = rows.slice(Math.max(r1, 0), Math.max(r2, 0)).map((row) => row.slice(Math.max(c1, 0), Math.max(c2, 0)));
+    if (!out.length || !out[0].length) throw new FErr("#CALC!");
+    return new Rng(out);
+  };
+  const chooseRC = (cols) => (c, A, sh) => {
+    const rows = rowsOf(c, A, 0, sh), size = cols ? rows[0].length : rows.length, idx = [];
+    for (let i = 1; i < A.length; i++) for (const v of c.area(A[i], sh).vals) { const n = Math.trunc(toNum(v)); if (n === 0 || Math.abs(n) > size) throw new FErr("#VALUE!"); idx.push(n > 0 ? n - 1 : size + n); }
+    if (!idx.length) throw new FErr("#VALUE!");
+    return new Rng(cols ? rows.map((r) => idx.map((j) => r[j])) : idx.map((j) => rows[j]));
+  };
+  const stack = (horiz) => (c, A, sh) => {
+    const parts = A.map((_, i) => rowsOf(c, A, i, sh));
+    if (horiz) { const h = Math.max(...parts.map((p) => p.length)); return new Rng(Array.from({ length: h }, (_, i) => [].concat(...parts.map((p) => (i < p.length ? p[i] : Array(p[0].length).fill(new FErr("#N/A"))))))); }
+    const w = Math.max(...parts.map((p) => p[0].length));
+    return new Rng([].concat(...parts.map((p) => p.map((r) => r.concat(Array(w - r.length).fill(new FErr("#N/A")))))));
+  };
+  const toLine = (col) => (c, A, sh) => {
+    const rows = rowsOf(c, A, 0, sh), ignore = Math.trunc(toNum(opt(c, A, 1, sh, 0))), byCol = toBool(opt(c, A, 2, sh, false));
+    let vals = byCol ? [].concat(...rows[0].map((_, j) => rows.map((r) => r[j]))) : [].concat(...rows);
+    vals = vals.filter((x) => !(((ignore === 1 || ignore === 3) && x == null) || ((ignore === 2 || ignore === 3) && x instanceof FErr)));
+    if (!vals.length) throw new FErr("#CALC!");
+    return new Rng(col ? vals.map((x) => [x]) : [vals]);
+  };
+  Object.assign(FUNCS, {
+    TAKE: takeDrop(false), DROP: takeDrop(true), CHOOSECOLS: chooseRC(true), CHOOSEROWS: chooseRC(false), HSTACK: stack(true), VSTACK: stack(false), TOCOL: toLine(true), TOROW: toLine(false),
+    TEXTSPLIT: (c, A, sh) => {
+      const text = toStr(c.one(A, 0, sh)), cd = toStr(opt(c, A, 1, sh, "")), rd = opt(c, A, 2, sh, null), skip = toBool(opt(c, A, 3, sh, false));
+      const pad = A.length > 5 && !(A[5][0] === "lit" && A[5][1] == null) ? opt(c, A, 5, sh, null) : new FErr("#N/A");
+      const lines = rd != null && rd !== "" ? text.split(toStr(rd)) : [text];
+      let rows = lines.map((ln) => (cd ? ln.split(cd) : [ln]));
+      if (skip) rows = rows.map((r) => r.filter((x) => x !== "")).filter((r) => r.length);
+      if (!rows.length) throw new FErr("#CALC!");
+      const w = Math.max(...rows.map((r) => r.length));
+      return new Rng(rows.map((r) => r.concat(Array(w - r.length).fill(pad))));
     },
   });
   function holidays(c, A, i, sh) { return i >= A.length || (A[i][0] === "lit" && A[i][1] == null) ? new Set() : new Set(c.area(A[i], sh).vals.filter((v) => v != null && v !== "").map((v) => Math.trunc(toNum(v)))); }
