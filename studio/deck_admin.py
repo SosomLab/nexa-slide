@@ -254,7 +254,7 @@ def main():
     ap = argparse.ArgumentParser(description="덱 관리")
     sub = ap.add_subparsers(dest="cmd", required=True)
     sub.add_parser("list")
-    c = sub.add_parser("create"); c.add_argument("id", nargs="?", default=""); c.add_argument("--title"); c.add_argument("--layout", default="cover"); c.add_argument("--part", default="day1"); c.add_argument("--kind", choices=("deck", "sheet"), default="deck"); c.add_argument("--theme", help="시트 테마(sheet_theme list)"); c.add_argument("--pages", help="테마 페이지 kind 쉼표 목록(cover,history,overview,summary,list)")
+    c = sub.add_parser("create"); c.add_argument("id", nargs="?", default=""); c.add_argument("--title"); c.add_argument("--layout", default="cover"); c.add_argument("--part", default="day1"); c.add_argument("--kind", choices=("deck", "sheet"), default="deck"); c.add_argument("--theme", help="시트 테마(sheet_theme list)"); c.add_argument("--pages", help="테마 페이지 kind 쉼표 목록(cover,history,overview,summary,list)"); c.add_argument("--vars", help='테마 {{자리}} 값 JSON(예 {"project": "…", "author": "…"})')
     cp = sub.add_parser("copy"); cp.add_argument("id"); cp.add_argument("--title")
     st = sub.add_parser("start"); st.add_argument("id", nargs="?", default="", help="비우면 해제")
     r = sub.add_parser("rename"); r.add_argument("id"); r.add_argument("new")
@@ -266,7 +266,7 @@ def main():
             for x in list_decks():
                 print(f"{'★' if x.get('start') else ' '} {x['id']:16s} " + (f"시트{x.get('sheets', 0):2d}탭" if x.get("kind") == "sheet" else f"{x['slides']:3d}장") + f"  {x['title']}" + ("  (content 있음)" if x["content"] else ""))
         elif a.cmd == "create":
-            x = create(a.id, a.title, a.layout, a.part, a.kind, a.theme, a.pages.split(",") if a.pages else None); print(f"만듦: {x['path']} ({x['title']}, {'시트' if a.kind == 'sheet' else '1장'}) - 서버가 떠 있으면 편집기 덱 탭에 바로 보인다")
+            x = create(a.id, a.title, a.layout, a.part, a.kind, a.theme, a.pages.split(",") if a.pages else None, json.loads(a.vars) if a.vars else None); print(f"만듦: {x['path']} ({x['title']}, {'시트' if a.kind == 'sheet' else '1장'}) - 서버가 떠 있으면 편집기 덱 탭에 바로 보인다")
         elif a.cmd == "copy":
             x = copy(a.id, a.title); print(f"복제: {x['from']} → {x['id']} ({x['title']}, {x['slides']}장)")
         elif a.cmd == "start":
