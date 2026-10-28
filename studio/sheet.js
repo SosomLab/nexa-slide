@@ -663,7 +663,7 @@
   function clampRange(g) { return { r1: Math.max(0, Math.min(g.r1, G.rows - 1)), c1: Math.max(0, Math.min(g.c1, G.cols - 1)), r2: Math.max(0, Math.min(g.r2, G.rows - 1)), c2: Math.max(0, Math.min(g.c2, G.cols - 1)) }; }
   function renderTabs() {
     const cnt = (sid) => activeReqs().filter((q) => reqSlide(q) === sid).length;
-    $("#tabs").innerHTML = S.deck.sheets.map((s, i) => `<button class="t${i === S.ti ? " on" : ""}" data-ti="${i}" title="${esc(s.name)} · id ${esc(s.id)} - 두 번 클릭: 이름 바꾸기 · 오른쪽 클릭: 메뉴">${esc(s.name)}${cnt(s.id) ? `<span class="n">${cnt(s.id)}</span>` : ""}</button>`).join("")
+    $("#tabs").innerHTML = S.deck.sheets.map((s, i) => `<button class="t${i === S.ti ? " on" : ""}${s.hidden ? " hid" : ""}" data-ti="${i}" title="${esc(s.name)} · id ${esc(s.id)}${s.hidden ? " · 엑셀에서 숨긴 시트" : ""} - 두 번 클릭: 이름 바꾸기 · 오른쪽 클릭: 메뉴">${esc(s.name)}${cnt(s.id) ? `<span class="n">${cnt(s.id)}</span>` : ""}</button>`).join("")
       + `<button class="ib add" data-addtab="1" title="${theme() && (theme().pages || []).length ? "새 탭 · 테마 페이지 추가" : "새 탭"}">＋</button>`;
   }
   function renderToolState() {
@@ -1412,6 +1412,10 @@
     { const [q, ss] = await Promise.all([api("GET", `/api/requests/${encodeURIComponent(S.id)}`), api("GET", "/api/session")]);
       if (q.ok && Array.isArray(q.data)) S.reqs = q.data; if (ss.ok && ss.data) renderSession(ss.data); }
     if (!(await loadDeck(false))) return;
+    {  // 엑셀 가져오기 경고(그림·조건부 서식·배열 수식 등 - sheetnew.js 가 남김) - 한 번 보이고 지운다
+      let w = ""; try { w = sessionStorage.getItem("nexaImportWarn") || ""; sessionStorage.removeItem("nexaImportWarn"); } catch (e) { /* 저장소 없음 */ }
+      if (w) toast(`엑셀에서 가져오며 바뀐 것\n${w}`, 12000);
+    }
     { const t = LS.get(typedKey(), ""); if (t) $("#reqText").value = t; }
     await loadReqs();
     { const v = await api("GET", `/api/version/${encodeURIComponent(S.id)}`); if (v.ok) { S.reqVersion = v.data.requests; if (v.data.session) renderSession(v.data.session); } }
