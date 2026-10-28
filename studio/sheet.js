@@ -401,7 +401,23 @@
 
   // ---------------------------------------------------------------- 실행 취소·저장
   const deckJson = () => JSON.stringify(S.deck);
-  function snapshot() { S.undo.push(deckJson()); if (S.undo.length > 150) S.undo.shift(); S.redo = []; updUndo(); }
+  function snapshot() { aiBusyWarn(); S.undo.push(deckJson()); if (S.undo.length > 150) S.undo.shift(); S.redo = []; updUndo(); }
+  // AI 가 처리 중인 범위를 고치기 시작하면 한 번 알린다(잠그지 않음 - 저장은 병합되고 같은 셀은 사람 값이 남는다). 편집기와 같다 - docs/collab.md 2단계
+  const aiWarned = new Set();
+  function aiBusyWarn() {
+    if (!S.deck || !S.reqs) return;
+    const sh = sheet(), g = S.sel;
+    for (const r of S.reqs) {
+      if (r.status !== "working" || reqSlide(r) !== sh.id) continue;
+      const q = parseRange(r.range);
+      if (q && (q.r2 < g.r1 || q.r1 > g.r2 || q.c2 < g.c1 || q.c1 > g.c2)) continue;  // 고르는 범위와 겹치지 않음
+      const k = `${r.id}`;
+      if (aiWarned.has(k)) continue;
+      aiWarned.add(k);
+      toast(`${RQ ? RQ.agentName() : "AI"} 가 ${q ? `${r.range} 범위를` : "이 탭을"} 처리하는 중입니다 - 지금 고치면 AI 의 변경과 합쳐지고, 같은 셀은 내 값이 남습니다`, 5000);
+      return;
+    }
+  }
   function updUndo() { $("#undoBtn").disabled = !S.undo.length; $("#redoBtn").disabled = !S.redo.length; }
   // 남의 변경(다른 창·AI·병합 저장)을 받은 뒤의 실행 취소는 내 편집만 되돌린다 - NexaMerge.seal/undoTarget(nexa-merge.js, 편집기와 같다 - docs/collab.md 1단계)
   function undo() { if (!S.undo.length) return; const now = deckJson(); S.redo.push(now); S.deck = NexaMerge.undoTarget(S.undo.pop(), now); afterChange(); }

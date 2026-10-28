@@ -93,7 +93,23 @@
   }
 
   // ---------------------------------------------------------------- 기록(실행 취소)·저장
-  function snapshot() { S.undo.push(deckJson()); if (S.undo.length > 150) S.undo.shift(); S.redo = []; updUndo(); }
+  function snapshot() { aiBusyWarn(); S.undo.push(deckJson()); if (S.undo.length > 150) S.undo.shift(); S.redo = []; updUndo(); }
+  // AI 가 처리 중인 곳을 고치기 시작하면 한 번 알린다(잠그지 않음 - 저장은 병합되고 같은 곳은 사람 값이 남는다). 동시 편집 2단계 - docs/collab.md
+  const aiWarned = new Set();
+  function aiBusyWarn() {
+    const s = slide(); if (!s || !S.reqs) return;
+    const mine = new Set(selIds());
+    for (const r of S.reqs) {
+      if (r.status !== "working" || r.slide !== s.id) continue;
+      const els = r.elements && r.elements.length ? r.elements : r.element ? [r.element] : [];
+      const hit = els.length ? els.find((id) => mine.has(id)) : null;
+      const k = `${r.id}:${hit || "slide"}`;
+      if ((els.length && !hit) || aiWarned.has(k)) continue;
+      aiWarned.add(k);
+      notice(`${agentName()} 가 ${hit ? "이 요소를" : "이 슬라이드를"} 처리하는 중입니다 - 지금 고치면 AI 의 변경과 합쳐지고, 같은 곳은 내 값이 남습니다`, []);  // 머리 아래 안내 띠 - 편집 뒤 토스트(바꿨습니다 등)에 덮이지 않게
+      return;
+    }
+  }
   function updUndo() { $("#undoBtn").disabled = !S.undo.length; $("#redoBtn").disabled = !S.redo.length; }
   // 남의 변경(다른 창·AI·병합 저장)을 받은 뒤의 실행 취소는 내 편집만 되돌린다 - NexaMerge.seal/undoTarget(nexa-merge.js, docs/collab.md 1단계)
   function undo() { if (!S.undo.length) return; const now = deckJson(); S.redo.push(now); S.deck = NexaMerge.undoTarget(S.undo.pop(), now); afterChange(true); }
