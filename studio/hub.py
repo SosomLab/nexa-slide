@@ -285,7 +285,7 @@ def save_attach(b):
              "text/markdown": ".md", "text/csv": ".csv", "application/json": ".json",
              "application/vnd.openxmlformats-officedocument.presentationml.presentation": ".pptx",
              "application/vnd.openxmlformats-officedocument.wordprocessingml.document": ".docx",
-             "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": ".xlsx"}
+             "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": ".xlsx", "application/vnd.ms-excel.sheet.macroEnabled.12": ".xlsm"}
     name = str(b.get("name") or "")[:120]
     ctype = str(b.get("type") or "").split(";")[0].strip().lower()
     ext = types.get(ctype) or (Path(name).suffix.lower() if Path(name).suffix.lower() in types.values() else None)
@@ -645,7 +645,10 @@ def plan(b):
     if sheet:
         args += ["--kind", "sheet"]
         starter = None
-        st = b.get("sheetTheme") if isinstance(b.get("sheetTheme"), dict) else {}
+        sf = b.get("sheetFrom") if isinstance(b.get("sheetFrom"), dict) else {}
+        if re.fullmatch(r"[\w.-]+\.(xlsx|xlsm)", str(sf.get("name") or "")) and (NEW_ATTACH / sf["name"]).is_file():  # 엑셀 파일로 시작 - 테마 대신
+            args += ["--sheet-import", NEW_ATTACH / sf["name"]]
+        st = b.get("sheetTheme") if isinstance(b.get("sheetTheme"), dict) and not sf else {}
         if re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_-]{0,39}", str(st.get("name") or "")):
             args += ["--sheet-theme", st["name"]]
             if st.get("from"):
@@ -708,7 +711,10 @@ def create(b):
         except HubError as e:
             raise HubError(f"작업 공간은 만들었지만 회사 템플릿을 만들지 못했다: {e}", path=str(ws), log=log, **e.extra)
         log += "\n" + "\n".join(f"템플릿 {tr['name']}: {f}" for f in tr["files"])
-    moved = claim_attachments(ws, b.get("attachments"))  # 참고 자료 첨부 → materials/ · BRIEF.md
+    atts = list(b.get("attachments") or [])
+    if isinstance(b.get("sheetFrom"), dict) and b.get("kind") == "sheet":  # 시작한 엑셀 원본도 materials/ 에 남긴다
+        atts.append(b["sheetFrom"])
+    moved = claim_attachments(ws, atts)  # 참고 자료 첨부 → materials/ · BRIEF.md
     if moved:
         log += "\n첨부: " + ", ".join(moved)
     url, slog = start_server(ws, auto=proxy_on())

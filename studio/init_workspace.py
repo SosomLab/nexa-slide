@@ -762,6 +762,7 @@ def main():
     ap.add_argument("--deck", default="intro")
     ap.add_argument("--kind", choices=("deck", "sheet"), default="deck", help="첫 문서 종류 - sheet 면 시작용 내용 없이 빈 시트(docs/sheets.md)")
     ap.add_argument("--sheet-theme", help="시트 테마 - 첫 시트를 이 테마의 페이지로(엔진 studio/sheet_themes 또는 --sheet-theme-from 작업 공간의 테마를 복사)")
+    ap.add_argument("--sheet-import", help="첫 시트를 이 엑셀 파일(.xlsx·.xlsm)에서 - 값·수식·서식·그림·매크로까지(sheet_import.py)")
     ap.add_argument("--sheet-theme-from", help="테마를 가져올 작업 공간 폴더(assets/sheet-themes/<이름>/ 을 새 작업 공간으로 복사)")
     ap.add_argument("--asset-root", default=".", help="덱 그림 경로의 기준 폴더(작업 공간 기준). 저장소 루트 자산을 쓰려면 ..")
     ap.add_argument("--starter", help="시작용 교안(엔진 starters/ 폴더 이름) — 예: lecture-course")
@@ -895,6 +896,11 @@ def main():
                 f.write("\n## 작성 브리프\n\n- 작업 공간을 만들 때 받은 목적·대상·작성 방향·참고 자료는 `BRIEF.md` 에 있다. 초안을 쓰기 전에 먼저 읽고, 자료에 없는 내용은 지어내지 않는다.\n")
     if a.kind == "sheet" and a.sheet_theme:
         copy_sheet_theme(ws, cfg, a.sheet_theme, a.sheet_theme_from)
+    if a.kind == "sheet" and a.sheet_import:  # 엑셀 파일로 시작 - 가져온 시트가 첫 문서(시작 덱)
+        env = {**os.environ, "NEXA_SLIDE_WORKSPACE": str(ws), "PYTHONIOENCODING": "utf-8"}
+        r = subprocess.run([sys.executable, str(ENGINE / "studio" / "sheet_import.py"), str(a.sheet_import), "--id", a.deck, "--title", cfg.get("title", ws.name)],
+                           cwd=str(ws), env=env, capture_output=True)
+        print((r.stdout or b"").decode("utf-8", "replace").strip() or (r.stderr or b"").decode("utf-8", "replace").strip()[-300:])
     built = new_sheet(ws, cfg, a.deck, cfg.get("title", ws.name), a.sheet_theme) if a.kind == "sheet" else build_decks(ws, cfg) if a.build or a.ask_draft else []
     if a.ask_draft and built:
         ask_draft(ws, cfg, deck_ids[0] if deck_ids[0] in built else built[0])
