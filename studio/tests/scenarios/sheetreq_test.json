@@ -1,0 +1,51 @@
+{
+ "base": "http://127.0.0.1:5667",
+ "pages": [
+  {
+   "url": "/studio/sheet.html?deck=zsheetfill",
+   "wait": 2500,
+   "steps": [
+    {
+     "name": "세션 칩 - 편집기와 같은 문구·메뉴(웹 세션 시작)",
+     "js": "const c=document.querySelector(\"#sessChip\"); const t=c.textContent; c.click(); await new Promise(r=>setTimeout(r,500)); const items=[...document.querySelectorAll(\".menu button\")].map(b=>b.textContent); const ok=/세션 연결 없음/.test(t) && t.includes(\"▾\") && items.some(x=>x.includes(\"웹 세션 시작\")); document.querySelectorAll(\".menu\").forEach(m=>m.remove()); return ok ? true : JSON.stringify({t,items});"
+    },
+    {
+     "name": "웹 세션 시작 창 - 에이전트 확인·닫기(wsession.js)",
+     "js": "document.querySelector(\"#sessChip\").click(); await new Promise(r=>setTimeout(r,500)); [...document.querySelectorAll(\".menu button\")].find(b=>b.textContent.includes(\"웹 세션 시작\")).click(); for (let i=0;i<32 && !(document.querySelector(\"#sessDlg .box select, #sessDlg .box [data-sd=close]\"));i++) await new Promise(r=>setTimeout(r,250)); const d=document.querySelector(\"#sessDlg\"); const shown=d.classList.contains(\"show\"), txt=d.innerText; d.querySelector(\"[data-sd=close]\").click(); await new Promise(r=>setTimeout(r,200)); return shown && /웹 세션 시작|확인 실패/.test(txt) && !d.classList.contains(\"show\") ? true : JSON.stringify({shown, txt:txt.slice(0,200)});"
+    },
+    {
+     "name": "요청 첨부 - 그림 붙여넣기 → 축소판",
+     "js": "const b=Uint8Array.from(atob(\"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFBQIAX8jx0gAAAABJRU5ErkJggg==\"),c=>c.charCodeAt(0)); const f=new File([b],\"image.png\",{type:\"image/png\"}); const dt=new DataTransfer(); dt.items.add(f); const ta=document.querySelector(\"#reqText\"); ta.focus(); ta.dispatchEvent(new ClipboardEvent(\"paste\",{clipboardData:dt,bubbles:true,cancelable:true})); for (let i=0;i<32 && !(document.querySelector(\"#reqAtt .a img\"));i++) await new Promise(r=>setTimeout(r,250)); return !!document.querySelector(\"#reqAtt .a img\") || document.querySelector(\"#reqAtt\").innerHTML;"
+    },
+    {
+     "name": "범위 요청 + 첨부 보내기",
+     "js": "const N=window.NexaSheet; N.S.sel={r1:0,c1:0,r2:1,c2:1}; document.querySelector(\"#reqWhole\").checked=false; document.querySelector(\"#reqWhole\").dispatchEvent(new Event(\"change\")); document.querySelector(\"#reqText\").value=\"첨부 그림처럼 바꿔 줘\"; document.querySelector(\"#reqSend\").click(); await new Promise(r=>setTimeout(r,1500)); const q=await (async()=>{ const l=await (await fetch(\"/api/requests/zsheetfill\")).json(); return l[l.length-1]; })(); return q && q.range===\"A1:B2\" && q.status===\"open\" && (q.attachments||[]).length===1 && !document.querySelector(\"#reqAtt .a\") ? true : JSON.stringify(q);"
+    },
+    {
+     "name": "카드 축소판 → 라이트박스",
+     "js": "for (let i=0;i<32 && !(document.querySelector(\"#reqList .att.ro .a\"));i++) await new Promise(r=>setTimeout(r,250)); document.querySelector(\"#reqList .att.ro .a\").click(); await new Promise(r=>setTimeout(r,500)); const el=document.querySelector(\".nx-lb\"), lb=!!el && el.style.display!==\"none\"; if (el) el.dispatchEvent(new KeyboardEvent(\"keydown\",{key:\"Escape\",bubbles:true})); await new Promise(r=>setTimeout(r,300)); return lb && el.style.display===\"none\" ? true : \"lb=\" + lb + \" display=\" + (el && el.style.display);"
+    },
+    {
+     "name": "진행 동기화 - 밖에서 working → 처리 중 표시",
+     "js": "const q=await (async()=>{ const l=await (await fetch(\"/api/requests/zsheetfill\")).json(); return l[l.length-1]; })(); await fetch(\"/api/requests/zsheetfill\",{method:\"POST\",headers:{\"Content-Type\":\"application/json\"},body:JSON.stringify({action:\"update\",id:q.id,status:\"working\"})}); for (let i=0;i<32 && !(document.querySelector(`#reqList .req[data-rid=\"${q.id}\"] .st.working .spin`));i++) await new Promise(r=>setTimeout(r,250)); const c=document.querySelector(`#reqList .req[data-rid=\"${q.id}\"]`); return c && c.querySelector(\".st.working .spin\") && document.querySelector(\"#marks .reqBox.working\") ? true : (c ? c.outerHTML.slice(0,300) : \"카드 없음\");"
+    },
+    {
+     "name": "처리 중엔 열 때 계산값 자동 저장을 미룬다",
+     "js": "const r=await fetch(\"/api/deck/zsheetfill\"); const v=r.headers.get(\"X-Deck-Version\"); const d=await r.json(); d.sheets[0].cells.Z1={f:\"=1+1\"}; const p=await fetch(\"/api/deck/zsheetfill?base=\"+encodeURIComponent(v),{method:\"PUT\",headers:{\"Content-Type\":\"application/json\"},body:JSON.stringify(d)}); const v2=(await p.json()).version; for (let i=0;i<32 && !(window.NexaSheet.S.deck.sheets[0].cells.Z1 && window.NexaSheet.S.deck.sheets[0].cells.Z1.v===2);i++) await new Promise(r=>setTimeout(r,250)); await new Promise(r=>setTimeout(r,2500)); const v3=(await fetch(\"/api/version/zsheetfill\").then(x=>x.json())).deck; const c=window.NexaSheet.S.deck.sheets[0].cells.Z1; return p.ok && c && c.v===2 && v3===v2 && !window.NexaSheet.S.dirty ? true : JSON.stringify({ok:p.ok, c, v2, v3, dirty:window.NexaSheet.S.dirty});"
+    },
+    {
+     "name": "진행 동기화 - done + reply → 카드가 남아 답 표시",
+     "js": "const q=await (async()=>{ const l=await (await fetch(\"/api/requests/zsheetfill\")).json(); return l[l.length-1]; })(); await fetch(\"/api/requests/zsheetfill\",{method:\"POST\",headers:{\"Content-Type\":\"application/json\"},body:JSON.stringify({action:\"update\",id:q.id,status:\"done\",reply:\"바꿨습니다 - A1:B2\"})}); for (let i=0;i<32 && !(document.querySelector(`#reqList .req.done[data-rid=\"${q.id}\"] .reply`));i++) await new Promise(r=>setTimeout(r,250)); const c=document.querySelector(`#reqList .req[data-rid=\"${q.id}\"]`); return c && c.classList.contains(\"done\") && c.querySelector(\".reply\").textContent.includes(\"바꿨습니다\") && !document.querySelector(\"#marks .reqBox\") ? true : (c ? c.outerHTML.slice(0,300) : \"카드 없음(완료 요청이 사라짐)\");"
+    },
+    {
+     "name": "Z1 지우기(다음 실행용)",
+     "js": "const r=await fetch(\"/api/deck/zsheetfill\"); const v=r.headers.get(\"X-Deck-Version\"); const d=await r.json(); delete d.sheets[0].cells.Z1; const p=await fetch(\"/api/deck/zsheetfill?base=\"+encodeURIComponent(v),{method:\"PUT\",headers:{\"Content-Type\":\"application/json\"},body:JSON.stringify(d)}); return p.ok;"
+    },
+    {
+     "name": "요청 칸 Enter = 보내기 · Shift+Enter = 줄바꿈 · 조합 중 Enter 는 안 보냄",
+     "js": "const ta=document.querySelector(\"#reqText\"); const n0=(await (await fetch(\"/api/requests/zsheetfill\")).json()).length; ta.value=\"줄\"; const kd=(o)=>{ const e=new KeyboardEvent(\"keydown\",{key:\"Enter\",bubbles:true,cancelable:true,...o}); ta.dispatchEvent(e); return e.defaultPrevented; }; const a=kd({shiftKey:true}), b=kd({isComposing:true}); await new Promise(r=>setTimeout(r,800)); const n1=(await (await fetch(\"/api/requests/zsheetfill\")).json()).length; const c=kd({}); await new Promise(r=>setTimeout(r,1500)); const n2=(await (await fetch(\"/api/requests/zsheetfill\")).json()).length; return !a && !b && n1===n0 && c && n2===n0+1 && ta.value===\"\" ? true : JSON.stringify({a,b,c,n0,n1,n2,v:ta.value});"
+    }
+   ]
+  }
+ ]
+}

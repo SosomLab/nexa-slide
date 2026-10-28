@@ -51,7 +51,8 @@
     closeMenu();
     const m = document.createElement("div"); m.className = "menu";
     m.innerHTML = items.map((it, i) => it === "-" ? "<hr>" : it.h ? `<div class="h">${esc(it.h)}</div>`
-      : `<button data-i="${i}" ${it.disabled ? "disabled" : ""}>${it.on ? "✓ " : ""}<span>${esc(it.label)}</span>${it.key ? `<span class="k">${esc(it.key)}</span>` : ""}</button>`).join("");
+      : it.html ? `<div data-i="${i}">${it.html}</div>`
+      : `<button data-i="${i}" ${it.disabled ? "disabled" : ""}>${it.on ? "✓ " : ""}${it.icon ? `<span>${it.icon}</span>` : ""}<span>${esc(it.label)}</span>${it.key ? `<span class="k">${esc(it.key)}</span>` : ""}</button>`).join("");
     document.body.appendChild(m);
     let x, y;
     if (anchor.getBoundingClientRect) { const r = anchor.getBoundingClientRect(); x = r.left; y = r.bottom + 4; } else { x = anchor.x; y = anchor.y; }
@@ -452,7 +453,7 @@
     $("#titleText").textContent = deck.title || S.id; $("#title").title = `${deck.title || ""} · id ${S.id}`;
     setStatus("saved", "저장됨"); updUndo(); renderThemeChip();
     // 세션이 값만 넣고 계산값(v)을 비웠으면 여기서 계산해 저장(엑셀 내보내기에 계산값이 들어가게)
-    if (recalc()) { S.dirty = true; setStatus("dirty", "저장 대기"); scheduleSave(); }
+    if (recalc() && !reqBusy()) { S.dirty = true; setStatus("dirty", "저장 대기"); scheduleSave(); }
     renderAll();
     return true;
   }
@@ -468,7 +469,7 @@
     try {
       const r = await api("GET", `/api/version/${encodeURIComponent(S.id)}`);
       if (!r.ok) return;
-      if (r.data.session) renderSession(r.data.session);
+      if (r.data.session) renderSession(r.data.session, r.data.activity);
       if (r.data.requests !== S.reqVersion) { S.reqVersion = r.data.requests; await loadReqs(); }
       if (r.data.deck !== S.version && !S.saving) {
         if (S.dirty || S.edit) {
@@ -477,11 +478,11 @@
       }
     } catch (e) { setStatus("error", "서버 끊김"); }
   }
-  function renderSession(st) {
-    S.session = st;
-    const c = $("#sessChip"); c.className = "chip sm " + (st.connected ? (st.working ? "busy" : "on") : "off");
-    $("#sessLabel").textContent = st.connected ? (st.working ? `세션 처리 중 ${st.working}` : "세션 연결됨") : "세션 연결 없음";
-  }
+  // 세션 칩·웹 AI 세션 - wsession.js(NexaSession, 슬라이드 편집기와 같다)
+  let SESS = null;
+  function renderSession(st, act) { if (SESS) SESS.render(st, act); else S.session = st; }
+  /** 세션이 요청을 처리하는 중 - 세션이 시트 파일을 고칠 수 있으므로 화면의 자동 저장(계산값 채우기)을 미룬다 */
+  const reqBusy = () => S.reqs.some((q) => q.status === "working") || !!(SESS && SESS.busy());
 
   // ---------------------------------------------------------------- 테마(docs/sheets.md 5절) - 셀 s(스타일 이름)를 테마 styles 에서 찾아 셀 키 아래에 깔고(셀 키가 이긴다),
   // 색 값이 팔레트 이름이면 #RRGGBB 로 바꾼다. 내보내기(export_xlsx.py)와 같은 규칙
@@ -1199,7 +1200,8 @@
   function renderReqs() {
     if (!S.deck) return;
     const tabName = (sid) => { const s = S.deck.sheets.find((x) => x.id === sid); return s ? s.name : sid || "?"; };
-    let list = S.reqs.filter((q) => (!S.reqTab || reqSlide(q) === sheet().id) && (S.reqDone || q.status !== "done" || (q.thread && S.reqs.some((x) => (x.thread || x.id) === q.thread && x.status !== "done"))));
+    const recent = (q) => q.status !== "done" || Date.now() - Date.parse(q.updated || q.created || "") < 864e5 || S.reqs.some((x) => (x.thread || x.id) === (q.thread || q.id) && x.status !== "done");
+    let list = S.reqs.filter((q) => (!S.reqTab || reqSlide(q) === sheet().id) && (S.reqDone || recent(q)));
     // 후속 요청은 뿌리 요청 아래에(같은 thread) - 묶음끼리는 최근 것이 위
     const th = new Map(); for (const q of list) { const k = q.thread || q.id; if (!th.has(k)) th.set(k, []); th.get(k).push(q); }
     const groups = [...th.values()].map((g) => g.sort((a, b) => String(a.created || "").localeCompare(String(b.created || ""))))
@@ -1207,29 +1209,65 @@
     $$("#reqFilter button").forEach((b) => b.classList.toggle("on", b.dataset.v === "done" ? S.reqDone : (b.dataset.v === "1") === S.reqTab));
     const agent = (S.session && (S.session.agent || S.session.label)) || "AI";
     $("#reqList").innerHTML = groups.length ? groups.map((g) => g.map((q, i) => `<div class="req${q.status === "done" ? " done" : ""}${i ? " fu" : ""}${S.reqCur === q.id ? " cur" : ""}" data-rid="${esc(q.id)}">
-        <div class="meta"><span class="st ${esc(q.status || "open")}">${ST[q.status] || "대기"}</span><span class="rg">${esc(tabName(reqSlide(q)))}${q.range ? "!" + esc(q.range) : ""}</span><span>${esc(q.id)}</span><span>${esc(String(q.created || "").replace("T", " ").slice(0, 16))}</span></div>
-        <div class="txt">${esc(q.text)}</div>${q.reply ? `<div class="reply"><b>${esc(agent)}</b> ${esc(q.reply)}</div>` : ""}
+        <div class="meta"><span class="st ${esc(q.status || "open")}">${q.status === "working" ? `<span class="spin"></span> ` : ""}${ST[q.status] || "대기"}</span><span class="rg">${esc(tabName(reqSlide(q)))}${q.range ? "!" + esc(q.range) : ""}</span><span>${esc(q.id)}</span><span>${esc(String(q.created || "").replace("T", " ").slice(0, 16))}</span></div>
+        <div class="txt">${esc(q.text)}</div>${attListHtml(q.attachments, q.id)}${q.reply ? `<div class="reply"><b>${esc(agent)}</b> ${esc(q.reply)}</div>` : ""}
         <div class="acts">${q.status === "draft" ? `<button class="chip sm primary" data-rsend="1">보내기</button>` : `<button class="chip sm" data-rs="${q.status === "done" ? "open" : "done"}">${q.status === "done" ? "다시 열기" : "완료로 표시"}</button>`}${i === g.length - 1 && q.status !== "draft" ? `<button class="chip sm" data-fu="1" title="이 요청에 이어서 묻거나 답합니다">후속 요청</button>` : ""}<button class="chip sm" data-rdel="1">삭제</button></div></div>`).join("")).join("")
-      : `<div class="hint" style="padding:18px;text-align:center">${S.reqTab ? "이 탭에 남은 요청이 없습니다" : "요청이 없습니다"}<br>셀 범위를 고르고 위에 적어 보내세요.</div>`;
+      : `<div class="hint" style="padding:18px;text-align:center">${S.reqTab ? "이 탭에 최근 요청이 없습니다" : "최근 요청이 없습니다"}<br>셀 범위를 고르고 위에 적어 보내세요.${S.reqDone ? "" : "<br>지난 완료 요청은 [완료 포함]"}</div>`;
     const fu = S.fu && S.reqs.find((q) => q.id === S.fu);
     $("#fuTag").hidden = !fu; if (fu) $("#fuText").textContent = `↳ 후속: ${fu.text}`;
-    $("#reqHint").textContent = S.session && S.session.connected ? "" : "세션이 연결되면 전달됩니다";
+    const ss = S.session;
+    $("#reqHint").textContent = ss && ss.connected ? (ss.kind === "web" && ss.state === "running" ? `웹 세션이 처리 중(턴 ${ss.turn || "?"}) - 새 요청은 이 턴 뒤에` : "") : `세션이 연결되면 전달됩니다${SESS ? SESS.offNote() : ""}`;
   }
   async function sendReq() {
-    const text = $("#reqText").value.trim(); if (!text) { $("#reqText").focus(); return; }
+    const text = $("#reqText").value.trim(); if (!text && !ATT.list.length) { $("#reqText").focus(); return; }
+    if (ATT.busy) { toast("첨부를 올리는 중입니다"); return; }
     if (S.edit) endEdit(true);
     if (S.dirty) await save();  // 세션이 지금 화면 내용을 보고 고치게 먼저 저장
-    const body = S.fu ? { action: "add", status: "open", parent: S.fu, text } : { action: "add", status: "open", slide: sheet().id, text };
+    const t2 = text || "(첨부 참고)";
+    const body = S.fu ? { action: "add", status: "open", parent: S.fu, text: t2 } : { action: "add", status: "open", slide: sheet().id, text: t2 };
     if (!S.fu) { const rg = reqTargetRange(); if (rg) body.range = rg; }
+    if (ATT.list.length) body.attachments = ATT.list;
     const r = await api("POST", `/api/requests/${encodeURIComponent(S.id)}`, body);
     if (!r.ok) { toast("요청하지 못했습니다: " + ((r.data && r.data.error) || r.status), 5000); return; }
-    $("#reqText").value = ""; LS.set(typedKey(), ""); S.fu = null;
+    $("#reqText").value = ""; LS.set(typedKey(), ""); S.fu = null; ATT.list = []; attRender();
     if (Array.isArray(r.data)) S.reqs = r.data; else await loadReqs();
     renderReqs(); renderMarks(); renderTabs();
-    api("POST", `/api/flush/${encodeURIComponent(S.id)}`).then((x) => x.ok && x.data && x.data.session && renderSession(x.data.session));
+    if (SESS) SESS.flush(true);
     toast(S.session && S.session.connected ? "요청을 세션에 보냈습니다" : "요청을 남겼습니다 - 세션이 연결되면 전달됩니다");
   }
+  const ATT = { list: [], busy: 0 };
+  const attIsImg = (a) => /^image\//.test(a.type || "");
+  const attUrl = (a) => BASE + (a.url || "/" + a.path);
+  function attRender() {
+    $("#reqAtt").innerHTML = ATT.list.map((a, i) => `<span class="a" title="${esc(a.name)} · ${Math.round((a.size || 0) / 1024)}KB">${attIsImg(a) ? `<img src="${esc(attUrl(a))}" alt="">` : "<span>📄</span>"}<span class="n">${esc(a.name)}</span><button class="x" data-attx="${i}" title="빼기">✕</button></span>`).join("")
+      + (ATT.busy ? `<span class="a"><span class="spin"></span><span class="n">올리는 중…</span></span>` : "");
+  }
+  function attUpload(files) {
+    [...files].filter((f) => f && f.size).forEach((f) => {
+      const rd = new FileReader(); ATT.busy++; attRender();
+      rd.onload = async () => {
+        const name = f.name && f.name !== "image.png" ? f.name : `clip-${new Date().toISOString().slice(11, 19).replace(/:/g, "")}.${(f.type.split("/")[1] || "png").replace("jpeg", "jpg")}`;
+        const r = await api("POST", `/api/attach/${encodeURIComponent(S.id)}`, { name, type: f.type, data: String(rd.result).split(",")[1] || "" });
+        ATT.busy--;
+        if (!r.ok) { toast("첨부하지 못했습니다: " + ((r.data && r.data.error) || r.status), 5000); attRender(); return; }
+        ATT.list.push(r.data); attRender();
+      };
+      rd.onerror = () => { ATT.busy--; attRender(); toast("파일을 읽지 못했습니다"); };
+      rd.readAsDataURL(f);
+    });
+  }
+  function attListHtml(list, rid) {  // 요청 카드의 축소판 - 누르면 라이트박스
+    if (!list || !list.length) return "";
+    return `<div class="att ro">${list.map((a, i) => `<a class="a" href="${esc(attUrl(a))}" data-lb="${esc(rid)}:${i}" title="${esc(a.name)}">${attIsImg(a) ? `<img src="${esc(attUrl(a))}" alt="" loading="lazy">` : "📄"}<span class="n">${esc(a.name)}</span></a>`).join("")}</div>`;
+  }
+  const lbItems = (list) => (list || []).map((a) => ({ url: attUrl(a), name: a.name, size: a.size, type: a.type }));
   async function onReqClick(e) {
+    const lb = e.target.closest("[data-lb]");
+    if (lb && window.NexaLightbox) {
+      e.preventDefault(); const [rid, i] = lb.dataset.lb.split(":"), q = S.reqs.find((x) => x.id === rid);
+      if (q) { const all = S.reqs.filter((x) => reqSlide(x) === reqSlide(q) && x.attachments && x.attachments.length).flatMap((x) => lbItems(x.attachments)); NexaLightbox.open(lbItems(q.attachments), +i, { title: `요청 ${q.id}`, alt: { label: "이 탭의 모든 요청 첨부", items: all } }); }
+      return;
+    }
     const b = e.target.closest("button"), card = e.target.closest(".req");
     if (!card) return;
     const q = S.reqs.find((x) => x.id === card.dataset.rid); if (!q) return;
@@ -1369,6 +1407,10 @@
     if (LS.get("sheetNoSide", "0") === "1") document.body.classList.add("noside");
     { const w = +LS.get("sheetSideW", 0); if (w) document.documentElement.style.setProperty("--sideW", w + "px"); }
     { const c = await api("GET", "/api/config"); if (c.ok && c.data && c.data.brand && c.data.brand.logo) TH.brandLogo = "/" + String(c.data.brand.logo).replace(/^[/]+/, ""); }
+    if (window.NexaSession) SESS = NexaSession.create({ api, toast, openMenu, esc, base: BASE, deckId: () => S.id, onChange: (st, changed) => { S.session = st; if (changed && S.deck) renderReqs(); } });
+    $("#sessChip").onclick = (e) => (SESS ? SESS.menu(e.currentTarget) : null);  // 웹 세션 시작·끊기·모델·진행
+    { const [q, ss] = await Promise.all([api("GET", `/api/requests/${encodeURIComponent(S.id)}`), api("GET", "/api/session")]);
+      if (q.ok && Array.isArray(q.data)) S.reqs = q.data; if (ss.ok && ss.data) renderSession(ss.data); }
     if (!(await loadDeck(false))) return;
     { const t = LS.get(typedKey(), ""); if (t) $("#reqText").value = t; }
     await loadReqs();
@@ -1458,10 +1500,20 @@
     // 요청 패널
     $("#reqList").addEventListener("click", onReqClick);
     $("#reqSend").onclick = sendReq;
-    $("#reqText").addEventListener("keydown", (e) => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey) && !e.isComposing) { e.preventDefault(); sendReq(); } });
+    // Enter = 보내기, Shift+Enter = 줄바꿈(편집기 요청 칸과 같다 - 한글 조합 중 Enter 는 조합 확정만)
+    $("#reqText").addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.shiftKey && !e.isComposing) { e.preventDefault(); sendReq(); } });
     $("#reqText").addEventListener("input", () => LS.set(typedKey(), $("#reqText").value.trim() ? $("#reqText").value : ""));
     $("#reqWhole").addEventListener("change", renderReqTarget);
     $("#fuCancel").onclick = () => { S.fu = null; renderReqs(); };
+    {  // 요청 첨부 - 붙여넣기(그림)·끌어다 놓기·＋ 첨부
+      const box = $("#side .compose"), ta = $("#reqText");
+      ta.addEventListener("paste", (e) => { const fs = [...((e.clipboardData && e.clipboardData.items) || [])].filter((it) => it.kind === "file").map((it) => it.getAsFile()).filter(Boolean); if (fs.length) { e.preventDefault(); e.stopPropagation(); attUpload(fs); } });
+      box.addEventListener("dragover", (e) => { if ([...e.dataTransfer.types].includes("Files")) { e.preventDefault(); box.classList.add("dropping"); } });
+      box.addEventListener("dragleave", () => box.classList.remove("dropping"));
+      box.addEventListener("drop", (e) => { if (e.dataTransfer.files.length) { e.preventDefault(); box.classList.remove("dropping"); attUpload(e.dataTransfer.files); } });
+      $("#reqAttach").onclick = () => { const f = $("#attFile"); f.onchange = () => { attUpload(f.files); f.value = ""; }; f.click(); };
+      $("#reqAtt").addEventListener("click", (e) => { const x = e.target.closest("[data-attx]"); if (x) { ATT.list.splice(+x.dataset.attx, 1); attRender(); } });
+    }
     $("#reqFilter").addEventListener("click", (e) => { const b = e.target.closest("button[data-v]"); if (!b) return; if (b.dataset.v === "done") S.reqDone = !S.reqDone; else { S.reqTab = b.dataset.v === "1"; LS.set("sheetReqTab", S.reqTab ? "" : "0"); } renderReqs(); });
     $("#sideSplit").addEventListener("mousedown", (e) => {
       e.preventDefault(); const x0 = e.clientX, w0 = $("#side").offsetWidth;
