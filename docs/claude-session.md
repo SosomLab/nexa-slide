@@ -75,7 +75,9 @@ Word(.docx)·Excel(.xlsx/.xlsm)·PDF 첨부는 `nexa.py import_doc <파일>` —
 1. `decks/<deck>.requests.json` 에서 그 요청의 `status` 를 **`working`** 으로 — 편집기에 "세션 처리 중"이 뜬다.
 2. `decks/<deck>.json` 을 고친다.
    - **서버가 떠 있으면 `nexa.py save_deck <덱> --from <새 덱 파일> --request <요청 id> --note "…"` 로 저장한다** - 변경 원장에 "Claude(정확)" 로 남고
-     백업·충돌 검사(409 = **사본(draft_deck)을 만든 뒤** 편집기가 저장함 — 사람의 변경을 덮지 않게 종료 코드 2 → draft_deck 부터 다시, 꼭 덮어써야 하면 `--force`)도 서버가 한다([change-ledger.md](change-ledger.md)).
+     백업과 **병합 저장**도 서버가 한다([change-ledger.md](change-ledger.md) · [collab.md](collab.md) 1단계) — **사본(draft_deck)을 만든 뒤** 편집기가 저장했으면
+     덮지 않고 요소·셀 단위로 합치고, 같은 곳을 사람과 다르게 고쳤으면 **사람의 값이 남는다**. 그때 출력의 "충돌 n건" 줄을 reply 에 알린다.
+     종료 코드 2(병합할 수 없음)면 draft_deck 부터 다시 한다. `--no-merge` 는 예전처럼 409, `--force` 는 사람의 변경을 지우니 꼭 필요할 때만.
      서버가 없을 때만 직접 쓴다(그때도 `save_deck` 이 원자적으로 쓰고 원장 줄을 남긴다). 파일을 직접 덮어쓰면 "Claude 추정" 또는 "외부" 로 기록된다.
    - 요소 `id` 는 유지.
    - 대상은 `slide`(슬라이드 id)·`element`(요소 id, 슬라이드 안에서 유일)로 찾는다.
