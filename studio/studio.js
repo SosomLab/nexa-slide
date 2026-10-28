@@ -136,6 +136,7 @@
     if (r.status === 401) { NexaMenu.auth401(r, await r.json().catch(() => null)); return false; }
     if (!r.ok) { toast("덱을 불러오지 못했습니다"); return false; }
     const deck = await r.json();
+    if (deck.kind === "sheet") { location.href = sheetUrl(id); return false; }  // 시트(엑셀) 문서는 시트 화면(sheet.html)에서 - docs/sheets.md
     if (keep && S.deck && S.id === id) snapshot(); else { S.undo = []; S.redo = []; }
     S.id = id; S.deck = deck; S.version = r.headers.get("X-Deck-Version"); S.savedJson = deckJson();
     Render.setDeckFonts(deck.fontPreset);  // 덱 글꼴 세트(있으면)
@@ -345,7 +346,7 @@
   }
   function renderDeckTabs() {
     // 탭에는 제목(시작 덱은 ★), id 는 엔진이 만든 짧은 해시라 툴팁·메뉴 머리에만 보인다
-    $("#deckTabs").innerHTML = S.decks.map((d) => `<button data-deck="${esc(d.id)}" class="${d.id === S.id ? "on" : ""}${d.start ? " start" : ""}" title="${esc(d.title)} (${d.slides}장) · id ${esc(d.id)}${d.start ? " · 시작 덱" : ""} - 오른쪽 클릭: 제목·복제·시작 덱·삭제">${d.start ? "★ " : ""}${esc(d.title || d.id)}</button>`).join("")
+    $("#deckTabs").innerHTML = S.decks.map((d) => `<button data-deck="${esc(d.id)}" class="${d.id === S.id ? "on" : ""}${d.start ? " start" : ""}" title="${esc(d.title)} (${isSheet(d) ? "시트" : `${d.slides}장`}) · id ${esc(d.id)}${d.start ? " · 시작 덱" : ""} - 오른쪽 클릭: 제목·복제·시작 덱·삭제">${isSheet(d) ? "▦ " : d.start ? "★ " : ""}${esc(d.title || d.id)}</button>`).join("")
       + `<button data-deckadd="1" class="add" title="새 덱 만들기 - 제목만 적으면 id 는 저절로">＋</button>`;
     requestAnimationFrame(deckTabsFit);
   }
@@ -357,21 +358,25 @@
     $("#deckPrev").disabled = T.scrollLeft <= 0; $("#deckNext").disabled = T.scrollLeft + T.clientWidth >= T.scrollWidth - 1;
   }
   const deckDrag = { x: 0, l: 0, moved: false, down: false };
-  function deckListMenu(btn) {  // ☰ 덱 목록 - 골라서 이동, ★ 시작 덱, ✓ 지금 덱, 맨 아래 새 덱
-    openMenu(btn, [{ h: `덱 ${S.decks.length}개` }, ...S.decks.map((d) => ({ label: `${d.start ? "★ " : ""}${d.title} (${d.slides}장)`, on: d.id === S.id, act: () => switchDeck(d.id) })), "-", { label: "새 덱", act: () => deckCreate() }]);
+  function deckListMenu(btn) {  // ☰ 덱 목록 - 골라서 이동, ★ 시작 덱, ▦ 시트, ✓ 지금 덱, 맨 아래 새 덱·새 시트
+    openMenu(btn, [{ h: `덱 ${S.decks.length}개` }, ...S.decks.map((d) => ({ label: `${isSheet(d) ? "▦ " : d.start ? "★ " : ""}${d.title}${isSheet(d) ? "" : ` (${d.slides}장)`}`, on: d.id === S.id, act: () => switchDeck(d.id) })), "-", { label: "새 덱", act: () => deckCreate() }, { label: "새 시트(엑셀)", act: () => deckCreate("sheet") }]);
   }
+  // 시트(엑셀) 문서 - kind:"sheet". 편집은 시트 화면(sheet.html)이 한다(docs/sheets.md)
+  const isSheet = (d) => !!d && d.kind === "sheet";
+  const sheetUrl = (id) => `sheet.html?deck=${encodeURIComponent(id)}`;
   // ---------------------------------------------------------------- 덱 관리 - 추가·이름(id)·제목·삭제(휴지통). 서버 /api/decks = CLI `nexa.py deck …`
   async function deckAdmin(body, okMsg) {
     const r = await api("POST", "/api/decks", body);
     if (!r.ok) { toast("덱 관리 실패: " + ((r.data && r.data.error) || r.status), 6000); return null; }
-    S.decks = (r.data.decks || []).map((d) => ({ id: d.id, title: d.title, slides: d.slides, start: !!d.start })); renderDeckTabs();
+    S.decks = (r.data.decks || []).map((d) => ({ id: d.id, title: d.title, slides: d.slides, start: !!d.start, kind: d.kind })); renderDeckTabs();
     if (okMsg) toast(okMsg, 4000);
     return r.data;
   }
-  async function deckCreate() {
-    const title = (prompt("새 덱 제목", "") || "").trim(); if (!title) return;
-    const d = await deckAdmin({ action: "create", title }, `만들었습니다: ${title}`);
-    if (d) { if (S.dirty) await save(); await loadDeck(d.id); }
+  async function deckCreate(kind) {
+    const sheet = kind === "sheet";
+    const title = (prompt(sheet ? "새 시트 제목" : "새 덱 제목", "") || "").trim(); if (!title) return;
+    const d = await deckAdmin(sheet ? { action: "create", kind: "sheet", title } : { action: "create", title }, `만들었습니다: ${title}`);
+    if (d) { if (S.dirty) await save(); if (sheet) location.href = sheetUrl(d.id); else await loadDeck(d.id); }
   }
   function deckMenu(e, id) {
     e.preventDefault();
@@ -382,7 +387,7 @@
       { label: "복제", act: async () => { const t = (prompt("복제한 덱의 제목", `${d.title} (복사)`) || "").trim(); if (!t) return; if (S.dirty && S.id === id) await save(); const r = await deckAdmin({ action: "copy", id, title: t }, `복제했습니다: ${t}`); if (r) await loadDeck(r.id); } },
       { label: d.start ? "시작 덱 해제" : "시작 덱으로", on: !!d.start, act: async () => { await deckAdmin({ action: "start", id: d.start ? "" : id }, d.start ? "시작 덱을 해제했습니다" : `시작 덱: ${d.title}`); } }, "-",
       { label: "덱 삭제(휴지통)", act: async () => { if (!confirm(`덱 "${d.title}" 을 지울까요? decks/.trash/ 로 옮겨지며 요청·기록·첨부·content 도 같이 갑니다.`)) return; const r = await deckAdmin({ action: "delete", id }, `휴지통으로 옮겼습니다: ${d.title}`); if (r && S.id === id) { const next = S.decks[0]; if (next) await loadDeck(next.id); else location.href = BASE + "/studio/home.html"; } } },
-      "-", { label: "새 덱", act: () => deckCreate() },
+      "-", { label: "새 덱", act: () => deckCreate() }, { label: "새 시트(엑셀)", act: () => deckCreate("sheet") },
     ]);
   }
   const reqsOf = (sid, st) => {  // 썸네일 배지 - 후속 요청은 thread 단위로 하나만 센다
@@ -3243,7 +3248,7 @@ ${names}
     if (S.brand.logo) { const l = $("#brandLogo"); l.src = BASE + "/" + S.brand.logo; l.alt = S.brand.name || ""; l.style.display = ""; l.onerror = () => (l.style.display = "none"); }
     if (S.brand.favicon) $("#favicon").href = BASE + "/" + S.brand.favicon;
   }
-  async function switchDeck(id) { if (id === S.id) return; if (S.dirty) await save(); await loadDeck(id); }
+  async function switchDeck(id) { if (id === S.id) return; if (S.dirty) await save(); if (isSheet(S.decks.find((d) => d.id === id))) { location.href = sheetUrl(id); return; } await loadDeck(id); }
   async function init() {
     if (window.NexaMenu) NexaMenu.mount($("#menuBtn"));
     if ((await loadConfig()) === false) return;
@@ -3261,7 +3266,8 @@ ${names}
     setBtab(S.btab); if (LS.get("bfold", "0") === "1") toggleBottom();
     if (!S.decks.length) { location.replace("/studio/home.html"); return; }  // 작업할 덱이 없으면 시작 페이지
     const [hid, hn] = decodeURIComponent(location.hash.slice(1)).split("/");
-    await loadDeck(S.decks.some((d) => d.id === hid) ? hid : (S.decks.find((d) => d.start) || S.decks[0]).id);  // 주소의 덱 > 시작 덱(★) > 첫 덱
+    const slideDecks = S.decks.filter((d) => !isSheet(d));  // 주소에 덱이 없으면 슬라이드 덱 중에서 고른다(시트만 있으면 시트 화면으로)
+    await loadDeck(S.decks.some((d) => d.id === hid) ? hid : (slideDecks.find((d) => d.start) || slideDecks[0] || S.decks[0]).id);  // 주소의 덱 > 시작 덱(★) > 첫 덱
     if (hn) { goSlide(+hn - 1); revealThumb(S.cur, true); }
     window.addEventListener("load", () => revealThumb(S.cur, true), { once: true });
     window.addEventListener("hashchange", async () => {

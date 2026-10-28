@@ -58,7 +58,7 @@
     "마지막 행·열은 지울 수 없습니다": "The last row or column cannot be deleted", "병합/풀기 - 왼쪽 위 셀의 글만 남고 덮인 셀은 가려집니다": "Merge/unmerge - only the top-left cell's text stays; covered cells are hidden",
     "셀 서식을 넣기 위해 표 객체로 바꿨습니다(서식·글은 그대로)": "Converted to a table object for cell formatting (formatting and text kept)",
     // ---- 0.22.16 덱 탭
-    "새 덱": "New deck", "덱 목록 - 골라서 이동 · 새 덱": "Deck list - pick to switch · new deck", "앞의 덱 탭 보기": "Show earlier deck tabs", "뒤의 덱 탭 보기": "Show later deck tabs", "덱(장) - 누르면 바뀐다 · 끌어서 좌우 이동": "Decks - click to switch · drag to scroll",
+    "새 덱": "New deck", "새 시트(엑셀)": "New sheet (Excel)", "새 시트 제목": "New sheet title", "새 시트": "New sheet", "＋ 새 시트": "＋ New sheet", "새 시트 만들기": "Create a new sheet", "시트(엑셀)": "Sheet (Excel)", "덱 목록 - 골라서 이동 · 새 덱": "Deck list - pick to switch · new deck", "앞의 덱 탭 보기": "Show earlier deck tabs", "뒤의 덱 탭 보기": "Show later deck tabs", "덱(장) - 누르면 바뀐다 · 끌어서 좌우 이동": "Decks - click to switch · drag to scroll",
     // ---- 0.22.15 - 내용 유지 유형 전환·넘침 경고·섹션 접기·차트 데이터 표·자동 정리
     "▦ 표로 편집": "▦ Edit as table", "표 격자에서 셀을 고쳐 쓴다(행·열 추가, Excel 붙여넣기)": "Edit cells in a grid (add rows/columns, paste from Excel)", "Excel 에서 복사한 탭 구분 줄도 됩니다": "Tab-separated lines copied from Excel also work",
     "차트 데이터 - 표로 편집": "Chart data - edit as table", "셀을 눌러 고치고 Tab 으로 이동 · 빈 값 = 없는 값": "Click a cell to edit, Tab to move · empty = no value", "＋ 행(범주)": "＋ Row (category)", "＋ 열(계열)": "＋ Column (series)", "－ 마지막 행": "－ Last row", "－ 마지막 열": "－ Last column",

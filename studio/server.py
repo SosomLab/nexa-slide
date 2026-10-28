@@ -19,7 +19,7 @@ API
   POST /api/requests/<id>            {"action": "add"|"update"|"delete"|"send"|"discard", ...} — add 는 status draft(초안)·region(영역)·attachments 가능
   POST /api/attach/<id>              요청 첨부 올리기 {name, type, data(base64)} → {path, name, type, size, url} — out/attach/<덱>/ (그림·PDF·글·오피스, 12MB)
   GET  /api/history/<id>             저장 전 자동 백업 목록 · ?f=<파일> 이면 그 시점 덱 JSON
-  POST /api/export/<id>              PPTX 생성 → {"url": "/out/<id>.pptx"}
+  POST /api/export/<id>              PPTX 생성 → {"url": "/out/<id>.pptx"} · 시트 문서(kind sheet)는 xlsx → "/out/<id>.xlsx"
   GET  /api/render/<id>              마지막 PowerPoint 렌더 PNG 목록
   POST /api/render/<id>              PPTX 생성 + PowerPoint COM 으로 PNG 렌더
   GET  /api/layouts                  레이아웃 목록
@@ -112,6 +112,7 @@ WRITE_LOCK = threading.Lock()
 PREVIEW_LOCK = threading.Lock()
 mimetypes.add_type("application/javascript", ".js")
 mimetypes.add_type("application/vnd.openxmlformats-officedocument.presentationml.presentation", ".pptx")
+mimetypes.add_type("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", ".xlsx")
 
 
 def ver(p: Path):
@@ -305,6 +306,17 @@ def export(i):
     return run([sys.executable, str(STUDIO / "export_pptx.py"), i], 120)
 
 
+def deck_kind(i):
+    """문서 종류 - "sheet"(시트, docs/sheets.md) 또는 "deck"(슬라이드)."""
+    try:
+        return json.loads(deck_path(i).read_text(encoding="utf-8")).get("kind") or "deck"
+    except (OSError, ValueError, AttributeError):
+        return "deck"
+
+
+CELL_RANGE = re.compile(r"^[A-Z]{1,3}[1-9][0-9]{0,6}(:[A-Z]{1,3}[1-9][0-9]{0,6})?$")  # 시트 요청 대상 범위(A1 · B2:D5)
+
+
 def activity():
     """세션 활동(session_hook.py 가 쓴 out/.studio/activity.json) — 요청 감시 담당 세션의 상태와 다른 세션 작업 수.
     상태: idle(대기) · busy+chat(대화 입력 처리 중) · busy+auto(요청 등 대화 밖 작업). 15분 넘게 소식 없는 작업 중은 unknown."""
@@ -331,7 +343,7 @@ def activity():
     return {"watcher": w, "othersBusy": sum(1 for x in out if x is not w and x["state"] == "busy"), "sessions": len(out)}
 
 
-ENGINE_UI = ("index.html", "studio.js", "render.js", "menu.js", "fonts.css", "i18n.js", "i18n/en.js", "i18n/en.pages.js", "i18n/en.review.js")
+ENGINE_UI = ("index.html", "studio.js", "sheet.html", "sheet.js", "render.js", "menu.js", "fonts.css", "i18n.js", "i18n/en.js", "i18n/en.pages.js", "i18n/en.review.js")
 
 
 def hub_ui_stamp():
@@ -836,7 +848,7 @@ class H(BaseHTTPRequestHandler):
             self.send_header("Cache-Control", "private, max-age=0, must-revalidate")
         else:
             self.send_header("Cache-Control", "no-store")
-        if parts and parts[0] == "out" and p.parent == root and p.suffix.lower() in (".pptx", ".pdf"):  # 내보내기 결과는 덱 제목으로 받게
+        if parts and parts[0] == "out" and p.parent == root and p.suffix.lower() in (".pptx", ".pdf", ".xlsx"):  # 내보내기 결과는 덱 제목으로 받게
             from urllib.parse import quote as _q
             nm = export_name(p.stem, p.suffix.lower())
             self.send_header("Content-Disposition", f"attachment; filename=\"{p.name}\"; filename*=UTF-8''{_q(nm)}")
@@ -856,7 +868,7 @@ class H(BaseHTTPRequestHandler):
         try:
             with WRITE_LOCK:
                 if act == "create":
-                    out = deck_admin.create(i, b.get("title"), b.get("layout") or "cover", b.get("part") or "day1")
+                    out = deck_admin.create(i, b.get("title"), b.get("layout") or "cover", b.get("part") or "day1", "sheet" if b.get("kind") == "sheet" else "deck")
                 elif act == "copy":
                     out = deck_admin.copy(i, b.get("title"))
                 elif act == "start":
@@ -890,7 +902,8 @@ class H(BaseHTTPRequestHandler):
             try:
                 d = json.loads(f.read_text(encoding="utf-8"))
                 out.append({"id": f.stem, "title": d.get("title", f.stem), "slides": len(d.get("slides", [])),
-                            "updated": d.get("updated", ""), "version": ver(f), "start": f.stem == sd})
+                            "updated": d.get("updated", ""), "version": ver(f), "start": f.stem == sd, "kind": d.get("kind") or "deck",
+                            **({"sheets": len(d.get("sheets") or [])} if d.get("kind") == "sheet" else {})})
             except Exception as e:  # noqa: BLE001
                 out.append({"id": f.stem, "title": f"(읽기 오류: {e})", "slides": 0, "version": ver(f)})
         self.send_json(out)
@@ -918,6 +931,12 @@ class H(BaseHTTPRequestHandler):
         for s in deck["slides"]:
             if not isinstance(s, dict) or not isinstance(s.get("elements", []), list):
                 return self.err(400, "슬라이드 형식 아님")
+        if deck.get("kind") == "sheet":  # 시트 문서(docs/sheets.md) - 탭 목록과 탭마다 cells 객체
+            shs = deck.get("sheets")
+            if not isinstance(shs, list) or not shs or any(not isinstance(t, dict) or not t.get("id") or not isinstance(t.get("cells", {}), dict) for t in shs):
+                return self.err(400, "시트 형식 아님(sheets 목록, 탭마다 id·cells 필요)")
+            if len({t["id"] for t in shs}) != len(shs):
+                return self.err(400, "시트 탭 id 중복")
         base = (q.get("base") or [self.headers.get("X-Base-Version") or ""])[0]
         force = (q.get("force") or ["0"])[0] == "1"
         origin = (q.get("origin") or ["editor"])[0]
@@ -1767,13 +1786,16 @@ class H(BaseHTTPRequestHandler):
                         "created": dt.datetime.now().isoformat(timespec="seconds")}
                 if isinstance(b.get("region"), dict):  # 그리기 모드 영역 {kind: rect|pen|pin, box:[x,y,w,h], points:[[x,y]…]}
                     item["region"] = b["region"]
+                rg = str(b.get("range") or "").strip().upper().replace("$", "")
+                if rg and CELL_RANGE.match(rg):  # 시트 요청 - 고른 셀 범위(slide = 시트 탭 id)
+                    item["range"] = rg
                 els = [str(x)[:40] for x in (b.get("elements") or []) if isinstance(x, (str, int))][:50]  # 여러 요소를 고른 메모 - element 는 첫 것
                 if len(els) > 1:
                     item["elements"] = els
                     item["element"] = item.get("element") or els[0]
                 if par:  # 후속 요청 - 앞선 요청에 이어 묻는다. 대상(slide·element·region)은 따로 주지 않으면 물려받고, 원 요청은 그대로 둔다
                     item["parent"], item["thread"] = par["id"], par.get("thread") or par["id"]
-                    for k in ("slide", "element", "region"):
+                    for k in ("slide", "element", "region", "range"):
                         if item.get(k) is None and par.get(k) is not None:
                             item[k] = par[k]
                 att = self._valid_attachments(i, b.get("attachments"))
@@ -1975,6 +1997,12 @@ class H(BaseHTTPRequestHandler):
     def api_post_export(self, i, q):
         if not deck_path(i).exists():
             return self.err(404, "덱 없음")
+        if deck_kind(i) == "sheet":  # 시트 문서 → out/<id>.xlsx (export_xlsx.py)
+            code, log = run([sys.executable, str(STUDIO / "export_xlsx.py"), i], 120)
+            f = OUT / f"{i}.xlsx"
+            if code != 0 or not f.exists():
+                return self.send_json({"ok": False, "error": "xlsx 내보내기 실패", "log": log}, 500)
+            return self.send_json({"ok": True, "path": str(f), "url": f"/out/{i}.xlsx?v={ver(f)}", "log": log, "name": export_name(i, ".xlsx")})
         if (q.get("embed") or ["0"])[0] == "1":  # 글꼴 포함 PPTX(PowerPoint) — 작업 공간 글꼴이 설치 안 됐으면 409 needInstall
             args = [sys.executable, str(STUDIO / "embed_fonts.py"), i] + (["--install"] if (q.get("install") or ["0"])[0] == "1" else [])
             code, log = run(args, 420)

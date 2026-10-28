@@ -251,6 +251,7 @@
   <a class="chip sm" id="studioLink" href="/studio/" style="display:none"></a>
   <button type="button" class="chip sm" id="infoBtn" data-info="" title="저장소를 받은 뒤 이 PC 에서 할 일 - 실제 경로가 채워진 명령과 복사">ⓘ 설정 안내</button>
   <a class="chip sm primary" href="#new">＋ 새 슬라이드</a>
+  <a class="chip sm" href="#new-sheet" title="엑셀처럼 셀을 채우는 표 문서를 AI 와 함께 만듭니다">＋ 새 시트</a>
 </header>
 <nav class="tabs" id="tabs">
   <a href="#start" data-p="start">시작</a>
@@ -270,10 +271,12 @@
     <div id="curBox" class="banner info cur" style="display:none"></div>
     <div class="grid2">
       <form class="card" id="newForm" autocomplete="off">
-        <h3>새 슬라이드 만들기</h3>
+        <h3 id="fHead">새 슬라이드 만들기</h3>
         <div class="step"><span class="num">1</span><div>
+          <div class="row pv-decks" id="fKind" style="margin:0 0 6px"><button type="button" class="chip sm on" data-kind="deck">슬라이드</button><button type="button" class="chip sm" data-kind="sheet" title="엑셀처럼 셀을 채우는 표 문서 - AI 에게 범위를 골라 요청하고 xlsx 로 내보냅니다">시트(엑셀)</button></div>
           <label class="f" for="fTitle">제목</label>
           <input type="text" id="fTitle" required maxlength="80" placeholder="예: 2026 하반기 S&amp;OP 교육">
+          <div id="deckOpts">
           <div class="row" style="justify-content:space-between;margin:8px 0 4px"><label class="f" style="margin:0">템플릿</label>
             <button type="button" class="chip sm" id="fPreview" title="고른 템플릿과 시작용 내용으로 만든 슬라이드를 미리 봅니다"></button></div>
           <div class="tpls" id="fTpls"></div>
@@ -281,6 +284,7 @@
             <label class="f" for="fStarter">시작용 내용</label>
             <select id="fStarter"><option value="">빈 시작(표지 · 글머리 · 표 · 정리 · 끝 5장)</option></select>
             <div class="hint" style="margin:4px 0 0">내용을 고르면 어울리는 템플릿으로 자동으로 바뀝니다 - 템플릿은 그 뒤에 따로 골라도 됩니다(템플릿을 바꿔도 내용은 그대로).</div>
+          </div>
           </div>
         </div></div>
         <div class="step"><span class="num">2</span><div>
@@ -589,7 +593,13 @@
   const { icon, mark, esc, post, toast, go } = NexaMenu;
   const $ = (s) => document.querySelector(s), $$ = (s) => [...document.querySelectorAll(s)];
   const PAGES = ["start", "tutorial", "demo", "templates", "samples"];
-  const H = { home: null, tpl: "lecture" };
+  const H = { home: null, tpl: "lecture", kind: "deck" };  // kind = 첫 문서 종류(deck 슬라이드 · sheet 시트, docs/sheets.md)
+  function setKind(k) {
+    H.kind = k === "sheet" ? "sheet" : "deck";
+    $$("#fKind [data-kind]").forEach((b) => b.classList.toggle("on", b.dataset.kind === H.kind));
+    $("#deckOpts").style.display = H.kind === "sheet" ? "none" : "";  // 시트는 템플릿·시작용 내용을 쓰지 않는다
+    $("#fHead").textContent = I18N.t(H.kind === "sheet" ? "새 시트 만들기" : "새 슬라이드 만들기");
+  }
   const color = (s) => { let h = 0; for (const c of s) h = (h * 31 + c.charCodeAt(0)) >>> 0; return `hsl(${h % 360} 45% 45%)`; };
   const sep = () => (H.home && H.home.projectsRoot.includes("\\") ? "\\" : "/");
   const slug = (t) => t.trim().replace(/[<>:"/\\|?*\x00-\x1f]+/g, "-").replace(/\s+/g, "-").replace(/^[.\- ]+|[.\- ]+$/g, "").slice(0, 60) || "slides";
@@ -600,6 +610,7 @@
   function route() {
     let h = location.hash.slice(1) || "start";
     if (h === "settings") { openSettings(); h = "start"; history.replaceState(null, "", "#start"); }
+    if (h === "new-sheet" || h === "new") { setKind(h === "new-sheet" ? "sheet" : "deck"); schedulePlan(); h = "new"; }
     const p = ["new", "open"].includes(h) ? "start" : PAGES.includes(h) ? h : "start";
     $$(".page").forEach((x) => x.classList.toggle("on", x.id === "p-" + p));
     $$("#tabs a").forEach((a) => a.classList.toggle("on", a.dataset.p === p));
@@ -649,6 +660,7 @@
     else { H.tpl = name; if (H.wiz) H.wiz.on = false; }
   }
   $("#fTpls").addEventListener("click", (e) => { const b = e.target.closest("[data-tpl]"); if (!b) return; pickTpl(b.dataset.tpl); renderTpls(); schedulePlan(); });
+  $("#fKind").addEventListener("click", (e) => { const b = e.target.closest("[data-kind]"); if (!b) return; setKind(b.dataset.kind); schedulePlan(); });
   $("#fStarter").addEventListener("change", () => { const s = H.home.starters.find((x) => x.name === $("#fStarter").value); if (s && s.template) { H.tpl = s.template; renderTpls(); } schedulePlan(); });
   const loc = () => (document.querySelector("input[name=loc]:checked") || {}).value;
   // 하위 폴더 자동값 - 폴더·저장소 지정일 때만 제목으로 채운다(저장소를 골랐으면 비움 = 그 저장소가 루트). 사용자가 직접 고치면 그 뒤로는 건드리지 않는다.
@@ -684,7 +696,7 @@
   let shell = (() => { try { return localStorage.getItem("nx-shell"); } catch (e) { return null; } })();
   function formBody() {
     const custom = loc() === "custom";
-    const b = { title: $("#fTitle").value.trim(), template: H.tpl, starter: $("#fStarter").value || null, port: $("#fPort").value.trim(),
+    const b = { title: $("#fTitle").value.trim(), template: H.tpl, starter: H.kind === "sheet" ? null : $("#fStarter").value || null, kind: H.kind, port: $("#fPort").value.trim(),
       purpose: $("#fPurpose").value, audience: $("#fAudience").value, direction: $("#fDirection").value, materials: $("#fMaterials").value,
       askDraft: $("#fAsk").checked, loc: loc(), slidesDir: wsName(), defaultTitle: I18N.t("제목"), lang: I18N.effective() };  // 제목이 비었을 때 명령·경로에 쓰는 자리 글(표시 언어대로) · lang = 시작용 내용 언어
     if (custom) { b.folder = $("#fFolder").value.trim(); b.sub = $("#fSub").value.trim(); }
@@ -734,7 +746,7 @@
     $("#fErr").innerHTML = "";
     const custom = loc() === "custom";
     if (custom && !$("#fFolder").value.trim()) { toast("저장할 폴더를 고르세요"); return; }
-    const body = { action: "create", title: $("#fTitle").value.trim(), template: H.tpl, starter: $("#fStarter").value || null,
+    const body = { action: "create", title: $("#fTitle").value.trim(), template: H.tpl, starter: H.kind === "sheet" ? null : $("#fStarter").value || null, kind: H.kind,
       purpose: $("#fPurpose").value, audience: $("#fAudience").value, direction: $("#fDirection").value, materials: $("#fMaterials").value,
       askDraft: $("#fAsk").checked, port: $("#fPort").value.trim() || (H.plan && H.plan.port) || "", loc: loc(), slidesDir: wsName(), lang: I18N.effective() };
     if (custom) { body.folder = $("#fFolder").value.trim(); body.sub = $("#fSub").value.trim(); }

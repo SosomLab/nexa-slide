@@ -494,7 +494,7 @@ def _cmdline(args, shell):
 
 def plan(b):
     """새로 만들기 계획 - 만들 폴더·포트와 그대로 실행할 init_workspace 명령. 시작 페이지는 이것을 보여 주고, create 는 이것을 실행한다.
-    b = {title, template, starter?, deck?, folder?, sub?, slidesDir?, port?, purpose, audience, direction, materials, askDraft}.
+    b = {title, template, starter?, deck?, kind?(sheet), folder?, sub?, slidesDir?, port?, purpose, audience, direction, materials, askDraft}.
     folder(+sub) 는 저장소 루트, 작업 공간은 그 아래 slidesDir(기본 slides)."""
     from init_workspace import free_port, hub_port, port_busy, resolve_target, taken_ports
     warn = []
@@ -542,10 +542,14 @@ def plan(b):
             warn.append(f"포트 {port} 는 작업 공간 {taken_ports(skip=ws)[port]} 설정과 같습니다 - 두 서버를 함께 띄우면 뒤에 띄운 쪽이 실패합니다")
     else:
         port = free_port(skip=ws)
+    sheet = b.get("kind") == "sheet"  # 첫 문서를 시트로(docs/sheets.md) - 시작용 내용은 쓰지 않는다
     deck = re.sub(r"[^A-Za-z0-9_-]", "", str(b.get("deck") or "")) or "intro"
     args = [STUDIO / "init_workspace.py", target or "<폴더>", "--title", name, "--template", template]
     if deck != "intro":
         args += ["--deck", deck]
+    if sheet:
+        args += ["--kind", "sheet"]
+        starter = None
     if starter:
         args += ["--starter", starter]
         lang = re.sub(r"[^a-z]", "", str(b.get("lang") or "ko").lower())[:5]
