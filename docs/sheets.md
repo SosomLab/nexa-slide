@@ -67,8 +67,9 @@ M365(OneDrive·Graph API) 직접 연동은 하지 않는다 — 원래 불편(�
 **수식형 요약 `GROUPBY`·`PIVOTBY`**(엑셀 365, 넘친다) — 피벗 표 대신 수식 한 칸으로 요약한다.
 `=GROUPBY(행 필드, 값, 집계)` 은 행 필드별 집계 + 맨 아래 `Total`, `=PIVOTBY(행 필드, 열 필드, 값, 집계)` 은 행×열 표 + 행·열 합계.
 집계는 함수 이름(`SUM`·`AVERAGE`·`COUNT`·`COUNTA`·`MAX`·`MIN`·`MEDIAN`·`PRODUCT`)이나 LAMBDA(`LAMBDA(v,SUM(v)/2)`)·이름 정의 함수.
-GROUPBY 는 행 필드·값 여러 열, 머리글(0·1·3 - 생략하면 자동), 합계(1 아래·-1 위·0 없음), 정렬(열 ±n), 거르기 배열을 받는다.
-아직 안 되는 것: 소계(합계 깊이 2)·머리글 만들기(2)·PIVOTBY 여러 열 필드·값 열로 정렬. 엑셀 파일에는 `_xlfn.GROUPBY(…,_xleta.SUM)` 으로 쓰고 가져올 때 뗀다.
+GROUPBY 는 행 필드·값 여러 열, 머리글(0·1·2·3 - 생략하면 자동, 2 는 머리글 없는 자료에 `Row Field 1`·`Column Field 1`·`Value 1` 을 만들어 붙인다), 합계(1 아래·-1 위·0 없음 · 2 이상이면 깊이별 소계가 들어가고 맨 합계 이름이 `Grand Total`), 정렬, 거르기 배열을 받는다.
+PIVOTBY 는 행 필드·열 필드·값 모두 여러 열을 받는다. 정렬(두 함수 공통)은 `±n`(키 열 수보다 큰 번호면 값 열로 정렬)이고 `{-1,2}` 처럼 배열이면 단계별로 정렬한다(엑셀에 맞춘 규칙 요약은 CHANGELOG 0.24.10).
+배열 상수 `{1,-3;"가",TRUE}`(`,` 열 · `;` 행)도 수식 어디에나 쓸 수 있다. 엑셀 파일에는 `_xlfn.GROUPBY(…,_xleta.SUM)` 으로 쓰고 가져올 때 뗀다.
 
 **LAMBDA 계열**(엑셀 365) — `LAMBDA(매개변수…, 식)` 와 그것을 받는 `MAP`·`BYROW`·`BYCOL`·`REDUCE`·`SCAN`·`MAKEARRAY`.
 `=SUM(MAP(B2:B5,LAMBDA(x,x*2)))` · `=BYROW(B2:C5,LAMBDA(r,SUM(r)))`(행마다 하나 - 넘친다) · `=REDUCE(0,B2:B5,LAMBDA(a,v,a+v))` · `=SCAN(0,B2:B5,LAMBDA(a,v,a+v))`(누계) · `=MAKEARRAY(3,2,LAMBDA(r,c,r*c))`.
