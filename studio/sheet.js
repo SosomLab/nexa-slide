@@ -1650,6 +1650,14 @@
     // 요청 패널
     $("#reqList").addEventListener("click", onReqClick);
     $("#reqSend").onclick = sendReq;
+    // 예시 칩 - 누르면 요청 칸에 문장을 넣는다(보내지는 않는다 - 고쳐 쓰고 Enter). 칸에 글이 있으면 다음 줄에 덧붙인다
+    const CHIPS = ["합계 행 추가", "이 열은 % 형식으로", "빈칸은 0 으로", "머리글 굵게·채우기", "상위 3개 강조", "오류 칸 원인 설명"];
+    $("#reqChips").innerHTML = CHIPS.map((t) => `<button type="button" data-chip="${esc(t)}">${esc(t)}</button>`).join("");
+    $("#reqChips").addEventListener("click", (e) => {
+      const b = e.target.closest("[data-chip]"); if (!b) return;
+      const ta = $("#reqText"), cur = ta.value.trimEnd();
+      ta.value = cur ? `${cur}\n${b.dataset.chip}` : b.dataset.chip; ta.dispatchEvent(new Event("input")); ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length);
+    });
     // Enter = 보내기, Shift+Enter = 줄바꿈(편집기 요청 칸과 같다 - 한글 조합 중 Enter 는 조합 확정만)
     $("#reqText").addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.shiftKey && !e.isComposing) { e.preventDefault(); sendReq(); } });
     $("#reqText").addEventListener("input", () => LS.set(typedKey(), $("#reqText").value.trim() ? $("#reqText").value : ""));

@@ -187,6 +187,9 @@
   #side .compose { padding: 4px 14px 10px; border-bottom: 1px solid var(--tone2); display: flex; flex-direction: column; gap: 6px; }
   #side .tgt { font-size: 12px; color: var(--ink2); display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
   #side .tgt b { color: var(--ink); font-family: Consolas, monospace; }
+  #reqChips { display: flex; flex-wrap: wrap; gap: 4px; margin: 4px 0 2px; }  /* 예시 칩 - 누르면 요청 칸에 문장(보내지는 않는다) */
+  #reqChips button { font-size: 11.5px; padding: 2px 8px; border: 1px solid var(--line); border-radius: 999px; background: transparent; color: var(--ink2); cursor: pointer; }
+  #reqChips button:hover { color: inherit; border-color: currentColor; }
   #reqText { min-height: 72px; resize: vertical; border: 1px solid var(--line); border-radius: 10px; padding: 7px 9px; }
   #side .row { display: flex; gap: 6px; align-items: center; }
   #side .hint { color: var(--ink2); font-size: 12px; }
@@ -283,6 +286,7 @@
       <textarea id="reqText" placeholder="예: 이 표 아래에 합계 행을 넣고 금액은 #,##0 으로 (Enter = 보내기, Shift+Enter = 줄바꿈 · 그림은 Ctrl+V)"></textarea>
       <div class="att" id="reqAtt"></div>
       <div class="row"><button class="att-btn" data-attach="tab" title="그림 붙여넣기(Ctrl+V) · 끌어다 놓기 · 파일 고르기">＋ 첨부</button><span style="flex:1"></span><button class="chip sm primary" id="reqSend">요청 보내기</button></div>
+      <div class="chips" id="reqChips"></div>
       <div id="reqHint"></div>
       <input type="file" id="attFile" multiple accept="image/*,.pdf,.txt,.md,.csv,.json,.pptx,.docx,.xlsx" style="display:none">
     </div>
