@@ -36,6 +36,7 @@
 서식이 있으면 `{"v": 값, "f": "=수식", "fmt": "#,##0", "b": true, "fill": "#RRGGBB", "align": "center", …}`. 수식은 `f` 에만(엑셀 수식 그대로), `v` 는 계산값 캐시라 모르면 빼도 된다(화면이 다시 계산).
 열 너비 `cols {"A": 140}`(px)·행 높이 `rows {"1": 30}`·병합 `merges ["A1:D1"]`·틀 고정 `freeze "A2"`·탭 추가는 `sheets` 에 `{id, name, cells}`. 저장은 똑같이 `save_deck`.
 문서에 `theme` 이 있으면 색을 직접 쓰지 말고 셀에 테마 스타일 이름을 `"s": "header"`(머리)·`"cell"`(본문 칸)·`"key"`(번호·ID)·`"label"`(라벨)·`"input"`(입력칸)·`"title"`·`"section"`·`"warn"` 처럼 준다 — 스타일 목록은 `python3 nexa.py sheet_theme show <테마>`. 새 표는 기존 탭의 머리·본문 스타일을 그대로 따른다.
+이름 정의를 쓰면 수식이 읽기 쉬워진다 — 문서 `names {"매출": "데이터!$B$2:$B$5", "세율": "0.1"}`(탭 하나에만 쓰면 탭 `names`, 탭 이름 없이 `"$B$2:$B$5"`) 를 두고 셀에 `=SUM(매출)*세율` 처럼 쓴다(엑셀 이름 관리자와 같다, docs/sheets.md 2절).
 슬라이드에 시트 범위를 표·차트로 넣어 달라는 요청이면 `python3 nexa.py sheet_link <시트 문서> <탭> <범위> [--as chart]` 의 결과(rows 또는 categories·series·numFmt 와 link)를 표(`table`)·차트(`chart`) 요소에 그대로 넣는다 - 원본이 바뀌면 편집기가 따라 고친다.
 수식을 넣거나 고쳤으면 저장 전에 `python3 nexa.py sheet_calc <deck>` 로 계산해 오류 칸(#DIV/0!·#NAME? 등)이 없는지 확인한다(엑셀 함수 약 70개 - 화면·xlsx 내보내기와 같은 계산).
 
