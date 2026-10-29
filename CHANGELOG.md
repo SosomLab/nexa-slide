@@ -1,10 +1,12 @@
 # 변경 이력
 
-## 0.24.3 - 2026-10-29 · 시트 LAMBDA
+## 0.24.3 - 2026-10-29 · 시트 LAMBDA · AI 제안 하나씩 받기
 
 - **`LAMBDA`·`MAP`·`BYROW`·`BYCOL`·`REDUCE`·`SCAN`·`MAKEARRAY`**(엑셀 365, 계산기 두 곳): `=SUM(MAP(B2:B5,LAMBDA(x,x*2)))` · `=BYROW(B2:C5,LAMBDA(r,SUM(r)))` · `=REDUCE(0,범위,LAMBDA(a,v,a+v))`. LET 이름에 담아 `f(2,3)` 으로 부르고, **이름 정의에 담으면 사용자 함수**(이름 관리자 `세후 = LAMBDA(x,x*0.9)` → `=세후(1000)`, 자기를 부르는 재귀도 깊이 200까지). 칸 값이 함수면 `#CALC!`, 인수 개수가 틀리면 `#VALUE!`.
 - `GROUPBY`·`PIVOTBY` 집계에 LAMBDA(`=GROUPBY(D2:D5,B2:B5,LAMBDA(v,SUM(v)/2))`)와 이름 정의 함수.
 - 엑셀 파일: LAMBDA 매개변수는 `_xlpm.`, 이름 정의에 담은 LAMBDA·새 함수도 `_xlfn.`(XlsxWriter `define_name` 은 붙이지 않는다) - 가져올 때 뗀다.
+- **AI 제안을 장·탭 안의 요소·셀 하나씩 골라 받기**(요청 카드 "하나씩 고르기", 동시 편집 3-3 첫 조각, 협업 세션 `d70fbb0`).
+- 시트 화면 시나리오 `sheetx` 에 GROUPBY 넘침·이름 정의 사용자 함수.
 - 시험: `sheetcalc` 사례 230개(LAMBDA 17, 두 곳 같음), `sheetrt` LAMBDA·이름 정의 사용자 함수 왕복.
 
 ## 0.24.2 - 2026-10-29 · 시트 이름 정의 · GROUPBY·PIVOTBY
