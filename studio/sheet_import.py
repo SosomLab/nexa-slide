@@ -29,9 +29,39 @@ MAX_ROWS, MAX_COLS = 5000, 200
 REF = re.compile(r"(?<![A-Za-z0-9_.$!])(\$?)([A-Z]{1,3})(\$?)(\d{1,7})(?![A-Za-z0-9_(])")
 
 
-def col_px(width):
-    """엑셀 열 너비(파일 값 - 글자 폭 단위, 여백 포함) → px. ECMA-376: trunc((256·w + trunc(128/7)) / 256 · 7)."""
-    return int((256 * float(width) + 18) / 256 * 7)
+def col_px(width, mdw=7):
+    """엑셀 열 너비(파일 값 - 글자 폭 단위, 여백 포함) → px. ECMA-376: trunc((256·w + trunc(128/mdw)) / 256 · mdw).
+    mdw = 기본 글꼴의 숫자 최대 폭(px) - Calibri 11 = 7, 맑은 고딕 11 = 8(mdw_of)."""
+    return int((256 * float(width) + int(128 / mdw)) / 256 * mdw)
+
+
+# 기본 글꼴(표준 스타일) 크기별 숫자 최대 폭(px, 96 dpi)과 기본 행 높이(pt) - 엑셀(한국어 365)에서 표준 스타일 글꼴을 바꿔 가며 잰 값
+# (기본 열 너비 px = DEF_COL_PX[숫자 폭]). 엑셀은 열 너비를 이 숫자 폭으로 px 로 바꾸고, 높이를 정하지 않은 행은 이 높이로 그린다
+_MDW = {"calibri": {8: 6, 9: 6, 10: 7, 11: 7, 12: 8, 14: 10}, "맑은 고딕": {8: 6, 9: 7, 10: 7, 11: 8, 12: 9, 14: 10},
+        "굴림": {8: 6, 9: 6, 10: 7, 11: 8, 12: 9, 14: 10}, "바탕": {8: 6, 9: 6, 10: 7, 11: 8, 12: 9, 14: 10},
+        "arial": {8: 6, 9: 7, 10: 7, 11: 8, 12: 9, 14: 11}, "aptos narrow": {8: 6, 9: 6, 10: 7, 11: 7, 12: 8, 14: 10}}
+_ROWPT = {"calibri": {8: 11.25, 9: 12, 10: 12.75, 11: 15, 12: 15.75, 14: 18.75}, "맑은 고딕": {8: 11.25, 9: 12, 10: 13.5, 11: 16.5, 12: 17.25, 14: 20.25},
+          "굴림": {8: 10.5, 9: 11.25, 10: 12, 11: 13.5, 12: 14.25, 14: 18.75}, "바탕": {8: 10.5, 9: 11.25, 10: 12, 11: 13.5, 12: 14.25, 14: 18.75},
+          "arial": {8: 11.25, 9: 12, 10: 12.75, 11: 14.25, 12: 15, 14: 18}, "aptos narrow": {8: 11.25, 9: 12, 10: 13.5, 11: 15, 12: 15.75, 14: 18.75}}
+for _t in (_MDW, _ROWPT):
+    _t.update({"malgun gothic": _t["맑은 고딕"], "gulim": _t["굴림"], "batang": _t["바탕"]})
+DEF_COL_PX = {6: 56, 7: 64, 8: 72, 9: 80, 10: 88, 11: 96, 12: 104, 13: 120}  # 기본 열 너비(8.43 글자) px - xlsxwriter 와 같은 표
+
+
+def mdw_of(name, size):
+    t = _MDW.get(str(name or "").strip().lower())
+    sz = round(float(size or 11))
+    if t:
+        return t.get(sz) or t[min(t, key=lambda k: abs(k - sz))]
+    return max(5, min(13, round(sz * 0.66)))
+
+
+def row_px_of(name, size):
+    """높이를 정하지 않은 행의 px(엑셀 기본 행 높이)."""
+    t = _ROWPT.get(str(name or "").strip().lower())
+    sz = round(float(size or 11))
+    pt = (t.get(sz) or t[min(t, key=lambda k: abs(k - sz))]) if t else sz * 1.36
+    return round(pt / 0.75)
 
 
 def col_index(letters):
@@ -101,6 +131,16 @@ def import_xlsx(src, title=None):
     f0 = fonts[0] if fonts is not None and len(fonts) else None
     base_font = {"name": f0.find(N + "name").get("val") if f0 is not None and f0.find(N + "name") is not None else None,
                  "size": float(f0.find(N + "sz").get("val")) if f0 is not None and f0.find(N + "sz") is not None else 11.0}
+    # 열 너비를 재는 글꼴 - 표준 글꼴이 테마 글꼴(scheme minor·major)이면 테마의 한글 글꼴(Hang, 한국어 엑셀이 쓰는 것) 또는 라틴 글꼴
+    wfont = base_font["name"]
+    sch = f0.find(N + "scheme") if f0 is not None else None
+    if sch is not None and sch.get("val") in ("minor", "major"):
+        blk = re.search(rf"<a:{sch.get('val')}Font>(.*?)</a:{sch.get('val')}Font>", th, re.S)
+        hang = re.search(r'<a:font script="Hang" typeface="([^"]+)"', blk.group(1)) if blk else None
+        latin = re.search(r'<a:latin typeface="([^"]+)"', blk.group(1)) if blk else None
+        wfont = (hang or latin).group(1) if (hang or latin) else wfont
+    mdw = mdw_of(wfont, base_font["size"])
+    base_font["mdw"], base_font["rowPx"] = mdw, row_px_of(wfont, base_font["size"])
     style_cache = {}
 
     def style(s):
@@ -239,7 +279,7 @@ def import_xlsx(src, title=None):
         cols = {}
         for cc in x.iter(N + "col"):
             if cc.get("width"):
-                w = col_px(cc.get("width"))
+                w = col_px(cc.get("width"), mdw)
                 for ci in range(int(cc.get("min")) - 1, min(int(cc.get("max")), MAX_COLS)):
                     cols[col_name(ci)] = w
         if cols:
@@ -274,9 +314,9 @@ def import_xlsx(src, title=None):
             tab["validations"] = dvs
         tab["size"] = {"rows": max(maxr + 20, 50), "cols": max(maxc + 2, 12)}
         fp = x.find(N + "sheetFormatPr")  # 그림 자리 계산용 기본 열 너비·행 높이(px) - to_doc 이 쓰고 지운다
-        tab["_defW"] = col_px(fp.get("defaultColWidth")) if fp is not None and fp.get("defaultColWidth") else 64
+        tab["_defW"] = col_px(fp.get("defaultColWidth"), mdw) if fp is not None and fp.get("defaultColWidth") else DEF_COL_PX.get(mdw, 64)
         tab["_rowsAll"] = {r.get("r"): round(float(r.get("ht")) / 0.75) for r in x.iter(N + "row") if r.get("ht")}  # 사용자 지정이 아닌 행 높이도(그림 자리)
-        tab["_defH"] = round(float(fp.get("defaultRowHeight")) / 0.75) if fp is not None and fp.get("defaultRowHeight") else 20
+        tab["_defH"] = round(float(fp.get("defaultRowHeight")) / 0.75) if fp is not None and fp.get("defaultRowHeight") and fp.get("customHeight") in ("1", "true") else base_font["rowPx"]  # 정하지 않은 기본 높이는 엑셀이 글꼴로 정한다
         tab["_part"] = part
         if arrays:
             warnings.append(f"{tab['name']}: 배열 수식 {arrays}개는 일반 수식으로 옮겼다")
@@ -622,7 +662,8 @@ def to_doc(i, title, src, asset_root=None):
             doc["macros"] = {"vba": rel, "codeName": (pr.get("codeName") if pr is not None else None) or "ThisWorkbook"}
             warnings.append("매크로(VBA)를 옮겼다 - 엑셀로 내보내면 .xlsm(매크로 포함). 매크로 단추·양식 컨트롤은 옮기지 않았다")
     if font.get("name"):
-        doc["font"] = {"name": font["name"], "size": font["size"]}
+        doc["font"] = {"name": font["name"], "size": font["size"], **({"mdw": font["mdw"]} if font.get("mdw", 7) != 7 else {}),
+                       **({"rowPx": font["rowPx"]} if font.get("rowPx", 20) != 20 else {})}  # mdw·rowPx - 열 너비 px 를 잰 숫자 폭·기본 행 높이(내보낼 때 같은 값으로)
     return doc, warnings
 
 
