@@ -242,6 +242,15 @@ def export(deck, out):
         if vp.is_file():
             vba, out = vp, out.with_suffix(".xlsm")
     wb = xlsxwriter.Workbook(str(out), opts)
+    # 열 너비 px ↔ 엑셀 글자 단위, 그림 앵커 칸 계산 - 엑셀이 이 파일을 그릴 글꼴의 숫자 폭·기본 행 높이에 맞춘다(안 맞으면 그림·열이 엑셀에서 커진다)
+    # 엑셀이 쓰는 글꼴 = 테마 글꼴(theme) 또는 xlsxwriter 기본(Calibri 11 + 테마 한글 글꼴 맑은 고딕 - 한국어 엑셀은 맑은 고딕으로 잰다)
+    from sheet_import import DEF_COL_PX, mdw_of, row_px_of
+    fnt = deck.get("font") or {}
+    eff = (theme.get("font") or "맑은 고딕", float(theme.get("size") or 10)) if theme else ("맑은 고딕", 11)
+    mdw = int(fnt.get("mdw") or (7 if deck.get("source") else mdw_of(*eff)))  # 0.25.2 전에 가져온 문서(source, mdw 없음)는 px 를 7 로 쟀다 - 글자 단위가 그대로이게
+    row_px = int(fnt.get("rowPx") or row_px_of(*eff))
+    wb.max_digit_width, wb.cell_padding, wb.default_col_width = mdw, 5 if mdw <= 8 else 7 if mdw <= 12 else 9, DEF_COL_PX.get(mdw, 64)
+    wb.default_row_height = row_px  # 높이를 정하지 않은 행(파일에는 쓰지 않는다 - 엑셀이 글꼴로 정한다)
     if vba:
         wb.add_vba_project(str(vba))
         wb.set_vba_name(deck["macros"].get("codeName") or "ThisWorkbook")
