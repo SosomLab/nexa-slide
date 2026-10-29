@@ -309,6 +309,9 @@ class Run:
         p.wait()
         _write_json(TEST_TIMES, times)
         bad = [x["name"] for x in T["done"] if not x["ok"]]
+        # 고른 묶음 중 끝까지 돌지 못한 것(실행기가 죽음·시간 초과)도 실패 - 전에는 재시도가 곧바로 죽으면 고른 묶음이 모두 '다시 돌려 통과'가 됐다(10-29 04:14, 메모리 부족)
+        ran = {x["name"] for x in T["done"]}
+        bad += [n for n in names if n not in ran]
         if p.returncode and not bad:
             bad = ["run_all"]
         return bad
@@ -386,13 +389,13 @@ class Run:
                 if new and "run_all" not in new:  # 새 실패는 병합본에서 한 번 더 - 다시 통과하면 한때의 흔들림(시간·환경)이지 변경 탓이 아니다
                     self.doing(f"시험 - 새 실패 {len(new)}개 묶음을 병합본에서 다시 돌려 확인")
                     still = set(self._run_tests(w, new, label="재시도"))
-                    flaky = [b for b in new if b not in still]
+                    flaky = [] if "run_all" in still else [b for b in new if b not in still]
                     if flaky:
                         self.d.setdefault("tests", {}).setdefault("병합본", {})["flaky"] = flaky  # 화면은 '다시 돌려 통과'(노랑)로
                         bad = [b for b in bad if b not in flaky]
                         save_baseline(merge, bad)  # 기준에는 다시 돌려도 실패한 것만
                     self.step("재시도(병합본)", True, f"다시 돌려 통과: {', '.join(flaky) or '없음'} · 여전히 실패: {', '.join(sorted(still)) or '없음'}")
-                    new = [b for b in new if b in still]
+                    new = new if "run_all" in still else [b for b in new if b in still]  # 재시도가 죽었으면 새 실패는 그대로
                 self.d.setdefault("tests", {}).setdefault("병합본", {})["known"] = sorted(set(bad) & before)  # 화면은 이것을 '기존 실패'(노랑)로 - 빨간 ✕ 는 새 실패만
                 _save(self.d)
                 if new:
