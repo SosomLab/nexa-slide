@@ -15,7 +15,7 @@
     },
     {
      "name": "셀 채우기(렌더 표) → cellFill 덧씌우기 3개 · 표 유형 유지",
-     "js": "document.querySelector('#ftb [data-f=\"cfill\"]').click(); await new Promise(r=>setTimeout(r,200)); const sw=[...document.querySelectorAll('.menu button, .menu [data-c], .menu .pal button')].find(x=>/s1|primary/.test(x.dataset.c||x.title||x.textContent)); if(!sw) return 'no palette '+document.querySelectorAll('.menu *').length; sw.click(); await new Promise(r=>setTimeout(r,300)); const j=JSON.parse(document.querySelector('#elJson')?document.querySelector('#elJson').value:'{}'); const el=j.type?j:null; return el && el.type==='table' && (el.cellFill||[]).length===3 ? true : JSON.stringify(el&&{t:el.type,f:el.cellFill}).slice(0,200)"
+     "js": "document.querySelector('#ftb [data-f=\"cfill\"]').click(); const sw=await until(()=>[...document.querySelectorAll('.menu button, .menu [data-c], .menu .pal button')].find(x=>/s1|primary/.test(x.dataset.c||x.title||x.textContent)), 3000); if(!sw) return 'no palette '+document.querySelectorAll('.menu *').length; sw.click(); await new Promise(r=>setTimeout(r,300)); const j=JSON.parse(document.querySelector('#elJson')?document.querySelector('#elJson').value:'{}'); const el=j.type?j:null; return el && el.type==='table' && (el.cellFill||[]).length===3 ? true : JSON.stringify(el&&{t:el.type,f:el.cellFill}).slice(0,200)"
     },
     {
      "name": "셀 굵게(글자 서식) → 표 객체로 자동 변환 · 셀 객체에 bold",
@@ -37,7 +37,7 @@
    "steps": [
     {
      "name": "＋ 추가 → 표 객체 타일 → table-obj 요소 · 속성에 표 객체 절",
-     "js": "document.querySelector('#addBtn').click(); await new Promise(r=>setTimeout(r,300)); const t=document.querySelector('.menu .tile[data-ins=\"tableobj\"]'); if(!t) return 'no tile'; t.click(); await new Promise(r=>setTimeout(r,500)); const el=JSON.parse(document.querySelector('#elJson').value); return el.type==='table-obj' && document.querySelector('#tab-props [data-act=\"totable\"]') && document.querySelectorAll('#host .rs-el[data-type=\"table-obj\"] .rs-cell').length===9 ? true : 'type='+el.type"
+     "js": "document.querySelector('#addBtn').click(); const t=await until(()=>document.querySelector('.menu .tile[data-ins=\"tableobj\"]'), 3000); if(!t) return 'no tile'; t.click(); await new Promise(r=>setTimeout(r,500)); const el=JSON.parse(document.querySelector('#elJson').value); return el.type==='table-obj' && document.querySelector('#tab-props [data-act=\"totable\"]') && document.querySelectorAll('#host .rs-el[data-type=\"table-obj\"] .rs-cell').length===9 ? true : 'type='+el.type"
     }
    ]
   }

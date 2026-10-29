@@ -7,7 +7,7 @@
    "steps": [
     {
      "name": "Ctrl+H → 찾기/바꾸기 창 · '효과' 2곳(글자·상자)",
-     "js": "document.dispatchEvent(new KeyboardEvent('keydown',{key:'h',ctrlKey:true,bubbles:true})); await new Promise(r=>setTimeout(r,200)); const q=document.querySelector('#findDlg .fq'); if(!q) return 'no dialog'; q.value='효과'; q.dispatchEvent(new Event('input',{bubbles:true})); await new Promise(r=>setTimeout(r,200)); const n=document.querySelectorAll('#findDlg .it').length; return n>=1 && document.querySelector('#findDlg .fcnt').textContent.includes('곳') ? true : 'hits='+n"
+     "js": "document.dispatchEvent(new KeyboardEvent('keydown',{key:'h',ctrlKey:true,bubbles:true})); const q=await until(()=>document.querySelector('#findDlg .fq'), 3000); if(!q) return 'no dialog'; q.value='효과'; q.dispatchEvent(new Event('input',{bubbles:true})); await new Promise(r=>setTimeout(r,200)); const n=document.querySelectorAll('#findDlg .it').length; return n>=1 && document.querySelector('#findDlg .fcnt').textContent.includes('곳') ? true : 'hits='+n"
     },
     {
      "name": "  모두 바꾸기 '효과' → '효능' · 요소 글 바뀜 · Ctrl+Z 되돌림",
@@ -15,11 +15,11 @@
     },
     {
      "name": "서식 복사: e01(글자) 선택 → 🖌 → e02 클릭 → 크기 22 로 바뀜",
-     "js": "document.querySelector('[data-sel=\"e01\"]').click(); await new Promise(r=>setTimeout(r,300)); const b=document.querySelector('#ftb [data-f=\"fmtcopy\"]'); if(!b) return 'no 🖌'; b.click(); await new Promise(r=>setTimeout(r,200)); if(!document.body.classList.contains('fmt-paint')) return 'not painting'; const t=document.querySelector('#host .rs-el[data-id=\"e02\"]'); const r=t.getBoundingClientRect(); t.dispatchEvent(new PointerEvent('pointerdown',{bubbles:true,clientX:r.left+5,clientY:r.top+5,button:0,pointerId:1,isPrimary:true})); document.dispatchEvent(new PointerEvent('pointerup',{bubbles:true,pointerId:1})); await new Promise(r2=>setTimeout(r2,300)); const sz=document.querySelector('#host .rs-el[data-id=\"e02\"] .rs-box').style.fontSize; return sz==='22px' && !document.body.classList.contains('fmt-paint') ? true : 'size='+sz"
+     "js": "document.querySelector('[data-sel=\"e01\"]').click(); const b=await until(()=>document.querySelector('#ftb [data-f=\"fmtcopy\"]'), 3000); if(!b) return 'no 🖌'; b.click(); await new Promise(r=>setTimeout(r,200)); if(!document.body.classList.contains('fmt-paint')) return 'not painting'; const t=document.querySelector('#host .rs-el[data-id=\"e02\"]'); const r=t.getBoundingClientRect(); t.dispatchEvent(new PointerEvent('pointerdown',{bubbles:true,clientX:r.left+5,clientY:r.top+5,button:0,pointerId:1,isPrimary:true})); document.dispatchEvent(new PointerEvent('pointerup',{bubbles:true,pointerId:1})); await new Promise(r2=>setTimeout(r2,300)); const sz=document.querySelector('#host .rs-el[data-id=\"e02\"] .rs-box').style.fontSize; return sz==='22px' && !document.body.classList.contains('fmt-paint') ? true : 'size='+sz"
     },
     {
      "name": "다른 덱에서 가져오기 창 - 덱 목록·장 목록 · 1장 가져오기 → 슬라이드 3장",
-     "js": "window.__n0=document.querySelectorAll('#left .thumb').length; document.querySelectorAll('#left .thumb')[0].dispatchEvent(new MouseEvent('contextmenu',{bubbles:true,clientX:100,clientY:100})); await new Promise(r=>setTimeout(r,200)); const it=[...document.querySelectorAll('.menu .it, .menu button, .menu div')].find(x=>x.textContent.trim().startsWith('다른 덱에서')); if(!it) return 'no menu item'; it.click(); await new Promise(r=>setTimeout(r,900)); const cb=document.querySelector('#impDlg .list input'); if(!cb) return 'no slides'; cb.checked=true; cb.dispatchEvent(new Event('change',{bubbles:true})); document.querySelector('#impDlg [data-ia=\"go\"]').click(); await new Promise(r=>setTimeout(r,400)); const n=document.querySelectorAll('#left .thumb').length; return n===window.__n0+1 && !document.querySelector('#impDlg') ? true : 'thumbs '+window.__n0+'→'+n"
+     "js": "window.__n0=document.querySelectorAll('#left .thumb').length; document.querySelectorAll('#left .thumb')[0].dispatchEvent(new MouseEvent('contextmenu',{bubbles:true,clientX:100,clientY:100})); const it=await until(()=>[...document.querySelectorAll('.menu .it, .menu button, .menu div')].find(x=>x.textContent.trim().startsWith('다른 덱에서')), 3000); if(!it) return 'no menu item'; it.click(); const cb=await until(()=>document.querySelector('#impDlg .list input'), 3600); if(!cb) return 'no slides'; cb.checked=true; cb.dispatchEvent(new Event('change',{bubbles:true})); document.querySelector('#impDlg [data-ia=\"go\"]').click(); await new Promise(r=>setTimeout(r,400)); const n=document.querySelectorAll('#left .thumb').length; return n===window.__n0+1 && !document.querySelector('#impDlg') ? true : 'thumbs '+window.__n0+'→'+n"
     },
     {
      "name": "노트 탭 칩 3개(이 장 노트 쓰기·빈 노트 모두·지우기) - 지우기는 노트가 비면 숨김",
@@ -27,11 +27,11 @@
     },
     {
      "name": "그림 속성에 대체 텍스트 칸 · 입력하면 alt 에 반영",
-     "js": "document.querySelectorAll('#left .thumb')[0].click(); await new Promise(r=>setTimeout(r,400)); document.querySelector('[data-sel=\"e05\"]').click(); await new Promise(r=>setTimeout(r,300)); const i=document.querySelector('#tab-props [data-k=\"alt\"]'); if(!i) return 'no alt input'; i.value='시험 그림'; i.dispatchEvent(new Event('change',{bubbles:true})); await new Promise(r=>setTimeout(r,300)); return document.querySelector('#host .rs-el[data-id=\"e05\"] img').getAttribute('alt')==='시험 그림' ? true : 'alt='+document.querySelector('#host .rs-el[data-id=\"e05\"] img').getAttribute('alt')"
+     "js": "document.querySelectorAll('#left .thumb')[0].click(); await new Promise(r=>setTimeout(r,400)); document.querySelector('[data-sel=\"e05\"]').click(); const i=await until(()=>document.querySelector('#tab-props [data-k=\"alt\"]'), 3000); if(!i) return 'no alt input'; i.value='시험 그림'; i.dispatchEvent(new Event('change',{bubbles:true})); await new Promise(r=>setTimeout(r,300)); return document.querySelector('#host .rs-el[data-id=\"e05\"] img').getAttribute('alt')==='시험 그림' ? true : 'alt='+document.querySelector('#host .rs-el[data-id=\"e05\"] img').getAttribute('alt')"
     },
     {
      "name": "발표 모드 Ctrl+P 펜 → 캔버스·pen 클래스 · Esc",
-     "js": "document.dispatchEvent(new KeyboardEvent('keydown',{key:'F5',bubbles:true})); await new Promise(r=>setTimeout(r,300)); document.dispatchEvent(new KeyboardEvent('keydown',{key:'p',ctrlKey:true,bubbles:true})); await new Promise(r=>setTimeout(r,200)); const ok=document.querySelector('#presentInk') && document.querySelector('#present').classList.contains('pen'); document.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true})); await new Promise(r=>setTimeout(r,300)); return ok && !document.querySelector('#present').classList.contains('show') ? true : 'pen='+ok"
+     "js": "document.dispatchEvent(new KeyboardEvent('keydown',{key:'F5',bubbles:true})); await new Promise(r=>setTimeout(r,300)); document.dispatchEvent(new KeyboardEvent('keydown',{key:'p',ctrlKey:true,bubbles:true})); await new Promise(r=>setTimeout(r,200)); const ok=document.querySelector('#presentInk') && document.querySelector('#present').classList.contains('pen'); document.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true})); await until(()=>ok && !document.querySelector('#present').classList.contains('show'), 3000); return ok && !document.querySelector('#present').classList.contains('show') ? true : 'pen='+ok"
     }
    ]
   }

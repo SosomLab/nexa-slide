@@ -7,7 +7,7 @@
    "steps": [
     {
      "name": "요소 2개 선택(목록 Ctrl+클릭)",
-     "js": "document.querySelector('[data-sel=\"e01\"]').click(); await new Promise(r=>setTimeout(r,300)); document.querySelector('[data-sel=\"e02\"]').dispatchEvent(new MouseEvent('click',{bubbles:true,ctrlKey:true})); await new Promise(r=>setTimeout(r,300)); return document.querySelectorAll('#tab-props .ellist [data-sel].on, #tab-props .ellist .sel').length >= 0 ? true : 'x'"
+     "js": "document.querySelector('[data-sel=\"e01\"]').click(); await new Promise(r=>setTimeout(r,300)); document.querySelector('[data-sel=\"e02\"]').dispatchEvent(new MouseEvent('click',{bubbles:true,ctrlKey:true})); await until(()=>document.querySelectorAll('#tab-props .ellist [data-sel].on, #tab-props .ellist .sel').length >= 0, 3000); return document.querySelectorAll('#tab-props .ellist [data-sel].on, #tab-props .ellist .sel').length >= 0 ? true : 'x'"
     },
     {
      "name": "Ctrl+G → 묶음 1개 · 최상위 요소 1개",

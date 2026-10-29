@@ -79,14 +79,24 @@ def main():
         else:
             check("작업 공간 서버 시작", False, "5667 응답 없음")
             return
-        for sc in sorted((HERE / "scenarios").glob("*.json")):
-            r = subprocess.run(["node", str(HERE / "smoke.js"), str(sc)], capture_output=True, text=True, encoding="utf-8", errors="replace", cwd=str(HERE))
-            out = r.stdout or ""
-            lines = [l for l in out.splitlines() if l.startswith(("OK", "FAIL", "=="))]
-            print(f"-- {sc.name}")
-            for l in lines:
-                print("  " + l[:160])
-            check(f"시나리오 {sc.stem}", r.returncode == 0, (r.stderr or out)[-400:])
+        # Chrome 한 번에 시나리오 전부(smoke.js 가 시나리오마다 새 브라우저 컨텍스트) - 시나리오마다 Chrome 을 새로 띄우던 것
+        scs = sorted((HERE / "scenarios").glob("*.json"))
+        r = subprocess.run(["node", str(HERE / "smoke.js"), *map(str, scs)], capture_output=True, text=True, encoding="utf-8", errors="replace", cwd=str(HERE))
+        out, buf, seen = r.stdout or "", [], set()
+        for l in out.splitlines():
+            if l.startswith("## RESULT "):
+                name, verdict = l.split()[2], l.split()[3]
+                seen.add(name)
+                print(f"-- {name} ({l.split()[-1]})")
+                for b in buf:
+                    print("  " + b[:160])
+                check(f"시나리오 {Path(name).stem}", verdict == "OK", "\n".join(b for b in buf if b.startswith("FAIL"))[-400:])
+                buf = []
+            elif l.startswith(("OK", "FAIL", "==")):
+                buf.append(l)
+        for sc in scs:
+            if sc.name not in seen:  # 실행기가 도중에 죽었다
+                check(f"시나리오 {sc.stem}", False, (r.stderr or out)[-400:])
     finally:
         srv.terminate()
         try:
