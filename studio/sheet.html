@@ -173,6 +173,10 @@
   /* 시트 탭(아래) */
   #tabsRow { display: flex; align-items: stretch; background: var(--card); border-top: 1px solid var(--line); }
   #tabsRow #tabs { flex: 1; min-width: 0; border-top: 0; }
+  #zoomBar { flex: none; display: flex; align-items: center; gap: 2px; padding: 0 10px; font-size: 12px; color: var(--ink2); }
+  #zoomBar button { border: 0; background: none; cursor: pointer; font: inherit; color: inherit; padding: 2px 6px; border-radius: 6px; }
+  #zoomBar button:hover { background: var(--tone, #F2EFEF); }
+  #zoomPct { min-width: 44px; }
   #sumBar { flex: none; align-self: center; padding: 0 12px; font-size: 12px; color: var(--ink2); white-space: nowrap; cursor: pointer; user-select: none; }
   #sumBar:hover { color: var(--ink); }
   #findBox { position: fixed; top: 96px; right: 380px; z-index: 60; background: var(--card); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 4px 16px rgba(0,0,0,.14); padding: 8px 10px; display: flex; flex-direction: column; gap: 6px; font-size: 12.5px; }
@@ -343,7 +347,7 @@
         <button class="chip sm" id="addRows" title="아래에 빈 행을 더 둡니다">＋ 행 20개 더</button>
       </div>
     </div>
-    <div id="tabsRow"><div id="tabs"></div><div id="sumBar" hidden title="누르면 숫자 개수·최소·최대도"></div></div>
+    <div id="tabsRow"><div id="tabs"></div><div id="sumBar" hidden title="누르면 숫자 개수·최소·최대도"></div><div id="zoomBar" title="확대·축소 (Ctrl+휠)"><button id="zoomOut" title="축소">−</button><button id="zoomPct">100%</button><button id="zoomIn" title="확대">＋</button></div></div>
   </div>
   <aside id="side">
     <div id="sideSplit" title="끌어서 폭 조절"></div>

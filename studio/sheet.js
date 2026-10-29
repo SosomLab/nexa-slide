@@ -506,6 +506,7 @@
     deck.sheets.forEach(normSheet);
     await loadTheme(deck.theme);
     await setupVba(deck);  // VBA 사용자 함수 - recalc 전에
+    if (!keepView) { const z = +LS.get(`sheetZoom-${S.id}`, 1) || 1; Z = 1; $("#gridIn").style.zoom = ""; if (z !== 1) setTimeout(() => setZoom(z), 0); renderZoom(); }
     S.deck = deck; S.savedJson = deckJson();
     S.dirty = false; S.conflict = false; banner(false);
     if (!keepView) {
@@ -711,10 +712,23 @@
   }
   // 가상 스크롤 - 행이 VIRT 개를 넘으면 보이는 행 ± VBUF 만 그린다(5,000행에서 고칠 때마다 13만 칸을 다시 그리던 것). 범위에 걸친 병합은 끝까지 넓힌다
   const VIRT = 300, VBUF = 40;
+  // 확대·축소(엑셀 아래 확대 막대 · Ctrl+휠) - #gridIn 에 CSS zoom. 격자 좌표(G.colX·rowY·offsetLeft)는 확대 전 px, 스크롤·마우스 이동은 화면 px 라 Z 로 나눈다
+  let Z = 1;
+  const sx = () => $("#gridWrap").scrollLeft / Z, sy = () => $("#gridWrap").scrollTop / Z;
+  function setZoom(z, keepAt) {
+    z = Math.round(Math.max(0.25, Math.min(4, z)) * 100) / 100; if (z === Z) return;
+    const W = $("#gridWrap"), cx = keepAt ? keepAt[0] : W.clientWidth / 2, cy = keepAt ? keepAt[1] : W.clientHeight / 2;
+    const gx = (W.scrollLeft + cx) / Z, gy = (W.scrollTop + cy) / Z;  // 이 격자 점을 같은 자리에
+    Z = z; $("#gridIn").style.zoom = String(z);
+    W.scrollLeft = gx * Z - cx; W.scrollTop = gy * Z - cy;
+    LS.set(`sheetZoom-${S.id}`, String(z)); renderZoom();
+    if (G.rows > VIRT) renderGrid(); renderSel();
+  }
+  function renderZoom() { const b = $("#zoomPct"); if (b) b.textContent = Math.round(Z * 100) + "%"; }
   function rowAt(y) { let lo = 0, hi = G.rows - 1; while (lo < hi) { const m = (lo + hi + 1) >> 1; if (G.rowY[m] <= y) lo = m; else hi = m - 1; } return lo; }
   function rowWindow(sh, rows, fz, ms) {
     if (rows <= VIRT) return [0, rows - 1];
-    const W = $("#gridWrap"), top = W ? W.scrollTop : 0, hgt = (W && W.clientHeight) || 800;
+    const W = $("#gridWrap"), top = W ? W.scrollTop / Z : 0, hgt = ((W && W.clientHeight) || 800) / Z;
     let r0 = Math.max(fz.r, rowAt(top) - VBUF), r1 = Math.min(rows - 1, rowAt(top + hgt) + VBUF);
     for (let changed = true; changed;) {
       changed = false;
@@ -728,7 +742,7 @@
     if (G.rows <= VIRT || vRaf) return;
     vRaf = requestAnimationFrame(() => {
       vRaf = 0;
-      const W = $("#gridWrap"), a = rowAt(W.scrollTop), b = rowAt(W.scrollTop + W.clientHeight), [r0, r1] = G.win || [0, 0];
+      const W = $("#gridWrap"), a = rowAt(W.scrollTop / Z), b = rowAt((W.scrollTop + W.clientHeight) / Z), [r0, r1] = G.win || [0, 0];
       if ((a < r0 + 10 && r0 > 0) || (b > r1 - 10 && r1 < G.rows - 1)) { renderGrid(); renderSel(); }
     });
   }
@@ -828,7 +842,7 @@
     const start = imgs.map((im) => ({ im, l: im.offsetLeft, t: im.offsetTop, w: im.offsetWidth, h: im.offsetHeight }));
     let moved = false;
     const onMove = (ev) => {
-      const dx = ev.clientX - x0, dy = ev.clientY - y0; if (!moved && Math.abs(dx) + Math.abs(dy) < 4) return; moved = true;
+      const dx = (ev.clientX - x0) / Z, dy = (ev.clientY - y0) / Z; if (!moved && Math.abs(dx) + Math.abs(dy) < 4) return; moved = true;
       for (const st of start) {
         if (mode === "move") { st.im.style.left = Math.max(HW, st.l + dx) + "px"; st.im.style.top = Math.max(HH, st.t + dy) + "px"; }
         else { let w = Math.max(8, st.w + dx), h = Math.max(8, st.h + dy); if (ev.shiftKey) { const k = Math.max(w / st.w, h / st.h); w = st.w * k; h = st.h * k; } st.im.style.width = Math.round(w) + "px"; st.im.style.height = Math.round(h) + "px"; }
@@ -880,7 +894,7 @@
     const fz = frz(), W = $("#gridWrap");
     if (!fz.r && !fz.c) return { dx: 0, dy: 0, cx: null, cy: null };
     const fr = r < fz.r, fc = c < fz.c;
-    return { dx: fc ? W.scrollLeft : 0, dy: fr ? W.scrollTop : 0, cx: fc ? null : W.scrollLeft + G.colX[fz.c], cy: fr ? null : W.scrollTop + G.rowY[fz.r] };
+    return { dx: fc ? sx() : 0, dy: fr ? sy() : 0, cx: fc ? null : sx() + G.colX[fz.c], cy: fr ? null : sy() + G.rowY[fz.r] };
   }
   function placeQ(el, g, inset = 0) {
     const fz = frz(), parts = [];
@@ -1044,8 +1058,9 @@
     const W = $("#gridWrap"), sh = sheet(), fz = parseRef(sh.freeze || "") || { r: 0, c: 0 };
     const topFix = G.rowY[fz.r] || HH, leftFix = G.colX[fz.c] || HW;
     const x1 = G.colX[c], x2 = G.colX[c + 1], y1 = G.rowY[r], y2 = G.rowY[r + 1];
-    if (c >= fz.c) { if (x1 - W.scrollLeft < leftFix) W.scrollLeft = x1 - leftFix; else if (x2 - W.scrollLeft > W.clientWidth) W.scrollLeft = x2 - W.clientWidth + 2; }
-    if (r >= fz.r) { if (y1 - W.scrollTop < topFix) W.scrollTop = y1 - topFix; else if (y2 - W.scrollTop > W.clientHeight) W.scrollTop = y2 - W.clientHeight + 2; }
+    const vw = W.clientWidth / Z, vh = W.clientHeight / Z, L = sx(), T = sy();  // 격자 좌표로
+    if (c >= fz.c) { if (x1 - L < leftFix) W.scrollLeft = (x1 - leftFix) * Z; else if (x2 - L > vw) W.scrollLeft = (x2 - vw + 2) * Z; }
+    if (r >= fz.r) { if (y1 - T < topFix) W.scrollTop = (y1 - topFix) * Z; else if (y2 - T > vh) W.scrollTop = (y2 - vh + 2) * Z; }
   }
 
   // ---------------------------------------------------------------- 선택·이동
@@ -1481,7 +1496,7 @@
       const a = tgt.area, lastK = tgt.axis === "r" ? key(tgt.dir > 0 ? a.r2 : a.r1, g.c1) : key(g.r1, tgt.dir > 0 ? a.c2 : a.c1);  // 미리보기 글 - 첫 줄의 마지막 칸 값
       const p = fillPlan(sheet(), g, tgt, ev.ctrlKey || ev.metaKey).find((x) => x.k === lastK), R = $("#gridIn").getBoundingClientRect();
       tip.textContent = p ? p.o.f || display(p.o) : "";
-      tip.hidden = !tip.textContent; tip.style.left = ev.clientX - R.left + 14 + "px"; tip.style.top = ev.clientY - R.top + 16 + "px";
+      tip.hidden = !tip.textContent; tip.style.left = (ev.clientX - R.left) / Z + 14 + "px"; tip.style.top = (ev.clientY - R.top) / Z + 16 + "px";
     };
     const onUp = (ev) => {
       removeEventListener("mousemove", onMove); removeEventListener("mouseup", onUp);
@@ -1826,7 +1841,7 @@
       : (g.c1 === 0 && g.c2 === G.cols - 1 && i >= g.r1 && i <= g.r2 ? [...Array(g.r2 - g.r1 + 1)].map((_, k) => g.r1 + k) : [i]);
     let snap = false, last = w0;
     const onMove = (ev) => {
-      const v = Math.max(axis === "c" ? 24 : 16, Math.round(w0 + (axis === "c" ? ev.clientX : ev.clientY) - x0)); if (v === last) return; last = v;
+      const v = Math.max(axis === "c" ? 24 : 16, Math.round(w0 + ((axis === "c" ? ev.clientX : ev.clientY) - x0) / Z)); if (v === last) return; last = v;
       if (!snap) { snapshot(); snap = true; }
       for (const j of all) { if (axis === "c") { sh.cols = sh.cols || {}; if (v === DEF_W) delete sh.cols[colName(j)]; else sh.cols[colName(j)] = v; } else { sh.rows = sh.rows || {}; if (v === DEF_H) delete sh.rows[String(j + 1)]; else sh.rows[String(j + 1)] = v; } }
       renderGrid(); renderSel();
@@ -2067,10 +2082,13 @@
     $("#engReload").addEventListener("click", async () => { if (S.edit) endEdit(true); if (S.dirty) { clearTimeout(saveT); await save(); } if (!S.dirty) location.reload(); else toast("저장하지 못했습니다 - 저장된 뒤 다시 누르세요"); });
     $("#engClose").addEventListener("click", () => $("#engNotice").classList.remove("show"));
     $("#vbaBtn").addEventListener("click", vbaOpen);
+    $("#zoomOut").onclick = () => setZoom(Z - 0.1); $("#zoomIn").onclick = () => setZoom(Z + 0.1);
+    $("#zoomPct").onclick = (e) => openMenu(e.currentTarget, [50, 75, 90, 100, 125, 150, 200].map((n) => ({ label: n + "%", act: () => setZoom(n / 100) })));
+    W.addEventListener("wheel", (e) => { if (!(e.ctrlKey || e.metaKey)) return; e.preventDefault(); const R = W.getBoundingClientRect(); setZoom(Z * (e.deltaY < 0 ? 1.1 : 1 / 1.1), [e.clientX - R.left, e.clientY - R.top]); }, { passive: false });
     window.addEventListener("beforeunload", (e) => { if (S.dirty) { save(); e.preventDefault(); e.returnValue = ""; } });
   }
   // 시험용(브라우저 콘솔·스모크) - 수식 계산·표시 형식을 따로 불러 볼 수 있게
-  window.NexaSheet = { S, TH, VB, numFmt, bumpFmt, insertLink, formatDialog, drawDelete, autoFitCols, lastCell, noteEdit, insertImages, vbaOpen, vbaApply, effCell, bdSides, fillVars, reload: reloadExternal, applyVersion, recalc, parseFormula, display, fmtNumber, parseNumberText, shiftFormula, setInput, parseTsv, fillSeries, fillTarget,
+  window.NexaSheet = { S, TH, VB, setZoom, zoom: () => Z, numFmt, bumpFmt, insertLink, formatDialog, drawDelete, autoFitCols, lastCell, noteEdit, insertImages, vbaOpen, vbaApply, effCell, bdSides, fillVars, reload: reloadExternal, applyVersion, recalc, parseFormula, display, fmtNumber, parseNumberText, shiftFormula, setInput, parseTsv, fillSeries, fillTarget,
     // 엑셀 기능 모듈(sheetx.js)이 쓰는 안쪽 함수 - 격자·선택·고치기(실행 취소·저장 포함)
     x: { shiftAxis, G, sheet, key, parseRef, colHidden, rowHidden, rectOf, colIndex, parseRange, rangeName, colName, cellObj, putCell, mutate, renderAll, renderSel, selectRange, selectCell, clampRange, eachCell, toast, openMenu,
       endEdit, startEdit, focusGrid, pasteText, scrollIntoView, growSize, clone, ED, esc } };
