@@ -132,6 +132,12 @@
   body.painting #grid td { cursor: copy; }
   #grid td.nt:not(.fz) { position: relative; }  /* 고정 칸(sticky)은 그대로 */
   #grid td.nt::after { content: ""; position: absolute; top: 0; right: 0; border-top: 6px solid #E5484D; border-left: 6px solid transparent; pointer-events: none; }  /* 메모 */
+  .fmtDlg { position: fixed; z-index: 95; left: 50%; top: 18%; transform: translateX(-50%); width: 520px; max-width: 94vw; background: var(--card); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 8px 28px rgba(0,0,0,.22); padding: 12px 14px; display: flex; flex-direction: column; gap: 10px; font-size: 12.5px; }
+  .fmtDlg h4 { margin: 0 0 4px; font-size: 12px; color: var(--ink2); }
+  .fmtDlg .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: 2px 0; }
+  .fmtDlg input[data-k="fmt"] { flex: 1; min-width: 160px; border: 1px solid var(--line); border-radius: 6px; padding: 4px 6px; font: inherit; }
+  .fmtDlg select { border: 1px solid var(--line); border-radius: 6px; padding: 3px 4px; font: inherit; }
+  .fmtDlg .acts { display: flex; gap: 6px; align-items: center; }
   .notePop { position: fixed; z-index: 90; width: 280px; background: #FFFDE7; border: 1px solid #E0D58A; border-radius: 10px; box-shadow: 0 4px 16px rgba(0,0,0,.18); padding: 8px; display: flex; flex-direction: column; gap: 6px; font-size: 12.5px; }
   .notePop textarea { border: 1px solid #E0D58A; border-radius: 6px; padding: 6px; font: inherit; resize: vertical; background: #fff; }
   .notePop .acts { display: flex; gap: 6px; align-items: center; }  /* 서식 복사 중 */

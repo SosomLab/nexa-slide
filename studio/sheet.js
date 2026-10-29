@@ -966,6 +966,41 @@
     const nf = bumpFmt(start, how);
     mutate(() => eachCell(S.sel, (r, c, k) => { const o = { ...cellObj(sh, k) }; const f2 = how === "pct" || how === "comma" ? nf : o.fmt ? bumpFmt(o.fmt, how) : nf; if (f2) o.fmt = f2; else delete o.fmt; putCell(sh, k, o); }));
   }
+  /** 셀 서식(Ctrl+1) - 표시 형식·맞춤·글꼴·채우기를 한 창에서. 바꾼 칸만 고른 범위 모두에 */
+  function formatDialog() {
+    if (S.edit) endEdit(true);
+    const o = effCell(sheet().cells[key(S.cur.r, S.cur.c)]);
+    document.querySelectorAll(".fmtDlg").forEach((x) => x.remove());
+    const dlg = document.createElement("div"); dlg.className = "fmtDlg";
+    const opt = (v, cur, label) => `<option value="${esc(v)}"${v === (cur || "") ? " selected" : ""}>${esc(label)}</option>`;
+    const sizes = [8, 9, 10, 11, 12, 14, 16, 18, 20, 24, 28, 36];
+    dlg.innerHTML = `<b>셀 서식 - ${esc(sheet().name)}!${esc(rangeName(clampRange(S.sel)))}</b>
+      <div class="sec"><h4>표시 형식</h4><div class="row"><select data-k="fmtp">${FMTS.map(([f, l]) => opt(f, FMTS.some(([x]) => x === (o.fmt || "")) ? o.fmt : "__", l)).join("")}<option value="__"${FMTS.some(([x]) => x === (o.fmt || "")) ? "" : " selected"}>직접 입력</option></select><input data-k="fmt" value="${esc(o.fmt || "")}" placeholder="예: #,##0.00 · 0.0% · yyyy-mm-dd · @"></div><div class="hint" data-k="prev"></div></div>
+      <div class="sec"><h4>맞춤</h4><div class="row">가로 <select data-k="align">${opt("", o.align, "일반")}${opt("left", o.align, "왼쪽")}${opt("center", o.align, "가운데")}${opt("right", o.align, "오른쪽")}</select> 세로 <select data-k="valign">${opt("", o.valign, "아래")}${opt("middle", o.valign, "가운데")}${opt("top", o.valign, "위")}</select><label><input type="checkbox" data-k="wrap"${o.wrap ? " checked" : ""}> 줄바꿈</label></div></div>
+      <div class="sec"><h4>글꼴</h4><div class="row"><label><input type="checkbox" data-k="b"${o.b ? " checked" : ""}> <b>굵게</b></label><label><input type="checkbox" data-k="i"${o.i ? " checked" : ""}> <i>기울임</i></label><label><input type="checkbox" data-k="u"${o.u ? " checked" : ""}> <u>밑줄</u></label><label><input type="checkbox" data-k="strike"${o.strike ? " checked" : ""}> <s>취소선</s></label> 크기 <select data-k="size">${sizes.map((n) => opt(String(n), String(o.size || defSize()), String(n))).join("")}</select></div>
+        <div class="row">글자색 <input type="color" data-k="color" value="${esc(/^#[0-9a-f]{6}$/i.test(o.color || "") ? o.color : "#000000")}"><label><input type="checkbox" data-k="colorOn"${o.color ? " checked" : ""}> 지정</label> 채우기 <input type="color" data-k="fill" value="${esc(/^#[0-9a-f]{6}$/i.test(o.fill || "") ? o.fill : "#FFFFFF")}"><label><input type="checkbox" data-k="fillOn"${o.fill ? " checked" : ""}> 지정</label></div></div>
+      <div class="acts"><span class="hint">Enter = 확인 · Esc = 닫기</span><span style="flex:1"></span><button class="chip sm" data-d="no">취소</button><button class="chip sm primary" data-d="ok">확인</button></div>`;
+    document.body.appendChild(dlg);
+    const g = (k) => dlg.querySelector(`[data-k="${k}"]`);
+    const prev = () => { const f = g("fmt").value, v = typeof o.v === "number" ? o.v : 1234.5; g("prev").textContent = "보기: " + (f ? fmtNumber(v, f) : display({ v })); };
+    g("fmtp").onchange = () => { if (g("fmtp").value !== "__") g("fmt").value = g("fmtp").value; prev(); };
+    g("fmt").oninput = prev; prev();
+    g("color").oninput = () => (g("colorOn").checked = true); g("fill").oninput = () => (g("fillOn").checked = true);
+    const close = () => { dlg.remove(); focusGrid(); };
+    const ok = () => {
+      const want = { fmt: g("fmt").value.trim() || undefined, align: g("align").value || undefined, valign: g("valign").value || undefined, wrap: g("wrap").checked || undefined,
+        b: g("b").checked || undefined, i: g("i").checked || undefined, u: g("u").checked || undefined, strike: g("strike").checked || undefined,
+        size: +g("size").value === defSize() ? undefined : +g("size").value, color: g("colorOn").checked ? g("color").value.toUpperCase() : undefined, fill: g("fillOn").checked ? g("fill").value.toUpperCase() : undefined };
+      const have = { fmt: o.fmt || undefined, align: o.align || undefined, valign: o.valign || undefined, wrap: o.wrap || undefined, b: o.b || undefined, i: o.i || undefined, u: o.u || undefined, strike: o.strike || undefined,
+        size: o.size && +o.size !== defSize() ? +o.size : undefined, color: o.color ? String(o.color).toUpperCase() : undefined, fill: o.fill ? String(o.fill).toUpperCase() : undefined };
+      const patch = {}; for (const k of Object.keys(want)) if (want[k] !== have[k]) patch[k] = want[k];
+      close();
+      if (Object.keys(patch).length) mutate(() => { const sh = sheet(); eachCell(S.sel, (r, c, k) => { const x = { ...cellObj(sh, k), ...patch }; for (const kk of Object.keys(patch)) if (patch[kk] === undefined) { const st = styleOf(x.s); if (st && st[kk]) x[kk] = kk === "size" ? defSize() : false; else delete x[kk]; } putCell(sh, k, x); }); });
+    };
+    dlg.addEventListener("click", (e) => { const b = e.target.closest("[data-d]"); if (b) (b.dataset.d === "ok" ? ok : close)(); });
+    dlg.addEventListener("keydown", (e) => { e.stopPropagation(); if (e.key === "Escape") close(); if (e.key === "Enter" && e.target.tagName !== "SELECT") { e.preventDefault(); ok(); } });
+    g("fmt").focus();
+  }
   /** 하이퍼링크 넣기(Ctrl+K) - 칸에 =HYPERLINK(주소, 보일 글) 수식(Ctrl+클릭으로 이동) */
   function insertLink() {
     if (S.edit) endEdit(true);
@@ -1131,6 +1166,7 @@
       if (k === "PageDown" || k === "PageUp") { e.preventDefault(); const n = S.deck.sheets.length, i = (S.ti + (k === "PageDown" ? 1 : -1) + n) % n; switchTab(i); return; }  // 다음·이전 탭
       if (lk === "5") { e.preventDefault(); toggleStyle("strike"); return; }  // 취소선
       if (lk === "k") { e.preventDefault(); insertLink(); return; }  // 하이퍼링크
+      if (lk === "1" && !e.shiftKey) { e.preventDefault(); formatDialog(); return; }  // 셀 서식
       if (e.shiftKey && (k === "%" || e.code === "Digit5")) { e.preventDefault(); numFmt("pct"); return; }
       if (e.shiftKey && (k === "!" || e.code === "Digit1")) { e.preventDefault(); numFmt("comma"); return; }
       if (e.shiftKey && (k === "$" || e.code === "Digit4")) { e.preventDefault(); numFmt("comma"); return; }  // 통화 - 원화는 천 단위 구분과 같게
@@ -1148,6 +1184,7 @@
     if (k.startsWith("Arrow")) { e.preventDefault(); move(k === "ArrowDown" ? 1 : k === "ArrowUp" ? -1 : 0, k === "ArrowRight" ? 1 : k === "ArrowLeft" ? -1 : 0, e.shiftKey); return; }
     if (k === "Enter") { e.preventDefault(); advance(e.shiftKey ? -1 : 1, 0); return; }
     if (k === "Tab") { e.preventDefault(); advance(0, e.shiftKey ? -1 : 1); return; }
+    if (e.altKey && e.shiftKey && !ctrl && (e.code === "Digit5" || k === "%")) { e.preventDefault(); toggleStyle("strike"); return; }  // 취소선(구글 시트와 같다 - 브라우저가 Ctrl+5 를 탭 바꾸기로 가져갈 때)
     if (k === "F2" && e.shiftKey) { e.preventDefault(); noteEdit(); return; }  // 메모
     if (k === "F2") { e.preventDefault(); startEdit("edit"); return; }
     if ((k === "Delete" || k === "Backspace") && S.drawSel) { e.preventDefault(); drawDelete(); return; }  // 고른 그림 지우기
@@ -1850,6 +1887,7 @@
       { label: "복사", key: "Ctrl+C", act: () => { document.execCommand("copy") || copyRange(); } },
       { label: "붙여넣기", key: "Ctrl+V", act: async () => { try { pasteText(await navigator.clipboard.readText()); } catch (er) { toast("Ctrl+V 로 붙여넣으세요(브라우저가 클립보드 읽기를 막았습니다)", 4000); } } },
       { label: "내용 지우기", key: "Delete", act: () => clearRange(g) },
+      { label: "셀 서식…", key: "Ctrl+1", act: formatDialog },
       { label: "서식 지우기", act: () => mutate(() => { const sh = sheet(); eachCell(g, (r, c, k) => { const o = cellObj(sh, k); putCell(sh, k, { v: o.v, f: o.f }); }); }) },
       "-",
       { label: cellObj(sheet(), key(S.cur.r, S.cur.c)).note ? "메모 고치기…" : "메모 넣기…", key: "Shift+F2", act: noteEdit },
@@ -2032,7 +2070,7 @@
     window.addEventListener("beforeunload", (e) => { if (S.dirty) { save(); e.preventDefault(); e.returnValue = ""; } });
   }
   // 시험용(브라우저 콘솔·스모크) - 수식 계산·표시 형식을 따로 불러 볼 수 있게
-  window.NexaSheet = { S, TH, VB, numFmt, bumpFmt, insertLink, drawDelete, autoFitCols, lastCell, noteEdit, insertImages, vbaOpen, vbaApply, effCell, bdSides, fillVars, reload: reloadExternal, applyVersion, recalc, parseFormula, display, fmtNumber, parseNumberText, shiftFormula, setInput, parseTsv, fillSeries, fillTarget,
+  window.NexaSheet = { S, TH, VB, numFmt, bumpFmt, insertLink, formatDialog, drawDelete, autoFitCols, lastCell, noteEdit, insertImages, vbaOpen, vbaApply, effCell, bdSides, fillVars, reload: reloadExternal, applyVersion, recalc, parseFormula, display, fmtNumber, parseNumberText, shiftFormula, setInput, parseTsv, fillSeries, fillTarget,
     // 엑셀 기능 모듈(sheetx.js)이 쓰는 안쪽 함수 - 격자·선택·고치기(실행 취소·저장 포함)
     x: { shiftAxis, G, sheet, key, parseRef, colHidden, rowHidden, rectOf, colIndex, parseRange, rangeName, colName, cellObj, putCell, mutate, renderAll, renderSel, selectRange, selectCell, clampRange, eachCell, toast, openMenu,
       endEdit, startEdit, focusGrid, pasteText, scrollIntoView, growSize, clone, ED, esc } };
