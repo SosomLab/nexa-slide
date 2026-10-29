@@ -181,7 +181,8 @@ def main():
                     x, y = val(c), val(tb["cells"].get(k))
                     if not same(x, y):
                         diffs.append(f"{ta['name']}!{k} {c['f'][:70]} · 엑셀 {json.dumps(x, ensure_ascii=False)[:60]} · 계산 {json.dumps(y, ensure_ascii=False)[:60]}")
-        rep.part(f"계산기({name}) = 원본 파일의 엑셀 계산값", diffs, n)
+        vb_on = name.endswith(".js") and (doc_a.get("macros") or {}).get("modules")
+        rep.part(f"계산기({name}{' + VBA 실행기, 저장값을 지우고 계산' if vb_on else ''}) = 원본 파일의 엑셀 계산값", diffs, n)
 
     # 3. 저장 → 다시 가져오기
     saved = work / ("저장본" + (".xlsm" if doc_a.get("macros") else ".xlsx"))
@@ -254,6 +255,23 @@ def main():
             rep.part("엑셀 - 탭 표시·숨긴 행열·열 너비·행 높이·자동 필터·그림·도형·단추(자리·크기·매크로)·코드 이름·이름 정의·VBA", sd, len(do["sheets"]))
         else:
             print("엑셀 비교 건너뜀(엑셀 없음 또는 덤프 실패)")
+    # 6. VBA 코드 고치기 - 모듈에 함수를 더하고 칸에서 불러 저장 → 엑셀이 고친 소스로 다시 컴파일해 계산하는가
+    if (doc_a.get("macros") or {}).get("modules") and not a.no_excel:
+        ed = copy.deepcopy(doc_a)
+        ed["macros"]["modules"].append({"name": "NexaCheckMod", "kind": "std", "code": 'Function NexaCheck(x)\r\n    NexaCheck = "확인 " & (x * 2)\r\nEnd Function\r\n'})
+        ed["sheets"].append({"id": "tzz", "name": "NexaCheck", "cells": {"A1": {"f": "=NexaCheck(21)"}}})
+        edp = work / ("저장본_코드수정" + saved.suffix)
+        export_xlsx.export(ed, edp)
+        de = excel_dump(edp, work / "excel_코드수정.json")
+        got = None
+        if de:
+            sh = next((x for x in de["sheets"] if x["name"] == "NexaCheck"), None)
+            got = sh and (sh["v"][0][0] if isinstance(sh["v"][0], list) else sh["v"][0])
+        me = vba_project.read_modules(zipfile.ZipFile(edp).read("xl/vbaProject.bin"))
+        same_src = all(any(x["name"] == m["name"] and x["code"] == m["code"] for x in me) for m in doc_a["macros"]["modules"])
+        rep.part("VBA 코드 고치기 - 새 함수를 엑셀이 계산(=NexaCheck(21) → '확인 42')·원래 모듈 소스 그대로",
+                 [] if got == "확인 42" and same_src else [f"엑셀 값 {got!r} · 원래 소스 유지 {same_src}"], 1)
+
     print("\n다른 항목:", rep.failed or "없음", f"\n작업 폴더: {work}")
     sys.exit(1 if rep.failed else 0)
 

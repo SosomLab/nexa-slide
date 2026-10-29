@@ -981,6 +981,24 @@ class H(BaseHTTPRequestHandler):
             return self.err(400, str(e))
         self.send_json({"ok": True, **out, "version": ver(deck_path(i))})
 
+    def api_get_vba(self, i, q):
+        """/api/vba/<시트 문서> → {modules: [{name, kind, code}]} - 문서에 macros.modules 가 없을 때 vbaProject.bin 에서 읽는다(vba_project.py)."""
+        if HUB:
+            return self.err(404, "작업 공간 서버에서")
+        if not i or not deck_path(i).exists():
+            return self.err(404, "없는 시트 문서")
+        mc = json.loads(deck_path(i).read_text(encoding="utf-8")).get("macros") or {}
+        if mc.get("modules"):
+            return self.send_json({"ok": True, "modules": mc["modules"]})
+        p = (ASSET_ROOT / str(mc.get("vba") or "")).resolve()
+        if not mc.get("vba") or not p.is_file() or ASSET_ROOT.resolve() not in p.parents:
+            return self.send_json({"ok": True, "modules": []})
+        import vba_project
+        try:
+            return self.send_json({"ok": True, "modules": vba_project.read_modules(p.read_bytes())})
+        except Exception as e:  # noqa: BLE001 - 깨진 VBA 프로젝트
+            return self.err(422, f"VBA 프로젝트를 읽지 못했다: {e}")
+
     def api_get_sheet_themes(self, name, q):
         """시트 테마 - 이름 없으면 목록, 있으면 theme.json(+ base 그림 주소 접두사, brandLogo). docs/sheets.md 5절."""
         if HUB:

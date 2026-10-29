@@ -253,6 +253,32 @@
       const tab = s === sh ? null : s.name;
       return ra === rb && ca === cb ? ["ref", tab, ra, ca] : ["range", tab, ra, ca, rb, cb];
     }
+    /** VBA 사용자 함수 부르기 - 칸 참조 인자는 Range(값·위치), 그 밖은 값. 못 쓰는 문법이면 #NAME?(엑셀이 저장한 값을 그대로 - recalc), 실행 오류는 #VALUE! */
+    udf(name, args, sh) {
+      const V = API.vba.lib, conv = (v) => (v instanceof FErr ? new V.CVErr(v.code) : v == null ? V.EMPTY : v);
+      const vals = args.map((a) => {
+        const d = this.deref(a, sh);
+        if (d[0] === "ref" || d[0] === "range" || d[0] === "sref") {
+          const node = d[0] === "sref" ? this.sref(d, sh) : d, r = this.area(node, sh), t = node[1] == null ? sh : this.sheet(node[1], sh);
+          return new V.VRange(r.rows.map((row) => row.map((x) => (x instanceof FErr ? { code: x.code } : x))), node[2], node[3], t ? t.name : "");
+        }
+        const v = cellv(() => this.ev(a, sh));
+        if (v instanceof Rng) { if (v.vals.length === 1) return conv(v.vals[0]); const out = new V.VArr([[1, v.rows.length], [1, v.rows[0].length]]); v.rows.forEach((row, i) => row.forEach((x, j) => { out.d[out.at([i + 1, j + 1])] = conv(x); })); return out; }
+        if (v instanceof Lam) throw new FErr("#VALUE!");
+        return conv(v);
+      });
+      API.vba.ctx = { c: this, sh };
+      let res;
+      try { res = API.vba.call(name, vals); } catch (e) {
+        if (e instanceof V.Unsupported) throw new FErr("#NAME?");
+        if (e instanceof V.VErr) throw new FErr("#VALUE!");
+        throw e;
+      }
+      const out = V.toCell(res);
+      if (out && typeof out === "object" && out.code) throw new FErr(out.code);
+      if (out && typeof out === "object" && out.rows) return new Rng(out.rows.map((row) => row.map((x) => (x && typeof x === "object" && x.code ? new FErr(x.code) : x))));
+      return out;
+    }
     /** 빈 칸(또는 넘친 칸)의 값 - 왼쪽 위의 동적 배열 수식을 먼저 계산해 넘친 값이 있으면 그것 */
     spilled(sh, r, c) {
       if (!this.anchors.has(sh.id)) this.anchors.set(sh.id, Object.entries(sh.cells || {}).filter(([k, raw]) => raw && typeof raw === "object" && raw.f && parseRef(k) && this.isDyn(raw)).map(([k]) => [parseRef(k), k]));
@@ -348,7 +374,12 @@
         }
         case "fn": {
           const fn = FUNCS[n[1]];
-          if (!fn) { const lam = this.lamOf(n[1], sh); if (!lam) throw new FErr("#NAME?"); return this.call(lam, n[2].map((a) => cellv(() => this.ev(a, sh))), sh); }  // LET 이름·이름 정의에 담긴 LAMBDA - f(1, 2)
+          if (!fn) {
+            const lam = this.lamOf(n[1], sh);
+            if (lam) return this.call(lam, n[2].map((a) => cellv(() => this.ev(a, sh))), sh);  // LET 이름·이름 정의에 담긴 LAMBDA - f(1, 2)
+            if (API.vba && API.vba.has(n[1])) return this.udf(n[1], n[2], sh);  // VBA 사용자 함수(vba.js - 화면이 setVba 로 넣는다)
+            throw new FErr("#NAME?");
+          }
           if (SCALAR.has(n[1])) {  // 한 칸 함수에 배열이 오면 칸마다
             const vals = n[2].map((a) => (a[0] !== "lit" ? cellv(() => this.ev(a, sh)) : a[1]));
             if (vals.some(isMulti)) {
@@ -902,6 +933,19 @@
     const c = new Calc(doc); c.cell(sh, ref);
     return c.links.get(sh.id + "!" + ref) || null;
   }
-  const API = { recalc, cell, link, parse, tokenize, formatValue, parseNumberText, FUNCS: Object.keys(FUNCS), FErr };
+  /** VBA 사용자 함수 - compiled = NexaVBA.compile(문서 macros.modules), lib = NexaVBA. WorksheetFunction.X 는 이 계산기 함수로 */
+  function setVba(compiled, lib) {
+    if (!compiled) { API.vba = null; return; }
+    API.vba = { has: compiled.has, call: compiled.call, lib, ctx: null };
+    compiled.runtime.host.sheetFn = (name, args) => {
+      const f = FUNCS[String(name).toUpperCase()], ctx = API.vba.ctx; if (!f || !ctx) throw new lib.Unsupported(`WorksheetFunction.${name} 는 없습니다`);
+      const node = (v) => (v instanceof lib.VRange ? ["arr", new Rng(v.rows.map((r) => r.map((x) => (x && typeof x === "object" && x.code ? new FErr(x.code) : x))))] : v instanceof lib.VArr ? ["arr", new Rng(((t) => t.rows ? t.rows : [[t]])(lib.toCell(v)))] : ["lit", v === lib.EMPTY || v === lib.MISSING ? null : v instanceof lib.CVErr ? new FErr(v.code) : v]);
+      let r; try { r = f(ctx.c, args.map(node), ctx.sh); } catch (e) { if (e instanceof FErr) throw new lib.VErr(1004, `WorksheetFunction.${name}: ${e.code}`); throw e; }
+      if (r instanceof Rng) { if (r.vals.length === 1) r = r.vals[0]; else { const a = new lib.VArr([[1, r.rows.length], [1, r.rows[0].length]]); r.rows.forEach((row, i) => row.forEach((x, j) => { a.d[a.at([i + 1, j + 1])] = x == null ? lib.EMPTY : x; })); return a; } }
+      if (r instanceof FErr) throw new lib.VErr(1004, `WorksheetFunction.${name}: ${r.code}`);
+      return r == null ? lib.EMPTY : r;
+    };
+  }
+  const API = { recalc, cell, link, setVba, vba: null, parse, tokenize, formatValue, parseNumberText, FUNCS: Object.keys(FUNCS), FErr };
   if (typeof module === "object" && module.exports) module.exports = API; else root.NexaCalc = API;
 })(typeof window !== "undefined" ? window : globalThis);

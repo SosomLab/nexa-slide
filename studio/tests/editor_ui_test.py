@@ -54,6 +54,10 @@ def fixture():
     decks["zsheetfill"] = {"title": "채우기", "kind": "sheet", "slides": [], "sheets": [{"id": "t01", "name": "채우기", "cells": {  # 시트 채우기 핸들(sheetfill_test) - 이름이 맨 뒤로 가게(다른 시나리오가 첫 덱·다음 덱을 고른다)
         "B3": 1, "C3": 4, "B5": "항목1", "B7": {"v": 46323, "fmt": "yyyy-mm-dd"}, "B9": "월", "B11": 5,
         "A13": 1, "A14": 2, "A15": 3, "A16": 4, "B13": 10, "C13": {"f": "=A13*B13"}}}]}
+    decks["zsheetvba"] = {"title": "VBA", "kind": "sheet", "slides": [], "macros": {"vba": "assets/sheets/zsheetvba/vbaProject.bin", "codeName": "ThisWorkbook", "modules": [  # VBA 실행기·코드 창(sheetx_test 둘째 쪽)
+        {"name": "Module1", "kind": "std", "code": "Option Explicit\r\nFunction Twice(x)\r\n    Twice = x * 2\r\nEnd Function\r\n"}, {"name": "Sheet1", "kind": "doc", "code": ""}]},
+        "sheets": [{"id": "t01", "name": "S", "cells": {"A1": {"f": "=Twice(21)"}, "A2": {"f": "=Later(1)", "v": "엑셀 값"}},
+                    "drawings": [{"type": "image", "src": "assets/images/t.png", "at": "C3", "w": 80, "h": 40}, {"type": "image", "id": "logo2", "src": "assets/images/t.png", "at": "E3", "w": 80, "h": 40}]}]}
     decks["zsheetx"] = {"title": "엑셀 기능", "kind": "sheet", "slides": [], "sheets": [{"id": "t01", "name": "매출", "cells": {  # 시트 엑셀 기능(sheetx_test)
         "A1": {"v": "지역", "b": True}, "B1": {"v": "매출", "b": True}, "A2": "서울", "B2": 1200, "A3": "부산", "B3": 800, "A4": "대구", "B4": 500, "A5": "광주", "B5": 300,
         "D1": "메모", "D2": "서울 지점", "D3": "부산 지점"}}]}

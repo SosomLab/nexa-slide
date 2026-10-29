@@ -505,6 +505,8 @@
     if (!Array.isArray(deck.slides)) deck.slides = [];
     deck.sheets.forEach(normSheet);
     await loadTheme(deck.theme);
+    await setupVba(deck);  // VBA 사용자 함수 - recalc 전에
+    if (!keepView) { const z = +LS.get(`sheetZoom-${S.id}`, 1) || 1; Z = 1; $("#gridIn").style.zoom = ""; if (z !== 1) setTimeout(() => setZoom(z), 0); renderZoom(); }
     S.deck = deck; S.savedJson = deckJson();
     S.dirty = false; S.conflict = false; banner(false);
     if (!keepView) {
@@ -519,6 +521,56 @@
     if (recalc() && !reqBusy()) { S.dirty = true; setStatus("dirty", "저장 대기"); scheduleSave(); }
     renderAll();
     return true;
+  }
+  // ---------------------------------------------------------------- VBA(사용자 함수 실행기 vba.js · 코드 창)
+  // 모듈 소스 = 문서 macros.modules(가져올 때 넣는다). 없으면(0.25.3 전에 가져온 문서) 서버가 vbaProject.bin 에서 읽어 준다(/api/vba) - 고치기 전에는 문서에 넣지 않는다
+  const VB = { mods: null, compiled: null, sel: 0, draft: null };
+  async function setupVba(deck) {
+    const mc = deck.macros || {};
+    let mods = Array.isArray(mc.modules) ? mc.modules : null;
+    if (!mods && mc.vba) { try { const r = await api("GET", `/api/vba/${encodeURIComponent(S.id)}`); mods = r.ok ? r.data.modules || [] : []; } catch (e) { mods = []; } }
+    VB.mods = mods; compileVba();
+    const b = $("#vbaBtn"); if (b) b.hidden = !mc.vba;
+  }
+  function compileVba() {
+    if (!window.NexaVBA || !window.NexaCalc) return;
+    VB.compiled = VB.mods && VB.mods.length ? NexaVBA.compile(VB.mods) : null;
+    NexaCalc.setVba(VB.compiled, NexaVBA);
+  }
+  function vbaOpen() {
+    if (!VB.mods) return toast("이 문서에는 VBA 프로젝트가 없습니다(엑셀 매크로 통합 문서 .xlsm 을 가져오면 생긴다)");
+    VB.draft = VB.mods.map((m) => ({ ...m })); VB.sel = Math.max(0, VB.draft.findIndex((m) => m.kind === "std"));
+    vbaRender(); $("#vbaDlg").classList.add("show"); $("#vbaCode").focus();
+  }
+  function vbaErrors(list) { const c = NexaVBA.compile(list); return c.errors; }
+  function vbaRender() {
+    const errs = vbaErrors(VB.draft), kind = { std: "표준", cls: "클래스", doc: "문서" };
+    $("#vbaMods").innerHTML = VB.draft.map((m, i) => { const n = errs.filter((e) => e.module === m.name).length; return `<button data-vm="${i}" class="${i === VB.sel ? "on" : ""}${n ? " err" : ""}" title="${esc(kind[m.kind] || m.kind)} 모듈">${esc(m.name)}<small>${n ? "⚠" + n : esc(kind[m.kind] || "")}</small></button>`; }).join("");
+    const m = VB.draft[VB.sel], ta = $("#vbaCode");
+    if (m) { if (ta.dataset.i !== String(VB.sel) || ta.value !== m.code) { ta.value = m.code || ""; ta.dataset.i = String(VB.sel); } }
+    const fns = m ? [...(m.code || "").matchAll(/^\s*(?:Public\s+|Private\s+)?Function\s+([\p{L}_][\p{L}\p{N}_]*)/gimu)].map((x) => x[1]) : [];
+    const mine = errs.filter((e) => m && e.module === m.name);
+    $("#vbaMsgs").innerHTML = (mine.length ? mine.map((e) => `<div class="e" data-ln="${e.line}">⚠ ${esc(e.line ? e.line + "행" : "")} ${esc(e.name ? e.name + ": " : "")}${esc(e.msg.replace(/^\d+행: /, ""))} - 이 함수는 계산하지 않고 엑셀이 저장한 값을 그대로 둔다</div>`).join("") : "")
+      + (m && m.kind === "std" ? `<div>칸에서 부를 수 있는 함수: ${fns.length ? fns.map((f) => `<code>=${esc(f)}(…)</code>`).join(" ") : "없음"}</div>` : m ? "<div>문서·클래스 모듈 - 칸에서 부를 수 없다(이벤트·매크로는 엑셀에서 돈다). 코드는 고쳐서 내보낼 수 있다</div>" : "");
+    $("#vbaDel").disabled = !m || m.kind !== "std";
+    $("#vbaSub").textContent = `모듈 ${VB.draft.length}개 · 함수 ${VB.compiled ? [...VB.compiled.runtime.procs.values()].filter((p) => p.kind === "FUNCTION").length : 0}개`;
+  }
+  function vbaApply() {
+    const cur = VB.draft[VB.sel]; if (cur) cur.code = $("#vbaCode").value;
+    const before = JSON.stringify(VB.mods), after = JSON.stringify(VB.draft);
+    if (before === after) { toast("바뀐 코드가 없습니다"); return; }
+    VB.mods = VB.draft.map((m) => ({ ...m }));
+    mutate(() => {
+      S.deck.macros = { ...(S.deck.macros || {}), modules: VB.mods.map((m) => ({ ...m })) }; compileVba();
+      // 계산할 수 있게 된 VBA 함수를 쓰는 칸만 저장값을 지우고 다시 계산(못 쓰는 문법 함수 칸은 엑셀 값을 지키게 그대로)
+      const fns = VB.compiled ? [...VB.compiled.runtime.procs.values()].filter((p) => p.kind === "FUNCTION" && !p.unsupported && VB.compiled.has(p.name)).map((p) => p.name) : [];
+      const re = fns.length ? new RegExp(`(^|[^\\p{L}\\p{N}_.])(${fns.map((f) => f.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")})\\s*\\(`, "iu") : null;
+      if (re) for (const t of S.deck.sheets) for (const c of Object.values(t.cells)) if (c && typeof c === "object" && c.f && re.test(c.f)) delete c.v;
+      recalc();
+    });
+    const n = VB.compiled ? VB.compiled.errors.length : 0;
+    toast(n ? `적용했습니다 - 계산하지 못하는 곳 ${n}개(코드 창 아래)` : "적용하고 다시 계산했습니다", 3500);
+    vbaRender();
   }
   async function reloadExternal(msg) {
     const was = { ti: S.deck && sheet().id, sel: { ...S.sel }, cur: { ...S.cur }, anchor: { ...S.anchor } };
@@ -545,6 +597,10 @@
     applying = true;
     try {
       if (v.session) renderSession(v.session, v.activity);
+      if (v.engine) {  // 편집기 코드·템플릿(엔진)이 바뀌면 새로 고침 안내(편집기 checkWorkspace 와 같다)
+        if (S.engine == null) S.engine = v.engine;
+        else if (v.engine !== S.engine) { S.engine = v.engine; $("#engReload").textContent = S.dirty ? "저장하고 새로 고침" : "새로 고침"; $("#engNotice").classList.add("show"); }
+      }
       if (RQ) await RQ.sync(v);  // 요청 파일이 바뀌었으면 다시 읽기(편집기와 같다)
       if (v.deck !== S.version && !S.saving) {
         // 편집 중에 밖에서 바뀌었다 - 배너로 고르게 하지 않고, 내 저장이 서버에서 합쳐지게 바로 저장한다(셀 입력 중이면 입력을 넣고 저장할 때)
@@ -647,7 +703,7 @@
     if (o.color) cv.push(`color:${o.color}`);
     if (o.b) cv.push("font-weight:700");
     if (o.i) cv.push("font-style:italic");
-    if (o.u) cv.push("text-decoration:underline");
+    if (o.u || o.strike) cv.push(`text-decoration:${[o.u ? "underline" : "", o.strike ? "line-through" : ""].filter(Boolean).join(" ")}`);
     if (o.size) cv.push(`font-size:${+o.size}pt`);
     const al = o.align || (isNum === "num" ? "right" : isNum === "mid" ? "center" : "left");
     cv.push(`justify-content:${al === "right" ? "flex-end" : al === "center" ? "center" : "flex-start"}`, `text-align:${al}`);
@@ -656,10 +712,23 @@
   }
   // 가상 스크롤 - 행이 VIRT 개를 넘으면 보이는 행 ± VBUF 만 그린다(5,000행에서 고칠 때마다 13만 칸을 다시 그리던 것). 범위에 걸친 병합은 끝까지 넓힌다
   const VIRT = 300, VBUF = 40;
+  // 확대·축소(엑셀 아래 확대 막대 · Ctrl+휠) - #gridIn 에 CSS zoom. 격자 좌표(G.colX·rowY·offsetLeft)는 확대 전 px, 스크롤·마우스 이동은 화면 px 라 Z 로 나눈다
+  let Z = 1;
+  const sx = () => $("#gridWrap").scrollLeft / Z, sy = () => $("#gridWrap").scrollTop / Z;
+  function setZoom(z, keepAt) {
+    z = Math.round(Math.max(0.25, Math.min(4, z)) * 100) / 100; if (z === Z) return;
+    const W = $("#gridWrap"), cx = keepAt ? keepAt[0] : W.clientWidth / 2, cy = keepAt ? keepAt[1] : W.clientHeight / 2;
+    const gx = (W.scrollLeft + cx) / Z, gy = (W.scrollTop + cy) / Z;  // 이 격자 점을 같은 자리에
+    Z = z; $("#gridIn").style.zoom = String(z);
+    W.scrollLeft = gx * Z - cx; W.scrollTop = gy * Z - cy;
+    LS.set(`sheetZoom-${S.id}`, String(z)); renderZoom();
+    if (G.rows > VIRT) renderGrid(); renderSel();
+  }
+  function renderZoom() { const b = $("#zoomPct"); if (b) b.textContent = Math.round(Z * 100) + "%"; }
   function rowAt(y) { let lo = 0, hi = G.rows - 1; while (lo < hi) { const m = (lo + hi + 1) >> 1; if (G.rowY[m] <= y) lo = m; else hi = m - 1; } return lo; }
   function rowWindow(sh, rows, fz, ms) {
     if (rows <= VIRT) return [0, rows - 1];
-    const W = $("#gridWrap"), top = W ? W.scrollTop : 0, hgt = (W && W.clientHeight) || 800;
+    const W = $("#gridWrap"), top = W ? W.scrollTop / Z : 0, hgt = ((W && W.clientHeight) || 800) / Z;
     let r0 = Math.max(fz.r, rowAt(top) - VBUF), r1 = Math.min(rows - 1, rowAt(top + hgt) + VBUF);
     for (let changed = true; changed;) {
       changed = false;
@@ -673,7 +742,7 @@
     if (G.rows <= VIRT || vRaf) return;
     vRaf = requestAnimationFrame(() => {
       vRaf = 0;
-      const W = $("#gridWrap"), a = rowAt(W.scrollTop), b = rowAt(W.scrollTop + W.clientHeight), [r0, r1] = G.win || [0, 0];
+      const W = $("#gridWrap"), a = rowAt(W.scrollTop / Z), b = rowAt((W.scrollTop + W.clientHeight) / Z), [r0, r1] = G.win || [0, 0];
       if ((a < r0 + 10 && r0 > 0) || (b > r1 - 10 && r1 < G.rows - 1)) { renderGrid(); renderSel(); }
     });
   }
@@ -734,6 +803,7 @@
         if (r < fz.r || c < fz.c) { cls.push("fz"); extra.push(r < fz.r ? `top:${G.rowY[r]}px` : "", c < fz.c ? `left:${G.colX[c]}px` : ""); if (r < fz.r && c < fz.c) extra.push("z-index:2"); }
         if (fz.r && r === fz.r - 1) cls.push("fzr"); if (fz.c && c === fz.c - 1) cls.push("fzc");
         if (err) cls.push("err");
+        if (o.note) cls.push("nt");  // 메모 - 오른쪽 위 빨간 삼각형(엑셀과 같다)
         const hl = o.f && !err && HL_RE.test(o.f);
         {  // 테두리
           const r2 = cm ? cm.r2 : r, c2 = cm ? cm.c2 : c, bb = eB.get(r2 * 4096 + c), br = eR.get(r * 4096 + c2), sh2 = [];
@@ -750,17 +820,70 @@
     $("#grid").innerHTML = h.join("");
     renderMarks(); renderDrawings();
   }
-  /** 탭 그림(drawings) - 셀 at 의 왼쪽 위 + (dx, dy)px 에 w×h. 격자와 같이 움직이고 누르기는 통과(선택을 막지 않는다) */
+  /** 그림 id - drawings[].id, 없으면 파일 이름(가져온 그림 d02-01.png → d02-01), 그것도 없으면 순번(img3). 요청 대상(elements)에 쓴다 */
+  const drawId = (d, i) => String(d.id || (String(d.src || "").split("/").pop() || "").replace(/\.[^.]+$/, "") || "img" + (i + 1));
+  /** 고른 그림(이 탭) - 누르면 하나, Ctrl·Shift 로 더하기·빼기. 칸을 누르면 풀린다 */
+  function drawPick(id, add) {
+    const cur = S.drawSel || new Set();
+    if (add) { if (cur.has(id)) cur.delete(id); else cur.add(id); S.drawSel = cur; } else S.drawSel = new Set([id]);
+    if (!S.drawSel.size) S.drawSel = null;
+    markDrawings(); renderReqTarget();
+  }
+  function markDrawings() {
+    $$("#draws img.drw").forEach((im) => im.classList.toggle("on", !!(S.drawSel && S.drawSel.has(im.dataset.did))));
+    let hd = $("#drawHandle"); if (!hd) { hd = document.createElement("div"); hd.id = "drawHandle"; hd.title = "끌어서 크기(Shift = 비율 그대로)"; $("#gridIn").appendChild(hd); }
+    const one = S.drawSel && S.drawSel.size === 1 ? $(`#draws img.drw[data-did="${CSS.escape([...S.drawSel][0])}"]`) : null;
+    hd.hidden = !one; if (one) { hd.style.left = one.offsetLeft + one.offsetWidth - 4 + "px"; hd.style.top = one.offsetTop + one.offsetHeight - 4 + "px"; }
+  }
+  const drawIdx = (sh) => (sh.drawings || []).map((d, i) => [drawId(d, i), i]);
+  /** 그림 끌기 - move: 고른 그림 모두 옮김(놓은 자리의 칸 + 남는 px 로 at·dx·dy) · size: 하나의 w·h */
+  function startDrawDrag(e, mode) {
+    const sh = sheet(), x0 = e.clientX, y0 = e.clientY, ids = new Set(S.drawSel || []), imgs = $$("#draws img.drw").filter((im) => ids.has(im.dataset.did));
+    const start = imgs.map((im) => ({ im, l: im.offsetLeft, t: im.offsetTop, w: im.offsetWidth, h: im.offsetHeight }));
+    let moved = false;
+    const onMove = (ev) => {
+      const dx = (ev.clientX - x0) / Z, dy = (ev.clientY - y0) / Z; if (!moved && Math.abs(dx) + Math.abs(dy) < 4) return; moved = true;
+      for (const st of start) {
+        if (mode === "move") { st.im.style.left = Math.max(HW, st.l + dx) + "px"; st.im.style.top = Math.max(HH, st.t + dy) + "px"; }
+        else { let w = Math.max(8, st.w + dx), h = Math.max(8, st.h + dy); if (ev.shiftKey) { const k = Math.max(w / st.w, h / st.h); w = st.w * k; h = st.h * k; } st.im.style.width = Math.round(w) + "px"; st.im.style.height = Math.round(h) + "px"; }
+      }
+      markDrawings();
+    };
+    const onUp = () => {
+      removeEventListener("mousemove", onMove); removeEventListener("mouseup", onUp);
+      if (!moved) return;
+      const at = (px, axis) => { const A = axis === "c" ? G.colX : G.rowY; let i = 0; while (i + 1 < A.length - 1 && A[i + 1] <= px) i++; return [i, px - A[i]]; };
+      mutate(() => {
+        const idx = new Map(drawIdx(sh));
+        for (const st of start) {
+          const d = sh.drawings[idx.get(st.im.dataset.did)]; if (!d) continue;
+          if (!d.id) d.id = st.im.dataset.did;  // 고친 그림은 id 를 남긴다(요청 대상이 그대로이게)
+          if (mode === "move") { const [c, dx] = at(st.im.offsetLeft, "c"), [r, dy] = at(st.im.offsetTop, "r"); d.at = key(r, c); d.dx = Math.round(dx); d.dy = Math.round(dy); }
+          else { d.w = st.im.offsetWidth; d.h = st.im.offsetHeight; }
+        }
+      });
+    };
+    addEventListener("mousemove", onMove); addEventListener("mouseup", onUp);
+  }
+  function drawDelete() {
+    const ids = new Set(S.drawSel || []); if (!ids.size) return;
+    mutate(() => { const sh = sheet(); sh.drawings = (sh.drawings || []).filter((d, i) => !ids.has(drawId(d, i))); if (!sh.drawings.length) delete sh.drawings; });
+    S.drawSel = null; markDrawings(); renderReqTarget(); toast(`그림 ${ids.size}개를 지웠습니다 (Ctrl+Z 로 되돌리기)`);
+  }
+  /** 탭 그림(drawings) - 셀 at 의 왼쪽 위 + (dx, dy)px 에 w×h. 격자와 같이 움직이고, 누르면 그림 고르기(onGridDown) */
   function renderDrawings() {
     const sh = sheet(), out = [];
-    for (const d of sh.drawings || []) {
+    for (const [i, d] of (sh.drawings || []).entries()) {
       if (d.type && d.type !== "image") continue;
       const p = parseRef(d.at || "A1"); if (!p) continue;
       const x = (G.colX[Math.min(p.c, G.colX.length - 1)] || HW) + (+d.dx || 0), y = (G.rowY[Math.min(p.r, G.rowY.length - 1)] || HH) + (+d.dy || 0);
       const src = assetUrl(d.src); if (!src) continue;
-      out.push(`<img class="drw" src="${esc(src)}" alt="" draggable="false" style="left:${x}px;top:${y}px;width:${+d.w || 120}px;height:${+d.h || 60}px">`);
+      const id = drawId(d, i);
+      out.push(`<img class="drw" data-did="${esc(id)}" src="${esc(src)}" alt="${esc(d.alt || id)}" title="그림 ${esc(id)} - 누르면 고르기(Ctrl·Shift = 여럿) · 요청 대상" draggable="false" style="left:${x}px;top:${y}px;width:${+d.w || 120}px;height:${+d.h || 60}px">`);
     }
     const box = $("#draws"); box.innerHTML = out.join("");
+    if (S.drawSel) { const have = new Set((sh.drawings || []).map(drawId)); for (const id of [...S.drawSel]) if (!have.has(id)) S.drawSel.delete(id); if (!S.drawSel.size) S.drawSel = null; }
+    markDrawings();
     $$("img", box).forEach((i) => { i.onerror = () => { i.style.visibility = "hidden"; }; });
   }
   function rectOf(g) { return { x: G.colX[g.c1], y: G.rowY[g.r1], w: G.colX[g.c2 + 1] - G.colX[g.c1], h: G.rowY[g.r2 + 1] - G.rowY[g.r1] }; }
@@ -771,7 +894,7 @@
     const fz = frz(), W = $("#gridWrap");
     if (!fz.r && !fz.c) return { dx: 0, dy: 0, cx: null, cy: null };
     const fr = r < fz.r, fc = c < fz.c;
-    return { dx: fc ? W.scrollLeft : 0, dy: fr ? W.scrollTop : 0, cx: fc ? null : W.scrollLeft + G.colX[fz.c], cy: fr ? null : W.scrollTop + G.rowY[fz.r] };
+    return { dx: fc ? sx() : 0, dy: fr ? sy() : 0, cx: fc ? null : sx() + G.colX[fz.c], cy: fr ? null : sy() + G.rowY[fz.r] };
   }
   function placeQ(el, g, inset = 0) {
     const fz = frz(), parts = [];
@@ -837,6 +960,73 @@
     }
   }
   const FMTS = [["", "일반"], ["#,##0", "#,##0 (천 단위)"], ["#,##0.00", "#,##0.00"], ["0.0", "0.0"], ["0%", "0%"], ["0.0%", "0.0%"], ["yyyy-mm-dd", "날짜 yyyy-mm-dd"], ["@", "텍스트"]];
+  /** 표시 형식 빠른 단추 - pct·comma·inc(자릿수 늘림)·dec(줄임). 날짜·글 형식 칸은 건너뛴다(엑셀과 같다) */
+  function bumpFmt(f, how) {
+    if (/[ymdhs]/i.test(f.replace(/"[^"]*"/g, "")) || f === "@") return f;
+    if (how === "pct") return "0%";
+    if (how === "comma") return "#,##0" + ((/\.(0+)/.exec(f) || [])[0] || "");
+    const base = f || "0", m = /^([^.;%]*)(\.(0+))?(%?)(.*)$/.exec(base.split(";")[0]);
+    if (!m) return f;
+    const dec = (m[3] || "").length, n = Math.max(0, dec + (how === "inc" ? 1 : -1));
+    return (m[1] || "0") + (n ? "." + "0".repeat(n) : "") + m[4] + m[5];
+  }
+  function numFmt(how) {
+    const sh = sheet(), first = effCell(sh.cells[key(S.cur.r, S.cur.c)]);
+    let start = first.fmt || "";
+    if (!start && (how === "inc" || how === "dec")) {  // 일반 - 지금 값의 소수 자릿수부터(엑셀과 같다)
+      const v = first.v; const d = typeof v === "number" && !Number.isInteger(v) ? Math.min(10, (String(Number(v.toPrecision(15))).split(".")[1] || "").length) : 0;
+      start = d ? "0." + "0".repeat(d) : "0";
+    }
+    const nf = bumpFmt(start, how);
+    mutate(() => eachCell(S.sel, (r, c, k) => { const o = { ...cellObj(sh, k) }; const f2 = how === "pct" || how === "comma" ? nf : o.fmt ? bumpFmt(o.fmt, how) : nf; if (f2) o.fmt = f2; else delete o.fmt; putCell(sh, k, o); }));
+  }
+  /** 셀 서식(Ctrl+1) - 표시 형식·맞춤·글꼴·채우기를 한 창에서. 바꾼 칸만 고른 범위 모두에 */
+  function formatDialog() {
+    if (S.edit) endEdit(true);
+    const o = effCell(sheet().cells[key(S.cur.r, S.cur.c)]);
+    document.querySelectorAll(".fmtDlg").forEach((x) => x.remove());
+    const dlg = document.createElement("div"); dlg.className = "fmtDlg";
+    const opt = (v, cur, label) => `<option value="${esc(v)}"${v === (cur || "") ? " selected" : ""}>${esc(label)}</option>`;
+    const sizes = [8, 9, 10, 11, 12, 14, 16, 18, 20, 24, 28, 36];
+    dlg.innerHTML = `<b>셀 서식 - ${esc(sheet().name)}!${esc(rangeName(clampRange(S.sel)))}</b>
+      <div class="sec"><h4>표시 형식</h4><div class="row"><select data-k="fmtp">${FMTS.map(([f, l]) => opt(f, FMTS.some(([x]) => x === (o.fmt || "")) ? o.fmt : "__", l)).join("")}<option value="__"${FMTS.some(([x]) => x === (o.fmt || "")) ? "" : " selected"}>직접 입력</option></select><input data-k="fmt" value="${esc(o.fmt || "")}" placeholder="예: #,##0.00 · 0.0% · yyyy-mm-dd · @"></div><div class="hint" data-k="prev"></div></div>
+      <div class="sec"><h4>맞춤</h4><div class="row">가로 <select data-k="align">${opt("", o.align, "일반")}${opt("left", o.align, "왼쪽")}${opt("center", o.align, "가운데")}${opt("right", o.align, "오른쪽")}</select> 세로 <select data-k="valign">${opt("", o.valign, "아래")}${opt("middle", o.valign, "가운데")}${opt("top", o.valign, "위")}</select><label><input type="checkbox" data-k="wrap"${o.wrap ? " checked" : ""}> 줄바꿈</label></div></div>
+      <div class="sec"><h4>글꼴</h4><div class="row"><label><input type="checkbox" data-k="b"${o.b ? " checked" : ""}> <b>굵게</b></label><label><input type="checkbox" data-k="i"${o.i ? " checked" : ""}> <i>기울임</i></label><label><input type="checkbox" data-k="u"${o.u ? " checked" : ""}> <u>밑줄</u></label><label><input type="checkbox" data-k="strike"${o.strike ? " checked" : ""}> <s>취소선</s></label> 크기 <select data-k="size">${sizes.map((n) => opt(String(n), String(o.size || defSize()), String(n))).join("")}</select></div>
+        <div class="row">글자색 <input type="color" data-k="color" value="${esc(/^#[0-9a-f]{6}$/i.test(o.color || "") ? o.color : "#000000")}"><label><input type="checkbox" data-k="colorOn"${o.color ? " checked" : ""}> 지정</label> 채우기 <input type="color" data-k="fill" value="${esc(/^#[0-9a-f]{6}$/i.test(o.fill || "") ? o.fill : "#FFFFFF")}"><label><input type="checkbox" data-k="fillOn"${o.fill ? " checked" : ""}> 지정</label></div></div>
+      <div class="acts"><span class="hint">Enter = 확인 · Esc = 닫기</span><span style="flex:1"></span><button class="chip sm" data-d="no">취소</button><button class="chip sm primary" data-d="ok">확인</button></div>`;
+    document.body.appendChild(dlg);
+    const g = (k) => dlg.querySelector(`[data-k="${k}"]`);
+    const prev = () => { const f = g("fmt").value, v = typeof o.v === "number" ? o.v : 1234.5; g("prev").textContent = "보기: " + (f ? fmtNumber(v, f) : display({ v })); };
+    g("fmtp").onchange = () => { if (g("fmtp").value !== "__") g("fmt").value = g("fmtp").value; prev(); };
+    g("fmt").oninput = prev; prev();
+    g("color").oninput = () => (g("colorOn").checked = true); g("fill").oninput = () => (g("fillOn").checked = true);
+    const close = () => { dlg.remove(); focusGrid(); };
+    const ok = () => {
+      const want = { fmt: g("fmt").value.trim() || undefined, align: g("align").value || undefined, valign: g("valign").value || undefined, wrap: g("wrap").checked || undefined,
+        b: g("b").checked || undefined, i: g("i").checked || undefined, u: g("u").checked || undefined, strike: g("strike").checked || undefined,
+        size: +g("size").value === defSize() ? undefined : +g("size").value, color: g("colorOn").checked ? g("color").value.toUpperCase() : undefined, fill: g("fillOn").checked ? g("fill").value.toUpperCase() : undefined };
+      const have = { fmt: o.fmt || undefined, align: o.align || undefined, valign: o.valign || undefined, wrap: o.wrap || undefined, b: o.b || undefined, i: o.i || undefined, u: o.u || undefined, strike: o.strike || undefined,
+        size: o.size && +o.size !== defSize() ? +o.size : undefined, color: o.color ? String(o.color).toUpperCase() : undefined, fill: o.fill ? String(o.fill).toUpperCase() : undefined };
+      const patch = {}; for (const k of Object.keys(want)) if (want[k] !== have[k]) patch[k] = want[k];
+      close();
+      if (Object.keys(patch).length) mutate(() => { const sh = sheet(); eachCell(S.sel, (r, c, k) => { const x = { ...cellObj(sh, k), ...patch }; for (const kk of Object.keys(patch)) if (patch[kk] === undefined) { const st = styleOf(x.s); if (st && st[kk]) x[kk] = kk === "size" ? defSize() : false; else delete x[kk]; } putCell(sh, k, x); }); });
+    };
+    dlg.addEventListener("click", (e) => { const b = e.target.closest("[data-d]"); if (b) (b.dataset.d === "ok" ? ok : close)(); });
+    dlg.addEventListener("keydown", (e) => { e.stopPropagation(); if (e.key === "Escape") close(); if (e.key === "Enter" && e.target.tagName !== "SELECT") { e.preventDefault(); ok(); } });
+    g("fmt").focus();
+  }
+  /** 하이퍼링크 넣기(Ctrl+K) - 칸에 =HYPERLINK(주소, 보일 글) 수식(Ctrl+클릭으로 이동) */
+  function insertLink() {
+    if (S.edit) endEdit(true);
+    const sh = sheet(), k = key(S.cur.r, S.cur.c), o = cellObj(sh, k);
+    const m = o.f && /^=HYPERLINK\(\s*"((?:[^"]|"")*)"\s*(?:,\s*"((?:[^"]|"")*)")?\s*\)$/i.exec(o.f);
+    const addr = prompt("링크 주소 - https://… · #탭!A1 · #A1 · mailto:…", m ? m[1].replace(/""/g, '"') : ""); if (addr == null) return;
+    if (!addr.trim()) { if (m) mutate(() => { const x = { ...cellObj(sh, k) }; delete x.f; x.v = m[2] ? m[2].replace(/""/g, '"') : ""; putCell(sh, k, x); }); return; }
+    const cur = m ? (m[2] || "").replace(/""/g, '"') : String(display(effCell(sh.cells[k])) || "");
+    const text = prompt("보일 글", cur || addr.trim()); if (text == null) return;
+    const q = (t) => '"' + t.replace(/"/g, '""') + '"';
+    mutate(() => { const x = { ...cellObj(sh, k) }; delete x.v; x.f = `=HYPERLINK(${q(addr.trim())}${text && text !== addr.trim() ? ", " + q(text) : ""})`; putCell(sh, k, x); recalc(); });
+  }
   function fillFmtSel(cur) {
     const list = FMTS.some(([f]) => f === cur) ? FMTS : [...FMTS, [cur, cur]];
     $("#fmtSel").innerHTML = list.map(([f, l]) => `<option value="${esc(f)}">${esc(l)}</option>`).join("") + `<option value="__custom">직접 입력…</option>`;
@@ -868,8 +1058,9 @@
     const W = $("#gridWrap"), sh = sheet(), fz = parseRef(sh.freeze || "") || { r: 0, c: 0 };
     const topFix = G.rowY[fz.r] || HH, leftFix = G.colX[fz.c] || HW;
     const x1 = G.colX[c], x2 = G.colX[c + 1], y1 = G.rowY[r], y2 = G.rowY[r + 1];
-    if (c >= fz.c) { if (x1 - W.scrollLeft < leftFix) W.scrollLeft = x1 - leftFix; else if (x2 - W.scrollLeft > W.clientWidth) W.scrollLeft = x2 - W.clientWidth + 2; }
-    if (r >= fz.r) { if (y1 - W.scrollTop < topFix) W.scrollTop = y1 - topFix; else if (y2 - W.scrollTop > W.clientHeight) W.scrollTop = y2 - W.clientHeight + 2; }
+    const vw = W.clientWidth / Z, vh = W.clientHeight / Z, L = sx(), T = sy();  // 격자 좌표로
+    if (c >= fz.c) { if (x1 - L < leftFix) W.scrollLeft = (x1 - leftFix) * Z; else if (x2 - L > vw) W.scrollLeft = (x2 - vw + 2) * Z; }
+    if (r >= fz.r) { if (y1 - T < topFix) W.scrollTop = (y1 - topFix) * Z; else if (y2 - T > vh) W.scrollTop = (y2 - vh + 2) * Z; }
   }
 
   // ---------------------------------------------------------------- 선택·이동
@@ -891,6 +1082,8 @@
     }
     renderSel(); scrollIntoView(extend ? r : S.cur.r, extend ? c : S.cur.c);
   }
+  /** 값·수식이 있는 마지막 행·마지막 열(엑셀 Ctrl+End) */
+  function lastCell(sh) { let r = 0, c = 0; for (const [k, raw] of Object.entries(sh.cells)) { const v = cellVal(sh, k); if (v == null || v === "") continue; const p = parseRef(k); if (p) { r = Math.max(r, p.r); c = Math.max(c, p.c); } } return { r: Math.min(r, G.rows - 1), c: Math.min(c, G.cols - 1) }; }
   function move(dr, dc, extend, jump) {
     const sh = sheet();
     let { r, c } = extend && S.ext ? S.ext : S.cur;
@@ -982,13 +1175,35 @@
       if (lk === "a") { e.preventDefault(); S.anchor = { r: 0, c: 0 }; S.sel = { r1: 0, c1: 0, r2: G.rows - 1, c2: G.cols - 1 }; renderSel(); return; }
       if (lk === "s") { e.preventDefault(); save(); return; }
       if (k === "Home") { e.preventDefault(); selectCell(0, 0); return; }
+      if (k === "End") { e.preventDefault(); const L = lastCell(sheet()); selectCell(L.r, L.c, e.shiftKey); return; }  // 데이터가 있는 마지막 행·열
+      if (k === " " || e.code === "Space") { e.preventDefault(); if (e.shiftKey) { S.anchor = { r: 0, c: 0 }; S.sel = { r1: 0, c1: 0, r2: G.rows - 1, c2: G.cols - 1 }; } else { S.sel = { r1: 0, r2: G.rows - 1, c1: S.sel.c1, c2: S.sel.c2 }; S.anchor = { r: 0, c: S.sel.c1 }; } renderSel(); return; }  // 열 전체 · Ctrl+Shift+Space = 모두
+      if (k === ";" && !e.shiftKey) { e.preventDefault(); const d = new Date(), v = Math.round((Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) - Date.UTC(1899, 11, 30)) / 864e5); mutate(() => { const sh = sheet(), kk = key(S.cur.r, S.cur.c), o = cellObj(sh, kk); delete o.f; putCell(sh, kk, { ...o, v, fmt: o.fmt || "yyyy-mm-dd" }); }); return; }  // 오늘 날짜
+      if (k === "PageDown" || k === "PageUp") { e.preventDefault(); const n = S.deck.sheets.length, i = (S.ti + (k === "PageDown" ? 1 : -1) + n) % n; switchTab(i); return; }  // 다음·이전 탭
+      if (lk === "5") { e.preventDefault(); toggleStyle("strike"); return; }  // 취소선
+      if (lk === "k") { e.preventDefault(); insertLink(); return; }  // 하이퍼링크
+      if (lk === "1" && !e.shiftKey) { e.preventDefault(); formatDialog(); return; }  // 셀 서식
+      if (e.shiftKey && (k === "%" || e.code === "Digit5")) { e.preventDefault(); numFmt("pct"); return; }
+      if (e.shiftKey && (k === "!" || e.code === "Digit1")) { e.preventDefault(); numFmt("comma"); return; }
+      if (e.shiftKey && (k === "$" || e.code === "Digit4")) { e.preventDefault(); numFmt("comma"); return; }  // 통화 - 원화는 천 단위 구분과 같게
+      if ((lk === "9" || lk === "0") && !e.shiftKey && window.NexaSheetX) { e.preventDefault(); NexaSheetX.hide(lk === "9" ? "r" : "c", true); return; }  // 행·열 숨기기
+      if (k === "-" || k === "+" || (k === "=" && e.shiftKey)) {  // 행·열 지우기·넣기 - 행(열) 전체를 골랐을 때(엑셀은 아니면 창을 띄운다)
+        e.preventDefault(); const g = S.sel, rows = g.c1 === 0 && g.c2 === G.cols - 1, cols = g.r1 === 0 && g.r2 === G.rows - 1, del = k === "-";
+        if (rows && !cols) shiftAxis("r", g.r1, del ? -(g.r2 - g.r1 + 1) : g.r2 - g.r1 + 1);
+        else if (cols && !rows) shiftAxis("c", g.c1, del ? -(g.c2 - g.c1 + 1) : g.c2 - g.c1 + 1);
+        else toast(`행 번호(Shift+Space) 또는 열 머리(Ctrl+Space)로 행·열 전체를 고른 뒤 Ctrl+${del ? "-" : "+"} - 칸만 ${del ? "지우기" : "넣기"}는 행·열 메뉴`);
+        return;
+      }
       if (k.startsWith("Arrow")) { e.preventDefault(); move(k === "ArrowDown" ? 1 : k === "ArrowUp" ? -1 : 0, k === "ArrowRight" ? 1 : k === "ArrowLeft" ? -1 : 0, e.shiftKey, true); return; }
       return;  // Ctrl+C·V·X 는 copy/paste/cut 이벤트로
     }
     if (k.startsWith("Arrow")) { e.preventDefault(); move(k === "ArrowDown" ? 1 : k === "ArrowUp" ? -1 : 0, k === "ArrowRight" ? 1 : k === "ArrowLeft" ? -1 : 0, e.shiftKey); return; }
     if (k === "Enter") { e.preventDefault(); advance(e.shiftKey ? -1 : 1, 0); return; }
     if (k === "Tab") { e.preventDefault(); advance(0, e.shiftKey ? -1 : 1); return; }
+    if (e.altKey && e.shiftKey && !ctrl && (e.code === "Digit5" || k === "%")) { e.preventDefault(); toggleStyle("strike"); return; }  // 취소선(구글 시트와 같다 - 브라우저가 Ctrl+5 를 탭 바꾸기로 가져갈 때)
+    if (k === "F2" && e.shiftKey) { e.preventDefault(); noteEdit(); return; }  // 메모
     if (k === "F2") { e.preventDefault(); startEdit("edit"); return; }
+    if ((k === "Delete" || k === "Backspace") && S.drawSel) { e.preventDefault(); drawDelete(); return; }  // 고른 그림 지우기
+    if (k === " " && e.shiftKey) { e.preventDefault(); S.sel = { r1: S.sel.r1, r2: S.sel.r2, c1: 0, c2: G.cols - 1 }; S.anchor = { r: S.sel.r1, c: 0 }; renderSel(); return; }  // 행 전체
     if (k === "Delete") { e.preventDefault(); clearRange(S.sel); return; }
     if (k === "Backspace") { e.preventDefault(); startEdit("enter", ""); return; }
     if (k === "Escape") { if (S.clip) { S.clip.show = false; renderSel(); } return; }
@@ -1281,7 +1496,7 @@
       const a = tgt.area, lastK = tgt.axis === "r" ? key(tgt.dir > 0 ? a.r2 : a.r1, g.c1) : key(g.r1, tgt.dir > 0 ? a.c2 : a.c1);  // 미리보기 글 - 첫 줄의 마지막 칸 값
       const p = fillPlan(sheet(), g, tgt, ev.ctrlKey || ev.metaKey).find((x) => x.k === lastK), R = $("#gridIn").getBoundingClientRect();
       tip.textContent = p ? p.o.f || display(p.o) : "";
-      tip.hidden = !tip.textContent; tip.style.left = ev.clientX - R.left + 14 + "px"; tip.style.top = ev.clientY - R.top + 16 + "px";
+      tip.hidden = !tip.textContent; tip.style.left = (ev.clientX - R.left) / Z + 14 + "px"; tip.style.top = (ev.clientY - R.top) / Z + 16 + "px";
     };
     const onUp = (ev) => {
       removeEventListener("mousemove", onMove); removeEventListener("mouseup", onUp);
@@ -1304,7 +1519,7 @@
 
   function newTabId() { const ids = new Set(S.deck.sheets.map((s) => s.id)); for (let i = 1; ; i++) { const id = "t" + String(i).padStart(2, "0"); if (!ids.has(id)) return id; } }
   function newTabName() { const ns = new Set(S.deck.sheets.map((s) => s.name.toLowerCase())); for (let i = S.deck.sheets.length + 1; ; i++) if (!ns.has("sheet" + i)) return "Sheet" + i; }
-  function switchTab(i) { if (S.edit) endEdit(true); if (i === S.ti) return; S.ti = i; renderGrid(); renderTabs(); selectRange({ r1: 0, c1: 0, r2: 0, c2: 0 }); $("#gridWrap").scrollTo(0, 0); renderReqs(); focusGrid(); }
+  function switchTab(i) { if (S.edit) endEdit(true); if (i === S.ti) return; S.ti = i; S.drawSel = null; renderGrid(); renderTabs(); selectRange({ r1: 0, c1: 0, r2: 0, c2: 0 }); $("#gridWrap").scrollTo(0, 0); renderReqs(); focusGrid(); }
   /** 테마 페이지(표지·이력·…)를 새 탭으로 - {{자리}} 는 문서 정보(vars)로 채운다 */
   function addThemePage(pg) {
     mutate(() => {
@@ -1371,16 +1586,18 @@
   /** 요청의 탭 id - 후속 요청(parent)에 slide 가 없으면 뿌리 요청(thread)의 것 */
   const reqSlide = (q) => (RQ ? RQ.rootOf(q) : q).slide || null;
   async function loadReqs() { if (RQ) await RQ.load(); }
-  function reqTargetRange() { return $("#reqWhole").checked ? null : rangeName(clampRange(S.sel)); }
+  function reqTargetRange() { return $("#reqWhole").checked || S.drawSel ? null : rangeName(clampRange(S.sel)); }
+  const reqDraws = () => (S.drawSel && !$("#reqWhole").checked ? [...S.drawSel] : null);
+  const drawLabel = (ids) => (ids.length > 1 ? `그림 ${ids[0]} 외 ${ids.length - 1}` : `그림 ${ids[0]}`);
   function renderReqTarget() {
-    const t = reqTargetRange(); $("#reqTarget").textContent = `${sheet().name}${t ? "!" + t : " (탭 전체)"}`;
+    const t = reqTargetRange(), ds = reqDraws(); $("#reqTarget").textContent = `${sheet().name}${ds ? " · " + drawLabel(ds) : t ? "!" + t : " (탭 전체)"}`;
   }
   const typedKey = () => `typed-${NS}${S.id}/sheet`;
   const tabName = (sid) => { const s = S.deck && S.deck.sheets.find((x) => x.id === sid); return s ? s.name : sid || "?"; };
   /** 시트 대상 어댑터(RQ) - 탭 · 범위 */
   const SHEET_TARGET = {
     scope: "탭", key: (r) => r.slide, current: () => sheet().id, num: (r) => S.deck.sheets.findIndex((s) => s.id === r.slide) + 1,
-    label: (r) => `${tabName(r.slide)}${r.range ? "!" + r.range : " (탭 전체)"}`,
+    label: (r) => `${tabName(r.slide)}${r.elements && r.elements.length ? " · " + drawLabel(r.elements) : r.range ? "!" + r.range : " (탭 전체)"}`,
     goto: (r) => gotoReq(r),
     extra: (r) => aiDiffHtml(r),  // 완료된 요청 - AI 가 바꾼 셀 n개 · 보기 · 되돌리기
   };
@@ -1389,6 +1606,8 @@
     const root = RQ.rootOf(q); S.reqCur = q.id;
     const i = S.deck.sheets.findIndex((s) => s.id === root.slide); if (i >= 0 && i !== S.ti) switchTab(i);
     const g = parseRange(root.range); if (g) selectRange(clampRange(g)); else renderSel();
+    S.drawSel = root.elements && root.elements.length ? new Set(root.elements) : null; markDrawings(); renderReqTarget();
+    if (S.drawSel) { const im = $(`#draws img.drw[data-did="${CSS.escape(root.elements[0])}"]`); if (im) im.scrollIntoView({ block: "nearest", inline: "nearest" }); }
     renderReqs(); focusGrid();
   }
   function renderReqs() {
@@ -1409,6 +1628,7 @@
     if (S.dirty) await save();  // 세션이 지금 화면 내용을 보고 고치게 먼저 저장
     const body = { action: "add", status: "open", slide: sheet().id, text: text || "(첨부 참고)" };
     const rg = reqTargetRange(); if (rg) body.range = rg;
+    const ds = reqDraws(); if (ds) { body.elements = ds; body.element = ds[0]; }  // 고른 그림(슬라이드 요청의 element·elements 와 같은 칸) - 세션은 탭 drawings 에서 id(또는 파일 이름)로 찾는다
     const r = await RQ.add(body, "tab", { flush: true }); if (!r) return;
     $("#reqText").value = ""; LS.set(typedKey(), "");
     toast(RQ.connected() ? "요청을 세션에 보냈습니다" : "요청을 남겼습니다 - 세션이 연결되면 전달됩니다");
@@ -1560,6 +1780,10 @@
       addEventListener("mousemove", onMove); addEventListener("mouseup", onUp);
       return;
     }
+    const im = e.button === 0 && e.target.closest("#draws img.drw");
+    if (im) { e.preventDefault(); if (S.edit) endEdit(true); const add = e.ctrlKey || e.metaKey || e.shiftKey; if (!(S.drawSel && S.drawSel.has(im.dataset.did) && !add)) drawPick(im.dataset.did, add); focusGrid(); if (!add) startDrawDrag(e, "move"); return; }  // 그림 고르기 · 끌어 옮기기 - 칸 선택은 그대로
+    if (e.button === 0 && e.target.closest("#drawHandle")) { e.preventDefault(); startDrawDrag(e, "size"); return; }
+    if (S.drawSel && !e.ctrlKey && !e.metaKey) { S.drawSel = null; markDrawings(); }  // 칸·머리를 누르면 그림 선택이 풀린다
     if (td && (e.ctrlKey || e.metaKey) && followCell(+td.dataset.r, +td.dataset.c)) { e.preventDefault(); return; }  // HYPERLINK 칸 - 엑셀은 그냥 클릭이지만 여기는 고르기·고치기가 먼저라 Ctrl
     if (S.edit) endEdit(true);
     e.preventDefault(); focusGrid();
@@ -1577,6 +1801,39 @@
     const onUp = () => { removeEventListener("mousemove", onMove); removeEventListener("mouseup", onUp); S.ext = null; };
     addEventListener("mousemove", onMove); addEventListener("mouseup", onUp);
   }
+  // ---------------------------------------------------------------- 열 너비·행 높이 자동 맞춤(엑셀 경계 두 번 누르기)
+  let measureCtx = null;
+  function textPx(o, txt) {
+    measureCtx = measureCtx || document.createElement("canvas").getContext("2d");
+    const fam = getComputedStyle(document.body).getPropertyValue("--font") || "sans-serif";
+    measureCtx.font = `${o.i ? "italic " : ""}${o.b ? "700 " : ""}${+o.size || defSize()}pt ${fam}`;
+    return Math.max(...String(txt).split("\n").map((t) => measureCtx.measureText(t).width));
+  }
+  const fitTargets = (axis, i) => { const g = S.sel, full = axis === "c" ? g.r1 === 0 && g.r2 === G.rows - 1 : g.c1 === 0 && g.c2 === G.cols - 1; const a = axis === "c" ? g.c1 : g.r1, b = axis === "c" ? g.c2 : g.r2; return full && i >= a && i <= b ? [...Array(b - a + 1)].map((_, k) => a + k) : [i]; };
+  function autoFitCols(i) {
+    const sh = sheet(), cover = new Set(merges(sh).flatMap((m) => (m.c1 === m.c2 ? [] : [...Array((m.r2 - m.r1 + 1) * (m.c2 - m.c1 + 1))].map((_, k) => key(m.r1 + Math.floor(k / (m.c2 - m.c1 + 1)), m.c1 + (k % (m.c2 - m.c1 + 1)))))));
+    mutate(() => {
+      for (const c of fitTargets("c", i)) {
+        let w = 0;
+        for (const [k, raw] of Object.entries(sh.cells)) { const p = parseRef(k); if (!p || p.c !== c || rowHidden(sh, p.r) || cover.has(k)) continue; const o = effCell(raw), t = display(o); if (t === "" || o.wrap) continue; w = Math.max(w, textPx(o, t)); }
+        const px = Math.max(24, Math.ceil(w + 10)); sh.cols = sh.cols || {};
+        if (!w || px === DEF_W) delete sh.cols[colName(c)]; else sh.cols[colName(c)] = px;
+      }
+      if (sh.cols && !Object.keys(sh.cols).length) delete sh.cols;
+    });
+  }
+  function autoFitRows(i) {
+    const sh = sheet();
+    mutate(() => {
+      for (const r of fitTargets("r", i)) {
+        let h = 0;
+        for (const [k, raw] of Object.entries(sh.cells)) { const p = parseRef(k); if (!p || p.r !== r) continue; const o = effCell(raw), t = display(o); if (t === "") continue; const lines = o.wrap ? Math.max(1, Math.ceil(textPx(o, t) / Math.max(10, colW(sh, p.c) - 8))) : String(t).split("\n").length; h = Math.max(h, Math.ceil(lines * (+o.size || defSize()) * 1.333 * 1.25 + 6)); }
+        sh.rows = sh.rows || {};
+        if (!h || h <= DEF_H) delete sh.rows[String(r + 1)]; else sh.rows[String(r + 1)] = h;
+      }
+      if (sh.rows && !Object.keys(sh.rows).length) delete sh.rows;
+    });
+  }
   function startResize(e, axis, i) {
     const sh = sheet(), x0 = axis === "c" ? e.clientX : e.clientY, w0 = axis === "c" ? colW(sh, i) : rowH(sh, i);
     // 여러 열(행)이 골라져 있고 그 안의 경계를 끌면 고른 것 모두 같은 크기로
@@ -1584,7 +1841,7 @@
       : (g.c1 === 0 && g.c2 === G.cols - 1 && i >= g.r1 && i <= g.r2 ? [...Array(g.r2 - g.r1 + 1)].map((_, k) => g.r1 + k) : [i]);
     let snap = false, last = w0;
     const onMove = (ev) => {
-      const v = Math.max(axis === "c" ? 24 : 16, Math.round(w0 + (axis === "c" ? ev.clientX : ev.clientY) - x0)); if (v === last) return; last = v;
+      const v = Math.max(axis === "c" ? 24 : 16, Math.round(w0 + ((axis === "c" ? ev.clientX : ev.clientY) - x0) / Z)); if (v === last) return; last = v;
       if (!snap) { snapshot(); snap = true; }
       for (const j of all) { if (axis === "c") { sh.cols = sh.cols || {}; if (v === DEF_W) delete sh.cols[colName(j)]; else sh.cols[colName(j)] = v; } else { sh.rows = sh.rows || {}; if (v === DEF_H) delete sh.rows[String(j + 1)]; else sh.rows[String(j + 1)] = v; } }
       renderGrid(); renderSel();
@@ -1596,6 +1853,45 @@
     };
     addEventListener("mousemove", onMove); addEventListener("mouseup", onUp);
   }
+  // ---------------------------------------------------------------- 메모(엑셀 메모 · Shift+F2)
+  function noteEdit() {
+    if (S.edit) endEdit(true);
+    const sh = sheet(), k = key(S.cur.r, S.cur.c), cur = cellObj(sh, k).note || "";
+    document.querySelectorAll(".notePop").forEach((x) => x.remove());
+    const td = $(`#grid td[data-r="${S.cur.r}"][data-c="${S.cur.c}"]`), R = td ? td.getBoundingClientRect() : { right: 200, top: 200 };
+    const pop = document.createElement("div"); pop.className = "notePop";
+    pop.innerHTML = `<b>${esc(sheet().name)}!${k} 메모</b><textarea rows="5" placeholder="메모 - 칸에 마우스를 올리면 보인다(엑셀 메모로 내보낸다)">${esc(cur)}</textarea><div class="acts">${cur ? '<button class="chip sm" data-n="del">지우기</button>' : ""}<span style="flex:1"></span><button class="chip sm" data-n="no">취소</button><button class="chip sm primary" data-n="ok">저장</button></div>`;
+    Object.assign(pop.style, { left: Math.min(R.right + 6, innerWidth - 300) + "px", top: Math.min(R.top, innerHeight - 220) + "px" });
+    document.body.appendChild(pop);
+    const ta = $("textarea", pop); ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length);
+    const done = (v) => {
+      pop.remove();
+      if (v !== null && v !== cur) mutate(() => { const o = { ...cellObj(sheet(), k) }; if (v) o.note = v; else delete o.note; putCell(sheet(), k, o); });
+      focusGrid();
+    };
+    pop.addEventListener("click", (e2) => { const b = e2.target.closest("[data-n]"); if (!b) return; done(b.dataset.n === "ok" ? ta.value.trim() : b.dataset.n === "del" ? "" : null); });
+    pop.addEventListener("keydown", (e2) => { e2.stopPropagation(); if (e2.key === "Escape") done(null); if (e2.key === "Enter" && (e2.ctrlKey || e2.metaKey)) done(ta.value.trim()); });
+  }
+  // ---------------------------------------------------------------- 그림 넣기(붙여넣기·파일) - 작업 공간 그림 폴더에 올리고 지금 칸에 고정한 drawings
+  async function insertImages(files) {
+    const list = [...files].filter((f) => /^image\//.test(f.type)); if (!list.length) return false;
+    if (S.edit) endEdit(true);
+    const at = key(S.cur.r, S.cur.c), added = [];
+    for (const f of list) {
+      const data = await new Promise((res) => { const fr = new FileReader(); fr.onload = () => res(String(fr.result).split(",")[1] || ""); fr.readAsDataURL(f); });
+      const r = await api("POST", "/api/image", { name: f.name || "붙여넣은 그림.png", type: f.type, data });
+      if (!r.ok) { toast(`그림을 넣지 못했습니다: ${(r.data && r.data.error) || r.status}`); continue; }
+      const dim = await new Promise((res) => { const im = new Image(); im.onload = () => res([im.naturalWidth, im.naturalHeight]); im.onerror = () => res([240, 160]); im.src = URL.createObjectURL(f); });
+      const k = Math.min(1, 600 / Math.max(1, dim[0]), 400 / Math.max(1, dim[1]));
+      added.push({ type: "image", id: "pic" + Date.now().toString(36) + added.length, src: r.data.src, at, dx: added.length * 16, dy: added.length * 16, w: Math.round(dim[0] * k), h: Math.round(dim[1] * k) });
+    }
+    if (!added.length) return true;
+    mutate(() => { const sh = sheet(); sh.drawings = [...(sh.drawings || []), ...added]; });
+    S.drawSel = new Set(added.map((d) => d.id)); markDrawings(); renderReqTarget();
+    toast(`그림 ${added.length}개를 ${at} 에 넣었습니다 - 끌어 옮기기 · 모서리로 크기 · Delete 로 지우기`);
+    return true;
+  }
+  function pickImages() { const inp = document.createElement("input"); inp.type = "file"; inp.accept = "image/*"; inp.multiple = true; inp.onchange = () => insertImages(inp.files); inp.click(); }
   function gridMenu(e) {
     if (!e.target.closest("td, th")) return;
     e.preventDefault();
@@ -1606,7 +1902,12 @@
       { label: "복사", key: "Ctrl+C", act: () => { document.execCommand("copy") || copyRange(); } },
       { label: "붙여넣기", key: "Ctrl+V", act: async () => { try { pasteText(await navigator.clipboard.readText()); } catch (er) { toast("Ctrl+V 로 붙여넣으세요(브라우저가 클립보드 읽기를 막았습니다)", 4000); } } },
       { label: "내용 지우기", key: "Delete", act: () => clearRange(g) },
+      { label: "셀 서식…", key: "Ctrl+1", act: formatDialog },
       { label: "서식 지우기", act: () => mutate(() => { const sh = sheet(); eachCell(g, (r, c, k) => { const o = cellObj(sh, k); putCell(sh, k, { v: o.v, f: o.f }); }); }) },
+      "-",
+      { label: cellObj(sheet(), key(S.cur.r, S.cur.c)).note ? "메모 고치기…" : "메모 넣기…", key: "Shift+F2", act: noteEdit },
+      ...(cellObj(sheet(), key(S.cur.r, S.cur.c)).note ? [{ label: "메모 지우기", act: () => mutate(() => { const sh = sheet(); eachCell(g, (r, c, k) => { const o = { ...cellObj(sh, k) }; if (o.note) { delete o.note; putCell(sh, k, o); } }); }) }] : []),
+      { label: "그림 넣기…", act: pickImages },
       "-",
       { label: mergeAt(sheet(), S.cur.r, S.cur.c) ? "병합 해제" : "셀 병합", act: toggleMerge },
       { label: "행·열 삽입·삭제…", act: () => rowColMenu({ x: e.clientX, y: e.clientY }) },
@@ -1650,6 +1951,8 @@
     W.addEventListener("contextmenu", gridMenu);
     W.addEventListener("dblclick", (e) => {
       if (e.target.closest("#fillHandle")) { e.preventDefault(); fillDownAuto(); return; }
+      const rz = e.target.closest("[data-rzc]"); if (rz) { e.preventDefault(); autoFitCols(+rz.dataset.rzc); return; }  // 열 경계 두 번 = 내용에 맞춤(고른 열 모두)
+      const rr = e.target.closest("[data-rzr]"); if (rr) { e.preventDefault(); autoFitRows(+rr.dataset.rzr); return; }  // 행 경계 두 번 = 기본 높이(줄바꿈 칸은 줄 수만큼)
       const td = e.target.closest("td[data-r]"); if (td) { e.preventDefault(); startEdit("edit"); }
     });
     W.addEventListener("click", (e) => { if (!S.edit && !e.target.closest("button")) focusGrid(); });
@@ -1661,7 +1964,14 @@
     $("#addRows").onclick = () => addRows(20);
     document.addEventListener("copy", (e) => { if (document.activeElement !== ed || S.edit) return; e.preventDefault(); e.clipboardData.setData("text/plain", copyRange(false)); });
     document.addEventListener("cut", (e) => { if (document.activeElement !== ed || S.edit) return; e.preventDefault(); e.clipboardData.setData("text/plain", copyRange(true)); });
-    document.addEventListener("paste", (e) => { if (document.activeElement !== ed || S.edit) return; e.preventDefault(); const t = e.clipboardData.getData("text/plain"); if (t) pasteText(t); });
+    document.addEventListener("paste", (e) => {
+      if (document.activeElement !== ed || S.edit) return; e.preventDefault();
+      const t = e.clipboardData.getData("text/plain"), imgs = [...(e.clipboardData.files || [])].filter((f) => /^image\//.test(f.type));
+      if (imgs.length && !t) { insertImages(imgs); return; }  // 그림만 있으면 지금 칸에 그림(엑셀과 같다)
+      if (t) pasteText(t);
+    });
+    W.addEventListener("dragover", (e) => { if ([...(e.dataTransfer.items || [])].some((i) => i.kind === "file")) e.preventDefault(); });
+    W.addEventListener("drop", (e) => { const fs2 = [...(e.dataTransfer.files || [])]; if (!fs2.some((f) => /^image\//.test(f.type))) return; e.preventDefault(); const td = document.elementFromPoint(e.clientX, e.clientY); const c = td && td.closest("td[data-r]"); if (c) selectCell(+c.dataset.r, +c.dataset.c); insertImages(fs2); });
     // 수식 줄
     const fx = $("#fxIn");
     fx.addEventListener("focus", () => { if (S.edit) { fx.value = ED().value; } });
@@ -1707,6 +2017,7 @@
     $("#sizeSel").addEventListener("change", (e) => { const n = +e.target.value; applyStyle({ size: n === defSize() ? undefined : n }); focusGrid(); });
     $("#styleSel").addEventListener("change", (e) => { applyStyle({ s: e.target.value || undefined }); focusGrid(); });
     $("#themeChip").onclick = (e) => themeMenu(e.currentTarget);
+    $$("#tools [data-nf]").forEach((b) => b.addEventListener("click", () => { numFmt(b.dataset.nf); focusGrid(); }));
     $("#fmtSel").addEventListener("change", (e) => {
       let f = e.target.value;
       if (f === "__custom") { f = prompt("엑셀 표시 형식 - 예: #,##0\"원\" · 0.00% · yyyy.mm.dd", cellObj(sheet(), key(S.cur.r, S.cur.c)).fmt || ""); if (f == null) { renderToolState(); return; } f = f.trim(); }
@@ -1754,10 +2065,30 @@
       const up = () => { removeEventListener("mousemove", mv); removeEventListener("mouseup", up); };
       addEventListener("mousemove", mv); addEventListener("mouseup", up);
     });
+    $("#vbaClose").addEventListener("click", () => { const cur = VB.draft && VB.draft[VB.sel]; if (cur && cur.code !== $("#vbaCode").value) cur.code = $("#vbaCode").value; if (VB.draft && JSON.stringify(VB.draft) !== JSON.stringify(VB.mods) && !confirm("적용하지 않은 코드 변경이 있습니다. 버리고 닫을까요?")) return; $("#vbaDlg").classList.remove("show"); focusGrid(); });
+    $("#vbaApply").addEventListener("click", vbaApply);
+    $("#vbaRevert").addEventListener("click", () => { VB.draft = VB.mods.map((m) => ({ ...m })); $("#vbaCode").dataset.i = ""; vbaRender(); });
+    $("#vbaMods").addEventListener("click", (e) => { const b = e.target.closest("[data-vm]"); if (!b) return; const cur = VB.draft[VB.sel]; if (cur) cur.code = $("#vbaCode").value; VB.sel = +b.dataset.vm; vbaRender(); });
+    $("#vbaCode").addEventListener("keydown", (e) => {
+      e.stopPropagation();  // 격자 단축키가 먹지 않게
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") { e.preventDefault(); vbaApply(); return; }
+      if (e.key === "Tab") { e.preventDefault(); const t = e.target, a = t.selectionStart; t.setRangeText("    ", a, t.selectionEnd, "end"); }
+      if (e.key === "Escape") $("#vbaClose").click();
+    });
+    $("#vbaCode").addEventListener("input", () => { clearTimeout(VB.t); VB.t = setTimeout(() => { const cur = VB.draft[VB.sel]; if (cur) { cur.code = $("#vbaCode").value; vbaRender(); } }, 500); });
+    $("#vbaMsgs").addEventListener("click", (e) => { const d = e.target.closest("[data-ln]"); if (!d) return; const ta = $("#vbaCode"), ln = +d.dataset.ln, lines = ta.value.split("\n"); const at = lines.slice(0, ln - 1).join("\n").length + (ln > 1 ? 1 : 0); ta.focus(); ta.setSelectionRange(at, at + (lines[ln - 1] || "").length); });
+    $("#vbaAdd").addEventListener("click", () => { const cur = VB.draft[VB.sel]; if (cur) cur.code = $("#vbaCode").value; let n = 1; while (VB.draft.some((m) => m.name.toLowerCase() === "module" + n)) n++; const nm = prompt("새 모듈 이름(함수 이름과 같으면 칸에서 못 부른다)", "Module" + n); if (!nm) return; if (!/^[\p{L}][\p{L}\p{N}_]{0,30}$/u.test(nm) || VB.draft.some((m) => m.name.toLowerCase() === nm.toLowerCase())) return toast("쓸 수 없는 이름입니다(글자로 시작, 31자 안, 겹치지 않게)"); VB.draft.push({ name: nm, kind: "std", code: "Option Explicit\r\n\r\nFunction 새함수(x)\r\n    새함수 = x\r\nEnd Function\r\n" }); VB.sel = VB.draft.length - 1; vbaRender(); });
+    $("#vbaDel").addEventListener("click", () => { const m = VB.draft[VB.sel]; if (!m || m.kind !== "std" || !confirm(`모듈 ${m.name} 를 지울까요? (적용해야 반영)`)) return; VB.draft.splice(VB.sel, 1); VB.sel = Math.max(0, VB.sel - 1); $("#vbaCode").dataset.i = ""; vbaRender(); });
+    $("#engReload").addEventListener("click", async () => { if (S.edit) endEdit(true); if (S.dirty) { clearTimeout(saveT); await save(); } if (!S.dirty) location.reload(); else toast("저장하지 못했습니다 - 저장된 뒤 다시 누르세요"); });
+    $("#engClose").addEventListener("click", () => $("#engNotice").classList.remove("show"));
+    $("#vbaBtn").addEventListener("click", vbaOpen);
+    $("#zoomOut").onclick = () => setZoom(Z - 0.1); $("#zoomIn").onclick = () => setZoom(Z + 0.1);
+    $("#zoomPct").onclick = (e) => openMenu(e.currentTarget, [50, 75, 90, 100, 125, 150, 200].map((n) => ({ label: n + "%", act: () => setZoom(n / 100) })));
+    W.addEventListener("wheel", (e) => { if (!(e.ctrlKey || e.metaKey)) return; e.preventDefault(); const R = W.getBoundingClientRect(); setZoom(Z * (e.deltaY < 0 ? 1.1 : 1 / 1.1), [e.clientX - R.left, e.clientY - R.top]); }, { passive: false });
     window.addEventListener("beforeunload", (e) => { if (S.dirty) { save(); e.preventDefault(); e.returnValue = ""; } });
   }
   // 시험용(브라우저 콘솔·스모크) - 수식 계산·표시 형식을 따로 불러 볼 수 있게
-  window.NexaSheet = { S, TH, effCell, bdSides, fillVars, reload: reloadExternal, recalc, parseFormula, display, fmtNumber, parseNumberText, shiftFormula, setInput, parseTsv, fillSeries, fillTarget,
+  window.NexaSheet = { S, TH, VB, setZoom, zoom: () => Z, numFmt, bumpFmt, insertLink, formatDialog, drawDelete, autoFitCols, lastCell, noteEdit, insertImages, vbaOpen, vbaApply, effCell, bdSides, fillVars, reload: reloadExternal, applyVersion, recalc, parseFormula, display, fmtNumber, parseNumberText, shiftFormula, setInput, parseTsv, fillSeries, fillTarget,
     // 엑셀 기능 모듈(sheetx.js)이 쓰는 안쪽 함수 - 격자·선택·고치기(실행 취소·저장 포함)
     x: { shiftAxis, G, sheet, key, parseRef, colHidden, rowHidden, rectOf, colIndex, parseRange, rangeName, colName, cellObj, putCell, mutate, renderAll, renderSel, selectRange, selectCell, clampRange, eachCell, toast, openMenu,
       endEdit, startEdit, focusGrid, pasteText, scrollIntoView, growSize, clone, ED, esc } };

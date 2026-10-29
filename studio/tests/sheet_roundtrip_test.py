@@ -36,7 +36,7 @@ DOC = {"kind": "sheet", "title": "왕복", "slides": [], "sheets": [
      "conds": [{"range": "B2:B5", "type": "gt", "value": 700, "style": {"fill": "#FFC7CE", "color": "#9C0006"}}],
      "tables": [{"name": "매출표", "ref": "A1:E5", "cols": ["지역", "1분기", "2분기", "상태", "합계"]}],
      "cells": {
-         "A1": {"v": "지역", "b": True, "fill": "#1F4E79", "color": "#FFFFFF"}, "B1": "1분기", "C1": "2분기", "D1": "상태", "E1": "합계",
+         "A1": {"v": "지역", "b": True, "fill": "#1F4E79", "color": "#FFFFFF"}, "B1": {"v": "1분기", "strike": True}, "C1": "2분기", "D1": "상태", "E1": "합계",
          "A2": "서울", "B2": {"v": 1200, "fmt": "#,##0"}, "C2": 1500, "D2": "완료", "E2": {"f": "=[@1분기]+[@[2분기]]"},
          "A3": "부산", "B3": 800, "C3": 700, "D3": "진행", "E3": {"f": "=매출표[@1분기]+매출표[@2분기]"},
          "A4": "대구", "B4": 500, "C4": 900, "D4": "완료", "E4": {"f": "=B4+C4"},
@@ -93,6 +93,7 @@ def main():
     check("서식 - 굵게·채우기·글자색·표시 형식·정렬", a["cells"]["A1"].get("b") is True and str(a["cells"]["A1"].get("fill", "")).upper() == "#1F4E79"
           and a["cells"]["B2"].get("fmt") == "#,##0" and a["cells"]["C5"].get("fmt") == "0.0%" and a["cells"]["F1"].get("align") == "center",
           {k: a["cells"].get(k) for k in ("A1", "B2", "C5", "F1")})
+    check("취소선", a["cells"]["B1"].get("strike") is True and val(a["cells"]["B1"]) == "1분기", a["cells"].get("B1"))
     check("병합·틀 고정·열 너비", a.get("merges") == ["F1:G1"] and a.get("freeze") == "A2" and a.get("cols", {}).get("A") == 120, (a.get("merges"), a.get("freeze"), a.get("cols")))
     check("숨긴 행·열", [str(x) for x in a.get("hiddenRows") or []] == ["9"] and a.get("hiddenCols") == ["H"], (a.get("hiddenRows"), a.get("hiddenCols")))
     dv = a.get("validations") or []

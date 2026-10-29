@@ -56,6 +56,8 @@ def cell_format(c):
         f["italic"] = True
     if c.get("u"):
         f["underline"] = 1
+    if c.get("strike"):
+        f["font_strikeout"] = True
     if c.get("color"):
         f["font_color"] = c["color"]
     if c.get("fill"):
@@ -252,6 +254,19 @@ def export(deck, out):
     wb.max_digit_width, wb.cell_padding, wb.default_col_width = mdw, 5 if mdw <= 8 else 7 if mdw <= 12 else 9, DEF_COL_PX.get(mdw, 64)
     wb.default_row_height = row_px  # 높이를 정하지 않은 행(파일에는 쓰지 않는다 - 엑셀이 글꼴로 정한다)
     if vba:
+        mods = (deck.get("macros") or {}).get("modules")
+        if isinstance(mods, list) and mods:  # 코드 창에서 고친 모듈 - 원본 프로젝트와 다르면 소스를 고쳐 쓴 프로젝트로(엑셀이 열 때 다시 컴파일)
+            import tempfile
+            import vba_project
+            data = vba.read_bytes()
+            norm = lambda ms: [(m.get("name"), (m.get("code") or "").replace("\r\n", "\n").rstrip()) for m in ms]  # noqa: E731
+            try:
+                if norm(vba_project.read_modules(data)) != norm(mods):
+                    tmp = Path(tempfile.mkdtemp(prefix="nexa-vba-")) / "vbaProject.bin"
+                    tmp.write_bytes(vba_project.write_modules(data, mods))
+                    vba = tmp
+            except Exception as e:  # noqa: BLE001 - 고쳐 쓰지 못하면 원본 프로젝트 그대로
+                print(f"  VBA 모듈을 고쳐 쓰지 못해 원본을 넣는다: {e}", file=sys.stderr)
         wb.add_vba_project(str(vba))
         wb.set_vba_name(deck["macros"].get("codeName") or "ThisWorkbook")
     wb.set_properties({"title": deck.get("title") or deck.get("id") or ""})

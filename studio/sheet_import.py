@@ -164,6 +164,8 @@ def import_xlsx(src, title=None):
                 d["i"] = True
             if f.find(N + "u") is not None:
                 d["u"] = True
+            if f.find(N + "strike") is not None and f.find(N + "strike").get("val") not in ("0", "false"):
+                d["strike"] = True
             c = color(f.find(N + "color"))
             if c and c not in ("#000000",):
                 d["color"] = c
@@ -660,6 +662,11 @@ def to_doc(i, title, src, asset_root=None):
             wbx = ET.fromstring(z.read("xl/workbook.xml"))
             pr = wbx.find(N + "workbookPr")
             doc["macros"] = {"vba": rel, "codeName": (pr.get("codeName") if pr is not None else None) or "ThisWorkbook"}
+            try:  # 모듈 소스 - 화면 VBA 실행기(vba.js)·코드 창이 쓴다. 내보낼 때 바뀌었으면 vbaProject.bin 을 고쳐 쓴다(vba_project.py)
+                import vba_project
+                doc["macros"]["modules"] = vba_project.read_modules(z.read("xl/vbaProject.bin"))
+            except Exception as e:  # noqa: BLE001 - 읽지 못하면 바이너리만 보관(엑셀에서는 그대로 돈다)
+                warnings.append(f"VBA 모듈 소스를 읽지 못했다(바이너리는 보관): {e}")
             warnings.append("매크로(VBA)를 옮겼다 - 엑셀로 내보내면 .xlsm(매크로 포함). 매크로 단추·양식 컨트롤은 옮기지 않았다")
     if font.get("name"):
         doc["font"] = {"name": font["name"], "size": font["size"], **({"mdw": font["mdw"]} if font.get("mdw", 7) != 7 else {}),
