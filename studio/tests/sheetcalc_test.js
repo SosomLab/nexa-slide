@@ -35,6 +35,10 @@ if (cyc.sheets[0].cells.A1.v !== "#REF!") { fails.push("순환 참조"); console
 const nm = { sheets: [{ id: "t01", name: "S", cells: { A1: { f: "=없는이름*2", v: 42 } } }] };  // 이름 정의 없이 가져온 문서 - 엑셀 값을 #NAME? 로 덮지 않는다
 C.recalc(nm);
 if (nm.sheets[0].cells.A1.v !== 42) { fails.push("모르는 이름 - 엑셀 값 유지"); console.log("FAIL 모르는 이름 - 엑셀 값 유지 →", nm.sheets[0].cells.A1.v); }
+const hl = { sheets: [{ id: "t01", name: "S", cells: { A1: "목록", A2: 3, B1: { f: '=IF(A2>0, HYPERLINK("#" & A1 & "!D" & A2, "◀"), "")' }, B2: { f: '=HYPERLINK("https://x.y")' }, B3: { f: "=B1" } } }] };  // HYPERLINK 주소(시트 화면 Ctrl+클릭) - 값은 보이는 글
+C.recalc(hl);
+const hlGot = [C.link(hl, "t01", "B1"), hl.sheets[0].cells.B1.v, C.link(hl, "t01", "B2"), hl.sheets[0].cells.B2.v, C.link(hl, "t01", "B3"), C.link(hl, "t01", "A1")];
+if (JSON.stringify(hlGot) !== JSON.stringify(["#목록!D3", "◀", "https://x.y", "https://x.y", null, null])) { fails.push("HYPERLINK 주소"); console.log("FAIL HYPERLINK 주소 →", JSON.stringify(hlGot)); }
 console.log(`사례 ${spec.cases.length + (spec.spills || []).length + pv.arrays.length}개 중 ${ok}개 같음`);
 console.log("\n실패:", fails.length ? fails.join(", ") : "없음");
 process.exit(fails.length ? 1 : 0);

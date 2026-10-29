@@ -731,13 +731,14 @@
         if (r < fz.r || c < fz.c) { cls.push("fz"); extra.push(r < fz.r ? `top:${G.rowY[r]}px` : "", c < fz.c ? `left:${G.colX[c]}px` : ""); if (r < fz.r && c < fz.c) extra.push("z-index:2"); }
         if (fz.r && r === fz.r - 1) cls.push("fzr"); if (fz.c && c === fz.c - 1) cls.push("fzc");
         if (err) cls.push("err");
+        const hl = o.f && !err && HL_RE.test(o.f);
         {  // 테두리
           const r2 = cm ? cm.r2 : r, c2 = cm ? cm.c2 : c, bb = eB.get(r2 * 4096 + c), br = eR.get(r * 4096 + c2), sh2 = [];
           if (bb) extra.push(`border-bottom-color:${bb}`); if (br) extra.push(`border-right-color:${br}`);
           if (r === 0 && eT.get(c)) sh2.push(`inset 0 1px 0 ${eT.get(c)}`); if (c === 0 && eL.get(r)) sh2.push(`inset 1px 0 0 ${eL.get(r)}`);
           if (sh2.length) extra.push(`box-shadow:${sh2.join(",")}`);
         }
-        h.push(`<td data-r="${r}" data-c="${c}"${span}${cls.length ? ` class="${cls.join(" ")}"` : ""} style="${[tdS, ...extra.filter(Boolean)].filter(Boolean).join(";")}"${o.note ? ` title="${esc(o.note)}"` : err && ERR_WHY[o.v] ? ` title="${esc(o.v + " - " + ERR_WHY[o.v])}"` : ""}>`
+        h.push(`<td data-r="${r}" data-c="${c}"${span}${cls.length ? ` class="${cls.join(" ")}"` : ""} style="${[tdS, ...extra.filter(Boolean)].filter(Boolean).join(";")}"${o.note ? ` title="${esc(o.note)}"` : err && ERR_WHY[o.v] ? ` title="${esc(o.v + " - " + ERR_WHY[o.v])}"` : hl ? ' title="Ctrl+클릭 = 링크로 이동"' : ""}>`
           + `<div class="cv${o.wrap ? " wrap" : ""}" style="height:${hh - 1}px;${cvS}"><span>${esc(txt)}</span></div></td>`);
       }
       h.push("</tr>");
@@ -1464,6 +1465,35 @@
   }
   async function leave(fn) { if (S.edit) endEdit(true); if (S.dirty && !S.conflict) await save(); fn(); }
 
+  // ---------------------------------------------------------------- HYPERLINK 따라가기 - "#탭!A1"·"#'탭 이름'!A1:B2"·"#A1"(이 탭)·"#이름"(이름 정의) · 웹 주소는 새 탭
+  const HL_RE = /\bHYPERLINK\s*\(/i;
+  function followCell(r, c) {
+    const raw = sheet().cells[key(r, c)];
+    if (!raw || typeof raw !== "object" || !raw.f || !HL_RE.test(raw.f) || !window.NexaCalc) return false;
+    const u = NexaCalc.link(S.deck, sheet().id, key(r, c));
+    if (u) followHref(u); else toast("링크 주소를 계산하지 못했습니다");
+    return true;
+  }
+  const tabIndex = (name) => S.deck.sheets.findIndex((s) => s.id === name || String(s.name).toLowerCase() === name.replace(/''/g, "'").toLowerCase());
+  function followHref(u) {
+    u = String(u).trim();
+    if (u.startsWith("#")) {
+      const m = /^#(?:'((?:[^']|'')+)'!|([^'!]+)!)?(.+)$/.exec(u); if (!m) { toast(`찾을 수 없는 링크 대상: ${u}`); return; }
+      let name = m[1] || m[2] || null, g = parseRange(m[3].replace(/\$/g, ""));
+      if (!g && !name) {  // 이름 정의 - 탭 것이 먼저(계산기 named 와 같다)
+        const nm = m[3].toUpperCase(), def = [sheet().names, S.deck.names].map((b) => b || {}).map((b) => b[Object.keys(b).find((x) => x.toUpperCase() === nm)]).find((x) => x != null);
+        const d = def != null && /^=?(?:'((?:[^']|'')+)'!|([^'!]+)!)?(\$?[A-Za-z]{1,3}\$?\d+(?::\$?[A-Za-z]{1,3}\$?\d+)?)$/.exec(String(def).trim());
+        if (d) { name = d[1] || d[2] || null; g = parseRange(d[3].replace(/\$/g, "")); }
+      }
+      const ti = name ? tabIndex(name) : S.ti;
+      if (ti < 0 || !g) { toast(`찾을 수 없는 링크 대상: ${u}`); return; }
+      switchTab(ti); selectRange(g); focusGrid(); return;
+    }
+    if (/^(https?:|mailto:|ftp:)/i.test(u)) { window.open(u, "_blank", "noopener"); return; }
+    if (/^www\./i.test(u)) { window.open("https://" + u, "_blank", "noopener"); return; }
+    toast(`열 수 없는 링크 주소: ${u}`);
+  }
+
   // ---------------------------------------------------------------- 끌기(범위 선택·열 너비·행 높이·패널 폭)
   function onGridDown(e) {
     if (e.button !== 0 && e.button !== 2) return;
@@ -1489,6 +1519,7 @@
       addEventListener("mousemove", onMove); addEventListener("mouseup", onUp);
       return;
     }
+    if (td && (e.ctrlKey || e.metaKey) && followCell(+td.dataset.r, +td.dataset.c)) { e.preventDefault(); return; }  // HYPERLINK 칸 - 엑셀은 그냥 클릭이지만 여기는 고르기·고치기가 먼저라 Ctrl
     if (S.edit) endEdit(true);
     e.preventDefault(); focusGrid();
     let mode;

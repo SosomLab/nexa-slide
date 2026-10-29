@@ -188,7 +188,7 @@
   /** LAMBDA 값 - 매개변수 이름·본문·만든 곳의 LET 이름 묶음 */
   class Lam { constructor(params, body, scope) { this.params = params; this.body = body; this.scope = scope; } }
   class Calc {
-    constructor(doc) { this.doc = doc; this.sheets = doc.sheets || []; this.memo = new Map(); this.busy = new Set(); this.ast = new Map(); this.at = []; this.dims = new Map(); this.spill = new Map(); this.anchors = new Map(); this.dyn = new Map(); this.extent = new Map(); this.scope = []; this.names = new Map(); this.naming = new Set(); this.depth = 0; }
+    constructor(doc) { this.doc = doc; this.sheets = doc.sheets || []; this.memo = new Map(); this.busy = new Set(); this.ast = new Map(); this.at = []; this.dims = new Map(); this.spill = new Map(); this.anchors = new Map(); this.dyn = new Map(); this.extent = new Map(); this.scope = []; this.names = new Map(); this.naming = new Set(); this.depth = 0; this.ids = []; this.links = new Map(); }
     /** f(…) 의 f - LET 이름이나 이름 정의에 담긴 LAMBDA(없으면 null) */
     lamOf(nm, sh) {
       for (let i = this.scope.length - 1; i >= 0; i--) if (this.scope[i].has(nm)) { const v = this.scope[i].get(nm); return v instanceof Lam ? v : null; }
@@ -286,7 +286,7 @@
       const id = sh.id + "!" + k;
       if (this.memo.has(id)) return this.memo.get(id);
       if (this.busy.has(id)) return new FErr("#REF!");
-      this.busy.add(id); this.at.push(parseRef(k));
+      this.busy.add(id); this.at.push(parseRef(k)); this.ids.push(id);
       const f = sh.cells[k].f; let v;
       try {
         let a = this.ast.get(f); if (!a) { try { a = parse(f.replace(/^=/, "")); } catch (e) { a = ["err", e instanceof FErr ? e.code : "#NAME?"]; } this.ast.set(f, a); }
@@ -300,7 +300,7 @@
         if (v == null) v = 0;
         if (!(v instanceof FErr)) v = fix(v);
       } catch (e) { v = e instanceof FErr ? e : new FErr("#VALUE!"); }
-      this.busy.delete(id); this.at.pop(); this.memo.set(id, v);
+      this.busy.delete(id); this.at.pop(); this.ids.pop(); this.memo.set(id, v);
       return v;
     }
     dim(s) {
@@ -567,7 +567,11 @@
     ROWS: (c, A, sh) => c.area(A[0], sh).rows.length, COLUMNS: (c, A, sh) => { const r = c.area(A[0], sh); return r.rows.length ? r.rows[0].length : 0; },
     INDIRECT: (c, A, sh) => c.ev(c.refnode(["fn", "INDIRECT", A], sh), sh), OFFSET: (c, A, sh) => c.ev(c.refnode(["fn", "OFFSET", A], sh), sh),
     SUBTOTAL: (c, A, sh) => { const k = n0(c, A, sh, 0) % 100, fn = { 1: "AVERAGE", 2: "COUNT", 3: "COUNTA", 4: "MAX", 5: "MIN", 6: "PRODUCT", 9: "SUM" }[k]; if (!fn) throw new FErr("#VALUE!"); return FUNCS[fn](c, A.slice(1), sh); },
-    HYPERLINK: (c, A, sh) => (A.length > 1 ? c.one(A, 1, sh) : c.one(A, 0, sh)),  // 링크는 화면에서 열지 않는다 - 보이는 글만
+    HYPERLINK: (c, A, sh) => {  // 값은 보이는 글 - 주소는 칸마다 links 에 둔다(시트 화면 Ctrl+클릭 이동, link())
+      const v = A.length > 1 ? c.one(A, 1, sh) : c.one(A, 0, sh), id = c.ids[c.ids.length - 1];
+      if (id) { const u = cellv(() => toStr(c.one(A, 0, sh))); if (!(u instanceof FErr)) c.links.set(id, u); }  // 값은 sheet_calc.py 와 같게 - 주소 오류는 값에 안 미친다
+      return v;
+    },
     ISBLANK: isF((v) => v == null || v === ""), ISNUMBER: isF((v) => isNum(v)), ISTEXT: isF((v) => typeof v === "string"), ISERROR: isF((v) => v instanceof FErr), ISNA: isF((v) => v instanceof FErr && v.code === "#N/A"),
   };
   // ---- 동적 배열 함수
@@ -891,6 +895,13 @@
     const v = raw && typeof raw === "object" && raw.f ? c.cell(sh, ref) : c.value(sh, parseRef(ref)[0], parseRef(ref)[1]);
     return v instanceof FErr ? v.code : v;
   }
-  const API = { recalc, cell, parse, tokenize, formatValue, parseNumberText, FUNCS: Object.keys(FUNCS), FErr };
+  /** 칸의 HYPERLINK 주소(마지막으로 계산된 것) - 없거나 오류면 null */
+  function link(doc, tab, ref) {
+    const sh = (doc.sheets || []).find((s) => s.id === tab || s.name === tab), raw = sh && (sh.cells || {})[ref];
+    if (!raw || typeof raw !== "object" || !raw.f) return null;
+    const c = new Calc(doc); c.cell(sh, ref);
+    return c.links.get(sh.id + "!" + ref) || null;
+  }
+  const API = { recalc, cell, link, parse, tokenize, formatValue, parseNumberText, FUNCS: Object.keys(FUNCS), FErr };
   if (typeof module === "object" && module.exports) module.exports = API; else root.NexaCalc = API;
 })(typeof window !== "undefined" ? window : globalThis);

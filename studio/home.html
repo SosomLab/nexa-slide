@@ -519,7 +519,7 @@
         <div><label class="f" for="sgBudget">예산 ($)</label><input type="text" id="sgBudget" placeholder="없음"></div>
       </div>
       <label class="f" style="display:flex;align-items:center;gap:8px;font-weight:400;margin-top:10px"><input type="checkbox" id="sgAllowWeb" style="margin:0"> 웹 검색 허용(WebSearch·WebFetch) - 세션 시작 창에서 세션마다 켠다</label>
-      <div class="warn" id="sgAllowWebWarn" style="display:none;font-size:12px">켜면 그 세션이 외부 웹을 검색·열람합니다. 슬라이드·요청 내용이 검색어·요청 URL 로 외부에 전달될 수 있습니다. 턴 로그에 요청한 URL 이 남습니다.</div>
+      <div class="warn" id="sgAllowWebWarn" style="display:none;font-size:12px">켜면 그 세션이 외부 웹을 검색·열람합니다. 작업 내용·요청 내용이 검색어·요청 URL 로 외부에 전달될 수 있습니다. 턴 로그에 요청한 URL 이 남습니다.</div>
       <label class="f" style="display:flex;align-items:center;gap:8px;font-weight:400"><input type="checkbox" id="sgAllowGit" style="margin:0"> git 기록 허용(add·commit·branch·switch·merge·stash·tag)</label>
       <label class="f" style="display:flex;align-items:center;gap:8px;font-weight:400"><input type="checkbox" id="sgAllowPush" style="margin:0"> push 허용(git push·pull·fetch - git 기록을 함께 켬)</label>
       <label class="f" style="display:flex;align-items:center;gap:8px;font-weight:400"><input type="checkbox" id="sgRepoRoot" style="margin:0"> 저장소 루트 접근(작업 공간을 품은 저장소의 문서 읽기·쓰기)</label>
@@ -1322,7 +1322,7 @@
       <select id="smModel">${models(cur)}</select><input type="text" id="smModelText" placeholder="모델 ID 직접 입력" style="display:none;margin-top:6px">
       <label class="f" id="sessSaveRow" style="display:flex;align-items:center;gap:8px;font-weight:400;margin-top:10px"><input type="checkbox" id="smSave" style="margin:0"> 이 작업 공간 기본으로 저장 <select id="smSaveAs" style="font-size:12px"><option value="local">이 PC 만</option><option value="shared">공유(nexa-slide.json)</option></select></label>
       ${d.allowWeb && !(path && path.engine) ? `<label class="f" style="display:flex;align-items:center;gap:8px;font-weight:400;margin-top:6px"><input type="checkbox" id="smWeb" style="margin:0" ${d.canAllowWeb ? "" : "disabled"}> 이 세션에 웹 검색 허용(WebSearch·WebFetch) ${d.canAllowWeb ? "" : '<span class="hint">- 관리자만</span>'}</label>
-      <div class="warn" id="smWebWarn" style="display:none;font-size:12px">이 세션이 외부 웹을 검색·열람합니다 - 슬라이드·요청 내용이 검색어·URL 로 외부에 전달될 수 있습니다(claude 만, 실행 중 세션은 다시 시작해야 바뀜).</div>` : ""}
+      <div class="warn" id="smWebWarn" style="display:none;font-size:12px">이 세션이 외부 웹을 검색·열람합니다 - 작업 내용·요청 내용이 검색어·URL 로 외부에 전달될 수 있습니다(claude 만, 실행 중 세션은 다시 시작해야 바뀜).</div>` : ""}
       <div class="hint">한도: 유휴 ${esc(String(d.limits.sessionIdleMinutes))}분 · 턴 ${esc(String(d.limits.sessionTurnMinutes))}분 · 동시 ${esc(String(d.limits.sessionMax))}. 서버가 꺼져 있으면 먼저 띄웁니다.</div>`;
     if ($("#smWeb")) $("#smWeb").onchange = () => { $("#smWebWarn").style.display = $("#smWeb").checked ? "" : "none"; };
     if (!(path && path.engine)) {  // git·push·저장소 루트 - 전역이 켜진 것만(관리자만 체크)
