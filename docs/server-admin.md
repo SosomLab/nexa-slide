@@ -142,7 +142,16 @@ grep -E '"result":"(deny|error)"' ~/.config/nexa-slide/hub/logs/access-$(date +%
 
 허브는 **로그인한 그 사용자 계정**으로 띄운다. Windows 서비스(SYSTEM)·다른 계정으로 띄우면 사용자 설정 폴더가 달라져 계정·로그가 따로 생기고, AI 세션의 로그인 정보도 찾지 못한다.
 
-Windows — 작업 스케줄러 "로그온 시 실행"(관리자 권한 불필요). 파이썬은 실제 실행 파일 경로로 적는다(pyenv-win 의 `python3` 는 배치 파일이다):
+Windows — 작업 스케줄러 "로그온 시 실행"(관리자 권한 불필요). 명령 하나로 켜고 끈다(작업 공간 밖에서, **운영 엔진**의 service.py 로 - 개발용 worktree 에서는 막힌다):
+
+```powershell
+python <운영 엔진>/studio/service.py autostart on       # 켜기 - 작업 'nexa-slide hub' 를 이 python.exe 실제 경로로 등록
+python <운영 엔진>/studio/service.py autostart status   # 확인 - 상태 · 실행할 명령 (없으면 none)
+python <운영 엔진>/studio/service.py autostart off      # 끄기
+# --dry-run 을 붙이면 등록하지 않고 실행할 PowerShell 만 보인다
+```
+
+손으로 등록하려면 아래처럼 한다. 파이썬은 실제 실행 파일 경로로 적는다(pyenv-win 의 `python3` 는 배치 파일이다):
 
 ```powershell
 $py  = python3 -c "import sys; print(sys.executable)"          # 실제 python.exe 경로
