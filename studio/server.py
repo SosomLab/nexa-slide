@@ -2635,6 +2635,9 @@ class Server(ThreadingHTTPServer):
     restart 가 30~60초 동안 같은 포트를 열지 못한다 → 켠다."""
     allow_reuse_address = os.name != "nt"
     daemon_threads = True
+    # 연결 대기열 - socketserver 기본 5 는 페이지 하나가 스크립트·글꼴 20여 개를 한꺼번에 받을 때 창 둘만 동시에 열어도 넘쳐
+    # 나머지 연결이 ERR_CONNECTION_REFUSED 로 거절됐다(편집기 시험 두 갈래 동시 실행에서 드러남, 10-29)
+    request_queue_size = 128
 
     def server_bind(self):
         import socket

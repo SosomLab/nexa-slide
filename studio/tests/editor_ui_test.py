@@ -3,6 +3,7 @@
 그림 삽입(API·Ctrl+V·끌어다 놓기) · 도형/다이어그램 메뉴 · 표 행·열 단추·글머리 감지 스위치 · 묶기/풀기 · 링크/그림자/자르기 속성·발표자 보기 · 삽입 패널·명령 팔레트·스마트 가이드 · 글꼴 세트 선택 상자."""
 import json
 import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -69,6 +70,33 @@ def fixture():
         (WS / "decks" / f"{k}.requests.json").unlink(missing_ok=True)
 
 
+DECK_REF = re.compile(r"deck=([a-z][a-z0-9]+)|#([a-z][a-z0-9]+)/\d|/api/[a-z]+/([a-z][a-z0-9]+)")
+
+
+def decks_of(text):
+    """시나리오가 가리키는 덱 id(편집기 #덱/장 · 시트 ?deck= · /api/…/덱)."""
+    return {a or b or c for a, b, c in DECK_REF.findall(text)}
+
+
+def report(lane, out, err):
+    """smoke.js 출력(## RESULT 줄로 나뉨)을 시나리오별 OK/FAIL 로."""
+    buf, seen = [], set()
+    for l in out.splitlines():
+        if l.startswith("## RESULT "):
+            name, verdict = l.split()[2], l.split()[3]
+            seen.add(name)
+            print(f"-- {name} ({l.split()[-1]})")
+            for b in buf:
+                print("  " + b[:160])
+            check(f"시나리오 {Path(name).stem}", verdict == "OK", "\n".join(b for b in buf if b.startswith("FAIL"))[-400:])
+            buf = []
+        elif l.startswith(("OK", "FAIL", "==")):
+            buf.append(l)
+    for sc in lane:
+        if sc.name not in seen:  # 실행기가 도중에 죽었다
+            check(f"시나리오 {sc.stem}", False, (err or out)[-400:])
+
+
 def main():
     fixture()
     srv = subprocess.Popen([sys.executable, str(STUDIO / "server.py"), "--workspace", str(WS), "--port", str(PORT)], env=ENV, cwd=str(WS), stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
@@ -82,24 +110,18 @@ def main():
         else:
             check("작업 공간 서버 시작", False, "5667 응답 없음")
             return
-        # Chrome 한 번에 시나리오 전부(smoke.js 가 시나리오마다 새 브라우저 컨텍스트) - 시나리오마다 Chrome 을 새로 띄우던 것
-        scs = sorted((HERE / "scenarios").glob("*.json"))
-        r = subprocess.run(["node", str(HERE / "smoke.js"), *map(str, scs)], capture_output=True, text=True, encoding="utf-8", errors="replace", cwd=str(HERE))
-        out, buf, seen = r.stdout or "", [], set()
-        for l in out.splitlines():
-            if l.startswith("## RESULT "):
-                name, verdict = l.split()[2], l.split()[3]
-                seen.add(name)
-                print(f"-- {name} ({l.split()[-1]})")
-                for b in buf:
-                    print("  " + b[:160])
-                check(f"시나리오 {Path(name).stem}", verdict == "OK", "\n".join(b for b in buf if b.startswith("FAIL"))[-400:])
-                buf = []
-            elif l.startswith(("OK", "FAIL", "==")):
-                buf.append(l)
-        for sc in scs:
-            if sc.name not in seen:  # 실행기가 도중에 죽었다
-                check(f"시나리오 {sc.stem}", False, (r.stderr or out)[-400:])
+        # 갈래마다 smoke.js 하나(Chrome 한 번, 시나리오마다 새 브라우저 컨텍스트). 시트 덱(z…)만 쓰는 갈래와 슬라이드 덱만 쓰는 갈래는 동시에,
+        # 둘 다 쓰는 시나리오는 그 뒤에 혼자 - 같은 덱을 두 시나리오가 동시에 고치지 않게(205초 → 157초)
+        lanes = {"sheet": [], "slide": [], "both": []}
+        for sc in sorted((HERE / "scenarios").glob("*.json")):
+            z = {d.startswith("z") for d in decks_of(sc.read_text(encoding="utf-8"))}
+            lanes["both" if z == {True, False} else "sheet" if z == {True} else "slide"].append(sc)
+        for wave in (("sheet", "slide"), ("both",)):
+            procs = [(lanes[k], subprocess.Popen(["node", str(HERE / "smoke.js"), *map(str, lanes[k])], stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                                  text=True, encoding="utf-8", errors="replace", cwd=str(HERE))) for k in wave if lanes[k]]
+            for lane, p in procs:
+                out, err = p.communicate()
+                report(lane, out or "", err or "")
     finally:
         srv.terminate()
         try:
