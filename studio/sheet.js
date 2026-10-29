@@ -946,6 +946,38 @@
     }
   }
   const FMTS = [["", "일반"], ["#,##0", "#,##0 (천 단위)"], ["#,##0.00", "#,##0.00"], ["0.0", "0.0"], ["0%", "0%"], ["0.0%", "0.0%"], ["yyyy-mm-dd", "날짜 yyyy-mm-dd"], ["@", "텍스트"]];
+  /** 표시 형식 빠른 단추 - pct·comma·inc(자릿수 늘림)·dec(줄임). 날짜·글 형식 칸은 건너뛴다(엑셀과 같다) */
+  function bumpFmt(f, how) {
+    if (/[ymdhs]/i.test(f.replace(/"[^"]*"/g, "")) || f === "@") return f;
+    if (how === "pct") return "0%";
+    if (how === "comma") return "#,##0" + ((/\.(0+)/.exec(f) || [])[0] || "");
+    const base = f || "0", m = /^([^.;%]*)(\.(0+))?(%?)(.*)$/.exec(base.split(";")[0]);
+    if (!m) return f;
+    const dec = (m[3] || "").length, n = Math.max(0, dec + (how === "inc" ? 1 : -1));
+    return (m[1] || "0") + (n ? "." + "0".repeat(n) : "") + m[4] + m[5];
+  }
+  function numFmt(how) {
+    const sh = sheet(), first = effCell(sh.cells[key(S.cur.r, S.cur.c)]);
+    let start = first.fmt || "";
+    if (!start && (how === "inc" || how === "dec")) {  // 일반 - 지금 값의 소수 자릿수부터(엑셀과 같다)
+      const v = first.v; const d = typeof v === "number" && !Number.isInteger(v) ? Math.min(10, (String(Number(v.toPrecision(15))).split(".")[1] || "").length) : 0;
+      start = d ? "0." + "0".repeat(d) : "0";
+    }
+    const nf = bumpFmt(start, how);
+    mutate(() => eachCell(S.sel, (r, c, k) => { const o = { ...cellObj(sh, k) }; const f2 = how === "pct" || how === "comma" ? nf : o.fmt ? bumpFmt(o.fmt, how) : nf; if (f2) o.fmt = f2; else delete o.fmt; putCell(sh, k, o); }));
+  }
+  /** 하이퍼링크 넣기(Ctrl+K) - 칸에 =HYPERLINK(주소, 보일 글) 수식(Ctrl+클릭으로 이동) */
+  function insertLink() {
+    if (S.edit) endEdit(true);
+    const sh = sheet(), k = key(S.cur.r, S.cur.c), o = cellObj(sh, k);
+    const m = o.f && /^=HYPERLINK\(\s*"((?:[^"]|"")*)"\s*(?:,\s*"((?:[^"]|"")*)")?\s*\)$/i.exec(o.f);
+    const addr = prompt("링크 주소 - https://… · #탭!A1 · #A1 · mailto:…", m ? m[1].replace(/""/g, '"') : ""); if (addr == null) return;
+    if (!addr.trim()) { if (m) mutate(() => { const x = { ...cellObj(sh, k) }; delete x.f; x.v = m[2] ? m[2].replace(/""/g, '"') : ""; putCell(sh, k, x); }); return; }
+    const cur = m ? (m[2] || "").replace(/""/g, '"') : String(display(effCell(sh.cells[k])) || "");
+    const text = prompt("보일 글", cur || addr.trim()); if (text == null) return;
+    const q = (t) => '"' + t.replace(/"/g, '""') + '"';
+    mutate(() => { const x = { ...cellObj(sh, k) }; delete x.v; x.f = `=HYPERLINK(${q(addr.trim())}${text && text !== addr.trim() ? ", " + q(text) : ""})`; putCell(sh, k, x); recalc(); });
+  }
   function fillFmtSel(cur) {
     const list = FMTS.some(([f]) => f === cur) ? FMTS : [...FMTS, [cur, cur]];
     $("#fmtSel").innerHTML = list.map(([f, l]) => `<option value="${esc(f)}">${esc(l)}</option>`).join("") + `<option value="__custom">직접 입력…</option>`;
@@ -1098,6 +1130,10 @@
       if (k === ";" && !e.shiftKey) { e.preventDefault(); const d = new Date(), v = Math.round((Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) - Date.UTC(1899, 11, 30)) / 864e5); mutate(() => { const sh = sheet(), kk = key(S.cur.r, S.cur.c), o = cellObj(sh, kk); delete o.f; putCell(sh, kk, { ...o, v, fmt: o.fmt || "yyyy-mm-dd" }); }); return; }  // 오늘 날짜
       if (k === "PageDown" || k === "PageUp") { e.preventDefault(); const n = S.deck.sheets.length, i = (S.ti + (k === "PageDown" ? 1 : -1) + n) % n; switchTab(i); return; }  // 다음·이전 탭
       if (lk === "5") { e.preventDefault(); toggleStyle("strike"); return; }  // 취소선
+      if (lk === "k") { e.preventDefault(); insertLink(); return; }  // 하이퍼링크
+      if (e.shiftKey && (k === "%" || e.code === "Digit5")) { e.preventDefault(); numFmt("pct"); return; }
+      if (e.shiftKey && (k === "!" || e.code === "Digit1")) { e.preventDefault(); numFmt("comma"); return; }
+      if (e.shiftKey && (k === "$" || e.code === "Digit4")) { e.preventDefault(); numFmt("comma"); return; }  // 통화 - 원화는 천 단위 구분과 같게
       if ((lk === "9" || lk === "0") && !e.shiftKey && window.NexaSheetX) { e.preventDefault(); NexaSheetX.hide(lk === "9" ? "r" : "c", true); return; }  // 행·열 숨기기
       if (k === "-" || k === "+" || (k === "=" && e.shiftKey)) {  // 행·열 지우기·넣기 - 행(열) 전체를 골랐을 때(엑셀은 아니면 창을 띄운다)
         e.preventDefault(); const g = S.sel, rows = g.c1 === 0 && g.c2 === G.cols - 1, cols = g.r1 === 0 && g.r2 === G.rows - 1, del = k === "-";
@@ -1928,6 +1964,7 @@
     $("#sizeSel").addEventListener("change", (e) => { const n = +e.target.value; applyStyle({ size: n === defSize() ? undefined : n }); focusGrid(); });
     $("#styleSel").addEventListener("change", (e) => { applyStyle({ s: e.target.value || undefined }); focusGrid(); });
     $("#themeChip").onclick = (e) => themeMenu(e.currentTarget);
+    $$("#tools [data-nf]").forEach((b) => b.addEventListener("click", () => { numFmt(b.dataset.nf); focusGrid(); }));
     $("#fmtSel").addEventListener("change", (e) => {
       let f = e.target.value;
       if (f === "__custom") { f = prompt("엑셀 표시 형식 - 예: #,##0\"원\" · 0.00% · yyyy.mm.dd", cellObj(sheet(), key(S.cur.r, S.cur.c)).fmt || ""); if (f == null) { renderToolState(); return; } f = f.trim(); }
@@ -1995,7 +2032,7 @@
     window.addEventListener("beforeunload", (e) => { if (S.dirty) { save(); e.preventDefault(); e.returnValue = ""; } });
   }
   // 시험용(브라우저 콘솔·스모크) - 수식 계산·표시 형식을 따로 불러 볼 수 있게
-  window.NexaSheet = { S, TH, VB, drawDelete, autoFitCols, lastCell, noteEdit, insertImages, vbaOpen, vbaApply, effCell, bdSides, fillVars, reload: reloadExternal, applyVersion, recalc, parseFormula, display, fmtNumber, parseNumberText, shiftFormula, setInput, parseTsv, fillSeries, fillTarget,
+  window.NexaSheet = { S, TH, VB, numFmt, bumpFmt, insertLink, drawDelete, autoFitCols, lastCell, noteEdit, insertImages, vbaOpen, vbaApply, effCell, bdSides, fillVars, reload: reloadExternal, applyVersion, recalc, parseFormula, display, fmtNumber, parseNumberText, shiftFormula, setInput, parseTsv, fillSeries, fillTarget,
     // 엑셀 기능 모듈(sheetx.js)이 쓰는 안쪽 함수 - 격자·선택·고치기(실행 취소·저장 포함)
     x: { shiftAxis, G, sheet, key, parseRef, colHidden, rowHidden, rectOf, colIndex, parseRange, rangeName, colName, cellObj, putCell, mutate, renderAll, renderSel, selectRange, selectCell, clampRange, eachCell, toast, openMenu,
       endEdit, startEdit, focusGrid, pasteText, scrollIntoView, growSize, clone, ED, esc } };
