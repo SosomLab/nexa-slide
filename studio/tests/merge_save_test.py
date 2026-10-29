@@ -175,6 +175,28 @@ def main():
         c7 = get("ms")[0]["sheets"][0]["cells"]
         with urllib.request.urlopen(f"{B}/api/proposals/ms", timeout=10) as r:
             check("남은 탭째로 받기 - E5 반영, 제안 끝", pa.get("left") == 0 and (c7.get("E5") or {}).get("f") == "=1+1" and json.loads(r.read()) == [], json.dumps(c7, ensure_ascii=False)[:300])
+        # 7c. 작업(op) 저장(3-4) - 오래된 판 위의 작업을 지금 파일에 얹는다(남의 변경 유지 · 지운 요소 되살리기 · 대상 없으면 버림 · 원장 evidence.ops)
+        def ops(deck, body, code=200):
+            rq = urllib.request.Request(f"{B}/api/ops/{deck}", data=json.dumps(body, ensure_ascii=False).encode(), method="POST", headers={"Content-Type": "application/json"})
+            try:
+                with urllib.request.urlopen(rq, timeout=10) as r:
+                    return r.status, json.loads(r.read())
+            except urllib.error.HTTPError as ex:
+                return ex.code, json.loads(ex.read() or b"{}")
+        o0, ov = get("mg")
+        sid = o0["slides"][0]["id"]
+        e1, e2 = [x["id"] for x in o0["slides"][0]["elements"][:2]]
+        other = json.loads(json.dumps(o0)); el(other, sid, e2)["text"] = "다른 창 글"; del other["slides"][0]["elements"][0]  # 다른 창: e2 글 · e1 지움
+        put("mg", other, base=ov)
+        st, ra = ops("mg", {"base": ov, "ops": [{"op": "set", "slide": sid, "el": e1, "key": "text", "value": "작업 저장"},
+                                                {"op": "set", "slide": sid, "el": "없는요소", "key": "text", "value": "x"}]})
+        d7 = get("mg")[0]
+        check("작업 저장 - 오래된 판 위의 작업: 남이 지운 e1 을 되살려 고침 · 남의 e2 글 유지 · 없는 요소 작업은 버림", st == 200 and ra.get("applied") == 1 and len(ra.get("dropped") or []) == 1 and ra.get("stale")
+              and el(d7, sid, e1)["text"] == "작업 저장" and el(d7, sid, e2)["text"] == "다른 창 글" and [x["id"] for x in d7["slides"][0]["elements"][:2]] == [e1, e2], json.dumps(ra, ensure_ascii=False) + json.dumps(d7["slides"][0], ensure_ascii=False)[:300])
+        with urllib.request.urlopen(f"{B}/api/changes/mg?seq={ra.get('seq')}", timeout=10) as r:
+            ent = json.loads(r.read()).get("entry") or {}
+        check("작업 저장 원장 - evidence.ops(작업 수·적용·버림·어디를)", ((ent.get("evidence") or {}).get("ops") or {}).get("n") == 2 and f"set {sid} {e1} text" in (ent["evidence"]["ops"].get("list") or []), json.dumps(ent, ensure_ascii=False)[:300])
+        check("작업 저장 - 빈 목록 400 · 없는 덱 404", ops("mg", {"base": "", "ops": []})[0] == 400 and ops("nodeck_zz", {"base": "", "ops": [{"op": "deck-set", "key": "a", "value": 1}]})[0] == 404)
         # 8. AI 가 바꾼 셀(/api/reqdiff) - 같은 요청의 AI 저장 둘 사이에 사람이 저장한 셀은 AI 변경으로 세지 않는다
         rdiff = f"rdiff{int(time.time())}"  # 실행마다 새 요청 id(원장은 실행 사이에 남는다)
         d, v = get("ms"); d["sheets"][0]["cells"]["D1"] = "AI 하나"; put("ms", d, base=v, origin="claude", request=rdiff)
