@@ -157,6 +157,24 @@ def main():
         put("ms", a, base=sv); time.sleep(0.05)
         sb, rb = put("ms", b, base=sv, merge=1)
         c = get("ms")[0]["sheets"][0]["cells"]
+        # 7b. 시트 AI 제안을 셀 하나씩(3-3) - 탭 안의 셀만 받고, 남은 셀은 탭째로 받기
+        def prop(body):
+            rq = urllib.request.Request(f"{B}/api/proposals/ms", data=json.dumps(body, ensure_ascii=False).encode(), method="POST", headers={"Content-Type": "application/json"})
+            with urllib.request.urlopen(rq, timeout=10) as r:
+                return json.loads(r.read())
+        p0 = get("ms")[0]
+        tid = p0["sheets"][0]["id"]
+        pd = json.loads(json.dumps(p0)); pd["sheets"][0]["cells"]["D4"] = "제안 D4"; pd["sheets"][0]["cells"]["E5"] = {"f": "=1+1"}
+        pc = prop({"action": "create", "request": "rpropc", "deck": pd})
+        subs = [x["id"] for x in (pc.get("items") or [{}])[0].get("subs") or []]
+        check("시트 제안 - 탭 하나에 셀 2개(D4·E5)를 하나씩 고를 수 있게", sorted(subs) == [f"t:{tid}:D4", f"t:{tid}:E5"], json.dumps(pc, ensure_ascii=False)[:300])
+        pa = prop({"action": "accept", "request": "rpropc", "items": [f"t:{tid}:D4"]})
+        c7 = get("ms")[0]["sheets"][0]["cells"]
+        check("셀 하나(D4)만 받기 - E5 는 아직, 남은 제안 1곳", pa.get("ok") and pa.get("left") == 1 and c7.get("D4") == "제안 D4" and "E5" not in c7, json.dumps(pa, ensure_ascii=False))
+        pa = prop({"action": "accept", "request": "rpropc", "items": [f"t:{tid}"]})
+        c7 = get("ms")[0]["sheets"][0]["cells"]
+        with urllib.request.urlopen(f"{B}/api/proposals/ms", timeout=10) as r:
+            check("남은 탭째로 받기 - E5 반영, 제안 끝", pa.get("left") == 0 and (c7.get("E5") or {}).get("f") == "=1+1" and json.loads(r.read()) == [], json.dumps(c7, ensure_ascii=False)[:300])
         # 8. AI 가 바꾼 셀(/api/reqdiff) - 같은 요청의 AI 저장 둘 사이에 사람이 저장한 셀은 AI 변경으로 세지 않는다
         rdiff = f"rdiff{int(time.time())}"  # 실행마다 새 요청 id(원장은 실행 사이에 남는다)
         d, v = get("ms"); d["sheets"][0]["cells"]["D1"] = "AI 하나"; put("ms", d, base=v, origin="claude", request=rdiff)

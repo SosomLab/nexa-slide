@@ -6,7 +6,7 @@
 (function (root) {
   "use strict";
   const ERRS = ["#DIV/0!", "#VALUE!", "#REF!", "#NAME?", "#NUM!", "#N/A", "#NULL!", "#SPILL!", "#CALC!"];
-  const DYN = new Set(["FILTER", "SORT", "SORTBY", "UNIQUE", "SEQUENCE", "TRANSPOSE", "TAKE", "DROP", "CHOOSECOLS", "CHOOSEROWS", "HSTACK", "VSTACK", "TOCOL", "TOROW", "TEXTSPLIT", "GROUPBY", "PIVOTBY"]);  // 동적 배열 함수 - 이 함수를 쓴(또는 가져온 동적 배열 da) 수식만 옆 칸으로 넘친다
+  const DYN = new Set(["FILTER", "SORT", "SORTBY", "UNIQUE", "SEQUENCE", "TRANSPOSE", "TAKE", "DROP", "CHOOSECOLS", "CHOOSEROWS", "HSTACK", "VSTACK", "TOCOL", "TOROW", "TEXTSPLIT", "GROUPBY", "PIVOTBY", "MAP", "BYROW", "BYCOL", "SCAN", "MAKEARRAY"]);  // 동적 배열 함수 - 이 함수를 쓴(또는 가져온 동적 배열 da) 수식만 옆 칸으로 넘친다
   const DAY0 = Date.UTC(1899, 11, 30);
   class FErr { constructor(code) { this.code = code; } }
   class Rng { constructor(rows) { this.rows = rows; } get vals() { return [].concat(...this.rows); } }
@@ -172,8 +172,24 @@
   }
 
   // ---------------------------------------------------------------- 계산기
+  /** LAMBDA 값 - 매개변수 이름·본문·만든 곳의 LET 이름 묶음 */
+  class Lam { constructor(params, body, scope) { this.params = params; this.body = body; this.scope = scope; } }
   class Calc {
-    constructor(doc) { this.doc = doc; this.sheets = doc.sheets || []; this.memo = new Map(); this.busy = new Set(); this.ast = new Map(); this.at = []; this.dims = new Map(); this.spill = new Map(); this.anchors = new Map(); this.dyn = new Map(); this.extent = new Map(); this.scope = []; this.names = new Map(); this.naming = new Set(); }
+    constructor(doc) { this.doc = doc; this.sheets = doc.sheets || []; this.memo = new Map(); this.busy = new Set(); this.ast = new Map(); this.at = []; this.dims = new Map(); this.spill = new Map(); this.anchors = new Map(); this.dyn = new Map(); this.extent = new Map(); this.scope = []; this.names = new Map(); this.naming = new Set(); this.depth = 0; }
+    /** f(…) 의 f - LET 이름이나 이름 정의에 담긴 LAMBDA(없으면 null) */
+    lamOf(nm, sh) {
+      for (let i = this.scope.length - 1; i >= 0; i--) if (this.scope[i].has(nm)) { const v = this.scope[i].get(nm); return v instanceof Lam ? v : null; }
+      const node = this.named(nm, sh); if (!node || this.naming.has(nm)) return null;
+      this.naming.add(nm); let f; try { f = cellv(() => this.ev(node, sh)); } finally { this.naming.delete(nm); }
+      return f instanceof Lam ? f : null;
+    }
+    /** LAMBDA 부르기 - 매개변수를 만든 곳의 이름 묶음 위에 얹는다. 이름 정의 LAMBDA 는 자기를 부를 수 있다(깊이 200까지) */
+    call(f, vals, sh) {
+      if (vals.length !== f.params.length) throw new FErr("#VALUE!");
+      if (this.depth > 200) throw new FErr("#NUM!");
+      const saved = this.scope; this.scope = [...f.scope, new Map(f.params.map((p, i) => [p, vals[i]]))]; this.depth++;
+      try { return this.ev(f.body, sh); } finally { this.scope = saved; this.depth--; }
+    }
     /** 이름 정의 → 구문 트리(없으면 null). 탭 names(엑셀 시트 범위 이름)가 문서 names 보다 먼저, 이름은 대소문자 무시.
      *  탭 이름의 참조에 탭이 없으면 그 탭을 가리킨다(문서 이름은 계산하는 칸의 탭) - sheet_calc.py named 와 같다 */
     named(nm, sh) {
@@ -266,6 +282,7 @@
           if (isMulti(v)) v = this.spillOut(sh, k, v);
           if (!(v instanceof FErr) && !this.extent.has(id)) this.extent.set(id, [1, 1]);
         }
+        if (v instanceof Lam) v = new FErr("#CALC!");  // 칸 값이 함수 - 엑셀도 #CALC!
         if (v instanceof Rng) v = v.vals.length === 1 ? v.vals[0] : new FErr("#VALUE!");
         if (v == null) v = 0;
         if (!(v instanceof FErr)) v = fix(v);
@@ -317,7 +334,8 @@
           return this.binop(n[1], this.sc(ra), this.sc(rb));
         }
         case "fn": {
-          const fn = FUNCS[n[1]]; if (!fn) throw new FErr("#NAME?");
+          const fn = FUNCS[n[1]];
+          if (!fn) { const lam = this.lamOf(n[1], sh); if (!lam) throw new FErr("#NAME?"); return this.call(lam, n[2].map((a) => cellv(() => this.ev(a, sh))), sh); }  // LET 이름·이름 정의에 담긴 LAMBDA - f(1, 2)
           if (SCALAR.has(n[1])) {  // 한 칸 함수에 배열이 오면 칸마다
             const vals = n[2].map((a) => (a[0] !== "lit" ? cellv(() => this.ev(a, sh)) : a[1]));
             if (vals.some(isMulti)) {
@@ -697,10 +715,42 @@
     "VALUE", "TEXT", "ABS", "INT", "ROUND", "ROUNDUP", "ROUNDDOWN", "MOD", "YEAR", "MONTH", "DAY", "NOT"]);
 
   // 모르는 함수(매크로 사용자 함수 등)·읽지 못하는 수식(외부 통합 문서 참조 등) - 엑셀이 마지막에 계산한 값을 둔다
-  // ---------------------------------------------------------------- 수식형 요약 GROUPBY·PIVOTBY (엑셀 365) - sheet_calc.py 와 같은 규칙. 집계는 함수 이름(SUM, 파일에는 _xleta.SUM)
+  // ---------------------------------------------------------------- LAMBDA (엑셀 365) - 값으로 넘기는 함수. MAP·BYROW·BYCOL·REDUCE·SCAN·MAKEARRAY·GROUPBY 가 부르고,
+  // LET 이름·이름 정의(이름 관리자 사용자 함수 =세후(금액))에 담으면 f(값) 으로 부른다 - sheet_calc.py 와 같은 규칙
+  /** 1×1 배열은 값, 더 크면 #CALC!(배열의 배열은 안 된다) */
+  function scalar(v) { if (v instanceof Rng) { if (v.vals.length !== 1) throw new FErr("#CALC!"); v = v.vals[0]; } if (v instanceof FErr) throw v; return v; }
+  function lamArg(c, A, i, sh) { const f = i < A.length ? c.ev(A[i], sh) : null; if (!(f instanceof Lam)) throw new FErr("#VALUE!"); return f; }
+  function reduceF(scan) {
+    return (c, A, sh) => {
+      let acc = opt(c, A, 0, sh, 0); const arr = c.area(A[1], sh), lam = lamArg(c, A, 2, sh), out = arr.rows.map((row) => row.map((v) => (acc = scalar(c.call(lam, [acc, v], sh)))));
+      return scan ? new Rng(out) : acc;
+    };
+  }
+  Object.assign(FUNCS, {
+    LAMBDA: (c, A) => { if (!A.length || A.slice(0, -1).some((a) => a[0] !== "name")) throw new FErr("#VALUE!"); return new Lam(A.slice(0, -1).map((a) => a[1]), A[A.length - 1], [...c.scope]); },
+    MAP: (c, A, sh) => {
+      if (A.length < 2) throw new FErr("#VALUE!");
+      const f = lamArg(c, A, A.length - 1, sh), arrs = A.slice(0, -1).map((a) => c.area(a, sh)), h = arrs[0].rows.length, w = arrs[0].rows[0].length;
+      if (arrs.some((a) => a.rows.length !== h || a.rows[0].length !== w)) throw new FErr("#VALUE!");
+      return new Rng(Array.from({ length: h }, (_, i) => Array.from({ length: w }, (_, j) => cellv(() => scalar(c.call(f, arrs.map((a) => a.rows[i][j]), sh))))));
+    },
+    BYROW: (c, A, sh) => { const rows = c.area(A[0], sh).rows, lam = lamArg(c, A, 1, sh); return new Rng(rows.map((r) => [cellv(() => scalar(c.call(lam, [new Rng([r])], sh)))])); },
+    BYCOL: (c, A, sh) => { const rows = c.area(A[0], sh).rows, lam = lamArg(c, A, 1, sh); return new Rng([rows[0].map((_, j) => cellv(() => scalar(c.call(lam, [new Rng(rows.map((r) => [r[j]]))], sh))))]); },
+    REDUCE: reduceF(false), SCAN: reduceF(true),
+    MAKEARRAY: (c, A, sh) => {
+      const h = Math.trunc(toNum(c.one(A, 0, sh))), w = Math.trunc(toNum(c.one(A, 1, sh))), lam = lamArg(c, A, 2, sh);
+      if (h < 1 || w < 1) throw new FErr("#VALUE!"); if (h * w > 100000) throw new FErr("#NUM!");
+      return new Rng(Array.from({ length: h }, (_, i) => Array.from({ length: w }, (_, j) => cellv(() => scalar(c.call(lam, [i + 1, j + 1], sh))))));
+    },
+  });
+
+  // ---------------------------------------------------------------- 수식형 요약 GROUPBY·PIVOTBY (엑셀 365) - sheet_calc.py 와 같은 규칙. 집계는 함수 이름(SUM, 파일에는 _xleta.SUM) 또는 LAMBDA
   const AGG = new Set(["SUM", "AVERAGE", "COUNT", "COUNTA", "MAX", "MIN", "MEDIAN", "PRODUCT"]);
-  function aggFn(n) { const nm = n[0] === "name" ? n[1].replace(/^_XLETA\./, "") : null; if (!AGG.has(nm)) throw new FErr("#VALUE!"); return nm; }  // LAMBDA 집계는 아직
-  function agg(c, fn, vals, sh) { try { return FUNCS[fn](c, [["arr", new Rng(vals.length ? vals.map((v) => [v]) : [[null]])]], sh); } catch (e) { if (e instanceof FErr) return e; throw e; } }
+  function aggFn(c, n, sh) { const nm = n[0] === "name" ? n[1].replace(/^_XLETA\./, "") : null; if (AGG.has(nm)) return nm; const f = c.ev(n, sh); if (!(f instanceof Lam)) throw new FErr("#VALUE!"); return f; }
+  function agg(c, fn, vals, sh) {
+    const arr = new Rng(vals.length ? vals.map((v) => [v]) : [[null]]);
+    try { return fn instanceof Lam ? scalar(c.call(fn, [arr], sh)) : FUNCS[fn](c, [["arr", arr]], sh); } catch (e) { if (e instanceof FErr) return e; throw e; }
+  }
   /** 머리글 인수(생략 = 값 첫 줄이 글이고 둘째 줄이 숫자면 머리글) → [머리글이 있나, 보이나, 키 머리글, 값 머리글, 키, 값] */
   function fields(c, A, iHdr, keys, vals, sh) {
     let hdr = opt(c, A, iHdr, sh, null);
@@ -721,7 +771,7 @@
   }
   Object.assign(FUNCS, {
     GROUPBY: (c, A, sh) => {  // GROUPBY(행 필드, 값, 함수, [머리글], [합계 깊이 1], [정렬 1], [거르기])
-      let keys = c.area(A[0], sh).rows, vals = c.area(A[1], sh).rows; const fn = aggFn(A[2]);
+      let keys = c.area(A[0], sh).rows, vals = c.area(A[1], sh).rows; const fn = aggFn(c, A[2], sh);
       if (keys.length !== vals.length) throw new FErr("#VALUE!");
       const [, show, kh, vh, k2, v2] = fields(c, A, 3, keys, vals, sh); keys = k2; vals = v2;
       const depth = Math.trunc(toNum(opt(c, A, 4, sh, 1))), order = Math.trunc(toNum(opt(c, A, 5, sh, 1))), idx = picked(c, A, 6, keys.length, sh);
@@ -734,7 +784,7 @@
       return new Rng(out);
     },
     PIVOTBY: (c, A, sh) => {  // PIVOTBY(행 필드, 열 필드, 값, 함수, [머리글], [행 합계 1], [행 정렬 1], [열 합계 1], [열 정렬 1], [거르기]) - 필드·값은 한 열씩
-      let rk = c.area(A[0], sh).rows, ck = c.area(A[1], sh).rows, vals = c.area(A[2], sh).rows; const fn = aggFn(A[3]);
+      let rk = c.area(A[0], sh).rows, ck = c.area(A[1], sh).rows, vals = c.area(A[2], sh).rows; const fn = aggFn(c, A[3], sh);
       if (!(rk.length === ck.length && ck.length === vals.length) || rk[0].length !== 1 || ck[0].length !== 1 || vals[0].length !== 1) throw new FErr("#VALUE!");  // 여러 열 필드·값은 아직
       const [has, , , , r2, v2] = fields(c, A, 4, rk, vals, sh); if (has) ck = ck.slice(1); rk = r2; vals = v2;
       const [rt, ro, ct, co] = [5, 6, 7, 8].map((i) => Math.trunc(toNum(opt(c, A, i, sh, 1))));

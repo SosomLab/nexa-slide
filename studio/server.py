@@ -1227,8 +1227,8 @@ class H(BaseHTTPRequestHandler):
         x = proposals.load(f)
         if not x:
             return self.err(404, "제안 없음")
-        all_ids = [it["id"] for it in x.get("items") or []]
-        chosen = [k for k in (b.get("items") or all_ids) if k in all_ids]
+        its = x.get("items") or []
+        chosen, left = proposals.pick(its, b.get("items") or [it["id"] for it in its])  # 장·탭 또는 그 안의 요소·셀(3-3)
         if act == "accept":
             if not chosen:
                 return self.err(400, "받을 항목 없음")
@@ -1238,12 +1238,12 @@ class H(BaseHTTPRequestHandler):
                 if cur is None:
                     return self.err(409, "덱을 읽는 중 - 다시 시도")
                 merged, conflicts = deckmerge.merge3(x["baseDoc"], ours, cur, prefer="ours")  # 사람이 고른 것이니 고른 단위는 제안 값이 이긴다
-                names = [next((it["title"] for it in x["items"] if it["id"] == k), k) for k in chosen]
+                names = [proposals.label(its, k) for k in chosen]
                 actor["note"] = f"AI 제안 받기 {len(chosen)}곳: " + ", ".join(names)[:150]
                 seq = self._save_doc(i, merged, "editor", "accept", actor, {"proposal": {"request": rid, "items": chosen}, "merge": {"conflicts": conflicts[:50]}} if conflicts else {"proposal": {"request": rid, "items": chosen}})
-            x["items"] = [it for it in x["items"] if it["id"] not in chosen]
+            x["items"] = left
         elif act == "discard":
-            x["items"] = [it for it in x["items"] if it["id"] not in chosen]
+            x["items"] = left
             seq, conflicts = None, []
         else:
             return self.err(400, "action = create | accept | discard")

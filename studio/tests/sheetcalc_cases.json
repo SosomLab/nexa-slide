@@ -11,12 +11,16 @@
   }, "names": {"지역목록": "$A$2:$A$5"}},
   {"id": "t02", "name": "요약", "cells": {"A1": 10, "A2": 20, "A3": 30}, "names": {"세율": "0.3"}}
  ],
- "names": {"매출1분기": "데이터!$B$2:$B$5", "세율": "0.1", "기준": "데이터!$B$2", "합계식": "=SUM(데이터!$C$2:$C$5)", "Tax": "0.2", "순환": "순환+1", "요약값": "요약!$A$1:$A$3"},
+ "names": {"매출1분기": "데이터!$B$2:$B$5", "세율": "0.1", "기준": "데이터!$B$2", "합계식": "=SUM(데이터!$C$2:$C$5)", "Tax": "0.2", "순환": "순환+1", "요약값": "요약!$A$1:$A$3", "세후": "=LAMBDA(x,x*0.9)", "팩토리얼": "=LAMBDA(n,IF(n<=1,1,n*팩토리얼(n-1)))"},
  "cases": [
+  ["=SUM(MAP(B2:B5,LAMBDA(x,x*2)))", 5600], ["=SUM(MAP(B2:B5,C2:C5,LAMBDA(a,b,a+b)))", 5900], ["=INDEX(BYROW(B2:C5,LAMBDA(r,SUM(r))),1,1)", 2700], ["=INDEX(BYCOL(B2:C5,LAMBDA(c,MAX(c))),1,2)", 1500],
+  ["=REDUCE(0,B2:B5,LAMBDA(a,v,a+v))", 2800], ["=REDUCE(,B2:B3,LAMBDA(a,v,a+v))", 2000], ["=INDEX(SCAN(0,B2:B5,LAMBDA(a,v,a+v)),3,1)", 2500], ["=INDEX(MAKEARRAY(2,3,LAMBDA(i,j,i*10+j)),2,3)", 23],
+  ["=LET(f,LAMBDA(x,y,x+y),f(2,3))", 5], ["=세후(1000)", 900], ["=팩토리얼(5)", 120], ["=LAMBDA(x,x)", "#CALC!"], ["=LET(f,LAMBDA(x,x+1),f(1,2))", "#VALUE!"], ["=없는함수(1)", "#NAME?"],
+  ["=INDEX(GROUPBY(D2:D5,B2:B5,LAMBDA(v,SUM(v)/2),0,0),2,2)", 850], ["=INDEX(BYROW(B2:C3,LAMBDA(r,r)),1,1)", "#CALC!"], ["=SUM(MAP(B2:B5,세후))", 2520],
   ["=INDEX(GROUPBY(D2:D5,B2:B5,SUM),1,1)", "대기"], ["=INDEX(GROUPBY(D2:D5,B2:B5,SUM),2,2)", 1700], ["=INDEX(GROUPBY(D2:D5,B2:B5,SUM),4,1)", "Total"], ["=INDEX(GROUPBY(D2:D5,B2:B5,SUM),4,2)", 2800],
   ["=ROWS(GROUPBY(D2:D5,B2:B5,SUM,0,0))", 3], ["=INDEX(GROUPBY(D1:D5,B1:B5,SUM,3),1,2)", "1분기"], ["=ROWS(GROUPBY(D1:D5,B1:B5,SUM))", 4], ["=INDEX(GROUPBY(D2:D5,B2:B5,SUM,0,0,-2),1,1)", "완료"],
   ["=INDEX(GROUPBY(D2:D5,C2:C5,COUNT,0,0),1,2)", 0], ["=INDEX(GROUPBY(D2:D5,B2:B5,SUM,0,1,1,B2:B5>400),3,2)", 2500], ["=INDEX(GROUPBY(D2:D5,B2:B5,MAX,0,-1),1,2)", 1200],
-  ["=INDEX(GROUPBY(D2:D5,B2:C5,SUM,0,0),2,3)", 2400], ["=INDEX(GROUPBY(D2:D5,B2:B5,_xleta.SUM),2,2)", 1700], ["=GROUPBY(D2:D5,B2:B5,LAMBDA)", "#VALUE!"], ["=INDEX(GROUPBY(D2:D5,B2:B5,AVERAGE,0,0),2,2)", 850],
+  ["=INDEX(GROUPBY(D2:D5,B2:C5,SUM,0,0),2,3)", 2400], ["=INDEX(GROUPBY(D2:D5,B2:B5,_xleta.SUM),2,2)", 1700], ["=GROUPBY(D2:D5,B2:B5,LAMBDA)", "#NAME?"], ["=INDEX(GROUPBY(D2:D5,B2:B5,AVERAGE,0,0),2,2)", 850],
   ["=INDEX(PIVOTBY(D2:D5,A2:A5,B2:B5,SUM),1,2)", "광주"], ["=INDEX(PIVOTBY(D2:D5,A2:A5,B2:B5,SUM),3,3)", 500], ["=INDEX(PIVOTBY(D2:D5,A2:A5,B2:B5,SUM),3,2)", ""], ["=INDEX(PIVOTBY(D2:D5,A2:A5,B2:B5,SUM),3,6)", 1700],
   ["=INDEX(PIVOTBY(D2:D5,A2:A5,B2:B5,SUM),5,6)", 2800], ["=COLUMNS(PIVOTBY(D2:D5,A2:A5,B2:B5,SUM,0,1,1,0))", 5], ["=INDEX(PIVOTBY(D2:D5,A2:A5,B2:B5,SUM,0,1,-1),2,1)", "진행"],
   ["=SUM(매출1분기)", 2800], ["=COUNT(매출1분기)", 4], ["=AVERAGE(매출1분기)", 700], ["=INDEX(매출1분기,2)", 800], ["=ROWS(매출1분기)", 4],

@@ -16,7 +16,7 @@ import sys
 from pathlib import Path
 
 ERRS = ("#DIV/0!", "#VALUE!", "#REF!", "#NAME?", "#NUM!", "#N/A", "#NULL!", "#SPILL!", "#CALC!")
-DYN = {"FILTER", "SORT", "SORTBY", "UNIQUE", "SEQUENCE", "TRANSPOSE", "TAKE", "DROP", "CHOOSECOLS", "CHOOSEROWS", "HSTACK", "VSTACK", "TOCOL", "TOROW", "TEXTSPLIT", "GROUPBY", "PIVOTBY"}  # 동적 배열 함수 - 이 함수를 쓴(또는 가져온 동적 배열 da) 수식만 옆 칸으로 넘친다
+DYN = {"FILTER", "SORT", "SORTBY", "UNIQUE", "SEQUENCE", "TRANSPOSE", "TAKE", "DROP", "CHOOSECOLS", "CHOOSEROWS", "HSTACK", "VSTACK", "TOCOL", "TOROW", "TEXTSPLIT", "GROUPBY", "PIVOTBY", "MAP", "BYROW", "BYCOL", "SCAN", "MAKEARRAY"}  # 동적 배열 함수 - 이 함수를 쓴(또는 가져온 동적 배열 da) 수식만 옆 칸으로 넘친다
 DAY0 = dt.date(1899, 12, 30)
 
 
@@ -348,6 +348,7 @@ class Calc:
         self.spill, self.anchors, self.dyn = {}, {}, {}
         self.extent, self.scope = {}, []  # 동적 배열 기준 칸 → 넘친 크기 (행 수, 열 수) · LET 이름 묶음  # 넘친 칸 (탭 id, 행, 열) → (값, 기준 칸) · 탭별 동적 배열 수식 칸 · 수식 → 동적인가
         self.names, self.naming = {}, set()  # 이름 정의 (탭 id|None, 이름) → 구문 트리 · 계산 중인 이름(순환)
+        self.depth = 0  # LAMBDA 부르기 깊이
 
     def named(self, nm, sh):
         """이름 정의 → 구문 트리(없으면 None). 탭 names(엑셀 시트 범위 이름)가 문서 names 보다 먼저, 이름은 대소문자 무시.
@@ -368,6 +369,34 @@ class Calc:
                 self.names[key] = node
             return self.names[key]
         return None
+
+    def lam_of(self, nm, sh):
+        """f(…) 의 f - LET 이름이나 이름 정의에 담긴 LAMBDA(없으면 None)."""
+        for sc in reversed(self.scope):
+            if nm in sc:
+                return sc[nm] if isinstance(sc[nm], Lam) else None
+        node = self.named(nm, sh)
+        if node is None or nm in self.naming:
+            return None
+        self.naming.add(nm)
+        try:
+            f = _cellv(lambda: self.ev(node, sh))
+        finally:
+            self.naming.discard(nm)
+        return f if isinstance(f, Lam) else None
+
+    def call(self, f, vals, sh):
+        """LAMBDA 부르기 - 매개변수를 만든 곳의 이름 묶음 위에 얹는다. 이름 정의 LAMBDA 는 자기를 부를 수 있다(깊이 200까지)."""
+        if len(vals) != len(f.params):
+            raise FErr("#VALUE!")
+        if self.depth > 200:
+            raise FErr("#NUM!")
+        saved = self.scope
+        self.scope, self.depth = f.scope + [dict(zip(f.params, vals))], self.depth + 1
+        try:
+            return self.ev(f.body, sh)
+        finally:
+            self.scope, self.depth = saved, self.depth - 1
 
     def deref(self, n, sh):
         """LET 이름이 아닌 이름 → 이름 정의의 참조·식 - 범위를 받는 함수(SUM·COUNT·ROW·OFFSET)가 참조로 보게."""
@@ -504,6 +533,8 @@ class Calc:
                     v = self.spill_out(sh, k, v)
                 if not isinstance(v, FErr) and (sh.get("id"), k) not in self.extent:
                     self.extent[(sh.get("id"), k)] = (1, 1)
+            if isinstance(v, Lam):
+                v = FErr("#CALC!")  # 칸 값이 함수 - 엑셀도 #CALC!
             if isinstance(v, Rng):
                 v = v.vals[0] if len(v.vals) == 1 else FErr("#VALUE!")
             if v is None:
@@ -609,8 +640,11 @@ class Calc:
             return self.binop(n[1], self.sc(ra), self.sc(rb))
         if k == "fn":
             fn = FUNCS.get(n[1])
-            if fn is None:
-                raise FErr("#NAME?")
+            if fn is None:  # LET 이름·이름 정의에 담긴 LAMBDA - f(1, 2)
+                lam = self.lam_of(n[1], sh)
+                if lam is None:
+                    raise FErr("#NAME?")
+                return self.call(lam, [_cellv(lambda a=a: self.ev(a, sh)) for a in n[2]], sh)
             if n[1] in SCALAR:  # 한 칸 함수에 배열이 오면 칸마다(엑셀 배열 수식처럼 - SUMPRODUCT(--ISNUMBER(SEARCH(x, 범위))))
                 vals = [_cellv(lambda a=a: self.ev(a, sh)) if a[0] != "lit" else a[1] for a in n[2]]  # 오류 인수는 값(FErr)으로 - ISERROR 가 본다
                 if any(isinstance(v, Rng) and len(v.vals) > 1 for v in vals):
@@ -1569,20 +1603,102 @@ FUNCS.update({"TAKE": _take_drop(False), "DROP": _take_drop(True), "CHOOSECOLS":
               "HSTACK": _stack(True), "VSTACK": _stack(False), "TOCOL": _to_line(True), "TOROW": _to_line(False), "TEXTSPLIT": _textsplit})
 FUNCS.update({"LET": _let, "DATEDIF": _datedif, "NETWORKDAYS": _networkdays, "WORKDAY": _workday, "XMATCH": _xmatch})
 
-# ---------------------------------------------------------------- 수식형 요약 GROUPBY·PIVOTBY (엑셀 365) - 집계는 함수 이름(SUM, 파일에는 _xleta.SUM)
+# ---------------------------------------------------------------- LAMBDA (엑셀 365) - 값으로 넘기는 함수. MAP·BYROW·BYCOL·REDUCE·SCAN·MAKEARRAY·GROUPBY 가 부르고,
+# LET 이름·이름 정의(이름 관리자 사용자 함수 =세후(금액))에 담으면 f(값) 으로 부른다
+class Lam:
+    def __init__(self, params, body, scope):
+        self.params, self.body, self.scope = params, body, scope  # 매개변수 이름 · 본문 · 만든 곳의 LET 이름 묶음
+
+
+def _lambda(c, A, sh):
+    if not A or any(a[0] != "name" for a in A[:-1]):
+        raise FErr("#VALUE!")
+    return Lam([a[1] for a in A[:-1]], A[-1], list(c.scope))
+
+
+def _scalar(v):
+    """LAMBDA 결과 한 칸 - 1×1 배열은 값, 더 크면 #CALC!(엑셀: 배열의 배열은 안 된다)."""
+    if isinstance(v, Rng):
+        if len(v.vals) != 1:
+            raise FErr("#CALC!")
+        v = v.vals[0]
+    if isinstance(v, FErr):
+        raise v
+    return v
+
+
+def _lam_arg(c, A, i, sh):
+    f = c.ev(A[i], sh) if i < len(A) else None
+    if not isinstance(f, Lam):
+        raise FErr("#VALUE!")
+    return f
+
+
+def _map(c, A, sh):
+    if len(A) < 2:
+        raise FErr("#VALUE!")
+    f, arrs = _lam_arg(c, A, len(A) - 1, sh), [c.area(a, sh) for a in A[:-1]]
+    h, w = len(arrs[0].rows), len(arrs[0].rows[0])
+    if any(len(a.rows) != h or len(a.rows[0]) != w for a in arrs):
+        raise FErr("#VALUE!")
+    return Rng([[_cellv(lambda i=i, j=j: _scalar(c.call(f, [a.rows[i][j] for a in arrs], sh))) for j in range(w)] for i in range(h)])
+
+
+def _by(rows_):
+    def f(c, A, sh):
+        rows, lam = c.area(A[0], sh).rows, _lam_arg(c, A, 1, sh)
+        if rows_:
+            return Rng([[_cellv(lambda r=r: _scalar(c.call(lam, [Rng([r])], sh)))] for r in rows])
+        return Rng([[_cellv(lambda j=j: _scalar(c.call(lam, [Rng([[r[j]] for r in rows])], sh))) for j in range(len(rows[0]))]])
+    return f
+
+
+def _reduce(scan):
+    def f(c, A, sh):
+        acc = _opt(c, A, 0, sh, 0)
+        arr, lam = c.area(A[1], sh), _lam_arg(c, A, 2, sh)
+        out = []
+        for row in arr.rows:
+            line = []
+            for v in row:
+                acc = _scalar(c.call(lam, [acc, v], sh))
+                line.append(acc)
+            out.append(line)
+        return Rng(out) if scan else acc
+    return f
+
+
+def _makearray(c, A, sh):
+    h, w, lam = int(to_num(c.one(A, 0, sh))), int(to_num(c.one(A, 1, sh))), _lam_arg(c, A, 2, sh)
+    if h < 1 or w < 1:
+        raise FErr("#VALUE!")
+    if h * w > 100000:
+        raise FErr("#NUM!")
+    return Rng([[_cellv(lambda i=i, j=j: _scalar(c.call(lam, [i + 1, j + 1], sh))) for j in range(w)] for i in range(h)])
+
+
+FUNCS.update({"LAMBDA": _lambda, "MAP": _map, "BYROW": _by(True), "BYCOL": _by(False), "REDUCE": _reduce(False), "SCAN": _reduce(True), "MAKEARRAY": _makearray})
+
+# ---------------------------------------------------------------- 수식형 요약 GROUPBY·PIVOTBY (엑셀 365) - 집계는 함수 이름(SUM, 파일에는 _xleta.SUM) 또는 LAMBDA
 AGG = ("SUM", "AVERAGE", "COUNT", "COUNTA", "MAX", "MIN", "MEDIAN", "PRODUCT")
 
 
-def _agg_fn(n):
+def _agg_fn(c, n, sh):
+    """집계 - 함수 이름(SUM·_xleta.SUM) 또는 LAMBDA(값 열을 받아 한 값)."""
     nm = re.sub(r"^_XLETA\.", "", n[1]) if n[0] == "name" else None
-    if nm not in AGG:
-        raise FErr("#VALUE!")  # LAMBDA 집계는 아직
-    return nm
+    if nm in AGG:
+        return nm
+    f = c.ev(n, sh)
+    if not isinstance(f, Lam):
+        raise FErr("#VALUE!")
+    return f
 
 
 def _agg(c, fn, vals, sh):
     """값 목록을 범위처럼(빈 칸·글은 건너뜀) 집계 - 오류는 그 칸만."""
     try:
+        if isinstance(fn, Lam):
+            return _scalar(c.call(fn, [Rng([[v] for v in vals] or [[None]])], sh))
         return FUNCS[fn](c, [("arr", Rng([[v] for v in vals] or [[None]]))], sh)
     except FErr as e:
         return e
@@ -1626,7 +1742,7 @@ def _groups(rows, idx):
 def _groupby(c, A, sh):
     """GROUPBY(행 필드, 값, 함수, [머리글], [합계 깊이 1], [정렬 1], [거르기])."""
     keys, vals = c.area(A[0], sh).rows, c.area(A[1], sh).rows
-    fn = _agg_fn(A[2])
+    fn = _agg_fn(c, A[2], sh)
     if len(keys) != len(vals):
         raise FErr("#VALUE!")
     has, show, kh, vh, keys, vals = _fields(c, A, 3, keys, vals, sh)
@@ -1651,7 +1767,7 @@ def _groupby(c, A, sh):
 def _pivotby(c, A, sh):
     """PIVOTBY(행 필드, 열 필드, 값, 함수, [머리글], [행 합계 1], [행 정렬 1], [열 합계 1], [열 정렬 1], [거르기]) - 필드·값은 한 열씩."""
     rk, ck, vals = c.area(A[0], sh).rows, c.area(A[1], sh).rows, c.area(A[2], sh).rows
-    fn = _agg_fn(A[3])
+    fn = _agg_fn(c, A[3], sh)
     if not (len(rk) == len(ck) == len(vals)) or len(rk[0]) != 1 or len(ck[0]) != 1 or len(vals[0]) != 1:
         raise FErr("#VALUE!")  # 여러 열 필드·값은 아직
     has, _, _, _, rk2, vals2 = _fields(c, A, 4, rk, vals, sh)

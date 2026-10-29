@@ -56,6 +56,10 @@
     {
      "name": "넘칠 자리에 값을 쓰면 #SPILL!, 지우면 다시 넘친다",
      "js": "const X=window.NexaSheet.x, ed=X.ED(), N=window.NexaSheet; const put=async(r,c,t)=>{ X.selectCell(r,c); ed.focus(); ed.value=t; ed.dispatchEvent(new Event('input',{bubbles:true})); ed.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',bubbles:true})); await new Promise(r=>setTimeout(r,150)); }; const cells=()=>N.S.deck.sheets[0].cells, td=(r,c)=>document.querySelector(`td[data-r=\"${r}\"][data-c=\"${c}\"]`).textContent.trim(); await put(3,7,'막음'); const a=cells().H2.v, h4=JSON.parse(JSON.stringify(cells().H4)); await put(3,7,''); const c=cells(); return a==='#SPILL!' && (h4==='막음' || (h4.v==='막음' && !h4.sp)) && c.H2.v===300 && c.H4 && c.H4.sp==='H2' && c.H4.v===800 ? true : JSON.stringify({a,h4,H2:c.H2,H4:c.H4})"
+    },
+    {
+     "name": "요약·사용자 함수 - K2 에 =GROUPBY(A2:A5,B2:B5,SUM) → 지역 4줄 + Total 2,800 으로 넘쳐 보이고, 이름 정의 세후=LAMBDA(x,x*0.9) 로 =세후(1000) → 900",
+     "js": "const X=window.NexaSheet.x, ed=X.ED(), N=window.NexaSheet; const put=async(r,c,t)=>{ X.selectCell(r,c); ed.focus(); ed.value=t; ed.dispatchEvent(new Event('input',{bubbles:true})); ed.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',bubbles:true})); await new Promise(r=>setTimeout(r,150)); }; const cells=()=>N.S.deck.sheets[0].cells, td=(r,c)=>document.querySelector(`td[data-r=\"${r}\"][data-c=\"${c}\"]`).textContent.trim(); X.mutate(()=>{ N.S.deck.names={세후:'=LAMBDA(x,x*0.9)'}; }); await put(1,10,'=GROUPBY(A2:A5,B2:B5,SUM)'); await put(8,10,'=세후(1000)'); const c=cells(); return c.K2.v==='광주' && c.K6 && c.K6.sp==='K2' && c.K6.v==='Total' && c.L6.v===2800 && td(5,10)==='Total' && ['2800','2,800'].includes(td(5,11)) && c.K9.v===900 && td(8,10)==='900' ? true : JSON.stringify({K2:c.K2,K6:c.K6,L6:c.L6,K9:c.K9,t:[td(5,10),td(5,11),td(8,10)]})"
     }
    ]
   }
