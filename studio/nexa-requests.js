@@ -139,12 +139,36 @@
         <div class="acts">${r.status === "draft" ? "" : `<button class="chip sm" data-rs="${r.status === "done" ? "open" : "done"}" ${r.status === "done" ? 'title="같은 요청을 세션에 다시 보냅니다(답을 달려면 후속 요청)"' : ""}>${r.status === "done" ? "다시 열기" : "완료로 표시"}</button>`}${withFu && last && r.status !== "draft" ? `<button class="chip sm primary" data-fu="1" title="이 요청에 이어서 묻거나 답합니다 - 앞선 요청과 답이 함께 세션에 전달됩니다">후속 요청</button>` : ""}<button class="chip sm" data-rdel="1">삭제</button></div>
         ${withFu && last && fu === r.id ? fuFormHtml(r) : ""}</div>`;
     }
-    /** AI 제안 - 파일에 아직 반영되지 않은 큰 변경. 장(시트는 탭)마다 골라 받거나 버린다 */
+    /** AI 제안 - 파일에 아직 반영되지 않은 큰 변경. 장(시트는 탭)마다, 펼치면 그 안의 요소(셀)마다 골라 받거나 버린다 */
     function propHtml(r) {
       const P = props[r.id]; if (!P || !P.items || !P.items.length) return "";
       return `<div class="prop" data-prop="${esc(r.id)}"><div class="row" style="gap:6px"><b>AI 제안 ${P.items.length}곳</b><span class="hint" style="margin:0">아직 반영 안 됨 - 골라 받으면 지금 문서와 합쳐 저장</span></div>
-        <div class="prop-its">${P.items.map((it) => `<label><input type="checkbox" data-pit="${esc(it.id)}" checked> <span class="k">${esc(it.kind)}</span> ${esc(it.title)}${it.detail ? ` <span class="hint" style="margin:0">${esc(it.detail)}</span>` : ""}</label>`).join("")}</div>
+        <div class="prop-its">${P.items.map((it) => `<label><input type="checkbox" data-pit="${esc(it.id)}" checked> <span class="k">${esc(it.kind)}</span> ${esc(it.title)}${it.detail ? ` <span class="hint" style="margin:0">${esc(it.detail)}</span>` : ""}</label>${propSubs(it)}`).join("")}</div>
         <div class="row" style="gap:6px;justify-content:flex-end"><button class="chip sm" data-pdis="1">버리기</button><button class="chip sm" data-pacc="1">고른 것 받기</button><button class="chip sm primary" data-pall="1">모두 받기</button></div></div>`;
+    }
+    function propSubs(it) {
+      if (!it.subs || !it.subs.length) return "";
+      const what = it.id.startsWith("t:") ? "셀" : "요소";
+      return `<details class="prop-subs"><summary>${what} ${it.subs.length}개 하나씩 고르기</summary>${it.subs.map((s) => `<label><input type="checkbox" data-pit="${esc(s.id)}" data-pof="${esc(it.id)}" checked> <span class="k">${esc(s.kind)}</span> ${esc(s.title)}${s.detail ? ` <span class="hint" style="margin:0">${esc(s.detail)}</span>` : ""}</label>`).join("")}</details>`;
+    }
+    /** 고른 것 - 장·탭을 통째로(그 안 요소·셀이 모두 골라져 있으면) 또는 고른 요소·셀만 */
+    function propPicked(pv) {
+      const out = [];
+      for (const c of pv.querySelectorAll("[data-pit]:not([data-pof])")) {
+        const subs = [...pv.querySelectorAll("[data-pof]")].filter((x) => x.dataset.pof === c.dataset.pit);
+        if (!subs.length || (c.checked && !c.indeterminate)) { if (c.checked) out.push(c.dataset.pit); }
+        else out.push(...subs.filter((x) => x.checked).map((x) => x.dataset.pit));
+      }
+      return out;
+    }
+    document.addEventListener("change", (e) => { if (e.target.matches && e.target.matches("input[data-pit]")) propSync(e.target); });  // 화면의 클릭 처리는 단추만 넘기므로 여기서
+    function propSync(cb) {  // 장·탭 칸 ↔ 그 안 요소·셀 칸
+      const pv = cb.closest("[data-prop]"); if (!pv) return;
+      const kids = (id) => [...pv.querySelectorAll("[data-pof]")].filter((x) => x.dataset.pof === id);
+      if (!cb.dataset.pof) { for (const x of kids(cb.dataset.pit)) x.checked = cb.checked; cb.indeterminate = false; return; }
+      const par = [...pv.querySelectorAll("[data-pit]:not([data-pof])")].find((x) => x.dataset.pit === cb.dataset.pof); if (!par) return;
+      const k = kids(cb.dataset.pof), n = k.filter((x) => x.checked).length;
+      par.checked = n > 0; par.indeterminate = n > 0 && n < k.length;
     }
     async function propAct(rid, action, items) {
       const r = await api("POST", `/api/proposals/${encodeURIComponent(o.deckId())}`, { action, request: rid, ...(items ? { items } : {}) });
@@ -240,7 +264,7 @@
       if (b.id === "reqMore") { openHist(); return true; }
       const pv = b.closest("[data-prop]");
       if (pv && (b.dataset.pacc || b.dataset.pall || b.dataset.pdis)) {  // AI 제안 받기·버리기
-        const rid = pv.dataset.prop, picked = [...pv.querySelectorAll("[data-pit]")].filter((c) => c.checked).map((c) => c.dataset.pit);
+        const rid = pv.dataset.prop, picked = propPicked(pv);
         if (b.dataset.pdis) { if (confirm("이 제안을 버릴까요? (문서는 그대로입니다)")) await propAct(rid, "discard"); return true; }
         if (b.dataset.pacc && !picked.length) { toast("받을 곳을 고르세요"); return true; }
         await propAct(rid, "accept", b.dataset.pall ? null : picked); return true;

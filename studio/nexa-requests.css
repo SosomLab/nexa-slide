@@ -57,3 +57,6 @@
 .req .prop-its { display: flex; flex-direction: column; gap: 2px; margin: 4px 0 6px; max-height: 180px; overflow-y: auto; }
 .req .prop-its label { display: flex; gap: 6px; align-items: baseline; cursor: pointer; }
 .req .prop-its .k { font-weight: 700; color: var(--warn); }
+.req .prop-subs { margin: 0 0 2px 20px; }
+.req .prop-subs summary { cursor: pointer; color: var(--muted, #888); font-size: 11px; }
+.req .prop-subs label { font-size: 11px; }
