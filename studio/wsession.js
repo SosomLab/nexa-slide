@@ -58,7 +58,7 @@
            { icon: "■", label: "세션 중지", act: stop }]
         : st.connected
           ? [{ h: `수동 세션 · ${st.label || ""}` }, { html: `<div class="hint" style="padding:4px 10px;max-width:280px">터미널의 Claude Code 세션이 요청 감시(watch_requests)로 맡고 있습니다. 웹 세션으로 바꾸려면 그 감시를 끝내세요.</div>` }]
-          : [...(offNote() ? [{ h: offNote().replace(/^ · /, "") }] : []), { icon: "▶", label: "웹 세션 시작", act: startDlg }, { html: `<div class="hint" style="padding:4px 10px;max-width:280px">서버가 AI(claude·codex)를 띄워 편집기 요청을 처리합니다. 터미널 세션(Monitor)과 함께 쓸 수 없습니다.</div>` }];
+          : [...(offNote() ? [{ h: offNote().replace(/^ · /, "") }] : []), { icon: "▶", label: "웹 세션 시작", act: startDlg }, { html: `<div class="hint" style="padding:4px 10px;max-width:280px">서버가 AI(claude·codex)를 띄워 화면에서 보낸 요청을 처리합니다. 터미널 세션(Monitor)과 함께 쓸 수 없습니다.</div>` }];
       openMenu(btn, items, { right: false });
     }
     async function sidCopy(st, cmd) {  // 세션 식별자 - ID 복사, cmd 면 그 폴더에서 claude --resume <ID>(보기만; 웹 세션이 도는 중에 이어 쓰면 대화가 섞인다)
@@ -78,14 +78,14 @@
       const opt = (name) => { const a = ag[name]; const ok = a.installed && a.loggedIn; return `<option value="${name}" ${name === cura ? "selected" : ""} ${ok ? "" : "disabled"}>${esc(a.label)}${a.verified ? "" : " (미확인)"}${ok ? "" : a.installed ? " - 로그인 안 됨" : " - 미설치"}</option>`; };
       const models = (name) => (r.data.models[name] || []).map((m) => `<option value="${esc(m)}" ${m === model ? "selected" : ""}>${esc(m)}</option>`).join("") + `<option value="__custom">직접 입력</option>`;
       box(`<div class="row" style="align-items:center;gap:8px"><h3 style="margin:0;flex:1">웹 세션 시작</h3><button class="chip sm" data-sd="close">닫기</button></div>
-        <div class="hint">서버가 이 작업 공간에서 AI 를 턴마다 실행해 편집기 요청을 처리합니다. 쓰기 범위는 이 작업 공간 폴더뿐이며 <code>nexa.py</code> 명령만 허용됩니다.</div>
+        <div class="hint">서버가 이 작업 공간에서 AI 를 턴마다 실행해 화면에서 보낸 요청을 처리합니다. 쓰기 범위는 이 작업 공간 폴더뿐이며 <code>nexa.py</code> 명령만 허용됩니다.</div>
         <label class="f">에이전트</label><select id="sdAgent">${opt("claude")}${opt("codex")}</select>
         <div class="hint" id="sdHint">${esc(ag[cura].hint || "")}${ag[cura].hint && ag[cura].doc ? ` (엔진 ${esc(ag[cura].doc)})` : ""}</div>
         <label class="f">모델 <span class="hint">(기본: ${esc(model)} — ${esc(r.data.sources.model)})</span></label>
         <div class="row" style="gap:6px"><select id="sdModel">${models(cura)}</select><input type="text" id="sdModelText" placeholder="모델 ID 직접 입력" style="display:none;flex:1"></div>
         <label class="f" style="display:flex;align-items:center;gap:8px;font-weight:400"><input type="checkbox" id="sdSave"> 이 작업 공간 기본으로 저장 <select id="sdSaveAs" style="font-size:12px"><option value="local">이 PC 만(nexa-slide.local.json)</option><option value="shared">공유(nexa-slide.json)</option></select></label>
         ${r.data.allowWeb ? `<label class="f" style="display:flex;align-items:center;gap:8px;font-weight:400"><input type="checkbox" id="sdWeb" ${r.data.canAllowWeb ? "" : "disabled"}> 이 세션에 웹 검색 허용(WebSearch·WebFetch) ${r.data.canAllowWeb ? "" : '<span class="hint">- 관리자만</span>'}</label>
-        <div class="hint" id="sdWebWarn" style="display:none;color:var(--err)">이 세션이 외부 웹을 검색·열람합니다 - 슬라이드·요청 내용이 검색어·URL 로 외부에 전달될 수 있습니다(claude 만).</div>` : ""}
+        <div class="hint" id="sdWebWarn" style="display:none;color:var(--err)">이 세션이 외부 웹을 검색·열람합니다 - 작업 내용·요청 내용이 검색어·URL 로 외부에 전달될 수 있습니다(claude 만).</div>` : ""}
         <div class="hint">한도: 유휴 ${esc(String(r.data.limits.sessionIdleMinutes))}분 · 턴 ${esc(String(r.data.limits.sessionTurnMinutes))}분 · 동시 ${esc(String(r.data.limits.sessionMax))}</div>
         <div class="row" style="justify-content:flex-end;gap:8px"><button class="chip sm" data-sd="close">취소</button><button class="chip sm primary" data-sd="start">시작</button></div>`);
       $("#sdAgent").onchange = () => { const n = $("#sdAgent").value; $("#sdModel").innerHTML = models(n); $("#sdHint").textContent = (ag[n].hint || "") + (ag[n].hint && ag[n].doc ? ` (엔진 ${ag[n].doc})` : ""); };

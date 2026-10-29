@@ -1382,7 +1382,7 @@ FUNCS = {
     "INDIRECT": _indirect, "OFFSET": _offset, "SUBTOTAL": _subtotal,
     "FILTER": _filter, "SORT": _sort, "SORTBY": _sortby, "UNIQUE": _unique, "SEQUENCE": _sequence,
     "TRANSPOSE": lambda c, A, sh: Rng(_transpose_rows(c.area(A[0], sh).rows)),
-    "HYPERLINK": lambda c, A, sh: c.one(A, 1, sh) if len(A) > 1 else c.one(A, 0, sh),  # 링크는 화면에서 열지 않는다 - 보이는 글만
+    "HYPERLINK": lambda c, A, sh: c.one(A, 1, sh) if len(A) > 1 else c.one(A, 0, sh),  # 보이는 글만 - 주소 따라가기는 시트 화면(sheetcalc.js link)
     "ISBLANK": _is(lambda v: v is None or v == ""), "ISNUMBER": _is(lambda v: isinstance(v, (int, float)) and not isinstance(v, bool)),
     "ISTEXT": _is(lambda v: isinstance(v, str)), "ISERROR": _is(lambda v: isinstance(v, FErr)), "ISNA": _is(lambda v: isinstance(v, FErr) and v.code == "#N/A"),
 }
