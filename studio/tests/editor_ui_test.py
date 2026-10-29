@@ -56,7 +56,10 @@ def fixture():
     decks["zsheetx"] = {"title": "엑셀 기능", "kind": "sheet", "slides": [], "sheets": [{"id": "t01", "name": "매출", "cells": {  # 시트 엑셀 기능(sheetx_test)
         "A1": {"v": "지역", "b": True}, "B1": {"v": "매출", "b": True}, "A2": "서울", "B2": 1200, "A3": "부산", "B3": 800, "A4": "대구", "B4": 500, "A5": "광주", "B5": 300,
         "D1": "메모", "D2": "서울 지점", "D3": "부산 지점"}}]}
-    decks["zlinktest"] = {"title": "시트 연결", "slides": [{"id": "s1", "elements": [{"id": "e01", "type": "text", "x": 60, "y": 30, "w": 600, "h": 40, "text": "시트 연결", "size": 24}]}]}  # sheetlink_test(원본은 zsheetx)
+    big = {f"{chr(65 + c)}{r + 1}": (r * 10 + c if c else f"행{r + 1}") for r in range(2000) for c in range(10)}  # 큰 시트 - 가상 스크롤(sheetbig_test)
+    decks["zsheetbig"] = {"title": "큰 시트", "kind": "sheet", "slides": [], "sheets": [{"id": "t01", "name": "큰", "freeze": "A2", "cells": big,
+                          "merges": ["D1400:D1460", "F10:G12"], "hiddenRows": ["1501"]}]}
+    decks["zlinktest"] ={"title": "시트 연결", "slides": [{"id": "s1", "elements": [{"id": "e01", "type": "text", "x": 60, "y": 30, "w": 600, "h": 40, "text": "시트 연결", "size": 24}]}]}  # sheetlink_test(원본은 zsheetx)
     for n in range(12):  # 그림 많은 덱(12장 × 6장 그림) - lazy 로딩·재시도 시험
         (WS / "assets" / "images" / f"m{n}.png").write_bytes(PNG)
     decks["imgmany"] = {"title": "그림 많음", "slides": [{"id": f"s{si + 1:02d}", "elements": [{"id": f"i{si + 1:02d}{k}", "type": "image", "x": 40 + k * 200, "y": 120, "w": 180, "h": 120, "src": f"assets/images/m{(si + k) % 12}.png"} for k in range(6)]} for si in range(12)]}
