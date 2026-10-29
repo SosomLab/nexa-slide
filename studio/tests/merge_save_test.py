@@ -157,6 +157,13 @@ def main():
         put("ms", a, base=sv); time.sleep(0.05)
         sb, rb = put("ms", b, base=sv, merge=1)
         c = get("ms")[0]["sheets"][0]["cells"]
+        # 8. AI 가 바꾼 셀(/api/reqdiff) - 같은 요청의 AI 저장 둘 사이에 사람이 저장한 셀은 AI 변경으로 세지 않는다
+        d, v = get("ms"); d["sheets"][0]["cells"]["D1"] = "AI 하나"; put("ms", d, base=v, origin="claude", request="rdiff1")
+        d, v = get("ms"); d["sheets"][0]["cells"]["D2"] = "사람"; put("ms", d, base=v)
+        d, v = get("ms"); d["sheets"][0]["cells"]["D3"] = "AI 둘"; put("ms", d, base=v, origin="claude", request="rdiff1")
+        with urllib.request.urlopen(f"{B}/api/reqdiff/ms?request=rdiff1", timeout=10) as r:
+            rd = json.loads(r.read())
+        check("reqdiff - AI 저장 사이 사람이 고친 셀(D2)은 빼고 D1·D3 만", sorted(x["key"] for x in rd.get("cells") or []) == ["D1", "D3"] and rd.get("saves") == 2, json.dumps(rd, ensure_ascii=False)[:300])
         check("시트 - 다른 셀 둘 다 · 같은 셀은 값(A)과 굵게(B) 둘 다", sb == 200 and c.get("B2") == 2 and c.get("C3") == "추가" and c.get("A1") == {"b": True, "v": "새 제목"}, json.dumps(c, ensure_ascii=False))
     finally:
         srv.terminate()

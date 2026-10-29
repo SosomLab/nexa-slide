@@ -1123,6 +1123,7 @@ class H(BaseHTTPRequestHandler):
         self.send_header("X-Accel-Buffering", "no")
         self.end_headers()
         closed = self._watch_close()
+        collab.PRESENCE.attach(i, tab)  # 같은 탭이 다시 붙으면(재연결) 연결이 둘인 순간이 있다 - 마지막 연결이 끊길 때만 presence 를 지운다
 
         def send(ev, data):
             self.wfile.write(f"event: {ev}\ndata: {json.dumps(data, ensure_ascii=False)}\n\n".encode("utf-8"))
@@ -1160,7 +1161,7 @@ class H(BaseHTTPRequestHandler):
         except (OSError, ValueError):  # 연결 끊김
             pass
         finally:
-            collab.PRESENCE.leave(i, tab)
+            collab.PRESENCE.detach(i, tab)
 
     # ---------- AI 제안(동시 편집 3단계 첫 조각, docs/collab.md) - 큰 변경을 파일에 바로 쓰지 않고 남겨 두고, 사람이 장·탭마다 골라 받는다 ----------
     def _save_doc(self, i, deck, origin, action, actor, evidence=None):
@@ -1263,19 +1264,32 @@ class H(BaseHTTPRequestHandler):
                 return json.loads((hdir / name).read_text(encoding="utf-8")) if name and (hdir / name).is_file() else None
             except (OSError, ValueError):
                 return None
-        before = load((entries[idx[0]].get("before") or {}).get("backup"))
-        after = None
-        for e in entries[idx[-1] + 1:]:  # 마지막 AI 저장 직후 = 그다음 원장 줄이 쓰기 직전에 뜬 백업
-            b = (e.get("before") or {}).get("backup")
-            if b:
-                after = load(b)
-                break
-        if after is None:
+        def after_of(k):  # 원장 줄 k 의 저장 직후 = 그다음 원장 줄이 쓰기 직전에 뜬 백업, 없으면 지금 파일
+            for e in entries[k + 1:]:
+                bk = (e.get("before") or {}).get("backup")
+                if bk:
+                    return load(bk)
             p = deck_path(i)
-            after = _load(p)[1] if p.exists() else None
-        if before is None or after is None:
-            return self.send_json({"ok": True, "found": True, "cells": None, "count": None, "error": "그때 백업이 없어 비교할 수 없다"})
-        cells = deckdiff.cell_diff(before, after) if after.get("kind") == "sheet" else []
+            return _load(p)[1] if p.exists() else None
+        # AI 저장마다 따로 비교해 합친다 - AI 저장 사이에 사람이 저장한 셀은 AI 변경으로 세지 않는다(되돌리기가 사람의 셀을 건드리지 않게)
+        found, last_after = {}, None
+        for k in idx:
+            bd, ad = load((entries[k].get("before") or {}).get("backup")), after_of(k)
+            if bd is None or ad is None:
+                return self.send_json({"ok": True, "found": True, "cells": None, "count": None, "error": "그때 백업이 없어 비교할 수 없다"})
+            if ad.get("kind") != "sheet":
+                return self.send_json({"ok": True, "found": True, "cells": [], "count": 0, "saves": len(idx)})
+            for c in deckdiff.cell_diff(bd, ad):
+                key = (c["tab"], c["key"])
+                if key not in found:  # 처음 바꾼 저장의 "전" 값
+                    found[key] = c
+            last_after = ad
+        tabs = {t.get("id"): t for t in last_after.get("sheets") or [] if isinstance(t, dict)}
+        cells = []
+        for (tab, key), c in found.items():  # "후" 값은 마지막 AI 저장 직후의 값
+            now = ((tabs.get(tab) or {}).get("cells") or {}).get(key)
+            if deckdiff._cell_norm(now) != deckdiff._cell_norm(c["before"]):  # 여러 번 고쳐 결국 처음 값으로 돌아왔으면 바뀐 셀이 아니다
+                cells.append({**c, "after": now})
         self.send_json({"ok": True, "found": True, "cells": cells, "count": len(cells), "saves": len(idx), "seq": [entries[k].get("seq") for k in idx]})
 
     def api_post_presence(self, i, q):
