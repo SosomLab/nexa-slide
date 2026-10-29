@@ -1,5 +1,25 @@
 # 변경 이력
 
+## 0.25.3 - 2026-10-30 · VBA 실행기 · VBA 코드 창 · 시트 엔진 변경 안내
+
+- **VBA 사용자 함수를 이 화면에서 계산한다**(`studio/vba.js`, 엑셀 없이 - 서버가 Mac 이어도 브라우저에서 돈다). 표준 모듈의 Function 을 칸에서 `=이름(…)` 으로 부르면 계산기(sheetcalc.js)가 실행기를 부른다.
+  - 문법: Function·Sub · Dim·ReDim(Preserve)·Const · If/ElseIf/Else(한 줄 If) · For/Next(Step) · For Each · Do/Loop(While·Until) · While/Wend · Select Case(Is·To·목록) · Exit · On Error Resume Next · 콜론 여러 문장 · 줄 이음.
+  - 값: Variant 비교 규칙, Long 짝수 반올림, 배열(여러 차원, 대입은 복사), ByRef·ByVal, 선택 인수 기본값, ParamArray.
+  - Range 인자: `.Value`·`.Cells(i, j)`·`.Count`·`.Rows.Count`·`.Row`·`.Address`·`For Each`. 그 밖에 내장 함수 약 70개와 `WorksheetFunction.<시트 함수>`(계산기 함수 그대로)를 쓸 수 있다.
+  - 못 쓰는 문법(With·GoTo·New·날짜 상수·시트 쓰기 등)이 든 함수는 계산하지 않는다. 그 칸은 엑셀이 저장한 값을 그대로 둔다.
+  - 실행 오류는 `#VALUE!`, 끝나지 않는 반복은 한도(500만 단계)에서 멈춘다. 문서·클래스 모듈의 함수와 모듈 이름과 같은 함수는 엑셀처럼 칸에서 못 부른다(`#NAME?`).
+- **VBA 코드 창**(시트 머리줄 **{ } VBA**, 매크로가 있는 문서):
+  - 모듈 목록 · 코드 편집(Tab 들여쓰기, Ctrl+S = 적용) · 모듈 더하기·지우기(표준 모듈)
+  - 못 쓰는 문법 경고(누르면 그 줄로) · 칸에서 부를 수 있는 함수 목록
+  - **적용·다시 계산**하면 문서 `macros.modules` 에 저장되고, 계산할 수 있게 된 함수를 쓰는 칸을 다시 계산한다.
+- 가져오기: xlsm 의 모듈 소스를 문서 `macros.modules` 에 넣는다. 전에 가져온 문서는 서버가 vbaProject.bin 에서 읽어 준다(`GET /api/vba/<id>`).
+- 내보내기: `macros.modules` 가 원본 프로젝트와 다르면 소스를 고쳐 쓴 vbaProject.bin 을 넣는다(`vba_project.write_modules` - 엑셀이 열 때 다시 컴파일).
+- 교차 검증(`tests/xlsm_crosscheck.py`):
+  - 화면 계산기는 엑셀 저장값을 지우고 VBA 실행기로 계산해 견준다 - 테이블 정의서 336칸(`SortedJoinWithout` 5칸 포함)이 엑셀과 같다.
+  - **VBA 코드 고치기** 단계: 새 모듈·함수를 더해 저장한 파일을 엑셀이 계산한다(`=NexaCheck(21)` → "확인 42"), 원래 모듈 소스는 그대로다.
+- **시트 화면에도 엔진 변경 안내**: 편집기처럼 `/api/version` 의 engine 이 바뀌면 "편집기 코드·템플릿(엔진)이 바뀌었습니다 · 새로 고침"(고친 게 있으면 저장하고 새로 고침) 막대를 띄운다.
+- 시험: `tests/vba_test.js`(run_all `vba`, 26사례) · 시트 시나리오(VBA 실행·코드 창·엔진 안내).
+
 ## 0.25.2 - 2026-10-30 · 엑셀 교차 검증 · 열 너비·그림 크기 맞춤 · VBA 프로젝트 읽기·쓰기
 
 - **결함 - 맑은 고딕 같은 글꼴의 통합 문서를 가져와 저장하면 그림이 엑셀에서 약 14% 커졌다**(테이블 정의서 표지·이력의 그림 13개).
