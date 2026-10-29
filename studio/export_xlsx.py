@@ -83,6 +83,52 @@ def cell_format(c):
 CF_CRIT = {"gt": ">", "ge": ">=", "lt": "<", "le": "<=", "eq": "==", "ne": "!="}
 
 
+FREF = re.compile(r"[A-Z]{1,3}[1-9][0-9]*:[A-Z]{1,3}[1-9][0-9]*")
+_FX = {"eq": "==", "ne": "!=", "gt": ">", "ge": ">=", "lt": "<", "le": "<="}
+
+
+def _top10(ws, c, cr):
+    """상위·하위 n(%) - xlsxwriter 의 "Top 10 items" 는 <top10> 이 아니라 깨진 customFilter 를 써서(하위 % 는 KeyError) 그 열만 직접 쓴다(내부 함수 _write_filter_column 을 감싼다)."""
+    if not hasattr(ws, "_nx_top"):
+        ws._nx_top, base = {}, ws._write_filter_column
+
+        def write(col_id, ftype, filters):
+            t = ws._nx_top.get(col_id + ws.filter_range[0])
+            if t is None:
+                return base(col_id, ftype, filters)
+            ws._xml_start_tag("filterColumn", [("colId", col_id)])
+            ws._xml_empty_tag("top10", ([("top", 0)] if t.get("bottom") else []) + ([("percent", 1)] if t.get("pct") else []) + [("val", max(1, min(500, int(t["top"]))))])
+            ws._xml_end_tag("filterColumn")
+        ws._write_filter_column = write
+    ws._nx_top[c] = cr
+    ws.filter_cols[c], ws.filter_type[c], ws.filter_on = [30, str(cr["top"])], 0, 1
+
+
+def filter_crit(ws, c, cr):
+    """탭 filter 의 열 조건 → xlsxwriter filter_column(_list). 색 기준은 xlsxwriter 가 못 써서 범위·가린 행만 남는다."""
+    def tok(v):
+        s = str(v)
+        return '"' + s.replace('"', '""') + '"' if re.search(r'[\s"]', s) or s == "" else s
+    try:
+        if isinstance(cr.get("vals"), list):
+            ws.filter_column_list(c, ["Blanks" if v == "" else str(v) for v in cr["vals"]] or ["Blanks"])
+        elif isinstance(cr.get("cond"), list) and cr["cond"]:
+            parts = []
+            for q in cr["cond"][:2]:
+                op, v = q.get("op"), q.get("v", "")
+                if op in _FX:
+                    parts.append(f"x {_FX[op]} {tok(v)}")
+                elif op in ("begins", "ends", "contains", "notContains"):
+                    pat = {"begins": f"{v}*", "ends": f"*{v}", "contains": f"*{v}*", "notContains": f"*{v}*"}[op]
+                    parts.append(f"x {'!=' if op == 'notContains' else '=='} {tok(pat)}")
+            if parts:
+                ws.filter_column(c, f" {'or' if cr.get('or') else 'and'} ".join(parts))
+        elif cr.get("top"):
+            _top10(ws, c, cr)
+    except Exception as e:  # noqa: BLE001 - 잘못된 조건은 건너뛴다(가린 행은 그대로)
+        print(f"  필터 조건을 쓰지 못했다: {e}", file=sys.stderr)
+
+
 def cond_option(wb, cd):
     """조건부 서식 하나 → XlsxWriter conditional_format 옵션(모르는 종류면 None)."""
     st = cd.get("style") or {}
@@ -303,7 +349,13 @@ def export(deck, out):
             if re.fullmatch(r"[A-Z]{1,3}", str(c)):
                 ci = col_index(c)
                 ws.set_column(ci, ci, None, None, {"hidden": True})
-        for r in t.get("hiddenRows") or []:
+        flt = t.get("filter") if isinstance(t.get("filter"), dict) else None
+        if flt and FREF.fullmatch(str(flt.get("ref") or "")):  # 자동 필터 - 범위·열 조건, 가린 행은 아래에서 숨긴 행으로(엑셀 파일 형식이 그렇다)
+            ws.autofilter(flt["ref"])
+            for L, cr in (flt.get("cols") or {}).items():
+                if re.fullmatch(r"[A-Z]{1,3}", str(L)) and isinstance(cr, dict):
+                    filter_crit(ws, col_index(L), cr)
+        for r in list(t.get("hiddenRows") or []) + list((flt or {}).get("rows") or []):
             if str(r).isdigit():
                 ws.set_row(int(r) - 1, None, None, {"hidden": True})
         if t.get("grid") is False:

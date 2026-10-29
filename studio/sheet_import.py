@@ -294,6 +294,22 @@ def import_xlsx(src, title=None):
             tab["conds"] = conds
         if skipped:
             warnings.append(f"{tab['name']}: 조건부 서식 {skipped}개(수식·아이콘·데이터 막대 등)는 옮기지 않았다")
+        af = x.find(N + "autoFilter")  # 시트 자동 필터(엑셀 표의 필터는 표 파트에 따로 있다)
+        if af is not None and af.get("ref"):
+            flt, lost = filter_of(af, dxfs, color)
+            ag = split_ref(flt["ref"].split(":")[0]), split_ref(flt["ref"].split(":")[-1])
+            if flt.get("cols") and ag[0][0] is not None and ag[1][0] is not None:  # 범위 안(머리글 아래)의 숨긴 행 = 필터가 가린 행 - 엑셀 파일은 둘을 가르지 않는다
+                inside = [r for r in tab.get("hiddenRows") or [] if ag[0][0] + 1 < int(r) <= ag[1][0] + 1]
+                if inside:
+                    flt["rows"] = inside
+                    rest = [r for r in tab["hiddenRows"] if r not in inside]
+                    if rest:
+                        tab["hiddenRows"] = rest
+                    else:
+                        tab.pop("hiddenRows")
+            tab["filter"] = flt
+            if lost:
+                warnings.append(f"{tab['name']}: 필터 조건 {lost}개(날짜 묶음·평균 위/아래 같은 동적 조건)는 옮기지 않았다 - 가린 행은 그대로")
         for rel in _rels_of(z, part):  # 메모(옛 형식 comments - 엑셀이 스레드 메모도 함께 남긴다) → 셀 note
             if not rel.get("Type", "").endswith("/comments"):
                 continue
@@ -486,6 +502,61 @@ def cond_of(rule, sqref, dxfs, color):
     if style:
         cd["style"] = style
     return cd
+
+
+_FOPS = {"equal": "eq", "notEqual": "ne", "greaterThan": "gt", "greaterThanOrEqual": "ge", "lessThan": "lt", "lessThanOrEqual": "le"}
+
+
+def _fcond(op, v):
+    """customFilter → {op, v}. 엑셀은 포함·시작·끝을 같음 + 와일드카드(*x*·x*·*x)로 적는다."""
+    op = _FOPS.get(op or "equal", "eq")
+    s = str(v if v is not None else "")
+    core = s.strip("*")
+    if core and not re.search(r"[*?]", core):
+        if op == "eq" and s == f"*{core}*":
+            return {"op": "contains", "v": core}
+        if op == "ne" and s == f"*{core}*":
+            return {"op": "notContains", "v": core}
+        if op == "eq" and s == f"{core}*":
+            return {"op": "begins", "v": core}
+        if op == "eq" and s == f"*{core}":
+            return {"op": "ends", "v": core}
+    try:
+        return {"op": op, "v": int(s) if re.fullmatch(r"-?\d+", s) else float(s)}
+    except ValueError:
+        return {"op": op, "v": s}
+
+
+def filter_of(af, dxfs, color):
+    """<autoFilter> → (탭 filter {ref, cols}, 옮기지 못한 조건 수). 조건 형식은 sheetx.js 필터와 같다."""
+    flt, cols, lost = {"ref": af.get("ref").replace("$", "")}, {}, 0
+    first = split_ref(flt["ref"].split(":")[0])
+    for fc in af.findall(N + "filterColumn"):
+        c = (first[1] or 0) + int(fc.get("colId") or 0)
+        fs, cu, tp, cf = fc.find(N + "filters"), fc.find(N + "customFilters"), fc.find(N + "top10"), fc.find(N + "colorFilter")
+        cr = None
+        if fs is not None and fs.find(N + "dateGroupItem") is None:
+            cr = {"vals": [e.get("val") or "" for e in fs.findall(N + "filter")] + ([""] if fs.get("blank") in ("1", "true") else [])}
+        elif cu is not None:
+            cond = [_fcond(e.get("operator"), e.get("val")) for e in cu.findall(N + "customFilter")][:2]
+            cr = {"cond": cond, **({"or": True} if len(cond) > 1 and cu.get("and") not in ("1", "true") else {})}
+        elif tp is not None and tp.get("val"):
+            cr = {"top": int(float(tp.get("val"))), **({"bottom": True} if tp.get("top") in ("0", "false") else {}), **({"pct": True} if tp.get("percent") in ("1", "true") else {})}
+        elif cf is not None and cf.get("dxfId") is not None and int(cf.get("dxfId")) < len(dxfs):
+            d, font = dxfs[int(cf.get("dxfId"))], cf.get("cellColor") in ("0", "false")
+            if font:
+                f = d.find(N + "font")
+                cr = {"font": (color(f.find(N + "color")) if f is not None else None) or ""}
+            else:
+                pf = d.find(N + "fill/" + N + "patternFill")
+                cr = {"fill": ((color(pf.find(N + "fgColor")) or color(pf.find(N + "bgColor"))) if pf is not None else None) or ""}
+        if cr:
+            cols[col_name(c)] = cr
+        else:
+            lost += 1
+    if cols:
+        flt["cols"] = cols
+    return flt, lost
 
 
 def _rels_of(z, part):

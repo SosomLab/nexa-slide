@@ -159,7 +159,26 @@
   .fltPop label small { margin-left: auto; color: var(--ink2); }
   .fltPop .acts { display: flex; gap: 6px; justify-content: flex-end; margin-top: 4px; }
   .fltPop .acts button { border: 0; border-radius: 999px; padding: 4px 12px; cursor: pointer; font: inherit; background: var(--tone, #F2EFEF); }
-  .fltPop .acts button.primary { background: var(--p, #A91F24); color: #fff; }
+  .fltPop .acts button.primary, .fltDlg .acts button.primary { background: var(--p, #A91F24); color: #fff; }
+  .fltPop > button:disabled { color: var(--ink2); opacity: .5; cursor: default; background: none; }
+  .fltPop .more { display: flex; flex-direction: column; padding-left: 10px; }
+  .fltPop .more[hidden], .fltPop label[hidden] { display: none; }
+  .fltPop .more > button { text-align: left; border: 0; background: none; padding: 3px 6px; border-radius: 6px; cursor: pointer; font: inherit; }
+  .fltPop .more > button:hover, .fltPop .sw:hover { background: var(--tone, #F2EFEF); }
+  .fltPop .sub { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; padding: 2px 0; }
+  .fltPop .sub small { width: 100%; color: var(--ink2); }
+  .fltPop .sw { display: inline-flex; align-items: center; gap: 4px; border: 1px solid var(--line); background: #fff; border-radius: 4px; padding: 2px 4px; cursor: pointer; font: inherit; font-size: 11px; }
+  .fltPop .sw i { width: 14px; height: 14px; border: 1px solid #0002; border-radius: 2px; }
+  .fltPop .q { border: 1px solid var(--line); border-radius: 6px; padding: 4px 6px; font: inherit; margin: 2px 0; }
+  .fltDlg { position: fixed; z-index: 85; left: 50%; top: 30%; transform: translateX(-50%); width: 380px; background: var(--card); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 6px 24px rgba(0,0,0,.2); padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; font-size: 12.5px; }
+  .fltDlg small { color: var(--ink2); }
+  .fltDlg .row { display: flex; gap: 6px; align-items: center; }
+  .fltDlg .row select, .fltDlg .row input[type="text"], .fltDlg .row input[type="number"] { border: 1px solid var(--line); border-radius: 6px; padding: 4px 6px; font: inherit; }
+  .fltDlg .row input[type="text"] { flex: 1; min-width: 0; }
+  .fltDlg .andor { gap: 14px; padding-left: 4px; }
+  .fltDlg .acts { display: flex; gap: 6px; justify-content: flex-end; }
+  .fltDlg .acts button { border: 0; border-radius: 999px; padding: 4px 14px; cursor: pointer; font: inherit; background: var(--tone, #F2EFEF); }
+  #grid th.flr { color: #1F6FD0; }  /* 조건이 걸린 필터의 데이터 행 번호(엑셀과 같다) */
   #dvBtn { position: absolute; z-index: 4; width: 18px; height: 18px; padding: 0; border: 1px solid var(--line); border-radius: 3px; background: #fff; font-size: 9px; line-height: 16px; cursor: pointer; color: var(--ink2); }
   #dvBtn[hidden] { display: none; }
   #acBox { position: fixed; z-index: 90; min-width: 260px; max-width: 460px; background: var(--card); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 4px 14px rgba(0,0,0,.16); font-size: 12px; padding: 3px; }

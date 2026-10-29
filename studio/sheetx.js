@@ -3,7 +3,7 @@
    - 찾기·바꾸기(Ctrl+F · Ctrl+H): 이 탭/모든 탭, 대소문자, 셀 전체 일치, 수식 안
    - 채우기 단축키: Ctrl+D 아래로 · Ctrl+R 오른쪽으로 · 편집 중 Ctrl+Enter 고른 범위 모두에 같은 값(수식은 상대 참조 이동)
    - 값만 붙여넣기(Ctrl+Shift+V) · 자동 합계(Alt+=) · 정렬(도구 막대 ⇅ - 지금 열 기준, 첫 줄 머리글 자동 판정)
-   - 데이터 ▾: 필터(머리글 ▼ - 값 고르기·정렬, 이 화면에서만 = 엑셀 "필터 보기") · 행·열 숨기기/숨기기 취소(저장 - 탭 hiddenRows·hiddenCols)
+   - 데이터 ▾: 필터(Ctrl+Shift+L, 탭 filter 에 저장 - 머리글 ▼: 정렬·값 검색·체크·텍스트/숫자 조건·상위 10·색 기준) · 행·열 숨기기/숨기기 취소(저장 - 탭 hiddenRows·hiddenCols)
              드롭다운 목록(탭 validations [{range, list|source}] - 고른 칸 옆 ▼ 로 고르기, 목록에 없는 값은 칸 모서리 표시)
    - 함수 자동 완성: 수식 입력 중 =SU… → 맞는 함수 목록(Tab·클릭 = 넣기, ↑↓ 고르기, Esc 닫기), 괄호 안에서는 인수 안내
              조건부 서식(탭 conds [{range, type, value, value2, style{fill,color,b}, colors}] - gt·ge·lt·le·eq·ne·between·text·dup·top·bottom·scale, xlsx 왕복)
@@ -235,74 +235,200 @@
     });
   }
 
-  // ---------------------------------------------------------------- 필터(이 화면에서만)
-  const view = () => { const S = N().S, id = X().sheet().id; return (S.view[id] = S.view[id] || {}); };
+  // ---------------------------------------------------------------- 필터(엑셀 자동 필터 - 탭 filter 에 저장, Ctrl+Shift+L)
+  // filter = { ref: "A1:D20"(첫 줄 = 머리글), cols: { 열 문자: 조건 }, rows: ["5", …](조건으로 가린 행) }
+  // 가린 행은 엑셀처럼 조건을 바꾸거나 [다시 적용] 할 때만 다시 계산한다 - 값을 고쳤다고 그 행이 바로 사라지지 않는다
+  // 조건: {vals: [보일 글…, ""=빈 칸]} · {cond: [{op, v}, {op, v}], or} · {top: n, bottom, pct} · {fill: "#RRGGBB"|""(채우기 없음)} · {font: "#RRGGBB"|""(자동)}
+  const OPS = { eq: "같음", ne: "같지 않음", gt: "보다 큼", ge: "크거나 같음", lt: "보다 작음", le: "작거나 같음", begins: "시작 문자", ends: "끝 문자", contains: "포함", notContains: "포함하지 않음" };
+  const fRange = (sh) => (sh.filter ? X().parseRange(sh.filter.ref || "") : null);
+  const fText = (sh, r, c) => N().display(N().effCell(sh.cells[X().key(r, c)]));
+  const fColor = (sh, r, c, k) => String(N().effCell(sh.cells[X().key(r, c)])[k] || "").toUpperCase();
+  const wildRe = (p) => new RegExp("^" + String(p).replace(/[.+^${}()|[\]\\]/g, "\\$&").replace(/\*/g, ".*").replace(/\?/g, ".") + "$", "i");  // 엑셀 같음·같지 않음의 * ?
+  function condOk(op, want, v, t) {  // v 값, t 보이는 글
+    const w = want === "" || want == null ? NaN : Number(want), numCmp = typeof v === "number" && !isNaN(w);
+    const s = t.toLowerCase(), q = String(want == null ? "" : want).toLowerCase();
+    if (op === "eq") return numCmp ? v === w : wildRe(want == null ? "" : want).test(t);
+    if (op === "ne") return numCmp ? v !== w : !wildRe(want == null ? "" : want).test(t);
+    if (op === "begins") return s.startsWith(q);
+    if (op === "ends") return s.endsWith(q);
+    if (op === "contains") return s.includes(q);
+    if (op === "notContains") return !s.includes(q);
+    let d;
+    if (numCmp) d = v - w; else if (typeof v !== "number" && isNaN(w) && t !== "") d = s.localeCompare(q, "ko"); else return false;  // 숫자끼리·글끼리만, 빈 칸은 안 맞음
+    return op === "gt" ? d > 0 : op === "ge" ? d >= 0 : op === "lt" ? d < 0 : op === "le" ? d <= 0 : true;
+  }
+  function topCut(sh, g, c, cr) {  // 상위·하위 n(%) 의 경계값
+    const nums = [];
+    for (let r = g.r1 + 1; r <= g.r2; r++) { const v = valOf(sh.cells[X().key(r, c)]); if (isNum(v)) nums.push(v); }
+    if (!nums.length) return null;
+    nums.sort((a, b) => (cr.bottom ? a - b : b - a));
+    const k = cr.pct ? Math.max(1, Math.floor((nums.length * cr.top) / 100)) : Math.max(1, cr.top);
+    return nums[Math.min(k, nums.length) - 1];
+  }
+  function critOk(sh, r, c, cr, cut) {
+    const t = fText(sh, r, c);
+    if (cr.vals) return cr.vals.includes(t);
+    if (cr.cond) { const rs = cr.cond.filter((q) => q && q.op).map((q) => condOk(q.op, q.v, valOf(sh.cells[X().key(r, c)]), t)); return !rs.length || (cr.or ? rs.some(Boolean) : rs.every(Boolean)); }
+    if (cr.top) { const v = valOf(sh.cells[X().key(r, c)]); return isNum(v) && cut != null && (cr.bottom ? v <= cut : v >= cut); }
+    if ("fill" in cr) return fColor(sh, r, c, "fill") === String(cr.fill).toUpperCase();
+    if ("font" in cr) return fColor(sh, r, c, "color") === String(cr.font).toUpperCase();
+    return true;
+  }
+  function hiddenBy(sh, skip) {  // 조건으로 가릴 행 번호(0부터) - skip 열의 조건은 빼고(▼ 목록은 다른 열 조건을 통과한 행의 값만)
+    const x = X(), g = fRange(sh), out = new Set(); if (!g) return out;
+    const crit = Object.entries((sh.filter && sh.filter.cols) || {}).map(([L, cr]) => [x.colIndex(L), cr]).filter(([c]) => c >= g.c1 && c <= g.c2 && c !== skip);
+    const cuts = new Map(crit.filter(([, cr]) => cr.top).map(([c, cr]) => [c, topCut(sh, g, c, cr)]));
+    for (let r = g.r1 + 1; r <= g.r2; r++) if (!crit.every(([c, cr]) => critOk(sh, r, c, cr, cuts.get(c)))) out.add(r);
+    return out;
+  }
+  function growRange(sh) {  // 범위 아래에 이어 붙인 줄이 있으면 넓힌다(엑셀도 다시 적용할 때 넓힌다)
+    const x = X(), g = fRange(sh); if (!g) return;
+    const has = (r) => { for (let c = g.c1; c <= g.c2; c++) { const v = valOf(sh.cells[x.key(r, c)]); if (v != null && v !== "") return true; } return false; };
+    let r2 = g.r2; while (has(r2 + 1)) r2++;
+    if (r2 !== g.r2) sh.filter.ref = x.rangeName({ ...g, r2 });
+  }
+  function shownMsg(sh) { const g = fRange(sh); if (!g) return ""; const n = g.r2 - g.r1, h = (sh.filter.rows || []).length; return `${n}줄 중 ${n - h}줄 보임`; }
+  /** 고치기(실행 취소·저장) - fn 으로 필터를 바꾸고 가릴 행을 다시 계산 */
+  function setFilter(fn, msg) {
+    const x = X(), sh = x.sheet();
+    x.mutate(() => {
+      fn(sh);
+      const f = sh.filter; if (!f) return;
+      if (f.cols && !Object.keys(f.cols).length) delete f.cols;
+      growRange(sh);
+      const rows = [...hiddenBy(sh)].sort((a, b) => a - b).map((r) => String(r + 1));
+      if (rows.length) f.rows = rows; else delete f.rows;
+    });
+    renderFilterBtns();
+    const m = typeof msg === "function" ? msg(x.sheet()) : msg; if (m) x.toast(m, 3500);
+  }
   function filterToggle() {
-    const S = N().S, x = X(), v = view();
-    if (v.filter) { delete v.filter; v.rows = new Set(); x.renderAll(); renderFilterBtns(); x.toast("필터를 껐습니다"); return; }
+    const S = N().S, x = X(), sh = x.sheet();
+    if (sh.filter) { setFilter((t) => { delete t.filter; }, "필터를 껐습니다"); return; }
     let g = x.clampRange(S.sel);
-    if (g.r1 === g.r2) g = region(x.sheet(), S.cur.r, S.cur.c);
+    if (g.r1 === g.r2) g = region(sh, S.cur.r, S.cur.c);
     if (g.r2 <= g.r1) { x.toast("머리글과 데이터가 있는 범위에서 켭니다"); return; }
-    v.filter = { r1: g.r1, c1: g.c1, r2: g.r2, c2: g.c2, crit: {} }; v.rows = new Set();
-    x.renderAll(); renderFilterBtns(); x.toast(`필터: ${x.rangeName(g)} - 머리글의 ▼ 로 값을 고릅니다(이 화면에서만, 저장되지 않음)`, 4000);
+    setFilter((t) => { t.filter = { ref: x.rangeName(g) }; }, `필터: ${x.rangeName(g)} - 머리글의 ▼ 로 고릅니다 (Ctrl+Shift+L = 끄기)`);
   }
-  function applyFilter() {
-    const x = X(), v = view(), f = v.filter, sh = x.sheet(); if (!f) return;
-    const rows = new Set();
-    for (let r = f.r1 + 1; r <= f.r2; r++) for (const [c, ex] of Object.entries(f.crit)) {
-      if (ex.size && ex.has(N().display(N().effCell(sh.cells[x.key(r, +c)])))) { rows.add(r); break; }
-    }
-    v.rows = rows; x.renderAll(); renderFilterBtns();
-    const shown = f.r2 - f.r1 - rows.size;
-    x.toast(`${f.r2 - f.r1}줄 중 ${shown}줄 보임`);
-  }
+  const filterClear = () => setFilter((t) => { delete t.filter.cols; }, (t) => `필터 조건을 모두 지웠습니다 · ${shownMsg(t)}`);
+  const filterReapply = () => setFilter(() => {}, shownMsg);
+  function setCrit(c, cr) { setFilter((t) => { const cols = (t.filter.cols = t.filter.cols || {}); const L = X().colName(c); if (cr) cols[L] = cr; else delete cols[L]; }, shownMsg); }
   function renderFilterBtns() {
     let lay = $("#fltLay"); const x = X(); if (!x) return;
     if (!lay) { lay = document.createElement("div"); lay.id = "fltLay"; $("#gridIn").appendChild(lay); }
-    const v = view(), f = v.filter;
-    if (!f) { lay.innerHTML = ""; return; }
-    const out = [];
-    for (let c = f.c1; c <= f.c2; c++) {
-      if (x.colHidden(x.sheet(), c)) continue;
-      const R = x.rectOf({ r1: f.r1, c1: c, r2: f.r1, c2: c }), on = f.crit[c] && f.crit[c].size;
-      out.push(`<button class="flt${on ? " on" : ""}" data-fc="${c}" style="left:${R.x + R.w - 17}px;top:${R.y + R.h - 17}px" title="${on ? "필터 걸림 - " : ""}값 고르기·정렬">${on ? "⏷" : "▼"}</button>`);
+    const sh = x.sheet(), g = fRange(sh);
+    if (!g) { lay.innerHTML = ""; return; }
+    const out = [], cols = sh.filter.cols || {};
+    for (let c = g.c1; c <= g.c2; c++) {
+      if (x.colHidden(sh, c)) continue;
+      const R = x.rectOf({ r1: g.r1, c1: c, r2: g.r1, c2: c }), on = !!cols[x.colName(c)];
+      out.push(`<button class="flt${on ? " on" : ""}" data-fc="${c}" style="left:${R.x + R.w - 17}px;top:${R.y + R.h - 17}px" title="${on ? "필터 걸림 - " : ""}값 고르기·조건·정렬">${on ? "⏷" : "▼"}</button>`);
     }
     lay.innerHTML = out.join("");
   }
   function filterMenu(btn, c) {
-    const x = X(), v = view(), f = v.filter, sh = x.sheet();
-    const vals = new Map();
-    for (let r = f.r1 + 1; r <= f.r2; r++) { const t = N().display(N().effCell(sh.cells[x.key(r, c)])); vals.set(t, (vals.get(t) || 0) + 1); }
-    const ex = f.crit[c] || new Set();
-    const list = [...vals.keys()].sort((a, b) => (a === "" ? 1 : b === "" ? -1 : a.localeCompare(b, "ko", { numeric: true })));
+    const x = X(), sh = x.sheet(), g = fRange(sh), L = x.colName(c), cr = (sh.filter.cols || {})[L] || null;
+    const other = hiddenBy(sh, c), vals = new Map(), fills = new Set(), fonts = new Set(); let nums = 0, texts = 0;
+    const cut = cr && cr.top ? topCut(sh, g, c, cr) : null, pass = new Set();
+    for (let r = g.r1 + 1; r <= g.r2; r++) {
+      if (other.has(r)) continue;
+      const t = fText(sh, r, c), v = valOf(sh.cells[x.key(r, c)]);
+      vals.set(t, (vals.get(t) || 0) + 1); fills.add(fColor(sh, r, c, "fill")); fonts.add(fColor(sh, r, c, "color"));
+      if (isNum(v)) nums++; else if (t !== "") texts++;
+      if (!cr || critOk(sh, r, c, cr, cut)) pass.add(t);
+    }
+    const isNumCol = nums > texts, list = [...vals.keys()].sort((a, b) => (a === "" ? 1 : b === "" ? -1 : a.localeCompare(b, "ko", { numeric: true })));
+    const kind = isNumCol ? "숫자" : "텍스트";
+    const condItems = isNumCol ? [["eq", "같음…"], ["ne", "같지 않음…"], ["gt", "보다 큼…"], ["ge", "크거나 같음…"], ["lt", "보다 작음…"], ["le", "작거나 같음…"], ["between", "해당 범위…"], ["top", "상위 10…"], ["custom", "사용자 지정 필터…"]]
+      : [["eq", "같음…"], ["ne", "같지 않음…"], ["begins", "시작 문자…"], ["ends", "끝 문자…"], ["contains", "포함…"], ["notContains", "포함하지 않음…"], ["custom", "사용자 지정 필터…"]];
+    const sw = (col, k) => `<button class="sw" data-col="${k}:${x.esc(col)}" title="${col ? x.esc(col) : k === "fill" ? "채우기 없음" : "자동(기본 글자색)"}"><i style="background:${col || (k === "fill" ? "#fff" : "#000")}"></i>${col ? "" : k === "fill" ? "채우기 없음" : "자동"}</button>`;
+    const colorSec = (fills.size > 1 ? `<div class="sub"><small>셀 색</small>${[...fills].map((f) => sw(f, "fill")).join("")}</div>` : "") + (fonts.size > 1 ? `<div class="sub"><small>글꼴 색</small>${[...fonts].map((f) => sw(f, "font")).join("")}</div>` : "");
     document.querySelectorAll(".fltPop").forEach((m) => m.remove());
     const pop = document.createElement("div"); pop.className = "fltPop";
     pop.innerHTML = `<button data-fs="a">오름차순 정렬</button><button data-fs="d">내림차순 정렬</button><hr>
-      <label class="all"><input type="checkbox" data-all ${ex.size ? "" : "checked"}> (모두 선택)</label>
-      <div class="vals">${list.map((t, i) => `<label><input type="checkbox" data-i="${i}" ${ex.has(t) ? "" : "checked"}> ${x.esc(t === "" ? "(빈 칸)" : t)} <small>${vals.get(t)}</small></label>`).join("")}</div>
+      <button data-fx="clear" ${cr ? "" : "disabled"}>"${x.esc(fText(sh, g.r1, c) || L)}"에서 필터 해제</button>
+      <button data-fx="color" ${colorSec ? "" : "disabled"}>색 기준 필터 ▸</button><div class="more" data-more="color" hidden>${colorSec}</div>
+      <button data-fx="cond">${kind} 필터 ▸</button><div class="more" data-more="cond" hidden>${condItems.map(([k, t]) => `<button data-op="${k}">${t}</button>`).join("")}</div><hr>
+      <input type="search" class="q" placeholder="검색">
+      <label class="all"><input type="checkbox" data-all checked> <span>(모두 선택)</span></label>
+      <div class="vals">${list.map((t, i) => `<label data-t="${i}"><input type="checkbox" data-i="${i}" ${pass.has(t) ? "checked" : ""}> ${x.esc(t === "" ? "(빈 칸)" : t)} <small>${vals.get(t)}</small></label>`).join("")}</div>
       <div class="acts"><button data-fa="ok" class="primary">확인</button><button data-fa="no">취소</button></div>`;
-    const R = btn.getBoundingClientRect(); Object.assign(pop.style, { left: Math.min(R.left, innerWidth - 260) + "px", top: R.bottom + 2 + "px" });
+    const R = btn.getBoundingClientRect(); Object.assign(pop.style, { left: Math.min(R.left, innerWidth - 260) + "px", top: Math.min(R.bottom + 2, innerHeight - 420) + "px" });
     document.body.appendChild(pop);
-    const boxes = () => [...pop.querySelectorAll("input[data-i]")];
-    pop.querySelector("[data-all]").onchange = (e) => boxes().forEach((b) => (b.checked = e.target.checked));
+    const shown = () => [...pop.querySelectorAll("label[data-t]")].filter((l) => !l.hidden).map((l) => l.querySelector("input"));
+    const syncAll = () => { const b = shown(); pop.querySelector("[data-all]").checked = b.length > 0 && b.every((i) => i.checked); };
+    syncAll();
+    const q = pop.querySelector(".q");
+    q.oninput = () => {  // 검색 - 맞는 값만 보이고 모두 체크(엑셀과 같다)
+      const s = q.value.trim().toLowerCase();
+      pop.querySelectorAll("label[data-t]").forEach((l) => { const t = list[+l.dataset.t]; l.hidden = !!s && !(t === "" ? "(빈 칸)" : t).toLowerCase().includes(s); if (s) l.querySelector("input").checked = !l.hidden; });
+      pop.querySelector("label.all span").textContent = s ? "(검색 결과 모두 선택)" : "(모두 선택)"; syncAll();
+    };
+    pop.querySelector("[data-all]").onchange = (e) => shown().forEach((b) => (b.checked = e.target.checked));
+    pop.addEventListener("change", (e) => { if (e.target.matches("input[data-i]")) syncAll(); });
+    const close = () => { pop.remove(); document.removeEventListener("mousedown", off); };
+    function off(e) { if (!pop.contains(e.target) && !e.target.closest(".fltDlg")) close(); }
+    setTimeout(() => document.addEventListener("mousedown", off), 0);
+    pop.addEventListener("keydown", (e) => { if (e.key === "Escape") close(); if (e.key === "Enter" && e.target === q) pop.querySelector('[data-fa="ok"]').click(); e.stopPropagation(); });
     pop.addEventListener("click", (e) => {
-      const fs = e.target.closest("[data-fs]"), fa = e.target.closest("[data-fa]");
+      const fs = e.target.closest("[data-fs]"), fx = e.target.closest("[data-fx]"), op = e.target.closest("[data-op]"), col = e.target.closest("[data-col]"), fa = e.target.closest("[data-fa]");
       if (fs) {
-        pop.remove(); const S = N().S, keep = { sel: S.sel, cur: S.cur };
-        S.sel = { r1: f.r1, c1: f.c1, r2: f.r2, c2: f.c2 }; S.cur = { r: f.r1, c: c };
-        sortRange(fs.dataset.fs === "d", true); S.sel = keep.sel; S.cur = keep.cur; applyFilter();
-      }
-      if (fa) {
-        if (fa.dataset.fa === "ok") { f.crit[c] = new Set(boxes().filter((b) => !b.checked).map((b) => list[+b.dataset.i])); applyFilter(); }
-        pop.remove();
+        close(); const S = N().S, keep = { sel: S.sel, cur: S.cur };
+        S.sel = { ...g }; S.cur = { r: g.r1, c };
+        sortRange(fs.dataset.fs === "d", true); S.sel = keep.sel; S.cur = keep.cur; filterReapply();
+      } else if (fx && !fx.disabled) {
+        if (fx.dataset.fx === "clear") { close(); setCrit(c, null); }
+        else { const m = pop.querySelector(`[data-more="${fx.dataset.fx}"]`); m.hidden = !m.hidden; }
+      } else if (col) { close(); const i = col.dataset.col.indexOf(":"), k = col.dataset.col.slice(0, i), v = col.dataset.col.slice(i + 1); setCrit(c, k === "fill" ? { fill: v } : { font: v }); }
+      else if (op) { close(); condDlg(c, op.dataset.op, cr, list.filter((t) => t !== ""), isNumCol); }
+      else if (fa) {
+        if (fa.dataset.fa === "ok") {
+          const searching = !!q.value.trim(), picked = (searching ? shown() : [...pop.querySelectorAll("input[data-i]")]).filter((b) => b.checked).map((b) => list[+b.dataset.i]);
+          const all = !searching && picked.length === list.length && !other.size;
+          setCrit(c, all ? null : { vals: picked });
+        }
+        close();
       }
     });
-    setTimeout(() => document.addEventListener("mousedown", function off(e) { if (!pop.contains(e.target)) { pop.remove(); document.removeEventListener("mousedown", off); } }), 0);
+    q.focus();
+  }
+  function condDlg(c, op, cr, items, isNumCol) {  // 사용자 지정 자동 필터 - 조건 두 개(그리고·또는) · 상위 10
+    const x = X(), L = x.colName(c);
+    document.querySelectorAll(".fltDlg").forEach((m) => m.remove());
+    const dlg = document.createElement("div"); dlg.className = "fltDlg";
+    const opts = (sel) => `<option value="">(없음)</option>` + Object.entries(OPS).map(([k, t]) => `<option value="${k}"${k === sel ? " selected" : ""}>${t}</option>`).join("");
+    const dl = `<datalist id="fltVals">${items.slice(0, 300).map((t) => `<option value="${x.esc(t)}">`).join("")}</datalist>`;
+    if (op === "top") {
+      const t = cr && cr.top ? cr : { top: 10 };
+      dlg.innerHTML = `<b>상위 10 자동 필터 - ${L} 열</b><div class="row"><select data-k="dir"><option value="top">상위</option><option value="bottom"${t.bottom ? " selected" : ""}>하위</option></select><input type="number" data-k="n" min="1" value="${t.top}" style="width:70px"><select data-k="pct"><option value="">항목</option><option value="1"${t.pct ? " selected" : ""}>%</option></select></div><div class="acts"><button data-d="ok" class="primary">확인</button><button data-d="no">취소</button></div>`;
+    } else {
+      const cur = cr && cr.cond ? cr.cond : [], a = op === "custom" ? cur[0] || { op: "eq" } : op === "between" ? { op: "ge" } : { op }, b = op === "custom" ? cur[1] || {} : op === "between" ? { op: "le" } : {};
+      const orOn = op === "custom" ? !!(cr && cr.or) : false;
+      const row = (q, i) => `<div class="row"><select data-k="op${i}">${opts(q.op)}</select><input type="text" list="fltVals" data-k="v${i}" value="${x.esc(q.v == null ? "" : String(q.v))}"></div>`;
+      dlg.innerHTML = `<b>사용자 지정 자동 필터 - ${L} 열</b><small>찾을 조건 · 같음·같지 않음은 ? = 한 글자, * = 여러 글자</small>${row(a, 0)}<div class="row andor"><label><input type="radio" name="fao" value="and"${orOn ? "" : " checked"}> 그리고</label><label><input type="radio" name="fao" value="or"${orOn ? " checked" : ""}> 또는</label></div>${row(b, 1)}${dl}<div class="acts"><button data-d="ok" class="primary">확인</button><button data-d="no">취소</button></div>`;
+    }
+    document.body.appendChild(dlg);
+    const get = (k) => dlg.querySelector(`[data-k="${k}"]`);
+    const ok = () => {
+      if (op === "top") { const n = Math.max(1, Math.round(+get("n").value || 10)); setCrit(c, { top: n, ...(get("dir").value === "bottom" ? { bottom: true } : {}), ...(get("pct").value ? { pct: true } : {}) }); }
+      else {
+        const num = (s) => (s !== "" && isFinite(+s) ? +s : s);
+        const cond = [0, 1].map((i) => ({ op: get("op" + i).value, v: num(get("v" + i).value.trim()) })).filter((q) => q.op);
+        if (!cond.length) { setCrit(c, null); dlg.remove(); return; }
+        setCrit(c, { cond, ...(dlg.querySelector('input[name="fao"]:checked').value === "or" && cond.length > 1 ? { or: true } : {}) });
+      }
+      dlg.remove();
+    };
+    dlg.addEventListener("click", (e) => { const d = e.target.closest("[data-d]"); if (!d) return; if (d.dataset.d === "ok") ok(); else dlg.remove(); });
+    dlg.addEventListener("keydown", (e) => { if (e.key === "Escape") dlg.remove(); if (e.key === "Enter") ok(); e.stopPropagation(); });
+    const first = dlg.querySelector("input"); if (first) { first.focus(); first.select(); }
   }
   function dataMenu(btn) {
-    const x = X(), v = view();
+    const x = X(), sh = x.sheet();
     x.openMenu(btn, [
-      { label: v.filter ? "필터 끄기" : "필터 켜기 (머리글 ▼ - 이 화면에서만)", act: filterToggle },
+      { label: sh.filter ? "필터 끄기 (Ctrl+Shift+L)" : "필터 켜기 (Ctrl+Shift+L)", act: filterToggle },
+      { label: "필터 지우기(모든 조건)", disabled: !(sh.filter && sh.filter.cols), act: filterClear },
+      { label: "다시 적용", disabled: !sh.filter, act: filterReapply },
       "-",
       { label: "고른 행 숨기기", act: () => hide("r", true) }, { label: "고른 열 숨기기", act: () => hide("c", true) },
       { label: "행 숨기기 취소(고른 범위와 그 옆)", act: () => hide("r", false) }, { label: "열 숨기기 취소(고른 범위와 그 옆)", act: () => hide("c", false) },
@@ -541,6 +667,7 @@
     if (ctrl && !e.altKey && !e.shiftKey && k === "d") { e.preventDefault(); e.stopPropagation(); fillDir(true); return; }
     if (ctrl && !e.altKey && !e.shiftKey && k === "r") { e.preventDefault(); e.stopPropagation(); fillDir(false); return; }
     if (ctrl && e.shiftKey && k === "v") { e.preventDefault(); e.stopPropagation(); pasteValues(); return; }
+    if (ctrl && e.shiftKey && !e.altKey && k === "l") { e.preventDefault(); e.stopPropagation(); filterToggle(); return; }  // 엑셀 필터 켜기·끄기
     if (e.altKey && !ctrl && (e.key === "=" || e.code === "Equal")) { e.preventDefault(); e.stopPropagation(); autoSum(); return; }
     if (e.altKey && !ctrl && e.key === "ArrowDown" && !$("#dvBtn").hidden) { e.preventDefault(); e.stopPropagation(); dvPick(); return; }
   }
@@ -569,5 +696,5 @@
   document.addEventListener("keyup", (e) => { if (X() && e.target === X().ED() && /^(Arrow(Left|Right)|Home|End)$/.test(e.key)) acUpdate(); }, true);
   document.addEventListener("mousedown", (e) => { const it = e.target.closest("#acBox [data-ac]"); if (it) { e.preventDefault(); acPick(it.dataset.ac); } else if (!e.target.closest("#acBox")) acHide(); }, true);
   setInterval(() => { if (X() && !N().S.edit) acHide(); }, 400);
-  window.NexaSheetX = { onSel: () => { onSel(); renderFilterBtns(); renderDv(); dvMarks(); }, onChange: () => { onSel(); renderFilterBtns(); renderDv(); dvMarks(); }, dvCreate, dvClear, dvPick, condMap, condDialog, condClear, sortRange, fillDir, findBox, autoSum, hide, filterToggle, applyFilter, view };
+  window.NexaSheetX = { onSel: () => { onSel(); renderFilterBtns(); renderDv(); dvMarks(); }, onChange: () => { onSel(); renderFilterBtns(); renderDv(); dvMarks(); }, dvCreate, dvClear, dvPick, condMap, condDialog, condClear, sortRange, fillDir, findBox, autoSum, hide, filterToggle, filterClear, filterReapply, setCrit, hiddenBy };
 })();

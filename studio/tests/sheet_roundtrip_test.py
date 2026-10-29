@@ -51,6 +51,12 @@ DOC = {"kind": "sheet", "title": "왕복", "slides": [], "sheets": [
          "N4": {"f": "=SUM(MAP(B2:B5,LAMBDA(x,x*2)))"}, "N5": {"f": "=세후(1000)"}},
      "names": {"지역들": "데이터!$A$2:$A$5"}},
     {"id": "t02", "name": "요약", "hidden": True, "cells": {"A1": {"f": "=데이터!F2"}, "A2": "숨긴 탭"}},
+    {"id": "t03", "name": "필터", "hiddenRows": ["9"], "cells": {  # 자동 필터 - 값 목록(빈 칸 포함)·조건 둘(또는)·하위 n %·포함, 가린 행은 filter.rows
+        "A1": "지역", "B1": "매출", "C1": "이익", "D1": "메모",
+        "A2": "서울", "B2": 1200, "C2": 10, "D2": "서울 지점", "A3": "부산", "B3": 50, "C3": 20, "D3": "부산 지점", "A4": "대구", "B4": 500, "C4": 30, "D4": "대구",
+        "A5": "서울", "B5": 700, "C5": 40, "D5": "본사 지점", "B6": 900, "C6": 50, "D6": "지점", "A9": "밖"},
+     "filter": {"ref": "A1:D6", "rows": ["4", "5"], "cols": {"A": {"vals": ["서울", "부산", ""]}, "B": {"cond": [{"op": "gt", "v": 600}, {"op": "lt", "v": 100}], "or": True},
+                                                       "C": {"top": 50, "bottom": True, "pct": True}, "D": {"cond": [{"op": "contains", "v": "지점"}]}}}},
 ], "names": {"분기1": "데이터!$B$2:$B$5", "목표": "1000", "세후": "=LAMBDA(x,x*0.9)"}}
 
 
@@ -74,7 +80,7 @@ def main():
     check("파일 형식 - 새 함수 접두사·이 행·넘친 범위", all(s in xml for s in ("_xlfn._xlws.SORT(", "_xlfn.ANCHORARRAY(J1)", "_xlfn.LET(_xlpm.x", "매출표[[#This Row],[1분기]]")), xml[:0])
     check("파일 형식 - 표 파트", any(n.startswith("xl/tables/") for n in z.namelist()), z.namelist())
     tabs, warnings, _ = sheet_import.import_xlsx(out)
-    check("가져오기 - 탭 2개·이름·숨김", [t["name"] for t in tabs] == ["데이터", "요약"] and tabs[1].get("hidden") is True, [(t["name"], t.get("hidden")) for t in tabs])
+    check("가져오기 - 탭 2개·이름·숨김", [t["name"] for t in tabs] == ["데이터", "요약", "필터"] and tabs[1].get("hidden") is True, [(t["name"], t.get("hidden")) for t in tabs])
     a, e = tabs[0], src["sheets"][0]
     check("값·계산값이 같다(수식 칸 포함)", all(sheet_calc.fix(val(a["cells"].get(k))) == sheet_calc.fix(val(c)) if isinstance(val(c), float) else val(a["cells"].get(k)) == val(c)
                                      for k, c in e["cells"].items() if not (isinstance(c, dict) and c.get("sp"))),
@@ -105,6 +111,11 @@ def main():
     check("파일 형식 - LAMBDA 매개변수 _xlpm.", "_xlfn.LAMBDA(_xlpm.x,_xlpm.x*2)" in xml, "")
     check("LAMBDA - 수식 글·계산값(MAP·이름 정의 사용자 함수)", f.get("N4") == "=SUM(MAP(B2:B5,LAMBDA(x,x*2)))" and val(a["cells"].get("N4")) == 5600 and val(a["cells"].get("N5")) == 900, {k: a["cells"].get(k) for k in ("N4", "N5")})
     check("이름 정의 칸 계산값", [val(a["cells"].get(k)) for k in ("N1", "N2", "N3")] == [2800, 2000, 4], [val(a["cells"].get(k)) for k in ("N1", "N2", "N3")])
+    ft, fe = tabs[2], DOC["sheets"][2]
+    srt = lambda fl: json.dumps({**fl, "cols": {k: ({**v, "vals": sorted(v["vals"])} if "vals" in v else v) for k, v in (fl or {}).get("cols", {}).items()}}, ensure_ascii=False, sort_keys=True)  # 값 목록 순서는 xlsxwriter 가 정렬
+    check("자동 필터 - 범위·열 조건·가린 행(filter.rows)과 따로 숨긴 행(hiddenRows)", srt(ft.get("filter")) == srt(fe["filter"]) and [str(x) for x in ft.get("hiddenRows") or []] == ["9"], (ft.get("filter"), ft.get("hiddenRows")))
+    x3 = z.read("xl/worksheets/sheet3.xml").decode("utf-8")
+    check("파일 형식 - autoFilter·숨긴 행", '<autoFilter ref="A1:D6">' in x3 and '<row r="4"' in x3 and 'hidden="1"' in x3.split('<row r="4"')[1].split(">")[0], re.findall(r"<autoFilter.*?</autoFilter>", x3))
     doc2, _ = sheet_import.to_doc("rt", "왕복", out)
     nb, nt = doc2.get("names") or {}, doc2["sheets"][0].get("names") or {}
     check("이름 정의 - 문서 범위·탭 범위로 돌아온다(LAMBDA 는 맨 이름으로)", nb.get("세후") == "LAMBDA(x,x*0.9)" and nb.get("목표") == "1000" and "$B$2:$B$5" in nb.get("분기1", "") and "$A$2:$A$5" in nt.get("지역들", ""), (nb, nt))
