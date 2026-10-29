@@ -152,6 +152,16 @@ def xlpm(form):
     return "".join(part if part.startswith('"') else rx.sub(r"_xlpm.\1", part) for part in re.split(r'("(?:[^"]|"")*")', form))
 
 
+def define_names(wb, deck):
+    """이름 정의 - 문서 names 는 통합 문서 이름, 탭 names 는 그 시트 범위 이름(엑셀 이름 관리자). 값은 참조·상수·수식 글."""
+    used = set()
+    for scope, book in [(None, deck.get("names"))] + [(sheet_name(t.get("name"), used), t.get("names")) for t in deck.get("sheets") or []]:
+        for nm, ref in (book or {}).items():
+            if nm and ref not in (None, ""):
+                ref = str(ref)
+                wb.define_name("'" + scope.replace("'", "''") + f"'!{nm}" if scope else str(nm), ref if ref.startswith("=") else "=" + ref)
+
+
 def export(deck, out):
     if deck.get("kind") != "sheet":
         raise ValueError("시트 문서가 아니다(kind sheet) - 슬라이드 덱은 export_pptx.py")
@@ -300,6 +310,7 @@ def export(deck, out):
             a, b = rng.split(":")
             (r1, c1), (r2, c2) = xl_cell_to_rowcol(a), xl_cell_to_rowcol(b)
             ws.merge_range(r1, c1, r2, c2, "", None)
+    define_names(wb, deck)
     wb.close()
     return out
 

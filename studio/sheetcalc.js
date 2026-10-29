@@ -173,7 +173,29 @@
 
   // ---------------------------------------------------------------- 계산기
   class Calc {
-    constructor(doc) { this.doc = doc; this.sheets = doc.sheets || []; this.memo = new Map(); this.busy = new Set(); this.ast = new Map(); this.at = []; this.dims = new Map(); this.spill = new Map(); this.anchors = new Map(); this.dyn = new Map(); this.extent = new Map(); this.scope = []; }
+    constructor(doc) { this.doc = doc; this.sheets = doc.sheets || []; this.memo = new Map(); this.busy = new Set(); this.ast = new Map(); this.at = []; this.dims = new Map(); this.spill = new Map(); this.anchors = new Map(); this.dyn = new Map(); this.extent = new Map(); this.scope = []; this.names = new Map(); this.naming = new Set(); }
+    /** 이름 정의 → 구문 트리(없으면 null). 탭 names(엑셀 시트 범위 이름)가 문서 names 보다 먼저, 이름은 대소문자 무시.
+     *  탭 이름의 참조에 탭이 없으면 그 탭을 가리킨다(문서 이름은 계산하는 칸의 탭) - sheet_calc.py named 와 같다 */
+    named(nm, sh) {
+      for (const owner of [sh, null]) {
+        const book = (owner || this.doc).names || {}, k = Object.keys(book).find((x) => x.toUpperCase() === nm);
+        if (k === undefined) continue;
+        const key = (owner ? owner.id : "") + " " + nm;
+        if (!this.names.has(key)) {
+          const src = String(book[k]); let node;
+          try { node = parse(src.replace(/^=/, "")); } catch (e) { node = ["err", e instanceof FErr ? e.code : "#NAME?"]; }
+          if (owner && (node[0] === "ref" || node[0] === "range") && node[1] == null) node = [node[0], owner.name, ...node.slice(2)];
+          this.names.set(key, node);
+        }
+        return this.names.get(key);
+      }
+      return null;
+    }
+    /** LET 이름이 아닌 이름 → 이름 정의의 참조·식 - 범위를 받는 함수(SUM·COUNT·ROW·OFFSET)가 참조로 보게 */
+    deref(n, sh) {
+      if (n[0] === "name" && !this.scope.some((sc) => sc.has(n[1]))) { const node = this.named(n[1], sh); if (node && !this.naming.has(n[1])) return node; }
+      return n;
+    }
     isDyn(raw) {
       if (raw.da) return true;
       if (!this.dyn.has(raw.f)) { let d = false; try { d = tokenize(raw.f.replace(/^=/, "")).some((t) => (t[0] === "fn" && DYN.has(t[1])) || (t[0] === "ref" && t.length > 3)); } catch (e) { /* 문법 오류 */ } this.dyn.set(raw.f, d); }
@@ -282,7 +304,9 @@
         case "sref": return this.ev(this.sref(n, sh), sh);  // 표 구조적 참조 → 셀·범위
         case "name": {
           for (let i = this.scope.length - 1; i >= 0; i--) if (this.scope[i].has(n[1])) { const v = this.scope[i].get(n[1]); if (v instanceof FErr) throw v; return v; }
-          throw new FErr("#NAME?");
+          const node = this.named(n[1], sh); if (!node) throw new FErr("#NAME?");  // 이름 정의(매출 = 데이터!$B$2:$B$5 · 세율 = 0.1)
+          if (this.naming.has(n[1])) throw new FErr("#REF!");  // 이름이 자기를 부른다
+          this.naming.add(n[1]); try { return this.ev(node, sh); } finally { this.naming.delete(n[1]); }
         }
         case "neg": { const x = this.ev(n[1], sh); return isMulti(x) ? amap((v) => -toNum(v), x) : -toNum(this.sc(x)); }
         case "pct": return toNum(this.sc(this.ev(n[1], sh))) / 100;
@@ -326,8 +350,8 @@
     one(A, i, sh, d) { return i >= A.length ? d : this.sc(this.ev(A[i], sh)); }
     nums(A, sh, mode = "") {
       const out = [];
-      for (const a of A) {
-        const isRef = a[0] === "ref" || a[0] === "range", v = this.ev(a, sh);
+      for (const a0 of A) {
+        const a = this.deref(a0, sh), isRef = a[0] === "ref" || a[0] === "range", v = this.ev(a, sh);
         for (const x of v instanceof Rng ? v.vals : [v]) {
           if (x instanceof FErr) { if (mode === "count" || mode === "counta" || mode === "blank") { if (mode === "counta") out.push(x); continue; } throw x; }
           if (mode === "blank") { if (x == null || x === "") out.push(x); }
@@ -341,6 +365,7 @@
     }
     area(a, sh) { const v = this.ev(a, sh); return v instanceof Rng ? v : new Rng([[v]]); }
     refnode(n, sh) {
+      n = this.deref(n, sh);
       if (n[0] === "ref" || n[0] === "range") return n;
       if (n[0] === "fn" && n[1] === "INDIRECT") { let node; try { node = parse(toStr(this.one(n[2], 0, sh))); } catch (e) { throw new FErr("#REF!"); } if (node[0] !== "ref" && node[0] !== "range") throw new FErr("#REF!"); return node; }
       if (n[0] === "fn" && n[1] === "OFFSET") {
@@ -398,7 +423,7 @@
   function rowCol(which) {
     const f = (c, A, sh) => {
       if (!A.length) { const at = c.at.length ? c.at[c.at.length - 1] : [0, 0]; return at[which] + 1; }
-      const n = A[0];
+      const n = c.deref(A[0], sh);
       if (n[0] === "ref") return n[2 + which] + 1;
       if (n[0] === "range") {
         const s = c.sheet(n[1], sh) || sh, [r1, c1, r2, c2] = c.bounds(n, s);
@@ -671,6 +696,7 @@
     "VALUE", "TEXT", "ABS", "INT", "ROUND", "ROUNDUP", "ROUNDDOWN", "MOD", "YEAR", "MONTH", "DAY", "NOT"]);
 
   // 모르는 함수(매크로 사용자 함수 등)·읽지 못하는 수식(외부 통합 문서 참조 등) - 엑셀이 마지막에 계산한 값을 둔다
+  function unknownName(f, c, sh) { try { return tokenize(f.replace(/^=/, "")).some((t) => t[0] === "name" && !c.named(t[1].toUpperCase(), sh)); } catch (e) { return true; } }  // 정의를 모르는 이름(names 없이 가져온 문서)
   function unknownFn(f) { try { const src = f.replace(/^=/, ""); parse(src); return tokenize(src).some((t) => t[0] === "fn" && !FUNCS[t[1]]); } catch (e) { return true; } }
   /** 모든 탭의 수식 칸 v 를 계산값으로 - 바뀐 칸 수 */
   function recalc(doc) {
@@ -678,7 +704,7 @@
     for (const sh of doc.sheets || []) for (const [k, raw] of Object.entries(sh.cells || {})) {
       if (!raw || typeof raw !== "object" || !raw.f) continue;
       let v = c.cell(sh, k); v = v instanceof FErr ? v.code : v;
-      if (v === "#NAME?" && raw.v != null && raw.v !== "#NAME?" && unknownFn(raw.f)) continue;  // 매크로(VBA) 사용자 함수 - 엑셀이 마지막에 계산한 값을 그대로
+      if (v === "#NAME?" && raw.v != null && raw.v !== "#NAME?" && (unknownFn(raw.f) || unknownName(raw.f, c, sh))) continue;  // 매크로(VBA) 사용자 함수·정의를 모르는 이름 - 엑셀이 마지막에 계산한 값을 그대로
       if (v === "#REF!" && noTables && raw.f.includes("[") && raw.v != null && raw.v !== "#REF!") continue;  // 표 정의 없이 가져온 옛 문서의 구조적 참조 - 엑셀 값을 그대로
       if (raw.v !== v) { raw.v = v; changed++; }
     }

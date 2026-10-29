@@ -30,7 +30,7 @@ def main():
     spec = json.loads((HERE / "sheetcalc_cases.json").read_text(encoding="utf-8"))
     ok = 0
     for f, want in spec["cases"]:
-        doc = {"sheets": copy.deepcopy(spec["sheets"])}
+        doc = {"sheets": copy.deepcopy(spec["sheets"]), "names": spec.get("names") or {}}
         doc["sheets"][0]["cells"][spec["at"]] = {"f": f}
         sheet_calc.recalc(doc)
         got = doc["sheets"][0]["cells"][spec["at"]].get("v")
@@ -40,7 +40,7 @@ def main():
             FAILS.append(f)
             print(f"FAIL {f} → {got!r} (기대 {want!r})")
     for sp in spec.get("spills", []):  # 동적 배열 - 넘친 칸
-        doc = {"sheets": copy.deepcopy(spec["sheets"])}
+        doc = {"sheets": copy.deepcopy(spec["sheets"]), "names": spec.get("names") or {}}
         doc["sheets"][0]["cells"].update(copy.deepcopy(sp["cells"]))
         if sp.get("tables"):
             doc["sheets"][0]["tables"] = copy.deepcopy(sp["tables"])
@@ -58,6 +58,12 @@ def main():
     if doc["sheets"][0]["cells"]["A1"]["v"] != "#REF!":
         FAILS.append("순환 참조")
         print("FAIL 순환 참조 →", doc["sheets"][0]["cells"]["A1"]["v"])
+    # 이름 정의 없이 가져온 문서 - 모르는 이름의 수식은 엑셀이 계산해 둔 값을 #NAME? 로 덮지 않는다
+    doc = {"sheets": [{"id": "t01", "name": "S", "cells": {"A1": {"f": "=없는이름*2", "v": 42}}}]}
+    sheet_calc.recalc(doc)
+    if doc["sheets"][0]["cells"]["A1"]["v"] != 42:
+        FAILS.append("모르는 이름 - 엑셀 값 유지")
+        print("FAIL 모르는 이름 - 엑셀 값 유지 →", doc["sheets"][0]["cells"]["A1"]["v"])
     print(f"사례 {len(spec['cases']) + len(spec.get('spills', []))}개 중 {ok}개 같음(Python)")
     import shutil
     import subprocess

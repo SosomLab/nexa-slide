@@ -347,6 +347,35 @@ class Calc:
         self.dims = {}
         self.spill, self.anchors, self.dyn = {}, {}, {}
         self.extent, self.scope = {}, []  # 동적 배열 기준 칸 → 넘친 크기 (행 수, 열 수) · LET 이름 묶음  # 넘친 칸 (탭 id, 행, 열) → (값, 기준 칸) · 탭별 동적 배열 수식 칸 · 수식 → 동적인가
+        self.names, self.naming = {}, set()  # 이름 정의 (탭 id|None, 이름) → 구문 트리 · 계산 중인 이름(순환)
+
+    def named(self, nm, sh):
+        """이름 정의 → 구문 트리(없으면 None). 탭 names(엑셀 시트 범위 이름)가 문서 names 보다 먼저, 이름은 대소문자 무시.
+        탭 이름의 참조에 탭이 없으면 그 탭을 가리킨다(문서 이름은 계산하는 칸의 탭)."""
+        for owner in (sh, None):
+            book = (owner if owner is not None else self.doc).get("names") or {}
+            hit = next((v for k, v in book.items() if str(k).upper() == nm), None)
+            if hit is None:
+                continue
+            key = (owner.get("id") if owner is not None else None, nm)
+            if key not in self.names:
+                try:
+                    node = parse(str(hit)[1:] if str(hit).startswith("=") else str(hit))
+                except FErr as e:
+                    node = ("err", e.code)
+                if owner is not None and node[0] in ("ref", "range") and node[1] is None:
+                    node = (node[0], owner.get("name")) + node[2:]
+                self.names[key] = node
+            return self.names[key]
+        return None
+
+    def deref(self, n, sh):
+        """LET 이름이 아닌 이름 → 이름 정의의 참조·식 - 범위를 받는 함수(SUM·COUNT·ROW·OFFSET)가 참조로 보게."""
+        if n[0] == "name" and not any(n[1] in sc for sc in self.scope):
+            node = self.named(n[1], sh)
+            if node is not None and n[1] not in self.naming:
+                return node
+        return n
 
     def is_dyn(self, raw):
         if raw.get("da"):
@@ -554,7 +583,16 @@ class Calc:
                     if isinstance(v, FErr):
                         raise v
                     return v
-            raise FErr("#NAME?")
+            node = self.named(n[1], sh)  # 이름 정의(매출 = 데이터!$B$2:$B$5 · 세율 = 0.1)
+            if node is None:
+                raise FErr("#NAME?")
+            if n[1] in self.naming:
+                raise FErr("#REF!")  # 이름이 자기를 부른다
+            self.naming.add(n[1])
+            try:
+                return self.ev(node, sh)
+            finally:
+                self.naming.discard(n[1])
         if k == "neg":
             x = self.ev(n[1], sh)
             if isinstance(x, Rng) and len(x.vals) > 1:  # 배열 - 칸마다
@@ -632,6 +670,7 @@ class Calc:
         """집계 인수 - 참조·범위 안은 숫자만(글·빈 칸 무시, 오류는 그대로), 직접 쓴 값은 숫자로. mode count·counta·blank."""
         out = []
         for a in args:
+            a = self.deref(a, sh)
             is_ref = a[0] in ("ref", "range")
             v = self.ev(a, sh)
             for x in (v.vals if isinstance(v, Rng) else [v]):
@@ -664,7 +703,8 @@ class Calc:
         return v if isinstance(v, Rng) else Rng([[v]])
 
     def refnode(self, n, sh):
-        """INDIRECT·OFFSET → 참조 노드(ref·range). 다른 함수가 범위로 쓸 수 있게."""
+        """INDIRECT·OFFSET·이름 정의 → 참조 노드(ref·range). 다른 함수가 범위로 쓸 수 있게."""
+        n = self.deref(n, sh)
         if n[0] in ("ref", "range"):
             return n
         if n[0] == "fn" and n[1] == "INDIRECT":
@@ -749,7 +789,7 @@ def _row_col(which):
         if not A:
             at = c.at[-1] if c.at else (0, 0)
             return at[which] + 1
-        n = A[0]
+        n = c.deref(A[0], sh)
         if n[0] == "ref":
             return n[2 + which] + 1
         if n[0] == "range":
@@ -1347,8 +1387,8 @@ def recalc(doc):
             if isinstance(raw, dict) and raw.get("f"):
                 v = c.cell(sh, k)
                 v = v.code if isinstance(v, FErr) else v
-                if v == "#NAME?" and raw.get("v") not in (None, "#NAME?") and unknown_fn(raw["f"]):
-                    continue  # 매크로(VBA) 사용자 함수 - 계산할 수 없어 엑셀이 마지막에 계산한 값을 그대로 둔다
+                if v == "#NAME?" and raw.get("v") not in (None, "#NAME?") and (unknown_fn(raw["f"]) or unknown_name(raw["f"], c, sh)):
+                    continue  # 매크로(VBA) 사용자 함수·정의를 모르는 이름 - 계산할 수 없어 엑셀이 마지막에 계산한 값을 그대로 둔다
                 if v == "#REF!" and no_tables and "[" in raw["f"] and raw.get("v") not in (None, "#REF!"):
                     continue  # 표 정의 없이 가져온 옛 문서의 구조적 참조 - 엑셀 값을 그대로
                 if raw.get("v") != v:
@@ -1576,6 +1616,14 @@ def unknown_fn(f):
     try:
         parse(src)
         return any(t[0] == "fn" and t[1] not in FUNCS for t in tokenize(src))
+    except FErr:
+        return True
+
+
+def unknown_name(f, c, sh):
+    """수식에 정의를 모르는 이름이 있나 - 이름 정의(names) 없이 가져온 문서. LET 이름도 여기 들지만 #NAME? 일 때만 묻는다."""
+    try:
+        return any(t[0] == "name" and c.named(t[1].upper(), sh) is None for t in tokenize(f[1:] if f.startswith("=") else f))
     except FErr:
         return True
 
