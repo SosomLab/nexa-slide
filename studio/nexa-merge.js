@@ -1,7 +1,8 @@
 /* nexa-slide 덱·시트 3-way 병합 - 서버 deckmerge.py 와 같은 규칙(docs/collab.md 1단계). 편집기·시트 화면이 같이 쓴다.
      NexaMerge.merge3(base, ours, theirs, prefer)  → { merged, conflicts }
    화면에서는 "남의 변경을 건드리지 않는 실행 취소"에 쓴다: 되돌릴 내 편집(편집 뒤 → 편집 앞)을 지금 문서 위에 병합한다.
-   규칙·사례는 deckmerge.py 머리말과 tests/deckmerge_cases.json(tests/nexa_merge_check.js 가 같은지 확인). */
+   규칙·사례는 deckmerge.py 머리말과 tests/deckmerge_cases.json(tests/nexa_merge_check.js 가 같은지 확인).
+     NexaMerge.ops(saved, now) · applyOps(doc, ops, base)  작업(op) 저장 - 서버 deckops.py 와 같다(tests/deckops_cases.json, nexa_ops_check.js · 동시 편집 3-4). */
 (function (root) {
   "use strict";
   const MISSING = { missing: true };  // 없는 키·항목
@@ -169,5 +170,109 @@
     const mine = conflicts.filter((c) => c.kept === "ours").length;
     return { text: `그 사이 바뀐 내용과 합쳐 저장했습니다 · 같은 곳을 함께 고친 ${n}건은 ${mine === n ? "내 값" : mine ? `내 값 ${mine}건·상대 값 ${n - mine}건` : "상대 값"}으로 정했습니다`, detail: describe(conflicts, 12).join("\n") };
   }
-  root.NexaMerge = { merge3, describe, eq, seal, undoTarget, afterSave, notice };
+  // ---------------------------------------------------------------- 작업(op) - 동시 편집 3-4. 서버 deckops.py 와 같은 규칙(골든 tests/deckops_cases.json)
+  //   ops(old, new)              마지막 저장본 → 지금 문서의 차이를 작업 목록으로 - applyOps(old, ops(old, new)).doc 이 new 와 같다
+  //   applyOps(doc, ops, base)   작업을 차례로 → { doc, applied, dropped: [{i, op, why}] } (서버가 지금 파일에 하는 것과 같다)
+  const kindOf = (d) => (isObj(d) && d.kind === "sheet" ? "sheets" : "slides");
+  const items = (l) => (Array.isArray(l) ? l.filter((x) => isObj(x) && x.id !== undefined && x.id !== null) : []);
+  function props(o, n, skip) {
+    o = isObj(o) ? o : {}; n = isObj(n) ? n : {};
+    const keys = [...new Set([...Object.keys(n), ...Object.keys(o)])].sort();
+    return keys.filter((k) => !skip.includes(k) && !eq(get(o, k), get(n, k))).map((k) => [k, get(n, k)]);
+  }
+  function setOp(b, k, v) { const o = { ...b, key: k }; if (v === MISSING) o.del = true; else o.value = clone(v); return o; }
+  function listOps(old, nw, pre, idk, addOp, delOp, orderOp, inner) {
+    const ops = [], oi = new Map(items(old).map((x) => [x.id, x])), ni = new Map(items(nw).map((x) => [x.id, x]));
+    const nids = items(nw).map((x) => x.id);
+    for (const x of items(old)) if (!ni.has(x.id)) ops.push({ op: delOp, ...pre, [idk]: x.id });
+    const co = items(old).map((x) => x.id).filter((i) => ni.has(i)), cn = nids.filter((i) => oi.has(i));
+    if (!eq(co, cn)) ops.push({ op: orderOp, ...pre, ids: cn });
+    nids.forEach((i, n) => {
+      if (!oi.has(i)) ops.push({ op: addOp, ...pre, [idk]: i, after: n ? nids[n - 1] : null, value: clone(ni.get(i)) });
+      else ops.push(...inner(oi.get(i), ni.get(i)));
+    });
+    return ops;
+  }
+  function ops(old, nw) {
+    old = isObj(old) ? old : {}; nw = isObj(nw) ? nw : {};
+    const out = props(old, nw, ["updated", "slides", "sheets"]).map(([k, v]) => setOp({ op: "deck-set" }, k, v));
+    if (kindOf(nw) === "sheets") {
+      const tab = (a, b) => {
+        const t = { tab: a.id };
+        const o = props(a, b, ["id", "cells", "cols", "rows"]).map(([k, v]) => setOp({ op: "tab-set", ...t }, k, v));
+        for (const [part, op] of [["cells", "cell"], ["cols", "cols"], ["rows", "rows"]]) o.push(...props(a[part] || {}, b[part] || {}, []).map(([k, v]) => setOp({ op, ...t }, k, v)));
+        return o;
+      };
+      out.push(...listOps(old.sheets, nw.sheets, {}, "tab", "tab-add", "tab-del", "tabs-order", tab));
+      if (!eq(old.slides || [], nw.slides || [])) out.push(setOp({ op: "deck-set" }, "slides", get(nw, "slides")));
+      return out;
+    }
+    const slide = (a, b) => {
+      const s = { slide: a.id };
+      const o = props(a, b, ["id", "elements"]).map(([k, v]) => setOp({ op: "slide-set", ...s }, k, v));
+      const el = (x, y) => {
+        const e = { slide: a.id, el: x.id }, r = []; let geo = false;
+        for (const [k, v] of props(x, y, ["id"])) { if (GEOM.includes(k)) geo = true; else r.push(setOp({ op: "set", ...e }, k, v)); }
+        if (geo) r.unshift({ op: "set", ...e, key: "geom", value: Object.fromEntries(GEOM.filter((k) => k in y).map((k) => [k, y[k]])) });
+        return r;
+      };
+      return o.concat(listOps(a.elements, b.elements, s, "el", "add", "del", "order", el));
+    };
+    return out.concat(listOps(old.slides, nw.slides, {}, "slide", "slide-add", "slide-del", "slides-order", slide));
+  }
+  const findId = (l, i) => (Array.isArray(l) ? l.find((x) => isObj(x) && x.id === i) : undefined) || null;
+  function insertAfter(l, v, after) {
+    const ids = l.map((x) => (isObj(x) ? x.id : undefined)); if (ids.includes(v.id)) return;
+    l.splice(ids.includes(after) ? ids.indexOf(after) + 1 : after === null || after === undefined ? 0 : l.length, 0, v);
+  }
+  function reorder(l, ids) {
+    const rank = new Map(ids.map((i, n) => [i, n])), has = (x) => isObj(x) && rank.has(x.id);
+    const known = l.filter(has).sort((a, b) => rank.get(a.id) - rank.get(b.id)); let k = 0;
+    return l.map((x) => (has(x) ? known[k++] : x));
+  }
+  function put(o, t) { if (o.del) delete t[o.key]; else t[o.key] = clone(o.value); }
+  function applyOps(doc, list, base) {
+    const out = clone(isObj(doc) ? doc : {}), key = kindOf(out), dropped = []; let applied = 0;
+    (list || []).forEach((o, i) => { const why = apply1(out, key, o, base); if (why) dropped.push({ i, op: o.op, why }); else applied++; });
+    return { doc: out, applied, dropped };
+  }
+  function revive(out, key, base, sid) {
+    const bl = items((base || {})[key]), b = findId(bl, sid); if (!b) return null;
+    const n = bl.map((x) => x.id).indexOf(sid);
+    insertAfter(out[key] = out[key] || [], clone(b), n ? bl[n - 1].id : null);
+    return findId(out[key], sid);
+  }
+  function apply1(out, key, o, base) {
+    const op = o.op;
+    if (op === "deck-set") { put(o, out); return null; }
+    const unit = key === "sheets" ? "tab" : "slide";
+    const lst = out[key] = Array.isArray(out[key]) ? out[key] : [];
+    if (op === "slide-add" || op === "tab-add") { insertAfter(lst, clone(o.value), o.after); return null; }
+    if (op === "slide-del" || op === "tab-del") { out[key] = lst.filter((x) => !(isObj(x) && x.id === o[unit])); return null; }
+    if (op === "slides-order" || op === "tabs-order") { out[key] = reorder(lst, o.ids || []); return null; }
+    let cur = findId(lst, o[unit]);
+    if (!cur) { cur = revive(out, key, base, o[unit]); if (!cur) return `${key === "sheets" ? "탭" : "장"} ${o[unit]} 없음`; }  // 수정 > 삭제
+    if (op === "slide-set" || op === "tab-set") { put(o, cur); return null; }
+    if (key === "sheets") {
+      const part = { cell: "cells", cols: "cols", rows: "rows" }[op]; if (!part) return `모르는 작업 ${op}`;
+      put(o, cur[part] = isObj(cur[part]) ? cur[part] : {}); return null;
+    }
+    const els = cur.elements = Array.isArray(cur.elements) ? cur.elements : [];
+    if (op === "add") { insertAfter(els, clone(o.value), o.after); return null; }
+    if (op === "del") { cur.elements = els.filter((x) => !(isObj(x) && x.id === o.el)); return null; }
+    if (op === "order") { cur.elements = reorder(els, o.ids || []); return null; }
+    if (op !== "set") return `모르는 작업 ${op}`;
+    let e = findId(els, o.el);
+    if (!e) {  // 그 사이 지운 요소를 고쳤다 - 기준본에서 되살린다
+      const bs = findId(items((base || {}).slides), o.slide), be = bs && findId(bs.elements, o.el);
+      if (!be) return `요소 ${o.el} 없음`;
+      const bel = bs.elements.filter(isObj).map((x) => x.id), n = bel.indexOf(o.el);
+      insertAfter(els, clone(be), n ? bel[n - 1] : null); e = findId(els, o.el);
+    }
+    if (o.key === "geom") { for (const k of GEOM) { if (isObj(o.value) && k in o.value) e[k] = o.value[k]; else delete e[k]; } }
+    else put(o, e);
+    return null;
+  }
+
+  root.NexaMerge = { merge3, describe, eq, seal, undoTarget, afterSave, notice, ops, applyOps };
 })(typeof window !== "undefined" ? window : globalThis);

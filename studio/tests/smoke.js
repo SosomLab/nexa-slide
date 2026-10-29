@@ -115,7 +115,8 @@ async function runScenario(file, bsend, handlers) {
         console.log(`${ok ? "OK  " : "FAIL"} ${s.name}${err ? " - " + err : v === false ? "" : typeof v === "string" && (s.dump || v.length < 200) ? " → " + v : ""}`);
       }
       await sleep(300); await settle(1000);  // 마지막 단계가 부른 요청(늦춰 저장 포함)의 실패·예외가 콘솔에 닿을 시간
-      if (errors.length) { fails++; console.log("FAIL 콘솔 오류:", errors.slice(0, 8)); } else console.log("OK   콘솔 오류 없음");
+      // 콘솔 오류는 한 줄로 - run_all·배포 기록이 FAIL 줄만 남겨도 원인이 보이게
+      if (errors.length) { fails++; console.log("FAIL 콘솔 오류: " + JSON.stringify(errors.slice(0, 8))); } else console.log("OK   콘솔 오류 없음");
     }
   } finally {
     delete handlers[sid];
