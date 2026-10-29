@@ -3072,5 +3072,108 @@
    ]
   },
   "conflicts": 0
+ },
+ {
+  "name": "같은 요소를 두 창이 다르게 옮김(rot 없음) - 충돌 기록은 {키: 값}, JSON 으로 쓸 수 있다(0.24.12 전에는 500)",
+  "prefer": "ours",
+  "base": {
+   "id": "d",
+   "title": "t",
+   "slides": [
+    {
+     "id": "s1",
+     "elements": [
+      {
+       "id": "e1",
+       "type": "text",
+       "x": 10,
+       "y": 10,
+       "w": 100,
+       "h": 40,
+       "text": "e1"
+      }
+     ]
+    }
+   ]
+  },
+  "ours": {
+   "id": "d",
+   "title": "t",
+   "slides": [
+    {
+     "id": "s1",
+     "elements": [
+      {
+       "id": "e1",
+       "type": "text",
+       "x": 50,
+       "y": 10,
+       "w": 100,
+       "h": 40,
+       "text": "e1"
+      }
+     ]
+    }
+   ]
+  },
+  "theirs": {
+   "id": "d",
+   "title": "t",
+   "slides": [
+    {
+     "id": "s1",
+     "elements": [
+      {
+       "id": "e1",
+       "type": "text",
+       "x": 10,
+       "y": 80,
+       "w": 100,
+       "h": 40,
+       "text": "e1"
+      }
+     ]
+    }
+   ]
+  },
+  "expect": {
+   "id": "d",
+   "title": "t",
+   "slides": [
+    {
+     "id": "s1",
+     "elements": [
+      {
+       "id": "e1",
+       "type": "text",
+       "x": 50,
+       "y": 10,
+       "w": 100,
+       "h": 40,
+       "text": "e1"
+      }
+     ]
+    }
+   ]
+  },
+  "conflicts": 1,
+  "conflictList": [
+   {
+    "path": "slides/s1/elements/e1/x·y·w·h·rot",
+    "kept": "ours",
+    "ours": {
+     "x": 50,
+     "y": 10,
+     "w": 100,
+     "h": 40
+    },
+    "theirs": {
+     "x": 10,
+     "y": 80,
+     "w": 100,
+     "h": 40
+    }
+   }
+  ]
  }
 ]

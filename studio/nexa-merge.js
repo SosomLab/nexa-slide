@@ -38,7 +38,11 @@
       const out = {}, grouped = new Set(groups.flat());
       for (const g of groups) {
         const pick = (d) => g.map((k) => get(d, k));
+        const n = conflicts.length;
         const r = val(`${path}/${g.join("·")}`, pick(b), pick(o), pick(t));
+        for (const c of conflicts.slice(n)) {  // 충돌 기록에는 묶음을 {키: 값}(없는 키는 뺌)으로 - deckmerge.py 와 같게
+          for (const [side, d] of [["ours", o], ["theirs", t]]) c[side] = Object.fromEntries(g.filter((k) => get(d, k) !== MISSING).map((k) => [k, d[k]]));
+        }
         g.forEach((k, n) => { if (r[n] !== MISSING) out[k] = r[n]; });
       }
       const order = [...Object.keys(t), ...Object.keys(o).filter((k) => !(k in t)), ...Object.keys(b).filter((k) => !(k in t) && !(k in o))];

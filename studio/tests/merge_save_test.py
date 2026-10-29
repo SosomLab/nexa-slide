@@ -191,7 +191,7 @@ def main():
         st, ra = ops("mg", {"base": ov, "ops": [{"op": "set", "slide": sid, "el": e1, "key": "text", "value": "작업 저장"},
                                                 {"op": "set", "slide": sid, "el": "없는요소", "key": "text", "value": "x"}]})
         d7 = get("mg")[0]
-        check("작업 저장 - 오래된 판 위의 작업: 남이 지운 e1 을 되살려 고침 · 남의 e2 글 유지 · 없는 요소 작업은 버림", st == 200 and ra.get("applied") == 1 and len(ra.get("dropped") or []) == 1 and ra.get("stale")
+        check("작업 저장 - 오래된 판 위의 작업: 남이 지운 e1 을 되살려 고침 · 남의 e2 글 유지 · 없는 요소 작업은 버림 · 결과 deck 을 준다", st == 200 and ra.get("applied") == 1 and len(ra.get("dropped") or []) == 1 and ra.get("stale") and (ra.get("deck") or {}).get("slides") == d7["slides"]
               and el(d7, sid, e1)["text"] == "작업 저장" and el(d7, sid, e2)["text"] == "다른 창 글" and [x["id"] for x in d7["slides"][0]["elements"][:2]] == [e1, e2], json.dumps(ra, ensure_ascii=False) + json.dumps(d7["slides"][0], ensure_ascii=False)[:300])
         with urllib.request.urlopen(f"{B}/api/changes/mg?seq={ra.get('seq')}", timeout=10) as r:
             ent = json.loads(r.read()).get("entry") or {}

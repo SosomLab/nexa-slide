@@ -22,6 +22,11 @@ def main():
         ins = copy.deepcopy((c["base"], c["ours"], c["theirs"]))
         got, conf = deckmerge.merge3(c["base"], c["ours"], c["theirs"], c.get("prefer", "ours"))
         ok = got == c["expect"] and len(conf) == c["conflicts"] and ins == (c["base"], c["ours"], c["theirs"])
+        try:  # 충돌 기록은 원장·응답에 JSON 으로 쓴다 - 내부 표식(MISSING)이 새면 저장이 500
+            cj = json.loads(json.dumps(conf, ensure_ascii=False))
+            ok = ok and cj == c.get("conflictList", cj)
+        except TypeError:
+            ok = False
         print(("OK  " if ok else "FAIL"), c["name"], "" if ok else f"\n  충돌 {len(conf)}(기대 {c['conflicts']}) {conf}\n  결과 {json.dumps(got, ensure_ascii=False)}\n  기대 {json.dumps(c['expect'], ensure_ascii=False)}")
         fails += not ok
         for side in ("ours", "theirs"):  # 항등 - 한쪽이 기준 그대로면 결과는 다른 쪽

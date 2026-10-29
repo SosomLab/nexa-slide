@@ -53,7 +53,11 @@ class _M:
         out, grouped = {}, {k for g in groups for k in g}
         for g in groups:  # 묶음 - 묶음 전체를 값 하나로
             pick = lambda d: tuple(d.get(k, MISSING) for k in g)  # noqa: E731
+            n = len(self.conflicts)
             r = self.val(f"{path}/{'·'.join(g)}", pick(b), pick(o), pick(t))
+            for c in self.conflicts[n:]:  # 충돌 기록에는 묶음을 {키: 값}(없는 키는 뺌)으로 - 원장·응답 JSON 에 MISSING 이 새지 않게
+                for side, d in (("ours", o), ("theirs", t)):
+                    c[side] = {k: d[k] for k in g if k in d}
             for k, v in zip(g, r):
                 if v is not MISSING:
                     out[k] = v
