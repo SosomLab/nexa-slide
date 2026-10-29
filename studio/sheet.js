@@ -669,6 +669,7 @@
   }
   let vRaf = 0;
   function onGridScroll() {  // 그린 범위 끝에 가까워지면 다시 그린다
+    if (S.deck && sheet().freeze) placeSel();  // 틀 고정 - 고정 칸 쪽 선택 표시가 따라오고 스크롤 쪽은 고정 칸 밑으로
     if (G.rows <= VIRT || vRaf) return;
     vRaf = requestAnimationFrame(() => {
       vRaf = 0;
@@ -762,15 +763,44 @@
   }
   function rectOf(g) { return { x: G.colX[g.c1], y: G.rowY[g.r1], w: G.colX[g.c2 + 1] - G.colX[g.c1], h: G.rowY[g.r2 + 1] - G.rowY[g.r1] }; }
   function place(el, g, inset = 0) { const R = rectOf(g); Object.assign(el.style, { left: R.x - inset + "px", top: R.y - inset + "px", width: R.w + inset * 2 + 1 + "px", height: R.h + inset * 2 + 1 + "px" }); }
-  function renderSel() {
+  // 틀 고정 - 고정 행·열 칸(sticky)은 스크롤만큼 따라 움직인다. 선택 표시를 고정·스크롤 사분면으로 나눠 고정 쪽은 같이 옮기고, 스크롤 쪽은 고정 칸 밑으로 가린다(엑셀과 같다)
+  const frz = () => parseRef(sheet().freeze || "") || { r: 0, c: 0 };
+  function paneOf(r, c) {  // 그 칸이 있는 사분면의 이동량(dx·dy)과 가림 선(cx·cy, 내용 좌표 - 이보다 왼쪽·위는 고정 칸이 덮는다)
+    const fz = frz(), W = $("#gridWrap");
+    if (!fz.r && !fz.c) return { dx: 0, dy: 0, cx: null, cy: null };
+    const fr = r < fz.r, fc = c < fz.c;
+    return { dx: fc ? W.scrollLeft : 0, dy: fr ? W.scrollTop : 0, cx: fc ? null : W.scrollLeft + G.colX[fz.c], cy: fr ? null : W.scrollTop + G.rowY[fz.r] };
+  }
+  function placeQ(el, g, inset = 0) {
+    const fz = frz(), parts = [];
+    if (!el.hidden) for (const [r1, r2] of [[g.r1, Math.min(g.r2, fz.r - 1)], [Math.max(g.r1, fz.r), g.r2]]) for (const [c1, c2] of [[g.c1, Math.min(g.c2, fz.c - 1)], [Math.max(g.c1, fz.c), g.c2]]) if (r1 <= r2 && c1 <= c2) parts.push({ r1, c1, r2, c2 });
+    const extra = [...el.parentNode.querySelectorAll(`.q-${el.id}`)];
+    parts.forEach((q, i) => {
+      let e = el;
+      if (i) { e = extra[i - 1]; if (!e) { e = document.createElement("div"); e.className = `ov q-${el.id}`; (extra[extra.length - 1] || el).after(e); extra.push(e); } e.hidden = false; }
+      const R = rectOf(q), p = paneOf(q.r1, q.c1), x = R.x - inset + p.dx, y = R.y - inset + p.dy, w = R.w + inset * 2 + 1, h = R.h + inset * 2 + 1;
+      const t = p.cy == null ? 0 : Math.max(0, p.cy - y), l = p.cx == null ? 0 : Math.max(0, p.cx - x);
+      Object.assign(e.style, { left: x + "px", top: y + "px", width: w + "px", height: h + "px", clipPath: t || l ? `inset(${t}px 0 0 ${l}px)` : "", visibility: t >= h || l >= w ? "hidden" : "",
+        borderTopStyle: q.r1 > g.r1 ? "none" : "", borderLeftStyle: q.c1 > g.c1 ? "none" : "", borderBottomStyle: q.r2 < g.r2 ? "none" : "", borderRightStyle: q.c2 < g.c2 ? "none" : "" });  // 사분면 사이 경계선은 안 그린다
+    });
+    extra.slice(Math.max(0, parts.length - 1)).forEach((e) => { e.hidden = true; });
+  }
+  function placeSel() {
     const sh = sheet(), g = clampRange(S.sel), cm = mergeAt(sh, S.cur.r, S.cur.c) || { r1: S.cur.r, c1: S.cur.c, r2: S.cur.r, c2: S.cur.c };
-    place($("#selBox"), g); $("#selBox").hidden = g.r1 === g.r2 && g.c1 === g.c2 || rangeName(g) === rangeName(cm);
-    place($("#curBox"), cm, 1);
-    { const R = rectOf(g), H = $("#fillHandle"); H.style.left = R.x + R.w - 3 + "px"; H.style.top = R.y + R.h - 3 + "px"; H.hidden = !!S.edit; }  // 채우기 핸들 - 선택 범위 오른쪽 아래
+    $("#selBox").hidden = g.r1 === g.r2 && g.c1 === g.c2 || rangeName(g) === rangeName(cm); placeQ($("#selBox"), g);
+    placeQ($("#curBox"), cm, 1);
+    {  // 채우기 핸들 - 선택 범위 오른쪽 아래, 고정 칸에 덮이면 감춘다
+      const R = rectOf(g), H = $("#fillHandle"), p = paneOf(g.r2, g.c2), x = R.x + R.w - 3 + p.dx, y = R.y + R.h - 3 + p.dy;
+      H.style.left = x + "px"; H.style.top = y + "px"; H.hidden = !!S.edit || (p.cx != null && x < p.cx) || (p.cy != null && y < p.cy);
+    }
+    const cb = $("#clipBox"); cb.hidden = !(S.clip && S.clip.ti === sh.id && S.clip.show); placeQ(cb, cb.hidden ? g : S.clip.g);
+  }
+  function renderSel() {
+    const sh = sheet(), g = clampRange(S.sel);
+    placeSel();
     $$("#grid th.on").forEach((t) => t.classList.remove("on"));
     for (let c = g.c1; c <= g.c2; c++) { const t = $(`#grid th[data-col="${c}"]`); if (t) t.classList.add("on"); }
     for (let r = g.r1; r <= g.r2; r++) { const t = $(`#grid th[data-row="${r}"]`); if (t) t.classList.add("on"); }
-    const cb = $("#clipBox"); cb.hidden = !(S.clip && S.clip.ti === sh.id && S.clip.show); if (!cb.hidden) place(cb, S.clip.g);
     $("#nameBox").value = rangeName(g);
     if (document.activeElement !== $("#fxIn")) $("#fxIn").value = rawText(sh, key(S.cur.r, S.cur.c));
     if (!S.edit) placeEditor();

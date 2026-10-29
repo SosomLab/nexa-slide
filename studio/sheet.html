@@ -111,13 +111,13 @@
   #grid td { cursor: cell; }
   #addRows { margin: 8px 0 24px 8px; }
   .ov { position: absolute; pointer-events: none; z-index: 2; }
-  #selBox { border: 1px solid var(--sel); background: var(--selFill); }
-  #curBox { border: 2px solid var(--sel); }
+  #selBox, .q-selBox { border: 1px solid var(--sel); background: var(--selFill); }
+  #curBox, .q-curBox { border: 2px solid var(--sel); }
   #fillHandle { position: absolute; z-index: 4; width: 7px; height: 7px; background: var(--sel); border: 1px solid #fff; cursor: crosshair; box-sizing: content-box; }
   #fillBox { border: 1px dashed #444; z-index: 3; }
   #fillBox.shrink { border-style: solid; border-color: #888; background: rgba(0, 0, 0, .12); }
   #fillTip { position: absolute; z-index: 5; pointer-events: none; background: #fff; border: 1px solid #999; border-radius: 3px; box-shadow: 0 1px 3px rgba(0, 0, 0, .2); font: 12px/18px var(--font); padding: 0 6px; white-space: nowrap; }
-  #clipBox { border: 2px dashed var(--sel); }
+  #clipBox, .q-clipBox { border: 2px dashed var(--sel); }
   .reqBox { border: 2px dashed #E0A100; }
   .reqBox.working { border-color: var(--info); }
   .reqBox.draft { border-color: #E5484D; }
