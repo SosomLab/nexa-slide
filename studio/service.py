@@ -6,6 +6,7 @@
     python3 studio/service.py --workspace <작업 공간> restart
     python3 studio/service.py --workspace <작업 공간> status    # status.py 와 같음
     python3 studio/service.py --workspace <작업 공간> url       # 접속 주소 한 줄
+    python3 studio/service.py autostart on|off|status [--dry-run]   # 허브 - PC 를 켜고 로그인하면 자동으로 띄우기(Windows 작업 스케줄러)
 
 서비스 구성(포트·제목·브랜드·경로)은 모두 작업 공간의 nexa-slide.json 에 있다 — 엔진은 실행만 한다.
 작업 공간 없이(작업 공간 밖에서) 실행하면 허브(시작 페이지) 서버를 다룬다 — 포트 5599, 로그·실행 정보는 사용자 설정 폴더.
@@ -120,10 +121,62 @@ def stop():
     return 1
 
 
+TASK = "nexa-slide hub"  # 작업 스케줄러 이름(docs/server-admin.md 6절과 같다)
+
+
+def _ps(script):
+    return subprocess.run(["powershell", "-NoProfile", "-NonInteractive", "-Command", script], capture_output=True, text=True, encoding="utf-8", errors="replace")
+
+
+def autostart(arg, dry=False):
+    """PC 를 켜고 로그인하면 허브를 띄운다 - Windows 작업 스케줄러 "로그온 시 실행"(관리자 권한 불필요, 이 사용자 계정으로).
+    on · off · status. 다른 OS 는 할 일을 안내만 한다(docs/server-admin.md 6절)."""
+    if not HUB:
+        print("자동 시작은 허브만 - 작업 공간 밖에서 실행한다(작업 공간 서버는 허브가 띄운다)")
+        return 1
+    if os.name != "nt":
+        print(f"Windows 가 아니다 - 로그인 때 `{sys.executable} {STUDIO / 'service.py'} start` 를 실행하게 한다"
+              " (macOS launchd 사용자 에이전트 · Linux systemd --user). docs/server-admin.md 6절")
+        return 1
+    q = lambda s: "'" + str(s).replace("'", "''") + "'"  # noqa: E731 - PowerShell 작은따옴표 글
+    if arg == "on" and not dry and ".claude" in STUDIO.parts and "worktrees" in STUDIO.parts:
+        print(f"이 엔진은 개발용 worktree 다({STUDIO.parent}) - 운영 엔진(main 체크아웃)의 service.py 로 켠다")
+        return 1
+    if arg == "on":
+        # 작업 폴더는 사용자 폴더(작업 공간 밖) - 작업 공간 안이면 허브가 아니라 그 작업 공간 서버가 뜬다
+        script = (f"$a = New-ScheduledTaskAction -Execute {q(sys.executable)} -Argument {q(chr(34) + str(STUDIO / 'service.py') + chr(34) + ' start')}"
+                  f" -WorkingDirectory $env:USERPROFILE; "
+                  f"$t = New-ScheduledTaskTrigger -AtLogOn -User $env:USERNAME; "
+                  f"$s = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -ExecutionTimeLimit 0; "
+                  f"Register-ScheduledTask -TaskName {q(TASK)} -Action $a -Trigger $t -Settings $s -Force | Out-Null")
+    elif arg == "off":
+        script = f"Unregister-ScheduledTask -TaskName {q(TASK)} -Confirm:$false"
+    elif arg == "status":
+        script = f"$t = Get-ScheduledTask -TaskName {q(TASK)} -ErrorAction SilentlyContinue; if ($t) {{ ($t.State.ToString() + ' · ' + $t.Actions[0].Execute + ' ' + $t.Actions[0].Arguments) }} else {{ 'none' }}"
+    else:
+        print("autostart on | off | status")
+        return 1
+    if dry:
+        print(script)
+        return 0
+    r = _ps(script)
+    out = (r.stdout or "").strip()
+    if arg == "status":
+        print("자동 시작: 꺼짐" if out in ("", "none") else f"자동 시작: 켜짐 ({out})")
+        return 0
+    if r.returncode:
+        print(f"실패: {(r.stderr or out).strip()[:300]}")
+        return 1
+    print(f"자동 시작 {'켬' if arg == 'on' else '끔'} - 작업 스케줄러 '{TASK}'" + (" (로그인하면 허브가 뜬다)" if arg == "on" else ""))
+    return 0
+
+
 def main():
-    if len(sys.argv) < 2 or sys.argv[1] not in ("start", "stop", "restart", "status", "url"):
+    if len(sys.argv) < 2 or sys.argv[1] not in ("start", "stop", "restart", "status", "url", "autostart"):
         sys.exit(__doc__)
     cmd, extra = sys.argv[1], sys.argv[2:]
+    if cmd == "autostart":
+        return autostart(extra[0] if extra else "status", "--dry-run" in extra)
     if cmd == "start":
         return start(extra)
     if cmd == "stop":
