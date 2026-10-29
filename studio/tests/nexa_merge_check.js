@@ -9,7 +9,8 @@ let bad = 0;
 for (const c of cases) {
   const ins = JSON.stringify([c.base, c.ours, c.theirs]);
   const { merged, conflicts } = M.merge3(c.base, c.ours, c.theirs, c.prefer || "ours");
-  const ok = M.eq(merged, c.expect) && conflicts.length === c.conflicts && JSON.stringify([c.base, c.ours, c.theirs]) === ins;
+  const ok = M.eq(merged, c.expect) && conflicts.length === c.conflicts && JSON.stringify([c.base, c.ours, c.theirs]) === ins
+    && (!c.conflictList || M.eq(JSON.parse(JSON.stringify(conflicts)), c.conflictList));
   console.log(ok ? "OK  " : "FAIL", c.name, ok ? "" : `\n  충돌 ${conflicts.length}(기대 ${c.conflicts})\n  결과 ${JSON.stringify(merged)}\n  기대 ${JSON.stringify(c.expect)}`);
   if (!ok) bad++;
   // 장·요소·탭 순서는 키 순서와 달리 뜻이 있다 - 목록 id 순서까지 같은지
