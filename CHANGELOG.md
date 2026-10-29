@@ -1,5 +1,9 @@
 # 변경 이력
 
+## 0.24.4 - 2026-10-29 · 시트 문서·세션 안내
+
+- AI 세션 안내 - 요약 표는 `GROUPBY`·`PIVOTBY` 수식으로, 되풀이 계산은 이름 정의 `LAMBDA` 로(협업 세션 `3b7b3fe`). `docs/sheets.md` 에 이름 정의·GROUPBY·PIVOTBY·LAMBDA 계열.
+
 ## 0.24.3 - 2026-10-29 · 시트 LAMBDA · AI 제안 하나씩 받기
 
 - **`LAMBDA`·`MAP`·`BYROW`·`BYCOL`·`REDUCE`·`SCAN`·`MAKEARRAY`**(엑셀 365, 계산기 두 곳): `=SUM(MAP(B2:B5,LAMBDA(x,x*2)))` · `=BYROW(B2:C5,LAMBDA(r,SUM(r)))` · `=REDUCE(0,범위,LAMBDA(a,v,a+v))`. LET 이름에 담아 `f(2,3)` 으로 부르고, **이름 정의에 담으면 사용자 함수**(이름 관리자 `세후 = LAMBDA(x,x*0.9)` → `=세후(1000)`, 자기를 부르는 재귀도 깊이 200까지). 칸 값이 함수면 `#CALC!`, 인수 개수가 틀리면 `#VALUE!`.
