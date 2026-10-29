@@ -129,7 +129,12 @@
   #grid td.err .cv { color: var(--err); }
   #grid.nogrid td { border-color: transparent; }  /* 눈금선 숨김(탭·테마 grid:false) - 테두리(bd)는 칸마다 색을 따로 준다 */
   #draws img.drw { position: absolute; z-index: 1; user-select: none; object-fit: contain; cursor: pointer; }  /* 누르면 그림 고르기(Ctrl·Shift = 여럿) - 요청 대상 */
-  body.painting #grid td { cursor: copy; }  /* 서식 복사 중 */
+  body.painting #grid td { cursor: copy; }
+  #grid td.nt:not(.fz) { position: relative; }  /* 고정 칸(sticky)은 그대로 */
+  #grid td.nt::after { content: ""; position: absolute; top: 0; right: 0; border-top: 6px solid #E5484D; border-left: 6px solid transparent; pointer-events: none; }  /* 메모 */
+  .notePop { position: fixed; z-index: 90; width: 280px; background: #FFFDE7; border: 1px solid #E0D58A; border-radius: 10px; box-shadow: 0 4px 16px rgba(0,0,0,.18); padding: 8px; display: flex; flex-direction: column; gap: 6px; font-size: 12.5px; }
+  .notePop textarea { border: 1px solid #E0D58A; border-radius: 6px; padding: 6px; font: inherit; resize: vertical; background: #fff; }
+  .notePop .acts { display: flex; gap: 6px; align-items: center; }  /* 서식 복사 중 */
   #drawHandle { position: absolute; z-index: 4; width: 8px; height: 8px; background: var(--sel); border: 1px solid #fff; cursor: nwse-resize; }
   #drawHandle[hidden] { display: none; }
   #draws img.drw.on { outline: 2px solid var(--sel); outline-offset: 1px; box-shadow: 0 0 0 4px rgba(26, 115, 232, .18); }

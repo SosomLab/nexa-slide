@@ -433,12 +433,58 @@
     dlg.addEventListener("keydown", (e) => { if (e.key === "Escape") dlg.remove(); if (e.key === "Enter") ok(); e.stopPropagation(); });
     const first = dlg.querySelector("input"); if (first) { first.focus(); first.select(); }
   }
+  // ---------------------------------------------------------------- 중복된 항목 제거 · 텍스트 나누기(엑셀 데이터 탭)
+  function dataRange() {
+    const S = N().S, x = X(); let g = x.clampRange(S.sel);
+    if (g.r1 === g.r2 && g.c1 === g.c2) g = region(x.sheet(), S.cur.r, S.cur.c);
+    return g;
+  }
+  function removeDuplicates() {
+    const x = X(), sh = x.sheet(), g = dataRange();
+    if (g.r2 <= g.r1) { x.toast("두 줄 이상인 범위에서 씁니다"); return; }
+    const first = [];
+    for (let c = g.c1; c <= g.c2; c++) first.push(valOf(sh.cells[x.key(g.r1, c)]));
+    const head = first.every((v) => typeof v === "string" || v == null) && first.some((v) => v);
+    const hasHead = head && confirm(`${x.rangeName(g)} 의 중복된 행을 지웁니다(모든 열이 같은 행 - 처음 것만 남김).\n\n첫 줄(${first.filter(Boolean).slice(0, 4).join(", ")}…)이 머리글인가요? [확인] = 머리글은 그대로 · [취소] = 첫 줄도 데이터`);
+    const r0 = hasHead ? g.r1 + 1 : g.r1, seen = new Set(), keep = [];
+    for (let r = r0; r <= g.r2; r++) {
+      const sig = JSON.stringify(Array.from({ length: g.c2 - g.c1 + 1 }, (_, j) => String(N().display(N().effCell(sh.cells[x.key(r, g.c1 + j)]))).toLowerCase()));
+      if (seen.has(sig)) continue; seen.add(sig); keep.push(r);
+    }
+    const removed = g.r2 - r0 + 1 - keep.length;
+    if (!removed) { x.toast("중복된 행이 없습니다"); return; }
+    x.mutate(() => {
+      const rows = keep.map((r) => Array.from({ length: g.c2 - g.c1 + 1 }, (_, j) => sh.cells[x.key(r, g.c1 + j)]));
+      for (let i = 0; i <= g.r2 - r0; i++) for (let j = 0; j <= g.c2 - g.c1; j++) {
+        const k = x.key(r0 + i, g.c1 + j), v = rows[i] ? rows[i][j] : undefined;
+        if (v === undefined) delete sh.cells[k];
+        else { const o = x.clone(v); if (o && typeof o === "object" && o.f && keep[i] !== r0 + i) { o.f = N().shiftFormula(o.f, r0 + i - keep[i], 0); delete o.v; } sh.cells[k] = o; }
+      }
+    });
+    x.toast(`중복된 행 ${removed}개를 지웠습니다 - ${keep.length}개 남음`, 3500);
+  }
+  function textToColumns() {
+    const S = N().S, x = X(), sh = x.sheet(), g = x.clampRange(S.sel);
+    if (g.c1 !== g.c2) { x.toast("한 열만 고른 뒤 씁니다(나눈 값은 오른쪽 열로)"); return; }
+    const ans = prompt("나눌 기호 - 쉼표(,) · 탭 · 공백 · 세미콜론(;) 또는 직접 입력", ","); if (ans == null) return;
+    const sep = { "탭": "\t", "tab": "\t", "공백": " ", "space": " " }[ans.trim().toLowerCase()] || ans;
+    if (!sep) return;
+    const parts = []; let width = 0;
+    for (let r = g.r1; r <= g.r2; r++) { const t = String(N().display(N().effCell(sh.cells[x.key(r, g.c1)])) || ""); const ps = t === "" ? [] : sep === " " ? t.trim().split(/\s+/) : t.split(sep); parts.push(ps); width = Math.max(width, ps.length); }
+    if (width < 2) { x.toast(`"${ans}" 로 나눌 값이 없습니다`); return; }
+    let busy = 0; for (let r = g.r1; r <= g.r2; r++) for (let j = 1; j < width; j++) { const v = valOf(sh.cells[x.key(r, g.c1 + j)]); if (v != null && v !== "") busy++; }
+    if (busy && !confirm(`오른쪽 ${width - 1}열에 값이 있는 칸 ${busy}개를 덮어씁니다. 계속할까요?`)) return;
+    x.mutate(() => { for (let i = 0; i < parts.length; i++) for (let j = 0; j < width; j++) { const k = x.key(g.r1 + i, g.c1 + j); const t = parts[i][j]; if (t === undefined) { if (j) { const o = { ...x.cellObj(sh, k) }; delete o.v; delete o.f; x.putCell(sh, k, o); } continue; } N().setInput(sh, k, t.trim()); } });
+    x.toast(`${parts.length}줄을 ${width}열로 나눴습니다`);
+  }
   function dataMenu(btn) {
     const x = X(), sh = x.sheet();
     x.openMenu(btn, [
       { label: sh.filter ? "필터 끄기 (Ctrl+Shift+L)" : "필터 켜기 (Ctrl+Shift+L)", act: filterToggle },
       { label: "필터 지우기(모든 조건)", disabled: !(sh.filter && sh.filter.cols), act: filterClear },
       { label: "다시 적용", disabled: !sh.filter, act: filterReapply },
+      "-",
+      { label: "중복된 항목 제거…", act: removeDuplicates }, { label: "텍스트 나누기…(한 열 → 여러 열)", act: textToColumns },
       "-",
       { label: "고른 행 숨기기", act: () => hide("r", true) }, { label: "고른 열 숨기기", act: () => hide("c", true) },
       { label: "행 숨기기 취소(고른 범위와 그 옆)", act: () => hide("r", false) }, { label: "열 숨기기 취소(고른 범위와 그 옆)", act: () => hide("c", false) },
@@ -737,5 +783,5 @@
   document.addEventListener("keyup", (e) => { if (X() && e.target === X().ED() && /^(Arrow(Left|Right)|Home|End)$/.test(e.key)) acUpdate(); }, true);
   document.addEventListener("mousedown", (e) => { const it = e.target.closest("#acBox [data-ac]"); if (it) { e.preventDefault(); acPick(it.dataset.ac); } else if (!e.target.closest("#acBox")) acHide(); }, true);
   setInterval(() => { if (X() && !N().S.edit) acHide(); }, 400);
-  window.NexaSheetX = { onSel: () => { onSel(); renderFilterBtns(); renderDv(); dvMarks(); }, onChange: () => { onSel(); renderFilterBtns(); renderDv(); dvMarks(); }, dvCreate, dvClear, dvPick, condMap, condDialog, condClear, sortRange, fillDir, findBox, autoSum, hide, filterToggle, filterClear, filterReapply, setCrit, hiddenBy, paintArm, paintOff, paintApply };
+  window.NexaSheetX = { onSel: () => { onSel(); renderFilterBtns(); renderDv(); dvMarks(); }, onChange: () => { onSel(); renderFilterBtns(); renderDv(); dvMarks(); }, dvCreate, dvClear, dvPick, condMap, condDialog, condClear, sortRange, fillDir, findBox, autoSum, hide, filterToggle, filterClear, filterReapply, setCrit, hiddenBy, paintArm, paintOff, paintApply, removeDuplicates, textToColumns };
 })();

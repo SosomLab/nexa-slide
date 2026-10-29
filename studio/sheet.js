@@ -789,6 +789,7 @@
         if (r < fz.r || c < fz.c) { cls.push("fz"); extra.push(r < fz.r ? `top:${G.rowY[r]}px` : "", c < fz.c ? `left:${G.colX[c]}px` : ""); if (r < fz.r && c < fz.c) extra.push("z-index:2"); }
         if (fz.r && r === fz.r - 1) cls.push("fzr"); if (fz.c && c === fz.c - 1) cls.push("fzc");
         if (err) cls.push("err");
+        if (o.note) cls.push("nt");  // 메모 - 오른쪽 위 빨간 삼각형(엑셀과 같다)
         const hl = o.f && !err && HL_RE.test(o.f);
         {  // 테두리
           const r2 = cm ? cm.r2 : r, c2 = cm ? cm.c2 : c, bb = eB.get(r2 * 4096 + c), br = eR.get(r * 4096 + c2), sh2 = [];
@@ -1111,6 +1112,7 @@
     if (k.startsWith("Arrow")) { e.preventDefault(); move(k === "ArrowDown" ? 1 : k === "ArrowUp" ? -1 : 0, k === "ArrowRight" ? 1 : k === "ArrowLeft" ? -1 : 0, e.shiftKey); return; }
     if (k === "Enter") { e.preventDefault(); advance(e.shiftKey ? -1 : 1, 0); return; }
     if (k === "Tab") { e.preventDefault(); advance(0, e.shiftKey ? -1 : 1); return; }
+    if (k === "F2" && e.shiftKey) { e.preventDefault(); noteEdit(); return; }  // 메모
     if (k === "F2") { e.preventDefault(); startEdit("edit"); return; }
     if ((k === "Delete" || k === "Backspace") && S.drawSel) { e.preventDefault(); drawDelete(); return; }  // 고른 그림 지우기
     if (k === " " && e.shiftKey) { e.preventDefault(); S.sel = { r1: S.sel.r1, r2: S.sel.r2, c1: 0, c2: G.cols - 1 }; S.anchor = { r: S.sel.r1, c: 0 }; renderSel(); return; }  // 행 전체
@@ -1763,6 +1765,45 @@
     };
     addEventListener("mousemove", onMove); addEventListener("mouseup", onUp);
   }
+  // ---------------------------------------------------------------- 메모(엑셀 메모 · Shift+F2)
+  function noteEdit() {
+    if (S.edit) endEdit(true);
+    const sh = sheet(), k = key(S.cur.r, S.cur.c), cur = cellObj(sh, k).note || "";
+    document.querySelectorAll(".notePop").forEach((x) => x.remove());
+    const td = $(`#grid td[data-r="${S.cur.r}"][data-c="${S.cur.c}"]`), R = td ? td.getBoundingClientRect() : { right: 200, top: 200 };
+    const pop = document.createElement("div"); pop.className = "notePop";
+    pop.innerHTML = `<b>${esc(sheet().name)}!${k} 메모</b><textarea rows="5" placeholder="메모 - 칸에 마우스를 올리면 보인다(엑셀 메모로 내보낸다)">${esc(cur)}</textarea><div class="acts">${cur ? '<button class="chip sm" data-n="del">지우기</button>' : ""}<span style="flex:1"></span><button class="chip sm" data-n="no">취소</button><button class="chip sm primary" data-n="ok">저장</button></div>`;
+    Object.assign(pop.style, { left: Math.min(R.right + 6, innerWidth - 300) + "px", top: Math.min(R.top, innerHeight - 220) + "px" });
+    document.body.appendChild(pop);
+    const ta = $("textarea", pop); ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length);
+    const done = (v) => {
+      pop.remove();
+      if (v !== null && v !== cur) mutate(() => { const o = { ...cellObj(sheet(), k) }; if (v) o.note = v; else delete o.note; putCell(sheet(), k, o); });
+      focusGrid();
+    };
+    pop.addEventListener("click", (e2) => { const b = e2.target.closest("[data-n]"); if (!b) return; done(b.dataset.n === "ok" ? ta.value.trim() : b.dataset.n === "del" ? "" : null); });
+    pop.addEventListener("keydown", (e2) => { e2.stopPropagation(); if (e2.key === "Escape") done(null); if (e2.key === "Enter" && (e2.ctrlKey || e2.metaKey)) done(ta.value.trim()); });
+  }
+  // ---------------------------------------------------------------- 그림 넣기(붙여넣기·파일) - 작업 공간 그림 폴더에 올리고 지금 칸에 고정한 drawings
+  async function insertImages(files) {
+    const list = [...files].filter((f) => /^image\//.test(f.type)); if (!list.length) return false;
+    if (S.edit) endEdit(true);
+    const at = key(S.cur.r, S.cur.c), added = [];
+    for (const f of list) {
+      const data = await new Promise((res) => { const fr = new FileReader(); fr.onload = () => res(String(fr.result).split(",")[1] || ""); fr.readAsDataURL(f); });
+      const r = await api("POST", "/api/image", { name: f.name || "붙여넣은 그림.png", type: f.type, data });
+      if (!r.ok) { toast(`그림을 넣지 못했습니다: ${(r.data && r.data.error) || r.status}`); continue; }
+      const dim = await new Promise((res) => { const im = new Image(); im.onload = () => res([im.naturalWidth, im.naturalHeight]); im.onerror = () => res([240, 160]); im.src = URL.createObjectURL(f); });
+      const k = Math.min(1, 600 / Math.max(1, dim[0]), 400 / Math.max(1, dim[1]));
+      added.push({ type: "image", id: "pic" + Date.now().toString(36) + added.length, src: r.data.src, at, dx: added.length * 16, dy: added.length * 16, w: Math.round(dim[0] * k), h: Math.round(dim[1] * k) });
+    }
+    if (!added.length) return true;
+    mutate(() => { const sh = sheet(); sh.drawings = [...(sh.drawings || []), ...added]; });
+    S.drawSel = new Set(added.map((d) => d.id)); markDrawings(); renderReqTarget();
+    toast(`그림 ${added.length}개를 ${at} 에 넣었습니다 - 끌어 옮기기 · 모서리로 크기 · Delete 로 지우기`);
+    return true;
+  }
+  function pickImages() { const inp = document.createElement("input"); inp.type = "file"; inp.accept = "image/*"; inp.multiple = true; inp.onchange = () => insertImages(inp.files); inp.click(); }
   function gridMenu(e) {
     if (!e.target.closest("td, th")) return;
     e.preventDefault();
@@ -1774,6 +1815,10 @@
       { label: "붙여넣기", key: "Ctrl+V", act: async () => { try { pasteText(await navigator.clipboard.readText()); } catch (er) { toast("Ctrl+V 로 붙여넣으세요(브라우저가 클립보드 읽기를 막았습니다)", 4000); } } },
       { label: "내용 지우기", key: "Delete", act: () => clearRange(g) },
       { label: "서식 지우기", act: () => mutate(() => { const sh = sheet(); eachCell(g, (r, c, k) => { const o = cellObj(sh, k); putCell(sh, k, { v: o.v, f: o.f }); }); }) },
+      "-",
+      { label: cellObj(sheet(), key(S.cur.r, S.cur.c)).note ? "메모 고치기…" : "메모 넣기…", key: "Shift+F2", act: noteEdit },
+      ...(cellObj(sheet(), key(S.cur.r, S.cur.c)).note ? [{ label: "메모 지우기", act: () => mutate(() => { const sh = sheet(); eachCell(g, (r, c, k) => { const o = { ...cellObj(sh, k) }; if (o.note) { delete o.note; putCell(sh, k, o); } }); }) }] : []),
+      { label: "그림 넣기…", act: pickImages },
       "-",
       { label: mergeAt(sheet(), S.cur.r, S.cur.c) ? "병합 해제" : "셀 병합", act: toggleMerge },
       { label: "행·열 삽입·삭제…", act: () => rowColMenu({ x: e.clientX, y: e.clientY }) },
@@ -1830,7 +1875,14 @@
     $("#addRows").onclick = () => addRows(20);
     document.addEventListener("copy", (e) => { if (document.activeElement !== ed || S.edit) return; e.preventDefault(); e.clipboardData.setData("text/plain", copyRange(false)); });
     document.addEventListener("cut", (e) => { if (document.activeElement !== ed || S.edit) return; e.preventDefault(); e.clipboardData.setData("text/plain", copyRange(true)); });
-    document.addEventListener("paste", (e) => { if (document.activeElement !== ed || S.edit) return; e.preventDefault(); const t = e.clipboardData.getData("text/plain"); if (t) pasteText(t); });
+    document.addEventListener("paste", (e) => {
+      if (document.activeElement !== ed || S.edit) return; e.preventDefault();
+      const t = e.clipboardData.getData("text/plain"), imgs = [...(e.clipboardData.files || [])].filter((f) => /^image\//.test(f.type));
+      if (imgs.length && !t) { insertImages(imgs); return; }  // 그림만 있으면 지금 칸에 그림(엑셀과 같다)
+      if (t) pasteText(t);
+    });
+    W.addEventListener("dragover", (e) => { if ([...(e.dataTransfer.items || [])].some((i) => i.kind === "file")) e.preventDefault(); });
+    W.addEventListener("drop", (e) => { const fs2 = [...(e.dataTransfer.files || [])]; if (!fs2.some((f) => /^image\//.test(f.type))) return; e.preventDefault(); const td = document.elementFromPoint(e.clientX, e.clientY); const c = td && td.closest("td[data-r]"); if (c) selectCell(+c.dataset.r, +c.dataset.c); insertImages(fs2); });
     // 수식 줄
     const fx = $("#fxIn");
     fx.addEventListener("focus", () => { if (S.edit) { fx.value = ED().value; } });
@@ -1943,7 +1995,7 @@
     window.addEventListener("beforeunload", (e) => { if (S.dirty) { save(); e.preventDefault(); e.returnValue = ""; } });
   }
   // 시험용(브라우저 콘솔·스모크) - 수식 계산·표시 형식을 따로 불러 볼 수 있게
-  window.NexaSheet = { S, TH, VB, drawDelete, autoFitCols, lastCell, vbaOpen, vbaApply, effCell, bdSides, fillVars, reload: reloadExternal, applyVersion, recalc, parseFormula, display, fmtNumber, parseNumberText, shiftFormula, setInput, parseTsv, fillSeries, fillTarget,
+  window.NexaSheet = { S, TH, VB, drawDelete, autoFitCols, lastCell, noteEdit, insertImages, vbaOpen, vbaApply, effCell, bdSides, fillVars, reload: reloadExternal, applyVersion, recalc, parseFormula, display, fmtNumber, parseNumberText, shiftFormula, setInput, parseTsv, fillSeries, fillTarget,
     // 엑셀 기능 모듈(sheetx.js)이 쓰는 안쪽 함수 - 격자·선택·고치기(실행 취소·저장 포함)
     x: { shiftAxis, G, sheet, key, parseRef, colHidden, rowHidden, rectOf, colIndex, parseRange, rangeName, colName, cellObj, putCell, mutate, renderAll, renderSel, selectRange, selectCell, clampRange, eachCell, toast, openMenu,
       endEdit, startEdit, focusGrid, pasteText, scrollIntoView, growSize, clone, ED, esc } };
