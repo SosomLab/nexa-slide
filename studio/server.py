@@ -1194,6 +1194,12 @@ class H(BaseHTTPRequestHandler):
         return seq
 
     def api_get_proposals(self, i, q):
+        rid = (q.get("request") or [""])[0]
+        if rid:  # 미리 보기(3-3) - 제안 하나의 기준본·AI 사본까지
+            x = proposals.load(proposals.path(DECKS, i, rid)) if safe_id(rid.replace(".", "_")) else None
+            if not x or not x.get("items"):
+                return self.err(404, "제안 없음")
+            return self.send_json({k: x.get(k) for k in ("request", "created", "items", "baseDoc", "deck")})
         d = DECKS / ".history" / i / "proposals"
         out = []
         for f in sorted(d.glob("*.json")) if d.is_dir() else []:

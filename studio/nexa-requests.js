@@ -144,7 +144,7 @@
       const P = props[r.id]; if (!P || !P.items || !P.items.length) return "";
       return `<div class="prop" data-prop="${esc(r.id)}"><div class="row" style="gap:6px"><b>AI 제안 ${P.items.length}곳</b><span class="hint" style="margin:0">아직 반영 안 됨 - 골라 받으면 지금 문서와 합쳐 저장</span></div>
         <div class="prop-its">${P.items.map((it) => `<label><input type="checkbox" data-pit="${esc(it.id)}" checked> <span class="k">${esc(it.kind)}</span> ${esc(it.title)}${it.detail ? ` <span class="hint" style="margin:0">${esc(it.detail)}</span>` : ""}</label>${propSubs(it)}`).join("")}</div>
-        <div class="row" style="gap:6px;justify-content:flex-end"><button class="chip sm" data-pdis="1">버리기</button><button class="chip sm" data-pacc="1">고른 것 받기</button><button class="chip sm primary" data-pall="1">모두 받기</button></div></div>`;
+        <div class="row" style="gap:6px;justify-content:flex-end"><button class="chip sm" data-pview="1" title="지금 문서와 제안을 나란히 - 바뀐 곳 테두리">보기</button><button class="chip sm" data-pdis="1">버리기</button><button class="chip sm" data-pacc="1">고른 것 받기</button><button class="chip sm primary" data-pall="1">모두 받기</button></div></div>`;
     }
     function propSubs(it) {
       if (!it.subs || !it.subs.length) return "";
@@ -170,11 +170,70 @@
       const k = kids(cb.dataset.pof), n = k.filter((x) => x.checked).length;
       par.checked = n > 0; par.indeterminate = n > 0 && n < k.length;
     }
+    // ---------------------------------------------------------------- 제안 미리 보기([보기], 3-3) - 편집 화면 위에 겹쳐 뜬다. 지금(기준본)과 제안을 나란히, 바뀐 곳 테두리
+    async function openPreview(rid) {
+      const r = await api("GET", `/api/proposals/${encodeURIComponent(o.deckId())}?request=${encodeURIComponent(rid)}`);
+      if (!r.ok || !r.data || !r.data.deck) { toast("제안을 읽지 못했습니다"); return; }
+      closePreview();
+      const P = r.data, sheet = (P.deck.kind || (P.baseDoc || {}).kind) === "sheet", key = sheet ? "sheets" : "slides";
+      const list = (d) => Object.fromEntries(((d || {})[key] || []).filter((x) => x && x.id).map((x) => [x.id, x]));
+      const B = list(P.baseDoc), D = list(P.deck), order = (P.deck[key] || []).map((x) => x.id);
+      const parts = P.items.filter((it) => /^[st]:/.test(it.id)).map((it) => {
+        const id = it.id.slice(2), subs = (it.subs || []).map((s) => s.id.slice(it.id.length + 1));
+        const body = sheet ? prevSheet(B[id], D[id], subs) : prevSlide(B[id], D[id], subs, Math.max(0, order.indexOf(id)) + 1);
+        return `<div class="pv-it" data-pvit="${esc(it.id)}"><div class="pv-h"><span class="k">${esc(it.kind)}</span> <b>${esc(it.title)}</b> <span class="hint" style="margin:0">${esc(it.detail || "")}</span></div>${body}</div>`;
+      });
+      const rest = P.items.filter((it) => !/^[st]:/.test(it.id)).map((it) => `<div class="pv-h"><span class="k">${esc(it.kind)}</span> ${esc(it.title)} <span class="hint" style="margin:0">${esc(it.detail || "")}</span></div>`);
+      const back = document.createElement("div"); back.id = "propView";
+      back.innerHTML = `<div class="box"><div class="rh-hd"><h3>AI 제안 미리 보기<small>${P.items.length}곳 · 아직 반영 안 됨</small></h3><button type="button" class="chip sm" id="pvClose" title="닫기 (Esc)">✕</button></div>
+        <div class="pv-list">${parts.join("")}${rest.join("")}</div></div>`;
+      document.body.appendChild(back);
+      back.tabIndex = -1; back.focus();
+      back.addEventListener("keydown", (e) => { if (e.key === "Escape") { closePreview(); e.preventDefault(); } e.stopPropagation(); });
+      back.addEventListener("mousedown", (e) => { if (e.target === back) closePreview(); });
+      back.querySelector("#pvClose").onclick = closePreview;
+    }
+    function closePreview() { const b = $("#propView"); if (b) b.remove(); }
+    const PV_SC = 0.3;  // 1280×720 → 384×216
+    function prevSlide(b, d, subs, page) {
+      if (!window.Render) return "";
+      const side = (s, label, none, mark) => {
+        if (!s) return `<div class="pv-side"><div class="pv-cap">${label}</div><div class="pv-vp pv-none">${none}</div></div>`;
+        const boxes = (s.elements || []).filter((e) => e && mark(e.id)).map((e) => `<i class="pv-mark" style="left:${(e.x || 0) * PV_SC}px;top:${(e.y || 0) * PV_SC}px;width:${(e.w || 0) * PV_SC}px;height:${(e.h || 0) * PV_SC}px"></i>`).join("");
+        return `<div class="pv-side"><div class="pv-cap">${label}</div><div class="pv-vp">${Render.renderSlide(s, page)}${boxes}</div></div>`;
+      };
+      const ids = (s) => new Set(((s || {}).elements || []).map((e) => e && e.id));
+      const inD = ids(d);
+      // 지금 쪽은 제안에서 지우는 요소, 제안 쪽은 고치거나 더하는 요소에 테두리
+      return `<div class="pv-pair">${side(b, "지금", "(없는 장)", (id) => subs.includes(id) && !inD.has(id))}${side(d, "제안", "(지우는 장)", (id) => subs.includes(id))}</div>`;
+    }
+    function prevSheet(b, d, subs) {
+      const keys = subs.length ? subs : Object.keys(((d || b) || {}).cells || {});
+      const at = (k) => { const m = /^([A-Z]+)(\d+)$/.exec(k); if (!m) return null; let c = 0; for (const ch of m[1]) c = c * 26 + ch.charCodeAt(0) - 64; return [+m[2] - 1, c - 1]; };
+      const ps = keys.map(at).filter(Boolean); if (!ps.length) return "";
+      const R2 = Math.max(...ps.map((p) => p[0])), C2 = Math.max(...ps.map((p) => p[1]));
+      const r1 = Math.min(...ps.map((p) => p[0])), c1 = Math.min(...ps.map((p) => p[1]));
+      const r2 = Math.min(R2, r1 + 14), c2 = Math.min(C2, c1 + 7);
+      const cn = (c) => { let s = ""; for (c++; c > 0; c = Math.floor((c - 1) / 26)) s = String.fromCharCode(65 + ((c - 1) % 26)) + s; return s; };
+      const txt = (raw) => raw == null ? "" : typeof raw === "object" ? (raw.f || (raw.v == null ? "" : String(raw.v))) : String(raw);
+      const ch = new Set(keys);
+      let h = `<table class="pv-grid"><tr><th></th>${Array.from({ length: c2 - c1 + 1 }, (_, i) => `<th>${cn(c1 + i)}</th>`).join("")}</tr>`;
+      for (let rr = r1; rr <= r2; rr++) {
+        h += `<tr><th>${rr + 1}</th>`;
+        for (let cc = c1; cc <= c2; cc++) {
+          const k = cn(cc) + (rr + 1), was = txt(((b || {}).cells || {})[k]), now = txt(((d || {}).cells || {})[k]);
+          h += ch.has(k) ? `<td class="chg" data-pvk="${k}" title="${esc(was || "(빈 칸)")} → ${esc(now || "(빈 칸)")}">${esc(now)}${was ? `<s>${esc(was)}</s>` : ""}</td>` : `<td>${esc(now)}</td>`;
+        }
+        h += "</tr>";
+      }
+      const cut = r2 < R2 || c2 < C2;
+      return h + `</table>${cut ? `<div class="hint" style="margin:2px 0 0">바뀐 범위가 넓어 앞쪽 ${r2 - r1 + 1}행 × ${c2 - c1 + 1}열만 보입니다</div>` : ""}`;
+    }
     async function propAct(rid, action, items) {
       const r = await api("POST", `/api/proposals/${encodeURIComponent(o.deckId())}`, { action, request: rid, ...(items ? { items } : {}) });
       if (!r.ok) { toast("제안을 처리하지 못했습니다: " + ((r.data && r.data.error) || r.status), 5000); return; }
       toast(action === "discard" ? "제안을 버렸습니다" : `제안을 받았습니다${(r.data.conflicts || []).length ? ` · 그 사이 바뀐 곳 ${r.data.conflicts.length}건은 제안 값으로` : ""}${r.data.left ? ` · 남은 제안 ${r.data.left}곳` : ""}`, 4000);
-      await load();
+      closePreview(); await load();
       if (action === "accept" && o.onDeckChanged) o.onDeckChanged();  // 화면이 곧 다시 읽게(실시간 연결·폴링도 알아챈다)
     }
     const threadsHtml = (list, opt) => threads(list).map((g) => `<div class="thread${g.length > 1 ? " multi" : ""}">${g.map((r, k) => cardHtml(r, k, k === g.length - 1, opt)).join("")}</div>`).join("");
@@ -263,6 +322,7 @@
       const v = e.target.closest("[data-attv]"); if (v && window.NexaLightbox) { const [w, i] = v.dataset.attv.split(":"); NexaLightbox.open(lbItems(slot(w)), +i); return true; }
       if (b.id === "reqMore") { openHist(); return true; }
       const pv = b.closest("[data-prop]");
+      if (pv && b.dataset.pview) { openPreview(pv.dataset.prop); return true; }
       if (pv && (b.dataset.pacc || b.dataset.pall || b.dataset.pdis)) {  // AI 제안 받기·버리기
         const rid = pv.dataset.prop, picked = propPicked(pv);
         if (b.dataset.pdis) { if (confirm("이 제안을 버릴까요? (문서는 그대로입니다)")) await propAct(rid, "discard"); return true; }
