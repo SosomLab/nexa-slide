@@ -16,6 +16,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from common import OUT, load_deck, safe_id  # noqa: E402
+import sheet_calc  # noqa: E402
 import sheet_theme  # noqa: E402
 
 import xlsxwriter  # noqa: E402  (python-pptx 의존성)
@@ -104,16 +105,63 @@ def cond_option(wb, cd):
     return None
 
 
+def this_row(form, tab, ref):
+    """구조적 참조의 @(이 행) → 엑셀 파일 형식. 표 이름이 없으면 그 칸이 든 표의 이름을 붙인다."""
+    if "[@" not in form:
+        return form
+    import sheet_calc as sc
+    here = sc.parse_ref(ref)
+    own = next((tb.get("name") for tb in tab.get("tables") or [] if here and _in_table(tb, here)), None)
+
+    def fix(m):
+        name, col = m.group(1) or own, m.group(2) or m.group(3)
+        if not name:
+            return m.group(0)
+        return f"{name}[[#This Row],[{col}]]"
+    return re.sub(r"((?:[^\W\d][\w.]*)?)\[@(?:\[([^\]]*)\]|([^\[\]]*))\]", fix, form)
+
+
+def _in_table(tb, here):
+    a, _, b = str(tb.get("ref", "")).partition(":")
+    pa, pb = xl_cell_to_rowcol(a), xl_cell_to_rowcol(b or a)
+    return pa[0] <= here[0] <= pb[0] and pa[1] <= here[1] <= pb[1]
+
+
+def xlpm(form):
+    """LET 의 이름 → 엑셀 파일 형식 _xlpm.이름 (따옴표 안 글은 그대로)."""
+    if "LET(" not in form.upper():
+        return form
+    names = set()
+
+    def walk(n):
+        if isinstance(n, tuple):
+            if n[:2] == ("fn", "LET"):
+                names.update(a[1] for a in n[2][:-1:2] if a[0] == "name")
+            for x in n[1:]:
+                walk(x)
+        elif isinstance(n, list):
+            for x in n:
+                walk(x)
+    try:
+        walk(sheet_calc.parse(form.lstrip("=")))
+    except sheet_calc.FErr:
+        return form
+    if not names:
+        return form
+    rx = re.compile(r"(?<![\w.$!'])(" + "|".join(map(re.escape, sorted(names, key=len, reverse=True))) + r")(?![\w(!])", re.I)
+    return "".join(part if part.startswith('"') else rx.sub(r"_xlpm.\1", part) for part in re.split(r'("(?:[^"]|"")*")', form))
+
+
 def export(deck, out):
     if deck.get("kind") != "sheet":
         raise ValueError("시트 문서가 아니다(kind sheet) - 슬라이드 덱은 export_pptx.py")
     import copy
-    import sheet_calc
     deck = copy.deepcopy(deck)
     sheet_calc.recalc(deck)  # 수식 계산값 캐시 - AI 세션이 f 만 쓴 칸도 뷰어·미리보기에서 0 이 아니라 값이 보이게(엑셀은 열 때 다시 계산)
     out.parent.mkdir(parents=True, exist_ok=True)
     theme = sheet_theme.load(deck["theme"]) if deck.get("theme") else None
-    opts = {"strings_to_numbers": False, "strings_to_formulas": False, "strings_to_urls": False}
+    opts = {"strings_to_numbers": False, "strings_to_formulas": False, "strings_to_urls": False,
+            "use_future_functions": True}  # 새 함수(TEXTJOIN·XMATCH·LET …)에 _xlfn. 을 붙여야 엑셀이 #NAME? 없이 연다(가져올 때 뗀다)
     if theme:
         opts["default_format_properties"] = {"font_name": theme.get("font") or "맑은 고딕", "font_size": float(theme.get("size") or 10)}
     vba = None
@@ -156,6 +204,25 @@ def export(deck, out):
         for m in t.get("merges") or []:
             if isinstance(m, str) and ":" in m:
                 merged[m.split(":")[0]] = m
+        for tb in t.get("tables") or []:  # 엑셀 표 - 셀보다 먼저(add_table 이 머리글 칸을 쓰므로 셀 서식이 뒤에서 덮게)
+            a, _, b = str(tb.get("ref", "")).partition(":")
+            if not (CELL.match(a) and CELL.match(b or a)):
+                continue
+            (r1, c1), (r2, c2) = xl_cell_to_rowcol(a), xl_cell_to_rowcol(b or a)
+            opt = {"name": tb.get("name"), "header_row": tb.get("header", True), "total_row": bool(tb.get("totals")),
+                   "style": tb.get("style") or "Table Style Medium 2", "autofilter": tb.get("header", True)}
+            if tb.get("cols"):
+                opt["columns"] = [{"header": str(h)} for h in tb["cols"]]
+            try:
+                ws.add_table(r1, c1, r2, c2, opt)
+            except Exception as e:  # noqa: BLE001 - 표가 겹치거나 이름이 잘못되면 표 없이 셀만
+                print(f"  표 {tb.get('name')} 를 넣지 못했다: {e}", file=sys.stderr)
+        spill_end = {}  # 동적 배열 기준 칸 → 넘친 범위 끝 (행, 열)
+        for ref, c in (t.get("cells") or {}).items():
+            if isinstance(c, dict) and c.get("sp") and CELL.match(str(ref)):
+                rr, cc = xl_cell_to_rowcol(ref)
+                e = spill_end.get(c["sp"], (0, 0))
+                spill_end[c["sp"]] = (max(e[0], rr), max(e[1], cc))
         for ref, c in (t.get("cells") or {}).items():
             mm = CELL.match(str(ref))
             if not mm:
@@ -170,7 +237,15 @@ def export(deck, out):
                 ws.merge_range(r1, c1, r2, c2, "", f)
             if d.get("f"):
                 form = str(d["f"])
-                ws.write_formula(r, col, form if form.startswith("=") else "=" + form, f, v if v is not None else 0)
+                form = form if form.startswith("=") else "=" + form
+                form = xlpm(form)  # LET 이름 → _xlpm.이름
+                form = this_row(form, t, ref)  # 표1[@열] · [@열] → 파일 형식 표1[[#This Row],[열]]
+                form = re.sub(r"((?:'[^']+'|[^\W\d][\w.]*)!)?(\$?[A-Z]{1,3}\$?\d+)#", r"ANCHORARRAY(\1\2)", form)  # 넘친 범위 참조 H2# → 엑셀 파일 형식
+                if sheet_calc.dynamic(c):  # 동적 배열 - 엑셀이 넘침으로 계산하게(넘친 칸 값은 아래에서 그대로 쓴다)
+                    e = spill_end.get(ref, (r, col))
+                    ws.write_dynamic_array_formula(r, col, max(e[0], r), max(e[1], col), form, f, v if v is not None else 0)
+                else:
+                    ws.write_formula(r, col, form, f, v if v is not None else 0)
             elif isinstance(v, bool):
                 ws.write_boolean(r, col, v, f)
             elif isinstance(v, (int, float)):

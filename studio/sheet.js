@@ -113,7 +113,7 @@
   }
 
   // ---------------------------------------------------------------- 수식 - 토큰 → 구문 트리 → 계산. 사칙연산·^·&·비교·%, 셀·범위 참조(다른 탭: 이름!A1), 함수
-  const ERR = ["#DIV/0!", "#VALUE!", "#REF!", "#NAME?", "#NUM!", "#N/A", "#NULL!"];
+  const ERR = ["#DIV/0!", "#VALUE!", "#REF!", "#NAME?", "#NUM!", "#N/A", "#NULL!", "#SPILL!", "#CALC!"];
   class FErr { constructor(code) { this.code = code; } }
   const isErrStr = (v) => typeof v === "string" && ERR.includes(v);
   const TOK = new RegExp([
@@ -309,22 +309,34 @@
   }
 
   // ---------------------------------------------------------------- 수식 안 참조 고쳐 쓰기 - 복사·붙여넣기(상대 이동), 행·열 삽입·삭제
-  function refParts(s) { const m = /^(\$?)([A-Za-z]{1,3})(\$?)(\d+)$/.exec(s); return { ca: !!m[1], c: colIndex(m[2]), ra: !!m[3], r: +m[4] - 1 }; }
-  const refText = (p) => `${p.ca ? "$" : ""}${colName(p.c)}${p.ra ? "$" : ""}${p.r + 1}`;
+  // 참조 끝점 - 칸 A1 · 열 전체의 끝 A(r = null) · 행 전체의 끝 3(c = null)
+  function refParts(s) { const m = /^(\$?)([A-Za-z]{1,3})?(\$?)(\d+)?$/.exec(s); return { ca: !!m[1], c: m[2] ? colIndex(m[2]) : null, ra: !!m[3], r: m[4] ? +m[4] - 1 : null }; }
+  const refText = (p) => (p.c != null ? `${p.ca ? "$" : ""}${colName(p.c)}` : "") + (p.r != null ? `${p.ra ? "$" : ""}${p.r + 1}` : "");
+  // 참조 고쳐 쓰기용 토큰 - 계산기(sheetcalc.js TOK)와 같은 모양: 칸·범위·열 전체 A:C·행 전체 3:5·넘친 범위 H2#·표 구조적 참조(그대로 둔다)
+  const REF_TOK = new RegExp([
+    "(\\s+)", '("(?:[^"]|"")*")',
+    "((?:'(?:[^']|'')+'|[\\p{L}_][\\p{L}\\p{N}_.]*)!)?(\\$?[A-Za-z]{1,3}\\$?\\d+(?::\\$?[A-Za-z]{1,3}\\$?\\d+)?|\\$?[A-Za-z]{1,3}:\\$?[A-Za-z]{1,3}|\\$?\\d+:\\$?\\d+)(?![\\p{L}\\p{N}_(])",
+    "([\\p{L}_][\\p{L}\\p{N}_.]*)(?=\\s*\\()", "(TRUE|FALSE)(?![\\p{L}\\p{N}_])", "(\\d+(?:\\.\\d*)?(?:[eE][+-]?\\d+)?|\\.\\d+(?:[eE][+-]?\\d+)?)",
+    "(<=|>=|<>|[-+*/^&=<>(),%])", "(#[A-Z/0]+[!?])", "((?:[\\p{L}_][\\p{L}\\p{N}_.]*)?\\[(?:[^\\[\\]]|\\[[^\\[\\]]*\\])*\\])", "([\\p{L}_][\\p{L}\\p{N}_.]*)",
+  ].join("|"), "uiy");
   /** fn(끝점들[], 탭 이름|null) → 새 끝점들 또는 null(#REF!) */
   function rewriteFormula(f, fn) {
-    let toks; try { toks = tokenize(f.replace(/^=/, "")); } catch (e) { return f; }
-    let src = f.replace(/^=/, ""), out = "", last = 0;
-    for (const t of toks) {
-      if (t.t !== "ref") continue;
-      const ends = t.v.split(":").map(refParts), nw = fn(ends, t.sheet);
-      out += src.slice(last, t.ss) + (nw ? nw.map(refText).join(":") : "#REF!"); last = t.e;
+    const src = f.replace(/^=/, ""); let out = "", last = 0, i = 0;
+    while (i < src.length) {
+      REF_TOK.lastIndex = i; const m = REF_TOK.exec(src);
+      if (!m || REF_TOK.lastIndex === i) return f;  // 읽지 못하는 수식은 그대로
+      i = REF_TOK.lastIndex;
+      if (!m[4]) continue;
+      const sheetName = m[3] ? m[3].slice(0, -1).replace(/^'|'$/g, "").replace(/''/g, "'") : null;
+      const at = m.index + (m[3] ? m[3].length : 0), ends = m[4].split(":").map(refParts), nw = fn(ends, sheetName);
+      out += src.slice(last, at) + (nw ? nw.map(refText).join(":") : "#REF!"); last = at + m[4].length;
+      if (src[i] === "#" && !m[4].includes(":")) i++;  // 넘친 범위 참조 H2# - '#' 는 그대로 뒤에 남는다
     }
     return "=" + out + src.slice(last);
   }
   const shiftFormula = (f, dr, dc) => rewriteFormula(f, (ends) => {
-    const n = ends.map((p) => ({ ...p, r: p.ra ? p.r : p.r + dr, c: p.ca ? p.c : p.c + dc }));
-    return n.some((p) => p.r < 0 || p.c < 0) ? null : n;
+    const n = ends.map((p) => ({ ...p, r: p.r == null || p.ra ? p.r : p.r + dr, c: p.c == null || p.ca ? p.c : p.c + dc }));  // 열 전체·행 전체는 없는 쪽을 두고
+    return n.some((p) => (p.r != null && p.r < 0) || (p.c != null && p.c < 0)) ? null : n;
   });
 
   // ---------------------------------------------------------------- 표시 형식 - 엑셀 형식 문자열의 흔한 것(#,##0 · 0.0% · 날짜 yyyy-mm-dd · 앞뒤 글)
@@ -380,7 +392,7 @@
   }
   /** 셀에 글을 넣는다(서식은 남긴다) */
   function setInput(sh, k, text) {
-    const o = { ...cellObj(sh, k) }; delete o.f; delete o.v;
+    const o = { ...cellObj(sh, k) }; delete o.f; delete o.v; delete o.sp;  // 넘친 칸(sp)에 쓰면 내 값 - 동적 배열은 #SPILL! 이 된다
     if (text === "" || text == null) { /* 값 지움 */ }
     else if (text[0] === "=" && text.length > 1) o.f = text;
     else if (text[0] === "'") o.v = text.slice(1);
@@ -401,11 +413,27 @@
 
   // ---------------------------------------------------------------- 실행 취소·저장
   const deckJson = () => JSON.stringify(S.deck);
-  function snapshot() { S.undo.push(deckJson()); if (S.undo.length > 150) S.undo.shift(); S.redo = []; updUndo(); }
+  function snapshot() { aiBusyWarn(); S.undo.push(deckJson()); if (S.undo.length > 150) S.undo.shift(); S.redo = []; updUndo(); }
+  // AI 가 처리 중인 범위를 고치기 시작하면 한 번 알린다(잠그지 않음 - 저장은 병합되고 같은 셀은 사람 값이 남는다). 편집기와 같다 - docs/collab.md 2단계
+  const aiWarned = new Set();
+  function aiBusyWarn() {
+    if (!S.deck || !S.reqs) return;
+    const sh = sheet(), g = S.sel;
+    for (const r of S.reqs) {
+      if (r.status !== "working" || reqSlide(r) !== sh.id) continue;
+      const q = parseRange(r.range);
+      if (q && (q.r2 < g.r1 || q.r1 > g.r2 || q.c2 < g.c1 || q.c1 > g.c2)) continue;  // 고르는 범위와 겹치지 않음
+      const k = `${r.id}`;
+      if (aiWarned.has(k)) continue;
+      aiWarned.add(k);
+      toast(`${RQ ? RQ.agentName() : "AI"} 가 ${q ? `${r.range} 범위를` : "이 탭을"} 처리하는 중입니다 - 지금 고치면 AI 의 변경과 합쳐지고, 같은 셀은 내 값이 남습니다`, 5000);
+      return;
+    }
+  }
   function updUndo() { $("#undoBtn").disabled = !S.undo.length; $("#redoBtn").disabled = !S.redo.length; }
   // 남의 변경(다른 창·AI·병합 저장)을 받은 뒤의 실행 취소는 내 편집만 되돌린다 - NexaMerge.seal/undoTarget(nexa-merge.js, 편집기와 같다 - docs/collab.md 1단계)
-  function undo() { if (!S.undo.length) return; const now = deckJson(); S.redo.push(now); S.deck = NexaMerge.undoTarget(S.undo.pop(), now); afterChange(); }
-  function redo() { if (!S.redo.length) return; S.undo.push(deckJson()); S.deck = JSON.parse(S.redo.pop()); afterChange(); }
+  function undo() { if (!S.undo.length) return; const now = deckJson(); S.redo.push(now); S.deck = NexaMerge.undoTarget(S.undo.pop(), now); S.struct = []; afterChange(); }  // 구조 작업은 실행 취소와 짝을 맞출 수 없어 비운다(그 저장은 예전처럼 셀 병합만)
+  function redo() { if (!S.redo.length) return; S.undo.push(deckJson()); S.deck = JSON.parse(S.redo.pop()); S.struct = []; afterChange(); }
   /** 바꾼 뒤: 다시 계산 · 그리기 · 자동 저장 예약 */
   function afterChange() {
     if (S.ti >= S.deck.sheets.length) S.ti = S.deck.sheets.length - 1;
@@ -425,7 +453,10 @@
     if (!force && body === S.savedJson) { S.dirty = false; setStatus("saved", "저장됨"); return; }
     S.saving = true; setStatus("dirty", "저장 중…");
     // 병합 저장(merge=1) - 그 사이 다른 창·AI 가 저장했어도 서버가 탭·셀 단위로 합친다(같은 셀은 나중 저장인 내 값). 409 는 기준본을 모를 때뿐
-    const r = await api("PUT", `/api/deck/${encodeURIComponent(S.id)}?base=${encodeURIComponent(S.version || "")}${force ? "&force=1" : "&merge=1"}`, JSON.parse(body));
+    // 행·열 삽입·삭제(동시 편집 3-2) - 기준판 이후의 구조 작업을 함께 보내면 서버가 기준본·지금 파일도 같이 옮긴 뒤 셀을 합친다
+    const sentStruct = force ? [] : (S.struct || []).slice();
+    const r = await api("PUT", `/api/deck/${encodeURIComponent(S.id)}?base=${encodeURIComponent(S.version || "")}${force ? "&force=1" : "&merge=1"}`, sentStruct.length ? { ...JSON.parse(body), __struct: sentStruct } : JSON.parse(body));
+    if (r.ok) S.struct = (S.struct || []).slice(sentStruct.length);  // 저장된 판이 새 기준 - 보낸 구조 작업은 그 안에 들어 있다
     S.saving = false;
     if (r.ok && r.data.merged && r.data.deck) {  // 합쳐졌다 - 병합 결과(+ 저장하는 사이 더 고친 것)를 화면에, 남의 변경은 내 실행 취소에 섞지 않는다
       const now = deckJson();
@@ -462,6 +493,7 @@
     if (!r.ok) { setStatus("error", "읽기 실패"); toast("시트를 불러오지 못했습니다 (" + r.status + ")", 6000); return false; }
     const deck = await r.json();
     if (deck.kind !== "sheet") { location.replace(`index.html#${encodeURIComponent(S.id)}`); return false; }  // 슬라이드 덱이면 편집기로
+    if (!keepView) S.struct = [];
     if (keepView && S.deck) NexaMerge.seal(S.undo, S.redo, deckJson());  // 밖의 변경을 받는다 - 내 실행 취소에 넣지 않고, 이전 기록은 내 편집만 되돌리게 봉인
     else { S.undo = []; S.redo = []; }
     S.version = r.headers.get("X-Deck-Version");
@@ -950,6 +982,7 @@
   }
   /** 행(axis "r")·열("c") 삽입(n>0)·삭제(n<0) - 셀·병합·너비·높이·틀 고정·모든 탭 수식의 참조를 같이 옮긴다 */
   function shiftAxis(axis, at, n) {
+    (S.struct = S.struct || []).push({ op: (n < 0 ? "delete" : "insert") + (axis === "r" ? "Rows" : "Cols"), tab: sheet().id, at, n: Math.abs(n) });  // 다음 저장에 함께(서버 sheet_struct.py - 같은 규칙)
     mutate(() => {
       const sh = sheet(), del = n < 0, cnt = Math.abs(n), end = at + cnt - 1;
       const mv = (p) => {  // 끝점 하나 → 새 위치(지워지면 null)
@@ -981,6 +1014,7 @@
         if (!raw || typeof raw !== "object" || !raw.f) continue;
         raw.f = rewriteFormula(raw.f, (ends, nm) => {
           const target = nm == null ? s2 : sheetByName(nm, s2); if (target !== sh) return ends;
+          if (ends.some((e) => (axis === "r" ? e.r : e.c) == null)) return ends;  // 열 전체(A:C)를 행 작업이 · 행 전체(3:5)를 열 작업이 - 그대로(서버 sheet_struct.py 와 같다)
           if (ends.length === 1) { const v = mv(ends[0]); return v === null ? null : [axis === "r" ? { ...ends[0], r: v } : { ...ends[0], c: v }]; }
           const g = mvRange({ r1: ends[0].r, c1: ends[0].c, r2: ends[1].r, c2: ends[1].c }); if (!g) return null;
           return [{ ...ends[0], r: g.r1, c: g.c1 }, { ...ends[1], r: g.r2, c: g.c2 }];
@@ -1482,7 +1516,7 @@
     $("#sessChip").onclick = (e) => (SESS ? SESS.menu(e.currentTarget) : null);  // 웹 세션 시작·끊기·모델·진행
     RQ = NexaRequests.create({ api, toast, esc, base: BASE, deckId: () => S.id, session: SESS,
       getReqs: () => S.reqs, setReqs: (l) => { S.reqs = l; }, onChange: () => { if (!S.deck) return; renderReqs(); renderMarks(); renderTabs(); aiWatch(); },
-      target: SHEET_TARGET, att: { boxes: { tab: "#reqAtt", fu: "#fuAtt" } } });
+      target: SHEET_TARGET, att: { boxes: { tab: "#reqAtt", fu: "#fuAtt" } }, onDeckChanged: () => { pollAt = 0; poll(); } });
     { const [q, ss] = await Promise.all([api("GET", `/api/requests/${encodeURIComponent(S.id)}`), api("GET", "/api/session")]);
       if (q.ok && Array.isArray(q.data)) S.reqs = q.data; if (ss.ok && ss.data) renderSession(ss.data); }
     if (!(await loadDeck(false))) return;
@@ -1603,7 +1637,7 @@
   // 시험용(브라우저 콘솔·스모크) - 수식 계산·표시 형식을 따로 불러 볼 수 있게
   window.NexaSheet = { S, TH, effCell, bdSides, fillVars, reload: reloadExternal, recalc, parseFormula, display, fmtNumber, parseNumberText, shiftFormula, setInput, parseTsv, fillSeries, fillTarget,
     // 엑셀 기능 모듈(sheetx.js)이 쓰는 안쪽 함수 - 격자·선택·고치기(실행 취소·저장 포함)
-    x: { G, sheet, key, parseRef, colHidden, rowHidden, rectOf, colIndex, parseRange, rangeName, colName, cellObj, putCell, mutate, renderAll, renderSel, selectRange, selectCell, clampRange, eachCell, toast, openMenu,
+    x: { shiftAxis, G, sheet, key, parseRef, colHidden, rowHidden, rectOf, colIndex, parseRange, rangeName, colName, cellObj, putCell, mutate, renderAll, renderSel, selectRange, selectCell, clampRange, eachCell, toast, openMenu,
       endEdit, startEdit, focusGrid, pasteText, scrollIntoView, growSize, clone, ED, esc } };
   init();
 })();

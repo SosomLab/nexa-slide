@@ -39,13 +39,26 @@ def main():
         else:
             FAILS.append(f)
             print(f"FAIL {f} → {got!r} (기대 {want!r})")
+    for sp in spec.get("spills", []):  # 동적 배열 - 넘친 칸
+        doc = {"sheets": copy.deepcopy(spec["sheets"])}
+        doc["sheets"][0]["cells"].update(copy.deepcopy(sp["cells"]))
+        if sp.get("tables"):
+            doc["sheets"][0]["tables"] = copy.deepcopy(sp["tables"])
+        sheet_calc.recalc(doc)
+        cells = doc["sheets"][0]["cells"]
+        got = {k: (cells.get(k).get("v") if isinstance(cells.get(k), dict) else cells.get(k)) for k in sp["expect"]}
+        if all(same(got[k], w) for k, w in sp["expect"].items()):
+            ok += 1
+        else:
+            FAILS.append(sp["name"])
+            print(f"FAIL {sp['name']} → {got} (기대 {sp['expect']})")
     # 순환 참조 · 내보내기 캐시
     doc = {"sheets": [{"id": "t01", "name": "S", "cells": {"A1": {"f": "=B1+1"}, "B1": {"f": "=A1+1"}}}]}
     sheet_calc.recalc(doc)
     if doc["sheets"][0]["cells"]["A1"]["v"] != "#REF!":
         FAILS.append("순환 참조")
         print("FAIL 순환 참조 →", doc["sheets"][0]["cells"]["A1"]["v"])
-    print(f"사례 {len(spec['cases'])}개 중 {ok}개 같음(Python)")
+    print(f"사례 {len(spec['cases']) + len(spec.get('spills', []))}개 중 {ok}개 같음(Python)")
     import shutil
     import subprocess
     if shutil.which("node"):  # 화면 계산기(sheetcalc.js)도 같은 사례로 - 두 곳 동일성

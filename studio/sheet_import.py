@@ -168,7 +168,7 @@ def import_xlsx(src, title=None):
         if not part or part not in names:
             continue
         x = ET.fromstring(z.read(part))
-        cells, shared, arrays = {}, {}, 0
+        cells, shared, arrays, spills = {}, {}, 0, []
         maxr = maxc = 0
         cut = False
         for c in x.iter(N + "c"):
@@ -209,13 +209,27 @@ def import_xlsx(src, title=None):
                     o["f"] = "=" + f.text
                 if o.get("f"):
                     o["f"] = re.sub(r"_xl(?:fn|ws|pm)\.", "", o["f"])  # 새 함수 접두사(_xlfn.TEXTJOIN) - 화면·계산기는 맨 이름을 쓴다(내보낼 때 XlsxWriter 가 다시 붙인다)
+                    o["f"] = o["f"].replace("[#This Row],", "@")  # 파일 형식 표1[[#This Row],[열]] → 화면 형식 표1[@[열]]
+                    o["f"] = re.sub(r"ANCHORARRAY\(((?:'[^']+'|[^\W\d][\w.]*)!)?(\$?[A-Z]{1,3}\$?\d+)\)", r"\1\2#", o["f"])  # 넘친 범위 참조 - 화면에서 쓰는 H2#
                 if f.get("t") == "array":
-                    arrays += 1
+                    if c.get("cm") or ":" in str(f.get("ref") or ""):  # 동적 배열(넘침) · 여러 칸 배열 수식 - 넘친 칸은 아래에서 sp 로
+                        o["da"] = True
+                        spills.append((str(f.get("ref") or c.get("r")), c.get("r")))
+                    else:
+                        arrays += 1
             o = {kk: vv for kk, vv in o.items() if vv not in (None, "")}
             if not o:
                 continue
             cells[c.get("r")] = o["v"] if list(o) == ["v"] else o
             maxr, maxc = max(maxr, r0 + 1), max(maxc, c0 + 1)
+        for ref, anchor in spills:  # 넘친 칸 = 엑셀이 저장한 값 + 기준 칸(sp) - 계산기가 다시 채운다
+            a, _, b = ref.partition(":")
+            (r1, c1), (r2, c2) = split_ref(a), split_ref(b or a)
+            for rr in range(r1, min(r2, MAX_ROWS - 1) + 1):
+                for cc in range(c1, min(c2, MAX_COLS - 1) + 1):
+                    key = f"{col_name(cc)}{rr + 1}"
+                    if key != anchor and key in cells:
+                        cells[key] = {**(cells[key] if isinstance(cells[key], dict) else {"v": cells[key]}), "sp": anchor}
         tab = {"id": f"t{len(tabs) + 1:02d}", "name": sh.get("name") or f"Sheet{k + 1}", "cells": cells}
         sp = x.find(N + "sheetPr")
         if sp is not None and sp.get("codeName"):  # 매크로(VBA)가 시트를 부르는 이름
@@ -280,6 +294,43 @@ def import_xlsx(src, title=None):
             tab["conds"] = conds
         if skipped:
             warnings.append(f"{tab['name']}: 조건부 서식 {skipped}개(수식·아이콘·데이터 막대 등)는 옮기지 않았다")
+        for rel in _rels_of(z, part):  # 메모(옛 형식 comments - 엑셀이 스레드 메모도 함께 남긴다) → 셀 note
+            if not rel.get("Type", "").endswith("/comments"):
+                continue
+            cp = "xl/" + rel.get("Target").replace("../", "")
+            if cp not in names:
+                continue
+            cx = ET.fromstring(z.read(cp))
+            authors = [a.text or "" for a in cx.iter(N + "author")]
+            for cm in cx.iter(N + "comment"):
+                ref, txt = cm.get("ref"), "".join(t.text or "" for t in cm.iter(N + "t")).strip()
+                au = authors[int(cm.get("authorId") or 0)] if authors and int(cm.get("authorId") or 0) < len(authors) else ""
+                if au and txt.startswith(au + ":"):  # 엑셀이 앞에 붙이는 "작성자:" 줄
+                    txt = txt[len(au) + 1:].strip()
+                if ref and txt and split_ref(ref)[0] is not None:
+                    c0 = cells.get(ref)
+                    cells[ref] = {**(c0 if isinstance(c0, dict) else {} if c0 is None else {"v": c0}), "note": txt}
+        tables = []  # 엑셀 표 - 이름·범위·열 이름(구조적 참조 표1[열] 계산)·머리글/요약 행·스타일
+        for rel in _rels_of(z, part):
+            if not rel.get("Type", "").endswith("/table"):
+                continue
+            tp = "xl/" + rel.get("Target").replace("../", "")
+            if tp not in names:
+                continue
+            tx = ET.fromstring(z.read(tp))
+            t = {"name": tx.get("displayName") or tx.get("name"), "ref": tx.get("ref"),
+                 "cols": [c.get("name") for c in tx.iter(N + "tableColumn")]}
+            if tx.get("headerRowCount") == "0":
+                t["header"] = False
+            if int(tx.get("totalsRowCount") or 0):
+                t["totals"] = True
+            si = tx.find(N + "tableStyleInfo")
+            if si is not None and si.get("name"):
+                t["style"] = si.get("name")
+            if t["name"] and t["ref"]:
+                tables.append(t)
+        if tables:
+            tab["tables"] = tables
 
         tabs.append(tab)
     return tabs, warnings, base_font

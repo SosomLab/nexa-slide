@@ -19,7 +19,7 @@
     },
     {
      "name": "  시작 덱으로 → ★ 표시 · 해제 메뉴로 바뀜",
-     "js": "const b=document.querySelector('#deckTabs button.on'); b.dispatchEvent(new MouseEvent('contextmenu',{bubbles:true,clientX:200,clientY:100})); await new Promise(r=>setTimeout(r,300)); [...document.querySelectorAll('#menu button')].find(x=>x.textContent.trim()==='시작 덱으로').click(); await new Promise(r=>setTimeout(r,800)); const on=document.querySelector('#deckTabs button.on'); const star=on.textContent.trim().startsWith('★'); on.dispatchEvent(new MouseEvent('contextmenu',{bubbles:true,clientX:200,clientY:100})); await new Promise(r=>setTimeout(r,300)); const off=[...document.querySelectorAll('#menu button')].find(x=>x.textContent.trim().endsWith('시작 덱 해제')); if(off) off.click(); await new Promise(r=>setTimeout(r,800)); return star && off && !document.querySelector('#deckTabs button.on').textContent.includes('★') ? true : 'star='+star+' off='+!!off"
+     "js": "const b=document.querySelector('#deckTabs button.on'); b.dispatchEvent(new MouseEvent('contextmenu',{bubbles:true,clientX:200,clientY:100})); await new Promise(r=>setTimeout(r,300)); [...document.querySelectorAll('#menu button')].find(x=>x.textContent.trim()==='시작 덱으로').click(); await new Promise(r=>setTimeout(r,800)); const on=document.querySelector('#deckTabs button.on'); const star=on.textContent.trim().startsWith('★'); on.dispatchEvent(new MouseEvent('contextmenu',{bubbles:true,clientX:200,clientY:100})); await new Promise(r=>setTimeout(r,300)); const off=[...document.querySelectorAll('#menu button')].find(x=>x.textContent.trim().endsWith('시작 덱 해제')); if(off) off.click(); await until(()=>star && off && !document.querySelector('#deckTabs button.on').textContent.includes('★'), 3200); return star && off && !document.querySelector('#deckTabs button.on').textContent.includes('★') ? true : 'star='+star+' off='+!!off"
     },
     {
      "name": "  복제 → 새 탭 '덱 시험 새 (복사)'",
@@ -27,7 +27,7 @@
     },
     {
      "name": "  정리: 시험 덱 둘 삭제 · 표·글머리 탭으로",
-     "js": "window.confirm=()=>true; for(const id of [window.__copyDeck, window.__newDeck]){ await fetch('/api/decks',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'delete',id})}); } await new Promise(r=>setTimeout(r,500)); location.hash='#tbltest/1'; await new Promise(r=>setTimeout(r,1200)); return document.querySelector('#deckTabs button.on') && document.querySelector('#deckTabs button.on').dataset.deck==='tbltest' ? true : 'on='+document.querySelector('#deckTabs button.on').dataset.deck"
+     "js": "window.confirm=()=>true; for(const id of [window.__copyDeck, window.__newDeck]){ await fetch('/api/decks',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'delete',id})}); } await new Promise(r=>setTimeout(r,500)); location.hash='#tbltest/1'; await until(()=>document.querySelector('#deckTabs button.on') && document.querySelector('#deckTabs button.on').dataset.deck==='tbltest', 4800); return document.querySelector('#deckTabs button.on') && document.querySelector('#deckTabs button.on').dataset.deck==='tbltest' ? true : 'on='+document.querySelector('#deckTabs button.on').dataset.deck"
     }
    ]
   }

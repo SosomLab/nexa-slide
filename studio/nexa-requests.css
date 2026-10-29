@@ -52,3 +52,8 @@
 #reqHist mark { background: #FFF2A8; padding: 0 1px; border-radius: 2px; }
 .req .st .spin { width: 9px; height: 9px; border-width: 1.5px; vertical-align: -1px; }  /* 처리 중 */
 .req .meta a[data-goto] { color: inherit; }
+/* AI 제안(동시 편집 3단계 첫 조각) - 요청 카드 안에서 장·탭마다 골라 받기 */
+.req .prop { margin-top: 6px; padding: 6px 8px; border-radius: 10px; background: #FFF7E0; border: 1px solid #F0D58C; font-size: 12px; }
+.req .prop-its { display: flex; flex-direction: column; gap: 2px; margin: 4px 0 6px; max-height: 180px; overflow-y: auto; }
+.req .prop-its label { display: flex; gap: 6px; align-items: baseline; cursor: pointer; }
+.req .prop-its .k { font-weight: 700; color: var(--warn); }

@@ -119,13 +119,67 @@ def main():
         put("mg", cur, base=v)
         code, out = nexa("save_deck.py", "mg", "--from", str(draft), "--no-merge")
         check("save_deck --no-merge - 사본 뒤 사람이 저장했으면 409(종료 코드 2), 파일 그대로", code == 2 and el(get("mg")[0], "s1", "e1")["text"] == "그 사이 사람", out)
-        # 6. 시트 - 다른 셀, 같은 셀의 값과 서식
+        # 6. AI 제안(--propose) - 파일은 그대로, 장마다 골라 받기(그 사이 사람 변경 유지), 나머지 버리기
+        cur, v = get("mg")
+        cur["slides"].append({"id": "s2", "elements": [e("f1", "둘째 장")]})
+        put("mg", cur, base=v)
+        code, out = nexa("draft_deck.py", "mg")
+        dr = json.loads(draft.read_text(encoding="utf-8"))
+        el(dr, "s1", "e2")["text"] = "AI 제안 둘"
+        dr["slides"][1]["elements"][0]["text"] = "AI 제안 둘째 장"
+        dr["slides"].append({"id": "s3", "elements": [e("g1", "AI 가 더한 장")]})
+        draft.write_text(json.dumps(dr, ensure_ascii=False, indent=1), encoding="utf-8")
+        before_v = get("mg")[1]
+        code, out = nexa("save_deck.py", "mg", "--from", str(draft), "--propose", "--request", "rprop1")
+        with urllib.request.urlopen(f"{B}/api/proposals/mg", timeout=10) as r:
+            plist = json.loads(r.read())
+        its = (plist[0]["items"] if plist else [])
+        check("--propose - 파일은 그대로, 제안 3곳(s1 수정·s2 수정·s3 추가)", code == 0 and get("mg")[1] == before_v and sorted(x["id"] for x in its) == ["s:s1", "s:s2", "s:s3"] and "제안을 남겼습니다" in out, out + json.dumps(plist, ensure_ascii=False))
+        cur, v = get("mg"); el(cur, "s1", "e1")["text"] = "제안 뒤 사람"
+        put("mg", cur, base=v)
+        req = urllib.request.Request(f"{B}/api/proposals/mg", data=json.dumps({"action": "accept", "request": "rprop1", "items": ["s:s1", "s:s3"]}).encode(), method="POST", headers={"Content-Type": "application/json"})
+        with urllib.request.urlopen(req, timeout=10) as r:
+            ra = json.loads(r.read())
+        d6 = get("mg")[0]
+        check("제안 일부 받기 - s1·s3 만, 그 사이 사람 변경(e1) 유지, s2 는 그대로", ra.get("ok") and ra.get("left") == 1 and el(d6, "s1", "e2")["text"] == "AI 제안 둘"
+              and el(d6, "s1", "e1")["text"] == "제안 뒤 사람" and [s["id"] for s in d6["slides"]] == ["s1", "s2", "s3"] and d6["slides"][1]["elements"][0]["text"] == "둘째 장", json.dumps(d6, ensure_ascii=False)[:400])
+        with urllib.request.urlopen(f"{B}/api/changes/mg?seq={ra.get('seq')}", timeout=10) as r:
+            ent = json.loads(r.read()).get("entry") or {}
+        check("원장 action accept · 받은 항목", ent.get("action") == "accept" and (ent.get("evidence") or {}).get("proposal", {}).get("items") == ["s:s1", "s:s3"], json.dumps(ent, ensure_ascii=False)[:300])
+        req = urllib.request.Request(f"{B}/api/proposals/mg", data=json.dumps({"action": "discard", "request": "rprop1"}).encode(), method="POST", headers={"Content-Type": "application/json"})
+        urllib.request.urlopen(req, timeout=10).read()
+        with urllib.request.urlopen(f"{B}/api/proposals/mg", timeout=10) as r:
+            check("나머지 버리기 - 제안 없음, 문서 그대로", json.loads(r.read()) == [] and get("mg")[0]["slides"][1]["elements"][0]["text"] == "둘째 장")
+        # 7. 시트 - 다른 셀, 같은 셀의 값과 서식
         s0, sv = get("ms")
         a = json.loads(json.dumps(s0)); a["sheets"][0]["cells"]["B2"] = 2; a["sheets"][0]["cells"]["A1"] = "새 제목"
         b = json.loads(json.dumps(s0)); b["sheets"][0]["cells"]["C3"] = "추가"; b["sheets"][0]["cells"]["A1"] = {"v": "제목", "b": True}
         put("ms", a, base=sv); time.sleep(0.05)
         sb, rb = put("ms", b, base=sv, merge=1)
         c = get("ms")[0]["sheets"][0]["cells"]
+        # 8. AI 가 바꾼 셀(/api/reqdiff) - 같은 요청의 AI 저장 둘 사이에 사람이 저장한 셀은 AI 변경으로 세지 않는다
+        rdiff = f"rdiff{int(time.time())}"  # 실행마다 새 요청 id(원장은 실행 사이에 남는다)
+        d, v = get("ms"); d["sheets"][0]["cells"]["D1"] = "AI 하나"; put("ms", d, base=v, origin="claude", request=rdiff)
+        d, v = get("ms"); d["sheets"][0]["cells"]["D2"] = "사람"; put("ms", d, base=v)
+        d, v = get("ms"); d["sheets"][0]["cells"]["D3"] = "AI 둘"; put("ms", d, base=v, origin="claude", request=rdiff)
+        with urllib.request.urlopen(f"{B}/api/reqdiff/ms?request={rdiff}", timeout=10) as r:
+            rd = json.loads(r.read())
+        check("reqdiff - AI 저장 사이 사람이 고친 셀(D2)은 빼고 D1·D3 만", sorted(x["key"] for x in rd.get("cells") or []) == ["D1", "D3"] and rd.get("saves") == 2, json.dumps(rd, ensure_ascii=False)[:300])
+        # 9. 시트 행 삽입(동시 편집 3-2) - A 가 2행 위에 행을 넣는 사이 B 가 B2 를 고치면, 합친 결과에서 B 의 값은 B3 에(옮겨진 자리)
+        sys.path.insert(0, str(STUDIO))
+        import sheet_struct  # noqa: E402
+        s0, sv = get("ms")
+        s0["sheets"][0]["cells"]["E2"] = {"f": "=B2*2"}
+        put("ms", s0, base=sv)
+        s0, sv = get("ms")
+        ops = [{"op": "insertRows", "tab": "t01", "at": 1, "n": 1}]
+        a = sheet_struct.apply(s0, ops)
+        b = json.loads(json.dumps(s0)); b["sheets"][0]["cells"]["B2"] = "B 가 고침"
+        put("ms", b, base=sv); time.sleep(0.05)
+        sa, ra = put("ms", {**a, "__struct": ops}, base=sv, merge=1)
+        c9 = get("ms")[0]["sheets"][0]["cells"]
+        check("시트 행 삽입 병합 - 그 사이 다른 창이 고친 B2 는 옮겨진 B3 에, 수식도 =B3*2(E3)", sa == 200 and c9.get("B3") == "B 가 고침" and "B2" not in c9
+              and (c9.get("E3") or {}).get("f") == "=B3*2" and "__struct" not in json.dumps(get("ms")[0]), json.dumps(c9, ensure_ascii=False)[:400])
         check("시트 - 다른 셀 둘 다 · 같은 셀은 값(A)과 굵게(B) 둘 다", sb == 200 and c.get("B2") == 2 and c.get("C3") == "추가" and c.get("A1") == {"b": True, "v": "새 제목"}, json.dumps(c, ensure_ascii=False))
     finally:
         srv.terminate()

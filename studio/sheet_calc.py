@@ -15,7 +15,8 @@ import re
 import sys
 from pathlib import Path
 
-ERRS = ("#DIV/0!", "#VALUE!", "#REF!", "#NAME?", "#NUM!", "#N/A", "#NULL!")
+ERRS = ("#DIV/0!", "#VALUE!", "#REF!", "#NAME?", "#NUM!", "#N/A", "#NULL!", "#SPILL!", "#CALC!")
+DYN = {"FILTER", "SORT", "SORTBY", "UNIQUE", "SEQUENCE", "TRANSPOSE", "TAKE", "DROP", "CHOOSECOLS", "CHOOSEROWS", "HSTACK", "VSTACK", "TOCOL", "TOROW", "TEXTSPLIT"}  # 동적 배열 함수 - 이 함수를 쓴(또는 가져온 동적 배열 da) 수식만 옆 칸으로 넘친다
 DAY0 = dt.date(1899, 12, 30)
 
 
@@ -45,6 +46,7 @@ TOK = re.compile("|".join([
     r"(\d+(?:\.\d*)?(?:[eE][+-]?\d+)?|\.\d+(?:[eE][+-]?\d+)?)",
     r"(<=|>=|<>|[-+*/^&=<>(),%])",
     r"(#[A-Z/0]+[!?])",
+    rf"((?:{L}[\w.]*)?\[(?:[^\[\]]|\[[^\[\]]*\])*\])",  # 표 구조적 참조 표1[열] · [@열] · 표1[[#Headers],[열]]
     rf"({L}[\w.]*)",
 ]), re.I)
 
@@ -84,9 +86,13 @@ def tokenize(src):
             out.append(("str", g[1][1:-1].replace('""', '"')))
         elif g[3]:
             sheet = g[2][:-1].strip("'").replace("''", "'") if g[2] else None
-            out.append(("ref", g[3], sheet))
+            if src[i:i + 1] == "#" and ":" not in g[3]:  # 넘친 범위 참조 H2# (엑셀 파일에는 ANCHORARRAY(H2))
+                i += 1
+                out.append(("ref", g[3], sheet, "#"))
+            else:
+                out.append(("ref", g[3], sheet))
         elif g[4]:
-            out.append(("fn", re.sub(r"^_XL(?:FN|WS)\.", "", g[4].upper())))  # 파일에 저장된 새 함수 접두사(_xlfn.TEXTJOIN)
+            out.append(("fn", re.sub(r"^(?:_XL(?:FN|WS)\.)+", "", g[4].upper())))  # 파일에 저장된 새 함수 접두사(_xlfn.TEXTJOIN)
         elif g[5]:
             out.append(("bool", g[5].upper() == "TRUE"))
         elif g[6]:
@@ -95,8 +101,11 @@ def tokenize(src):
             out.append(("op", g[7]))
         elif g[8]:
             out.append(("err", g[8]))
+        elif g[9]:
+            k = g[9].index("[")
+            out.append(("sref", g[9][:k] or None, g[9][k + 1:-1]))
         else:
-            out.append(("name", g[9]))
+            out.append(("name", g[10]))
     return out
 
 
@@ -149,8 +158,13 @@ def parse(src):
         if k == "err":
             return ("err", t[1])
         if k == "name":
-            return ("err", "#NAME?")
+            return ("name", t[1].upper())  # LET 이름 - 밖에서는 #NAME?
+        if k == "sref":
+            return ("sref", t[1], t[2])
         if k == "ref":
+            if len(t) > 3:
+                a = parse_ref(t[1])
+                return ("spill", t[2], a[0], a[1])
             ends = t[1].split(":")
             if re.fullmatch(r"\$?[A-Za-z]{1,3}", ends[0]):  # 열 전체 A:A - 끝 행은 계산할 때 그 탭의 데이터 끝으로
                 return ("range", t[2], 0, col_index(ends[0].lstrip("$")), -1, col_index(ends[-1].lstrip("$")))
@@ -331,6 +345,97 @@ class Calc:
         self.memo, self.busy, self.ast = {}, set(), {}
         self.at = []  # 계산 중인 셀 (행, 열) - ROW()·COLUMN() 인수 없음
         self.dims = {}
+        self.spill, self.anchors, self.dyn = {}, {}, {}
+        self.extent, self.scope = {}, []  # 동적 배열 기준 칸 → 넘친 크기 (행 수, 열 수) · LET 이름 묶음  # 넘친 칸 (탭 id, 행, 열) → (값, 기준 칸) · 탭별 동적 배열 수식 칸 · 수식 → 동적인가
+
+    def is_dyn(self, raw):
+        if raw.get("da"):
+            return True
+        if raw["f"] not in self.dyn:
+            self.dyn[raw["f"]] = dynamic(raw)
+        return self.dyn[raw["f"]]
+
+    def sref(self, n, sh):
+        """표1[열] · [@열] · 표1[[#Headers],[열1]:[열2]] → ("ref"|"range", 탭 이름, …)."""
+        _, name, inner = n
+        hit = None
+        for s in self.sheets:
+            for t in s.get("tables") or []:
+                if name and str(t.get("name", "")).lower() == name.lower():
+                    hit = (s, t)
+                elif not name and s is sh and self.at:
+                    r1, c1, r2, c2 = _tref(t)
+                    if r1 <= self.at[-1][0] <= r2 and c1 <= self.at[-1][1] <= c2:
+                        hit = (s, t)
+        if hit is None:
+            raise FErr("#REF!")
+        s, t = hit
+        spec, cols = table_spec(inner)
+        r1, c1, r2, c2 = _tref(t)
+        names = [str(x).lower() for x in t.get("cols") or []]
+        d1 = r1 + (1 if t.get("header", True) else 0)
+        d2 = r2 - (1 if t.get("totals") else 0)
+        if "@" in spec or "#this row" in spec:
+            if not self.at or not d1 <= self.at[-1][0] <= d2:
+                raise FErr("#VALUE!")
+            ra = rb = self.at[-1][0]
+        elif "#all" in spec:
+            ra, rb = r1, r2
+        else:
+            ra, rb = d1, d2
+            if "#headers" in spec:
+                ra = r1 if t.get("header", True) else d1
+                rb = rb if "#data" in spec else ra
+            if "#totals" in spec:
+                if not t.get("totals"):
+                    raise FErr("#REF!")
+                rb = r2
+                ra = ra if "#data" in spec else r2
+        if cols:
+            try:
+                k = [c1 + names.index(x.lower()) for x in cols]
+            except ValueError:
+                raise FErr("#REF!")
+            ca, cb = min(k), max(k)
+        else:
+            ca, cb = c1, c2
+        tab = None if s is sh else s.get("name")
+        return ("ref", tab, ra, ca) if ra == rb and ca == cb else ("range", tab, ra, ca, rb, cb)
+
+    def spilled(self, sh, r, c):
+        """빈 칸(또는 넘친 칸)의 값 - 왼쪽 위의 동적 배열 수식을 먼저 계산해 넘친 값이 있으면 그것."""
+        sid = sh.get("id")
+        if sid not in self.anchors:
+            self.anchors[sid] = [(p, k) for k, raw in (sh.get("cells") or {}).items()
+                                 if isinstance(raw, dict) and raw.get("f") and self.is_dyn(raw) and (p := parse_ref(k))]
+        for (ar, ac), k in self.anchors[sid]:
+            if ar <= r and ac <= c and (sid, k) not in self.memo and (sid, k) not in self.busy:
+                self.cell(sh, k)
+        hit = self.spill.get((sid, r, c))
+        return hit[0] if hit else None
+
+    def spill_out(self, sh, k, v):
+        """배열 결과를 기준 칸 k 에서 오른쪽·아래로 넘긴다 - 자리에 값이 있으면 #SPILL!."""
+        sid, (ar, ac) = sh.get("id"), parse_ref(k)
+        h, w = len(v.rows), len(v.rows[0])
+        if h * w > 100000:
+            return FErr("#SPILL!")
+        cells = sh.get("cells") or {}
+        for i in range(h):
+            for j in range(w):
+                if i == j == 0:
+                    continue
+                raw = cells.get(f"{col_name(ac + j)}{ar + i + 1}")
+                busy = raw.get("f") or (raw.get("v") not in (None, "") and not raw.get("sp")) if isinstance(raw, dict) else raw not in (None, "")
+                if busy or (sid, ar + i, ac + j) in self.spill:
+                    return FErr("#SPILL!")
+        for i in range(h):
+            for j in range(w):
+                if i or j:
+                    x = v.rows[i][j]
+                    self.spill[(sid, ar + i, ac + j)] = (0 if x is None else x, k)
+        self.extent[(sid, k)] = (h, w)
+        return v.rows[0][0]
 
     def sheet(self, name, cur):
         if name is None:
@@ -342,7 +447,9 @@ class Calc:
         raw = (sh.get("cells") or {}).get(k)
         if isinstance(raw, dict) and raw.get("f"):
             return self.cell(sh, k)
-        v = raw.get("v") if isinstance(raw, dict) else raw
+        v = raw.get("v") if isinstance(raw, dict) and not raw.get("sp") else None if isinstance(raw, dict) else raw
+        if v is None:
+            v = self.spilled(sh, r, c)
         if isinstance(v, str) and v in ERRS:
             return FErr(v)
         return v
@@ -363,6 +470,11 @@ class Calc:
                 except FErr as e:
                     self.ast[f] = ("err", e.code)
             v = self.ev(self.ast[f], sh)
+            if self.is_dyn(sh["cells"][k]):
+                if isinstance(v, Rng) and len(v.vals) > 1:
+                    v = self.spill_out(sh, k, v)
+                if not isinstance(v, FErr) and (sh.get("id"), k) not in self.extent:
+                    self.extent[(sh.get("id"), k)] = (1, 1)
             if isinstance(v, Rng):
                 v = v.vals[0] if len(v.vals) == 1 else FErr("#VALUE!")
             if v is None:
@@ -421,6 +533,28 @@ class Calc:
             return v
         if k == "range":
             return self.rng(n, sh)
+        if k == "spill":  # H2# - 그 칸의 동적 배열이 넘친 범위 전체
+            s = self.sheet(n[1], sh)
+            if s is None:
+                raise FErr("#REF!")
+            key = f"{col_name(n[3])}{n[2] + 1}"
+            raw = (s.get("cells") or {}).get(key)
+            if isinstance(raw, dict) and raw.get("f"):
+                self.cell(s, key)
+            h, w = self.extent.get((s.get("id"), key), (0, 0))
+            if not h:
+                raise FErr("#REF!")
+            return self.rng(("range", n[1], n[2], n[3], n[2] + h - 1, n[3] + w - 1), sh)
+        if k == "sref":  # 표 구조적 참조 → 셀·범위
+            return self.ev(self.sref(n, sh), sh)
+        if k == "name":
+            for sc in reversed(self.scope):
+                if n[1] in sc:
+                    v = sc[n[1]]
+                    if isinstance(v, FErr):
+                        raise v
+                    return v
+            raise FErr("#NAME?")
         if k == "neg":
             x = self.ev(n[1], sh)
             if isinstance(x, Rng) and len(x.vals) > 1:  # 배열 - 칸마다
@@ -560,6 +694,35 @@ class Calc:
                 raise FErr("#REF!")
             return ("ref", base[1], r1, c1) if h == w == 1 else ("range", base[1], r1, c1, r1 + h - 1, c1 + w - 1)
         raise FErr("#REF!")
+
+
+def _tref(t):
+    a, _, b = str(t.get("ref", "")).partition(":")
+    pa, pb = parse_ref(a), parse_ref(b or a)
+    if not pa or not pb:
+        raise FErr("#REF!")
+    return pa[0], pa[1], pb[0], pb[1]
+
+
+def table_spec(inner):
+    """구조적 참조 안쪽 → (특수 지정 집합 {#all,#data,#headers,#totals,#this row,@}, 열 이름 [처음, 끝])."""
+    inner = inner.strip()
+    spec, cols = set(), []
+    if inner.startswith("@"):
+        spec.add("@")
+        inner = inner[1:].strip()
+    if "[" not in inner:
+        items = [inner] if inner else []
+    else:
+        items = re.findall(r"\[([^\]]*)\]", inner)
+    for it in items:
+        if it.startswith("#"):
+            spec.add(it.lower())
+        elif it:
+            cols.append(it.replace("'", ""))
+    if len(cols) > 2:
+        cols = [cols[0], cols[-1]]
+    return spec, cols
 
 
 def _cellv(f, *xs):
@@ -943,6 +1106,143 @@ def _eomonth(c, A, sh):
     return serial(nxt) - 1
 
 
+def _opt(c, A, i, sh, default):
+    """생략할 수 있는 인수 - 없거나 비워 둔 칸(SORT(A1:B5,,-1))이면 default."""
+    return default if i >= len(A) or A[i] == ("lit", None) else c.one(A, i, sh)
+
+
+def _truthy(x):
+    if isinstance(x, FErr):
+        raise x
+    if x is None or x == "":
+        return False
+    if isinstance(x, str):
+        raise FErr("#VALUE!")
+    return bool(to_num(x))
+
+
+def _transpose_rows(rows):
+    return [list(r) for r in zip(*rows)]
+
+
+def _skey(v):
+    """정렬 순서 - 숫자 < 글(대소문자 무시) < 논리 < 오류. 빈 칸은 따로 맨 뒤."""
+    if isinstance(v, FErr):
+        return (3, v.code)
+    if isinstance(v, bool):
+        return (2, v)
+    if isinstance(v, (int, float)):
+        return (0, v)
+    return (1, str(v).lower())
+
+
+def _sort_rows(rows, keys):
+    """keys = [(행 → 값, 내림차순?)] - 안정 정렬, 빈 칸은 순서와 관계없이 맨 뒤."""
+    import functools
+
+    def cmp(a, b):
+        for get, desc in keys:
+            x, y = get(a), get(b)
+            if x is None or y is None:
+                if (x is None) != (y is None):
+                    return 1 if x is None else -1
+                continue
+            kx, ky = _skey(x), _skey(y)
+            if kx != ky:
+                return (1 if kx > ky else -1) * (-1 if desc else 1)
+        return 0
+    return sorted(rows, key=functools.cmp_to_key(cmp))
+
+
+def _filter(c, A, sh):
+    arr, inc = c.area(A[0], sh), c.area(A[1], sh)
+    rows = arr.rows
+    h, w = len(rows), len(rows[0])
+    if len(inc.rows) == h and len(inc.rows[0]) == 1:
+        out = [rows[i] for i in range(h) if _truthy(inc.rows[i][0])]
+    elif len(inc.rows) == 1 and len(inc.rows[0]) == w:
+        keep = [j for j in range(w) if _truthy(inc.rows[0][j])]
+        out = [[r[j] for j in keep] for r in rows] if keep else []
+    else:
+        raise FErr("#VALUE!")
+    if not out:
+        if len(A) > 2 and A[2] != ("lit", None):
+            return c.ev(A[2], sh)
+        raise FErr("#CALC!")
+    return Rng(out)
+
+
+def _sort(c, A, sh):
+    rows = c.area(A[0], sh).rows
+    idx, order, by_col = int(to_num(_opt(c, A, 1, sh, 1))), to_num(_opt(c, A, 2, sh, 1)), to_bool(_opt(c, A, 3, sh, False))
+    if by_col:
+        rows = _transpose_rows(rows)
+    if idx < 1 or idx > len(rows[0]) or order not in (1, -1):
+        raise FErr("#VALUE!")
+    out = _sort_rows(rows, [(lambda r: r[idx - 1], order == -1)])
+    return Rng(_transpose_rows(out) if by_col else out)
+
+
+def _sortby(c, A, sh):
+    rows = c.area(A[0], sh).rows
+    h, w = len(rows), len(rows[0])
+    keys, by_col = [], None
+    for i in range(1, len(A), 2):
+        b = c.area(A[i], sh)
+        order = to_num(_opt(c, A, i + 1, sh, 1))
+        if order not in (1, -1):
+            raise FErr("#VALUE!")
+        col = len(b.rows) == h and len(b.rows[0]) == 1 and h > 1 or (h == 1 and w == 1)
+        row = len(b.rows) == 1 and len(b.rows[0]) == w
+        if not (col or row) or (by_col is not None and by_col != (not col)):
+            raise FErr("#VALUE!")
+        by_col = not col
+        keys.append((b.rows[0] if by_col else [r[0] for r in b.rows], order == -1))
+    if not keys:
+        raise FErr("#VALUE!")
+    base = _transpose_rows(rows) if by_col else rows
+    idx = _sort_rows(list(range(len(base))), [(lambda i, vals=vals: vals[i], desc) for vals, desc in keys])
+    out = [base[i] for i in idx]
+    return Rng(_transpose_rows(out) if by_col else out)
+
+
+def _ukey(v):
+    if isinstance(v, FErr):
+        return ("e", v.code)
+    if isinstance(v, bool):
+        return ("b", v)
+    if isinstance(v, (int, float)):
+        return ("n", v)
+    return ("z",) if v is None else ("s", str(v).lower())
+
+
+def _unique(c, A, sh):
+    rows = c.area(A[0], sh).rows
+    by_col, once = to_bool(_opt(c, A, 1, sh, False)), to_bool(_opt(c, A, 2, sh, False))
+    base = _transpose_rows(rows) if by_col else rows
+    seen, order = {}, []
+    for r in base:
+        k = tuple(_ukey(v) for v in r)
+        if k not in seen:
+            seen[k] = [r, 0]
+            order.append(k)
+        seen[k][1] += 1
+    out = [seen[k][0] for k in order if not once or seen[k][1] == 1]
+    if not out:
+        raise FErr("#CALC!")
+    return Rng(_transpose_rows(out) if by_col else out)
+
+
+def _sequence(c, A, sh):
+    h, w = int(to_num(c.one(A, 0, sh))), int(to_num(_opt(c, A, 1, sh, 1)))
+    start, step = to_num(_opt(c, A, 2, sh, 1)), to_num(_opt(c, A, 3, sh, 1))
+    if h < 1 or w < 1:
+        raise FErr("#CALC!")
+    if h * w > 100000:
+        raise FErr("#NUM!")
+    return Rng([[start + step * (i * w + j) for j in range(w)] for i in range(h)])
+
+
 def _is(test):
     def f(c, A, sh):
         try:
@@ -981,6 +1281,8 @@ FUNCS = {
     "EDATE": lambda c, A, sh: serial(add_months(date_of(c.one(A, 0, sh)), int(to_num(c.one(A, 1, sh))))), "EOMONTH": _eomonth,
     "ROW": _row_col(0), "COLUMN": _row_col(1), "ROWS": _rows_cols(0), "COLUMNS": _rows_cols(1),
     "INDIRECT": _indirect, "OFFSET": _offset, "SUBTOTAL": _subtotal,
+    "FILTER": _filter, "SORT": _sort, "SORTBY": _sortby, "UNIQUE": _unique, "SEQUENCE": _sequence,
+    "TRANSPOSE": lambda c, A, sh: Rng(_transpose_rows(c.area(A[0], sh).rows)),
     "HYPERLINK": lambda c, A, sh: c.one(A, 1, sh) if len(A) > 1 else c.one(A, 0, sh),  # 링크는 화면에서 열지 않는다 - 보이는 글만
     "ISBLANK": _is(lambda v: v is None or v == ""), "ISNUMBER": _is(lambda v: isinstance(v, (int, float)) and not isinstance(v, bool)),
     "ISTEXT": _is(lambda v: isinstance(v, str)), "ISERROR": _is(lambda v: isinstance(v, FErr)), "ISNA": _is(lambda v: isinstance(v, FErr) and v.code == "#N/A"),
@@ -1039,6 +1341,7 @@ def recalc(doc):
     """모든 탭의 수식을 계산해 v 에 넣는다(오류는 "#…" 문자열). 바뀐 셀 수."""
     c = Calc(doc)
     changed = 0
+    no_tables = not any(s.get("tables") for s in doc.get("sheets") or [])
     for sh in doc.get("sheets") or []:
         for k, raw in (sh.get("cells") or {}).items():
             if isinstance(raw, dict) and raw.get("f"):
@@ -1046,18 +1349,235 @@ def recalc(doc):
                 v = v.code if isinstance(v, FErr) else v
                 if v == "#NAME?" and raw.get("v") not in (None, "#NAME?") and unknown_fn(raw["f"]):
                     continue  # 매크로(VBA) 사용자 함수 - 계산할 수 없어 엑셀이 마지막에 계산한 값을 그대로 둔다
+                if v == "#REF!" and no_tables and "[" in raw["f"] and raw.get("v") not in (None, "#REF!"):
+                    continue  # 표 정의 없이 가져온 옛 문서의 구조적 참조 - 엑셀 값을 그대로
                 if raw.get("v") != v:
                     raw["v"] = v
                     changed += 1
+    return changed + sync_spill(doc, c)
+
+
+def _let(c, A, sh):
+    """LET(이름1, 값1, …, 계산) - 이름은 뒤의 값·계산에서 쓴다."""
+    if len(A) < 3 or len(A) % 2 == 0:
+        raise FErr("#VALUE!")
+    c.scope.append({})
+    try:
+        for i in range(0, len(A) - 1, 2):
+            if A[i][0] != "name":
+                raise FErr("#NAME?")
+            c.scope[-1][A[i][1]] = _cellv(lambda i=i: c.ev(A[i + 1], sh))
+        return c.ev(A[-1], sh)
+    finally:
+        c.scope.pop()
+
+
+def _datedif(c, A, sh):
+    a, b, u = date_of(c.one(A, 0, sh)), date_of(c.one(A, 1, sh)), to_str(c.one(A, 2, sh)).upper()
+    if a > b:
+        raise FErr("#NUM!")
+    months = (b.year - a.year) * 12 + b.month - a.month - (1 if b.day < a.day else 0)
+    if u == "Y":
+        return months // 12
+    if u == "M":
+        return months
+    if u == "D":
+        return (b - a).days
+    if u == "YM":
+        return months % 12
+    if u == "MD":
+        return (b - add_months(a, months)).days
+    if u == "YD":
+        k = (b.year - a.year) - (1 if (b.month, b.day) < (a.month, a.day) else 0)
+        return (b - add_months(a, 12 * k)).days
+    raise FErr("#NUM!")
+
+
+def _holidays(c, A, i, sh):
+    if i >= len(A) or A[i] == ("lit", None):
+        return set()
+    return {int(to_num(v)) for v in c.area(A[i], sh).vals if v not in (None, "")}
+
+
+def _networkdays(c, A, sh):
+    a, b = int(to_num(c.one(A, 0, sh))), int(to_num(c.one(A, 1, sh)))
+    hol, sign = _holidays(c, A, 2, sh), 1
+    if a > b:
+        a, b, sign = b, a, -1
+    return sign * sum(1 for d in range(a, b + 1) if date_of(d).weekday() < 5 and d not in hol)
+
+
+def _workday(c, A, sh):
+    d, n = int(to_num(c.one(A, 0, sh))), int(to_num(c.one(A, 1, sh)))
+    hol, step = _holidays(c, A, 2, sh), 1 if n >= 0 else -1
+    while n:
+        d += step
+        if date_of(d).weekday() < 5 and d not in hol:
+            n -= step
+    return d
+
+
+def _xmatch(c, A, sh):
+    look, vals = c.one(A, 0, sh), c.area(A[1], sh).vals
+    mode, order = int(to_num(_opt(c, A, 2, sh, 0))), int(to_num(_opt(c, A, 3, sh, 1)))
+    idx = list(range(len(vals)))[::-1 if order < 0 else 1]
+    if mode == 2:
+        ok = criteria(look)
+        hit = next((i for i in idx if ok(vals[i])), None)
+    else:
+        hit = next((i for i in idx if vals[i] is not None and rank(vals[i]) == rank(look) and compare(vals[i], look, "=")), None)
+        if hit is None and mode in (1, -1):
+            cand = [i for i in idx if vals[i] is not None and rank(vals[i]) == rank(look) and compare(vals[i], look, ">" if mode == 1 else "<")]
+            if cand:
+                hit = cand[0]
+                for i in cand:
+                    if compare(vals[i], vals[hit], "<" if mode == 1 else ">"):
+                        hit = i
+    if hit is None:
+        raise FErr("#N/A")
+    return hit + 1
+
+
+def _rows(c, A, i, sh):
+    return [list(r) for r in c.area(A[i], sh).rows]
+
+
+def _take_drop(drop):
+    def f(c, A, sh):
+        rows = _rows(c, A, 0, sh)
+        h, w = len(rows), len(rows[0])
+        r = _opt(c, A, 1, sh, None)
+        k = _opt(c, A, 2, sh, None)
+
+        def cut(n, size):
+            if n is None:
+                return 0, size
+            n = int(to_num(n))
+            if drop:
+                return (n, size) if n >= 0 else (0, size + n)
+            return (0, n) if n >= 0 else (size + n, size)
+        r1, r2 = cut(r, h)
+        c1, c2 = cut(k, w)
+        out = [row[max(c1, 0):max(c2, 0)] for row in rows[max(r1, 0):max(r2, 0)]]
+        if not out or not out[0]:
+            raise FErr("#CALC!")
+        return Rng(out)
+    return f
+
+
+def _choose(cols):
+    def f(c, A, sh):
+        rows = _rows(c, A, 0, sh)
+        size = len(rows[0]) if cols else len(rows)
+        idx = []
+        for i in range(1, len(A)):
+            for v in c.area(A[i], sh).vals:
+                n = int(to_num(v))
+                if n == 0 or abs(n) > size:
+                    raise FErr("#VALUE!")
+                idx.append(n - 1 if n > 0 else size + n)
+        if not idx:
+            raise FErr("#VALUE!")
+        return Rng([[r[j] for j in idx] for r in rows] if cols else [rows[j] for j in idx])
+    return f
+
+
+def _stack(horiz):
+    def f(c, A, sh):
+        parts = [_rows(c, A, i, sh) for i in range(len(A))]
+        if horiz:
+            h = max(len(p) for p in parts)
+            return Rng([[x for p in parts for x in (p[i] if i < len(p) else [FErr("#N/A")] * len(p[0]))] for i in range(h)])
+        w = max(len(p[0]) for p in parts)
+        return Rng([r + [FErr("#N/A")] * (w - len(r)) for p in parts for r in p])
+    return f
+
+
+def _to_line(col):
+    def f(c, A, sh):
+        rows = _rows(c, A, 0, sh)
+        ignore = int(to_num(_opt(c, A, 1, sh, 0)))
+        by_col = to_bool(_opt(c, A, 2, sh, False))
+        vals = [r[j] for j in range(len(rows[0])) for r in rows] if by_col else [x for r in rows for x in r]
+        vals = [x for x in vals if not ((ignore in (1, 3) and x is None) or (ignore in (2, 3) and isinstance(x, FErr)))]
+        if not vals:
+            raise FErr("#CALC!")
+        return Rng([[x] for x in vals] if col else [vals])
+    return f
+
+
+def _textsplit(c, A, sh):
+    text = to_str(c.one(A, 0, sh))
+    cd = to_str(_opt(c, A, 1, sh, ""))
+    rd = _opt(c, A, 2, sh, None)
+    skip = to_bool(_opt(c, A, 3, sh, False))
+    pad = _opt(c, A, 5, sh, FErr("#N/A")) if len(A) > 5 and A[5] != ("lit", None) else FErr("#N/A")
+    lines = text.split(to_str(rd)) if rd not in (None, "") else [text]
+    rows = [(ln.split(cd) if cd else [ln]) for ln in lines]
+    if skip:
+        rows = [[x for x in r if x != ""] for r in rows]
+        rows = [r for r in rows if r]
+    if not rows:
+        raise FErr("#CALC!")
+    w = max(len(r) for r in rows)
+    return Rng([r + [pad] * (w - len(r)) for r in rows])
+
+
+FUNCS.update({"TAKE": _take_drop(False), "DROP": _take_drop(True), "CHOOSECOLS": _choose(True), "CHOOSEROWS": _choose(False),
+              "HSTACK": _stack(True), "VSTACK": _stack(False), "TOCOL": _to_line(True), "TOROW": _to_line(False), "TEXTSPLIT": _textsplit})
+FUNCS.update({"LET": _let, "DATEDIF": _datedif, "NETWORKDAYS": _networkdays, "WORKDAY": _workday, "XMATCH": _xmatch})
+
+
+def dynamic(raw):
+    """동적 배열 수식인가 - 가져온 동적 배열(da) 이거나 FILTER·SORT·UNIQUE·SEQUENCE … 를 쓴 수식."""
+    if not isinstance(raw, dict) or not raw.get("f"):
+        return False
+    if raw.get("da"):
+        return True
+    f = raw["f"]
+    try:
+        return any((t[0] == "fn" and t[1] in DYN) or (t[0] == "ref" and len(t) > 3) for t in tokenize(f[1:] if f.startswith("=") else f))
+    except FErr:
+        return False
+
+
+def sync_spill(doc, c):
+    """계산기의 넘친 값 → 칸 {v, sp: 기준 칸}. 더는 넘치지 않는 칸은 비운다(기준 칸 오른쪽·아래이거나 기준이 없어졌으면)
+    - 다른 곳에 복사돼 온 sp 칸은 값만 남긴다. 바뀐 칸 수."""
+    changed = 0
+    for sh in doc.get("sheets") or []:
+        sid, cells = sh.get("id"), sh.get("cells") or {}
+        new = {f"{col_name(cc)}{r + 1}": hit for (s, r, cc), hit in c.spill.items() if s == sid}
+        for k, raw in list(cells.items()):
+            if not isinstance(raw, dict) or not raw.get("sp") or k in new:
+                continue
+            a, p, ap = cells.get(raw["sp"]), parse_ref(k), parse_ref(raw["sp"])
+            gone = not (isinstance(a, dict) and a.get("f")) or (p and ap and p[0] >= ap[0] and p[1] >= ap[1])
+            raw.pop("sp")
+            if gone:
+                raw.pop("v", None)
+                if not raw:
+                    del cells[k]
+            changed += 1
+        for k, (v, a) in new.items():
+            raw = cells.get(k)
+            if not isinstance(raw, dict):
+                raw = cells[k] = {}
+            v = v.code if isinstance(v, FErr) else fix(v) if isinstance(v, float) else v
+            if raw.get("v") != v or raw.get("sp") != a:
+                raw["v"], raw["sp"] = v, a
+                changed += 1
     return changed
 
 
 def unknown_fn(f):
-    """수식에 계산기가 모르는 함수(매크로 사용자 함수 등)가 있나."""
+    """수식에 계산기가 모르는 함수(매크로 사용자 함수 등)가 있나 - 읽지 못하는 수식(외부 통합 문서 참조 등)도."""
+    src = f[1:] if f.startswith("=") else f
     try:
-        return any(t[0] == "fn" and t[1] not in FUNCS for t in tokenize(f[1:] if f.startswith("=") else f))
+        parse(src)
+        return any(t[0] == "fn" and t[1] not in FUNCS for t in tokenize(src))
     except FErr:
-        return False
+        return True
 
 
 def main():

@@ -130,10 +130,10 @@ sys.path.insert(0, {str(ENG / "studio")!r})
 import engine_deploy as d
 mode = sys.argv[1]
 def fake(self, root, names=(), label="병합본"):
-    if label == "재시도":  # 새 실패를 병합본에서 한 번 더 - flaky 는 이번엔 통과
-        return [] if mode == "flaky" else [n for n in names if n == "share"]
+    if label == "재시도":  # 새 실패를 병합본에서 한 번 더 - flaky 는 이번엔 통과 · crash 는 실행기가 곧바로 죽음
+        return [] if mode == "flaky" else ["run_all"] if mode == "crash" else [n for n in names if n == "share"]
     if root.name == "deploy-merge":
-        return ["smoke", "share"] if mode in ("new", "flaky") else ["smoke"]
+        return ["smoke", "share"] if mode in ("new", "flaky", "crash") else ["smoke"]
     return ["smoke"]
 d.Run._run_tests = fake
 sys.exit(d.Run("admin1", tests=True, restart=False, push=False).run())
@@ -158,6 +158,12 @@ merged = git("rev-parse", "main")
 base = json.loads((USER / "hub" / "engine" / "test-baseline.json").read_text(encoding="utf-8"))
 check("(e2) 새 실패(share)가 재시도에서 통과 → 배포 · tests.병합본.flaky = share · 기준엔 smoke 만", r.returncode == 0 and merged != before and "재시도(병합본)" in [s["step"] for s in st.get("steps", [])]
       and st.get("tests", {}).get("병합본", {}).get("flaky") == ["share"] and base.get(merged, {}).get("fail") == ["smoke"], (r.stdout + r.stderr)[-400:] + str(st.get("tests")))
+# (e3) 재시도 실행기가 곧바로 죽음(10-29 04:14 메모리 부족) → '다시 돌려 통과'로 치지 않고 막는다
+dev_commit("crash.txt", "x\n", "fix: 재시도가 죽는 경우")
+before = git("rev-parse", "main")
+r = subprocess.run([sys.executable, str(helper), "crash"], env=ENV, capture_output=True, text=True, encoding="utf-8", errors="replace")
+st = json.loads(deploy("status")[1])
+check("(e3) 재시도가 죽으면 막음 · main 불변 · flaky 없음", r.returncode != 0 and git("rev-parse", "main") == before and not st.get("tests", {}).get("병합본", {}).get("flaky"), (r.stdout + r.stderr)[-400:] + str(st.get("message")))
 
 # (f) 시험 진행 기록 - run_all 출력을 줄 단위로 따라가 묶음마다 tests[label] 에 남긴다(가짜 run_all)
 fake_root = WORK / "fakeroot"
@@ -176,7 +182,8 @@ sys.path.insert(0, {str(ENG / "studio")!r})
 import engine_deploy as d
 r = d.Run("admin1", tests=True, restart=False, push=False)
 bad = r._run_tests(Path({str(fake_root)!r}))
-print(json.dumps({{"bad": bad, "tests": r.d["tests"], "times": json.loads(d.TEST_TIMES.read_text("utf-8")), "est": d.estimate(["studio/x.py"]), "docs": d.estimate(["docs/a.md"])}}, ensure_ascii=False))
+picked = r._run_tests(Path({str(fake_root)!r}), ("aa", "cc"), label="재시도")
+print(json.dumps({{"bad": bad, "picked": picked,"tests": r.d["tests"], "times": json.loads(d.TEST_TIMES.read_text("utf-8")), "est": d.estimate(["studio/x.py"]), "docs": d.estimate(["docs/a.md"])}}, ensure_ascii=False))
 ''', encoding="utf-8")
 r = subprocess.run([sys.executable, str(helper2)], env=ENV, capture_output=True, text=True, encoding="utf-8", errors="replace")
 try:
@@ -185,6 +192,7 @@ except Exception:  # noqa: BLE001
     o = {}
 T = o.get("tests", {}).get("병합본", {})
 check("(f) 묶음별 진행(total·done ✓/✕·초) · 실패 묶음", o.get("bad") == ["bb"] and T.get("total") == 2 and [(x["name"], x["ok"], x["sec"]) for x in T.get("done", [])] == [("aa", True, 3), ("bb", False, 5)], r.stdout[-400:] + r.stderr[-400:])
+check("(f2) 고른 묶음 중 끝까지 돌지 못한 것(cc)도 실패", o.get("picked") == ["bb", "cc"], o.get("picked"))
 check("(f) 묶음 시간 기록 → 예상 시간 · 문서만이면 짧게", o.get("times", {}).get("aa") == 3 and o.get("est") == 38 and o.get("docs") == 30, o)
 
 shutil.rmtree(WORK, ignore_errors=True)

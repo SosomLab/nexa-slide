@@ -15,7 +15,7 @@
     },
     {
      "name": "☰ 목록에서 다른 덱 고르면 이동",
-     "js": "const cur=document.querySelector('#deckTabs button.on').dataset.deck; document.querySelector('#deckList').click(); await new Promise(r=>setTimeout(r,200)); const it=[...document.querySelectorAll('.menu button')].find(x=>!x.textContent.trim().startsWith('✓') && !x.textContent.trim().startsWith('새 덱') && !x.textContent.trim().startsWith('새 시트')); if(!it) return 'no other deck'; it.click(); await new Promise(r=>setTimeout(r,1200)); const now=document.querySelector('#deckTabs button.on').dataset.deck; return now!==cur ? true : 'same deck'"
+     "js": "const cur=document.querySelector('#deckTabs button.on').dataset.deck; document.querySelector('#deckList').click(); const it=await until(()=>[...document.querySelectorAll('.menu button')].find(x=>!x.textContent.trim().startsWith('✓') && !x.textContent.trim().startsWith('새 덱') && !x.textContent.trim().startsWith('새 시트')), 3000); if(!it) return 'no other deck'; it.click(); await new Promise(r=>setTimeout(r,1200)); const now=document.querySelector('#deckTabs button.on').dataset.deck; return now!==cur ? true : 'same deck'"
     },
     {
      "name": "덱 탭 오른쪽 클릭 - 새 덱 · 제목 바꾸기 · 복제 · 덱 삭제(휴지통) (줄임표 없음)",

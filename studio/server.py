@@ -18,6 +18,10 @@ API
   GET  /api/version/<id>             {"deck": ver, "requests": ver}
   GET  /api/stream/<id>?tab=<탭>      실시간(동시 편집 2단계, collab.py) - SSE. event: version(= /api/version 내용, 바뀔 때만) · presence({list}) · ping(10초).
                                      파일 버전을 0.5초마다 보므로 편집기 저장·AI 의 save_deck·요청 파일 Edit 가 곧바로 간다. 끊기면 그 탭의 presence 를 지운다
+  GET  /api/proposals/<id>            AI 제안 목록(동시 편집 3단계 첫 조각, proposals.py) [{request, created, items: [{id, kind, title, detail}]}]
+  POST /api/proposals/<id>            {action: create, request, deck, base?, baseDoc?} - save_deck --propose 가 남긴다(파일은 그대로)
+                                     {action: accept, request, items?} - 고른 단위(없으면 전부)를 기준본에 얹어 지금 파일과 병합 저장(원장 action accept)
+                                     {action: discard, request, items?} - 버리기
   GET  /api/reqdiff/<id>?request=<요청> 그 요청으로 AI 가 저장한 변경 - 시트면 바뀐 셀 {cells: [{tab, name, key, before, after}], count}.
                                      원장에서 그 요청의 첫 저장 직전 백업 ↔ 마지막 저장 직후(다음 원장 줄의 직전 백업 또는 지금 파일)를 비교한다
   POST /api/presence/<id>            {tab, where, editing, user?} → 함께 보는 사람(메모리, 15초) · {leave: true} 로 뺀다. 응답 {color, list}
@@ -105,6 +109,8 @@ import auth  # noqa: E402
 import collab  # noqa: E402
 import deckdiff  # noqa: E402
 import deckmerge  # noqa: E402
+import proposals  # noqa: E402
+import sheet_struct  # noqa: E402
 import ledger  # noqa: E402
 import hub  # noqa: E402
 import share  # noqa: E402
@@ -1023,6 +1029,7 @@ class H(BaseHTTPRequestHandler):
     def api_put_deck(self, i, q):
         deck = self.body_json()
         base_doc = deck.pop("__base", None) if isinstance(deck, dict) else None  # 병합 기준본(save_deck 사본의 원본) - 서버가 그 판을 기억하지 못할 때
+        struct = deck.pop("__struct", None) if isinstance(deck, dict) else None  # 시트 행·열 삽입·삭제(동시 편집 3-2) - 병합 전에 기준본·지금 파일에도 적용
         if not isinstance(deck, dict) or not isinstance(deck.get("slides"), list):
             return self.err(400, "덱 형식 아님(slides 목록 필요)")
         if deck.get("id", i) != i:
@@ -1070,6 +1077,9 @@ class H(BaseHTTPRequestHandler):
                 _, theirs = _load(p)
                 if theirs is None:
                     return self.send_json({"ok": False, "error": "conflict", "version": cur}, 409)
+                if isinstance(struct, list) and struct and deck.get("kind") == "sheet":
+                    # 보낸 쪽이 행·열을 넣거나 지웠다 - 기준본과 지금 파일을 같은 만큼 옮긴 뒤 합쳐야 다른 쪽이 고친 셀이 제 칸에 남는다
+                    bdoc, theirs = sheet_struct.apply(bdoc, struct), sheet_struct.apply(theirs, struct)
                 deck, conflicts = deckmerge.merge3(bdoc, deck, theirs, prefer="theirs" if origin == "claude" else "ours")
                 if conflicts:
                     actor["note"] = ((actor.get("note") or "") + f" · 병합 충돌 {len(conflicts)}건")[:200].lstrip(" ·")
@@ -1118,6 +1128,7 @@ class H(BaseHTTPRequestHandler):
         self.send_header("X-Accel-Buffering", "no")
         self.end_headers()
         closed = self._watch_close()
+        collab.PRESENCE.attach(i, tab)  # 같은 탭이 다시 붙으면(재연결) 연결이 둘인 순간이 있다 - 마지막 연결이 끊길 때만 presence 를 지운다
 
         def send(ev, data):
             self.wfile.write(f"event: {ev}\ndata: {json.dumps(data, ensure_ascii=False)}\n\n".encode("utf-8"))
@@ -1155,7 +1166,92 @@ class H(BaseHTTPRequestHandler):
         except (OSError, ValueError):  # 연결 끊김
             pass
         finally:
-            collab.PRESENCE.leave(i, tab)
+            collab.PRESENCE.detach(i, tab)
+
+    # ---------- AI 제안(동시 편집 3단계 첫 조각, docs/collab.md) - 큰 변경을 파일에 바로 쓰지 않고 남겨 두고, 사람이 장·탭마다 골라 받는다 ----------
+    def _save_doc(self, i, deck, origin, action, actor, evidence=None):
+        """서버가 직접 만든 문서를 저장(WRITE_LOCK 안에서) - PUT 과 같은 백업·원장·기억. 원장 seq"""
+        p = deck_path(i)
+        track(i)
+        try:
+            detect(i, immediate=True)
+        except Exception as e:  # noqa: BLE001
+            sys.stderr.write(f"ledger detect {i}: {e}\n")
+        cur = ver(p)
+        deck["id"] = i
+        deck["updated"] = dt.datetime.now().isoformat(timespec="seconds")
+        old = LAST.get(i)
+        before = {"ver": cur, "size": old["sig"][1] if old else 0, "hash": old["hash"] if old else None, "backup": backup(i)}
+        text = dumps(deck)
+        atomic_write(p, text)
+        data = text.encode("utf-8")
+        seq = None
+        try:
+            seq = ledger.record(i, old["obj"] if old else None, before, deck, _meta(p, data), origin, "exact", action, actor, evidence)
+        except Exception as e:  # noqa: BLE001
+            sys.stderr.write(f"ledger {action} {i}: {e}\n")
+        _remember(i, p, data, deck)
+        return seq
+
+    def api_get_proposals(self, i, q):
+        d = DECKS / ".history" / i / "proposals"
+        out = []
+        for f in sorted(d.glob("*.json")) if d.is_dir() else []:
+            x = proposals.load(f)
+            if x and x.get("items"):
+                out.append({"request": x.get("request"), "created": x.get("created"), "items": x["items"]})
+        self.send_json(out)
+
+    def api_post_proposals(self, i, q):
+        b = self.body_json()
+        if not isinstance(b, dict):
+            return self.err(400, "본문 없음")
+        act, rid = b.get("action"), str(b.get("request") or "")
+        if not rid or not safe_id(rid.replace(".", "_")) or not deck_path(i).exists():
+            return self.err(400, "request·덱 필요")
+        f = proposals.path(DECKS, i, rid)
+        actor = {"label": "", "tab": self.headers.get("X-Nexa-Tab") or None, "request": rid, "note": None}
+        if self.user:
+            actor["user"] = self.user
+        if act == "create":
+            deck = b.get("deck")
+            if not isinstance(deck, dict):
+                return self.err(400, "deck 필요")
+            base_doc = b.get("baseDoc") if isinstance(b.get("baseDoc"), dict) else _base_doc(i, str(b.get("base") or "")) or _load(deck_path(i))[1]
+            its = proposals.items(base_doc, deck)
+            if its:
+                f.parent.mkdir(parents=True, exist_ok=True)
+                atomic_write(f, json.dumps({"request": rid, "created": dt.datetime.now().isoformat(timespec="seconds"), "base": b.get("base"),
+                                            "baseDoc": base_doc, "deck": deck, "items": its}, ensure_ascii=False))
+            return self.send_json({"ok": True, "count": len(its), "items": its})
+        x = proposals.load(f)
+        if not x:
+            return self.err(404, "제안 없음")
+        all_ids = [it["id"] for it in x.get("items") or []]
+        chosen = [k for k in (b.get("items") or all_ids) if k in all_ids]
+        if act == "accept":
+            if not chosen:
+                return self.err(400, "받을 항목 없음")
+            ours = proposals.apply(x["baseDoc"], x["deck"], chosen)
+            with WRITE_LOCK:
+                cur = _load(deck_path(i))[1]
+                if cur is None:
+                    return self.err(409, "덱을 읽는 중 - 다시 시도")
+                merged, conflicts = deckmerge.merge3(x["baseDoc"], ours, cur, prefer="ours")  # 사람이 고른 것이니 고른 단위는 제안 값이 이긴다
+                names = [next((it["title"] for it in x["items"] if it["id"] == k), k) for k in chosen]
+                actor["note"] = f"AI 제안 받기 {len(chosen)}곳: " + ", ".join(names)[:150]
+                seq = self._save_doc(i, merged, "editor", "accept", actor, {"proposal": {"request": rid, "items": chosen}, "merge": {"conflicts": conflicts[:50]}} if conflicts else {"proposal": {"request": rid, "items": chosen}})
+            x["items"] = [it for it in x["items"] if it["id"] not in chosen]
+        elif act == "discard":
+            x["items"] = [it for it in x["items"] if it["id"] not in chosen]
+            seq, conflicts = None, []
+        else:
+            return self.err(400, "action = create | accept | discard")
+        if x["items"]:
+            atomic_write(f, json.dumps(x, ensure_ascii=False))
+        else:
+            f.unlink(missing_ok=True)
+        self.send_json({"ok": True, "seq": seq, "version": ver(deck_path(i)), "conflicts": conflicts, "left": len(x["items"])})
 
     def api_get_reqdiff(self, i, q):
         """요청 하나로 AI 가 바꾼 것 - 요청 카드의 "바뀐 셀 n개 · 보기 · 되돌리기". 백업이 없으면 found 는 true, cells 는 null."""
@@ -1173,19 +1269,32 @@ class H(BaseHTTPRequestHandler):
                 return json.loads((hdir / name).read_text(encoding="utf-8")) if name and (hdir / name).is_file() else None
             except (OSError, ValueError):
                 return None
-        before = load((entries[idx[0]].get("before") or {}).get("backup"))
-        after = None
-        for e in entries[idx[-1] + 1:]:  # 마지막 AI 저장 직후 = 그다음 원장 줄이 쓰기 직전에 뜬 백업
-            b = (e.get("before") or {}).get("backup")
-            if b:
-                after = load(b)
-                break
-        if after is None:
+        def after_of(k):  # 원장 줄 k 의 저장 직후 = 그다음 원장 줄이 쓰기 직전에 뜬 백업, 없으면 지금 파일
+            for e in entries[k + 1:]:
+                bk = (e.get("before") or {}).get("backup")
+                if bk:
+                    return load(bk)
             p = deck_path(i)
-            after = _load(p)[1] if p.exists() else None
-        if before is None or after is None:
-            return self.send_json({"ok": True, "found": True, "cells": None, "count": None, "error": "그때 백업이 없어 비교할 수 없다"})
-        cells = deckdiff.cell_diff(before, after) if after.get("kind") == "sheet" else []
+            return _load(p)[1] if p.exists() else None
+        # AI 저장마다 따로 비교해 합친다 - AI 저장 사이에 사람이 저장한 셀은 AI 변경으로 세지 않는다(되돌리기가 사람의 셀을 건드리지 않게)
+        found, last_after = {}, None
+        for k in idx:
+            bd, ad = load((entries[k].get("before") or {}).get("backup")), after_of(k)
+            if bd is None or ad is None:
+                return self.send_json({"ok": True, "found": True, "cells": None, "count": None, "error": "그때 백업이 없어 비교할 수 없다"})
+            if ad.get("kind") != "sheet":
+                return self.send_json({"ok": True, "found": True, "cells": [], "count": 0, "saves": len(idx)})
+            for c in deckdiff.cell_diff(bd, ad):
+                key = (c["tab"], c["key"])
+                if key not in found:  # 처음 바꾼 저장의 "전" 값
+                    found[key] = c
+            last_after = ad
+        tabs = {t.get("id"): t for t in last_after.get("sheets") or [] if isinstance(t, dict)}
+        cells = []
+        for (tab, key), c in found.items():  # "후" 값은 마지막 AI 저장 직후의 값
+            now = ((tabs.get(tab) or {}).get("cells") or {}).get(key)
+            if deckdiff._cell_norm(now) != deckdiff._cell_norm(c["before"]):  # 여러 번 고쳐 결국 처음 값으로 돌아왔으면 바뀐 셀이 아니다
+                cells.append({**c, "after": now})
         self.send_json({"ok": True, "found": True, "cells": cells, "count": len(cells), "saves": len(idx), "seq": [entries[k].get("seq") for k in idx]})
 
     def api_post_presence(self, i, q):

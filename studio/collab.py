@@ -22,7 +22,7 @@ def color_of(tab):
 
 class Presence:
     def __init__(self, ttl=TTL):
-        self.ttl, self._lock, self._d, self._ver = ttl, threading.Lock(), {}, {}
+        self.ttl, self._lock, self._d, self._ver, self._conn = ttl, threading.Lock(), {}, {}, {}
 
     def _bump(self, deck):
         self._ver[deck] = self._ver.get(deck, 0) + 1
@@ -48,6 +48,24 @@ class Presence:
             d[tab] = cur
             if changed:
                 self._bump(deck)
+
+    def attach(self, deck, tab):
+        """실시간 연결 하나가 이 탭으로 붙음 - 재연결 때 새 연결이 먼저 붙고 옛 연결이 나중에 끊기므로 수를 센다"""
+        if tab:
+            with self._lock:
+                self._conn[(deck, tab)] = self._conn.get((deck, tab), 0) + 1
+
+    def detach(self, deck, tab):
+        """실시간 연결 하나가 끊김 - 그 탭의 마지막 연결이면 presence 를 지운다(재연결 중인 탭이 잠깐 사라지지 않게)"""
+        if not tab:
+            return
+        with self._lock:
+            n = self._conn.get((deck, tab), 1) - 1
+            if n > 0:
+                self._conn[(deck, tab)] = n
+                return
+            self._conn.pop((deck, tab), None)
+        self.leave(deck, tab)
 
     def leave(self, deck, tab):
         with self._lock:

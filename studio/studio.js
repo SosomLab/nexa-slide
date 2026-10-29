@@ -93,7 +93,23 @@
   }
 
   // ---------------------------------------------------------------- 기록(실행 취소)·저장
-  function snapshot() { S.undo.push(deckJson()); if (S.undo.length > 150) S.undo.shift(); S.redo = []; updUndo(); }
+  function snapshot() { aiBusyWarn(); S.undo.push(deckJson()); if (S.undo.length > 150) S.undo.shift(); S.redo = []; updUndo(); }
+  // AI 가 처리 중인 곳을 고치기 시작하면 한 번 알린다(잠그지 않음 - 저장은 병합되고 같은 곳은 사람 값이 남는다). 동시 편집 2단계 - docs/collab.md
+  const aiWarned = new Set();
+  function aiBusyWarn() {
+    const s = slide(); if (!s || !S.reqs) return;
+    const mine = new Set(selIds());
+    for (const r of S.reqs) {
+      if (r.status !== "working" || r.slide !== s.id) continue;
+      const els = r.elements && r.elements.length ? r.elements : r.element ? [r.element] : [];
+      const hit = els.length ? els.find((id) => mine.has(id)) : null;
+      const k = `${r.id}:${hit || "slide"}`;
+      if ((els.length && !hit) || aiWarned.has(k)) continue;
+      aiWarned.add(k);
+      notice(`${agentName()} 가 ${hit ? "이 요소를" : "이 슬라이드를"} 처리하는 중입니다 - 지금 고치면 AI 의 변경과 합쳐지고, 같은 곳은 내 값이 남습니다`, []);  // 머리 아래 안내 띠 - 편집 뒤 토스트(바꿨습니다 등)에 덮이지 않게
+      return;
+    }
+  }
   function updUndo() { $("#undoBtn").disabled = !S.undo.length; $("#redoBtn").disabled = !S.redo.length; }
   // 남의 변경(다른 창·AI·병합 저장)을 받은 뒤의 실행 취소는 내 편집만 되돌린다 - NexaMerge.seal/undoTarget(nexa-merge.js, docs/collab.md 1단계)
   function undo() { if (!S.undo.length) return; const now = deckJson(); S.redo.push(now); S.deck = NexaMerge.undoTarget(S.undo.pop(), now); afterChange(true); }
@@ -190,7 +206,7 @@
       if (v.session) renderSession(v.session, v.activity);
       await checkWorkspace(v);
       await RQ.sync(v);  // 요청 파일이 바뀌었으면 다시 읽기
-      if (v.deck !== S.version && !S.saving) {
+      if (v.deck !== S.version && !S.saving && S.id !== S.goneId) {  // goneId = 지우는 중인 덱 - 다음 덱을 열기 전에 다시 읽으면 404
         // 편집 중에 밖에서 바뀌었다 - 배너로 고르게 하지 않고, 내 저장이 서버에서 합쳐지게 바로 저장한다(글 편집 중이면 편집이 끝난 뒤 저장 때)
         if (S.dirty || S.editing) { if (S.dirty && !S.editing && !S.conflict) { clearTimeout(saveT); await save(); } }
         else await reloadExternal("밖에서 바뀐 덱을 다시 불러왔습니다");
@@ -225,7 +241,8 @@
     if (g.origin === "build") out.push(a.note || "build_deck");
     if (g.origin === "external") out.push(g.action === "startup" ? "서버가 꺼진 사이에 바뀜(출처 모름)" : "출처를 알 수 없는 외부 변경(파일 직접 수정)");
     if (a.note && g.origin !== "build") out.push(a.note);
-    if (g.evidence) out.push("근거: " + JSON.stringify(g.evidence));
+    if (g.evidence && !g.evidence.merge) out.push("근거: " + JSON.stringify(g.evidence));
+    if (g.merge) out.push(`병합 저장 ${g.merge.saves}회${g.merge.conflicts.length ? ` · 같은 곳 충돌 ${g.merge.conflicts.length}건` : ""}`);
     return out.filter(Boolean).join(" · ");
   }
   // 배지 글자 = 변경 탭 필터 칩 글자(편집 · 협업 · AI · 빌드 · 외부)
@@ -295,12 +312,24 @@
       ${list.length ? list.map(groupHtml).join("") + (S.chgMore ? `<div class="row" style="justify-content:center;margin:8px 0"><button class="chip sm" data-chg-more="1">더 보기</button></div>` : `<div class="hint" style="text-align:center;margin:8px 0">원장의 시작</div>`)
         : `<div class="hint">${S.changes.length ? "이 필터에 해당하는 변경이 없습니다." : "아직 기록된 변경이 없습니다."}</div>`}`;
   }
+  /** 병합 저장의 같은 곳 충돌 - 어디서, 누구 값이 남았고 무엇이 졌는지(진 값은 여기와 원장에만 남는다) */
+  function mergeHtml(g) {
+    const cs = (g.merge && g.merge.conflicts) || []; if (!cs.length) return "";
+    const where = (p) => String(p || "").replace(/^slides\//, "장 ").replace(/^sheets\//, "탭 ").replace(/\/elements\//, " · ").replace(/\/cells\//, " · ").replace(/\//g, " · ");
+    const short = (v) => { const t = v == null ? "(없음)" : typeof v === "string" ? v : JSON.stringify(v); return t.length > 60 ? t.slice(0, 60) + "…" : t; };
+    const who = g.origin === "claude" ? "AI" : "이 저장";
+    return `<details class="chg-mg"><summary>같은 곳 충돌 ${cs.length}건 - 남은 값·진 값</summary>${cs.map((c) => {
+      const keptMine = c.kept === "ours", lost = keptMine ? c.theirs : c.ours;
+      return `<div class="chg-el"><code>${esc(where(c.path))}</code> ${esc(c.rule || "")} → <b>${keptMine ? esc(who) : "먼저 저장된"} 값</b>을 남김${c.rule ? "" : `<div class="chg-tx">진 값 <s>${esc(short(lost))}</s></div>`}</div>`;
+    }).join("")}</details>`;
+  }
   function groupHtml(g) {
     const on = isOn(g), mine = isMine(g);
-    const tag = g.action === "restore" ? " · 되돌리기" : g.action === "startup" ? " · 서버 꺼진 사이" : g.action === "build" ? "" : "";
-    return `<div class="chg-rec${on ? " on" : ""}"><div class="chg-h"><b title="${esc(g.ts || "")}${g.count > 1 ? ` ~ ${esc(g.ts_end || "")}` : ""}">${esc(dayText(g.ts))} ${esc(hhmm(g.ts))}</b>${orgBadge(g)}<span class="hint" style="margin:0">${g.actor && g.actor.label ? esc(g.actor.label) + " · " : ""}${esc(chgSummary(g.summary))}${g.fields && g.fields.length ? ` · 덱 ${esc(g.fields.join("·"))}` : ""}${g.count > 1 ? ` · 저장 ${g.count}회${g.approx ? "(요약)" : ""}` : ""}${tag}</span>
+    const tag = g.action === "accept" ? " · AI 제안 받기" : g.action === "restore" ? " · 되돌리기" : g.action === "startup" ? " · 서버 꺼진 사이" : g.action === "build" ? "" : "";
+    return `<div class="chg-rec${on ? " on" : ""}"><div class="chg-h"><b title="${esc(g.ts || "")}${g.count > 1 ? ` ~ ${esc(g.ts_end || "")}` : ""}">${esc(dayText(g.ts))} ${esc(hhmm(g.ts))}</b>${orgBadge(g)}<span class="hint" style="margin:0">${g.actor && g.actor.label ? esc(g.actor.label) + " · " : ""}${esc(chgSummary(g.summary))}${g.fields && g.fields.length ? ` · 덱 ${esc(g.fields.join("·"))}` : ""}${g.count > 1 ? ` · 저장 ${g.count}회${g.approx ? "(요약)" : ""}` : ""}${tag}${g.merge ? ` · <span class="chg-mtag" title="그 사이 바뀐 내용과 합쳐 저장됨(동시 편집)">병합${g.merge.conflicts.length ? ` · 충돌 ${g.merge.conflicts.length}` : ""}</span>` : ""}</span>
       ${g.backupExists ? `<button class="chip sm" data-chg-restore="${esc(g.backup)}" data-chg-at="${esc((g.ts || "").replace("T", " ").slice(0, 16))}" title="이 변경 직전 상태로 되돌린다(지금 상태도 기록에 남는다)">직전으로</button>` : `<button class="chip sm" disabled title="백업이 50개 상한으로 지워져 되돌릴 수 없습니다">직전으로</button>`}
       <button class="chip sm chg-tg" data-chg-tg="${g.seq}" title="이 묶음의 변경을 썸네일 배지·캔버스 파란 점선으로 ${on ? "그만 표시" : "표시"}${mine ? "(내 편집은 기본으로 표시하지 않는다)" : ""}">${on ? "숨기기" : "표시"}</button></div>` +
+      mergeHtml(g) +
       (g.items || []).map((it) => `<div class="chg-it${it.gone ? " gone" : ""}" ${it.gone ? "" : `data-csid="${esc(it.sid)}"`}>
         <span class="k ${esc(it.kind)}">${esc(it.kind)}</span> <b>${it.idx + 1}.</b> ${esc(it.title || "")}${it.moved ? ` <span class="hint" style="margin:0">(순서 ${it.moved[0]} → ${it.moved[1]})</span>` : ""}${it.extra && it.extra.length ? ` <span class="hint" style="margin:0">· ${esc(it.extra.join("·"))}</span>` : ""}${it.truncated ? ` <span class="hint" style="margin:0">· 요소 ${it.truncated}개 더</span>` : ""}
         ${(it.els || []).map((e) => `<div class="chg-el${e.gone ? " gone" : ""}" ${e.gone ? "" : `data-cel="${esc(e.id)}"`}><code>${esc(e.id)}</code> ${esc((e.kinds || []).join("·"))}${e.before || e.after ? `<div class="chg-tx">${e.before ? `<s>${esc(e.before)}</s>` : ""}${e.before && e.after ? " → " : ""}${e.after ? `<span>${esc(e.after)}</span>` : ""}</div>` : ""}</div>`).join("")}</div>`).join("") + `</div>`;
@@ -424,7 +453,7 @@
       { label: "제목 바꾸기", act: async () => { const t = (prompt("덱 제목", d.title) || "").trim(); if (!t || t === d.title) return; const r = await deckAdmin({ action: "retitle", id, title: t }, "제목을 바꿨습니다"); if (r && S.id === id) { S.deck.title = t; S.savedJson = deckJson(); } } },
       { label: "복제", act: async () => { const t = (prompt("복제한 덱의 제목", `${d.title} (복사)`) || "").trim(); if (!t) return; if (S.dirty && S.id === id) await save(); const r = await deckAdmin({ action: "copy", id, title: t }, `복제했습니다: ${t}`); if (r) await loadDeck(r.id); } },
       { label: d.start ? "시작 덱 해제" : "시작 덱으로", on: !!d.start, act: async () => { await deckAdmin({ action: "start", id: d.start ? "" : id }, d.start ? "시작 덱을 해제했습니다" : `시작 덱: ${d.title}`); } }, "-",
-      { label: "덱 삭제(휴지통)", act: async () => { if (!confirm(`덱 "${d.title}" 을 지울까요? decks/.trash/ 로 옮겨지며 요청·기록·첨부·content 도 같이 갑니다.`)) return; const r = await deckAdmin({ action: "delete", id }, `휴지통으로 옮겼습니다: ${d.title}`); if (r && S.id === id) { const next = S.decks[0]; if (next) await loadDeck(next.id); else location.href = BASE + "/studio/home.html"; } } },
+      { label: "덱 삭제(휴지통)", act: async () => { if (!confirm(`덱 "${d.title}" 을 지울까요? decks/.trash/ 로 옮겨지며 요청·기록·첨부·content 도 같이 갑니다.`)) return; S.goneId = id; const r = await deckAdmin({ action: "delete", id }, `휴지통으로 옮겼습니다: ${d.title}`); if (!r) S.goneId = null; if (r && S.id === id) { const next = S.decks[0]; if (next) await loadDeck(next.id); else location.href = BASE + "/studio/home.html"; } } },
       "-", { label: "새 덱", act: () => deckCreate() }, { label: "새 시트(엑셀)", act: () => deckCreate("sheet") },
     ]);
   }
@@ -719,6 +748,7 @@
     api, toast, esc, base: BASE, deckId: () => S.id, session: SESS,
     getReqs: () => S.reqs, setReqs: (l) => { S.reqs = l; },
     onChange: () => { renderReqs(); if (S.deck) { renderThumbs(); renderMarks(); } },
+    onDeckChanged: () => { pollAt = 0; poll(); },  // AI 제안을 받아 덱이 바뀜 - 바로 확인
     target: {  // 슬라이드 대상 - 장 · 요소(들) · 영역
       scope: "슬라이드", key: (r) => r.slide, current: () => (slide() || {}).id, num: (r) => reqIdx(r.slide),
       label: (r) => `슬라이드 ${reqIdx(r.slide) || "?"}${r.elements && r.elements.length > 1 ? ` · ${r.elements[0]} 외 ${r.elements.length - 1}` : r.element ? " · " + r.element : ""}${r.region ? " · 영역" : ""}`,

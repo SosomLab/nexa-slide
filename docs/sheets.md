@@ -46,6 +46,18 @@ M365(OneDrive·Graph API) 직접 연동은 하지 않는다 — 원래 불편(�
 `color` 글자색, `fill` 배경, `align` `left|center|right`, `valign` `top|middle|bottom`, `size` 글자 크기(pt), `wrap` 줄바꿈, `note` 메모.
 값이 문자열이어도 `=` 로 시작하면 수식이 아니다 — 수식은 `f` 에만 둔다.
 
+**동적 배열(넘침)** — `FILTER`·`SORT`·`SORTBY`·`UNIQUE`·`SEQUENCE`·`TRANSPOSE` 를 쓴 수식(또는 엑셀에서 가져온 동적 배열 `"da": true`)은 결과가 여러 칸이면
+오른쪽·아래 칸으로 넘친다. 넘친 칸은 계산기가 `{"v": 값, "sp": "기준 칸"}` 으로 채우고(사람·AI 는 쓰지 않는다), 자리에 값이 있으면 기준 칸이 `#SPILL!`,
+결과가 없으면 `#CALC!` 이다. 결과가 줄면 남은 넘친 칸은 비운다. 다른 곳에 복사된 `sp` 칸은 값만 남는다.
+내보낼 때 기준 칸은 엑셀 동적 배열 수식(`write_dynamic_array_formula`)으로 쓰고, 가져올 때 `cm`·여러 칸 배열 수식을 `da` 와 `sp` 로 되살린다.
+넘친 범위 전체는 `H2#` 로 참조한다(`=SUM(H2#)` · `=H2#*10` 도 넘친다 · 넘치지 않는 칸이면 `#REF!`). 엑셀 파일에는 `ANCHORARRAY(H2)` 로 저장된다.
+새 함수(LET·XMATCH·TEXTJOIN·FILTER …)는 내보낼 때 `_xlfn.`·LET 이름은 `_xlpm.` 을 붙이고(엑셀이 `#NAME?` 없이 연다 - Excel 로 확인), 가져올 때 뗀다.
+
+**표(엑셀 표)** — 탭 `tables: [{"name": "매출표", "ref": "A1:D5", "cols": ["지역", "1분기", …], "header": true, "totals": false, "style": "TableStyleMedium2"}]`.
+수식에서 구조적 참조로 쓴다 - `매출표[1분기]`(데이터 행) · `매출표[[#Headers],[2분기]]` · `매출표[#All]` · `매출표[[1분기]:[2분기]]` · 표 안에서 `[@1분기]`(이 행).
+가져올 때 `xl/tables` 를 읽고(파일 형식 `[#This Row],` → `@`), 내보낼 때 `add_table` 과 파일 형식으로 되돌린다(Excel 로 확인).
+표 정의 없이 가져온 옛 문서의 구조적 참조·외부 통합 문서 참조처럼 계산기가 읽지 못하는 수식은 엑셀이 마지막에 계산한 값을 그대로 둔다.
+
 ## 3. 요청(세션 규약)
 
 편집기 요청 항목 `{deck, id, slide, range, text, …}` — `slide` 는 시트 탭 id, `range` 는 고른 셀 범위(`A1`, `B2:D5`).
@@ -134,7 +146,7 @@ Gemini in Sheets 도 **미리보기 카드 → 적용 → 실행 취소** 로 �
 - **라이선스(MIT)**: 쓰지 않는다 — HyperFormula(GPL)·Handsontable 7+(상용)·Luckysheet(보관)·Univer Pro. 조건부로 쓴다 — Apache-2.0(Univer OSS·SheetJS CE)은 NOTICE 를 지키면 쓸 수 있다.
 - **필터·정렬 보기는 사용자별 상태**(Sheets 필터 보기와 같다): 사람과 AI 가 같은 문서를 보므로 공유 JSON 을 바꾸지 않는다.
 
-진행(2026-10-29 · 0.23.0): **1 완료**, **2 대부분 완료**(아래 ✅), 3·4 는 앞으로. 동시 편집은 [collab.md](collab.md) 1단계(병합 저장)까지.
+진행(2026-10-29 · 0.24.0): **1 완료**, **2 대부분 완료**(아래 ✅), **3 일부**(동적 배열·`H2#`·LET/XMATCH·엑셀 표·시트 → 슬라이드 연결 ✅), **4 일부**(xlsx 왕복 시험 ✅). 동시 편집은 [collab.md](collab.md) 2단계(SSE·presence)와 3단계 첫 조각(AI 제안 골라 받기)까지.
 
 | 단계 | 내용 |
 |---|---|

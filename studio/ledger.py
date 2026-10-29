@@ -317,6 +317,11 @@ def group(entries, gap=GROUP_GAP):
         for f in e.get("fields") or []:
             if f not in g["fields"]:
                 g["fields"].append(f)
+        mg = (e.get("evidence") or {}).get("merge") if isinstance(e.get("evidence"), dict) else None
+        if mg is not None:  # 병합 저장(동시 편집 1단계) - 묶음 안 병합 저장 수와 같은 곳 충돌(진 값)을 모은다(변경 탭 표시)
+            m = g.setdefault("merge", {"saves": 0, "conflicts": []})
+            m["saves"] += 1
+            m["conflicts"] += (mg.get("conflicts") or [])[:max(0, 50 - len(m["conflicts"]))]
         for it in e.get("items") or []:
             _merge_item(g, it)
     for g in groups:
