@@ -185,7 +185,7 @@
     }
     return g;
   }
-  function sortRange(desc, header) {
+  function sortRange(desc, header, byColor) {  // byColor {k: "fill"|"color", v} - 그 색인 줄을 위로(나머지 순서는 그대로, 엑셀 "색 기준 정렬")
     const S = N().S, x = X(), sh = x.sheet();
     let g = x.clampRange(S.sel);
     if (g.r1 === g.r2 && g.c1 === g.c2) g = region(sh, S.cur.r, S.cur.c);
@@ -199,9 +199,10 @@
     if (header === undefined) header = first.every((o) => typeof valOf(o) === "string" || valOf(o) == null) && (styled || (typeof keyFirst === "string" && isNum(below)));
     const r0 = header ? g.r1 + 1 : g.r1;
     const rows = [];
-    for (let r = r0; r <= g.r2; r++) { const cells = []; for (let c = g.c1; c <= g.c2; c++) cells.push(sh.cells[x.key(r, c)]); rows.push({ r, cells, key: valOf(sh.cells[x.key(r, col)]) }); }
+    for (let r = r0; r <= g.r2; r++) { const cells = []; for (let c = g.c1; c <= g.c2; c++) cells.push(sh.cells[x.key(r, c)]); rows.push({ r, cells, key: byColor ? (String(N().effCell(sh.cells[x.key(r, col)])[byColor.k] || "").toUpperCase() === String(byColor.v).toUpperCase() ? 0 : 1) : valOf(sh.cells[x.key(r, col)]) }); }
     const rank = (v) => (v == null || v === "" ? 3 : isNum(v) ? 0 : typeof v === "string" ? 1 : 2);  // 숫자 → 글 → 불 → 빈 칸(빈 칸은 늘 뒤)
     rows.sort((a, b) => {
+      if (byColor) return a.key - b.key;
       const ra = rank(a.key), rb = rank(b.key);
       if (ra === 3 || rb === 3) return ra - rb;
       if (ra !== rb) return desc ? rb - ra : ra - rb;
@@ -221,7 +222,7 @@
       });
       S.sel = g;
     });
-    x.toast(`${x.rangeName({ ...g, r1: r0 })} 를 ${x.colName(col)} 열 ${desc ? "내림차순" : "오름차순"}으로 정렬했습니다${header ? " (첫 줄은 머리글)" : ""}`, 3500);
+    x.toast(`${x.rangeName({ ...g, r1: r0 })} 를 ${x.colName(col)} 열 ${byColor ? "색 기준" : desc ? "내림차순" : "오름차순"}으로 정렬했습니다${header ? " (첫 줄은 머리글)" : ""}`, 3500);
   }
 
   // ---------------------------------------------------------------- 행·열 숨기기(저장)
@@ -341,16 +342,19 @@
     const kind = isNumCol ? "숫자" : "텍스트";
     const condItems = isNumCol ? [["eq", "같음…"], ["ne", "같지 않음…"], ["gt", "보다 큼…"], ["ge", "크거나 같음…"], ["lt", "보다 작음…"], ["le", "작거나 같음…"], ["between", "해당 범위…"], ["top", "상위 10…"], ["custom", "사용자 지정 필터…"]]
       : [["eq", "같음…"], ["ne", "같지 않음…"], ["begins", "시작 문자…"], ["ends", "끝 문자…"], ["contains", "포함…"], ["notContains", "포함하지 않음…"], ["custom", "사용자 지정 필터…"]];
-    const sw = (col, k) => `<button class="sw" data-col="${k}:${x.esc(col)}" title="${col ? x.esc(col) : k === "fill" ? "채우기 없음" : "자동(기본 글자색)"}"><i style="background:${col || (k === "fill" ? "#fff" : "#000")}"></i>${col ? "" : k === "fill" ? "채우기 없음" : "자동"}</button>`;
-    const colorSec = (fills.size > 1 ? `<div class="sub"><small>셀 색</small>${[...fills].map((f) => sw(f, "fill")).join("")}</div>` : "") + (fonts.size > 1 ? `<div class="sub"><small>글꼴 색</small>${[...fonts].map((f) => sw(f, "font")).join("")}</div>` : "");
+    const sw = (col, k, at = "col") => `<button class="sw" data-${at}="${k}:${x.esc(col)}" title="${col ? x.esc(col) : k === "fill" ? "채우기 없음" : "자동(기본 글자색)"}"><i style="background:${col || (k === "fill" ? "#fff" : "#000")}"></i>${col ? "" : k === "fill" ? "채우기 없음" : "자동"}</button>`;
+    const colorSec = (at) => (fills.size > 1 ? `<div class="sub"><small>셀 색</small>${[...fills].map((f) => sw(f, "fill", at)).join("")}</div>` : "") + (fonts.size > 1 ? `<div class="sub"><small>글꼴 색</small>${[...fonts].map((f) => sw(f, "font", at)).join("")}</div>` : "");
+    const hasColor = fills.size > 1 || fonts.size > 1;
     document.querySelectorAll(".fltPop").forEach((m) => m.remove());
     const pop = document.createElement("div"); pop.className = "fltPop";
-    pop.innerHTML = `<button data-fs="a">오름차순 정렬</button><button data-fs="d">내림차순 정렬</button><hr>
+    pop.innerHTML = `<button data-fs="a">오름차순 정렬</button><button data-fs="d">내림차순 정렬</button>
+      <button data-fx="csort" ${hasColor ? "" : "disabled"}>색 기준 정렬 ▸</button><div class="more" data-more="csort" hidden>${colorSec("scol")}</div><hr>
       <button data-fx="clear" ${cr ? "" : "disabled"}>"${x.esc(fText(sh, g.r1, c) || L)}"에서 필터 해제</button>
-      <button data-fx="color" ${colorSec ? "" : "disabled"}>색 기준 필터 ▸</button><div class="more" data-more="color" hidden>${colorSec}</div>
+      <button data-fx="color" ${hasColor ? "" : "disabled"}>색 기준 필터 ▸</button><div class="more" data-more="color" hidden>${colorSec("col")}</div>
       <button data-fx="cond">${kind} 필터 ▸</button><div class="more" data-more="cond" hidden>${condItems.map(([k, t]) => `<button data-op="${k}">${t}</button>`).join("")}</div><hr>
       <input type="search" class="q" placeholder="검색">
       <label class="all"><input type="checkbox" data-all checked> <span>(모두 선택)</span></label>
+      <label class="add" hidden title="지금 필터에 걸린 값은 그대로 두고 검색 결과에서 고른 값을 더합니다"><input type="checkbox" data-add> 현재 선택 영역을 필터에 추가</label>
       <div class="vals">${list.map((t, i) => `<label data-t="${i}"><input type="checkbox" data-i="${i}" ${pass.has(t) ? "checked" : ""}> ${x.esc(t === "" ? "(빈 칸)" : t)} <small>${vals.get(t)}</small></label>`).join("")}</div>
       <div class="acts"><button data-fa="ok" class="primary">확인</button><button data-fa="no">취소</button></div>`;
     const R = btn.getBoundingClientRect(); Object.assign(pop.style, { left: Math.min(R.left, innerWidth - 260) + "px", top: Math.min(R.bottom + 2, innerHeight - 420) + "px" });
@@ -362,7 +366,7 @@
     q.oninput = () => {  // 검색 - 맞는 값만 보이고 모두 체크(엑셀과 같다)
       const s = q.value.trim().toLowerCase();
       pop.querySelectorAll("label[data-t]").forEach((l) => { const t = list[+l.dataset.t]; l.hidden = !!s && !(t === "" ? "(빈 칸)" : t).toLowerCase().includes(s); if (s) l.querySelector("input").checked = !l.hidden; });
-      pop.querySelector("label.all span").textContent = s ? "(검색 결과 모두 선택)" : "(모두 선택)"; syncAll();
+      pop.querySelector("label.all span").textContent = s ? "(검색 결과 모두 선택)" : "(모두 선택)"; pop.querySelector("label.add").hidden = !s; syncAll();
     };
     pop.querySelector("[data-all]").onchange = (e) => shown().forEach((b) => (b.checked = e.target.checked));
     pop.addEventListener("change", (e) => { if (e.target.matches("input[data-i]")) syncAll(); });
@@ -371,7 +375,7 @@
     setTimeout(() => document.addEventListener("mousedown", off), 0);
     pop.addEventListener("keydown", (e) => { if (e.key === "Escape") close(); if (e.key === "Enter" && e.target === q) pop.querySelector('[data-fa="ok"]').click(); e.stopPropagation(); });
     pop.addEventListener("click", (e) => {
-      const fs = e.target.closest("[data-fs]"), fx = e.target.closest("[data-fx]"), op = e.target.closest("[data-op]"), col = e.target.closest("[data-col]"), fa = e.target.closest("[data-fa]");
+      const fs = e.target.closest("[data-fs]"), fx = e.target.closest("[data-fx]"), op = e.target.closest("[data-op]"), col = e.target.closest("[data-col]"), scol = e.target.closest("[data-scol]"), fa = e.target.closest("[data-fa]");
       if (fs) {
         close(); const S = N().S, keep = { sel: S.sel, cur: S.cur };
         S.sel = { ...g }; S.cur = { r: g.r1, c };
@@ -379,13 +383,19 @@
       } else if (fx && !fx.disabled) {
         if (fx.dataset.fx === "clear") { close(); setCrit(c, null); }
         else { const m = pop.querySelector(`[data-more="${fx.dataset.fx}"]`); m.hidden = !m.hidden; }
+      } else if (scol) {
+        close(); const S = N().S, keep = { sel: S.sel, cur: S.cur }, i = scol.dataset.scol.indexOf(":");
+        S.sel = { ...g }; S.cur = { r: g.r1, c };
+        sortRange(false, true, { k: scol.dataset.scol.slice(0, i) === "fill" ? "fill" : "color", v: scol.dataset.scol.slice(i + 1) }); S.sel = keep.sel; S.cur = keep.cur; filterReapply();
       } else if (col) { close(); const i = col.dataset.col.indexOf(":"), k = col.dataset.col.slice(0, i), v = col.dataset.col.slice(i + 1); setCrit(c, k === "fill" ? { fill: v } : { font: v }); }
       else if (op) { close(); condDlg(c, op.dataset.op, cr, list.filter((t) => t !== ""), isNumCol); }
       else if (fa) {
         if (fa.dataset.fa === "ok") {
           const searching = !!q.value.trim(), picked = (searching ? shown() : [...pop.querySelectorAll("input[data-i]")]).filter((b) => b.checked).map((b) => list[+b.dataset.i]);
-          const all = !searching && picked.length === list.length && !other.size;
-          setCrit(c, all ? null : { vals: picked });
+          const add = searching && pop.querySelector("[data-add]").checked;  // 엑셀 "현재 선택 영역을 필터에 추가" - 지금 보이는 값에 검색해 고른 값을 더한다
+          const keep = add ? (cr && cr.vals ? cr.vals : [...pass]) : [], vs = [...new Set([...keep, ...picked])];
+          const all = (!searching || add) && list.every((t) => vs.includes(t)) && !other.size;
+          setCrit(c, all ? null : { vals: vs });
         }
         close();
       }
