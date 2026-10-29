@@ -21,6 +21,15 @@ def same(a, b):
     return a == b
 
 
+def a1(r, k):
+    """0 부터 센 행·열 → A1."""
+    s, k = "", k + 1
+    while k:
+        k, m = divmod(k - 1, 26)
+        s = chr(65 + m) + s
+    return f"{s}{r + 1}"
+
+
 def main():
     for st in (sys.stdout, sys.stderr):
         try:
@@ -52,6 +61,19 @@ def main():
         else:
             FAILS.append(sp["name"])
             print(f"FAIL {sp['name']} → {got} (기대 {sp['expect']})")
+    pv = spec.get("pivot") or {"arrays": []}
+    for f, grid in pv["arrays"]:  # GROUPBY·PIVOTBY - 넘친 배열 전체(엑셀 값)와 크기
+        doc = {"sheets": copy.deepcopy(spec["sheets"]) + [copy.deepcopy(pv["sheet"]), {"id": "t04", "name": "F", "cells": {"A1": {"f": f}}}], "names": spec.get("names") or {}}
+        sheet_calc.recalc(doc)
+        cells = doc["sheets"][-1]["cells"]
+        val = lambda r, k: (lambda x: "" if x is None else x)(cells.get(a1(r, k)).get("v") if isinstance(cells.get(a1(r, k)), dict) else cells.get(a1(r, k)))  # noqa: E731
+        got = [[val(r, k) for k in range(len(grid[0]))] for r in range(len(grid))]
+        extra = val(len(grid), 0) != "" or val(0, len(grid[0])) != ""
+        if not extra and all(same(g, w) for gr, wr in zip(got, grid) for g, w in zip(gr, wr)):
+            ok += 1
+        else:
+            FAILS.append(f)
+            print(f"FAIL {f}\n  결과 {got}{' (더 넘침)' if extra else ''}\n  기대 {grid}")
     # 순환 참조 · 내보내기 캐시
     doc = {"sheets": [{"id": "t01", "name": "S", "cells": {"A1": {"f": "=B1+1"}, "B1": {"f": "=A1+1"}}}]}
     sheet_calc.recalc(doc)
@@ -64,7 +86,7 @@ def main():
     if doc["sheets"][0]["cells"]["A1"]["v"] != 42:
         FAILS.append("모르는 이름 - 엑셀 값 유지")
         print("FAIL 모르는 이름 - 엑셀 값 유지 →", doc["sheets"][0]["cells"]["A1"]["v"])
-    print(f"사례 {len(spec['cases']) + len(spec.get('spills', []))}개 중 {ok}개 같음(Python)")
+    print(f"사례 {len(spec['cases']) + len(spec.get('spills', [])) + len(pv['arrays'])}개 중 {ok}개 같음(Python)")
     import shutil
     import subprocess
     if shutil.which("node"):  # 화면 계산기(sheetcalc.js)도 같은 사례로 - 두 곳 동일성

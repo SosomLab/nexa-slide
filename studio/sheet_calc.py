@@ -44,7 +44,7 @@ TOK = re.compile("|".join([
     rf"({L}[\w.]*)(?=\s*\()",
     r"(TRUE|FALSE)(?!\w)",
     r"(\d+(?:\.\d*)?(?:[eE][+-]?\d+)?|\.\d+(?:[eE][+-]?\d+)?)",
-    r"(<=|>=|<>|[-+*/^&=<>(),%])",
+    r"(<=|>=|<>|[-+*/^&=<>(),%{};])",
     r"(#[A-Z/0]+[!?])",
     rf"((?:{L}[\w.]*)?\[(?:[^\[\]]|\[[^\[\]]*\])*\])",  # 표 구조적 참조 표1[열] · [@열] · 표1[[#Headers],[열]]
     rf"({L}[\w.]*)",
@@ -191,6 +191,29 @@ def parse(src):
             a = cmp_()
             eat(")")
             return a
+        if k == "op" and t[1] == "{":  # 배열 상수 {1,-3;"가",TRUE} - 쉼표는 열, 세미콜론은 행
+            rows = [[]]
+            while True:
+                neg = is_op("-")
+                if neg:
+                    p[0] += 1
+                e = peek()
+                if e is None or e[0] not in ("num", "str", "bool", "err") or (neg and e[0] != "num"):
+                    raise FErr("#NAME?")
+                p[0] += 1
+                rows[-1].append(FErr(e[1]) if e[0] == "err" else fix(-e[1] if neg else e[1]))
+                if is_op(","):
+                    p[0] += 1
+                    continue
+                if is_op(";"):
+                    p[0] += 1
+                    rows.append([])
+                    continue
+                eat("}")
+                break
+            if len({len(r) for r in rows}) != 1:
+                raise FErr("#VALUE!")
+            return ("arr", Rng(rows))
         raise FErr("#NAME?")
     pow_ = binl(unary, ("^",))
     mul = binl(pow_, ("*", "/"))
@@ -1704,19 +1727,6 @@ def _agg(c, fn, vals, sh):
         return e
 
 
-def _fields(c, A, i_hdr, keys, vals, sh):
-    """머리글 인수(생략 = 값 첫 줄이 글이고 둘째 줄이 숫자면 머리글) → (머리글이 있나, 보이나, 키 머리글, 값 머리글, 키, 값)."""
-    hdr = _opt(c, A, i_hdr, sh, None)
-    if hdr is None:
-        hdr = 1 if len(vals) > 1 and isinstance(vals[0][0], str) and isinstance(vals[1][0], (int, float)) and not isinstance(vals[1][0], bool) else 0
-    hdr = int(to_num(hdr))
-    if hdr not in (0, 1, 3):
-        raise FErr("#VALUE!")  # 2(머리글 만들기)는 아직
-    if hdr in (1, 3):
-        return True, hdr == 3, keys[0], vals[0], keys[1:], vals[1:]
-    return False, False, None, None, keys, vals
-
-
 def _picked(c, A, i, n, sh):
     """거르기 배열(행마다 참·거짓) → 남길 행 번호."""
     if i >= len(A) or A[i] == ("lit", None):
@@ -1739,56 +1749,120 @@ def _groups(rows, idx):
     return out
 
 
+def _fields(c, A, i_hdr, vals, sh):
+    """머리글 인수(생략 = 값 첫 줄이 글이고 둘째 줄이 숫자면 1) → (자료 첫 줄이 머리글인가, 결과에 머리글을 보이나). 0 없음 · 1 있음 · 2 없음(만들어 보임) · 3 있음(보임)."""
+    hdr = _opt(c, A, i_hdr, sh, None)
+    if hdr is None:
+        hdr = 1 if len(vals) > 1 and isinstance(vals[0][0], str) and isinstance(vals[1][0], (int, float)) and not isinstance(vals[1][0], bool) else 0
+    hdr = int(to_num(hdr))
+    if hdr not in (0, 1, 2, 3):
+        raise FErr("#VALUE!")
+    return hdr in (1, 3), hdr in (2, 3)
+
+
+def _names(has, rows, w, label):
+    """머리글 - 자료 첫 줄, 없으면 만든 이름(Row Field 1 · Column Field 1 · Value 1, 엑셀과 같게)."""
+    return ["" if v is None else v for v in rows[0]] if has else [f"{label} {i + 1}" for i in range(w)]
+
+
+def _sorts(c, A, i, sh, kw, vw):
+    """정렬 인수(한 값 또는 배열, 생략 = 1) → (단계별 내림차순인가 [kw], 값 정렬 (값 열, 내림차순인가) 또는 None).
+    ±n ≤ 키 열 수는 그 단계의 키(나머지 단계는 오름차순), 그보다 크면 값 열 - 값 열은 혼자만(배열에 섞으면 #VALUE!). 0 은 #VALUE!(엑셀과 같게)."""
+    ks = [1] if i >= len(A) or A[i] == ("lit", None) else [int(to_num(v)) for row in c.area(A[i], sh).rows for v in row]
+    desc, val = [False] * kw, None
+    for s in ks:
+        if not s or abs(s) > kw + vw:
+            raise FErr("#VALUE!")
+        if abs(s) > kw:
+            if len(ks) > 1:
+                raise FErr("#VALUE!")
+            val = (abs(s) - kw - 1, s < 0)
+        else:
+            desc[abs(s) - 1] = s < 0
+    return desc, val
+
+
+def _tree(keys, idx, depth, desc, val, score, inner_only):
+    """필드(행 또는 열) → 줄 [(보이는 키, 행 번호들, 소계·합계인가)]. 단계마다 묶어 키로 정렬하고(desc), 값 정렬(val)이면 그 묶음의 집계값(score)으로 다시 -
+    같은 값은 키 순서. 소계는 1 ~ |깊이|-1 단계, 합계는 맨 뒤(깊이 음수면 소계·합계가 묶음 앞). inner_only: 소계 없는 바깥 단계는 값으로 정렬하지 않는다(PIVOTBY 열, 엑셀과 같게)."""
+    kw, d = len(keys[0]), abs(depth)
+    if d > kw:
+        raise FErr("#VALUE!")
+    cols = [[[r[lv]] for r in keys] for lv in range(kw)]
+
+    def rec(lv, ids, pre):
+        gs = _sort_rows(_groups(cols[lv], ids), [(lambda g: g[0][0], desc[lv])])
+        if val and (not inner_only or lv == kw - 1 or lv < d - 1):
+            gs = _sort_rows(gs, [(lambda g: score(g[1], val[0]), val[1])])
+        out = []
+        for (k,), ks in gs:
+            if lv == kw - 1:
+                out.append((pre + [k], ks, False))
+                continue
+            sub = [(pre + [k] + [""] * (kw - lv - 1), ks, True)] if lv < d - 1 else []
+            kids = rec(lv + 1, ks, pre + [k])
+            out += sub + kids if depth < 0 else kids + sub
+        return out
+    out = rec(0, idx, [])
+    if depth:
+        tot = (["Total" if d == 1 else "Grand Total"] + [""] * (kw - 1), list(idx), True)
+        out = [tot] + out if depth < 0 else out + [tot]
+    return out
+
+
 def _groupby(c, A, sh):
-    """GROUPBY(행 필드, 값, 함수, [머리글], [합계 깊이 1], [정렬 1], [거르기])."""
+    """GROUPBY(행 필드, 값, 함수, [머리글], [합계 깊이 1 - 2 이상은 소계], [정렬 1 - 배열이면 단계별], [거르기])."""
     keys, vals = c.area(A[0], sh).rows, c.area(A[1], sh).rows
     fn = _agg_fn(c, A[2], sh)
     if len(keys) != len(vals):
         raise FErr("#VALUE!")
-    has, show, kh, vh, keys, vals = _fields(c, A, 3, keys, vals, sh)
-    depth, order = int(to_num(_opt(c, A, 4, sh, 1))), int(to_num(_opt(c, A, 5, sh, 1)))
-    idx = _picked(c, A, 6, len(keys), sh)
+    has, show = _fields(c, A, 3, vals, sh)
     kw, vw = len(keys[0]), len(vals[0])
-    out = [disp + [_agg(c, fn, [vals[i][j] for i in ks], sh) for j in range(vw)] for disp, ks in _groups(keys, idx)]
-    if not out:
+    kh, vh = _names(has, keys, kw, "Row Field"), _names(has, vals, vw, "Value")
+    if has:
+        keys, vals = keys[1:], vals[1:]
+    depth = int(to_num(_opt(c, A, 4, sh, 1)))
+    desc, val = _sorts(c, A, 5, sh, kw, vw)
+    idx = _picked(c, A, 6, len(keys), sh)
+    if not idx:
         raise FErr("#CALC!")
-    if order:
-        if abs(order) > kw + vw:
-            raise FErr("#VALUE!")
-        out = _sort_rows(out, [(lambda r, k=abs(order) - 1: r[k], order < 0)])
-    if depth:
-        tot = ["Total"] + [""] * (kw - 1) + [_agg(c, fn, [vals[i][j] for i in idx], sh) for j in range(vw)]
-        out = [tot] + out if depth < 0 else out + [tot]
-    if show:
-        out = [list(kh) + list(vh)] + out
-    return Rng(out)
+    v = lambda ks, j: _agg(c, fn, [vals[i][j] for i in ks], sh)  # noqa: E731
+    out = [k + [v(ks, j) for j in range(vw)] for k, ks, _ in _tree(keys, idx, depth, desc, val, v, False)]
+    return Rng(([kh + vh] if show else []) + out)
 
 
 def _pivotby(c, A, sh):
-    """PIVOTBY(행 필드, 열 필드, 값, 함수, [머리글], [행 합계 1], [행 정렬 1], [열 합계 1], [열 정렬 1], [거르기]) - 필드·값은 한 열씩."""
+    """PIVOTBY(행 필드, 열 필드, 값, 함수, [머리글], [행 합계 1], [행 정렬 1], [열 합계 1], [열 정렬 1], [거르기]) - 필드·값 모두 여러 열 가능.
+    열 머리글은 열 필드 수만큼의 줄, 값이 여럿이면 열마다 값 수만큼 칸(이때 합계·소계 열은 빈 칸 - 엑셀과 같게)."""
     rk, ck, vals = c.area(A[0], sh).rows, c.area(A[1], sh).rows, c.area(A[2], sh).rows
     fn = _agg_fn(c, A[3], sh)
-    if not (len(rk) == len(ck) == len(vals)) or len(rk[0]) != 1 or len(ck[0]) != 1 or len(vals[0]) != 1:
-        raise FErr("#VALUE!")  # 여러 열 필드·값은 아직
-    has, _, _, _, rk2, vals2 = _fields(c, A, 4, rk, vals, sh)
-    ck = ck[1:] if has else ck
-    rk, vals = rk2, vals2
-    rt, ro, ct, co = (int(to_num(_opt(c, A, i, sh, 1))) for i in (5, 6, 7, 8))
-    if ro not in (1, -1) or co not in (1, -1):
-        raise FErr("#VALUE!")  # 값 열로 정렬은 아직
+    if not (len(rk) == len(ck) == len(vals)):
+        raise FErr("#VALUE!")
+    has, show = _fields(c, A, 4, vals, sh)
+    rw, cw, vw = len(rk[0]), len(ck[0]), len(vals[0])
+    rh, ch, vh = _names(has, rk, rw, "Row Field"), _names(has, ck, cw, "Column Field"), _names(has, vals, vw, "Value")
+    if has:
+        rk, ck, vals = rk[1:], ck[1:], vals[1:]
+    rd, cd = int(to_num(_opt(c, A, 5, sh, 1))), int(to_num(_opt(c, A, 7, sh, 1)))
+    (rdesc, rval), (cdesc, cval) = _sorts(c, A, 6, sh, rw, vw), _sorts(c, A, 8, sh, cw, vw)
     idx = _picked(c, A, 9, len(rk), sh)
-    rows = _sort_rows(_groups(rk, idx), [(lambda g: g[0][0], ro < 0)])
-    cols = _sort_rows(_groups(ck, idx), [(lambda g: g[0][0], co < 0)])
-    if not rows or not cols:
+    if not idx:
         raise FErr("#CALC!")
-    v = lambda ks: _agg(c, fn, [vals[i][0] for i in ks], sh)  # noqa: E731
-    cell = lambda a, b: v([i for i in a if i in set(b)]) if set(a) & set(b) else ""  # noqa: E731
-    out = [[""] + [g[0][0] for g in cols] + (["Total"] if ct else [])]
-    body = [[g[0][0]] + [cell(g[1], h[1]) for h in cols] + ([v(g[1])] if ct else []) for g in rows]
-    if rt:
-        tot = ["Total"] + [v(h[1]) for h in cols] + ([v(idx)] if ct else [])
-        body = [tot] + body if rt < 0 else body + [tot]
-    return Rng(out + body)
+    v = lambda ks, j: _agg(c, fn, [vals[i][j] for i in ks], sh)  # noqa: E731
+    rows, cols = _tree(rk, idx, rd, rdesc, rval, v, False), _tree(ck, idx, cd, cdesc, cval, v, True)
+
+    def cell(r, col, j):
+        if col[2] and vw > 1:
+            return ""
+        s = set(col[1])
+        both = [i for i in r[1] if i in s]
+        return v(both, j) if both else ""
+    out = [[""] * rw + [", ".join(to_str(x) for x in ch)] + [""] * (len(cols) * vw - 1)] if show else []
+    out += [[""] * rw + [col[0][lv] for col in cols for _ in range(vw)] for lv in range(cw)]
+    if show:
+        out.append(rh + [vh[j] for _ in cols for j in range(vw)])
+    out += [r[0] + [cell(r, col, j) for col in cols for j in range(vw)] for r in rows]
+    return Rng(out)
 
 
 FUNCS.update({"GROUPBY": _groupby, "PIVOTBY": _pivotby})
