@@ -314,12 +314,13 @@
 
     // ---------------------------------------------------------------- 누르기 - 공통 동작이면 처리하고 true
     async function click(e) {
+      const v = !e.target.closest("[data-attx]") && e.target.closest("[data-attv]");  // 입력 중인 첨부 축소판(붙여넣은 그림 등) - 단추가 아니라 span 이라 먼저 본다
+      if (v && window.NexaLightbox) { const [w, i] = v.dataset.attv.split(":"); NexaLightbox.open(lbItems(slot(w)), +i); return true; }
       const b = e.target.closest("button, a"); if (!b) return false;
       if (b.dataset.sessStart !== undefined) { e.preventDefault(); if (o.session) o.session.startDlg(); return true; }
       if (b.dataset.lb !== undefined) { e.preventDefault(); const [rid, i] = b.dataset.lb.split(":"); attLightbox(rid, +i); return true; }
       if (b.dataset.attach) { attPick(b.dataset.attach); return true; }
       if (b.dataset.attx) { const [w, i] = b.dataset.attx.split(":"); slot(w).splice(+i, 1); attRender(w); return true; }
-      const v = e.target.closest("[data-attv]"); if (v && window.NexaLightbox) { const [w, i] = v.dataset.attv.split(":"); NexaLightbox.open(lbItems(slot(w)), +i); return true; }
       if (b.id === "reqMore") { openHist(); return true; }
       const pv = b.closest("[data-prop]");
       if (pv && b.dataset.pview) { openPreview(pv.dataset.prop); return true; }

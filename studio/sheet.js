@@ -695,6 +695,7 @@
     }
     const T = theme(), grid = $("#grid");
     grid.classList.toggle("nogrid", !gridOn(sh));
+    grid.style.width = G.colX[cols] + "px";  // 표 너비가 auto 면 table-layout: fixed 가 무시돼 긴 글이 열을 넓힌다 - 선택 상자(G.colX)와 칸이 어긋남
     grid.style.fontFamily = T && T.font ? `"${String(T.font).replace(/"/g, "")}", var(--font)` : "";
     grid.style.fontSize = T && T.size ? `${+T.size}pt` : "";
     const h = [`<colgroup><col style="width:${HW}px">`];
