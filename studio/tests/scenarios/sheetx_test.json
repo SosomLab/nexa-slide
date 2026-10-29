@@ -92,6 +92,24 @@
     {
      "name": "틀 고정 선택 표시 - C4 고정 뒤 B2:E31 을 고르고 아래로 스크롤하면 고정 행 쪽 상자는 B2 칸을 따라가고, 스크롤 쪽 상자는 고정 행 밑으로 가려진다(사분면 4개)",
      "js": "const N=window.NexaSheet, X=N.x, sh=X.sheet(), W=document.querySelector('#gridWrap'), oldF=sh.freeze; sh.freeze='C4'; X.renderAll(); X.selectRange({r1:1,c1:1,r2:30,c2:4}); W.scrollTop=0; W.scrollTop=200; W.dispatchEvent(new Event('scroll')); await new Promise(r=>setTimeout(r,120)); const td=(r,c)=>document.querySelector('#grid td[data-r=\"'+r+'\"][data-c=\"'+c+'\"]').getBoundingClientRect(); const base=document.querySelector('#selBox').getBoundingClientRect(), qs=[...document.querySelectorAll('.q-selBox')].filter(e=>!e.hidden), main=qs[qs.length-1], mr=main.getBoundingClientRect(), t=parseFloat((/inset\\(([\\d.]+)px/.exec(main.style.clipPath)||[0,0])[1]); const res={n:qs.length+1, baseTop:Math.round(base.top), b2:Math.round(td(1,1).top), visTop:Math.round(mr.top+t), fzBottom:Math.round(td(2,2).bottom), st:W.scrollTop}; sh.freeze=oldF; if(oldF===undefined) delete sh.freeze; W.scrollTop=0; X.renderAll(); X.selectCell(0,0); return res.n===4 && res.st>0 && Math.abs(res.baseTop-res.b2)<=2 && res.visTop>=res.fzBottom-2 ? true : JSON.stringify(res)"
+    },
+    {
+     "name": "엔진 변경 안내 - /api/version 의 engine 이 바뀌면 시트에도 '엔진이 바뀌었습니다 · 새로 고침' 막대(같으면 안 뜸), ✕ 로 닫힘",
+     "js": "const N=window.NexaSheet, S=N.S, bar=document.querySelector('#engNotice'); const was=S.engine; const before=bar.classList.contains('show'); S.engine=S.engine||'e0'; await N.applyVersion({deck:S.version, engine:S.engine}); const same=!bar.classList.contains('show'); await N.applyVersion({deck:S.version, engine:'바뀐엔진'}); const shown=bar.classList.contains('show') && /엔진/.test(bar.textContent); document.querySelector('#engClose').click(); const closed=!bar.classList.contains('show'); return !before && same && shown && closed ? true : JSON.stringify({before,same,shown,closed})"
+    }
+   ]
+  },
+  {
+   "url": "/studio/sheet.html?deck=zsheetvba",
+   "wait": 2500,
+   "steps": [
+    {
+     "name": "VBA 실행기 - 표준 모듈 Function 을 칸에서 계산(=Twice(21) → 42), 아직 없는 함수 칸은 엑셀 값 그대로, { } VBA 단추가 보인다",
+     "js": "const S=window.NexaSheet.S, c=S.deck.sheets[0].cells; const btn=document.querySelector('#vbaBtn'); return c.A1.v===42 && c.A2.v==='엑셀 값' && btn && !btn.hidden ? true : JSON.stringify({a1:c.A1.v,a2:c.A2.v,btn:btn&&!btn.hidden})"
+    },
+    {
+     "name": "VBA 코드 창 - Twice 를 x*3 으로, 새 함수 Later 를 더해 적용 → 63·'L1', 문서 macros.modules 에 저장 · 못 쓰는 문법(With)은 아래에 경고",
+     "js": "const N=window.NexaSheet, S=N.S; N.vbaOpen(); await new Promise(r=>setTimeout(r,80)); const dlg=document.querySelector('#vbaDlg'); const open=dlg.classList.contains('show'); const ta=document.querySelector('#vbaCode'); ta.value=ta.value.replace('x * 2','x * 3')+'Function Later(n)\\r\\n    Later = \"L\" & n\\r\\nEnd Function\\r\\nFunction Odd()\\r\\n    With Application\\r\\n    End With\\r\\nEnd Function\\r\\n'; ta.dispatchEvent(new Event('input')); document.querySelector('#vbaApply').click(); await new Promise(r=>setTimeout(r,700)); const c=S.deck.sheets[0].cells, saved=S.deck.macros.modules[0].code.includes('x * 3'), warn=/With/.test(document.querySelector('#vbaMsgs').textContent); document.querySelector('#vbaClose').click(); const closed=!dlg.classList.contains('show'); return open && c.A1.v===63 && c.A2.v==='L1' && saved && warn && closed ? true : JSON.stringify({open,a1:c.A1.v,a2:c.A2.v,saved,warn,closed})"
     }
    ]
   }

@@ -505,6 +505,7 @@
     if (!Array.isArray(deck.slides)) deck.slides = [];
     deck.sheets.forEach(normSheet);
     await loadTheme(deck.theme);
+    await setupVba(deck);  // VBA 사용자 함수 - recalc 전에
     S.deck = deck; S.savedJson = deckJson();
     S.dirty = false; S.conflict = false; banner(false);
     if (!keepView) {
@@ -519,6 +520,56 @@
     if (recalc() && !reqBusy()) { S.dirty = true; setStatus("dirty", "저장 대기"); scheduleSave(); }
     renderAll();
     return true;
+  }
+  // ---------------------------------------------------------------- VBA(사용자 함수 실행기 vba.js · 코드 창)
+  // 모듈 소스 = 문서 macros.modules(가져올 때 넣는다). 없으면(0.25.3 전에 가져온 문서) 서버가 vbaProject.bin 에서 읽어 준다(/api/vba) - 고치기 전에는 문서에 넣지 않는다
+  const VB = { mods: null, compiled: null, sel: 0, draft: null };
+  async function setupVba(deck) {
+    const mc = deck.macros || {};
+    let mods = Array.isArray(mc.modules) ? mc.modules : null;
+    if (!mods && mc.vba) { try { const r = await api("GET", `/api/vba/${encodeURIComponent(S.id)}`); mods = r.ok ? r.data.modules || [] : []; } catch (e) { mods = []; } }
+    VB.mods = mods; compileVba();
+    const b = $("#vbaBtn"); if (b) b.hidden = !mc.vba;
+  }
+  function compileVba() {
+    if (!window.NexaVBA || !window.NexaCalc) return;
+    VB.compiled = VB.mods && VB.mods.length ? NexaVBA.compile(VB.mods) : null;
+    NexaCalc.setVba(VB.compiled, NexaVBA);
+  }
+  function vbaOpen() {
+    if (!VB.mods) return toast("이 문서에는 VBA 프로젝트가 없습니다(엑셀 매크로 통합 문서 .xlsm 을 가져오면 생긴다)");
+    VB.draft = VB.mods.map((m) => ({ ...m })); VB.sel = Math.max(0, VB.draft.findIndex((m) => m.kind === "std"));
+    vbaRender(); $("#vbaDlg").classList.add("show"); $("#vbaCode").focus();
+  }
+  function vbaErrors(list) { const c = NexaVBA.compile(list); return c.errors; }
+  function vbaRender() {
+    const errs = vbaErrors(VB.draft), kind = { std: "표준", cls: "클래스", doc: "문서" };
+    $("#vbaMods").innerHTML = VB.draft.map((m, i) => { const n = errs.filter((e) => e.module === m.name).length; return `<button data-vm="${i}" class="${i === VB.sel ? "on" : ""}${n ? " err" : ""}" title="${esc(kind[m.kind] || m.kind)} 모듈">${esc(m.name)}<small>${n ? "⚠" + n : esc(kind[m.kind] || "")}</small></button>`; }).join("");
+    const m = VB.draft[VB.sel], ta = $("#vbaCode");
+    if (m) { if (ta.dataset.i !== String(VB.sel) || ta.value !== m.code) { ta.value = m.code || ""; ta.dataset.i = String(VB.sel); } }
+    const fns = m ? [...(m.code || "").matchAll(/^\s*(?:Public\s+|Private\s+)?Function\s+([\p{L}_][\p{L}\p{N}_]*)/gimu)].map((x) => x[1]) : [];
+    const mine = errs.filter((e) => m && e.module === m.name);
+    $("#vbaMsgs").innerHTML = (mine.length ? mine.map((e) => `<div class="e" data-ln="${e.line}">⚠ ${esc(e.line ? e.line + "행" : "")} ${esc(e.name ? e.name + ": " : "")}${esc(e.msg.replace(/^\d+행: /, ""))} - 이 함수는 계산하지 않고 엑셀이 저장한 값을 그대로 둔다</div>`).join("") : "")
+      + (m && m.kind === "std" ? `<div>칸에서 부를 수 있는 함수: ${fns.length ? fns.map((f) => `<code>=${esc(f)}(…)</code>`).join(" ") : "없음"}</div>` : m ? "<div>문서·클래스 모듈 - 칸에서 부를 수 없다(이벤트·매크로는 엑셀에서 돈다). 코드는 고쳐서 내보낼 수 있다</div>" : "");
+    $("#vbaDel").disabled = !m || m.kind !== "std";
+    $("#vbaSub").textContent = `모듈 ${VB.draft.length}개 · 함수 ${VB.compiled ? [...VB.compiled.runtime.procs.values()].filter((p) => p.kind === "FUNCTION").length : 0}개`;
+  }
+  function vbaApply() {
+    const cur = VB.draft[VB.sel]; if (cur) cur.code = $("#vbaCode").value;
+    const before = JSON.stringify(VB.mods), after = JSON.stringify(VB.draft);
+    if (before === after) { toast("바뀐 코드가 없습니다"); return; }
+    VB.mods = VB.draft.map((m) => ({ ...m }));
+    mutate(() => {
+      S.deck.macros = { ...(S.deck.macros || {}), modules: VB.mods.map((m) => ({ ...m })) }; compileVba();
+      // 계산할 수 있게 된 VBA 함수를 쓰는 칸만 저장값을 지우고 다시 계산(못 쓰는 문법 함수 칸은 엑셀 값을 지키게 그대로)
+      const fns = VB.compiled ? [...VB.compiled.runtime.procs.values()].filter((p) => p.kind === "FUNCTION" && !p.unsupported && VB.compiled.has(p.name)).map((p) => p.name) : [];
+      const re = fns.length ? new RegExp(`(^|[^\\p{L}\\p{N}_.])(${fns.map((f) => f.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")})\\s*\\(`, "iu") : null;
+      if (re) for (const t of S.deck.sheets) for (const c of Object.values(t.cells)) if (c && typeof c === "object" && c.f && re.test(c.f)) delete c.v;
+      recalc();
+    });
+    const n = VB.compiled ? VB.compiled.errors.length : 0;
+    toast(n ? `적용했습니다 - 계산하지 못하는 곳 ${n}개(코드 창 아래)` : "적용하고 다시 계산했습니다", 3500);
+    vbaRender();
   }
   async function reloadExternal(msg) {
     const was = { ti: S.deck && sheet().id, sel: { ...S.sel }, cur: { ...S.cur }, anchor: { ...S.anchor } };
@@ -545,6 +596,10 @@
     applying = true;
     try {
       if (v.session) renderSession(v.session, v.activity);
+      if (v.engine) {  // 편집기 코드·템플릿(엔진)이 바뀌면 새로 고침 안내(편집기 checkWorkspace 와 같다)
+        if (S.engine == null) S.engine = v.engine;
+        else if (v.engine !== S.engine) { S.engine = v.engine; $("#engReload").textContent = S.dirty ? "저장하고 새로 고침" : "새로 고침"; $("#engNotice").classList.add("show"); }
+      }
       if (RQ) await RQ.sync(v);  // 요청 파일이 바뀌었으면 다시 읽기(편집기와 같다)
       if (v.deck !== S.version && !S.saving) {
         // 편집 중에 밖에서 바뀌었다 - 배너로 고르게 하지 않고, 내 저장이 서버에서 합쳐지게 바로 저장한다(셀 입력 중이면 입력을 넣고 저장할 때)
@@ -1754,10 +1809,27 @@
       const up = () => { removeEventListener("mousemove", mv); removeEventListener("mouseup", up); };
       addEventListener("mousemove", mv); addEventListener("mouseup", up);
     });
+    $("#vbaClose").addEventListener("click", () => { const cur = VB.draft && VB.draft[VB.sel]; if (cur && cur.code !== $("#vbaCode").value) cur.code = $("#vbaCode").value; if (VB.draft && JSON.stringify(VB.draft) !== JSON.stringify(VB.mods) && !confirm("적용하지 않은 코드 변경이 있습니다. 버리고 닫을까요?")) return; $("#vbaDlg").classList.remove("show"); focusGrid(); });
+    $("#vbaApply").addEventListener("click", vbaApply);
+    $("#vbaRevert").addEventListener("click", () => { VB.draft = VB.mods.map((m) => ({ ...m })); $("#vbaCode").dataset.i = ""; vbaRender(); });
+    $("#vbaMods").addEventListener("click", (e) => { const b = e.target.closest("[data-vm]"); if (!b) return; const cur = VB.draft[VB.sel]; if (cur) cur.code = $("#vbaCode").value; VB.sel = +b.dataset.vm; vbaRender(); });
+    $("#vbaCode").addEventListener("keydown", (e) => {
+      e.stopPropagation();  // 격자 단축키가 먹지 않게
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") { e.preventDefault(); vbaApply(); return; }
+      if (e.key === "Tab") { e.preventDefault(); const t = e.target, a = t.selectionStart; t.setRangeText("    ", a, t.selectionEnd, "end"); }
+      if (e.key === "Escape") $("#vbaClose").click();
+    });
+    $("#vbaCode").addEventListener("input", () => { clearTimeout(VB.t); VB.t = setTimeout(() => { const cur = VB.draft[VB.sel]; if (cur) { cur.code = $("#vbaCode").value; vbaRender(); } }, 500); });
+    $("#vbaMsgs").addEventListener("click", (e) => { const d = e.target.closest("[data-ln]"); if (!d) return; const ta = $("#vbaCode"), ln = +d.dataset.ln, lines = ta.value.split("\n"); const at = lines.slice(0, ln - 1).join("\n").length + (ln > 1 ? 1 : 0); ta.focus(); ta.setSelectionRange(at, at + (lines[ln - 1] || "").length); });
+    $("#vbaAdd").addEventListener("click", () => { const cur = VB.draft[VB.sel]; if (cur) cur.code = $("#vbaCode").value; let n = 1; while (VB.draft.some((m) => m.name.toLowerCase() === "module" + n)) n++; const nm = prompt("새 모듈 이름(함수 이름과 같으면 칸에서 못 부른다)", "Module" + n); if (!nm) return; if (!/^[\p{L}][\p{L}\p{N}_]{0,30}$/u.test(nm) || VB.draft.some((m) => m.name.toLowerCase() === nm.toLowerCase())) return toast("쓸 수 없는 이름입니다(글자로 시작, 31자 안, 겹치지 않게)"); VB.draft.push({ name: nm, kind: "std", code: "Option Explicit\r\n\r\nFunction 새함수(x)\r\n    새함수 = x\r\nEnd Function\r\n" }); VB.sel = VB.draft.length - 1; vbaRender(); });
+    $("#vbaDel").addEventListener("click", () => { const m = VB.draft[VB.sel]; if (!m || m.kind !== "std" || !confirm(`모듈 ${m.name} 를 지울까요? (적용해야 반영)`)) return; VB.draft.splice(VB.sel, 1); VB.sel = Math.max(0, VB.sel - 1); $("#vbaCode").dataset.i = ""; vbaRender(); });
+    $("#engReload").addEventListener("click", async () => { if (S.edit) endEdit(true); if (S.dirty) { clearTimeout(saveT); await save(); } if (!S.dirty) location.reload(); else toast("저장하지 못했습니다 - 저장된 뒤 다시 누르세요"); });
+    $("#engClose").addEventListener("click", () => $("#engNotice").classList.remove("show"));
+    $("#vbaBtn").addEventListener("click", vbaOpen);
     window.addEventListener("beforeunload", (e) => { if (S.dirty) { save(); e.preventDefault(); e.returnValue = ""; } });
   }
   // 시험용(브라우저 콘솔·스모크) - 수식 계산·표시 형식을 따로 불러 볼 수 있게
-  window.NexaSheet = { S, TH, effCell, bdSides, fillVars, reload: reloadExternal, recalc, parseFormula, display, fmtNumber, parseNumberText, shiftFormula, setInput, parseTsv, fillSeries, fillTarget,
+  window.NexaSheet = { S, TH, VB, vbaOpen, vbaApply, effCell, bdSides, fillVars, reload: reloadExternal, applyVersion, recalc, parseFormula, display, fmtNumber, parseNumberText, shiftFormula, setInput, parseTsv, fillSeries, fillTarget,
     // 엑셀 기능 모듈(sheetx.js)이 쓰는 안쪽 함수 - 격자·선택·고치기(실행 취소·저장 포함)
     x: { shiftAxis, G, sheet, key, parseRef, colHidden, rowHidden, rectOf, colIndex, parseRange, rangeName, colName, cellObj, putCell, mutate, renderAll, renderSel, selectRange, selectCell, clampRange, eachCell, toast, openMenu,
       endEdit, startEdit, focusGrid, pasteText, scrollIntoView, growSize, clone, ED, esc } };
