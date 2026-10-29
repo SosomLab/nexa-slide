@@ -1349,6 +1349,81 @@
     renderSel();
     return S.clip.tsv;
   }
+  /** 고른 범위 → HTML 표(엑셀·워드에 붙이면 서식이 따라간다) - 굵게·기울임·밑줄·취소선·글자색·채우기·맞춤·크기·병합 */
+  function copyHtml() {
+    const sh = sheet(), g = S.sel, ms = merges(sh), skip = new Set(), out = ["<table style=\"border-collapse:collapse\">"];
+    for (let r = g.r1; r <= g.r2; r++) {
+      out.push("<tr>");
+      for (let c = g.c1; c <= g.c2; c++) {
+        if (skip.has(r * 4096 + c)) continue;
+        const o = effCell(sh.cells[key(r, c)]), m = ms.find((x) => x.r1 === r && x.c1 === c);
+        if (m) for (let rr = m.r1; rr <= Math.min(m.r2, g.r2); rr++) for (let cc = m.c1; cc <= Math.min(m.c2, g.c2); cc++) skip.add(rr * 4096 + cc);
+        const st = [o.b ? "font-weight:700" : "", o.i ? "font-style:italic" : "", o.u || o.strike ? `text-decoration:${[o.u ? "underline" : "", o.strike ? "line-through" : ""].filter(Boolean).join(" ")}` : "",
+          o.color ? `color:${o.color}` : "", o.fill ? `background:${o.fill}` : "", o.align ? `text-align:${o.align}` : "", o.valign ? `vertical-align:${o.valign}` : "", o.size ? `font-size:${+o.size}pt` : "", o.wrap ? "white-space:normal" : ""].filter(Boolean).join(";");
+        const span = m ? ` rowspan="${Math.min(m.r2, g.r2) - r + 1}" colspan="${Math.min(m.c2, g.c2) - c + 1}"` : "";
+        const num = typeof o.v === "number" && !o.f ? ` x:num="${o.v}"` : "";
+        out.push(`<td${span}${num}${st ? ` style="${st}"` : ""}>${esc(String(display(o))).replace(/\n/g, "<br>")}</td>`);
+      }
+      out.push("</tr>");
+    }
+    out.push("</table>");
+    return `<html><head><meta charset="utf-8"></head><body>${out.join("")}</body></html>`;
+  }
+  /** 엑셀 등에서 복사한 HTML 표 → [[{text, style}]] (서식은 인라인 style 과 <style> 의 .xlNN 규칙에서) - 표가 없으면 null */
+  function parseHtmlTable(html) {
+    if (!/<table/i.test(html)) return null;
+    const doc = new DOMParser().parseFromString(html, "text/html"), tb = doc.querySelector("table"); if (!tb) return null;
+    const rules = {};
+    for (const st of doc.querySelectorAll("style")) for (const m of st.textContent.matchAll(/\.([\w-]+)\s*\{([^}]*)\}/g)) rules[m[1]] = (rules[m[1]] || "") + ";" + m[2];
+    const toHex = (v) => { v = String(v || "").trim(); if (/^#[0-9a-f]{6}$/i.test(v)) return v.toUpperCase(); if (/^#[0-9a-f]{3}$/i.test(v)) return ("#" + v.slice(1).split("").map((x) => x + x).join("")).toUpperCase(); const m = /rgb\((\d+),\s*(\d+),\s*(\d+)\)/i.exec(v); return m ? "#" + [m[1], m[2], m[3]].map((x) => (+x).toString(16).padStart(2, "0")).join("").toUpperCase() : null; };
+    const styleOf2 = (td) => {
+      const css = [...td.classList].map((c) => rules[c] || "").join(";") + ";" + (td.getAttribute("style") || ""), get = (k) => { let v = null; for (const m of css.matchAll(new RegExp(`(?:^|;)\\s*${k}\\s*:\\s*([^;]+)`, "gi"))) v = m[1].trim(); return v; };
+      const o = {};
+      const fw = get("font-weight"); if (fw && (fw === "bold" || +fw >= 600)) o.b = true;
+      if (/italic/i.test(get("font-style") || "")) o.i = true;
+      const td2 = get("text-decoration") || ""; if (/underline/i.test(td2)) o.u = true; if (/line-through/i.test(td2)) o.strike = true;
+      const col = toHex(get("color")); if (col && col !== "#000000" && col !== "#000") o.color = col;
+      const bg = toHex(get("background") || get("background-color")); if (bg && bg !== "#FFFFFF") o.fill = bg;
+      const al = (get("text-align") || "").toLowerCase(); if (["left", "center", "right"].includes(al)) o.align = al;
+      const va = (get("vertical-align") || "").toLowerCase(); if (va === "top") o.valign = "top"; else if (va === "middle") o.valign = "middle";
+      const fs2 = /([\d.]+)pt/.exec(get("font-size") || ""); if (fs2 && +fs2[1] !== defSize()) o.size = +fs2[1];
+      if (/normal/i.test(get("white-space") || "")) o.wrap = true;
+      return o;
+    };
+    const grid = [], taken = [];
+    [...tb.rows].forEach((tr, r) => {
+      grid[r] = grid[r] || []; let c = 0;
+      for (const td of tr.cells) {
+        while (taken[r] && taken[r][c]) c++;
+        const rs = Math.max(1, +td.rowSpan || 1), cs = Math.max(1, +td.colSpan || 1);
+        for (let i = 0; i < rs; i++) for (let j = 0; j < cs; j++) { (taken[r + i] = taken[r + i] || [])[c + j] = true; if (i || j) (grid[r + i] = grid[r + i] || [])[c + j] = { text: "", style: {} }; }
+        const text = [...td.childNodes].map((n) => (n.nodeName === "BR" ? "\n" : n.textContent)).join("").replace(/\u00a0/g, " ").replace(/\n$/, "");
+        grid[r][c] = { text: text.trim() === "" ? "" : text, style: styleOf2(td), span: rs > 1 || cs > 1 ? [rs, cs] : null };
+        c += cs;
+      }
+    });
+    return grid.map((row) => Array.from({ length: Math.max(...grid.map((x) => x.length)) }, (_, j) => row[j] || { text: "", style: {} }));
+  }
+  /** HTML 표 붙여넣기 - 값은 입력처럼(숫자·날짜 알아봄), 서식은 칸에 · 병합은 병합으로 */
+  function pasteHtml(grid) {
+    const sh = sheet(), at = { r: S.sel.r1, c: S.sel.c1 }, h = grid.length, w = grid[0].length, target = { r1: at.r, c1: at.c, r2: at.r + h - 1, c2: at.c + w - 1 };
+    mutate(() => {
+      const newMerges = [];
+      for (let i = 0; i < h; i++) for (let j = 0; j < w; j++) {
+        const cell = grid[i][j], k = key(at.r + i, at.c + j);
+        setInput(sh, k, cell.text);
+        const o = { ...cellObj(sh, k) };
+        for (const kk of ["b", "i", "u", "strike", "color", "fill", "align", "valign", "size", "wrap"]) delete o[kk];
+        putCell(sh, k, { ...o, ...cell.style });
+        if (cell.span) newMerges.push(rangeName({ r1: at.r + i, c1: at.c + j, r2: at.r + i + cell.span[0] - 1, c2: at.c + j + cell.span[1] - 1 }));
+      }
+      const outside = (m) => m.r2 < target.r1 || m.r1 > target.r2 || m.c2 < target.c1 || m.c1 > target.c2;  // 붙인 자리에 걸친 옛 병합은 지우고 붙인 표의 병합으로
+      const keep = merges(sh).filter(outside).map(rangeName);
+      if (keep.length + newMerges.length) sh.merges = [...keep, ...newMerges]; else delete sh.merges;
+      growSize(sh, target.r2, target.c2);
+      S.sel = target; S.cur = { r: target.r1, c: target.c1 }; S.anchor = { ...S.cur };
+    });
+  }
   function parseTsv(t) {
     t = t.replace(/\r\n?/g, "\n"); if (t.endsWith("\n")) t = t.slice(0, -1);
     const rows = [[]]; let i = 0, f = "";
@@ -1962,12 +2037,15 @@
     ed.addEventListener("blur", (e) => { if (S.edit && e.relatedTarget !== $("#fxIn")) endEdit(true); });  // 다른 곳을 누르면 입력을 넣는다(수식 줄로 옮길 때만 이어서)
     ed.addEventListener("compositionstart", () => { if (!S.edit) { S.edit = { r: S.cur.r, c: S.cur.c, mode: "enter", orig: rawText(sheet(), key(S.cur.r, S.cur.c)) }; ed.classList.add("on"); placeEditor(); } });
     $("#addRows").onclick = () => addRows(20);
-    document.addEventListener("copy", (e) => { if (document.activeElement !== ed || S.edit) return; e.preventDefault(); e.clipboardData.setData("text/plain", copyRange(false)); });
-    document.addEventListener("cut", (e) => { if (document.activeElement !== ed || S.edit) return; e.preventDefault(); e.clipboardData.setData("text/plain", copyRange(true)); });
+    document.addEventListener("copy", (e) => { if (document.activeElement !== ed || S.edit) return; e.preventDefault(); e.clipboardData.setData("text/plain", copyRange(false)); e.clipboardData.setData("text/html", copyHtml()); });  // HTML - 엑셀에 붙이면 서식도
+    document.addEventListener("cut", (e) => { if (document.activeElement !== ed || S.edit) return; e.preventDefault(); e.clipboardData.setData("text/plain", copyRange(true)); e.clipboardData.setData("text/html", copyHtml()); });
     document.addEventListener("paste", (e) => {
       if (document.activeElement !== ed || S.edit) return; e.preventDefault();
       const t = e.clipboardData.getData("text/plain"), imgs = [...(e.clipboardData.files || [])].filter((f) => /^image\//.test(f.type));
       if (imgs.length && !t) { insertImages(imgs); return; }  // 그림만 있으면 지금 칸에 그림(엑셀과 같다)
+      const mine = S.clip && t && t.replace(/\r\n?/g, "\n").replace(/\n$/, "") === S.clip.tsv.replace(/\r\n?/g, "\n");  // 이 화면에서 복사한 것 - 수식·서식 그대로(pasteText)
+      const html = !mine && e.clipboardData.getData("text/html"), grid = html ? parseHtmlTable(html) : null;
+      if (grid && grid.length && grid[0].length) { pasteHtml(grid); return; }  // 엑셀·웹 표 - 값 + 서식
       if (t) pasteText(t);
     });
     W.addEventListener("dragover", (e) => { if ([...(e.dataTransfer.items || [])].some((i) => i.kind === "file")) e.preventDefault(); });
@@ -2088,7 +2166,7 @@
     window.addEventListener("beforeunload", (e) => { if (S.dirty) { save(); e.preventDefault(); e.returnValue = ""; } });
   }
   // 시험용(브라우저 콘솔·스모크) - 수식 계산·표시 형식을 따로 불러 볼 수 있게
-  window.NexaSheet = { S, TH, VB, setZoom, zoom: () => Z, numFmt, bumpFmt, insertLink, formatDialog, drawDelete, autoFitCols, lastCell, noteEdit, insertImages, vbaOpen, vbaApply, effCell, bdSides, fillVars, reload: reloadExternal, applyVersion, recalc, parseFormula, display, fmtNumber, parseNumberText, shiftFormula, setInput, parseTsv, fillSeries, fillTarget,
+  window.NexaSheet = { S, TH, VB, copyHtml, parseHtmlTable, pasteHtml, setZoom, zoom: () => Z, numFmt, bumpFmt, insertLink, formatDialog, drawDelete, autoFitCols, lastCell, noteEdit, insertImages, vbaOpen, vbaApply, effCell, bdSides, fillVars, reload: reloadExternal, applyVersion, recalc, parseFormula, display, fmtNumber, parseNumberText, shiftFormula, setInput, parseTsv, fillSeries, fillTarget,
     // 엑셀 기능 모듈(sheetx.js)이 쓰는 안쪽 함수 - 격자·선택·고치기(실행 취소·저장 포함)
     x: { shiftAxis, G, sheet, key, parseRef, colHidden, rowHidden, rectOf, colIndex, parseRange, rangeName, colName, cellObj, putCell, mutate, renderAll, renderSel, selectRange, selectCell, clampRange, eachCell, toast, openMenu,
       endEdit, startEdit, focusGrid, pasteText, scrollIntoView, growSize, clone, ED, esc } };
