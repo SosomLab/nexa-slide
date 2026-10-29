@@ -113,6 +113,19 @@ def shift(doc, tab, axis, at, n):
         for k, raw in (s2.get("cells") or {}).items():
             if isinstance(raw, dict) and isinstance(raw.get("f"), str) and raw["f"].startswith("="):
                 raw["f"] = _rewrite(raw["f"], lambda nm: (s2 is sh) if nm is None else nm.lower() == name.lower(), axis, mv, mv_range)
+
+    def name_def(v, own):  # 이름 정의 값("데이터!$B$2:$B$5" · "0.1" · "=…") - 이름 없는 참조는 own 탭(문서 이름이면 없음)
+        if not isinstance(v, str) or not v:
+            return v
+        f = v if v.startswith("=") else "=" + v
+        out = _rewrite(f, lambda nm: (own is sh) if nm is None else nm.lower() == name.lower(), axis, mv, mv_range)
+        return out if v.startswith("=") else out[1:]
+    # 이름 정의(엑셀 이름 관리자) - 문서 names(통합 문서 범위)·탭 names(시트 범위). 범위 안에 넣으면 늘고, 지운 칸만 가리키면 #REF!
+    if isinstance(doc.get("names"), dict):
+        doc["names"] = {k: name_def(v, None) for k, v in doc["names"].items()}
+    for s2 in sheets:
+        if isinstance(s2.get("names"), dict):
+            s2["names"] = {k: name_def(v, s2) for k, v in s2["names"].items()}
     return doc
 
 

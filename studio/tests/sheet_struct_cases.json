@@ -389,5 +389,147 @@
     }
    ]
   }
+ },
+ {
+  "name": "이름 정의 - 범위 안에 행을 넣으면 늘고, 아래 이름은 옮기고, 상수·다른 탭 이름·위쪽 이름은 그대로(문서 names·탭 names)",
+  "doc": {
+   "id": "d",
+   "kind": "sheet",
+   "slides": [],
+   "sheets": [
+    {
+     "id": "t01",
+     "name": "Sheet1",
+     "cells": {
+      "A1": 1,
+      "B2": 2,
+      "C1": {
+       "f": "=SUM(매출)*세율"
+      }
+     },
+     "names": {
+      "머리": "$A$1:$C$1",
+      "끝": "$A$9"
+     }
+    },
+    {
+     "id": "t02",
+     "name": "Sheet2",
+     "cells": {
+      "A1": 1
+     }
+    }
+   ],
+   "names": {
+    "매출": "Sheet1!$B$2:$B$5",
+    "세율": "0.1",
+    "다른": "Sheet2!$A$3"
+   }
+  },
+  "ops": [
+   {
+    "op": "insertRows",
+    "tab": "t01",
+    "at": 2,
+    "n": 1
+   }
+  ],
+  "expect": {
+   "id": "d",
+   "kind": "sheet",
+   "slides": [],
+   "sheets": [
+    {
+     "id": "t01",
+     "name": "Sheet1",
+     "cells": {
+      "A1": 1,
+      "B2": 2,
+      "C1": {
+       "f": "=SUM(매출)*세율"
+      }
+     },
+     "names": {
+      "머리": "$A$1:$C$1",
+      "끝": "$A$10"
+     }
+    },
+    {
+     "id": "t02",
+     "name": "Sheet2",
+     "cells": {
+      "A1": 1
+     }
+    }
+   ],
+   "names": {
+    "매출": "Sheet1!$B$2:$B$6",
+    "세율": "0.1",
+    "다른": "Sheet2!$A$3"
+   }
+  }
+ },
+ {
+  "name": "이름 정의 - 지운 칸만 가리키면 #REF!, 범위는 줄어든다",
+  "doc": {
+   "id": "d",
+   "kind": "sheet",
+   "slides": [],
+   "sheets": [
+    {
+     "id": "t01",
+     "name": "Sheet1",
+     "cells": {
+      "A1": 1
+     },
+     "names": {
+      "셋째": "$A$3",
+      "범위": "$A$2:$A$4"
+     }
+    },
+    {
+     "id": "t02",
+     "name": "Sheet2",
+     "cells": {}
+    }
+   ],
+   "names": {
+    "지움": "Sheet1!$A$3:$B$3"
+   }
+  },
+  "ops": [
+   {
+    "op": "deleteRows",
+    "tab": "t01",
+    "at": 2,
+    "n": 1
+   }
+  ],
+  "expect": {
+   "id": "d",
+   "kind": "sheet",
+   "slides": [],
+   "sheets": [
+    {
+     "id": "t01",
+     "name": "Sheet1",
+     "cells": {
+      "A1": 1
+     },
+     "names": {
+      "셋째": "#REF!",
+      "범위": "$A$2:$A$3"
+     }
+    },
+    {
+     "id": "t02",
+     "name": "Sheet2",
+     "cells": {}
+    }
+   ],
+   "names": {
+    "지움": "Sheet1!#REF!"
+   }
+  }
  }
 ]

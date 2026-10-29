@@ -6,7 +6,7 @@
 (function (root) {
   "use strict";
   const ERRS = ["#DIV/0!", "#VALUE!", "#REF!", "#NAME?", "#NUM!", "#N/A", "#NULL!", "#SPILL!", "#CALC!"];
-  const DYN = new Set(["FILTER", "SORT", "SORTBY", "UNIQUE", "SEQUENCE", "TRANSPOSE", "TAKE", "DROP", "CHOOSECOLS", "CHOOSEROWS", "HSTACK", "VSTACK", "TOCOL", "TOROW", "TEXTSPLIT"]);  // 동적 배열 함수 - 이 함수를 쓴(또는 가져온 동적 배열 da) 수식만 옆 칸으로 넘친다
+  const DYN = new Set(["FILTER", "SORT", "SORTBY", "UNIQUE", "SEQUENCE", "TRANSPOSE", "TAKE", "DROP", "CHOOSECOLS", "CHOOSEROWS", "HSTACK", "VSTACK", "TOCOL", "TOROW", "TEXTSPLIT", "GROUPBY", "PIVOTBY"]);  // 동적 배열 함수 - 이 함수를 쓴(또는 가져온 동적 배열 da) 수식만 옆 칸으로 넘친다
   const DAY0 = Date.UTC(1899, 11, 30);
   class FErr { constructor(code) { this.code = code; } }
   class Rng { constructor(rows) { this.rows = rows; } get vals() { return [].concat(...this.rows); } }
@@ -173,7 +173,29 @@
 
   // ---------------------------------------------------------------- 계산기
   class Calc {
-    constructor(doc) { this.doc = doc; this.sheets = doc.sheets || []; this.memo = new Map(); this.busy = new Set(); this.ast = new Map(); this.at = []; this.dims = new Map(); this.spill = new Map(); this.anchors = new Map(); this.dyn = new Map(); this.extent = new Map(); this.scope = []; }
+    constructor(doc) { this.doc = doc; this.sheets = doc.sheets || []; this.memo = new Map(); this.busy = new Set(); this.ast = new Map(); this.at = []; this.dims = new Map(); this.spill = new Map(); this.anchors = new Map(); this.dyn = new Map(); this.extent = new Map(); this.scope = []; this.names = new Map(); this.naming = new Set(); }
+    /** 이름 정의 → 구문 트리(없으면 null). 탭 names(엑셀 시트 범위 이름)가 문서 names 보다 먼저, 이름은 대소문자 무시.
+     *  탭 이름의 참조에 탭이 없으면 그 탭을 가리킨다(문서 이름은 계산하는 칸의 탭) - sheet_calc.py named 와 같다 */
+    named(nm, sh) {
+      for (const owner of [sh, null]) {
+        const book = (owner || this.doc).names || {}, k = Object.keys(book).find((x) => x.toUpperCase() === nm);
+        if (k === undefined) continue;
+        const key = (owner ? owner.id : "") + "!" + nm;
+        if (!this.names.has(key)) {
+          const src = String(book[k]); let node;
+          try { node = parse(src.replace(/^=/, "")); } catch (e) { node = ["err", e instanceof FErr ? e.code : "#NAME?"]; }
+          if (owner && (node[0] === "ref" || node[0] === "range") && node[1] == null) node = [node[0], owner.name, ...node.slice(2)];
+          this.names.set(key, node);
+        }
+        return this.names.get(key);
+      }
+      return null;
+    }
+    /** LET 이름이 아닌 이름 → 이름 정의의 참조·식 - 범위를 받는 함수(SUM·COUNT·ROW·OFFSET)가 참조로 보게 */
+    deref(n, sh) {
+      if (n[0] === "name" && !this.scope.some((sc) => sc.has(n[1]))) { const node = this.named(n[1], sh); if (node && !this.naming.has(n[1])) return node; }
+      return n;
+    }
     isDyn(raw) {
       if (raw.da) return true;
       if (!this.dyn.has(raw.f)) { let d = false; try { d = tokenize(raw.f.replace(/^=/, "")).some((t) => (t[0] === "fn" && DYN.has(t[1])) || (t[0] === "ref" && t.length > 3)); } catch (e) { /* 문법 오류 */ } this.dyn.set(raw.f, d); }
@@ -270,6 +292,7 @@
       switch (n[0]) {
         case "lit": return n[1];
         case "err": throw new FErr(n[1]);
+        case "arr": return n[1];  // 계산된 배열을 범위처럼(GROUPBY 집계 - 빈 칸·글은 건너뜀)
         case "ref": { const s = this.sheet(n[1], sh); if (!s) throw new FErr("#REF!"); const v = this.value(s, n[2], n[3]); if (v instanceof FErr) throw v; return v; }
         case "range": return this.rng(n, sh);
         case "spill": {  // H2# - 그 칸의 동적 배열이 넘친 범위 전체
@@ -282,7 +305,9 @@
         case "sref": return this.ev(this.sref(n, sh), sh);  // 표 구조적 참조 → 셀·범위
         case "name": {
           for (let i = this.scope.length - 1; i >= 0; i--) if (this.scope[i].has(n[1])) { const v = this.scope[i].get(n[1]); if (v instanceof FErr) throw v; return v; }
-          throw new FErr("#NAME?");
+          const node = this.named(n[1], sh); if (!node) throw new FErr("#NAME?");  // 이름 정의(매출 = 데이터!$B$2:$B$5 · 세율 = 0.1)
+          if (this.naming.has(n[1])) throw new FErr("#REF!");  // 이름이 자기를 부른다
+          this.naming.add(n[1]); try { return this.ev(node, sh); } finally { this.naming.delete(n[1]); }
         }
         case "neg": { const x = this.ev(n[1], sh); return isMulti(x) ? amap((v) => -toNum(v), x) : -toNum(this.sc(x)); }
         case "pct": return toNum(this.sc(this.ev(n[1], sh))) / 100;
@@ -326,8 +351,8 @@
     one(A, i, sh, d) { return i >= A.length ? d : this.sc(this.ev(A[i], sh)); }
     nums(A, sh, mode = "") {
       const out = [];
-      for (const a of A) {
-        const isRef = a[0] === "ref" || a[0] === "range", v = this.ev(a, sh);
+      for (const a0 of A) {
+        const a = this.deref(a0, sh), isRef = a[0] === "ref" || a[0] === "range" || a[0] === "arr", v = this.ev(a, sh);
         for (const x of v instanceof Rng ? v.vals : [v]) {
           if (x instanceof FErr) { if (mode === "count" || mode === "counta" || mode === "blank") { if (mode === "counta") out.push(x); continue; } throw x; }
           if (mode === "blank") { if (x == null || x === "") out.push(x); }
@@ -341,6 +366,7 @@
     }
     area(a, sh) { const v = this.ev(a, sh); return v instanceof Rng ? v : new Rng([[v]]); }
     refnode(n, sh) {
+      n = this.deref(n, sh);
       if (n[0] === "ref" || n[0] === "range") return n;
       if (n[0] === "fn" && n[1] === "INDIRECT") { let node; try { node = parse(toStr(this.one(n[2], 0, sh))); } catch (e) { throw new FErr("#REF!"); } if (node[0] !== "ref" && node[0] !== "range") throw new FErr("#REF!"); return node; }
       if (n[0] === "fn" && n[1] === "OFFSET") {
@@ -398,7 +424,7 @@
   function rowCol(which) {
     const f = (c, A, sh) => {
       if (!A.length) { const at = c.at.length ? c.at[c.at.length - 1] : [0, 0]; return at[which] + 1; }
-      const n = A[0];
+      const n = c.deref(A[0], sh);
       if (n[0] === "ref") return n[2 + which] + 1;
       if (n[0] === "range") {
         const s = c.sheet(n[1], sh) || sh, [r1, c1, r2, c2] = c.bounds(n, s);
@@ -671,6 +697,59 @@
     "VALUE", "TEXT", "ABS", "INT", "ROUND", "ROUNDUP", "ROUNDDOWN", "MOD", "YEAR", "MONTH", "DAY", "NOT"]);
 
   // 모르는 함수(매크로 사용자 함수 등)·읽지 못하는 수식(외부 통합 문서 참조 등) - 엑셀이 마지막에 계산한 값을 둔다
+  // ---------------------------------------------------------------- 수식형 요약 GROUPBY·PIVOTBY (엑셀 365) - sheet_calc.py 와 같은 규칙. 집계는 함수 이름(SUM, 파일에는 _xleta.SUM)
+  const AGG = new Set(["SUM", "AVERAGE", "COUNT", "COUNTA", "MAX", "MIN", "MEDIAN", "PRODUCT"]);
+  function aggFn(n) { const nm = n[0] === "name" ? n[1].replace(/^_XLETA\./, "") : null; if (!AGG.has(nm)) throw new FErr("#VALUE!"); return nm; }  // LAMBDA 집계는 아직
+  function agg(c, fn, vals, sh) { try { return FUNCS[fn](c, [["arr", new Rng(vals.length ? vals.map((v) => [v]) : [[null]])]], sh); } catch (e) { if (e instanceof FErr) return e; throw e; } }
+  /** 머리글 인수(생략 = 값 첫 줄이 글이고 둘째 줄이 숫자면 머리글) → [머리글이 있나, 보이나, 키 머리글, 값 머리글, 키, 값] */
+  function fields(c, A, iHdr, keys, vals, sh) {
+    let hdr = opt(c, A, iHdr, sh, null);
+    if (hdr == null) hdr = vals.length > 1 && typeof vals[0][0] === "string" && isNum(vals[1][0]) ? 1 : 0;
+    hdr = Math.trunc(toNum(hdr));
+    if (hdr !== 0 && hdr !== 1 && hdr !== 3) throw new FErr("#VALUE!");  // 2(머리글 만들기)는 아직
+    return hdr ? [true, hdr === 3, keys[0], vals[0], keys.slice(1), vals.slice(1)] : [false, false, null, null, keys, vals];
+  }
+  function picked(c, A, i, n, sh) {  // 거르기 배열(행마다 참·거짓) → 남길 행 번호
+    if (i >= A.length || (A[i][0] === "lit" && A[i][1] == null)) return [...Array(n).keys()];
+    const f = c.area(A[i], sh).rows; if (f.length !== n) throw new FErr("#VALUE!");
+    return [...Array(n).keys()].filter((k) => truthy(f[k][0]));
+  }
+  function groups(rows, idx) {  // 같은 키(대소문자 무시)끼리 - 처음 나온 순서, [보이는 키, 행 번호들]
+    const seen = new Map(), out = [];
+    for (const k of idx) { const key = rows[k].map(ukey).join("|"); if (!seen.has(key)) { const g = [rows[k].map((v) => (v == null ? "" : v)), []]; seen.set(key, g); out.push(g); } seen.get(key)[1].push(k); }
+    return out;
+  }
+  Object.assign(FUNCS, {
+    GROUPBY: (c, A, sh) => {  // GROUPBY(행 필드, 값, 함수, [머리글], [합계 깊이 1], [정렬 1], [거르기])
+      let keys = c.area(A[0], sh).rows, vals = c.area(A[1], sh).rows; const fn = aggFn(A[2]);
+      if (keys.length !== vals.length) throw new FErr("#VALUE!");
+      const [, show, kh, vh, k2, v2] = fields(c, A, 3, keys, vals, sh); keys = k2; vals = v2;
+      const depth = Math.trunc(toNum(opt(c, A, 4, sh, 1))), order = Math.trunc(toNum(opt(c, A, 5, sh, 1))), idx = picked(c, A, 6, keys.length, sh);
+      const kw = keys[0].length, vw = vals[0].length, col = (ks, j) => ks.map((i) => vals[i][j]);
+      let out = groups(keys, idx).map(([disp, ks]) => [...disp, ...Array.from({ length: vw }, (_, j) => agg(c, fn, col(ks, j), sh))]);
+      if (!out.length) throw new FErr("#CALC!");
+      if (order) { if (Math.abs(order) > kw + vw) throw new FErr("#VALUE!"); const k = Math.abs(order) - 1; out = sortRows(out, [[(r) => r[k], order < 0]]); }
+      if (depth) { const tot = ["Total", ...Array(kw - 1).fill(""), ...Array.from({ length: vw }, (_, j) => agg(c, fn, col(idx, j), sh))]; out = depth < 0 ? [tot, ...out] : [...out, tot]; }
+      if (show) out = [[...kh, ...vh], ...out];
+      return new Rng(out);
+    },
+    PIVOTBY: (c, A, sh) => {  // PIVOTBY(행 필드, 열 필드, 값, 함수, [머리글], [행 합계 1], [행 정렬 1], [열 합계 1], [열 정렬 1], [거르기]) - 필드·값은 한 열씩
+      let rk = c.area(A[0], sh).rows, ck = c.area(A[1], sh).rows, vals = c.area(A[2], sh).rows; const fn = aggFn(A[3]);
+      if (!(rk.length === ck.length && ck.length === vals.length) || rk[0].length !== 1 || ck[0].length !== 1 || vals[0].length !== 1) throw new FErr("#VALUE!");  // 여러 열 필드·값은 아직
+      const [has, , , , r2, v2] = fields(c, A, 4, rk, vals, sh); if (has) ck = ck.slice(1); rk = r2; vals = v2;
+      const [rt, ro, ct, co] = [5, 6, 7, 8].map((i) => Math.trunc(toNum(opt(c, A, i, sh, 1))));
+      if (Math.abs(ro) !== 1 || Math.abs(co) !== 1) throw new FErr("#VALUE!");  // 값 열로 정렬은 아직
+      const idx = picked(c, A, 9, rk.length, sh);
+      const rows = sortRows(groups(rk, idx), [[(g) => g[0][0], ro < 0]]), cols = sortRows(groups(ck, idx), [[(g) => g[0][0], co < 0]]);
+      if (!rows.length || !cols.length) throw new FErr("#CALC!");
+      const v = (ks) => agg(c, fn, ks.map((i) => vals[i][0]), sh), cell = (a, b) => { const s = new Set(b), both = a.filter((i) => s.has(i)); return both.length ? v(both) : ""; };
+      const out = [["", ...cols.map((g) => g[0][0]), ...(ct ? ["Total"] : [])]];
+      let body = rows.map((g) => [g[0][0], ...cols.map((h) => cell(g[1], h[1])), ...(ct ? [v(g[1])] : [])]);
+      if (rt) { const tot = ["Total", ...cols.map((h) => v(h[1])), ...(ct ? [v(idx)] : [])]; body = rt < 0 ? [tot, ...body] : [...body, tot]; }
+      return new Rng([...out, ...body]);
+    },
+  });
+  function unknownName(f, c, sh) { try { return tokenize(f.replace(/^=/, "")).some((t) => t[0] === "name" && !c.named(t[1].toUpperCase(), sh)); } catch (e) { return true; } }  // 정의를 모르는 이름(names 없이 가져온 문서)
   function unknownFn(f) { try { const src = f.replace(/^=/, ""); parse(src); return tokenize(src).some((t) => t[0] === "fn" && !FUNCS[t[1]]); } catch (e) { return true; } }
   /** 모든 탭의 수식 칸 v 를 계산값으로 - 바뀐 칸 수 */
   function recalc(doc) {
@@ -678,7 +757,7 @@
     for (const sh of doc.sheets || []) for (const [k, raw] of Object.entries(sh.cells || {})) {
       if (!raw || typeof raw !== "object" || !raw.f) continue;
       let v = c.cell(sh, k); v = v instanceof FErr ? v.code : v;
-      if (v === "#NAME?" && raw.v != null && raw.v !== "#NAME?" && unknownFn(raw.f)) continue;  // 매크로(VBA) 사용자 함수 - 엑셀이 마지막에 계산한 값을 그대로
+      if (v === "#NAME?" && raw.v != null && raw.v !== "#NAME?" && (unknownFn(raw.f) || unknownName(raw.f, c, sh))) continue;  // 매크로(VBA) 사용자 함수·정의를 모르는 이름 - 엑셀이 마지막에 계산한 값을 그대로
       if (v === "#REF!" && noTables && raw.f.includes("[") && raw.v != null && raw.v !== "#REF!") continue;  // 표 정의 없이 가져온 옛 문서의 구조적 참조 - 엑셀 값을 그대로
       if (raw.v !== v) { raw.v = v; changed++; }
     }

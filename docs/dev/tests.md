@@ -43,7 +43,16 @@ NEXA_TEST_DIR=/tmp/nexa-tests python3 studio/tests/run_all.py   # 산출물 자�
 | c3 · c3b | `c3_git_test.py` · `c3b_git_deny_test.py` | 웹 세션 git 기록·push·저장소 루트 권한(허용/거절 설정) — 권한 템플릿 확인 뒤 실제 턴까지 | git, claude CLI(`--sessions`) |
 | c2 | `c2_web_test.py` | 웹 세션이 실제로 `claude -p` 턴을 돌려 요청을 처리 | claude CLI(`--sessions`) |
 
-**헤드리스 실행기 `smoke.js`**: `node smoke.js <시나리오.json>` — `{base, login?, pages: [{url, wait?, steps: [{name, js}]}]}`. `js` 는 페이지 안에서 평가되는 식(`await` 가능, `return` 이 있으면 그대로) — `false` 면 FAIL, 문자열은 설명으로 출력(OK). 콘솔 error/예외가 하나라도 있으면 그 페이지 FAIL. Chrome 경로는 파일 머리의 `CHROME`, 디버그 포트 9333.
+**헤드리스 실행기 `smoke.js`**(0.24.1): `node smoke.js <시나리오.json> [<시나리오.json> …]`
+- 시나리오 = `{base, login?: {id, password}, ignoreErrors?, pages: [{url, wait?, steps: [{name, js, wait?, dump?, shot?}]}]}`.
+- **여러 시나리오를 한 번에** - Chrome 은 한 번만 띄우고, 시나리오마다 **새 브라우저 컨텍스트**(저장소·쿠키 분리)에서 돈다. `editor_ui_test.py` 는 `scenarios/*.json` 을 한 번에 넘긴다.
+- **`page.wait` 은 상한** - 페이지에 들어간 뒤 네트워크가 조용해지면(진행 중 요청 0 이 250ms) 그보다 일찍 첫 단계로 넘어간다. 편집기면 슬라이드가 그려질 때까지 기다린다.
+- **단계 `js`** 는 페이지 안에서 평가되는 식(`await` 가능, `return` 이 있으면 그대로). 결과가 `false` 거나 **문자열이면 FAIL**(문자열 = 실패 사유, 200자까지 출력) - 결과 글을 그대로 보이려면 `dump: true`. `shot: "<경로>"` 는 그 단계 뒤 화면을 PNG 로.
+- **`until(() => 조건, 최대ms = 5000)`** - 단계 안에서 쓸 수 있다. 조건이 참이 될 때까지 50ms 마다 다시 보고(예외는 거짓으로), 참이면 그 값을, 시간이 지나면 `false` 를 돌려준다. 고정 `setTimeout` 대신 쓴다(참이 되면 바로 넘어간다). 저장 결과 확인은 `await until(async () => (await (await fetch('/api/deck/…')).json()).…)`.
+- 콘솔 error·예외가 하나라도 있으면 그 페이지 FAIL. 기본으로 빼는 것: favicon·`net::ERR_ABORTED`·알림·그림·글꼴 파일 404, 그 밖은 시나리오 `ignoreErrors`(정규식 글).
+- 시나리오마다 **`## RESULT <파일 이름> OK|FAIL <실패 수>`** 줄을 찍는다(`editor_ui_test.py` 가 이 줄로 시나리오별 결과를 모은다). 종료 코드는 하나라도 실패면 1.
+- 단계 `js` 를 한 줄 주석(`// …`)으로 끝내지 않는다 - 실행기가 감싸는 닫는 괄호와 같은 줄이 되면 주석이 된다(0.24.1 에서 실행기 쪽도 줄바꿈을 넣었다).
+- Chrome 경로는 파일 머리의 `CHROME`, 디버그 포트는 실행마다 9333~11332 중 하나(앞선 실행의 Chrome 에 붙지 않게).
 
 렌더 동일성은 별도: `python3 studio/check_parity.py -W example`(render.js ↔ common/export_pptx), `python3 studio/export_pptx.py --selftest --workspace example`, PowerPoint 가 있으면 `render_pptx.ps1`·`compare.py` 로 픽셀 대조([mechanism.md](../mechanism.md)). 줄바꿈 대조는 `pwsh -File studio/lines_pptx.ps1 -Pptx out/<덱>.pptx`(PowerPoint COM 으로 글 상자마다 실제 줄 수를 JSON 으로) 와 브라우저의 `.rs-p` 높이/줄 높이를 비교한다.
 

@@ -1010,16 +1010,22 @@
       if (sh.freeze) { const f = parseRef(sh.freeze); const v = axis === "r" ? f.r : f.c; if (v > at) { const nv = del ? Math.max(at, v - cnt) : v + cnt; sh.freeze = axis === "r" ? key(nv, f.c) : key(f.r, nv); } }
       const d = dims(sh); if (sh.size) sh.size = axis === "r" ? { ...sh.size, rows: Math.max(1, (+sh.size.rows || d.rows) + n) } : { ...sh.size, cols: Math.max(1, (+sh.size.cols || d.cols) + n) };
       // 수식 참조 - 이 탭을 가리키는 참조(같은 탭의 이름 없는 참조 · 다른 탭의 '이름!' 참조)
+      // own = 이름 없는 참조가 가리키는 탭(문서 이름 정의는 없음 - 그때는 '이름!' 참조만 옮긴다)
+      const moveRefs = (own) => (ends, nm) => {
+        const target = nm == null ? own : sheetByName(nm, own || sh); if (!target || target !== sh) return ends;
+        if (ends.some((e) => (axis === "r" ? e.r : e.c) == null)) return ends;  // 열 전체(A:C)를 행 작업이 · 행 전체(3:5)를 열 작업이 - 그대로(서버 sheet_struct.py 와 같다)
+        if (ends.length === 1) { const v = mv(ends[0]); return v === null ? null : [axis === "r" ? { ...ends[0], r: v } : { ...ends[0], c: v }]; }
+        const g = mvRange({ r1: ends[0].r, c1: ends[0].c, r2: ends[1].r, c2: ends[1].c }); if (!g) return null;
+        return [{ ...ends[0], r: g.r1, c: g.c1 }, { ...ends[1], r: g.r2, c: g.c2 }];
+      };
       for (const s2 of S.deck.sheets) for (const [k, raw] of Object.entries(s2.cells)) {
         if (!raw || typeof raw !== "object" || !raw.f) continue;
-        raw.f = rewriteFormula(raw.f, (ends, nm) => {
-          const target = nm == null ? s2 : sheetByName(nm, s2); if (target !== sh) return ends;
-          if (ends.some((e) => (axis === "r" ? e.r : e.c) == null)) return ends;  // 열 전체(A:C)를 행 작업이 · 행 전체(3:5)를 열 작업이 - 그대로(서버 sheet_struct.py 와 같다)
-          if (ends.length === 1) { const v = mv(ends[0]); return v === null ? null : [axis === "r" ? { ...ends[0], r: v } : { ...ends[0], c: v }]; }
-          const g = mvRange({ r1: ends[0].r, c1: ends[0].c, r2: ends[1].r, c2: ends[1].c }); if (!g) return null;
-          return [{ ...ends[0], r: g.r1, c: g.c1 }, { ...ends[1], r: g.r2, c: g.c2 }];
-        });
+        raw.f = rewriteFormula(raw.f, moveRefs(s2));
       }
+      // 이름 정의(엑셀 이름 관리자) - 문서 names·탭 names 의 값도 같은 규칙으로(범위 안에 넣으면 늘고, 지운 칸만 가리키면 #REF!)
+      const nameDef = (v, own) => { if (typeof v !== "string" || !v) return v; const f = v[0] === "=" ? v : "=" + v, out = rewriteFormula(f, moveRefs(own)); return v[0] === "=" ? out : out.slice(1); };
+      if (S.deck.names && typeof S.deck.names === "object") for (const k of Object.keys(S.deck.names)) S.deck.names[k] = nameDef(S.deck.names[k], null);
+      for (const s2 of S.deck.sheets) if (s2.names && typeof s2.names === "object") for (const k of Object.keys(s2.names)) s2.names[k] = nameDef(s2.names[k], s2);
     });
   }
   function rowColMenu(anchor) {

@@ -6,14 +6,14 @@ const same = (a, b) => (typeof a === "number" && typeof b === "number" ? Math.ab
 const fails = [];
 let ok = 0;
 for (const [f, want] of spec.cases) {
-  const doc = { sheets: JSON.parse(JSON.stringify(spec.sheets)) };
+  const doc = { sheets: JSON.parse(JSON.stringify(spec.sheets)), names: spec.names || {} };
   doc.sheets[0].cells[spec.at] = { f };
   C.recalc(doc);
   const got = doc.sheets[0].cells[spec.at].v;
   if (same(got, want)) ok++; else { fails.push(f); console.log(`FAIL ${f} → ${JSON.stringify(got)} (기대 ${JSON.stringify(want)})`); }
 }
 for (const sp of spec.spills || []) {  // 동적 배열 - 넘친 칸
-  const doc = { sheets: JSON.parse(JSON.stringify(spec.sheets)) };
+  const doc = { sheets: JSON.parse(JSON.stringify(spec.sheets)), names: spec.names || {} };
   Object.assign(doc.sheets[0].cells, JSON.parse(JSON.stringify(sp.cells)));
   if (sp.tables) doc.sheets[0].tables = JSON.parse(JSON.stringify(sp.tables));
   C.recalc(doc);
@@ -24,6 +24,9 @@ for (const sp of spec.spills || []) {  // 동적 배열 - 넘친 칸
 const cyc = { sheets: [{ id: "t01", name: "S", cells: { A1: { f: "=B1+1" }, B1: { f: "=A1+1" } } }] };
 C.recalc(cyc);
 if (cyc.sheets[0].cells.A1.v !== "#REF!") { fails.push("순환 참조"); console.log("FAIL 순환 참조 →", cyc.sheets[0].cells.A1.v); }
+const nm = { sheets: [{ id: "t01", name: "S", cells: { A1: { f: "=없는이름*2", v: 42 } } }] };  // 이름 정의 없이 가져온 문서 - 엑셀 값을 #NAME? 로 덮지 않는다
+C.recalc(nm);
+if (nm.sheets[0].cells.A1.v !== 42) { fails.push("모르는 이름 - 엑셀 값 유지"); console.log("FAIL 모르는 이름 - 엑셀 값 유지 →", nm.sheets[0].cells.A1.v); }
 console.log(`사례 ${spec.cases.length + (spec.spills || []).length}개 중 ${ok}개 같음`);
 console.log("\n실패:", fails.length ? fails.join(", ") : "없음");
 process.exit(fails.length ? 1 : 0);

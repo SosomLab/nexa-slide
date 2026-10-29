@@ -208,7 +208,7 @@ def import_xlsx(src, title=None):
                 elif f.text:
                     o["f"] = "=" + f.text
                 if o.get("f"):
-                    o["f"] = re.sub(r"_xl(?:fn|ws|pm)\.", "", o["f"])  # 새 함수 접두사(_xlfn.TEXTJOIN) - 화면·계산기는 맨 이름을 쓴다(내보낼 때 XlsxWriter 가 다시 붙인다)
+                    o["f"] = re.sub(r"_xl(?:fn|ws|pm|eta)\.", "", o["f"])  # 새 함수 접두사(_xlfn.TEXTJOIN) - 화면·계산기는 맨 이름을 쓴다(내보낼 때 XlsxWriter 가 다시 붙인다)
                     o["f"] = o["f"].replace("[#This Row],", "@")  # 파일 형식 표1[[#This Row],[열]] → 화면 형식 표1[@[열]]
                     o["f"] = re.sub(r"ANCHORARRAY\(((?:'[^']+'|[^\W\d][\w.]*)!)?(\$?[A-Z]{1,3}\$?\d+)\)", r"\1\2#", o["f"])  # 넘친 범위 참조 - 화면에서 쓰는 H2#
                 if f.get("t") == "array":
@@ -494,6 +494,32 @@ def _rels_of(z, part):
     return list(ET.fromstring(z.read(rp))) if rp in z.namelist() else []
 
 
+def import_names(z, doc, warnings):
+    """이름 정의(엑셀 이름 관리자) → 문서 names(통합 문서 범위)·탭 names(시트 범위, localSheetId). 계산기가 =SUM(매출) 을 계산한다.
+    엑셀 내부 이름(_xlnm.Print_Area 등)·숨은 이름·외부 통합 문서 참조([1]…)·깨진 참조(#REF!)는 뺀다."""
+    wbx = ET.fromstring(z.read("xl/workbook.xml"))
+    order = [s.get("name") for s in wbx.iter(N + "sheet")]
+    tabs = {t.get("name"): t for t in doc["sheets"]}
+    skipped = 0
+    for d in wbx.iter(N + "definedName"):
+        nm, ref = d.get("name") or "", (d.text or "").strip()
+        if not nm or not ref or nm.lower().startswith(("_xlnm.", "_xlfn.", "_xlpm.")) or d.get("hidden") == "1":
+            continue
+        if "[" in ref.split("!")[0] or "#REF!" in ref:
+            skipped += 1
+            continue
+        loc = d.get("localSheetId")
+        if loc is not None:
+            tab = tabs.get(order[int(loc)]) if int(loc) < len(order) else None
+            if tab is None:
+                continue
+            tab.setdefault("names", {})[nm] = ref
+        else:
+            doc.setdefault("names", {})[nm] = ref
+    if skipped:
+        warnings.append(f"이름 정의 {skipped}개는 다른 통합 문서를 가리키거나 깨져 있어 옮기지 않았다(그 이름을 쓰는 수식은 엑셀 값을 그대로 둔다)")
+
+
 def to_doc(i, title, src, asset_root=None):
     """xlsx·xlsm → (문서, warnings). asset_root(작업 공간 assetRoot)를 주면 매크로(VBA)를 assets/sheets/<id>/vbaProject.bin 으로 둔다."""
     import datetime as dt
@@ -508,6 +534,7 @@ def to_doc(i, title, src, asset_root=None):
             import_drawings(src, z, tabs, Path(asset_root), i, warnings)
         except Exception as e:  # noqa: BLE001 - 그림은 덤 - 실패해도 값·수식은 가져온다
             warnings.append(f"그림·도형을 옮기지 못했다: {e}")
+    import_names(z, doc, warnings)
     for t in tabs:
         for k in ("_defW", "_defH", "_part", "_rowsAll"):
             t.pop(k, None)
