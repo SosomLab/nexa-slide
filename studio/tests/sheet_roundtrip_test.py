@@ -47,7 +47,7 @@ DOC = {"kind": "sheet", "title": "왕복", "slides": [], "sheets": [
          "M1": {"f": "=LET(x,SUM(B2:B5),y,4,x/y)"}, "M2": {"f": "=XMATCH(\"대구\",A2:A5)"}, "M3": {"f": "=TEXTJOIN(\",\",TRUE,UNIQUE(D2:D5))"},
          "M4": {"f": "=요약!A1*2"},
          "N1": {"f": "=SUM(분기1)"}, "N2": {"f": "=목표*2"}, "N3": {"f": "=COUNTA(지역들)"},
-         "O1": {"f": "=GROUPBY(D2:D5,B2:B5,SUM)"},
+         "O1": {"f": "=GROUPBY(D2:D5,B2:B5,SUM)"}, "R1": {"f": "=GROUPBY(D2:D5,B2:B5,SUM,0,-1,{-1})"},
          "N4": {"f": "=SUM(MAP(B2:B5,LAMBDA(x,x*2)))"}, "N5": {"f": "=세후(1000)"}},
      "names": {"지역들": "데이터!$A$2:$A$5"}},
     {"id": "t02", "name": "요약", "hidden": True, "cells": {"A1": {"f": "=데이터!F2"}, "A2": "숨긴 탭"}},
@@ -98,6 +98,8 @@ def main():
     check("엑셀 표 - 이름·범위·열", len(tb) == 1 and tb[0]["name"] == "매출표" and tb[0]["ref"] == "A1:E5" and tb[0]["cols"][4] == "합계", tb)
     check("파일 형식 - GROUPBY 는 _xlfn.·_xleta.", "_xlfn.GROUPBY(D2:D5,B2:B5,_xleta.SUM)" in xml, "")
     check("GROUPBY - 수식 글·넘친 값(합계 줄)", f.get("O1") == "=GROUPBY(D2:D5,B2:B5,SUM)" and val(a["cells"].get("O4")) == "Total" and val(a["cells"].get("P4")) == 2800, {k: a["cells"].get(k) for k in ("O1", "O4", "P4")})
+    check("배열 상수 - 파일 형식·수식 글·넘친 값(정렬 {-1}, 합계 위)", "_xlfn.GROUPBY(D2:D5,B2:B5,_xleta.SUM,0,-1,{-1})" in xml and f.get("R1") == "=GROUPBY(D2:D5,B2:B5,SUM,0,-1,{-1})"
+          and [val(a["cells"].get(k)) for k in ("R1", "R2", "S2")] == ["Total", "진행", 800], {k: a["cells"].get(k) for k in ("R1", "R2", "S2")})
     wbx = z.read("xl/workbook.xml").decode("utf-8")
     check("파일 형식 - 이름 정의 LAMBDA 는 _xlfn.·_xlpm.", "_xlfn.LAMBDA(_xlpm.x,_xlpm.x*0.9)" in wbx, re.findall(r"<definedName[^>]*>[^<]*</definedName>", wbx))
     check("파일 형식 - LAMBDA 매개변수 _xlpm.", "_xlfn.LAMBDA(_xlpm.x,_xlpm.x*2)" in xml, "")

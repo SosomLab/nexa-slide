@@ -21,7 +21,7 @@
     `(${L}[\\p{L}\\p{N}_.]*)(?=\\s*\\()`,
     "(TRUE|FALSE)(?![\\p{L}\\p{N}_])",
     "(\\d+(?:\\.\\d*)?(?:[eE][+-]?\\d+)?|\\.\\d+(?:[eE][+-]?\\d+)?)",
-    "(<=|>=|<>|[-+*/^&=<>(),%])",
+    "(<=|>=|<>|[-+*/^&=<>(),%{};])",
     "(#[A-Z/0]+[!?])",
     `((?:${L}[\\p{L}\\p{N}_.]*)?\\[(?:[^\\[\\]]|\\[[^\\[\\]]*\\])*\\])`,  // 표 구조적 참조 표1[열] · [@열] · 표1[[#Headers],[열]]
     `(${L}[\\p{L}\\p{N}_.]*)`,
@@ -84,6 +84,19 @@
         eat(")"); return ["fn", t[1], args];
       }
       if (k === "op" && t[1] === "(") { const a = cmp(); eat(")"); return a; }
+      if (k === "op" && t[1] === "{") {  // 배열 상수 {1,-3;"가",TRUE} - 쉼표는 열, 세미콜론은 행
+        const rows = [[]];
+        for (;;) {
+          const neg = isOp("-"); if (neg) p++;
+          const e = peek(); if (!e || !["num", "str", "bool", "err"].includes(e[0]) || (neg && e[0] !== "num")) throw new FErr("#NAME?"); p++;
+          rows[rows.length - 1].push(e[0] === "err" ? new FErr(e[1]) : neg ? -e[1] : e[1]);
+          if (isOp(",")) { p++; continue; }
+          if (isOp(";")) { p++; rows.push([]); continue; }
+          eat("}"); break;
+        }
+        if (new Set(rows.map((r) => r.length)).size !== 1) throw new FErr("#VALUE!");
+        return ["arr", new Rng(rows)];
+      }
       throw new FErr("#NAME?");
     }
     const pow = binl(unary, ["^"]), mul = binl(pow, ["*", "/"]), add = binl(mul, ["+", "-"]), cat = binl(add, ["&"]), cmp = binl(cat, ["=", "<>", "<", ">", "<=", ">="]);
@@ -751,13 +764,47 @@
     const arr = new Rng(vals.length ? vals.map((v) => [v]) : [[null]]);
     try { return fn instanceof Lam ? scalar(c.call(fn, [arr], sh)) : FUNCS[fn](c, [["arr", arr]], sh); } catch (e) { if (e instanceof FErr) return e; throw e; }
   }
-  /** 머리글 인수(생략 = 값 첫 줄이 글이고 둘째 줄이 숫자면 머리글) → [머리글이 있나, 보이나, 키 머리글, 값 머리글, 키, 값] */
-  function fields(c, A, iHdr, keys, vals, sh) {
+  /** 머리글 인수(생략 = 값 첫 줄이 글이고 둘째 줄이 숫자면 1) → [자료 첫 줄이 머리글인가, 결과에 머리글을 보이나]. 0 없음 · 1 있음 · 2 없음(만들어 보임) · 3 있음(보임) */
+  function fields(c, A, iHdr, vals, sh) {
     let hdr = opt(c, A, iHdr, sh, null);
     if (hdr == null) hdr = vals.length > 1 && typeof vals[0][0] === "string" && isNum(vals[1][0]) ? 1 : 0;
     hdr = Math.trunc(toNum(hdr));
-    if (hdr !== 0 && hdr !== 1 && hdr !== 3) throw new FErr("#VALUE!");  // 2(머리글 만들기)는 아직
-    return hdr ? [true, hdr === 3, keys[0], vals[0], keys.slice(1), vals.slice(1)] : [false, false, null, null, keys, vals];
+    if (![0, 1, 2, 3].includes(hdr)) throw new FErr("#VALUE!");
+    return [hdr === 1 || hdr === 3, hdr === 2 || hdr === 3];
+  }
+  /** 머리글 - 자료 첫 줄, 없으면 만든 이름(Row Field 1 · Column Field 1 · Value 1, 엑셀과 같게) */
+  const names = (has, rows, w, label) => (has ? rows[0].map((v) => (v == null ? "" : v)) : Array.from({ length: w }, (_, i) => `${label} ${i + 1}`));
+  /** 정렬 인수(한 값 또는 배열, 생략 = 1) → [단계별 내림차순인가, 값 정렬 [값 열, 내림차순인가] 또는 null]. ±n ≤ 키 열 수는 그 단계의 키(나머지 단계는 오름차순),
+   *  그보다 크면 값 열 - 값 열은 혼자만(배열에 섞으면 #VALUE!). 0 은 #VALUE!(엑셀과 같게) */
+  function sorts(c, A, i, sh, kw, vw) {
+    const ks = i >= A.length || (A[i][0] === "lit" && A[i][1] == null) ? [1] : [].concat(...c.area(A[i], sh).rows).map((v) => Math.trunc(toNum(v)));
+    const desc = Array(kw).fill(false); let val = null;
+    for (const s of ks) {
+      if (!s || Math.abs(s) > kw + vw) throw new FErr("#VALUE!");
+      if (Math.abs(s) > kw) { if (ks.length > 1) throw new FErr("#VALUE!"); val = [Math.abs(s) - kw - 1, s < 0]; } else desc[Math.abs(s) - 1] = s < 0;
+    }
+    return [desc, val];
+  }
+  /** 필드(행 또는 열) → 줄 [보이는 키, 행 번호들, 소계·합계인가]. 단계마다 묶어 키로 정렬하고(desc), 값 정렬(val)이면 그 묶음의 집계값(score)으로 다시 - 같은 값은 키 순서.
+   *  소계는 1 ~ |깊이|-1 단계, 합계는 맨 뒤(깊이 음수면 소계·합계가 묶음 앞). innerOnly: 소계 없는 바깥 단계는 값으로 정렬하지 않는다(PIVOTBY 열, 엑셀과 같게) */
+  function tree(keys, idx, depth, desc, val, score, innerOnly) {
+    const kw = keys[0].length, d = Math.abs(depth);
+    if (d > kw) throw new FErr("#VALUE!");
+    const cols = Array.from({ length: kw }, (_, lv) => keys.map((r) => [r[lv]]));
+    const rec = (lv, ids, pre) => {
+      let gs = sortRows(groups(cols[lv], ids), [[(g) => g[0][0], desc[lv]]]);
+      if (val && (!innerOnly || lv === kw - 1 || lv < d - 1)) gs = sortRows(gs, [[(g) => score(g[1], val[0]), val[1]]]);
+      const out = [];
+      for (const [[k], ks] of gs) {
+        if (lv === kw - 1) { out.push([[...pre, k], ks, false]); continue; }
+        const sub = lv < d - 1 ? [[[...pre, k, ...Array(kw - lv - 1).fill("")], ks, true]] : [], kids = rec(lv + 1, ks, [...pre, k]);
+        out.push(...(depth < 0 ? [...sub, ...kids] : [...kids, ...sub]));
+      }
+      return out;
+    };
+    let out = rec(0, idx, []);
+    if (depth) { const tot = [[d === 1 ? "Total" : "Grand Total", ...Array(kw - 1).fill("")], idx.slice(), true]; out = depth < 0 ? [tot, ...out] : [...out, tot]; }
+    return out;
   }
   function picked(c, A, i, n, sh) {  // 거르기 배열(행마다 참·거짓) → 남길 행 번호
     if (i >= A.length || (A[i][0] === "lit" && A[i][1] == null)) return [...Array(n).keys()];
@@ -770,33 +817,36 @@
     return out;
   }
   Object.assign(FUNCS, {
-    GROUPBY: (c, A, sh) => {  // GROUPBY(행 필드, 값, 함수, [머리글], [합계 깊이 1], [정렬 1], [거르기])
+    GROUPBY: (c, A, sh) => {  // GROUPBY(행 필드, 값, 함수, [머리글], [합계 깊이 1 - 2 이상은 소계], [정렬 1 - 배열이면 단계별], [거르기])
       let keys = c.area(A[0], sh).rows, vals = c.area(A[1], sh).rows; const fn = aggFn(c, A[2], sh);
       if (keys.length !== vals.length) throw new FErr("#VALUE!");
-      const [, show, kh, vh, k2, v2] = fields(c, A, 3, keys, vals, sh); keys = k2; vals = v2;
-      const depth = Math.trunc(toNum(opt(c, A, 4, sh, 1))), order = Math.trunc(toNum(opt(c, A, 5, sh, 1))), idx = picked(c, A, 6, keys.length, sh);
-      const kw = keys[0].length, vw = vals[0].length, col = (ks, j) => ks.map((i) => vals[i][j]);
-      let out = groups(keys, idx).map(([disp, ks]) => [...disp, ...Array.from({ length: vw }, (_, j) => agg(c, fn, col(ks, j), sh))]);
-      if (!out.length) throw new FErr("#CALC!");
-      if (order) { if (Math.abs(order) > kw + vw) throw new FErr("#VALUE!"); const k = Math.abs(order) - 1; out = sortRows(out, [[(r) => r[k], order < 0]]); }
-      if (depth) { const tot = ["Total", ...Array(kw - 1).fill(""), ...Array.from({ length: vw }, (_, j) => agg(c, fn, col(idx, j), sh))]; out = depth < 0 ? [tot, ...out] : [...out, tot]; }
-      if (show) out = [[...kh, ...vh], ...out];
-      return new Rng(out);
+      const [has, show] = fields(c, A, 3, vals, sh), kw = keys[0].length, vw = vals[0].length, kh = names(has, keys, kw, "Row Field"), vh = names(has, vals, vw, "Value");
+      if (has) { keys = keys.slice(1); vals = vals.slice(1); }
+      const depth = Math.trunc(toNum(opt(c, A, 4, sh, 1))), [desc, val] = sorts(c, A, 5, sh, kw, vw), idx = picked(c, A, 6, keys.length, sh);
+      if (!idx.length) throw new FErr("#CALC!");
+      const v = (ks, j) => agg(c, fn, ks.map((i) => vals[i][j]), sh);
+      const out = tree(keys, idx, depth, desc, val, v, false).map(([k, ks]) => [...k, ...Array.from({ length: vw }, (_, j) => v(ks, j))]);
+      return new Rng(show ? [[...kh, ...vh], ...out] : out);
     },
-    PIVOTBY: (c, A, sh) => {  // PIVOTBY(행 필드, 열 필드, 값, 함수, [머리글], [행 합계 1], [행 정렬 1], [열 합계 1], [열 정렬 1], [거르기]) - 필드·값은 한 열씩
+    PIVOTBY: (c, A, sh) => {  // PIVOTBY(행 필드, 열 필드, 값, 함수, [머리글], [행 합계 1], [행 정렬 1], [열 합계 1], [열 정렬 1], [거르기]) - 필드·값 모두 여러 열 가능
+      // 열 머리글은 열 필드 수만큼의 줄, 값이 여럿이면 열마다 값 수만큼 칸(이때 합계·소계 열은 빈 칸 - 엑셀과 같게)
       let rk = c.area(A[0], sh).rows, ck = c.area(A[1], sh).rows, vals = c.area(A[2], sh).rows; const fn = aggFn(c, A[3], sh);
-      if (!(rk.length === ck.length && ck.length === vals.length) || rk[0].length !== 1 || ck[0].length !== 1 || vals[0].length !== 1) throw new FErr("#VALUE!");  // 여러 열 필드·값은 아직
-      const [has, , , , r2, v2] = fields(c, A, 4, rk, vals, sh); if (has) ck = ck.slice(1); rk = r2; vals = v2;
-      const [rt, ro, ct, co] = [5, 6, 7, 8].map((i) => Math.trunc(toNum(opt(c, A, i, sh, 1))));
-      if (Math.abs(ro) !== 1 || Math.abs(co) !== 1) throw new FErr("#VALUE!");  // 값 열로 정렬은 아직
+      if (!(rk.length === ck.length && ck.length === vals.length)) throw new FErr("#VALUE!");
+      const [has, show] = fields(c, A, 4, vals, sh), rw = rk[0].length, cw = ck[0].length, vw = vals[0].length;
+      const rh = names(has, rk, rw, "Row Field"), ch = names(has, ck, cw, "Column Field"), vh = names(has, vals, vw, "Value");
+      if (has) { rk = rk.slice(1); ck = ck.slice(1); vals = vals.slice(1); }
+      const rd = Math.trunc(toNum(opt(c, A, 5, sh, 1))), cd = Math.trunc(toNum(opt(c, A, 7, sh, 1))), [rdesc, rval] = sorts(c, A, 6, sh, rw, vw), [cdesc, cval] = sorts(c, A, 8, sh, cw, vw);
       const idx = picked(c, A, 9, rk.length, sh);
-      const rows = sortRows(groups(rk, idx), [[(g) => g[0][0], ro < 0]]), cols = sortRows(groups(ck, idx), [[(g) => g[0][0], co < 0]]);
-      if (!rows.length || !cols.length) throw new FErr("#CALC!");
-      const v = (ks) => agg(c, fn, ks.map((i) => vals[i][0]), sh), cell = (a, b) => { const s = new Set(b), both = a.filter((i) => s.has(i)); return both.length ? v(both) : ""; };
-      const out = [["", ...cols.map((g) => g[0][0]), ...(ct ? ["Total"] : [])]];
-      let body = rows.map((g) => [g[0][0], ...cols.map((h) => cell(g[1], h[1])), ...(ct ? [v(g[1])] : [])]);
-      if (rt) { const tot = ["Total", ...cols.map((h) => v(h[1])), ...(ct ? [v(idx)] : [])]; body = rt < 0 ? [tot, ...body] : [...body, tot]; }
-      return new Rng([...out, ...body]);
+      if (!idx.length) throw new FErr("#CALC!");
+      const v = (ks, j) => agg(c, fn, ks.map((i) => vals[i][j]), sh);
+      const rows = tree(rk, idx, rd, rdesc, rval, v, false), cols = tree(ck, idx, cd, cdesc, cval, v, true);
+      const cell = (r, col, j) => { if (col[2] && vw > 1) return ""; const s = new Set(col[1]), both = r[1].filter((i) => s.has(i)); return both.length ? v(both, j) : ""; };
+      const each = (f) => [].concat(...cols.map((col) => Array.from({ length: vw }, (_, j) => f(col, j))));
+      const blank = Array(rw).fill(""), out = show ? [[...blank, ch.map(toStr).join(", "), ...Array(cols.length * vw - 1).fill("")]] : [];
+      for (let lv = 0; lv < cw; lv++) out.push([...blank, ...each((col) => col[0][lv])]);
+      if (show) out.push([...rh, ...each((_, j) => vh[j])]);
+      for (const r of rows) out.push([...r[0], ...each((col, j) => cell(r, col, j))]);
+      return new Rng(out);
     },
   });
   function unknownName(f, c, sh) { try { return tokenize(f.replace(/^=/, "")).some((t) => t[0] === "name" && !c.named(t[1].toUpperCase(), sh)); } catch (e) { return true; } }  // 정의를 모르는 이름(names 없이 가져온 문서)
