@@ -104,6 +104,22 @@ def shift(doc, tab, axis, at, n):
             if v > at:
                 nv = max(at, v - cnt) if dele else v + cnt
                 sh["freeze"] = key(nv, f[1]) if axis == "r" else key(f[0], nv)
+    flt = sh.get("filter")
+    if isinstance(flt, dict):  # 필터(엑셀 자동 필터) - 범위·가린 행·열 조건 - sheet.js shiftAxis 와 같다
+        g = _range(flt.get("ref") or "")
+        nr = mv_range(*((g["r1"], g["r2"]) if axis == "r" else (g["c1"], g["c2"]))) if g else None
+        if not nr:
+            sh.pop("filter", None)
+        else:
+            flt["ref"] = _range_name({**g, **({"r1": nr[0], "r2": nr[1]} if axis == "r" else {"c1": nr[0], "c2": nr[1]})})
+            if axis == "r" and isinstance(flt.get("rows"), list):
+                flt["rows"] = [str(v + 1) for k in flt["rows"] if str(k).isdigit() for v in [mv(int(k) - 1)] if v is not None]
+                if not flt["rows"]:
+                    flt.pop("rows")
+            if axis == "c" and isinstance(flt.get("cols"), dict):
+                flt["cols"] = {col_name(v): x for k, x in flt["cols"].items() if re.fullmatch(r"[A-Za-z]{1,3}", str(k)) for v in [mv(col_index(k))] if v is not None}
+                if not flt["cols"]:
+                    flt.pop("cols")
     if isinstance(sh.get("size"), dict):
         k2 = "rows" if axis == "r" else "cols"
         if sh["size"].get(k2):

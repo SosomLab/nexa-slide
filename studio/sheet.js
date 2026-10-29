@@ -28,7 +28,6 @@
     dirty: false, saving: false, conflict: false, undo: [], redo: [], decks: [],
     ti: 0, cur: { r: 0, c: 0 }, anchor: { r: 0, c: 0 }, sel: { r1: 0, c1: 0, r2: 0, c2: 0 },
     edit: null,  // {r, c, mode:"enter"|"edit", orig}
-    view: {},  // 탭 id → {filter, rows:Set(가린 행)} - 이 화면에서만(저장하지 않음, 엑셀 "필터 보기"처럼 사람마다)
     clip: null, reqs: [], reqTab: LS.get("sheetReqTab", "1") !== "0", reqDone: false, fu: null, reqCur: null, session: null,
   };
   const sheet = () => S.deck.sheets[S.ti];
@@ -99,9 +98,10 @@
     for (const m of merges(sh)) { rows = Math.max(rows, m.r2 + 1); cols = Math.max(cols, m.c2 + 1); }
     return { rows, cols };
   }
-  // 숨긴 행·열 - 탭 hiddenRows(["5", …] 행 번호)·hiddenCols(["C", …]) 는 저장, 필터로 가린 행(S.view[탭].rows)은 이 화면만(sheetx.js)
+  // 숨긴 행·열 - 탭 hiddenRows(["5", …] 행 번호)·hiddenCols(["C", …]) 와 필터로 가린 행(filter.rows, sheetx.js) - 모두 저장
   const colHidden = (sh, c) => !!(sh.hiddenCols && sh.hiddenCols.includes(colName(c)));
-  const rowHidden = (sh, r) => !!((sh.hiddenRows && sh.hiddenRows.includes(String(r + 1))) || (S.view && S.view[sh.id] && S.view[sh.id].rows && S.view[sh.id].rows.has(r)));
+  const ROWSET = new WeakMap(), rowSet = (a) => { let s = ROWSET.get(a); if (!s) ROWSET.set(a, (s = new Set(a))); return s; };  // 행 번호 목록 → Set(목록이 바뀌면 새 배열이라 다시 만든다)
+  const rowHidden = (sh, r) => !!((Array.isArray(sh.hiddenRows) && rowSet(sh.hiddenRows).has(String(r + 1))) || (sh.filter && Array.isArray(sh.filter.rows) && rowSet(sh.filter.rows).has(String(r + 1))));
   const colW = (sh, c) => (colHidden(sh, c) ? 0 : (sh.cols && +sh.cols[colName(c)]) || DEF_W);
   const rowH = (sh, r) => (rowHidden(sh, r) ? 0 : (sh.rows && +sh.rows[String(r + 1)]) || DEF_H);
   const merges = (sh) => (sh.merges || []).map(parseRange).filter(Boolean);
@@ -682,6 +682,7 @@
     G.colX = [HW]; for (let c = 0; c < cols; c++) G.colX.push(G.colX[c] + colW(sh, c));
     G.rowY = [HH]; for (let r = 0; r < rows; r++) G.rowY.push(G.rowY[r] + rowH(sh, r));
     const fz = parseRef(sh.freeze || "") || { r: 0, c: 0 };
+    const fg = sh.filter && sh.filter.cols && Object.keys(sh.filter.cols).length ? parseRange(sh.filter.ref) : null;
     const ms = merges(sh), cover = new Map();
     for (const m of ms) for (let r = m.r1; r <= m.r2; r++) for (let c = m.c1; c <= m.c2; c++) cover.set(r * 4096 + c, r === m.r1 && c === m.c1 ? m : "x");
     // 테두리(bd) - 칸 사이 선은 한 줄만: 아래·오른쪽 변은 그 칸의 border 색, 위·왼쪽 변은 위·왼쪽 칸의 아래·오른쪽 border 색. 1행·A열의 위·왼쪽만 안쪽 그림자
@@ -716,7 +717,8 @@
       }
       if (rowHidden(sh, r)) continue;
       const rh = rowH(sh, r);
-      h.push(`<tr style="height:${rh}px"><th data-row="${r}"${rowHidden(sh, r + 1) || (r > 0 && rowHidden(sh, r - 1)) ? ' class="hidN"' : ""}>${r + 1}<span class="rz" data-rzr="${r}"></span></th>`);
+      const thc = [rowHidden(sh, r + 1) || (r > 0 && rowHidden(sh, r - 1)) ? "hidN" : "", fg && r > fg.r1 && r <= fg.r2 ? "flr" : ""].filter(Boolean).join(" ");  // flr - 조건이 걸린 필터의 데이터 행(엑셀은 행 번호가 파랗다)
+      h.push(`<tr style="height:${rh}px"><th data-row="${r}"${thc ? ` class="${thc}"` : ""}>${r + 1}<span class="rz" data-rzr="${r}"></span></th>`);
       for (let c = 0; c < cols; c++) {
         if (colHidden(sh, c)) continue;
         const cm = cover.get(r * 4096 + c); if (cm === "x") continue;
@@ -1073,6 +1075,15 @@
       if (axis === "r" && sh.rows) sh.rows = remap(sh.rows, (k) => +k - 1, (i) => String(i + 1));
       if (axis === "c" && sh.cols) sh.cols = remap(sh.cols, colIndex, colName);
       if (sh.freeze) { const f = parseRef(sh.freeze); const v = axis === "r" ? f.r : f.c; if (v > at) { const nv = del ? Math.max(at, v - cnt) : v + cnt; sh.freeze = axis === "r" ? key(nv, f.c) : key(f.r, nv); } }
+      if (sh.filter) {  // 필터(엑셀 자동 필터) - 범위·가린 행·열 조건 - sheet_struct.py 와 같다
+        const fg = parseRange(sh.filter.ref || ""), ng = fg && mvRange(fg);
+        if (!ng) delete sh.filter;
+        else {
+          const f = sh.filter; f.ref = rangeName(ng);
+          if (axis === "r" && Array.isArray(f.rows)) { f.rows = f.rows.filter((k) => /^\d+$/.test(k)).map((k) => mv({ r: +k - 1, c: 0 })).filter((v) => v !== null).map((v) => String(v + 1)); if (!f.rows.length) delete f.rows; }
+          if (axis === "c" && f.cols) { f.cols = remap(f.cols, colIndex, colName); if (!Object.keys(f.cols).length) delete f.cols; }
+        }
+      }
       const d = dims(sh); if (sh.size) sh.size = axis === "r" ? { ...sh.size, rows: Math.max(1, (+sh.size.rows || d.rows) + n) } : { ...sh.size, cols: Math.max(1, (+sh.size.cols || d.cols) + n) };
       // 수식 참조 - 이 탭을 가리키는 참조(같은 탭의 이름 없는 참조 · 다른 탭의 '이름!' 참조)
       // own = 이름 없는 참조가 가리키는 탭(문서 이름 정의는 없음 - 그때는 '이름!' 참조만 옮긴다)

@@ -531,5 +531,129 @@
     "지움": "Sheet1!#REF!"
    }
   }
+ },
+ {
+  "name": "필터 - 행 1개 삭제(4행) - 범위가 줄고, 가린 행은 지운 행이 빠지고 아래 행은 당겨진다",
+  "doc": {
+   "id": "d",
+   "kind": "sheet",
+   "slides": [],
+   "sheets": [
+    {
+     "id": "t01",
+     "name": "Sheet1",
+     "cells": {},
+     "filter": {
+      "ref": "A1:C8",
+      "rows": [
+       "4",
+       "6"
+      ],
+      "cols": {
+       "B": {
+        "vals": [
+         "x"
+        ]
+       }
+      }
+     }
+    }
+   ]
+  },
+  "ops": [
+   {
+    "op": "deleteRows",
+    "tab": "t01",
+    "at": 3,
+    "n": 1
+   }
+  ],
+  "expect": {
+   "id": "d",
+   "kind": "sheet",
+   "slides": [],
+   "sheets": [
+    {
+     "id": "t01",
+     "name": "Sheet1",
+     "cells": {},
+     "filter": {
+      "ref": "A1:C7",
+      "rows": [
+       "5"
+      ],
+      "cols": {
+       "B": {
+        "vals": [
+         "x"
+        ]
+       }
+      }
+     }
+    }
+   ]
+  }
+ },
+ {
+  "name": "필터 - 열 1개 삽입(B 왼쪽) 뒤 C 열(옛 B, 조건 열) 삭제 - 범위·조건 열 문자가 따라가고 지운 열 조건은 사라진다",
+  "doc": {
+   "id": "d",
+   "kind": "sheet",
+   "slides": [],
+   "sheets": [
+    {
+     "id": "t01",
+     "name": "Sheet1",
+     "cells": {},
+     "filter": {
+      "ref": "A1:C8",
+      "cols": {
+       "B": {
+        "vals": [
+         "x"
+        ]
+       },
+       "C": {
+        "top": 3
+       }
+      }
+     }
+    }
+   ]
+  },
+  "ops": [
+   {
+    "op": "insertCols",
+    "tab": "t01",
+    "at": 1,
+    "n": 1
+   },
+   {
+    "op": "deleteCols",
+    "tab": "t01",
+    "at": 2,
+    "n": 1
+   }
+  ],
+  "expect": {
+   "id": "d",
+   "kind": "sheet",
+   "slides": [],
+   "sheets": [
+    {
+     "id": "t01",
+     "name": "Sheet1",
+     "cells": {},
+     "filter": {
+      "ref": "A1:C8",
+      "cols": {
+       "C": {
+        "top": 3
+       }
+      }
+     }
+    }
+   ]
+  }
  }
 ]
