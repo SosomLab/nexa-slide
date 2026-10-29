@@ -508,6 +508,7 @@ def import_names(z, doc, warnings):
         if "[" in ref.split("!")[0] or "#REF!" in ref:
             skipped += 1
             continue
+        ref = re.sub(r"_xl(?:fn|ws|pm|eta)\.", "", ref)  # 이름에 담은 LAMBDA 의 _xlfn.·_xlpm. - 수식 칸과 같이 맨 이름으로
         loc = d.get("localSheetId")
         if loc is not None:
             tab = tabs.get(order[int(loc)]) if int(loc) < len(order) else None

@@ -5,6 +5,7 @@
 import copy
 import json
 import os
+import re
 import sys
 import tempfile
 import zipfile
@@ -46,10 +47,11 @@ DOC = {"kind": "sheet", "title": "왕복", "slides": [], "sheets": [
          "M1": {"f": "=LET(x,SUM(B2:B5),y,4,x/y)"}, "M2": {"f": "=XMATCH(\"대구\",A2:A5)"}, "M3": {"f": "=TEXTJOIN(\",\",TRUE,UNIQUE(D2:D5))"},
          "M4": {"f": "=요약!A1*2"},
          "N1": {"f": "=SUM(분기1)"}, "N2": {"f": "=목표*2"}, "N3": {"f": "=COUNTA(지역들)"},
-         "O1": {"f": "=GROUPBY(D2:D5,B2:B5,SUM)"}},
+         "O1": {"f": "=GROUPBY(D2:D5,B2:B5,SUM)"},
+         "N4": {"f": "=SUM(MAP(B2:B5,LAMBDA(x,x*2)))"}, "N5": {"f": "=세후(1000)"}},
      "names": {"지역들": "데이터!$A$2:$A$5"}},
     {"id": "t02", "name": "요약", "hidden": True, "cells": {"A1": {"f": "=데이터!F2"}, "A2": "숨긴 탭"}},
-], "names": {"분기1": "데이터!$B$2:$B$5", "목표": "1000"}}
+], "names": {"분기1": "데이터!$B$2:$B$5", "목표": "1000", "세후": "=LAMBDA(x,x*0.9)"}}
 
 
 def val(c):
@@ -96,10 +98,14 @@ def main():
     check("엑셀 표 - 이름·범위·열", len(tb) == 1 and tb[0]["name"] == "매출표" and tb[0]["ref"] == "A1:E5" and tb[0]["cols"][4] == "합계", tb)
     check("파일 형식 - GROUPBY 는 _xlfn.·_xleta.", "_xlfn.GROUPBY(D2:D5,B2:B5,_xleta.SUM)" in xml, "")
     check("GROUPBY - 수식 글·넘친 값(합계 줄)", f.get("O1") == "=GROUPBY(D2:D5,B2:B5,SUM)" and val(a["cells"].get("O4")) == "Total" and val(a["cells"].get("P4")) == 2800, {k: a["cells"].get(k) for k in ("O1", "O4", "P4")})
+    wbx = z.read("xl/workbook.xml").decode("utf-8")
+    check("파일 형식 - 이름 정의 LAMBDA 는 _xlfn.·_xlpm.", "_xlfn.LAMBDA(_xlpm.x,_xlpm.x*0.9)" in wbx, re.findall(r"<definedName[^>]*>[^<]*</definedName>", wbx))
+    check("파일 형식 - LAMBDA 매개변수 _xlpm.", "_xlfn.LAMBDA(_xlpm.x,_xlpm.x*2)" in xml, "")
+    check("LAMBDA - 수식 글·계산값(MAP·이름 정의 사용자 함수)", f.get("N4") == "=SUM(MAP(B2:B5,LAMBDA(x,x*2)))" and val(a["cells"].get("N4")) == 5600 and val(a["cells"].get("N5")) == 900, {k: a["cells"].get(k) for k in ("N4", "N5")})
     check("이름 정의 칸 계산값", [val(a["cells"].get(k)) for k in ("N1", "N2", "N3")] == [2800, 2000, 4], [val(a["cells"].get(k)) for k in ("N1", "N2", "N3")])
     doc2, _ = sheet_import.to_doc("rt", "왕복", out)
     nb, nt = doc2.get("names") or {}, doc2["sheets"][0].get("names") or {}
-    check("이름 정의 - 문서 범위·탭 범위로 돌아온다", nb.get("목표") == "1000" and "$B$2:$B$5" in nb.get("분기1", "") and "$A$2:$A$5" in nt.get("지역들", ""), (nb, nt))
+    check("이름 정의 - 문서 범위·탭 범위로 돌아온다(LAMBDA 는 맨 이름으로)", nb.get("세후") == "LAMBDA(x,x*0.9)" and nb.get("목표") == "1000" and "$B$2:$B$5" in nb.get("분기1", "") and "$A$2:$A$5" in nt.get("지역들", ""), (nb, nt))
     doc2["sheets"][0]["cells"]["B2"] = 2200
     sheet_calc.recalc(doc2)
     check("이름 정의 - 원본 칸을 고치면 다시 계산(=SUM(분기1))", val(doc2["sheets"][0]["cells"]["N1"]) == 3800, doc2["sheets"][0]["cells"].get("N1"))

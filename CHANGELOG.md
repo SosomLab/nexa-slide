@@ -1,5 +1,12 @@
 # 변경 이력
 
+## 0.24.3 - 2026-10-29 · 시트 LAMBDA
+
+- **`LAMBDA`·`MAP`·`BYROW`·`BYCOL`·`REDUCE`·`SCAN`·`MAKEARRAY`**(엑셀 365, 계산기 두 곳): `=SUM(MAP(B2:B5,LAMBDA(x,x*2)))` · `=BYROW(B2:C5,LAMBDA(r,SUM(r)))` · `=REDUCE(0,범위,LAMBDA(a,v,a+v))`. LET 이름에 담아 `f(2,3)` 으로 부르고, **이름 정의에 담으면 사용자 함수**(이름 관리자 `세후 = LAMBDA(x,x*0.9)` → `=세후(1000)`, 자기를 부르는 재귀도 깊이 200까지). 칸 값이 함수면 `#CALC!`, 인수 개수가 틀리면 `#VALUE!`.
+- `GROUPBY`·`PIVOTBY` 집계에 LAMBDA(`=GROUPBY(D2:D5,B2:B5,LAMBDA(v,SUM(v)/2))`)와 이름 정의 함수.
+- 엑셀 파일: LAMBDA 매개변수는 `_xlpm.`, 이름 정의에 담은 LAMBDA·새 함수도 `_xlfn.`(XlsxWriter `define_name` 은 붙이지 않는다) - 가져올 때 뗀다.
+- 시험: `sheetcalc` 사례 230개(LAMBDA 17, 두 곳 같음), `sheetrt` LAMBDA·이름 정의 사용자 함수 왕복.
+
 ## 0.24.2 - 2026-10-29 · 시트 이름 정의 · GROUPBY·PIVOTBY
 
 - **수식형 요약 `GROUPBY`·`PIVOTBY`**(엑셀 365, 넘침): `=GROUPBY(D2:D5,B2:B5,SUM)` 은 상태별 합계 + 맨 아래 `Total`, `=PIVOTBY(행 필드,열 필드,값,SUM)` 은 행×열 표 + 행·열 합계. 집계는 SUM·AVERAGE·COUNT·COUNTA·MAX·MIN·MEDIAN·PRODUCT(함수 이름 그대로). GROUPBY 는 행 필드·값 여러 열, 머리글(0·1·3, 생략하면 자동), 합계(1 아래·-1 위·0 없음), 정렬(열 ±n), 거르기 배열. 엑셀 파일은 `_xlfn.GROUPBY(…,_xleta.SUM)` 으로 쓰고 가져올 때 뗀다(XlsxWriter 가 모르는 새 함수). 아직 안 되는 것: LAMBDA 집계·소계(합계 깊이 2)·머리글 만들기(2)·PIVOTBY 여러 열 필드·값 열로 정렬.

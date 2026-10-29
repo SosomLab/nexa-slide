@@ -140,8 +140,8 @@ def xleta(form):
 
 
 def xlpm(form):
-    """LET 의 이름 → 엑셀 파일 형식 _xlpm.이름 (따옴표 안 글은 그대로)."""
-    if "LET(" not in form.upper():
+    """LET 의 이름·LAMBDA 매개변수 → 엑셀 파일 형식 _xlpm.이름 (따옴표 안 글은 그대로)."""
+    if "LET(" not in form.upper() and "LAMBDA(" not in form.upper():
         return form
     names = set()
 
@@ -149,6 +149,8 @@ def xlpm(form):
         if isinstance(n, tuple):
             if n[:2] == ("fn", "LET"):
                 names.update(a[1] for a in n[2][:-1:2] if a[0] == "name")
+            if n[:2] == ("fn", "LAMBDA"):
+                names.update(a[1] for a in n[2][:-1] if a[0] == "name")
             for x in n[1:]:
                 walk(x)
         elif isinstance(n, list):
@@ -166,12 +168,13 @@ def xlpm(form):
 
 def define_names(wb, deck):
     """이름 정의 - 문서 names 는 통합 문서 이름, 탭 names 는 그 시트 범위 이름(엑셀 이름 관리자). 값은 참조·상수·수식 글."""
-    used = set()
+    used, ws = set(), (wb.worksheets() or [None])[0]
     for scope, book in [(None, deck.get("names"))] + [(sheet_name(t.get("name"), used), t.get("names")) for t in deck.get("sheets") or []]:
         for nm, ref in (book or {}).items():
             if nm and ref not in (None, ""):
-                ref = str(ref)
-                wb.define_name("'" + scope.replace("'", "''") + f"'!{nm}" if scope else str(nm), ref if ref.startswith("=") else "=" + ref)
+                ref = xleta(xlpm(str(ref) if str(ref).startswith("=") else "=" + str(ref)))  # 이름에 담은 LAMBDA·GROUPBY 도 파일 형식으로
+                ref = "=" + ws._prepare_formula(ref, True) if ws is not None else ref  # define_name 은 새 함수 접두사(_xlfn.LAMBDA)를 붙이지 않는다
+                wb.define_name("'" + scope.replace("'", "''") + f"'!{nm}" if scope else str(nm), ref)
 
 
 def export(deck, out):
