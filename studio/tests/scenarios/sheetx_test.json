@@ -64,6 +64,10 @@
     {
      "name": "요청 예시 칩 - 누르면 요청 칸에 문장(빈 칸이면 그대로, 글이 있으면 다음 줄), 보내지는 않는다",
      "js": "const ta=document.querySelector('#reqText'), n0=document.querySelectorAll('#reqList .rq, #reqList [data-rid]').length; ta.value=''; const chips=[...document.querySelectorAll('#reqChips [data-chip]')]; if(chips.length<3) return 'chips='+chips.length; chips[0].click(); const a=ta.value; chips[1].click(); const b=ta.value; await new Promise(r=>setTimeout(r,200)); const n1=document.querySelectorAll('#reqList .rq, #reqList [data-rid]').length; ta.value=''; ta.dispatchEvent(new Event('input')); return a==='합계 행 추가' && b==='합계 행 추가'+String.fromCharCode(10)+'이 열은 % 형식으로' && n0===n1 && document.activeElement===ta ? true : JSON.stringify({a,b,n0,n1})"
+    },
+    {
+     "name": "오류 칸 - K12 =1/0 에 마우스를 올리면 '#DIV/0! - 0 으로 나눴습니다', [오류 칸 원인 설명] 칩은 'K12 의 #DIV/0! 원인을…'",
+     "js": "const X=window.NexaSheet.x, ed=X.ED(); X.selectCell(11,10); ed.focus(); ed.value='=1/0'; ed.dispatchEvent(new Event('input',{bubbles:true})); ed.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',bubbles:true})); await until(()=>{ const t=document.querySelector('td[data-r=\"11\"][data-c=\"10\"]'); return t && t.title; },2000); const t=document.querySelector('td[data-r=\"11\"][data-c=\"10\"]').title; X.selectCell(11,10); const ta=document.querySelector('#reqText'); ta.value=''; document.querySelector('#reqChips [data-chip=\"오류 칸 원인 설명\"]').click(); const v=ta.value; ta.value=''; ta.dispatchEvent(new Event('input')); return t==='#DIV/0! - 0 으로 나눴습니다' && v==='K12 의 #DIV/0! 원인을 설명하고 고쳐 주세요' ? true : JSON.stringify({t,v})"
     }
    ]
   }

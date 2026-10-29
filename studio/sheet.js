@@ -114,6 +114,10 @@
 
   // ---------------------------------------------------------------- 수식 - 토큰 → 구문 트리 → 계산. 사칙연산·^·&·비교·%, 셀·범위 참조(다른 탭: 이름!A1), 함수
   const ERR = ["#DIV/0!", "#VALUE!", "#REF!", "#NAME?", "#NUM!", "#N/A", "#NULL!", "#SPILL!", "#CALC!"];
+  // 오류 칸 뜻 - 칸에 마우스를 올리면 한 줄로(메모가 있으면 메모)
+  const ERR_WHY = { "#DIV/0!": "0 으로 나눴습니다", "#VALUE!": "값의 종류가 맞지 않습니다(글을 숫자로 계산하는 등)", "#REF!": "가리키는 칸이 없어졌거나 순환 참조입니다",
+    "#NAME?": "모르는 함수나 이름입니다", "#NUM!": "숫자가 계산할 수 있는 범위를 벗어났습니다", "#N/A": "찾는 값이 없습니다", "#NULL!": "두 범위가 겹치지 않습니다",
+    "#SPILL!": "넘칠 자리에 다른 값이 있습니다", "#CALC!": "결과가 비었거나 계산할 수 없는 배열입니다" };
   class FErr { constructor(code) { this.code = code; } }
   const isErrStr = (v) => typeof v === "string" && ERR.includes(v);
   const TOK = new RegExp([
@@ -732,7 +736,7 @@
           if (r === 0 && eT.get(c)) sh2.push(`inset 0 1px 0 ${eT.get(c)}`); if (c === 0 && eL.get(r)) sh2.push(`inset 1px 0 0 ${eL.get(r)}`);
           if (sh2.length) extra.push(`box-shadow:${sh2.join(",")}`);
         }
-        h.push(`<td data-r="${r}" data-c="${c}"${span}${cls.length ? ` class="${cls.join(" ")}"` : ""} style="${[tdS, ...extra.filter(Boolean)].filter(Boolean).join(";")}"${o.note ? ` title="${esc(o.note)}"` : ""}>`
+        h.push(`<td data-r="${r}" data-c="${c}"${span}${cls.length ? ` class="${cls.join(" ")}"` : ""} style="${[tdS, ...extra.filter(Boolean)].filter(Boolean).join(";")}"${o.note ? ` title="${esc(o.note)}"` : err && ERR_WHY[o.v] ? ` title="${esc(o.v + " - " + ERR_WHY[o.v])}"` : ""}>`
           + `<div class="cv${o.wrap ? " wrap" : ""}" style="height:${hh - 1}px;${cvS}"><span>${esc(txt)}</span></div></td>`);
       }
       h.push("</tr>");
@@ -1655,8 +1659,9 @@
     $("#reqChips").innerHTML = CHIPS.map((t) => `<button type="button" data-chip="${esc(t)}">${esc(t)}</button>`).join("");
     $("#reqChips").addEventListener("click", (e) => {
       const b = e.target.closest("[data-chip]"); if (!b) return;
-      const ta = $("#reqText"), cur = ta.value.trimEnd();
-      ta.value = cur ? `${cur}\n${b.dataset.chip}` : b.dataset.chip; ta.dispatchEvent(new Event("input")); ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length);
+      const ta = $("#reqText"), cur = ta.value.trimEnd(), k = key(S.cur.r, S.cur.c), v = S.deck ? effCell(sheet().cells[k]).v : null;
+      const line = b.dataset.chip === "오류 칸 원인 설명" && isErrStr(v) ? `${k} 의 ${v} 원인을 설명하고 고쳐 주세요` : b.dataset.chip;  // 지금 칸이 오류면 그 칸·오류로
+      ta.value = cur ? `${cur}\n${line}` : line; ta.dispatchEvent(new Event("input")); ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length);
     });
     // Enter = 보내기, Shift+Enter = 줄바꿈(편집기 요청 칸과 같다 - 한글 조합 중 Enter 는 조합 확정만)
     $("#reqText").addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.shiftKey && !e.isComposing) { e.preventDefault(); sendReq(); } });
