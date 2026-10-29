@@ -274,5 +274,31 @@
     return null;
   }
 
-  root.NexaMerge = { merge3, describe, eq, seal, undoTarget, afterSave, notice, ops, applyOps };
+  // ---------------------------------------------------------------- 저장 방식 고르기(3-4 다) - 화면 저장(studio.js·sheet.js)이 부른다
+  //   planSave(saved, now, opt)  마지막 저장본·지금 문서(JSON 문자열) → { mode: "none" | "ops" | "put", ops?, bytes, why }
+  //     작업 저장은 문서가 크고(opt.minBytes, 기본 200KB) 작업이 적을 때(opt.maxOps, 기본 200)만. 시트 행·열 구조 작업(opt.struct)이 있으면 PUT(__struct).
+  //     작업을 저장본에 얹은 결과가 지금 문서와 다르면(같은 id 가 둘 등) PUT - 작업으로 잃는 것이 없게.
+  //   saveOps(api, deckId, base, ops)  POST /api/ops → 응답 data, 서버가 모르거나(404·405) 거절하면(400) null - 그러면 화면은 PUT ?merge=1 로
+  function planSave(saved, now, opt = {}) {
+    const bytes = (now || "").length;
+    if (!saved) return { mode: "put", bytes, why: "저장본 없음" };
+    if (saved === now) return { mode: "none", bytes, why: "같음" };
+    if (opt.struct && opt.struct.length) return { mode: "put", bytes, why: "구조 작업" };
+    if (bytes < (opt.minBytes ?? 200000)) return { mode: "put", bytes, why: "작은 문서" };
+    let a, b;
+    try { a = JSON.parse(saved); b = JSON.parse(now); } catch (e) { return { mode: "put", bytes, why: "읽기 실패" }; }
+    const list = ops(a, b);
+    if (!list.length) return { mode: "none", bytes, why: "같음" };
+    if (list.length > (opt.maxOps ?? 200)) return { mode: "put", bytes, why: `작업 ${list.length}개` };
+    if (!eq(applyOps(a, list).doc, b)) return { mode: "put", bytes, why: "작업으로 같아지지 않음" };
+    return { mode: "ops", ops: list, bytes, why: `작업 ${list.length}개` };
+  }
+  async function saveOps(api, deckId, base, list) {
+    const r = await api("POST", `/api/ops/${encodeURIComponent(deckId)}`, { base: base || "", ops: list });
+    if (r.ok && r.data && r.data.ok) return r.data;
+    if ([400, 404, 405].includes(r.status)) return null;
+    return { ok: false, status: r.status, error: (r.data && r.data.error) || r.status };
+  }
+
+  root.NexaMerge = { merge3, describe, eq, seal, undoTarget, afterSave, notice, ops, applyOps, planSave, saveOps };
 })(typeof window !== "undefined" ? window : globalThis);
