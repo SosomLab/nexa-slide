@@ -1,0 +1,31 @@
+{
+ "base": "http://127.0.0.1:5667",
+ "pages": [
+  {
+   "url": "/studio/sheet.html?deck=zsheetbig",
+   "wait": 4000,
+   "steps": [
+    {
+     "name": "2,000행 시트 - 보이는 행만 그린다(전체 5만 칸 중 3,000개 아래) · 표 높이 = 행 위치 합",
+     "js": "const X=window.NexaSheet.x, W=document.querySelector('#gridWrap'), td=(r,c)=>document.querySelector(`td[data-r=\"${r}\"][data-c=\"${c}\"]`), at=(r,c)=>{ const e=td(r,c); if(!e) return null; return Math.round(e.getBoundingClientRect().top-W.getBoundingClientRect().top+W.scrollTop); }; const n=document.querySelectorAll('#grid td[data-r]').length, hgt=document.querySelector('#grid').offsetHeight; return n>0 && n<3000 && Math.abs(hgt-X.G.rowY[X.G.rows])<=2 ? true : JSON.stringify({n,hgt,want:X.G.rowY[X.G.rows]})"
+    },
+    {
+     "name": "1,450행으로 이동 → 그 자리에 그려지고 위치가 맞다 · 틀 고정 1행은 남는다 · 걸친 병합 D1400:D1460 은 처음부터",
+     "js": "const X=window.NexaSheet.x, W=document.querySelector('#gridWrap'), td=(r,c)=>document.querySelector(`td[data-r=\"${r}\"][data-c=\"${c}\"]`), at=(r,c)=>{ const e=td(r,c); if(!e) return null; return Math.round(e.getBoundingClientRect().top-W.getBoundingClientRect().top+W.scrollTop); }; X.selectCell(1449,1); const ok=await until(()=>td(1449,1),3000); if(!ok) return 'no td'; const m=td(1399,3); return Math.abs(at(1449,1)-X.G.rowY[1449])<=1 && td(1449,1).textContent.trim()==='14491' && !!td(0,0) && m && m.rowSpan===61 && !td(1449,3) ? true : JSON.stringify({y:at(1449,1),want:X.G.rowY[1449],t:td(1449,1)&&td(1449,1).textContent,fz:!!td(0,0),m:m&&m.rowSpan})"
+    },
+    {
+     "name": "숨긴 1501행은 없고 그 아래 위치도 맞다",
+     "js": "const X=window.NexaSheet.x, W=document.querySelector('#gridWrap'), td=(r,c)=>document.querySelector(`td[data-r=\"${r}\"][data-c=\"${c}\"]`), at=(r,c)=>{ const e=td(r,c); if(!e) return null; return Math.round(e.getBoundingClientRect().top-W.getBoundingClientRect().top+W.scrollTop); }; X.selectCell(1520,2); await until(()=>td(1520,2),3000); return !td(1500,2) && !!td(1501,2) && Math.abs(at(1520,2)-X.G.rowY[1520])<=1 && X.G.rowY[1501]===X.G.rowY[1500] ? true : JSON.stringify({h:!!td(1500,2),y:at(1520,2),want:X.G.rowY[1520]})"
+    },
+    {
+     "name": "먼 칸 고치기 - 1,990행 B 에 =B1+1 → 계산·표시",
+     "js": "const X=window.NexaSheet.x, W=document.querySelector('#gridWrap'), td=(r,c)=>document.querySelector(`td[data-r=\"${r}\"][data-c=\"${c}\"]`), at=(r,c)=>{ const e=td(r,c); if(!e) return null; return Math.round(e.getBoundingClientRect().top-W.getBoundingClientRect().top+W.scrollTop); }; const ed=X.ED(), N=window.NexaSheet; X.selectCell(1989,1); await until(()=>td(1989,1),3000); ed.focus(); ed.value='=B1+1'; ed.dispatchEvent(new Event('input',{bubbles:true})); ed.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',bubbles:true})); await until(()=>td(1989,1)&&td(1989,1).textContent.trim()==='2',3000); const c=N.S.deck.sheets[0].cells.B1990; return c && c.f==='=B1+1' && c.v===2 && td(1989,1).textContent.trim()==='2' ? true : JSON.stringify({c,t:td(1989,1)&&td(1989,1).textContent})"
+    },
+    {
+     "name": "맨 위로(6행) - 위쪽 행이 다시 그려지고 먼 행은 빠진다",
+     "js": "const X=window.NexaSheet.x, W=document.querySelector('#gridWrap'), td=(r,c)=>document.querySelector(`td[data-r=\"${r}\"][data-c=\"${c}\"]`), at=(r,c)=>{ const e=td(r,c); if(!e) return null; return Math.round(e.getBoundingClientRect().top-W.getBoundingClientRect().top+W.scrollTop); }; X.selectCell(5,0); await until(()=>td(5,0),3000); return !!td(5,0) && !td(1989,1) && W.scrollTop<200 ? true : 'scroll='+W.scrollTop"
+    }
+   ]
+  }
+ ]
+}

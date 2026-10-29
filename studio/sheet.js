@@ -650,6 +650,28 @@
     cv.push(`align-items:${o.valign === "top" ? "flex-start" : o.valign === "middle" ? "center" : "flex-end"}`);
     return [st.join(";"), cv.join(";")];
   }
+  // 가상 스크롤 - 행이 VIRT 개를 넘으면 보이는 행 ± VBUF 만 그린다(5,000행에서 고칠 때마다 13만 칸을 다시 그리던 것). 범위에 걸친 병합은 끝까지 넓힌다
+  const VIRT = 300, VBUF = 40;
+  function rowAt(y) { let lo = 0, hi = G.rows - 1; while (lo < hi) { const m = (lo + hi + 1) >> 1; if (G.rowY[m] <= y) lo = m; else hi = m - 1; } return lo; }
+  function rowWindow(sh, rows, fz, ms) {
+    if (rows <= VIRT) return [0, rows - 1];
+    const W = $("#gridWrap"), top = W ? W.scrollTop : 0, hgt = (W && W.clientHeight) || 800;
+    let r0 = Math.max(fz.r, rowAt(top) - VBUF), r1 = Math.min(rows - 1, rowAt(top + hgt) + VBUF);
+    for (let changed = true; changed;) {
+      changed = false;
+      for (const m of ms) { if (m.r1 < r0 && m.r2 >= r0 && m.r1 >= fz.r) { r0 = m.r1; changed = true; } if (m.r1 <= r1 && m.r2 > r1) { r1 = m.r2; changed = true; } }
+    }
+    return [r0, r1];
+  }
+  let vRaf = 0;
+  function onGridScroll() {  // 그린 범위 끝에 가까워지면 다시 그린다
+    if (G.rows <= VIRT || vRaf) return;
+    vRaf = requestAnimationFrame(() => {
+      vRaf = 0;
+      const W = $("#gridWrap"), a = rowAt(W.scrollTop), b = rowAt(W.scrollTop + W.clientHeight), [r0, r1] = G.win || [0, 0];
+      if ((a < r0 + 10 && r0 > 0) || (b > r1 - 10 && r1 < G.rows - 1)) { renderGrid(); renderSel(); }
+    });
+  }
   function renderGrid() {
     const sh = sheet(), { rows, cols } = dims(sh); G.rows = rows; G.cols = cols;
     G.colX = [HW]; for (let c = 0; c < cols; c++) G.colX.push(G.colX[c] + colW(sh, c));
@@ -678,7 +700,14 @@
     h.push("</tr></thead><tbody>");
     const visN = (a, b, hid) => { let n = 0; for (let i = a; i <= b; i++) if (!hid(sh, i)) n++; return n; };
     const CF = window.NexaSheetX && NexaSheetX.condMap ? NexaSheetX.condMap(sh) : null;  // 조건부 서식(sheetx.js) - 칸 → 덧씌울 서식
+    const [r0, r1] = G.win = rowWindow(sh, rows, fz, ms), nVis = visN(0, cols - 1, colHidden) + 1;
+    const spacer = (a, b) => (G.rowY[b] > G.rowY[a] ? `<tr class="vsp" aria-hidden="true"><td colspan="${nVis}" style="height:${G.rowY[b] - G.rowY[a]}px"></td></tr>` : "");
     for (let r = 0; r < rows; r++) {
+      if (r >= fz.r && (r < r0 || r > r1)) {  // 가상 스크롤 - 보이는 범위 밖은 높이만(틀 고정 행은 늘 그린다)
+        if (r === Math.max(fz.r, 0) && r < r0) { h.push(spacer(r, r0)); r = r0 - 1; continue; }
+        if (r === r1 + 1) { h.push(spacer(r, rows)); break; }
+        continue;
+      }
       if (rowHidden(sh, r)) continue;
       const rh = rowH(sh, r);
       h.push(`<tr style="height:${rh}px"><th data-row="${r}"${rowHidden(sh, r + 1) || (r > 0 && rowHidden(sh, r - 1)) ? ' class="hidN"' : ""}>${r + 1}<span class="rz" data-rzr="${r}"></span></th>`);
@@ -1539,6 +1568,7 @@
     if (window.NexaLive) { LIVE = NexaLive.create({ api, base: BASE, deckId: () => S.id, tab: TAB, onVersion: (v) => applyVersion(v), onPresence: () => renderMarks(), chip: "#sessChip" }); setInterval(livePresence, 1000); }
 
     const W = $("#gridWrap");
+    W.addEventListener("scroll", onGridScroll, { passive: true });
     W.addEventListener("mousedown", onGridDown);
     W.addEventListener("contextmenu", gridMenu);
     W.addEventListener("dblclick", (e) => {
