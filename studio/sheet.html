@@ -129,6 +129,9 @@
   #grid td.err .cv { color: var(--err); }
   #grid.nogrid td { border-color: transparent; }  /* 눈금선 숨김(탭·테마 grid:false) - 테두리(bd)는 칸마다 색을 따로 준다 */
   #draws img.drw { position: absolute; z-index: 1; user-select: none; object-fit: contain; cursor: pointer; }  /* 누르면 그림 고르기(Ctrl·Shift = 여럿) - 요청 대상 */
+  body.painting #grid td { cursor: copy; }  /* 서식 복사 중 */
+  #drawHandle { position: absolute; z-index: 4; width: 8px; height: 8px; background: var(--sel); border: 1px solid #fff; cursor: nwse-resize; }
+  #drawHandle[hidden] { display: none; }
   #draws img.drw.on { outline: 2px solid var(--sel); outline-offset: 1px; box-shadow: 0 0 0 4px rgba(26, 115, 232, .18); }
   #themeChip { cursor: pointer; }
   #grid td { cursor: cell; }

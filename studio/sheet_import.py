@@ -164,6 +164,8 @@ def import_xlsx(src, title=None):
                 d["i"] = True
             if f.find(N + "u") is not None:
                 d["u"] = True
+            if f.find(N + "strike") is not None and f.find(N + "strike").get("val") not in ("0", "false"):
+                d["strike"] = True
             c = color(f.find(N + "color"))
             if c and c not in ("#000000",):
                 d["color"] = c

@@ -56,6 +56,8 @@ def cell_format(c):
         f["italic"] = True
     if c.get("u"):
         f["underline"] = 1
+    if c.get("strike"):
+        f["font_strikeout"] = True
     if c.get("color"):
         f["font_color"] = c["color"]
     if c.get("fill"):

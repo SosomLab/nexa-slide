@@ -666,7 +666,36 @@
   }
 
   // ---------------------------------------------------------------- 연결
+  // ---------------------------------------------------------------- 서식 복사(엑셀 서식 복사 붓) - 누르면 고른 칸의 서식을 잡고, 다음에 고른 칸(범위)에 바둑판처럼 붙인다. 두 번 누르면 계속(Esc 끝)
+  const PAINT = { grid: null, keep: false };
+  const CONTENT = ["v", "f", "sp", "da", "note"];
+  function paintArm(keep) {
+    const S = N().S, x = X(), sh = x.sheet(), g = x.clampRange(S.sel);
+    if (PAINT.grid && !keep) { paintOff(); return; }
+    const grid = [];
+    for (let r = g.r1; r <= g.r2; r++) { const row = []; for (let c = g.c1; c <= g.c2; c++) { const o = { ...x.cellObj(sh, x.key(r, c)) }; for (const k of CONTENT) delete o[k]; row.push(o); } grid.push(row); }
+    PAINT.grid = grid; PAINT.keep = !!keep;
+    const b = $("#xPaint"); if (b) b.classList.add("on");
+    document.body.classList.add("painting");
+    x.toast(keep ? "서식 복사(계속) - 칸을 고를 때마다 붙입니다 · Esc 끝" : "서식 복사 - 붙일 칸(범위)을 고르세요 · Esc 취소", 3000);
+  }
+  function paintOff() { PAINT.grid = null; PAINT.keep = false; const b = $("#xPaint"); if (b) b.classList.remove("on"); document.body.classList.remove("painting"); }
+  function paintApply() {
+    if (!PAINT.grid) return;
+    const S = N().S, x = X(), g = x.clampRange(S.sel), src = PAINT.grid, h = src.length, w = src[0].length;
+    x.mutate(() => {
+      const sh = x.sheet();
+      for (let r = g.r1; r <= g.r2; r++) for (let c = g.c1; c <= g.c2; c++) {
+        const k = x.key(r, c), o = x.cellObj(sh, k), keep = {};
+        for (const kk of CONTENT) if (o[kk] !== undefined) keep[kk] = o[kk];
+        x.putCell(sh, k, { ...src[(r - g.r1) % h][(c - g.c1) % w], ...keep });
+      }
+    });
+    if (!PAINT.keep) paintOff();
+  }
+  document.addEventListener("mouseup", (e) => { if (PAINT.grid && e.target.closest && e.target.closest("#gridWrap td[data-r]")) setTimeout(paintApply, 0); }, true);
   function onKey(e) {
+    if (PAINT.grid && e.key === "Escape") { paintOff(); return; }
     if (!X() || e.isComposing) return;
     const S = N().S, x = X(), ctrl = e.ctrlKey || e.metaKey, k = e.key.toLowerCase();
     const inGrid = document.activeElement === x.ED();
@@ -690,9 +719,11 @@
     sum.onclick = () => autoSum();
     const find = document.createElement("button"); find.className = "ib"; find.title = "찾기·바꾸기 (Ctrl+F · Ctrl+H)"; find.textContent = "🔍";
     find.onclick = () => findBox(true);
+    const paint = document.createElement("button"); paint.className = "ib"; paint.id = "xPaint"; paint.title = "서식 복사 - 고른 칸의 서식을 다음에 고르는 칸에 붙인다(두 번 누르면 계속 · Esc 끝)"; paint.textContent = "🖌";
+    let pt = 0; paint.onclick = () => { clearTimeout(pt); pt = setTimeout(() => paintArm(false), 220); }; paint.ondblclick = () => { clearTimeout(pt); paintOff(); paintArm(true); };
     const data = document.createElement("button"); data.className = "ib"; data.id = "xData"; data.title = "필터·행/열 숨기기"; data.textContent = "데이터 ▾";
     data.onclick = () => dataMenu(data);
-    t.append(sep, sum, sort, data, find);
+    t.append(sep, paint, sum, sort, data, find);
   }
   document.addEventListener("keydown", onKey, true);
   document.addEventListener("click", (e) => { if (e.target.closest("#sumBar")) { more = !more; onSel(); } });
@@ -706,5 +737,5 @@
   document.addEventListener("keyup", (e) => { if (X() && e.target === X().ED() && /^(Arrow(Left|Right)|Home|End)$/.test(e.key)) acUpdate(); }, true);
   document.addEventListener("mousedown", (e) => { const it = e.target.closest("#acBox [data-ac]"); if (it) { e.preventDefault(); acPick(it.dataset.ac); } else if (!e.target.closest("#acBox")) acHide(); }, true);
   setInterval(() => { if (X() && !N().S.edit) acHide(); }, 400);
-  window.NexaSheetX = { onSel: () => { onSel(); renderFilterBtns(); renderDv(); dvMarks(); }, onChange: () => { onSel(); renderFilterBtns(); renderDv(); dvMarks(); }, dvCreate, dvClear, dvPick, condMap, condDialog, condClear, sortRange, fillDir, findBox, autoSum, hide, filterToggle, filterClear, filterReapply, setCrit, hiddenBy };
+  window.NexaSheetX = { onSel: () => { onSel(); renderFilterBtns(); renderDv(); dvMarks(); }, onChange: () => { onSel(); renderFilterBtns(); renderDv(); dvMarks(); }, dvCreate, dvClear, dvPick, condMap, condDialog, condClear, sortRange, fillDir, findBox, autoSum, hide, filterToggle, filterClear, filterReapply, setCrit, hiddenBy, paintArm, paintOff, paintApply };
 })();

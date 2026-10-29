@@ -702,7 +702,7 @@
     if (o.color) cv.push(`color:${o.color}`);
     if (o.b) cv.push("font-weight:700");
     if (o.i) cv.push("font-style:italic");
-    if (o.u) cv.push("text-decoration:underline");
+    if (o.u || o.strike) cv.push(`text-decoration:${[o.u ? "underline" : "", o.strike ? "line-through" : ""].filter(Boolean).join(" ")}`);
     if (o.size) cv.push(`font-size:${+o.size}pt`);
     const al = o.align || (isNum === "num" ? "right" : isNum === "mid" ? "center" : "left");
     cv.push(`justify-content:${al === "right" ? "flex-end" : al === "center" ? "center" : "flex-start"}`, `text-align:${al}`);
@@ -814,7 +814,47 @@
     if (!S.drawSel.size) S.drawSel = null;
     markDrawings(); renderReqTarget();
   }
-  function markDrawings() { $$("#draws img.drw").forEach((im) => im.classList.toggle("on", !!(S.drawSel && S.drawSel.has(im.dataset.did)))); }
+  function markDrawings() {
+    $$("#draws img.drw").forEach((im) => im.classList.toggle("on", !!(S.drawSel && S.drawSel.has(im.dataset.did))));
+    let hd = $("#drawHandle"); if (!hd) { hd = document.createElement("div"); hd.id = "drawHandle"; hd.title = "끌어서 크기(Shift = 비율 그대로)"; $("#gridIn").appendChild(hd); }
+    const one = S.drawSel && S.drawSel.size === 1 ? $(`#draws img.drw[data-did="${CSS.escape([...S.drawSel][0])}"]`) : null;
+    hd.hidden = !one; if (one) { hd.style.left = one.offsetLeft + one.offsetWidth - 4 + "px"; hd.style.top = one.offsetTop + one.offsetHeight - 4 + "px"; }
+  }
+  const drawIdx = (sh) => (sh.drawings || []).map((d, i) => [drawId(d, i), i]);
+  /** 그림 끌기 - move: 고른 그림 모두 옮김(놓은 자리의 칸 + 남는 px 로 at·dx·dy) · size: 하나의 w·h */
+  function startDrawDrag(e, mode) {
+    const sh = sheet(), x0 = e.clientX, y0 = e.clientY, ids = new Set(S.drawSel || []), imgs = $$("#draws img.drw").filter((im) => ids.has(im.dataset.did));
+    const start = imgs.map((im) => ({ im, l: im.offsetLeft, t: im.offsetTop, w: im.offsetWidth, h: im.offsetHeight }));
+    let moved = false;
+    const onMove = (ev) => {
+      const dx = ev.clientX - x0, dy = ev.clientY - y0; if (!moved && Math.abs(dx) + Math.abs(dy) < 4) return; moved = true;
+      for (const st of start) {
+        if (mode === "move") { st.im.style.left = Math.max(HW, st.l + dx) + "px"; st.im.style.top = Math.max(HH, st.t + dy) + "px"; }
+        else { let w = Math.max(8, st.w + dx), h = Math.max(8, st.h + dy); if (ev.shiftKey) { const k = Math.max(w / st.w, h / st.h); w = st.w * k; h = st.h * k; } st.im.style.width = Math.round(w) + "px"; st.im.style.height = Math.round(h) + "px"; }
+      }
+      markDrawings();
+    };
+    const onUp = () => {
+      removeEventListener("mousemove", onMove); removeEventListener("mouseup", onUp);
+      if (!moved) return;
+      const at = (px, axis) => { const A = axis === "c" ? G.colX : G.rowY; let i = 0; while (i + 1 < A.length - 1 && A[i + 1] <= px) i++; return [i, px - A[i]]; };
+      mutate(() => {
+        const idx = new Map(drawIdx(sh));
+        for (const st of start) {
+          const d = sh.drawings[idx.get(st.im.dataset.did)]; if (!d) continue;
+          if (!d.id) d.id = st.im.dataset.did;  // 고친 그림은 id 를 남긴다(요청 대상이 그대로이게)
+          if (mode === "move") { const [c, dx] = at(st.im.offsetLeft, "c"), [r, dy] = at(st.im.offsetTop, "r"); d.at = key(r, c); d.dx = Math.round(dx); d.dy = Math.round(dy); }
+          else { d.w = st.im.offsetWidth; d.h = st.im.offsetHeight; }
+        }
+      });
+    };
+    addEventListener("mousemove", onMove); addEventListener("mouseup", onUp);
+  }
+  function drawDelete() {
+    const ids = new Set(S.drawSel || []); if (!ids.size) return;
+    mutate(() => { const sh = sheet(); sh.drawings = (sh.drawings || []).filter((d, i) => !ids.has(drawId(d, i))); if (!sh.drawings.length) delete sh.drawings; });
+    S.drawSel = null; markDrawings(); renderReqTarget(); toast(`그림 ${ids.size}개를 지웠습니다 (Ctrl+Z 로 되돌리기)`);
+  }
   /** 탭 그림(drawings) - 셀 at 의 왼쪽 위 + (dx, dy)px 에 w×h. 격자와 같이 움직이고, 누르면 그림 고르기(onGridDown) */
   function renderDrawings() {
     const sh = sheet(), out = [];
@@ -959,6 +999,8 @@
     }
     renderSel(); scrollIntoView(extend ? r : S.cur.r, extend ? c : S.cur.c);
   }
+  /** 값·수식이 있는 마지막 행·마지막 열(엑셀 Ctrl+End) */
+  function lastCell(sh) { let r = 0, c = 0; for (const [k, raw] of Object.entries(sh.cells)) { const v = cellVal(sh, k); if (v == null || v === "") continue; const p = parseRef(k); if (p) { r = Math.max(r, p.r); c = Math.max(c, p.c); } } return { r: Math.min(r, G.rows - 1), c: Math.min(c, G.cols - 1) }; }
   function move(dr, dc, extend, jump) {
     const sh = sheet();
     let { r, c } = extend && S.ext ? S.ext : S.cur;
@@ -1050,6 +1092,19 @@
       if (lk === "a") { e.preventDefault(); S.anchor = { r: 0, c: 0 }; S.sel = { r1: 0, c1: 0, r2: G.rows - 1, c2: G.cols - 1 }; renderSel(); return; }
       if (lk === "s") { e.preventDefault(); save(); return; }
       if (k === "Home") { e.preventDefault(); selectCell(0, 0); return; }
+      if (k === "End") { e.preventDefault(); const L = lastCell(sheet()); selectCell(L.r, L.c, e.shiftKey); return; }  // 데이터가 있는 마지막 행·열
+      if (k === " " || e.code === "Space") { e.preventDefault(); if (e.shiftKey) { S.anchor = { r: 0, c: 0 }; S.sel = { r1: 0, c1: 0, r2: G.rows - 1, c2: G.cols - 1 }; } else { S.sel = { r1: 0, r2: G.rows - 1, c1: S.sel.c1, c2: S.sel.c2 }; S.anchor = { r: 0, c: S.sel.c1 }; } renderSel(); return; }  // 열 전체 · Ctrl+Shift+Space = 모두
+      if (k === ";" && !e.shiftKey) { e.preventDefault(); const d = new Date(), v = Math.round((Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) - Date.UTC(1899, 11, 30)) / 864e5); mutate(() => { const sh = sheet(), kk = key(S.cur.r, S.cur.c), o = cellObj(sh, kk); delete o.f; putCell(sh, kk, { ...o, v, fmt: o.fmt || "yyyy-mm-dd" }); }); return; }  // 오늘 날짜
+      if (k === "PageDown" || k === "PageUp") { e.preventDefault(); const n = S.deck.sheets.length, i = (S.ti + (k === "PageDown" ? 1 : -1) + n) % n; switchTab(i); return; }  // 다음·이전 탭
+      if (lk === "5") { e.preventDefault(); toggleStyle("strike"); return; }  // 취소선
+      if ((lk === "9" || lk === "0") && !e.shiftKey && window.NexaSheetX) { e.preventDefault(); NexaSheetX.hide(lk === "9" ? "r" : "c", true); return; }  // 행·열 숨기기
+      if (k === "-" || k === "+" || (k === "=" && e.shiftKey)) {  // 행·열 지우기·넣기 - 행(열) 전체를 골랐을 때(엑셀은 아니면 창을 띄운다)
+        e.preventDefault(); const g = S.sel, rows = g.c1 === 0 && g.c2 === G.cols - 1, cols = g.r1 === 0 && g.r2 === G.rows - 1, del = k === "-";
+        if (rows && !cols) shiftAxis("r", g.r1, del ? -(g.r2 - g.r1 + 1) : g.r2 - g.r1 + 1);
+        else if (cols && !rows) shiftAxis("c", g.c1, del ? -(g.c2 - g.c1 + 1) : g.c2 - g.c1 + 1);
+        else toast(`행 번호(Shift+Space) 또는 열 머리(Ctrl+Space)로 행·열 전체를 고른 뒤 Ctrl+${del ? "-" : "+"} - 칸만 ${del ? "지우기" : "넣기"}는 행·열 메뉴`);
+        return;
+      }
       if (k.startsWith("Arrow")) { e.preventDefault(); move(k === "ArrowDown" ? 1 : k === "ArrowUp" ? -1 : 0, k === "ArrowRight" ? 1 : k === "ArrowLeft" ? -1 : 0, e.shiftKey, true); return; }
       return;  // Ctrl+C·V·X 는 copy/paste/cut 이벤트로
     }
@@ -1057,6 +1112,8 @@
     if (k === "Enter") { e.preventDefault(); advance(e.shiftKey ? -1 : 1, 0); return; }
     if (k === "Tab") { e.preventDefault(); advance(0, e.shiftKey ? -1 : 1); return; }
     if (k === "F2") { e.preventDefault(); startEdit("edit"); return; }
+    if ((k === "Delete" || k === "Backspace") && S.drawSel) { e.preventDefault(); drawDelete(); return; }  // 고른 그림 지우기
+    if (k === " " && e.shiftKey) { e.preventDefault(); S.sel = { r1: S.sel.r1, r2: S.sel.r2, c1: 0, c2: G.cols - 1 }; S.anchor = { r: S.sel.r1, c: 0 }; renderSel(); return; }  // 행 전체
     if (k === "Delete") { e.preventDefault(); clearRange(S.sel); return; }
     if (k === "Backspace") { e.preventDefault(); startEdit("enter", ""); return; }
     if (k === "Escape") { if (S.clip) { S.clip.show = false; renderSel(); } return; }
@@ -1634,7 +1691,8 @@
       return;
     }
     const im = e.button === 0 && e.target.closest("#draws img.drw");
-    if (im) { e.preventDefault(); if (S.edit) endEdit(true); drawPick(im.dataset.did, e.ctrlKey || e.metaKey || e.shiftKey); focusGrid(); return; }  // 그림 고르기 - 칸 선택은 그대로
+    if (im) { e.preventDefault(); if (S.edit) endEdit(true); const add = e.ctrlKey || e.metaKey || e.shiftKey; if (!(S.drawSel && S.drawSel.has(im.dataset.did) && !add)) drawPick(im.dataset.did, add); focusGrid(); if (!add) startDrawDrag(e, "move"); return; }  // 그림 고르기 · 끌어 옮기기 - 칸 선택은 그대로
+    if (e.button === 0 && e.target.closest("#drawHandle")) { e.preventDefault(); startDrawDrag(e, "size"); return; }
     if (S.drawSel && !e.ctrlKey && !e.metaKey) { S.drawSel = null; markDrawings(); }  // 칸·머리를 누르면 그림 선택이 풀린다
     if (td && (e.ctrlKey || e.metaKey) && followCell(+td.dataset.r, +td.dataset.c)) { e.preventDefault(); return; }  // HYPERLINK 칸 - 엑셀은 그냥 클릭이지만 여기는 고르기·고치기가 먼저라 Ctrl
     if (S.edit) endEdit(true);
@@ -1652,6 +1710,39 @@
     };
     const onUp = () => { removeEventListener("mousemove", onMove); removeEventListener("mouseup", onUp); S.ext = null; };
     addEventListener("mousemove", onMove); addEventListener("mouseup", onUp);
+  }
+  // ---------------------------------------------------------------- 열 너비·행 높이 자동 맞춤(엑셀 경계 두 번 누르기)
+  let measureCtx = null;
+  function textPx(o, txt) {
+    measureCtx = measureCtx || document.createElement("canvas").getContext("2d");
+    const fam = getComputedStyle(document.body).getPropertyValue("--font") || "sans-serif";
+    measureCtx.font = `${o.i ? "italic " : ""}${o.b ? "700 " : ""}${+o.size || defSize()}pt ${fam}`;
+    return Math.max(...String(txt).split("\n").map((t) => measureCtx.measureText(t).width));
+  }
+  const fitTargets = (axis, i) => { const g = S.sel, full = axis === "c" ? g.r1 === 0 && g.r2 === G.rows - 1 : g.c1 === 0 && g.c2 === G.cols - 1; const a = axis === "c" ? g.c1 : g.r1, b = axis === "c" ? g.c2 : g.r2; return full && i >= a && i <= b ? [...Array(b - a + 1)].map((_, k) => a + k) : [i]; };
+  function autoFitCols(i) {
+    const sh = sheet(), cover = new Set(merges(sh).flatMap((m) => (m.c1 === m.c2 ? [] : [...Array((m.r2 - m.r1 + 1) * (m.c2 - m.c1 + 1))].map((_, k) => key(m.r1 + Math.floor(k / (m.c2 - m.c1 + 1)), m.c1 + (k % (m.c2 - m.c1 + 1)))))));
+    mutate(() => {
+      for (const c of fitTargets("c", i)) {
+        let w = 0;
+        for (const [k, raw] of Object.entries(sh.cells)) { const p = parseRef(k); if (!p || p.c !== c || rowHidden(sh, p.r) || cover.has(k)) continue; const o = effCell(raw), t = display(o); if (t === "" || o.wrap) continue; w = Math.max(w, textPx(o, t)); }
+        const px = Math.max(24, Math.ceil(w + 10)); sh.cols = sh.cols || {};
+        if (!w || px === DEF_W) delete sh.cols[colName(c)]; else sh.cols[colName(c)] = px;
+      }
+      if (sh.cols && !Object.keys(sh.cols).length) delete sh.cols;
+    });
+  }
+  function autoFitRows(i) {
+    const sh = sheet();
+    mutate(() => {
+      for (const r of fitTargets("r", i)) {
+        let h = 0;
+        for (const [k, raw] of Object.entries(sh.cells)) { const p = parseRef(k); if (!p || p.r !== r) continue; const o = effCell(raw), t = display(o); if (t === "") continue; const lines = o.wrap ? Math.max(1, Math.ceil(textPx(o, t) / Math.max(10, colW(sh, p.c) - 8))) : String(t).split("\n").length; h = Math.max(h, Math.ceil(lines * (+o.size || defSize()) * 1.333 * 1.25 + 6)); }
+        sh.rows = sh.rows || {};
+        if (!h || h <= DEF_H) delete sh.rows[String(r + 1)]; else sh.rows[String(r + 1)] = h;
+      }
+      if (sh.rows && !Object.keys(sh.rows).length) delete sh.rows;
+    });
   }
   function startResize(e, axis, i) {
     const sh = sheet(), x0 = axis === "c" ? e.clientX : e.clientY, w0 = axis === "c" ? colW(sh, i) : rowH(sh, i);
@@ -1726,6 +1817,8 @@
     W.addEventListener("contextmenu", gridMenu);
     W.addEventListener("dblclick", (e) => {
       if (e.target.closest("#fillHandle")) { e.preventDefault(); fillDownAuto(); return; }
+      const rz = e.target.closest("[data-rzc]"); if (rz) { e.preventDefault(); autoFitCols(+rz.dataset.rzc); return; }  // 열 경계 두 번 = 내용에 맞춤(고른 열 모두)
+      const rr = e.target.closest("[data-rzr]"); if (rr) { e.preventDefault(); autoFitRows(+rr.dataset.rzr); return; }  // 행 경계 두 번 = 기본 높이(줄바꿈 칸은 줄 수만큼)
       const td = e.target.closest("td[data-r]"); if (td) { e.preventDefault(); startEdit("edit"); }
     });
     W.addEventListener("click", (e) => { if (!S.edit && !e.target.closest("button")) focusGrid(); });
@@ -1850,7 +1943,7 @@
     window.addEventListener("beforeunload", (e) => { if (S.dirty) { save(); e.preventDefault(); e.returnValue = ""; } });
   }
   // 시험용(브라우저 콘솔·스모크) - 수식 계산·표시 형식을 따로 불러 볼 수 있게
-  window.NexaSheet = { S, TH, VB, vbaOpen, vbaApply, effCell, bdSides, fillVars, reload: reloadExternal, applyVersion, recalc, parseFormula, display, fmtNumber, parseNumberText, shiftFormula, setInput, parseTsv, fillSeries, fillTarget,
+  window.NexaSheet = { S, TH, VB, drawDelete, autoFitCols, lastCell, vbaOpen, vbaApply, effCell, bdSides, fillVars, reload: reloadExternal, applyVersion, recalc, parseFormula, display, fmtNumber, parseNumberText, shiftFormula, setInput, parseTsv, fillSeries, fillTarget,
     // 엑셀 기능 모듈(sheetx.js)이 쓰는 안쪽 함수 - 격자·선택·고치기(실행 취소·저장 포함)
     x: { shiftAxis, G, sheet, key, parseRef, colHidden, rowHidden, rectOf, colIndex, parseRange, rangeName, colName, cellObj, putCell, mutate, renderAll, renderSel, selectRange, selectCell, clampRange, eachCell, toast, openMenu,
       endEdit, startEdit, focusGrid, pasteText, scrollIntoView, growSize, clone, ED, esc } };
