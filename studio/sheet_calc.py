@@ -16,7 +16,7 @@ import sys
 from pathlib import Path
 
 ERRS = ("#DIV/0!", "#VALUE!", "#REF!", "#NAME?", "#NUM!", "#N/A", "#NULL!", "#SPILL!", "#CALC!")
-DYN = {"FILTER", "SORT", "SORTBY", "UNIQUE", "SEQUENCE", "TRANSPOSE", "TAKE", "DROP", "CHOOSECOLS", "CHOOSEROWS", "HSTACK", "VSTACK", "TOCOL", "TOROW", "TEXTSPLIT"}  # 동적 배열 함수 - 이 함수를 쓴(또는 가져온 동적 배열 da) 수식만 옆 칸으로 넘친다
+DYN = {"FILTER", "SORT", "SORTBY", "UNIQUE", "SEQUENCE", "TRANSPOSE", "TAKE", "DROP", "CHOOSECOLS", "CHOOSEROWS", "HSTACK", "VSTACK", "TOCOL", "TOROW", "TEXTSPLIT", "GROUPBY", "PIVOTBY"}  # 동적 배열 함수 - 이 함수를 쓴(또는 가져온 동적 배열 da) 수식만 옆 칸으로 넘친다
 DAY0 = dt.date(1899, 12, 30)
 
 
@@ -552,6 +552,8 @@ class Calc:
             return n[1]
         if k == "err":
             raise FErr(n[1])
+        if k == "arr":  # 계산된 배열을 범위처럼(GROUPBY 집계 - 빈 칸·글은 건너뜀)
+            return n[1]
         if k == "ref":
             s = self.sheet(n[1], sh)
             if s is None:
@@ -671,7 +673,7 @@ class Calc:
         out = []
         for a in args:
             a = self.deref(a, sh)
-            is_ref = a[0] in ("ref", "range")
+            is_ref = a[0] in ("ref", "range", "arr")
             v = self.ev(a, sh)
             for x in (v.vals if isinstance(v, Rng) else [v]):
                 if isinstance(x, FErr):
@@ -1566,6 +1568,114 @@ def _textsplit(c, A, sh):
 FUNCS.update({"TAKE": _take_drop(False), "DROP": _take_drop(True), "CHOOSECOLS": _choose(True), "CHOOSEROWS": _choose(False),
               "HSTACK": _stack(True), "VSTACK": _stack(False), "TOCOL": _to_line(True), "TOROW": _to_line(False), "TEXTSPLIT": _textsplit})
 FUNCS.update({"LET": _let, "DATEDIF": _datedif, "NETWORKDAYS": _networkdays, "WORKDAY": _workday, "XMATCH": _xmatch})
+
+# ---------------------------------------------------------------- 수식형 요약 GROUPBY·PIVOTBY (엑셀 365) - 집계는 함수 이름(SUM, 파일에는 _xleta.SUM)
+AGG = ("SUM", "AVERAGE", "COUNT", "COUNTA", "MAX", "MIN", "MEDIAN", "PRODUCT")
+
+
+def _agg_fn(n):
+    nm = re.sub(r"^_XLETA\.", "", n[1]) if n[0] == "name" else None
+    if nm not in AGG:
+        raise FErr("#VALUE!")  # LAMBDA 집계는 아직
+    return nm
+
+
+def _agg(c, fn, vals, sh):
+    """값 목록을 범위처럼(빈 칸·글은 건너뜀) 집계 - 오류는 그 칸만."""
+    try:
+        return FUNCS[fn](c, [("arr", Rng([[v] for v in vals] or [[None]]))], sh)
+    except FErr as e:
+        return e
+
+
+def _fields(c, A, i_hdr, keys, vals, sh):
+    """머리글 인수(생략 = 값 첫 줄이 글이고 둘째 줄이 숫자면 머리글) → (머리글이 있나, 보이나, 키 머리글, 값 머리글, 키, 값)."""
+    hdr = _opt(c, A, i_hdr, sh, None)
+    if hdr is None:
+        hdr = 1 if len(vals) > 1 and isinstance(vals[0][0], str) and isinstance(vals[1][0], (int, float)) and not isinstance(vals[1][0], bool) else 0
+    hdr = int(to_num(hdr))
+    if hdr not in (0, 1, 3):
+        raise FErr("#VALUE!")  # 2(머리글 만들기)는 아직
+    if hdr in (1, 3):
+        return True, hdr == 3, keys[0], vals[0], keys[1:], vals[1:]
+    return False, False, None, None, keys, vals
+
+
+def _picked(c, A, i, n, sh):
+    """거르기 배열(행마다 참·거짓) → 남길 행 번호."""
+    if i >= len(A) or A[i] == ("lit", None):
+        return list(range(n))
+    f = c.area(A[i], sh).rows
+    if len(f) != n:
+        raise FErr("#VALUE!")
+    return [k for k in range(n) if _truthy(f[k][0])]
+
+
+def _groups(rows, idx):
+    """같은 키(대소문자 무시)끼리 - 처음 나온 순서, (보이는 키, 행 번호들)."""
+    seen, out = {}, []
+    for k in idx:
+        key = tuple(_ukey(v) for v in rows[k])
+        if key not in seen:
+            seen[key] = (["" if v is None else v for v in rows[k]], [])
+            out.append(seen[key])
+        seen[key][1].append(k)
+    return out
+
+
+def _groupby(c, A, sh):
+    """GROUPBY(행 필드, 값, 함수, [머리글], [합계 깊이 1], [정렬 1], [거르기])."""
+    keys, vals = c.area(A[0], sh).rows, c.area(A[1], sh).rows
+    fn = _agg_fn(A[2])
+    if len(keys) != len(vals):
+        raise FErr("#VALUE!")
+    has, show, kh, vh, keys, vals = _fields(c, A, 3, keys, vals, sh)
+    depth, order = int(to_num(_opt(c, A, 4, sh, 1))), int(to_num(_opt(c, A, 5, sh, 1)))
+    idx = _picked(c, A, 6, len(keys), sh)
+    kw, vw = len(keys[0]), len(vals[0])
+    out = [disp + [_agg(c, fn, [vals[i][j] for i in ks], sh) for j in range(vw)] for disp, ks in _groups(keys, idx)]
+    if not out:
+        raise FErr("#CALC!")
+    if order:
+        if abs(order) > kw + vw:
+            raise FErr("#VALUE!")
+        out = _sort_rows(out, [(lambda r, k=abs(order) - 1: r[k], order < 0)])
+    if depth:
+        tot = ["Total"] + [""] * (kw - 1) + [_agg(c, fn, [vals[i][j] for i in idx], sh) for j in range(vw)]
+        out = [tot] + out if depth < 0 else out + [tot]
+    if show:
+        out = [list(kh) + list(vh)] + out
+    return Rng(out)
+
+
+def _pivotby(c, A, sh):
+    """PIVOTBY(행 필드, 열 필드, 값, 함수, [머리글], [행 합계 1], [행 정렬 1], [열 합계 1], [열 정렬 1], [거르기]) - 필드·값은 한 열씩."""
+    rk, ck, vals = c.area(A[0], sh).rows, c.area(A[1], sh).rows, c.area(A[2], sh).rows
+    fn = _agg_fn(A[3])
+    if not (len(rk) == len(ck) == len(vals)) or len(rk[0]) != 1 or len(ck[0]) != 1 or len(vals[0]) != 1:
+        raise FErr("#VALUE!")  # 여러 열 필드·값은 아직
+    has, _, _, _, rk2, vals2 = _fields(c, A, 4, rk, vals, sh)
+    ck = ck[1:] if has else ck
+    rk, vals = rk2, vals2
+    rt, ro, ct, co = (int(to_num(_opt(c, A, i, sh, 1))) for i in (5, 6, 7, 8))
+    if ro not in (1, -1) or co not in (1, -1):
+        raise FErr("#VALUE!")  # 값 열로 정렬은 아직
+    idx = _picked(c, A, 9, len(rk), sh)
+    rows = _sort_rows(_groups(rk, idx), [(lambda g: g[0][0], ro < 0)])
+    cols = _sort_rows(_groups(ck, idx), [(lambda g: g[0][0], co < 0)])
+    if not rows or not cols:
+        raise FErr("#CALC!")
+    v = lambda ks: _agg(c, fn, [vals[i][0] for i in ks], sh)  # noqa: E731
+    cell = lambda a, b: v([i for i in a if i in set(b)]) if set(a) & set(b) else ""  # noqa: E731
+    out = [[""] + [g[0][0] for g in cols] + (["Total"] if ct else [])]
+    body = [[g[0][0]] + [cell(g[1], h[1]) for h in cols] + ([v(g[1])] if ct else []) for g in rows]
+    if rt:
+        tot = ["Total"] + [v(h[1]) for h in cols] + ([v(idx)] if ct else [])
+        body = [tot] + body if rt < 0 else body + [tot]
+    return Rng(out + body)
+
+
+FUNCS.update({"GROUPBY": _groupby, "PIVOTBY": _pivotby})
 
 
 def dynamic(raw):

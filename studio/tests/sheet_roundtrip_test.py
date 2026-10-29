@@ -45,7 +45,8 @@ DOC = {"kind": "sheet", "title": "왕복", "slides": [], "sheets": [
          "J1": {"f": "=SORT(B2:B5)"}, "K1": {"f": "=SUM(J1#)"}, "L1": {"f": "=J1#*10"},
          "M1": {"f": "=LET(x,SUM(B2:B5),y,4,x/y)"}, "M2": {"f": "=XMATCH(\"대구\",A2:A5)"}, "M3": {"f": "=TEXTJOIN(\",\",TRUE,UNIQUE(D2:D5))"},
          "M4": {"f": "=요약!A1*2"},
-         "N1": {"f": "=SUM(분기1)"}, "N2": {"f": "=목표*2"}, "N3": {"f": "=COUNTA(지역들)"}},
+         "N1": {"f": "=SUM(분기1)"}, "N2": {"f": "=목표*2"}, "N3": {"f": "=COUNTA(지역들)"},
+         "O1": {"f": "=GROUPBY(D2:D5,B2:B5,SUM)"}},
      "names": {"지역들": "데이터!$A$2:$A$5"}},
     {"id": "t02", "name": "요약", "hidden": True, "cells": {"A1": {"f": "=데이터!F2"}, "A2": "숨긴 탭"}},
 ], "names": {"분기1": "데이터!$B$2:$B$5", "목표": "1000"}}
@@ -93,6 +94,8 @@ def main():
     check("메모", a["cells"]["F5"].get("note") == "기준일", a["cells"].get("F5"))
     tb = a.get("tables") or []
     check("엑셀 표 - 이름·범위·열", len(tb) == 1 and tb[0]["name"] == "매출표" and tb[0]["ref"] == "A1:E5" and tb[0]["cols"][4] == "합계", tb)
+    check("파일 형식 - GROUPBY 는 _xlfn.·_xleta.", "_xlfn.GROUPBY(D2:D5,B2:B5,_xleta.SUM)" in xml, "")
+    check("GROUPBY - 수식 글·넘친 값(합계 줄)", f.get("O1") == "=GROUPBY(D2:D5,B2:B5,SUM)" and val(a["cells"].get("O4")) == "Total" and val(a["cells"].get("P4")) == 2800, {k: a["cells"].get(k) for k in ("O1", "O4", "P4")})
     check("이름 정의 칸 계산값", [val(a["cells"].get(k)) for k in ("N1", "N2", "N3")] == [2800, 2000, 4], [val(a["cells"].get(k)) for k in ("N1", "N2", "N3")])
     doc2, _ = sheet_import.to_doc("rt", "왕복", out)
     nb, nt = doc2.get("names") or {}, doc2["sheets"][0].get("names") or {}

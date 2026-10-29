@@ -13,6 +13,12 @@
  ],
  "names": {"매출1분기": "데이터!$B$2:$B$5", "세율": "0.1", "기준": "데이터!$B$2", "합계식": "=SUM(데이터!$C$2:$C$5)", "Tax": "0.2", "순환": "순환+1", "요약값": "요약!$A$1:$A$3"},
  "cases": [
+  ["=INDEX(GROUPBY(D2:D5,B2:B5,SUM),1,1)", "대기"], ["=INDEX(GROUPBY(D2:D5,B2:B5,SUM),2,2)", 1700], ["=INDEX(GROUPBY(D2:D5,B2:B5,SUM),4,1)", "Total"], ["=INDEX(GROUPBY(D2:D5,B2:B5,SUM),4,2)", 2800],
+  ["=ROWS(GROUPBY(D2:D5,B2:B5,SUM,0,0))", 3], ["=INDEX(GROUPBY(D1:D5,B1:B5,SUM,3),1,2)", "1분기"], ["=ROWS(GROUPBY(D1:D5,B1:B5,SUM))", 4], ["=INDEX(GROUPBY(D2:D5,B2:B5,SUM,0,0,-2),1,1)", "완료"],
+  ["=INDEX(GROUPBY(D2:D5,C2:C5,COUNT,0,0),1,2)", 0], ["=INDEX(GROUPBY(D2:D5,B2:B5,SUM,0,1,1,B2:B5>400),3,2)", 2500], ["=INDEX(GROUPBY(D2:D5,B2:B5,MAX,0,-1),1,2)", 1200],
+  ["=INDEX(GROUPBY(D2:D5,B2:C5,SUM,0,0),2,3)", 2400], ["=INDEX(GROUPBY(D2:D5,B2:B5,_xleta.SUM),2,2)", 1700], ["=GROUPBY(D2:D5,B2:B5,LAMBDA)", "#VALUE!"], ["=INDEX(GROUPBY(D2:D5,B2:B5,AVERAGE,0,0),2,2)", 850],
+  ["=INDEX(PIVOTBY(D2:D5,A2:A5,B2:B5,SUM),1,2)", "광주"], ["=INDEX(PIVOTBY(D2:D5,A2:A5,B2:B5,SUM),3,3)", 500], ["=INDEX(PIVOTBY(D2:D5,A2:A5,B2:B5,SUM),3,2)", ""], ["=INDEX(PIVOTBY(D2:D5,A2:A5,B2:B5,SUM),3,6)", 1700],
+  ["=INDEX(PIVOTBY(D2:D5,A2:A5,B2:B5,SUM),5,6)", 2800], ["=COLUMNS(PIVOTBY(D2:D5,A2:A5,B2:B5,SUM,0,1,1,0))", 5], ["=INDEX(PIVOTBY(D2:D5,A2:A5,B2:B5,SUM,0,1,-1),2,1)", "진행"],
   ["=SUM(매출1분기)", 2800], ["=COUNT(매출1분기)", 4], ["=AVERAGE(매출1분기)", 700], ["=INDEX(매출1분기,2)", 800], ["=ROWS(매출1분기)", 4],
   ["=1000*세율", 100], ["=기준*2", 2400], ["=합계식", 3100], ["=ROW(기준)", 2], ["=OFFSET(기준,1,0)", 800], ["=LET(세율,0.5,세율*2)", 1],
   ["=100*tax", 20], ["=COUNTA(지역목록)", 4], ["=SUMIF(지역목록,\"서울\",매출1분기)", 1200], ["=SUM(요약값)", 60], ["=없는이름+1", "#NAME?"], ["=순환", "#REF!"],

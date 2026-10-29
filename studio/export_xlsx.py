@@ -127,6 +127,18 @@ def _in_table(tb, here):
     return pa[0] <= here[0] <= pb[0] and pa[1] <= here[1] <= pb[1]
 
 
+def xleta(form):
+    """GROUPBY·PIVOTBY → 엑셀 파일 형식 _xlfn.GROUPBY(…, _xleta.SUM) - XlsxWriter 가 모르는 새 함수라 직접 붙인다(따옴표 안 글은 그대로)."""
+    if not re.search(r"(?:GROUPBY|PIVOTBY)\(", form, re.I):
+        return form
+    agg = "|".join(sheet_calc.AGG)
+
+    def fix(part):
+        part = re.sub(r"(?<![\w.])(GROUPBY|PIVOTBY)\(", lambda m: "_xlfn." + m.group(1).upper() + "(", part, flags=re.I)
+        return re.sub(rf"([,(]\s*)({agg})(?=\s*[,)])", lambda m: m.group(1) + "_xleta." + m.group(2).upper(), part, flags=re.I)
+    return "".join(part if part.startswith('"') else fix(part) for part in re.split(r'("(?:[^"]|"")*")', form))
+
+
 def xlpm(form):
     """LET 의 이름 → 엑셀 파일 형식 _xlpm.이름 (따옴표 안 글은 그대로)."""
     if "LET(" not in form.upper():
@@ -249,6 +261,7 @@ def export(deck, out):
                 form = str(d["f"])
                 form = form if form.startswith("=") else "=" + form
                 form = xlpm(form)  # LET 이름 → _xlpm.이름
+                form = xleta(form)  # GROUPBY(…, SUM) → _xlfn.GROUPBY(…, _xleta.SUM)
                 form = this_row(form, t, ref)  # 표1[@열] · [@열] → 파일 형식 표1[[#This Row],[열]]
                 form = re.sub(r"((?:'[^']+'|[^\W\d][\w.]*)!)?(\$?[A-Z]{1,3}\$?\d+)#", r"ANCHORARRAY(\1\2)", form)  # 넘친 범위 참조 H2# → 엑셀 파일 형식
                 if sheet_calc.dynamic(c):  # 동적 배열 - 엑셀이 넘침으로 계산하게(넘친 칸 값은 아래에서 그대로 쓴다)

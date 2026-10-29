@@ -208,7 +208,7 @@ def import_xlsx(src, title=None):
                 elif f.text:
                     o["f"] = "=" + f.text
                 if o.get("f"):
-                    o["f"] = re.sub(r"_xl(?:fn|ws|pm)\.", "", o["f"])  # 새 함수 접두사(_xlfn.TEXTJOIN) - 화면·계산기는 맨 이름을 쓴다(내보낼 때 XlsxWriter 가 다시 붙인다)
+                    o["f"] = re.sub(r"_xl(?:fn|ws|pm|eta)\.", "", o["f"])  # 새 함수 접두사(_xlfn.TEXTJOIN) - 화면·계산기는 맨 이름을 쓴다(내보낼 때 XlsxWriter 가 다시 붙인다)
                     o["f"] = o["f"].replace("[#This Row],", "@")  # 파일 형식 표1[[#This Row],[열]] → 화면 형식 표1[@[열]]
                     o["f"] = re.sub(r"ANCHORARRAY\(((?:'[^']+'|[^\W\d][\w.]*)!)?(\$?[A-Z]{1,3}\$?\d+)\)", r"\1\2#", o["f"])  # 넘친 범위 참조 - 화면에서 쓰는 H2#
                 if f.get("t") == "array":
