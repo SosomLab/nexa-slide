@@ -60,6 +60,7 @@ Monitor
 영역 요청은 그 좌표와 겹치는 요소들을 대상으로 처리한다(`element` 는 null).
 **시트 문서**(덱 JSON `"kind": "sheet"`, 시트 화면 `sheet.html`)의 요청은 `slide` = 시트 탭 id, `range` = 고른 셀 범위(`A1`·`B2:D5`)다 — 세션은 그 탭의 `cells` 를 고친다
 (`draft_deck <덱> --slide <탭> --range <범위>` 가 줄 번호를 알려 준다). 형식은 [sheets.md](sheets.md).
+시트에서 그림을 고른 요청에는 `element`·`elements` = 그 탭 `drawings` 의 그림 id 가 붙는다(`drawings[].id`, 없으면 `src` 파일 이름에서 확장자를 뺀 것, 그것도 없으면 `img<순번>` - 1부터). 세션은 그 그림(`at`·`dx`·`dy`·`w`·`h`·`src`)을 고친다.
 **후속 요청**(편집기 [후속 요청])이면 `parent`(바로 앞 요청 id)·`thread`(대화의 뿌리 요청 id)와 `context: [{id, status, text, reply, attachments?}…]` 가 붙는다 — 같은 대화의 앞선 요청·답이 오래된 순(최근 6개, 항목당 800자, 첨부는 경로만)이고 이번 요청은 항목 자신의 `text` 다. 대상(`slide`·`element`·`region`)은 따로 주지 않으면 원 요청에서 물려받는다. 앞선 요청의 상태는 바꾸지 않는다.
 
 **첨부**가 있으면 `attachments: [{path, name, type, size}]` 가 붙는다 — 편집기에서 클립보드 그림(Ctrl+V)·끌어다 놓기·📎 로 올린 파일로, 작업 공간 안 `out/attach/<덱>/…` 에 있다(git 제외).

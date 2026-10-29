@@ -97,6 +97,34 @@ LET 이름에 담아 `=LET(f,LAMBDA(a,b,a+b),f(2,3))` 으로 부르고, **이름
 - 동시 편집: `filter` 는 탭 속성 하나로 병합한다 - 두 창이 같은 때 다른 열의 조건을 바꾸면 한쪽만 남는다(충돌로 기록).
 - xlsx: 가져오기는 `autoFilter`(값·사용자 지정·상위 10·색) → `filter`, 범위 안 숨긴 행 → `filter.rows`. 내보내기는 범위·조건·가린 행(색 조건은 XlsxWriter 가 못 써서 범위·가린 행만).
 
+**VBA 사용자 함수(xlsm, 0.25.3)** — 표준 모듈의 `Function` 을 칸에서 `=이름(…)` 으로 부르면 브라우저의 실행기(`studio/vba.js`)가 계산한다(엑셀 없이).
+- 문서 `macros.modules: [{"name": "Module1", "kind": "std", "code": "…"}…]`(kind = `std` 표준 · `doc` 문서 · `cls` 클래스) - xlsm 을 가져올 때 넣는다. 전에 가져온 문서는 서버가 vbaProject.bin 에서 읽어 준다(`GET /api/vba/<id>`).
+- 되는 문법: Function·Sub · Dim·ReDim(Preserve)·Const · If·For·For Each·Do·While·Select Case · Exit · On Error Resume Next · 배열 · ByRef/ByVal · 선택 인수 · ParamArray · Range 인자(`.Value`·`.Cells`·`.Count`·`.Rows.Count`·`.Row`·`.Address`) · 내장 함수 약 70개 · `WorksheetFunction.<시트 함수>`.
+- 못 쓰는 문법(With·GoTo·New·날짜 상수·시트 쓰기 등)이 든 함수는 계산하지 않고 **엑셀이 저장한 값을 그대로** 둔다. 실행 오류는 `#VALUE!`, 끝나지 않는 반복은 500만 단계에서 멈춘다. 모듈과 같은 이름의 함수·문서/클래스 모듈의 함수는 엑셀처럼 `#NAME?`.
+- **{ } VBA 코드 창**(매크로가 있는 문서): 모듈 목록·코드 편집(Ctrl+S = 적용)·표준 모듈 더하기·지우기·못 쓰는 문법 경고·칸에서 부를 수 있는 함수 목록. [적용·다시 계산] 이 `macros.modules` 에 저장하고 그 함수를 쓰는 칸을 다시 계산한다.
+- 내보내기: 모듈 소스가 원본과 다르면 vbaProject.bin 을 고쳐 쓴다(`vba_project.py` - 컴파일된 코드를 버리고 판을 0xFFFF 로 둬 엑셀이 열 때 소스에서 다시 컴파일).
+- 동시 편집: `macros` 는 문서 최상위 키 하나로 병합한다(두 창이 같은 때 모듈을 고치면 한쪽만 남는다).
+
+**그림 편집(0.25.4)** — 탭 `drawings`(아래 5절)의 그림을 화면에서 다룬다.
+- 누르면 고르고 Ctrl·Shift 로 여럿 - 고른 그림이 **요청 대상**이 된다(요청에 `element`·`elements` = 그림 id, [claude-session.md](claude-session.md)).
+- 그림 id = `drawings[].id`, 없으면 `src` 파일 이름에서 확장자를 뺀 것, 그것도 없으면 `img<순번>`(1부터).
+- 끌어 옮기기(놓은 칸 + 남는 px → `at`·`dx`·`dy`) · 모서리 손잡이로 크기(Shift = 비율 그대로) · Delete 로 지우기.
+- 넣기: 붙여넣기 · 끌어 놓기 · 오른쪽 클릭 "그림 넣기…" - 작업 공간 그림 폴더에 올려 지금 칸에 고정한다.
+
+**편집 기능(엑셀처럼, 0.25.4)**
+- 단축키: Ctrl+End · Ctrl/Shift(+Ctrl)+Space(열·행·모두) · Ctrl+;(오늘) · Ctrl+PageUp/Down(탭) · Ctrl+5(취소선) · Ctrl+9/0(행·열 숨기기) · Ctrl+-/+(행·열 지우기·넣기) · Ctrl+K(HYPERLINK) · Ctrl+1(셀 서식) · Shift+F2(메모) · Ctrl+Shift+%·!·$. Ctrl+숫자는 브라우저가 가져갈 수 있어 같은 일을 메뉴·단추로도 한다.
+- **셀 서식 창**(Ctrl+1): 표시 형식·맞춤·줄바꿈·글꼴 꾸밈·크기·색·채우기 - 바꾼 속성만 고른 범위 모두에.
+- 표시 형식 단추(% · 쉼표 · 자릿수 늘림·줄임) · **서식 복사 붓**(한 번 누르면 한 번, 두 번이면 Esc 까지 - 값·수식·메모는 그대로) · 머리 경계 두 번 누르기 = 열 너비·행 높이 자동 맞춤 · **메모**(Shift+F2, 칸 오른쪽 위 빨간 삼각형).
+- 데이터 ▾: 중복된 항목 제거(모든 열이 같은 행 - 처음 것만) · 텍스트 나누기(쉼표·탭·공백·직접).
+- 확대·축소: 아래 막대 · Ctrl+휠(문서마다 기억).
+- 셀 `strike: true` = 취소선(가져오기·내보내기도).
+
+**글꼴 크기 기준 `font`** — 문서 `font: {"name": "맑은 고딕", "size": 11, "mdw": 8, "rowPx": 22}`.
+엑셀은 표준 글꼴의 숫자 폭(`mdw`, px)으로 열 너비를 px 로 바꾸고, 높이를 정하지 않은 행은 글꼴로 정한다(`rowPx`). 가져올 때 실제 글꼴(테마 한글 글꼴까지)로 재서 남기고(Calibri 11 의 7·20 이면 생략), 내보낼 때 같은 값을 써서 열 너비·그림 크기가 엑셀과 맞는다.
+
+**교차 검증** — `python3 studio/tests/xlsm_crosscheck.py <원본.xlsm> [--keep 폴더] [--max 20] [--no-excel]`:
+가져오기 → 계산(Python·JS 계산기 = 엑셀 저장값) → 내보내기 → 다시 가져오기(문서 전체가 같은가) → VBA 모듈 소스 비교. Windows + 엑셀이 있으면 원본·저장본을 엑셀로 다시 계산해 수식·값·숨긴 행열·필터·이름·그림·단추까지 견준다(없거나 `--no-excel` 이면 그 단계만 건너뛴다). 원본 파일은 읽기만 한다.
+
 ## 3. 요청(세션 규약)
 
 편집기 요청 항목 `{deck, id, slide, range, text, …}` — `slide` 는 시트 탭 id, `range` 는 고른 셀 범위(`A1`, `B2:D5`).
