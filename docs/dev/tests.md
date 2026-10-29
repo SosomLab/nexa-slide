@@ -29,6 +29,8 @@ NEXA_TEST_DIR=/tmp/nexa-tests python3 studio/tests/run_all.py   # 산출물 자�
 | tidy | `tidy_test.py` | 작업 공간 정리·보관(`tidy.py`) — 산출물·참조 없는 그림(백업 참조 표시)·고아 첨부·세션 로그·백업 보고, clean(옮김)·restore·purge, archive zip 제외 규칙, 작업 공간 서버 `/api/tidy`, 요청 첨부 삭제(discard·update) | - |
 | enginetidy | `engine_tidy_test.py` | 엔진 개발 영역 정리(`engine_tidy.py`) — 고아 첨부·worktree 첨부 사본(끝난 요청만)·회귀 사본·임시 파일·최근 N개 밖 로그·시험용 worktree 보고, 남길 것(열린 요청 첨부·새 파일·기준 엔진 사본·outbox) 제외, 고른 범주만 지움, 배포 중이면 로그·worktree 건너뜀(격리 사용자 설정 폴더) | - |
 | deck | `deck_test.py` | 덱 관리(`deck_admin`) — 짧은 해시 id 생성, 복제(content 포함), 시작 덱(`startDeck`)·목록 ★, 작업 공간 서버 `/api/decks` copy·start | - |
+| vba | `vba_test.js` | 0.25.3 - VBA 실행기(`vba.js`): 셀에서 부르는 Function·제어문·배열·Range 인자·ByRef·내장 함수, 못 쓰는 문법은 엑셀 저장값 유지(25가지) | Node |
+| (수동) xlsm_crosscheck | `xlsm_crosscheck.py <원본.xlsm> [--keep 폴더] [--no-excel]` | 0.25.2~ - 가져오기 → Python·JS(+VBA) 계산 = 엑셀 저장값 → 내보내기 → 다시 가져오기(문서 같음) → VBA 모듈 소스 · 칸 서식(`xlsx_styles.py`) · 엑셀이 있으면 원본·저장본을 COM 으로 다시 계산해 수식·값·숨김·필터·이름·그림·열 너비·행 높이 대조(`xlsm_dump.ps1`), VBA 고친 판을 엑셀이 계산하는지까지. 원본은 읽기만 | Node, (엑셀은 선택) |
 | (수동) shift_bench | `shift_bench.py <작업 공간> <preset|->` | 글 세로 위치 대조 — 상자·타원(흰 글)을 크기×줄 높이로 깔고 PowerPoint 렌더와 브라우저 캡처의 글자 세로 중심 차이를 재 `shift = size×(a×lh+b)` 를 맞춘다(보정이 맞으면 a≈0·b≈0, 잔차 ±1px) | PowerPoint, Chrome, Pillow |
 | runs · effect | `runs_test.py` · `effect_test.py` | 인라인 강조 겹치기(`common.runs` ↔ `render.runs`, 취소선·첨자·형광펜·글자 링크 포함) · 그림 프레임 효과 PPTX XML·CSS | Node |
 | docstruct | `docstruct_test.py` | 0.22.11~12 - 숨김 슬라이드(`show=0`)·구분(섹션 `p14:sectionLst`)·문서 속성·도형 테두리 점선(`prstDash`)·액자 색·SVG 그림(`svgBlip`)·글 표기 PPTX XML, 표 셀별 채움·테두리·격자 PPTX·render.js | Node |
