@@ -41,6 +41,7 @@ TESTS = [  # (이름, 실행, 설명, claude 필요)
     ("deck", [sys.executable, "deck_test.py"], "덱 관리(deck_admin) - 짧은 해시 id·복제·시작 덱·목록, /api/decks copy·start", False),
     ("merge", [sys.executable, "deckmerge_test.py"], "덱·시트 3-way 병합(deckmerge, 동시 편집 1단계) - 요소·속성·셀 단위, 삭제 대 수정, 순서, 수식 계산값 골든", False),
     ("mergesave", [sys.executable, "merge_save_test.py"], "병합 저장(PUT ?merge=1·save_deck) - 편집기 둘·AI 대 사람(사람 우선)·원장 evidence·--no-merge 409·no-base·시트 셀", False),
+    ("struct", [sys.executable, "sheet_struct_test.py"], "시트 행·열 구조 작업(sheet_struct, 동시 편집 3-2) - 셀 키·병합·너비·틀 고정·수식 참조(열 전체·행 전체·H2#) 골든 - 화면 shiftAxis 와 같음(sheetstruct_test)", False),
     ("deploy", [sys.executable, "engine_deploy_test.py"], "엔진 배포(engine_deploy) - 계획·병합 커밋·push·적용됨·충돌 시 main 불변·겹치는 미커밋 변경·새 실패만 막는 시험 비교(임시 저장소)", False),
     ("englink", [sys.executable, "engine_link_test.py"], "엔진 요청 ↔ 원 요청 연결(engineRequest 배지)·done 알림·applied 자동 재개", False),
     ("content_i18n", [sys.executable, "content_i18n_test.py"], "견본 내용 언어(content_i18n) - layout_samples --lang en · /api/slidetypes?lang=en · tr()", False),

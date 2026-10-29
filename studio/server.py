@@ -110,6 +110,7 @@ import collab  # noqa: E402
 import deckdiff  # noqa: E402
 import deckmerge  # noqa: E402
 import proposals  # noqa: E402
+import sheet_struct  # noqa: E402
 import ledger  # noqa: E402
 import hub  # noqa: E402
 import share  # noqa: E402
@@ -1028,6 +1029,7 @@ class H(BaseHTTPRequestHandler):
     def api_put_deck(self, i, q):
         deck = self.body_json()
         base_doc = deck.pop("__base", None) if isinstance(deck, dict) else None  # 병합 기준본(save_deck 사본의 원본) - 서버가 그 판을 기억하지 못할 때
+        struct = deck.pop("__struct", None) if isinstance(deck, dict) else None  # 시트 행·열 삽입·삭제(동시 편집 3-2) - 병합 전에 기준본·지금 파일에도 적용
         if not isinstance(deck, dict) or not isinstance(deck.get("slides"), list):
             return self.err(400, "덱 형식 아님(slides 목록 필요)")
         if deck.get("id", i) != i:
@@ -1075,6 +1077,9 @@ class H(BaseHTTPRequestHandler):
                 _, theirs = _load(p)
                 if theirs is None:
                     return self.send_json({"ok": False, "error": "conflict", "version": cur}, 409)
+                if isinstance(struct, list) and struct and deck.get("kind") == "sheet":
+                    # 보낸 쪽이 행·열을 넣거나 지웠다 - 기준본과 지금 파일을 같은 만큼 옮긴 뒤 합쳐야 다른 쪽이 고친 셀이 제 칸에 남는다
+                    bdoc, theirs = sheet_struct.apply(bdoc, struct), sheet_struct.apply(theirs, struct)
                 deck, conflicts = deckmerge.merge3(bdoc, deck, theirs, prefer="theirs" if origin == "claude" else "ours")
                 if conflicts:
                     actor["note"] = ((actor.get("note") or "") + f" · 병합 충돌 {len(conflicts)}건")[:200].lstrip(" ·")
