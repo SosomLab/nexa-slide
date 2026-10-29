@@ -20,6 +20,7 @@ API
                                      파일 버전을 0.5초마다 보므로 편집기 저장·AI 의 save_deck·요청 파일 Edit 가 곧바로 간다. 끊기면 그 탭의 presence 를 지운다
   GET  /api/proposals/<id>            AI 제안 목록(동시 편집 3단계 첫 조각, proposals.py) [{request, created, items: [{id, kind, title, detail}]}]
   POST /api/proposals/<id>            {action: create, request, deck, base?, baseDoc?} - save_deck --propose 가 남긴다(파일은 그대로)
+  POST /api/ops/<id>                  {base, ops} 작업(op) 저장(동시 편집 3-4, deckops.py) - 지금 파일에 작업을 바로 얹는다. {version, applied, dropped, seq}
                                      {action: accept, request, items?} - 고른 단위(없으면 전부)를 기준본에 얹어 지금 파일과 병합 저장(원장 action accept)
                                      {action: discard, request, items?} - 버리기
   GET  /api/reqdiff/<id>?request=<요청> 그 요청으로 AI 가 저장한 변경 - 시트면 바뀐 셀 {cells: [{tab, name, key, before, after}], count}.
@@ -110,6 +111,7 @@ import collab  # noqa: E402
 import deckdiff  # noqa: E402
 import deckmerge  # noqa: E402
 import proposals  # noqa: E402
+import deckops  # noqa: E402
 import sheet_struct  # noqa: E402
 import ledger  # noqa: E402
 import hub  # noqa: E402
@@ -207,6 +209,7 @@ def _remember(i, p, data, obj):
 # ---------- 병합 저장의 기준본(docs/collab.md 1단계) - 이 서버가 보여 주거나 쓴 판(버전 → 문서)을 덱마다 최근 BASE_KEEP 개 기억한다 ----------
 # 편집기·AI 가 PUT ?merge=1&base=<판> 으로 보내면 그 판을 기준본으로 3-way 병합한다(deckmerge.py). 없으면(서버 재시작 등) 409 - 데이터는 잃지 않는다
 BASES = {}     # deck → OrderedDict(버전 → 문서)
+OPS_MAX = 2000  # 작업 저장 한 번의 작업 수 상한(편집기는 200 개가 넘으면 PUT 으로 보낸다)
 BASE_KEEP = 40
 BASE_LOCK = threading.Lock()
 
@@ -1192,6 +1195,39 @@ class H(BaseHTTPRequestHandler):
             sys.stderr.write(f"ledger {action} {i}: {e}\n")
         _remember(i, p, data, deck)
         return seq
+
+    def api_post_ops(self, i, q):
+        """작업(op) 저장 - 편집기가 마지막 저장본 → 지금 문서의 차이(NexaMerge.ops)를 보낸다. 그 사이 다른 저장이 있었어도 지금 파일에 바로 얹는다
+        (남이 고친 다른 곳은 남고, 지운 요소를 고친 작업은 기준본에서 되살리고, 대상이 없으면 그 작업만 버린다). AI 저장은 사람 우선 병합이 필요해 PUT 만."""
+        b = self.body_json()
+        ops = b.get("ops") if isinstance(b, dict) else None
+        if not isinstance(ops, list) or not ops or len(ops) > OPS_MAX or any(not isinstance(o, dict) or not isinstance(o.get("op"), str) for o in ops):
+            return self.err(400, f"ops 목록 필요(1~{OPS_MAX}개)")
+        base = str(b.get("base") or "")
+        actor = {"label": (q.get("label") or [""])[0][:80], "tab": (self.headers.get("X-Nexa-Tab") or None), "note": ((q.get("note") or [""])[0][:200] or None)}
+        if self.user:
+            actor["user"] = self.user
+        with WRITE_LOCK:
+            p = deck_path(i)
+            if not p.exists():
+                return self.err(404, "덱 없음")
+            try:
+                detect(i, immediate=True)
+            except Exception as e:  # noqa: BLE001
+                sys.stderr.write(f"ledger detect {i}: {e}\n")
+            cur = ver(p)
+            _, now = _load(p)
+            if now is None:
+                return self.send_json({"ok": False, "error": "conflict", "version": cur}, 409)
+            bdoc = _base_doc(i, base) if base and base != cur else None  # 기준본 - 지운 요소·장을 되살릴 때만 쓴다
+            doc, n, dropped = deckops.apply(now, ops, base=bdoc)
+            if not isinstance(doc.get("slides"), list) or (doc.get("kind") == "sheet" and not doc.get("sheets")):
+                return self.err(400, "작업을 얹은 결과가 덱 형식이 아님")
+            seq = None
+            if doc != now:
+                ev = {"ops": {"base": base, "n": len(ops), "applied": n, "dropped": dropped[:20], "list": [deckops.label(o) for o in ops[:200]]}}
+                seq = self._save_doc(i, doc, "editor", "save", actor, ev)
+            self.send_json({"ok": True, "version": ver(p), "updated": doc.get("updated"), "seq": seq, "applied": n, "dropped": dropped, "stale": bool(base) and base != cur})
 
     def api_get_proposals(self, i, q):
         rid = (q.get("request") or [""])[0]

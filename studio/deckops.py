@@ -3,6 +3,7 @@
 
     diff(old, new)               마지막 저장본 → 지금 문서의 차이를 작업 목록으로 - apply(old, diff(old, new)) == new
     apply(doc, ops, base=None)   지금 파일에 작업을 차례로 → (문서, 적용 수, 버린 작업[{i, op, why}])
+    label(op)                    원장에 남길 한 줄(값은 빼고 어디를) - 서버 POST /api/ops 가 evidence.ops 에
 
 작업 단위는 병합 단위와 같다(deckmerge) - 슬라이드: 덱 속성 · 장(추가·삭제·순서·장 속성) · 요소(추가·삭제·순서·속성, 위치 x·y·w·h·rot 는 한 묶음 "geom").
 시트: 덱 속성 · 탭(추가·삭제·순서·탭 속성) · 셀 · 열 너비(cols)·행 높이(rows) 키. 값이 없어진 속성은 {"del": true}.
@@ -96,6 +97,11 @@ def diff(old, new):
             return r
         return o + _list_ops(a.get("elements"), b.get("elements"), s, "el", "add", "del", "order", el)
     return ops + _list_ops(old.get("slides"), new.get("slides"), {}, "slide", "slide-add", "slide-del", "slides-order", slide)
+
+
+def label(o):
+    """원장에 남길 작업 한 줄 - 값은 빼고 어디를(장·요소·탭·키)"""
+    return " ".join(str(o[k]) for k in ("op", "slide", "tab", "el", "key") if o.get(k) is not None)[:120]
 
 
 def _find(lst, i):
