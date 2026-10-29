@@ -20,7 +20,7 @@ API
                                      파일 버전을 0.5초마다 보므로 편집기 저장·AI 의 save_deck·요청 파일 Edit 가 곧바로 간다. 끊기면 그 탭의 presence 를 지운다
   GET  /api/proposals/<id>            AI 제안 목록(동시 편집 3단계 첫 조각, proposals.py) [{request, created, items: [{id, kind, title, detail}]}]
   POST /api/proposals/<id>            {action: create, request, deck, base?, baseDoc?} - save_deck --propose 가 남긴다(파일은 그대로)
-  POST /api/ops/<id>                  {base, ops} 작업(op) 저장(동시 편집 3-4, deckops.py) - 지금 파일에 작업을 바로 얹는다. {version, applied, dropped, seq}
+  POST /api/ops/<id>                  {base, ops} 작업(op) 저장(동시 편집 3-4, deckops.py) - 지금 파일에 작업을 바로 얹는다. {version, applied, dropped, seq, stale} · stale·dropped 면 결과 deck 도
                                      {action: accept, request, items?} - 고른 단위(없으면 전부)를 기준본에 얹어 지금 파일과 병합 저장(원장 action accept)
                                      {action: discard, request, items?} - 버리기
   GET  /api/reqdiff/<id>?request=<요청> 그 요청으로 AI 가 저장한 변경 - 시트면 바뀐 셀 {cells: [{tab, name, key, before, after}], count}.
@@ -1227,7 +1227,11 @@ class H(BaseHTTPRequestHandler):
             if doc != now:
                 ev = {"ops": {"base": base, "n": len(ops), "applied": n, "dropped": dropped[:20], "list": [deckops.label(o) for o in ops[:200]]}}
                 seq = self._save_doc(i, doc, "editor", "save", actor, ev)
-            self.send_json({"ok": True, "version": ver(p), "updated": doc.get("updated"), "seq": seq, "applied": n, "dropped": dropped, "stale": bool(base) and base != cur})
+            stale = bool(base) and base != cur
+            res = {"ok": True, "version": ver(p), "updated": doc.get("updated"), "seq": seq, "applied": n, "dropped": dropped, "stale": stale}
+            if stale or dropped:  # 파일이 보낸 쪽의 저장본+작업과 다르다 - 결과 문서를 같이 준다(PUT 병합의 deck 처럼). 판만 받으면 다음 PUT 병합이 남의 변경을 지운다(collab_sim --naive)
+                res["deck"] = doc
+            self.send_json(res)
 
     def api_get_proposals(self, i, q):
         rid = (q.get("request") or [""])[0]

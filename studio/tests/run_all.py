@@ -42,6 +42,7 @@ TESTS = [  # (이름, 실행, 설명, claude 필요)
     ("merge", [sys.executable, "deckmerge_test.py"], "덱·시트 3-way 병합(deckmerge, 동시 편집 1단계) - 요소·속성·셀 단위, 삭제 대 수정, 순서, 수식 계산값 골든", False),
     ("mergesave", [sys.executable, "merge_save_test.py"], "병합 저장(PUT ?merge=1·save_deck) - 편집기 둘·AI 대 사람(사람 우선)·원장 evidence·--no-merge 409·no-base·시트 셀", False),
     ("ops", [sys.executable, "deckops_test.py"], "작업(op) 저장(deckops, 동시 편집 3-4) - 저장본 → 지금 차이를 작업으로·남의 변경 위에 얹기(수정 > 삭제·되살리기·버리기) 골든 - 화면 nexa-merge.js 와 같음", False),
+    ("sim", [sys.executable, "collab_sim.py", "--seed", "1"], "다중 창 시뮬레이터(collab_sim, 동시 편집 3-5) - 창 3개가 무작위 편집을 작업 저장·PUT 병합으로 섞어 보내도 자기 몫을 잃지 않고 같은 문서로 모임(덱·시트)", False),
     ("autostart", [sys.executable, "autostart_test.py"], "허브 자동 시작(service.py autostart) - 로그온 시 실행 명령·worktree·작업 공간 거절(이 PC 설정은 바꾸지 않음)", False),
     ("struct", [sys.executable, "sheet_struct_test.py"], "시트 행·열 구조 작업(sheet_struct, 동시 편집 3-2) - 셀 키·병합·너비·틀 고정·수식 참조(열 전체·행 전체·H2#) 골든 - 화면 shiftAxis 와 같음(sheetstruct_test)", False),
     ("deploy", [sys.executable, "engine_deploy_test.py"], "엔진 배포(engine_deploy) - 계획·병합 커밋·push·적용됨·충돌 시 main 불변·겹치는 미커밋 변경·새 실패만 막는 시험 비교(임시 저장소)", False),
