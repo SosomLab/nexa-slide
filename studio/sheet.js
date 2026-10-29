@@ -805,17 +805,30 @@
     $("#grid").innerHTML = h.join("");
     renderMarks(); renderDrawings();
   }
-  /** 탭 그림(drawings) - 셀 at 의 왼쪽 위 + (dx, dy)px 에 w×h. 격자와 같이 움직이고 누르기는 통과(선택을 막지 않는다) */
+  /** 그림 id - drawings[].id, 없으면 파일 이름(가져온 그림 d02-01.png → d02-01), 그것도 없으면 순번(img3). 요청 대상(elements)에 쓴다 */
+  const drawId = (d, i) => String(d.id || (String(d.src || "").split("/").pop() || "").replace(/\.[^.]+$/, "") || "img" + (i + 1));
+  /** 고른 그림(이 탭) - 누르면 하나, Ctrl·Shift 로 더하기·빼기. 칸을 누르면 풀린다 */
+  function drawPick(id, add) {
+    const cur = S.drawSel || new Set();
+    if (add) { if (cur.has(id)) cur.delete(id); else cur.add(id); S.drawSel = cur; } else S.drawSel = new Set([id]);
+    if (!S.drawSel.size) S.drawSel = null;
+    markDrawings(); renderReqTarget();
+  }
+  function markDrawings() { $$("#draws img.drw").forEach((im) => im.classList.toggle("on", !!(S.drawSel && S.drawSel.has(im.dataset.did)))); }
+  /** 탭 그림(drawings) - 셀 at 의 왼쪽 위 + (dx, dy)px 에 w×h. 격자와 같이 움직이고, 누르면 그림 고르기(onGridDown) */
   function renderDrawings() {
     const sh = sheet(), out = [];
-    for (const d of sh.drawings || []) {
+    for (const [i, d] of (sh.drawings || []).entries()) {
       if (d.type && d.type !== "image") continue;
       const p = parseRef(d.at || "A1"); if (!p) continue;
       const x = (G.colX[Math.min(p.c, G.colX.length - 1)] || HW) + (+d.dx || 0), y = (G.rowY[Math.min(p.r, G.rowY.length - 1)] || HH) + (+d.dy || 0);
       const src = assetUrl(d.src); if (!src) continue;
-      out.push(`<img class="drw" src="${esc(src)}" alt="" draggable="false" style="left:${x}px;top:${y}px;width:${+d.w || 120}px;height:${+d.h || 60}px">`);
+      const id = drawId(d, i);
+      out.push(`<img class="drw" data-did="${esc(id)}" src="${esc(src)}" alt="${esc(d.alt || id)}" title="그림 ${esc(id)} - 누르면 고르기(Ctrl·Shift = 여럿) · 요청 대상" draggable="false" style="left:${x}px;top:${y}px;width:${+d.w || 120}px;height:${+d.h || 60}px">`);
     }
     const box = $("#draws"); box.innerHTML = out.join("");
+    if (S.drawSel) { const have = new Set((sh.drawings || []).map(drawId)); for (const id of [...S.drawSel]) if (!have.has(id)) S.drawSel.delete(id); if (!S.drawSel.size) S.drawSel = null; }
+    markDrawings();
     $$("img", box).forEach((i) => { i.onerror = () => { i.style.visibility = "hidden"; }; });
   }
   function rectOf(g) { return { x: G.colX[g.c1], y: G.rowY[g.r1], w: G.colX[g.c2 + 1] - G.colX[g.c1], h: G.rowY[g.r2 + 1] - G.rowY[g.r1] }; }
@@ -1359,7 +1372,7 @@
 
   function newTabId() { const ids = new Set(S.deck.sheets.map((s) => s.id)); for (let i = 1; ; i++) { const id = "t" + String(i).padStart(2, "0"); if (!ids.has(id)) return id; } }
   function newTabName() { const ns = new Set(S.deck.sheets.map((s) => s.name.toLowerCase())); for (let i = S.deck.sheets.length + 1; ; i++) if (!ns.has("sheet" + i)) return "Sheet" + i; }
-  function switchTab(i) { if (S.edit) endEdit(true); if (i === S.ti) return; S.ti = i; renderGrid(); renderTabs(); selectRange({ r1: 0, c1: 0, r2: 0, c2: 0 }); $("#gridWrap").scrollTo(0, 0); renderReqs(); focusGrid(); }
+  function switchTab(i) { if (S.edit) endEdit(true); if (i === S.ti) return; S.ti = i; S.drawSel = null; renderGrid(); renderTabs(); selectRange({ r1: 0, c1: 0, r2: 0, c2: 0 }); $("#gridWrap").scrollTo(0, 0); renderReqs(); focusGrid(); }
   /** 테마 페이지(표지·이력·…)를 새 탭으로 - {{자리}} 는 문서 정보(vars)로 채운다 */
   function addThemePage(pg) {
     mutate(() => {
@@ -1426,16 +1439,18 @@
   /** 요청의 탭 id - 후속 요청(parent)에 slide 가 없으면 뿌리 요청(thread)의 것 */
   const reqSlide = (q) => (RQ ? RQ.rootOf(q) : q).slide || null;
   async function loadReqs() { if (RQ) await RQ.load(); }
-  function reqTargetRange() { return $("#reqWhole").checked ? null : rangeName(clampRange(S.sel)); }
+  function reqTargetRange() { return $("#reqWhole").checked || S.drawSel ? null : rangeName(clampRange(S.sel)); }
+  const reqDraws = () => (S.drawSel && !$("#reqWhole").checked ? [...S.drawSel] : null);
+  const drawLabel = (ids) => (ids.length > 1 ? `그림 ${ids[0]} 외 ${ids.length - 1}` : `그림 ${ids[0]}`);
   function renderReqTarget() {
-    const t = reqTargetRange(); $("#reqTarget").textContent = `${sheet().name}${t ? "!" + t : " (탭 전체)"}`;
+    const t = reqTargetRange(), ds = reqDraws(); $("#reqTarget").textContent = `${sheet().name}${ds ? " · " + drawLabel(ds) : t ? "!" + t : " (탭 전체)"}`;
   }
   const typedKey = () => `typed-${NS}${S.id}/sheet`;
   const tabName = (sid) => { const s = S.deck && S.deck.sheets.find((x) => x.id === sid); return s ? s.name : sid || "?"; };
   /** 시트 대상 어댑터(RQ) - 탭 · 범위 */
   const SHEET_TARGET = {
     scope: "탭", key: (r) => r.slide, current: () => sheet().id, num: (r) => S.deck.sheets.findIndex((s) => s.id === r.slide) + 1,
-    label: (r) => `${tabName(r.slide)}${r.range ? "!" + r.range : " (탭 전체)"}`,
+    label: (r) => `${tabName(r.slide)}${r.elements && r.elements.length ? " · " + drawLabel(r.elements) : r.range ? "!" + r.range : " (탭 전체)"}`,
     goto: (r) => gotoReq(r),
     extra: (r) => aiDiffHtml(r),  // 완료된 요청 - AI 가 바꾼 셀 n개 · 보기 · 되돌리기
   };
@@ -1444,6 +1459,8 @@
     const root = RQ.rootOf(q); S.reqCur = q.id;
     const i = S.deck.sheets.findIndex((s) => s.id === root.slide); if (i >= 0 && i !== S.ti) switchTab(i);
     const g = parseRange(root.range); if (g) selectRange(clampRange(g)); else renderSel();
+    S.drawSel = root.elements && root.elements.length ? new Set(root.elements) : null; markDrawings(); renderReqTarget();
+    if (S.drawSel) { const im = $(`#draws img.drw[data-did="${CSS.escape(root.elements[0])}"]`); if (im) im.scrollIntoView({ block: "nearest", inline: "nearest" }); }
     renderReqs(); focusGrid();
   }
   function renderReqs() {
@@ -1464,6 +1481,7 @@
     if (S.dirty) await save();  // 세션이 지금 화면 내용을 보고 고치게 먼저 저장
     const body = { action: "add", status: "open", slide: sheet().id, text: text || "(첨부 참고)" };
     const rg = reqTargetRange(); if (rg) body.range = rg;
+    const ds = reqDraws(); if (ds) { body.elements = ds; body.element = ds[0]; }  // 고른 그림(슬라이드 요청의 element·elements 와 같은 칸) - 세션은 탭 drawings 에서 id(또는 파일 이름)로 찾는다
     const r = await RQ.add(body, "tab", { flush: true }); if (!r) return;
     $("#reqText").value = ""; LS.set(typedKey(), "");
     toast(RQ.connected() ? "요청을 세션에 보냈습니다" : "요청을 남겼습니다 - 세션이 연결되면 전달됩니다");
@@ -1615,6 +1633,9 @@
       addEventListener("mousemove", onMove); addEventListener("mouseup", onUp);
       return;
     }
+    const im = e.button === 0 && e.target.closest("#draws img.drw");
+    if (im) { e.preventDefault(); if (S.edit) endEdit(true); drawPick(im.dataset.did, e.ctrlKey || e.metaKey || e.shiftKey); focusGrid(); return; }  // 그림 고르기 - 칸 선택은 그대로
+    if (S.drawSel && !e.ctrlKey && !e.metaKey) { S.drawSel = null; markDrawings(); }  // 칸·머리를 누르면 그림 선택이 풀린다
     if (td && (e.ctrlKey || e.metaKey) && followCell(+td.dataset.r, +td.dataset.c)) { e.preventDefault(); return; }  // HYPERLINK 칸 - 엑셀은 그냥 클릭이지만 여기는 고르기·고치기가 먼저라 Ctrl
     if (S.edit) endEdit(true);
     e.preventDefault(); focusGrid();
