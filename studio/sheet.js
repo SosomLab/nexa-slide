@@ -922,6 +922,7 @@
       H.style.left = x + "px"; H.style.top = y + "px"; H.hidden = !!S.edit || (p.cx != null && x < p.cx) || (p.cy != null && y < p.cy);
     }
     const cb = $("#clipBox"); cb.hidden = !(S.clip && S.clip.ti === sh.id && S.clip.show); placeQ(cb, cb.hidden ? g : S.clip.g);
+    if (window.NexaSheetSide) NexaSheetSide.onPlace();  // 변경 표시(sheetside.js) - 선택 표시와 같은 좌표·틀 고정 규칙
   }
   function renderSel() {
     const sh = sheet(), g = clampRange(S.sel);
@@ -2179,6 +2180,6 @@
     x: { shiftAxis, G, sheet, key, parseRef, colHidden, rowHidden, rectOf, colIndex, parseRange, rangeName, colName, cellObj, putCell, mutate, renderAll, renderSel, selectRange, selectCell, clampRange, eachCell, toast, openMenu,
       endEdit, startEdit, focusGrid, pasteText, scrollIntoView, growSize, clone, ED, esc,
       // 패널 속성·기록·변경 탭(sheetside.js)
-      api, TAB, LS, FMTS, styleOf, defSize, rawText, normSheet, setupVba, place, drawId, drawPick, markDrawings, drawDelete, assetUrl, inRange, switchTab, save, snapshot, afterChange, setZoomRef: () => Z } };
+      api, TAB, LS, FMTS, paneOf, mergeAt, styleOf, defSize, rawText, normSheet, setupVba, place, drawId, drawPick, markDrawings, drawDelete, assetUrl, inRange, switchTab, save, snapshot, afterChange, setZoomRef: () => Z } };
   init();
 })();

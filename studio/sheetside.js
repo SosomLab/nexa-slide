@@ -295,11 +295,29 @@
     const all = marked(), m = all[x.sheet().id] || { cells: new Set(), draws: new Set() };
     let n = 0; for (const v of Object.values(all)) n += v.cells.size + v.draws.size;
     const c = $("#chgCnt"); if (c) { c.hidden = !n; c.textContent = n > 99 ? "99+" : String(n); c.title = `확인하지 않은 변경 - 셀·그림 ${n}개`; }
-    const out = [];
-    for (const k of m.cells) { if (out.length >= 800) break; const p = x.parseRef(k); if (!p || p.r >= x.G.rows || p.c >= x.G.cols || x.rowHidden(x.sheet(), p.r) || x.colHidden(x.sheet(), p.c)) continue; out.push(p); }
+    // 칸마다 범위(병합이면 병합 전체, 같은 병합은 한 번) - 놓기는 placeMarks(선택 표시와 같은 좌표·틀 고정 규칙)
+    const sh = x.sheet(), seen = new Set(), out = [];
+    for (const k of m.cells) {
+      if (out.length >= 800) break;
+      const p = x.parseRef(k); if (!p || p.r >= x.G.rows || p.c >= x.G.cols || x.rowHidden(sh, p.r) || x.colHidden(sh, p.c)) continue;
+      const g = x.mergeAt(sh, p.r, p.c) || { r1: p.r, c1: p.c, r2: p.r, c2: p.c }, id = x.rangeName(g);
+      if (!seen.has(id)) { seen.add(id); out.push(g); }
+    }
+    P.marks = out; P.markTab = sh.id;
     box.innerHTML = out.map(() => `<div class="cm"></div>`).join("");
-    [...box.children].forEach((el, i) => x.place(el, { r1: out[i].r, c1: out[i].c, r2: out[i].r, c2: out[i].c }));
+    placeMarks();
     $$("#draws img.drw").forEach((im) => im.classList.toggle("chg", m.draws.has(im.dataset.did)));
+  }
+  /** 변경 표시 놓기 - 지금 격자 좌표(rectOf)로, 틀 고정 칸은 스크롤을 따라가고 스크롤 쪽은 고정 칸 밑으로 가린다(sheet.js placeQ 와 같다) */
+  function placeMarks() {
+    const x = X(), box = $("#chgMarks"); if (!x || !box || !P.marks) return;
+    if (P.markTab !== x.sheet().id) return renderMarks();  // 탭이 바뀌었다 - 그 탭의 표시로
+    [...box.children].forEach((el, i) => {
+      const g = P.marks[i]; if (!g) return;
+      const R = x.rectOf(g), p = x.paneOf(g.r1, g.c1), X0 = R.x + p.dx, Y0 = R.y + p.dy, w = R.w + 1, h = R.h + 1;
+      const t = p.cy == null ? 0 : Math.max(0, p.cy - Y0), l = p.cx == null ? 0 : Math.max(0, p.cx - X0);
+      Object.assign(el.style, { left: X0 + "px", top: Y0 + "px", width: w + "px", height: h + "px", clipPath: t || l ? `inset(${t}px 0 0 ${l}px)` : "", visibility: t >= h || l >= w ? "hidden" : "" });
+    });
   }
   function renderChanges() {
     const S = N().S, box = $("#sp-chg"); if (!box || P.tab !== "chg") return;
@@ -366,6 +384,7 @@
   let started = false, lastVer = null;
   window.NexaSheetSide = {
     showTab, drawMenu, P, renderProps, loadChanges, restoreFrom,
+    onPlace() { if (started) placeMarks(); },
     onSel() { if (!started) return; renderProps(); const m = marked(), x = X(), cur = m[x.sheet().id]; $$("#draws img.drw").forEach((im) => im.classList.toggle("chg", !!(cur && cur.draws.has(im.dataset.did)))); },
     onRender() {
       if (!started && X() && N().S.deck) { started = true; init(); loadChanges(); }
