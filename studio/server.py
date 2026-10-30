@@ -2071,6 +2071,24 @@ class H(BaseHTTPRequestHandler):
             return {"ok": True, **hub.home(None if HUB else WORKSPACE, REFUSED)}
         self.hub_call(save, b)
 
+    def api_get_sheet_preview(self, _, q):
+        """시트 테마 미리 보기(시작 페이지 → sheet.html?preview=<키>) - ?key=engine:basic|ws:<이름>[&title=] → {deck, theme}, &f=<그림> → 그 그림.
+        파일을 쓰지 않는다. 허브·작업 공간 서버 둘 다(시작 페이지의 테마 목록과 같은 것). docs/sheets.md 5절."""
+        key, f = (q.get("key") or [""])[0], (q.get("f") or [None])[0]
+        if f is None:
+            return self.hub_call(hub.sheet_theme_preview, key, (q.get("title") or [""])[0], f"/api/sheet-preview?key={quote(key)}&f=")
+        try:
+            p = hub.sheet_theme_file(key, f)
+        except hub.HubError as e:
+            return self.err(404, str(e))
+        data = p.read_bytes()
+        self.send_response(200)
+        self.send_header("Content-Type", mimetypes.guess_type(str(p))[0] or "application/octet-stream")
+        self.send_header("Content-Length", str(len(data)))
+        self.send_header("Cache-Control", "no-store")
+        self.end_headers()
+        self.wfile.write(data)
+
     def api_get_fs(self, _, q):
         self.hub_call(hub.list_dir, (q.get("path") or [""])[0])
 

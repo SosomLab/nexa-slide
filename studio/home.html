@@ -202,6 +202,8 @@
   #busy.on { display: flex; }
   /* 미리 보기 - 실제로 빌드한 덱을 render.js 로 그린다 */
   #pvModal .modal { width: min(1180px, 100%); max-height: 92vh; height: 92vh; }
+  #spvModal .modal { width: min(1280px, 100%); max-height: 94vh; height: 94vh; }
+  #spvModal .mb { display: flex; }
   #pvModal .mh { flex-wrap: wrap; }
   #pvModal .mh select { width: auto; max-width: 260px; padding: 5px 9px; font-size: 13px; }
   .pv-decks { display: flex; gap: 6px; flex-wrap: wrap; margin: 0 0 10px; }
@@ -301,7 +303,8 @@
           </div>
           </div>
           <div id="sheetOpts" style="display:none">
-            <label class="f" style="margin:8px 0 4px">템플릿(시트 테마)</label>
+            <div class="row" style="justify-content:space-between;margin:8px 0 4px"><label class="f" style="margin:0">템플릿(시트 테마)</label>
+              <button type="button" class="chip sm" id="fSheetPreview" title="고른 시트 테마로 만들 첫 시트(표지·이력·개요·요약·상세목록)를 시트 화면 그대로 미리 봅니다">미리 보기</button></div>
             <div class="tpls" id="fSheetThemes"></div>
             <div class="hint" style="margin:4px 0 0">테마의 색·셀 스타일과 표지·이력·개요·요약·상세목록 페이지로 첫 시트를 만듭니다. 다른 작업 공간의 회사 테마(로고 포함)는 새 작업 공간으로 복사합니다.</div>
             <label class="f" style="margin:10px 0 4px">또는 엑셀 파일로 시작</label>
@@ -459,6 +462,11 @@
       <p class="lead">구성 예시가 들어 있는 시작 내용입니다. 새로 만들 때 "시작용 내용"에서 고릅니다.</p>
       <div class="cards" id="starterCards"></div>
     </div>
+    <div id="sheetThemeSec" style="display:none">
+      <h2 style="margin-top:28px">시트 테마</h2>
+      <p class="lead">시트(엑셀) 문서의 템플릿입니다 - 색·셀 스타일·글꼴과 표지·이력·개요·요약·상세목록 페이지. 새 시트를 만들 때 고릅니다.</p>
+      <div class="cards" id="sheetThemeCards"></div>
+    </div>
   </section>
 
   <!-- ===== 샘플 ===== -->
@@ -571,6 +579,15 @@
   <div class="mb" id="pvBody"></div>
   <div class="mf"><span class="hint" id="pvInfo" style="margin-right:auto"></span>
     <button type="button" class="chip" data-close>닫기</button><button type="button" class="chip primary" id="pvUse">이 조합으로 만들기</button></div>
+</div></div>
+<!-- 시트 테마 미리 보기 - 시트 화면(sheet.html?preview=<키>)을 창 안에. 고쳐 볼 수 있지만 저장되지 않는다(docs/sheets.md 5절) -->
+<div class="modal-back" id="spvModal"><div class="modal">
+  <div class="mh" style="flex-wrap:wrap;gap:6px 10px"><h3 style="margin-right:auto">시트 테마 미리 보기</h3>
+    <label class="hint" style="margin:0">테마 <select id="spvTheme"></select></label>
+    <button type="button" class="ib" data-close>✕</button></div>
+  <div class="mb" style="padding:0 12px"><iframe id="spvFrame" title="시트 테마 미리 보기" style="width:100%;height:100%;border:1px solid var(--line);border-radius:10px;background:#fff"></iframe></div>
+  <div class="mf"><span class="hint" id="spvInfo" style="margin-right:auto"></span>
+    <button type="button" class="chip" data-close>닫기</button><button type="button" class="chip primary" id="spvUse">이 테마로 새 시트</button></div>
 </div></div>
 <!-- 회사 템플릿 만들기(마법사) - 색 5개·로고·글꼴 → 작업 공간 templates/<이름>/ (docs/templates.md) -->
 <div class="modal-back" id="wzModal"><div class="modal">
@@ -1470,7 +1487,38 @@
     $("#starterCards").innerHTML = d.starters.map((s) => `<div class="card tcard"><h3 style="margin:0">${esc(I18N.pick(s, "label"))}</h3><small class="hint" style="margin:0">${esc(s.name)}${s.template ? ` · 템플릿 ${esc(s.template)}` : ""}</small>
       <p>${esc(I18N.pick(s, "description"))}</p><div class="acts"><button type="button" class="chip sm primary" data-starter="${esc(s.name)}">이 내용으로 시작</button>
       <button type="button" class="chip sm" data-pv-starter="${esc(s.name)}">${icon("eye", 13)} 미리 보기</button></div></div>`).join("");
+    const ts = d.sheetThemes || [];
+    $("#sheetThemeSec").style.display = ts.length ? "" : "none";
+    $("#sheetThemeCards").innerHTML = ts.map((t) => `<div class="card tcard"><div class="sw">${(t.swatches || []).map((c) => `<i style="background:${esc(c)}"></i>`).join("")}</div>
+      <h3 style="margin:0">${esc(t.label)}${t.source === "engine" ? "" : ' <span class="badge ok">작업 공간</span>'}</h3><small class="hint" style="margin:0">${esc(t.name)}${t.source === "engine" ? " · 엔진 기본" : ` · ${esc(t.wsTitle)}${t.logo ? " · 로고" : ""}`}${t.font ? ` · ${esc(t.font)}` : ""}</small>
+      <p>${esc((t.pages || []).join(" · "))}</p>
+      <div class="acts"><button type="button" class="chip sm primary" data-sth-use="${esc(t.key)}">이 테마로 새 시트</button>
+      <button type="button" class="chip sm" data-sth-pv="${esc(t.key)}">${icon("eye", 13)} 미리 보기</button></div></div>`).join("");
   }
+  // ---------- 시트 테마 미리 보기 ----------
+  // 서버가 새 시트와 같은 탭을 파일 없이 만들고(/api/sheet-preview) 시트 화면이 미리 보기 판(저장·요청 없음)으로 그린다 - 격자·서식·그림이 실제 시트와 같다
+  function openSheetPreview(key) {
+    const ts = (H.home && H.home.sheetThemes) || []; if (!ts.length) return;
+    const t = ts.find((x) => x.key === key) || ts.find((x) => x.key === H.sheetTheme) || ts[0];
+    $("#spvTheme").innerHTML = ts.map((x) => `<option value="${esc(x.key)}">${esc(x.label)}${x.source === "engine" ? "" : ` · ${esc(x.wsTitle)}`}</option>`).join("");
+    $("#spvTheme").value = t.key;
+    $("#spvModal").classList.add("on");
+    loadSheetPreview();
+  }
+  function loadSheetPreview() {
+    const key = $("#spvTheme").value, t = ((H.home && H.home.sheetThemes) || []).find((x) => x.key === key) || {};
+    const title = (H.kind === "sheet" && $("#fTitle").value.trim()) || "";
+    $("#spvFrame").src = `/studio/sheet.html?preview=${encodeURIComponent(key)}${title ? `&title=${encodeURIComponent(title)}` : ""}`;
+    $("#spvInfo").textContent = `${t.label || key} · ${(t.pages || []).length}페이지 - 아래 탭으로 페이지를 넘깁니다. 고쳐 볼 수 있지만 저장되지 않습니다`;
+  }
+  $("#spvTheme").addEventListener("change", loadSheetPreview);
+  function useSheetTheme(key) { H.sheetTheme = key; setKind("sheet"); renderSheetThemes(); location.hash = "new-sheet"; schedulePlan(); }
+  $("#spvUse").onclick = () => { closeModals(); useSheetTheme($("#spvTheme").value); };
+  $("#fSheetPreview").onclick = () => openSheetPreview(H.sheetTheme);
+  document.addEventListener("click", (e) => {
+    const p = e.target.closest("[data-sth-pv]"); if (p) { openSheetPreview(p.dataset.sthPv); return; }
+    const u = e.target.closest("[data-sth-use]"); if (u) useSheetTheme(u.dataset.sthUse);
+  });
   document.addEventListener("click", (e) => {
     const u = e.target.closest("[data-use]");
     if (u) { pickTpl(u.dataset.use); renderTpls(); location.hash = "new"; }
