@@ -91,7 +91,7 @@ def report(lane, out, err):
             seen.add(name)
             print(f"-- {name} ({l.split()[-1]})")
             for b in buf:
-                print("  " + b[:160])
+                print("  " + (b if b.startswith("FAIL") else b[:160]))  # 실패 줄은 사유까지 그대로
             check(f"시나리오 {Path(name).stem}", verdict == "OK", "\n".join(b for b in buf if b.startswith("FAIL"))[-400:])
             buf = []
         elif l.startswith(("OK", "FAIL", "==")):
