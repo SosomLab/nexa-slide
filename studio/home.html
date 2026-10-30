@@ -66,6 +66,10 @@
   .row { display: flex; gap: 8px; align-items: center; }
   .row > input { flex: 1; min-width: 0; width: auto; }
   .hint { color: var(--ink2); font-size: 12px; margin-top: 4px; }
+  .tpl .rec { color: var(--p); font-weight: 700; }
+  .tpl.tpl-more { border-style: dashed; text-align: center; display: flex; flex-direction: column; justify-content: center; }
+  .tpl-tabmore { grid-column: 1 / -1; gap: 10px; align-items: center; margin-top: 4px; }
+  .tcard .rec-why { margin: 6px 0 0; font-size: 11.5px; }
   .tpls { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px; }
   .tpl { border: 1.5px solid var(--line); border-radius: 12px; padding: 10px 12px; cursor: pointer; background: var(--card); text-align: left; }
   .tpl:hover { border-color: var(--ink2); }
@@ -747,14 +751,50 @@
       rd.readAsDataURL(f);
     });
   }
+  // ---------- 템플릿 추천 - 맨 위 7개(+ 회사 템플릿 만들기), [더 보기] 로 전체 ----------
+  // 점수(hub.template_rec): 그 템플릿으로 만든 작업 공간 ×10(높음) · 미리 보기 횟수 ×3(중간) · 그 둘과 비슷한 색 ×2(낮음).
+  // 1 + 점수를 무게로 7개를 뽑아 점수 순으로 - 페이지를 새로 고칠 때마다 다시 뽑는다. 색이 거의 같은 템플릿(rec.dup 같은 묶음)은 하나만
+  const REC_N = 7;
+  const recScore = (t) => (t && t.rec && t.rec.score) || 0;
+  function recPick() {
+    const ts = H.home.templates.filter((t) => !t.workspace);
+    if (H.rec && H.rec.every((n) => ts.some((t) => t.name === n))) return H.rec;
+    const pool = ts.slice(), out = [], groups = new Set();
+    while (out.length < REC_N) {
+      const cand = pool.filter((t) => !groups.has((t.rec && t.rec.dup) || t.name)); if (!cand.length) break;
+      let x = Math.random() * cand.reduce((a, t) => a + 1 + recScore(t), 0), pick = cand[cand.length - 1];
+      for (const t of cand) { x -= 1 + recScore(t); if (x <= 0) { pick = t; break; } }
+      out.push(pick); groups.add((pick.rec && pick.rec.dup) || pick.name); pool.splice(pool.indexOf(pick), 1);
+    }
+    H.rec = out.sort((a, b) => recScore(b) - recScore(a)).map((t) => t.name);
+    return H.rec;
+  }
+  function recWhy(t) {
+    const r = t.rec || {}, w = [];
+    if (r.used) w.push(`만든 작업 공간 ${r.used}개`);
+    if (r.preview) w.push(`미리 보기 ${r.preview}회`);
+    if (r.like && r.sim >= 0.5) w.push(`${r.like} 와 비슷한 색`);
+    return w.length ? `추천 - ${w.join(" · ")} (점수 ${r.score})` : "추천 - 새로 둘러보기";
+  }
+  /** 보일 엔진 템플릿 - 추천 7개(고른 템플릿이 그 밖이면 마지막 자리에) 또는 [더 보기] 면 전체 */
+  function shownTpls(all, keep) {
+    const ts = H.home.templates.filter((t) => !t.workspace);
+    if (all) return ts;
+    const names = recPick().slice();
+    if (keep && ts.some((t) => t.name === keep) && !names.includes(keep)) names[names.length - 1] = keep;
+    return names.map((n) => ts.find((t) => t.name === n)).filter(Boolean);
+  }
+  const moreBtn = (all, attr, n) => `<button type="button" class="tpl tpl-more" ${attr} title="${all ? "추천 7개만 보기" : "맨 위 7개는 추천 - 만든 작업 공간(높음)·미리 보기(중간)·그와 비슷한 색(낮음)으로 점수를 매겨 새로 고칠 때마다 다시 뽑습니다"}"><b>${all ? "추천만 보기" : "더 보기"}</b><small>${all ? `추천 ${REC_N}개` : `전체 ${n}개`}</small></button>`;
   function renderTpls() {
     const d = H.home;
     const wizOn = !!(H.wiz && H.wiz.on);  // 마법사로 골라 둔 회사 템플릿(작업 공간을 만들 때 함께 만든다) - 엔진 템플릿 카드 뒤에
-    $("#fTpls").innerHTML = d.templates.filter((t) => !t.workspace).map((t) => `<button type="button" class="tpl${t.name === H.tpl && !wizOn ? " on" : ""}" data-tpl="${esc(t.name)}">
-      <div class="sw">${t.swatches.map((c) => `<i style="background:${c}"></i>`).join("")}</div><b>${esc(I18N.pick(t, "label"))}</b><small>${esc(t.name)}</small></button>`).join("") +
+    const rec = new Set(recPick()), n = d.templates.filter((t) => !t.workspace).length;
+    $("#fTpls").innerHTML = shownTpls(H.tplAll, H.tpl).map((t) => `<button type="button" class="tpl${t.name === H.tpl && !wizOn ? " on" : ""}" data-tpl="${esc(t.name)}" title="${esc(rec.has(t.name) ? recWhy(t) : "")}">
+      <div class="sw">${t.swatches.map((c) => `<i style="background:${c}"></i>`).join("")}</div><b>${esc(I18N.pick(t, "label"))}</b><small>${esc(t.name)}${rec.has(t.name) ? ' · <span class="rec">추천</span>' : ""}</small></button>`).join("") +
       (H.wiz ? `<button type="button" class="tpl wz-sel${wizOn ? " on" : ""}" data-tpl="__wiz"><div class="sw">${H.wiz.swatches.map((c) => `<i style="background:${c}"></i>`).join("")}</div>
         <b>${esc(H.wiz.body.label)}</b><small>${esc(H.wiz.body.name)} · ${esc(H.wiz.body.base)} 바탕 · 만들 때 함께</small></button>` : "") +
-      `<button type="button" class="tpl wz-add" data-wz="new"><b>＋ 회사 템플릿 만들기</b><small>색 5개 · 로고 PNG · 글꼴</small></button>`;
+      `<button type="button" class="tpl wz-add" data-wz="new"><b>＋ 회사 템플릿 만들기</b><small>색 5개 · 로고 PNG · 글꼴</small></button>` +
+      (n > REC_N ? moreBtn(H.tplAll, "data-tplmore", n) : "");
     if (d.starters.length) {
       $("#starterBox").style.display = "";
       const cur = $("#fStarter").value;  // 템플릿을 다시 그려도 고른 시작용 내용은 그대로(목록을 새로 만들면 첫 항목으로 돌아간다)
@@ -767,7 +807,10 @@
     if (name === "__wiz") { if (H.wiz) { H.wiz.on = true; H.tpl = H.wiz.body.base; } }
     else { H.tpl = name; if (H.wiz) H.wiz.on = false; }
   }
-  $("#fTpls").addEventListener("click", (e) => { const b = e.target.closest("[data-tpl]"); if (!b) return; pickTpl(b.dataset.tpl); renderTpls(); schedulePlan(); });
+  $("#fTpls").addEventListener("click", (e) => {
+    if (e.target.closest("[data-tplmore]")) { H.tplAll = !H.tplAll; renderTpls(); return; }
+    const b = e.target.closest("[data-tpl]"); if (!b) return; pickTpl(b.dataset.tpl); renderTpls(); schedulePlan();
+  });
   $("#fKind").addEventListener("click", (e) => { const b = e.target.closest("[data-kind]"); if (!b) return; setKind(b.dataset.kind); schedulePlan(); });
   $("#fSheetThemes").addEventListener("click", (e) => { const b = e.target.closest("[data-sth]"); if (!b) return; H.sheetTheme = b.dataset.sth; renderSheetThemes(); schedulePlan(); });
   $("#fMaterials").addEventListener("paste", (e) => { const fs = [...((e.clipboardData && e.clipboardData.items) || [])].filter((it) => it.kind === "file").map((it) => it.getAsFile()).filter(Boolean); if (fs.length) { e.preventDefault(); nUpload(fs); } });
@@ -1497,13 +1540,15 @@
       <h3 style="margin:0">＋ 회사 템플릿 만들기</h3><small class="hint" style="margin:0">색 5개 · 로고 PNG · 글꼴</small>
       <p>회사 색과 로고로 템플릿을 만들어 작업 공간 <code>templates/&lt;이름&gt;/</code> 에 둡니다(기반 템플릿의 색만 바꿈 - 엔진에는 아무것도 넣지 않습니다).</p>
       <div class="acts"><button type="button" class="chip sm primary" data-wz="tab">만들기</button></div></div>` +
-      d.templates.map((t) => `<div class="card tcard">${preview(t)}
+      [...shownTpls(H.tabAll), ...d.templates.filter((t) => t.workspace)].map((t) => `<div class="card tcard">${preview(t)}
       <div class="sw">${t.swatches.map((c) => `<i style="background:${c}"></i>`).join("")}</div>
       <h3 style="margin:0">${esc(I18N.pick(t, "label"))}${t.workspace ? ' <span class="badge ok">작업 공간</span>' : ""}</h3><small class="hint" style="margin:0">${esc(t.name)}${t.extends ? ` · ${esc(t.extends)} 바탕` : ""}</small>
       <p>${esc(I18N.pick(t, "description"))}</p>
       <div class="acts">${t.workspace ? "" : `<button type="button" class="chip sm primary" data-use="${esc(t.name)}">이 템플릿으로 만들기</button>`}
       <button type="button" class="chip sm" data-pv-tpl="${esc(t.name)}">${icon("eye", 13)} 미리 보기</button>
-      ${t.concept ? `<a class="chip sm" href="${esc(t.concept)}" target="_blank" rel="noopener">디자인 기준 ${icon("ext", 13)}</a>` : ""}</div></div>`).join("");
+      ${t.concept ? `<a class="chip sm" href="${esc(t.concept)}" target="_blank" rel="noopener">디자인 기준 ${icon("ext", 13)}</a>` : ""}</div>${!t.workspace && !H.tabAll ? `<div class="hint rec-why">${esc(recWhy(t))}</div>` : ""}</div>`).join("") +
+      (d.templates.filter((t) => !t.workspace).length > REC_N ? `<div class="row tpl-tabmore"><button type="button" class="chip" data-tabmore>${H.tabAll ? `추천 ${REC_N}개만 보기` : `더 보기 (전체 ${d.templates.filter((t) => !t.workspace).length}개)`}</button>
+        <span class="hint" style="margin:0">맨 위 ${REC_N}개는 추천 - 만든 작업 공간(높음) · 미리 보기(중간) · 그와 비슷한 색(낮음)으로 점수를 매기고 새로 고칠 때마다 다시 뽑습니다(색이 거의 같은 템플릿은 하나만)</span></div>` : "");
     $("#starterSec").style.display = d.starters.length ? "" : "none";
     $("#starterCards").innerHTML = d.starters.map((s) => `<div class="card tcard"><h3 style="margin:0">${esc(I18N.pick(s, "label"))}</h3><small class="hint" style="margin:0">${esc(s.name)}${s.template ? ` · 템플릿 ${esc(s.template)}` : ""}</small>
       <p>${esc(I18N.pick(s, "description"))}</p><div class="acts"><button type="button" class="chip sm primary" data-starter="${esc(s.name)}">이 내용으로 시작</button>
@@ -1541,6 +1586,7 @@
     const u = e.target.closest("[data-sth-use]"); if (u) useSheetTheme(u.dataset.sthUse);
   });
   document.addEventListener("click", (e) => {
+    if (e.target.closest("[data-tabmore]")) { H.tabAll = !H.tabAll; renderTemplates(); return; }
     const u = e.target.closest("[data-use]");
     if (u) { pickTpl(u.dataset.use); renderTpls(); location.hash = "new"; }
     const s = e.target.closest("[data-starter]");

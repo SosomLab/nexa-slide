@@ -122,6 +122,21 @@ python3 <작업 공간>/nexa.py start      # 작업 공간 서버 → 덱이 있
 - 관리자 조작: 승인(`triage`→`open`) · 거절 · **적용됨**(`engine-dev` 를 main 에 병합하고 허브·작업 공간 서버를 재시작한 **뒤**에 표시 — 병합과 재시작은 사람이, [server-admin.md](server-admin.md)) · 삭제.
 - 큐·세션 상태·로그는 사용자 설정 폴더 `hub/engine/`(저장소 밖). API: `GET /api/engine`(+`startRequest`·`sessionOff`·첨부), `GET/POST /api/engine/requests`(`add`·`status`·`priority`·`remove`·`startRequest`), `GET/POST /api/engine/session`(+`/events`·`/log`), `POST /api/engine/attach` · `GET /api/engine/attach/<id>/<파일>`.
 
+### 템플릿 추천 (0.25.15)
+
+새 슬라이드 양식 ①의 템플릿 격자와 템플릿 탭은 맨 위에 **추천 7개 + ＋ 회사 템플릿 만들기**만 보이고, **[더 보기 (전체 n개)]** 로 전체 목록을 편다([추천만 보기]로 접는다).
+
+| 기준 | 배점 | 근거 |
+|---|---|---|
+| 사용 | 높음 - 작업 공간 1개당 10 | 최근 작업 목록에서 그 템플릿으로 만든 작업 공간 수(회사 템플릿은 바탕 엔진 템플릿으로 센다) |
+| 확인 | 중간 - 미리 보기 1회당 3(최대 10회) | `GET /api/preview?template=` 횟수 - 사용자 설정 폴더 `hub/template-stats.json` |
+| 비슷함 | 낮음 - 최대 2 | 쓰거나 본 템플릿 중 가장 닮은 것과의 색 유사도(앞 견본 3개의 RGB 거리, 0.5 이상부터) |
+
+- 화면은 `1 + 점수` 를 무게로 7개를 뽑아 점수 순으로 놓는다. 그래서 **페이지를 새로 고칠 때마다** 추천이 바뀐다(기록이 없으면 고르게 섞인다).
+- 중복: 색 견본이 거의 같은 템플릿(유사도 0.95 이상, 예: lecture · lecture-large)은 같은 묶음(`rec.dup`)이라 한 번에 하나만 나온다.
+- 고른 템플릿이 추천 밖이면 마지막 자리에 넣어 보인다. 카드에는 추천 이유(만든 작업 공간·미리 보기 횟수·닮은 템플릿)가 붙는다.
+- 계산은 `hub.template_rec`(시작 페이지 데이터 `templates[].rec`), 뽑기는 `home.html recPick`.
+
 ### 미리 보기
 
 템플릿 카드·시작용 내용 카드·새로 만들기 양식의 **미리 보기**는 고른 템플릿 × 내용으로 만든 슬라이드를 창에 보여 준다.

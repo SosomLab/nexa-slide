@@ -1,0 +1,24 @@
+{
+ "base": "http://127.0.0.1:5667",
+ "ignoreErrors": "api/engine( |$)",
+ "pages": [
+  {
+   "url": "/studio/home.html#new",
+   "wait": 1500,
+   "steps": [
+    {
+     "name": "새 슬라이드 양식 템플릿 - 추천 7개 + 회사 템플릿 만들기 + 더 보기, 색이 같은 lecture·lecture-large 는 함께 나오지 않는다",
+     "js": "await until(async () => (document.querySelectorAll('#fTpls [data-tpl]').length), 8000); const g=document.querySelector('#fTpls'); const names=[...g.querySelectorAll('[data-tpl]')].map(b=>b.dataset.tpl).filter(n=>n!=='__wiz'); const wz=g.querySelector('.wz-add'), more=g.querySelector('[data-tplmore]'); const recs=g.querySelectorAll('.rec').length, dup=names.includes('lecture') && names.includes('lecture-large'); const total=(await (await fetch('/api/home')).json()).templates.filter(t=>!t.workspace).length; return names.length===7 && recs>=6 && wz && more && !dup && /전체 /.test(more.textContent) && total>7 ? true : JSON.stringify({names,recs,dup,total,more:more&&more.textContent})"
+    },
+    {
+     "name": "[더 보기] - 전체 목록, [추천만 보기] - 다시 7개 · 고른 템플릿은 추천 밖이어도 보인다",
+     "js": "const g=document.querySelector('#fTpls'); g.querySelector('[data-tplmore]').click(); const all=g.querySelectorAll('[data-tpl]:not([data-tpl=\"__wiz\"])').length; const rec=[...g.querySelectorAll('.rec')].map(e=>e.closest('[data-tpl]').dataset.tpl); const out=[...g.querySelectorAll('[data-tpl]')].map(b=>b.dataset.tpl).find(n=>n!=='__wiz' && !rec.includes(n)); g.querySelector(`[data-tpl=\"${out}\"]`).click(); g.querySelector('[data-tplmore]').click(); const back=[...g.querySelectorAll('[data-tpl]')].map(b=>b.dataset.tpl); const on=g.querySelector('.tpl.on'); return all>7 && back.length===7 && back.includes(out) && on && on.dataset.tpl===out ? true : JSON.stringify({all,out,back})"
+    },
+    {
+     "name": "템플릿 탭 - 회사 템플릿 만들기 + 추천 7개(추천 이유) + [더 보기 (전체 n개)]",
+     "js": "location.hash='templates'; await until(async () => (document.querySelector('[data-tabmore]')), 8000); const c=document.querySelector('#tplCards'); const n0=c.querySelectorAll('[data-pv-tpl]').length, why=c.querySelectorAll('.rec-why').length; c.querySelector('[data-tabmore]').click(); const n1=c.querySelectorAll('[data-pv-tpl]').length; c.querySelector('[data-tabmore]').click(); const n2=c.querySelectorAll('[data-pv-tpl]').length; return n0===7 && why===7 && n1>7 && n2===7 && c.querySelector('[data-wz=\"tab\"]') ? true : JSON.stringify({n0,why,n1,n2})"
+    }
+   ]
+  }
+ ]
+}
