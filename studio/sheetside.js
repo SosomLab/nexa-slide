@@ -9,7 +9,7 @@
   const N = () => window.NexaSheet, X = () => window.NexaSheet && window.NexaSheet.x;
   const $ = (s, r = document) => r.querySelector(s), $$ = (s, r = document) => [...r.querySelectorAll(s)];
   const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
-  const P = { tab: "reqs", changes: [], recent: [], latest: 0, keep: 0, more: false, ver: null, filter: "all", info: false, shown: new Set(), hidden: new Set(), off: false, loaded: false, pend: false };
+  const P = { tab: "reqs", changes: [], recent: [], latest: 0, keep: 0, more: false, ver: null, filter: "all", info: false, shown: new Set(), hidden: new Set(), open: new Set(), off: false, loaded: false, pend: false };
 
   // ---------------------------------------------------------------- 패널 탭
   function showTab(t) {
@@ -353,7 +353,20 @@
       <button class="chip sm chg-tg" data-chg-tg="${g.seq}" title="이 묶음의 변경을 격자에 파란 점선으로 ${on ? "그만 표시" : "표시"}">${on ? "숨기기" : "표시"}</button></div>` +
       (g.items || []).map((it) => `<div class="chg-it${it.gone ? " gone" : ""}" ${it.gone ? "" : `data-csid="${esc(it.sid)}"`}>
         <span class="k ${kcls[it.kind] || ""}">${esc(it.kind)}</span> <b>${esc(it.title || it.sid)}</b>${it.moved ? ` <span class="hint">(순서 ${it.moved[0]} → ${it.moved[1]})</span>` : ""}${it.extra && it.extra.length ? ` <span class="hint">· ${esc(it.extra.join("·"))}</span>` : ""}${it.truncated ? ` <span class="hint">· ${it.truncated}개 더</span>` : ""}
-        ${(it.els || []).slice(0, 60).map((e) => `<div class="chg-el${e.gone ? " gone" : ""}" ${e.gone ? "" : `data-cel="${esc(e.id)}"`}><code>${esc(e.id)}</code> ${esc((e.kinds || []).join("·"))}${e.before || e.after ? `<div class="chg-tx">${e.before ? `<s>${esc(e.before)}</s>` : ""}${e.before && e.after ? " → " : ""}${e.after ? `<span>${esc(e.after)}</span>` : ""}</div>` : ""}</div>`).join("")}${(it.els || []).length > 60 ? `<div class="hint" style="margin-left:14px">… ${(it.els || []).length - 60}개 더</div>` : ""}</div>`).join("") + `</div>`;
+        ${elsHtml(g, it)}</div>`).join("") + `</div>`;
+  }
+  /** 항목의 셀·그림 목록 - FOLD 개보다 많으면 접어서 종류별 개수 + 앞 FOLD 개만, 펼치면 최대 MAXEL 개(P.open 에 펼친 항목) */
+  const FOLD = 6, MAXEL = 200;
+  function elsHtml(g, it) {
+    const els = it.els || [], key = `${g.seq}|${it.sid}`, open = P.open.has(key);
+    const row = (e) => `<div class="chg-el${e.gone ? " gone" : ""}" ${e.gone ? "" : `data-cel="${esc(e.id)}"`}><code>${esc(e.id)}</code> ${esc((e.kinds || []).join("·"))}${e.before || e.after ? `<div class="chg-tx">${e.before ? `<s>${esc(e.before)}</s>` : ""}${e.before && e.after ? " → " : ""}${e.after ? `<span>${esc(e.after)}</span>` : ""}</div>` : ""}</div>`;
+    if (els.length <= FOLD) return els.map(row).join("");
+    const by = new Map(); for (const e of els) for (const k of e.kinds || ["변경"]) by.set(k, (by.get(k) || 0) + 1);
+    const rest = els.length - FOLD + (it.truncated || 0);
+    const bar = `<div class="chg-fold"><span class="hint">${[...by].map(([k, n]) => `${esc(k)} <b>${n}</b>`).join(" · ")}</span><button class="chip sm" data-chg-fold="${esc(key)}" title="${open ? "앞 " + FOLD + "개만 보기" : "셀·그림 목록 모두 보기"}">${open ? "접기" : `펼치기 · ${rest}개 더`}</button></div>`;
+    const shown = open ? els.slice(0, MAXEL) : els.slice(0, FOLD);
+    return bar + shown.map(row).join("") + (open && els.length > MAXEL ? `<div class="hint" style="margin-left:14px">… ${els.length - MAXEL}개 더</div>` : "")
+      + (open ? `<div class="chg-fold end"><button class="chip sm" data-chg-fold="${esc(key)}">접기</button></div>` : "");
   }
   function redraw() { renderChanges(); renderMarks(); }
   async function onChgClick(e) {
@@ -374,6 +387,14 @@
     if (t.closest("[data-chg-recent]")) { P.changes.slice(0, 3).forEach((g) => { P.hidden.delete(g.seq); P.shown.add(g.seq); }); return redraw(); }
     if (t.closest("[data-chg-off]")) { P.off = !P.off; x.LS.set("sheetChgOff", P.off ? "1" : ""); if (P.off && x.ai.hl()) x.ai.show(null, false); return redraw(); }
     if (t.closest("[data-chg-more]")) return loadChanges(true);
+    const fd = t.closest("[data-chg-fold]");
+    if (fd) {  // 항목 셀 목록 접기·펼치기 - 접으면 그 항목 머리가 보이게
+      const k = fd.dataset.chgFold;
+      if (!P.open.delete(k)) P.open.add(k);
+      renderChanges();
+      if (!P.open.has(k)) { const n = [...$$("#sp-chg [data-chg-fold]")].find((b) => b.dataset.chgFold === k), h = n && n.closest(".chg-it"); if (h) h.scrollIntoView({ block: "nearest" }); }
+      return;
+    }
     const rs = t.closest("[data-chg-restore]"); if (rs) { await restoreFrom(rs.dataset.chgRestore, rs.dataset.chgAt); return; }
     const tg = t.closest("[data-chg-tg]");
     if (tg) {
