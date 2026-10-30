@@ -329,17 +329,27 @@
         <button class="chg-ibtn${P.info ? " on" : ""}" data-chg-info="1" title="설명 보기/숨기기"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9.5"/><path d="M12 11v6"/><circle cx="12" cy="7.5" r=".6" fill="currentColor"/></svg></button></div>
       ${P.info ? `<div class="hint chg-info">이 화면·다른 창·AI·외부에서 시트가 바뀔 때마다 서버가 원장(최근 ${P.keep || 1000}건)에 셀·그림 단위로 남깁니다. 항목을 누르면 그 탭·셀로 갑니다. 확인하지 않은 변경(내 편집 포함)은 격자에 파란 점선으로 표시하고, "확인함"은 지금까지를 미표시로, "최근 3개 표시"는 최근 묶음 3개를 표시, "표시 끄기"는 모든 표시를 감춥니다. 되돌리기는 백업(최근 50개)이 남아 있을 때만.</div>` : ""}
       <div class="chg-fil">${F.map(([k, l, t]) => `<button data-chgf="${k}" class="${P.filter === k ? "on" : ""}" title="${esc(t)}">${l}${cnt(k) ? ` <b>${cnt(k)}</b>` : ""}</button>`).join("")}</div>
-      <div class="chg-acts"><button class="chip sm" data-chg-seen="1" title="최근 변경까지 확인한 것으로 - 모든 묶음을 미표시로">확인함</button><button class="chip sm" data-chg-recent="1" title="가장 최근 변경 묶음 3개를 표시(내 편집 포함)">최근 3개 표시</button><button class="chip sm${P.off ? " on" : ""}" data-chg-off="1" title="변경 기록을 보지 않고 작업 - 점선을 모두 감춘다">${P.off ? "표시 켜기" : "표시 끄기"}</button></div></div>
+      ${aiBar()}
+      <div class="chg-acts"><button class="chip sm" data-chg-seen="1" title="최근 변경까지 확인한 것으로 - 모든 묶음을 미표시로(AI 변경 초록 표시도 끈다)">확인함</button><button class="chip sm" data-chg-recent="1" title="가장 최근 변경 묶음 3개를 표시(내 편집 포함)">최근 3개 표시</button><button class="chip sm${P.off ? " on" : ""}" data-chg-off="1" title="변경 기록을 보지 않고 작업 - 점선을 모두 감춘다">${P.off ? "표시 켜기" : "표시 끄기"}</button></div></div>
       ${recent.length ? `<div class="sec"><h3>최근 수정 대상</h3><table class="chg-tbl"><colgroup><col class="n"><col><col class="o"><col class="a"></colgroup>${recent.map((r) => { const k = [r.kind === "수정" ? "" : r.kind, ...(r.kinds || []), ...(r.extra || [])].filter(Boolean).join("·"); return `<tr data-csid="${esc(r.sid)}"><td class="n">${esc(r.title || r.sid)}</td><td class="hint" title="${esc(k)}">${esc(k)}</td><td class="o">${orgBadge(r)}</td><td class="hint a" title="${esc(r.ts || "")}">${esc(ago(r.ts))}</td></tr>`; }).join("")}</table></div>` : ""}
       ${list.length ? list.map(groupHtml).join("") + (P.more ? `<div class="row" style="justify-content:center;margin:8px 0"><button class="chip sm" data-chg-more="1">더 보기</button></div>` : `<div class="hint" style="text-align:center;margin:8px 0">원장의 시작</div>`)
         : `<div class="hint">${P.changes.length ? "이 필터에 해당하는 변경이 없습니다." : "아직 기록된 변경이 없습니다."}</div>`}`;
   }
+  /** AI 가 바꾼 셀 초록 표시(sheet.js AI.hl) - 요청이 끝날 때 켜진다. 변경 탭에서도 확인(끄기)·되돌리기 */
+  function aiBar() {
+    const hl = X().ai.hl(); if (!hl) return "";
+    const n = hl.cells.length, tabs = new Set(hl.cells.map((c) => c.tab)).size;
+    return `<div class="chg-ai"><span class="org o-claude">AI</span><span>바꾼 셀 <b>${n}</b>개 초록 표시 중${tabs > 1 ? ` · ${tabs}탭` : ""} <span class="hint">요청 ${esc(hl.rid)}</span></span>
+      <button class="chip sm" data-chg-aiok="1" title="AI 변경을 확인한 것으로 - 초록 표시를 끈다">확인</button><button class="chip sm" data-aiundo="${esc(hl.rid)}" title="그 뒤 아무도 고치지 않은 셀만 AI 전 값으로 (Ctrl+Z 로 다시)">되돌리기</button></div>`;
+  }
+  const aiRid = (g) => (g.origin === "claude" && g.actor && g.actor.request) || "";
   function groupHtml(g) {
     const on = isOn(g), kcls = { 추가: "k-add", 삭제: "k-del" };
     const tag = g.action === "accept" ? " · AI 제안 받기" : g.action === "restore" ? " · 되돌리기" : g.action === "startup" ? " · 서버 꺼진 사이" : "";
     const fields = (g.fields || []).filter((f) => f !== "sheets");
     return `<div class="chg-rec${on ? " on" : ""}"><div class="chg-h"><b title="${esc(g.ts || "")}${g.count > 1 ? ` ~ ${esc(g.ts_end || "")}` : ""}">${esc(dayText(g.ts))} ${esc(hhmm(g.ts))}</b>${orgBadge(g)}<span class="hint">${g.actor && g.actor.label ? esc(g.actor.label) + " · " : ""}${esc(chgSummary(g.summary))}${fields.length ? ` · 문서 ${esc(fields.join("·"))}` : ""}${g.count > 1 ? ` · 저장 ${g.count}회` : ""}${tag}${g.merge ? ` · <span class="chg-mtag">병합${g.merge.conflicts.length ? ` · 충돌 ${g.merge.conflicts.length}` : ""}</span>` : ""}</span>
       ${g.backupExists ? `<button class="chip sm" data-chg-restore="${esc(g.backup)}" data-chg-at="${esc((g.ts || "").replace("T", " ").slice(0, 16))}" title="이 변경 직전 상태로 되돌린다(지금 상태도 기록에 남는다)">직전으로</button>` : `<button class="chip sm" disabled title="백업이 50개 상한으로 지워져 되돌릴 수 없습니다">직전으로</button>`}
+      ${aiRid(g) ? (() => { const hl = X().ai.hl(), on2 = hl && hl.rid === aiRid(g); return `<button class="chip sm${on2 ? " on" : ""}" data-chg-ai="${esc(aiRid(g))}" title="이 요청으로 AI 가 바꾼 셀을 초록으로 ${on2 ? "그만 표시(확인)" : "표시"}">${on2 ? "AI 확인" : "AI 보기"}</button>`; })() : ""}
       <button class="chip sm chg-tg" data-chg-tg="${g.seq}" title="이 묶음의 변경을 격자에 파란 점선으로 ${on ? "그만 표시" : "표시"}">${on ? "숨기기" : "표시"}</button></div>` +
       (g.items || []).map((it) => `<div class="chg-it${it.gone ? " gone" : ""}" ${it.gone ? "" : `data-csid="${esc(it.sid)}"`}>
         <span class="k ${kcls[it.kind] || ""}">${esc(it.kind)}</span> <b>${esc(it.title || it.sid)}</b>${it.moved ? ` <span class="hint">(순서 ${it.moved[0]} → ${it.moved[1]})</span>` : ""}${it.extra && it.extra.length ? ` <span class="hint">· ${esc(it.extra.join("·"))}</span>` : ""}${it.truncated ? ` <span class="hint">· ${it.truncated}개 더</span>` : ""}
@@ -350,13 +360,27 @@
     const x = X(), S = N().S, t = e.target;
     if (t.closest("[data-chg-info]")) { P.info = !P.info; return renderChanges(); }
     const f = t.closest("[data-chgf]"); if (f) { P.filter = f.dataset.chgf; x.LS.set("sheetChgFilter", P.filter === "all" ? "" : P.filter); return renderChanges(); }
-    if (t.closest("[data-chg-seen]")) { x.LS.set(seenKey(), P.latest); P.shown.clear(); P.hidden.clear(); return redraw(); }
+    if (t.closest("[data-chg-seen]")) { x.LS.set(seenKey(), P.latest); P.shown.clear(); P.hidden.clear(); if (x.ai.hl()) x.ai.show(null, false); return redraw(); }
+    if (t.closest("[data-chg-aiok]")) return x.ai.show(null, false);
+    const au = t.closest("[data-aiundo]"); if (au) return x.ai.undo(au.dataset.aiundo);
+    const ai = t.closest("[data-chg-ai]");
+    if (ai) {  // 요청 하나로 AI 가 바꾼 셀(/api/reqdiff) 초록 표시 켜기·끄기
+      const rid = ai.dataset.chgAi, hl = x.ai.hl();
+      if (hl && hl.rid === rid) return x.ai.show(rid, false);
+      const D = await x.ai.load(rid);
+      if (!D || !D.found || !D.count) return x.toast("이 요청으로 바뀐 셀을 찾지 못했습니다(백업이 지워졌거나 셀이 아닌 변경)");
+      return x.ai.show(rid, true);
+    }
     if (t.closest("[data-chg-recent]")) { P.changes.slice(0, 3).forEach((g) => { P.hidden.delete(g.seq); P.shown.add(g.seq); }); return redraw(); }
-    if (t.closest("[data-chg-off]")) { P.off = !P.off; x.LS.set("sheetChgOff", P.off ? "1" : ""); return redraw(); }
+    if (t.closest("[data-chg-off]")) { P.off = !P.off; x.LS.set("sheetChgOff", P.off ? "1" : ""); if (P.off && x.ai.hl()) x.ai.show(null, false); return redraw(); }
     if (t.closest("[data-chg-more]")) return loadChanges(true);
     const rs = t.closest("[data-chg-restore]"); if (rs) { await restoreFrom(rs.dataset.chgRestore, rs.dataset.chgAt); return; }
     const tg = t.closest("[data-chg-tg]");
-    if (tg) { const k = +tg.dataset.chgTg, g = P.changes.find((z) => z.seq === k); if (!g) return; if (isOn(g)) { P.shown.delete(k); P.hidden.add(k); } else { P.hidden.delete(k); P.shown.add(k); } return redraw(); }
+    if (tg) {
+      const k = +tg.dataset.chgTg, g = P.changes.find((z) => z.seq === k); if (!g) return;
+      if (isOn(g)) { P.shown.delete(k); P.hidden.add(k); const hl = x.ai.hl(); if (hl && hl.rid === aiRid(g)) x.ai.show(null, false); } else { P.hidden.delete(k); P.shown.add(k); }
+      return redraw();
+    }
     const it = t.closest("[data-csid]"); if (!it) return;
     const i = S.deck.sheets.findIndex((s) => s.id === it.dataset.csid); if (i < 0) return x.toast("그 탭이 지금은 없습니다");
     if (i !== S.ti) x.switchTab(i);
@@ -385,6 +409,7 @@
   window.NexaSheetSide = {
     showTab, drawMenu, P, renderProps, loadChanges, restoreFrom,
     onPlace() { if (started) placeMarks(); },
+    onAi() { if (started) renderChanges(); },
     onSel() { if (!started) return; renderProps(); const m = marked(), x = X(), cur = m[x.sheet().id]; $$("#draws img.drw").forEach((im) => im.classList.toggle("chg", !!(cur && cur.draws.has(im.dataset.did)))); },
     onRender() {
       if (!started && X() && N().S.deck) { started = true; init(); loadChanges(); }
