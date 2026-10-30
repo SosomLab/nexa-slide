@@ -255,6 +255,76 @@
   #side .hint { color: var(--ink2); font-size: 12px; }
   #reqFilter { display: flex; gap: 6px; padding: 8px 14px 4px; align-items: center; }
   #reqList { flex: 1; overflow-y: auto; padding: 4px 10px 30px; }
+  /* 패널 탭(속성·요청·기록·변경 - 편집기와 같은 구성, sheetside.js) */
+  #sideTabs { display: flex; gap: 6px; padding: 10px 12px 6px; }
+  #sideTabs button { flex: 1; border: 0; border-radius: 999px; height: 30px; background: var(--tone2); color: var(--ink); font: inherit; font-size: 13px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 4px; }
+  #sideTabs button:hover { color: var(--info); }
+  #sideTabs button.on { background: var(--ink); color: #fff; font-weight: 700; }
+  #sideTabs .cnt { background: #BA1A1A; color: #fff; border-radius: 999px; font-size: 10.5px; padding: 0 6px; font-weight: 700; }
+  .spanel { display: none; flex: 1; min-height: 0; flex-direction: column; }
+  .spanel.on { display: flex; }
+  .spanel.scroll { overflow-y: auto; padding: 4px 12px 30px; display: none; }
+  .spanel.scroll.on { display: block; }
+  #side .sec { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px 12px; margin-bottom: 10px; min-width: 0; }
+  #side .sec h3 { margin: 0 0 8px; font-size: 11.5px; color: var(--ink2); font-weight: 700; display: flex; align-items: center; gap: 6px; }
+  #side .sec h3 .hint { font-weight: 400; margin-left: auto; }
+  /* 속성 */
+  .pp { display: grid; grid-template-columns: 64px 1fr; gap: 6px 8px; align-items: center; font-size: 12.5px; }
+  .pp > label { color: var(--ink2); }
+  .pp input[type=text], .pp input[type=number], .pp select, .pp textarea { width: 100%; box-sizing: border-box; border: 1px solid var(--line); border-radius: 8px; padding: 4px 7px; font: inherit; font-size: 12.5px; background: var(--card); color: var(--ink); min-width: 0; }
+  .pp textarea { min-height: 54px; resize: vertical; }
+  .pp .two { display: flex; gap: 6px; align-items: center; } .pp .two > * { flex: 1; min-width: 0; } .pp .two > span { flex: 0 0 auto; color: var(--ink2); }
+  .pseg { display: flex; flex-wrap: wrap; gap: 4px; }
+  .pseg button { border: 1px solid var(--line); background: var(--card); color: var(--ink); border-radius: 8px; min-width: 30px; height: 28px; padding: 0 8px; cursor: pointer; font: inherit; font-size: 12.5px; }
+  .pseg button.on { background: var(--infoc); color: var(--info); border-color: #A8C3F0; font-weight: 700; }
+  .pclr { display: flex; gap: 6px; align-items: center; } .pclr input[type=color] { width: 34px; height: 26px; padding: 0; border: 1px solid var(--line); border-radius: 6px; background: none; }
+  .pp code { font-family: Consolas, monospace; font-size: 12px; }
+  .pthumb { max-width: 100%; max-height: 120px; border: 1px solid var(--line); border-radius: 8px; display: block; margin-bottom: 8px; background: repeating-conic-gradient(#eee 0 25%, #fff 0 50%) 0 0 / 12px 12px; }
+  /* 기록·변경 - 편집기(index.html)와 같은 규칙 */
+  .hist { display: flex; gap: 8px; align-items: center; padding: 6px 8px; border-radius: 10px; font-size: 12.5px; }
+  .hist:hover { background: var(--tone); }
+  .hist .k { font-size: 11px; border-radius: 999px; padding: 0 7px; background: var(--tone2); }
+  .hist .k.build, .hist .k.ext { background: var(--infoc); color: var(--info); }
+  .hist .sp { flex: 1; }
+  .chg-top { display: flex; align-items: center; gap: 6px; } .chg-top h3 { flex: 1; margin: 0 !important; }
+  .chg-ibtn { width: 28px; height: 28px; min-width: 28px; padding: 0; border-radius: 50%; color: var(--ink2); border: 0; background: none; cursor: pointer; }
+  .chg-ibtn.on { background: var(--ink); color: #fff; }
+  .chg-info { margin-top: 6px; padding: 8px 10px; background: var(--tone); border-radius: 10px; }
+  .chg-fil { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .chg-fil button { border: 0; border-radius: 999px; height: 26px; padding: 0 11px; display: inline-flex; align-items: center; gap: 4px; background: var(--tone2); color: var(--ink); font: inherit; font-size: 12.5px; cursor: pointer; }
+  .chg-fil button b { font-weight: 700; opacity: .8; } .chg-fil button:hover { color: var(--info); }
+  .chg-fil button.on { background: var(--ink); color: #fff; }
+  .chg-acts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line); }
+  .chg-acts .chip { justify-content: center; width: 100%; background: var(--tone2); border: 0; font-weight: 600; }
+  .chg-acts .chip.on { background: var(--ink); color: #fff; }
+  .chg-rec { border-top: 1px solid var(--tone2); padding: 8px 0; }
+  .chg-h { margin-bottom: 4px; word-break: keep-all; overflow-wrap: anywhere; display: flex; gap: 6px; align-items: baseline; flex-wrap: wrap; font-size: 12.5px; }
+  .chg-h .chg-tg { margin-left: auto; padding: 2px 10px; }
+  .chg-rec:not(.on) .chg-it { opacity: .6; }
+  .chg-rec.on .chg-h .chg-tg { background: #D6E3FF; color: #0B2E6B; }
+  .chg-it { padding: 6px 8px; border-radius: 8px; cursor: pointer; font-size: 12.5px; }
+  .chg-it:hover { background: var(--tone); }
+  .chg-it.gone, .chg-el.gone { cursor: default; opacity: .7; }
+  .chg-it .k { font-size: 11px; border-radius: 999px; padding: 1px 7px; background: #D6E3FF; color: #0B2E6B; }
+  .chg-it .k.k-add { background: var(--okc); color: var(--ok); } .chg-it .k.k-del { background: #FFDAD6; color: #93000A; }
+  .chg-el { margin: 3px 0 0 14px; padding: 2px 6px; border-left: 2px solid #A8C3F0; font-size: 12px; cursor: pointer; }
+  .chg-el:hover { background: #EEF3FD; }
+  .chg-tx { color: var(--ink2); margin-top: 2px; word-break: break-all; } .chg-tx s { color: #93000A; }
+  .chg-mtag { background: var(--infoc); color: var(--info); border-radius: 999px; padding: 0 6px; font-weight: 700; }
+  .chg-mg { margin: 4px 0 2px 6px; font-size: 12px; } .chg-mg summary { cursor: pointer; color: var(--info); }
+  .org { font-size: 11px; border-radius: 999px; padding: 1px 7px; white-space: nowrap; }
+  .org.o-mine { background: var(--okc); color: var(--ok); } .org.o-editor { background: #CDEFE6; color: #00695C; } .org.o-claude { background: var(--infoc); color: var(--info); }
+  .org.o-build { background: var(--warnc); color: var(--warn); } .org.o-external { background: var(--tone2); color: var(--ink2); }
+  .org.inf { outline: 1px dashed currentColor; outline-offset: -1px; }
+  .chg-tbl { width: 100%; border-collapse: collapse; font-size: 12px; table-layout: fixed; }
+  .chg-tbl col.n { width: 64px; } .chg-tbl col.o { width: 50px; } .chg-tbl col.a { width: 40px; }
+  .chg-tbl td { padding: 4px 6px; border-bottom: 1px solid var(--tone2); vertical-align: top; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .chg-tbl td.n { color: var(--ink2); } .chg-tbl td.o, .chg-tbl td.a { text-align: right; padding-left: 2px; padding-right: 2px; }
+  .chg-tbl tr { cursor: pointer; } .chg-tbl tr:hover { background: var(--tone); }
+  /* 격자의 변경 표시(확인하지 않은 변경 - 파란 점선, 편집기 캔버스와 같다) */
+  #chgMarks { position: absolute; left: 0; top: 0; pointer-events: none; }
+  #chgMarks .cm { position: absolute; outline: 1.5px dashed #2F6FDB; outline-offset: -2px; background: rgba(47, 111, 219, .06); }
+  #draws img.drw.chg { outline: 2px dashed #2F6FDB; outline-offset: 2px; }
   #reqList .req { cursor: pointer; }  /* 카드를 누르면 그 탭·범위로 */
   #reqList .req:hover { box-shadow: 0 0 0 1px var(--line); }
   #reqList .req.cur { outline: 2px solid var(--sel); }
@@ -337,6 +407,7 @@
         <table id="grid"></table>
         <div id="draws"></div>
         <div id="marks"></div>
+        <div id="chgMarks"></div>
         <div id="clipBox" class="ov" hidden></div>
         <div id="selBox" class="ov"></div>
         <div id="curBox" class="ov"></div>
@@ -351,6 +422,14 @@
   </div>
   <aside id="side">
     <div id="sideSplit" title="끌어서 폭 조절"></div>
+    <div id="sideTabs">
+      <button data-stab="props" title="고른 셀·범위 또는 그림의 속성을 바로 고친다">속성</button>
+      <button data-stab="reqs" class="on">요청</button>
+      <button data-stab="hist" title="저장 전 자동 백업 - 그 시점으로 되돌리기">기록</button>
+      <button data-stab="chg" title="변경 원장 - 이 화면·다른 창·AI·외부의 변경, 출처, 최근 수정 대상, 되돌리기">변경 <span class="cnt" id="chgCnt" hidden></span></button>
+    </div>
+    <div class="spanel scroll" id="sp-props"></div>
+    <div class="spanel on" id="sp-reqs">
     <h2>AI 요청 <span class="hint" style="font-weight:400">범위를 고르고 무엇을 바꿀지 적어 보내세요</span></h2>
     <div class="compose">
       <div class="tgt">대상 <b id="reqTarget">-</b><label style="margin-left:auto"><input type="checkbox" id="reqWhole"> 탭 전체</label></div>
@@ -363,6 +442,9 @@
     </div>
     <div id="reqFilter"></div>
     <div id="reqList"></div>
+    </div>
+    <div class="spanel scroll" id="sp-hist"></div>
+    <div class="spanel scroll" id="sp-chg"></div>
   </aside>
 </main>
 <div id="toast"></div>
@@ -375,5 +457,6 @@
 <script src="sheetcalc.js"></script><!-- 수식 계산(NexaCalc) - Python sheet_calc 와 같은 규칙 -->
 <script src="sheet.js"></script>
 <script src="sheetx.js"></script>
+<script src="sheetside.js"></script><!-- 패널 속성·기록·변경 탭 · 그림 메뉴 -->
 </body>
 </html>

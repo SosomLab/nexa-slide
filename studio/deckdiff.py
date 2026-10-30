@@ -107,6 +107,8 @@ def _label(e):
 
 
 def diff_deck(old, new):
+    if (new or {}).get("kind") == "sheet" or (old or {}).get("kind") == "sheet":
+        return diff_sheet(old or {}, new or {})
     os_, ns = old.get("slides") or [], new.get("slides") or []
     om = {s.get("id"): (s, i) for i, s in enumerate(os_)}
     nm = {s.get("id"): (s, i) for i, s in enumerate(ns)}
@@ -156,7 +158,7 @@ def diff_deck(old, new):
 
 def deck_fields(old, new):
     """장 밖(덱 수준)에서 바뀐 키 - title·part·version·fontPreset 등. slides·updated 는 뺀다."""
-    skip = {"slides", "updated"}
+    skip = {"slides", "sheets", "updated"}
     keys = [k for k in old.keys() if k not in skip] + [k for k in new.keys() if k not in skip and k not in old]
     return [k for k in keys if canon(old.get(k, _MISSING)) != canon(new.get(k, _MISSING))]
 
@@ -171,6 +173,121 @@ def summary(items):
 def summary_text(items):
     c = summary(items)
     return " · ".join(f"{c[k]}장 {k}" for k in ("수정", "추가", "삭제", "이동") if c.get(k))
+
+
+# ---------- 시트 문서(kind: sheet) - 탭 = 장, 셀·그림 = 요소. 같은 항목 형식이라 원장·묶음·변경 탭을 그대로 쓴다 ----------
+CELL_VAL = ("v", "f")
+CELL_SKIP = ("v",)  # 수식 칸의 계산값만 바뀐 것은 따로 세지 않는다(수식이 같으면 "값"이 아니다)
+TAB_EXTRA = (("cols", "열 너비"), ("rows", "행 높이"), ("merges", "병합"), ("hiddenCols", "열 숨김"), ("hiddenRows", "행 숨김"),
+             ("freeze", "틀 고정"), ("filter", "필터"), ("cond", "조건부 서식"), ("valid", "유효성"), ("size", "크기"),
+             ("grid", "눈금선"), ("hidden", "탭 숨김"), ("tables", "표"))
+
+
+def _draw_id(d, i):
+    """sheet.js drawId 와 같다 - id, 없으면 src 파일 이름(확장자 뺌), 그것도 없으면 img<순번>"""
+    if d.get("id"):
+        return str(d["id"])
+    base = re.sub(r"\.[^.]+$", "", str(d.get("src") or "").split("/")[-1])
+    return base or f"img{i + 1}"
+
+
+def _cell_text(o):
+    if o is None:
+        return ""
+    if not isinstance(o, dict):
+        return short(o)
+    if o.get("f"):
+        return short(o["f"] if str(o["f"]).startswith("=") else "=" + str(o["f"]))
+    return short(o.get("v", ""))
+
+
+def diff_cell(a, b):
+    """셀 두 판 - 종류(값·수식·서식·추가·삭제)와 글 전→후. 같으면 None"""
+    oa, ob = _cell_norm(a), _cell_norm(b)
+    if canon(oa) == canon(ob):
+        return None
+    if oa is None:
+        return {"kinds": ["추가"], "before": "", "after": _cell_text(b)}
+    if ob is None:
+        return {"kinds": ["삭제"], "before": _cell_text(a), "after": ""}
+    kinds = []
+    if canon(oa.get("f", _MISSING)) != canon(ob.get("f", _MISSING)):
+        kinds.append("수식")
+    elif not ob.get("f") and canon(oa.get("v", _MISSING)) != canon(ob.get("v", _MISSING)):
+        kinds.append("값")
+    rest = [k for k in list(oa) + [k for k in ob if k not in oa] if k not in CELL_VAL and canon(oa.get(k, _MISSING)) != canon(ob.get(k, _MISSING))]
+    if any(k == "note" for k in rest):
+        kinds.append("메모")
+    if any(k == "link" for k in rest):
+        kinds.append("링크")
+    if any(k not in ("note", "link") for k in rest):
+        kinds.append("서식")
+    if not kinds:
+        return None  # 수식 칸의 계산값(v)만 바뀜
+    txt = bool({"값", "수식"} & set(kinds))
+    return {"kinds": kinds, "before": _cell_text(a) if txt else "", "after": _cell_text(b) if txt else ""}
+
+
+def _cell_sort(k):
+    m = re.match(r"([A-Za-z]+)(\d+)$", k)
+    if not m:
+        return (1 << 30, 0)
+    c = 0
+    for ch in m.group(1).upper():
+        c = c * 26 + ord(ch) - 64
+    return (int(m.group(2)), c)
+
+
+def diff_sheet(old, new):
+    """시트 문서 비교 - 항목 = 탭(sid = 탭 id, title = 탭 이름), els = 셀(id = 칸 주소)·그림(id = 그림 id, kinds 에 "그림"),
+    extra = 열 너비·병합·필터 등 탭 속성. 순서·이동 판정은 diff_deck 과 같다."""
+    os_, ns = old.get("sheets") or [], new.get("sheets") or []
+    om = {t.get("id"): (t, i) for i, t in enumerate(os_) if isinstance(t, dict)}
+    nm = {t.get("id"): (t, i) for i, t in enumerate(ns) if isinstance(t, dict)}
+    oc = [t.get("id") for t in os_ if isinstance(t, dict) and t.get("id") in nm]
+    npos = {t.get("id"): i for i, t in enumerate([t for t in ns if isinstance(t, dict) and t.get("id") in om])}
+    stable = {oc[i] for i in _lis_stable([npos[i] for i in oc])}
+    items = []
+    for i, t in enumerate(ns):
+        if not isinstance(t, dict):
+            continue
+        sid, title = t.get("id"), str(t.get("name") or t.get("id") or "")
+        if sid not in om:
+            items.append({"sid": sid, "idx": i, "kind": "추가", "moved": None, "title": title, "els": [], "extra": []})
+            continue
+        o, oi = om[sid]
+        a, b = o.get("cells") or {}, t.get("cells") or {}
+        els = []
+        for k in sorted(set(a) | set(b), key=_cell_sort):
+            d = diff_cell(a.get(k), b.get(k))
+            if d:
+                els.append({"id": k, **d, **({"gone": True} if b.get(k) is None else {})})
+        od = {_draw_id(d, j): d for j, d in enumerate(o.get("drawings") or []) if isinstance(d, dict)}
+        nd = {_draw_id(d, j): d for j, d in enumerate(t.get("drawings") or []) if isinstance(d, dict)}
+        for k, d in nd.items():
+            if k not in od:
+                els.append({"id": k, "kinds": ["그림", "추가"], "before": "", "after": short(d.get("src") or "")})
+            elif canon(od[k]) != canon(d):
+                geo = any(canon(od[k].get(x, _MISSING)) != canon(d.get(x, _MISSING)) for x in ("at", "dx", "dy", "w", "h"))
+                els.append({"id": k, "kinds": ["그림", "위치·크기" if geo else "모양"], "before": "", "after": ""})
+        for k, d in od.items():
+            if k not in nd:
+                els.append({"id": k, "kinds": ["그림", "삭제"], "before": short(d.get("src") or ""), "after": "", "gone": True})
+        extra = [name for key, name in TAB_EXTRA if canon(o.get(key, _MISSING)) != canon(t.get(key, _MISSING))]
+        if canon(o.get("name", _MISSING)) != canon(t.get("name", _MISSING)):
+            extra.append("이름")
+        moved = sid not in stable
+        if els or extra or moved:
+            it = {"sid": sid, "idx": i, "kind": "수정" if (els or extra) else "이동", "moved": [oi + 1, i + 1] if moved else None,
+                  "title": title, "els": els[:MAX_ELS], "extra": extra}
+            if len(els) > MAX_ELS:
+                it["truncated"] = len(els) - MAX_ELS
+            items.append(it)
+    for i, t in enumerate(os_):
+        if isinstance(t, dict) and t.get("id") not in nm:
+            items.append({"sid": t.get("id"), "idx": i, "kind": "삭제", "moved": None, "title": str(t.get("name") or t.get("id") or ""),
+                          "els": [], "extra": [], "gone": True})
+    return items
 
 
 def _cell_norm(raw):
