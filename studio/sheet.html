@@ -77,6 +77,20 @@
   #fbar { display: flex; align-items: center; gap: 6px; padding: 4px 10px; background: var(--card); border-top: 1px solid var(--tone2); border-bottom: 1px solid var(--line); }
   #nameBox { width: 120px; border: 1px solid var(--line); border-radius: 6px; padding: 3px 7px; font: 12px Consolas, monospace; }
   #fbar .fx { color: var(--ink2); font-style: italic; font-weight: 700; padding: 0 4px; }
+  /* 수식 참조 표시(엑셀처럼) - 참조마다 색: 격자 #refMarks 테두리, 편집 칸·수식 줄은 같은 색 글자(투명 글자 아래 #edHl·#fxHl 이 색 글자를 그린다) */
+  #fxWrap { flex: 1; position: relative; display: flex; min-width: 0; }
+  #fxWrap #fxIn { flex: 1; min-width: 0; }
+  #fxHl, #edHl { position: absolute; pointer-events: none; overflow: hidden; white-space: pre; color: #111; display: none; box-sizing: border-box; }
+  #fxHl.on, #edHl.on { display: block; }
+  #fxIn.hl, #editor.hl { color: transparent !important; caret-color: #111; }
+  #fxIn.hl { background: transparent; position: relative; z-index: 1; }
+  #editor.hl { background: transparent; }
+  #edHl { background: #fff; }
+  #fxIn.hl::selection, #editor.hl::selection { background: rgba(47, 111, 219, .28); color: transparent; }
+  #refMarks { position: absolute; left: 0; top: 0; pointer-events: none; }
+  #refMarks .rf { position: absolute; box-sizing: border-box; border: 2px solid; z-index: 2; }
+  #refMarks .rf i { position: absolute; width: 5px; height: 5px; background: currentColor; }
+  #evalTip { position: fixed; z-index: 60; background: #FFFBE6; border: 1px solid #E0C36A; border-radius: 6px; padding: 2px 8px; font: 12px Consolas, "Malgun Gothic", monospace; white-space: pre; box-shadow: 0 2px 6px rgba(0,0,0,.15); pointer-events: none; max-width: 520px; overflow: hidden; text-overflow: ellipsis; }
   #fxIn { flex: 1; border: 1px solid var(--line); border-radius: 6px; padding: 3px 8px; font: 13px Consolas, "Malgun Gothic", monospace; }
   #banner { margin: 6px 10px 0; padding: 8px 14px; border-radius: 12px; background: var(--pc); color: var(--onpc); display: none; align-items: center; gap: 10px; }
   #banner.show { display: flex; }
@@ -408,8 +422,9 @@
 <div id="fbar">
   <input id="nameBox" title="셀 주소 - B3 · B2:D5 를 적고 Enter 로 이동" spellcheck="false">
   <span class="fx">fx</span>
-  <input id="fxIn" spellcheck="false" placeholder="값 또는 = 로 시작하는 수식">
+  <span id="fxWrap"><div id="fxHl" aria-hidden="true"></div><input id="fxIn" spellcheck="false" placeholder="값 또는 = 로 시작하는 수식"></span>
 </div>
+<div id="evalTip" hidden></div>
 <div id="macroDlg" role="dialog" aria-label="매크로 포함 여부" tabindex="-1"><div class="box">
   <div class="hd"><b>⛨ 엑셀에서 위험할 수 있는 매크로 <span id="macroCnt"></span>줄</b></div>
   <div class="bd">이 문서의 VBA 에 엑셀에서 매크로를 켜면 저절로 실행되거나, 파일·프로그램·네트워크에 닿는 코드가 있습니다. 직접 쓴 코드가 아니라면 매크로를 빼고 내보내세요.<ul id="macroList"></ul></div>
@@ -436,6 +451,8 @@
         <div id="fillBox" class="ov" hidden></div>
         <div id="fillHandle" title="끌어서 채우기(Ctrl = 복사/증가 바꾸기) · 두 번 누르면 옆 열 끝까지 아래로"></div>
         <div id="fillTip" hidden></div>
+        <div id="refMarks"></div>
+        <div id="edHl" aria-hidden="true"></div>
         <textarea id="editor" spellcheck="false" autocomplete="off"></textarea>
         <button class="chip sm" id="addRows" title="아래에 빈 행을 더 둡니다">＋ 행 20개 더</button>
       </div>

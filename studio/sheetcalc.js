@@ -953,7 +953,13 @@
       return r == null ? lib.EMPTY : r;
     };
   }
+  /** 수식 조각 계산(편집 중 F9·선택 미리 보기) - 칸 k 자리에서 src(= 없어도 된다)를 계산한 값(FErr·Rng·Lam 그대로). 문서는 바꾸지 않는다 */
+  function evalText(doc, tab, k, src) {
+    const sh = (doc.sheets || []).find((s) => s.id === tab || s.name === tab) || (doc.sheets || [])[0]; if (!sh) return new FErr("#REF!");
+    const c = new Calc(doc); c.at.push(parseRef(k) || [0, 0]); c.ids.push(sh.id + "!" + k);
+    try { return c.ev(parse(String(src).replace(/^=/, "")), sh); } catch (e) { return e instanceof FErr ? e : new FErr("#VALUE!"); }
+  }
   const blank = () => { const sh = { id: "", name: "", cells: {} }; return { c: new Calc({ sheets: [sh] }), sh }; };
-  const API = { recalc, cell, link, setVba, sheetFn, vba: null, parse, tokenize, formatValue, parseNumberText, FUNCS: Object.keys(FUNCS), FErr };
+  const API = { recalc, cell, link, evalText, setVba, sheetFn, vba: null, parse, tokenize, formatValue, parseNumberText, FUNCS: Object.keys(FUNCS), FErr };
   if (typeof module === "object" && module.exports) module.exports = API; else root.NexaCalc = API;
 })(typeof window !== "undefined" ? window : globalThis);

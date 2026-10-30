@@ -1082,6 +1082,7 @@
       const m = mergeAt(sh, p.r, p.c) || { r1: p.r, c1: p.c, r2: p.r, c2: p.c }, R = rectOf(clampRange(m));
       html.push(`<div class="ov aiCell" style="left:${R.x}px;top:${R.y}px;width:${R.w + 1}px;height:${R.h + 1}px">${k ? "" : '<span class="aiTag">AI 변경</span>'}</div>`);
     });
+    renderRefBoxes();  // 수식 편집 중 참조 테두리 - 격자를 다시 그려도 그대로
     if (LIVE) for (const x of LIVE.others()) {  // 함께 보는 사람(동시 편집 2단계) - 다른 창이 고른 범위에 그 창 색 테두리·이름
       if (!x.where || x.where.tab !== sh.id) continue;
       const g = parseRange(x.where.range); if (!g) continue;
@@ -1158,6 +1159,7 @@
       e.style.width = "1px"; e.style.width = Math.max(R.w + 3, Math.min(e.scrollWidth + 8, 640)) + "px";
       e.style.height = "1px"; e.style.height = Math.max(R.h + 3, e.scrollHeight + 2) + "px";
     }
+    fmlHl();
   }
   function focusGrid() { const e = ED(); if (document.activeElement !== e) e.focus({ preventScroll: true }); }
   function startEdit(mode, text) {
@@ -1171,7 +1173,7 @@
   function endEdit(commit) {
     if (!S.edit) return;
     const e = ED(), text = e.value, { r, c, orig } = S.edit;
-    S.edit = null; e.classList.remove("on"); e.value = "";
+    S.edit = null; e.classList.remove("on"); e.value = ""; fmlHl();
     if (commit && text !== orig) mutate(() => { const sh = sheet(); setInput(sh, key(r, c), text); growSize(sh, r, c); });
     else renderSel();
   }
@@ -1187,6 +1189,97 @@
   }
   function insertRef(text) { const e = ED(), s = e.selectionStart, t = e.selectionEnd; e.value = e.value.slice(0, s) + text + e.value.slice(t); const n = s + text.length; e.setSelectionRange(n, n); S.edit.mode = "edit"; placeEditor(); $("#fxIn").value = e.value; }
 
+  // ---------------------------------------------------------------- 수식 참조 표시(엑셀처럼) · 고른 조각 계산(F9)
+  // 편집 중인 수식의 참조마다 색을 정해(같은 참조는 같은 색) 격자에는 그 범위에 색 테두리(#refMarks), 편집 칸·수식 줄에는 같은 색 글자를 입힌다.
+  // 글자 색은 입력 칸 글자를 투명하게 하고 바로 아래 같은 글꼴·여백의 거울(#edHl·#fxHl)이 색 글자를 그린다.
+  const REF_COLORS = ["#2F6FDB", "#D93025", "#8E44AD", "#188038", "#C26401", "#00838F", "#C2185B", "#6D4C41"];
+  const REF_RE = /(?<![\w.$ㄱ-힝])(?:('(?:[^']|'')+'|[A-Za-z_ㄱ-힝][\w.ㄱ-힝]*)!)?(\$?[A-Za-z]{1,3}\$?\d+(?::\$?[A-Za-z]{1,3}\$?\d+)?|\$?[A-Za-z]{1,3}:\$?[A-Za-z]{1,3}|\$?\d+:\$?\d+)(?![\w(!ㄱ-힝])/g;
+  const fx$ = () => $("#fxIn");
+  /** 지금 편집 중인 수식 입력 칸(셀 편집 칸 · 수식 줄) - 없으면 null */
+  function fmlEl() { if (S.edit) return document.activeElement === fx$() ? fx$() : ED(); return document.activeElement === fx$() ? fx$() : null; }
+  /** 수식 글 → 참조 [{s, e, tab(탭 id), g, color}] - 글 상수("…") 안은 건너뛴다. 없는 탭 이름은 뺀다 */
+  function fmlRefs(text) {
+    if (!text || text[0] !== "=" || !S.deck) return [];
+    const masked = text.replace(/"(?:[^"]|"")*"?/g, (m) => " ".repeat(m.length));
+    const out = [], colors = new Map(); let m; REF_RE.lastIndex = 0;
+    while ((m = REF_RE.exec(masked))) {
+      const [all, sn, body] = m; let tab = sheet().id;
+      if (sn) { const nm = sn.replace(/^'|'$/g, "").replace(/''/g, "'").toLowerCase(); const t = S.deck.sheets.find((x) => String(x.name).toLowerCase() === nm); if (!t) continue; tab = t.id; }
+      const b = body.replace(/\$/g, "").toUpperCase(); let g;
+      if (/^[A-Z]+:[A-Z]+$/.test(b)) { const [x, y] = b.split(":").map(colIndex); g = { r1: 0, r2: G.rows - 1, c1: Math.min(x, y), c2: Math.max(x, y) }; }
+      else if (/^\d+:\d+$/.test(b)) { const [x, y] = b.split(":").map((n) => +n - 1); g = { r1: Math.min(x, y), r2: Math.max(x, y), c1: 0, c2: G.cols - 1 }; }
+      else g = parseRange(b);
+      if (!g) continue;
+      const id = tab + "!" + rangeName(g); if (!colors.has(id)) colors.set(id, REF_COLORS[colors.size % REF_COLORS.length]);
+      out.push({ s: m.index, e: m.index + all.length, tab, g, color: colors.get(id) });
+    }
+    return out;
+  }
+  function renderRefBoxes(refs) {
+    const box = $("#refMarks"); if (!box || !S.deck) return;
+    if (!refs) { const el = fmlEl(); refs = el ? fmlRefs(el.value) : []; }
+    const sh = sheet(), seen = new Set();
+    box.innerHTML = refs.filter((r) => r.tab === sh.id).map((r) => {
+      const g = clampRange(r.g), id = rangeName(g) + r.color; if (seen.has(id)) return ""; seen.add(id);
+      const R = rectOf(g);
+      return `<div class="rf" style="left:${R.x}px;top:${R.y}px;width:${R.w + 1}px;height:${R.h + 1}px;color:${r.color};border-color:${r.color};background:${r.color}14"><i style="left:-3px;top:-3px"></i><i style="right:-3px;top:-3px"></i><i style="left:-3px;bottom:-3px"></i><i style="right:-3px;bottom:-3px"></i></div>`;
+    }).join("");
+  }
+  const MIRROR = ["fontFamily", "fontSize", "fontWeight", "fontStyle", "letterSpacing", "paddingTop", "paddingRight", "paddingBottom", "paddingLeft", "borderTopWidth", "borderRightWidth", "borderBottomWidth", "borderLeftWidth", "textAlign"];
+  function mirror(el, hl, refs, box) {
+    const on = refs.length > 0; el.classList.toggle("hl", on); hl.classList.toggle("on", on); if (!on) { hl.innerHTML = ""; return; }
+    const cs = getComputedStyle(el); for (const p of MIRROR) hl.style[p] = cs[p];
+    Object.assign(hl.style, { borderStyle: "solid", borderColor: "transparent", lineHeight: cs.lineHeight, ...box });
+    let h = "", i = 0; const t = el.value;
+    for (const r of refs) { h += esc(t.slice(i, r.s)) + `<span style="color:${r.color}">${esc(t.slice(r.s, r.e))}</span>`; i = r.e; }
+    hl.innerHTML = h + esc(t.slice(i)) + " "; hl.scrollLeft = el.scrollLeft; hl.scrollTop = el.scrollTop;
+  }
+  /** 편집 칸·수식 줄·격자 참조 표시를 지금 글에 맞춘다 */
+  function fmlHl() {
+    if (!S.deck) return;
+    const el = fmlEl(), e = ED(), fx = fx$(), refs = el ? fmlRefs(el.value) : [];
+    renderRefBoxes(refs);
+    mirror(e, $("#edHl"), S.edit ? fmlRefs(e.value) : [], { left: e.style.left, top: e.style.top, width: e.offsetWidth + "px", height: e.offsetHeight + "px", zIndex: 1 });
+    const fcs = getComputedStyle(fx), pad = parseFloat(fcs.paddingTop) + parseFloat(fcs.paddingBottom) + parseFloat(fcs.borderTopWidth) + parseFloat(fcs.borderBottomWidth);
+    mirror(fx, $("#fxHl"), el ? fmlRefs(fx.value) : [], { left: fx.offsetLeft + "px", top: fx.offsetTop + "px", width: fx.offsetWidth + "px", height: fx.offsetHeight + "px", lineHeight: fx.offsetHeight - pad + "px" });
+    evalTip();
+  }
+  /** 고른 수식 조각의 값(엑셀 F9) - 고르지 않았으면 수식 전체. {text, whole, s, t, src} · 완전한 식이 아니면 {bad} */
+  function evalPart(el) {
+    const v = el.value; if (v[0] !== "=" || !window.NexaCalc || !NexaCalc.evalText) return null;
+    const s = el.selectionStart, t = el.selectionEnd, whole = s === t, src = (whole ? v.slice(1) : v.slice(s, t)).replace(/^=/, "");
+    if (!src.trim()) return null;
+    try { NexaCalc.parse(src); } catch (e) { return { bad: true, whole }; }
+    return { text: evalStr(NexaCalc.evalText(S.deck, sheet().id, key(S.cur.r, S.cur.c), src)), whole, s, t, src };
+  }
+  function evalStr(v) {
+    if (v instanceof NexaCalc.FErr) return v.code;
+    if (v && Array.isArray(v.rows)) return "{" + v.rows.slice(0, 50).map((r) => r.slice(0, 50).map(evalStr).join(",")).join(";") + "}";
+    if (v && v.params) return "#CALC!";
+    if (v == null) return "0";
+    if (typeof v === "boolean") return v ? "TRUE" : "FALSE";
+    if (typeof v === "number") return String(+v.toPrecision(15));
+    return '"' + String(v).replace(/"/g, '""') + '"';
+  }
+  /** 수식 조각을 고르면 그 값을 입력 칸 아래에 미리 보인다 - F9 로 그 값으로 바꾼다 */
+  function evalTip() {
+    const tip = $("#evalTip"), el = fmlEl();
+    const r = el && el.selectionStart !== el.selectionEnd ? evalPart(el) : null;
+    if (!r || r.bad) { tip.hidden = true; return; }
+    const R = el.getBoundingClientRect();
+    tip.textContent = `${r.src.length > 40 ? r.src.slice(0, 40) + "…" : r.src} = ${r.text}   · F9 로 바꾸기`;
+    tip.hidden = false; tip.style.left = Math.max(4, R.left) + "px"; tip.style.top = R.bottom + 4 + "px";
+  }
+  /** F9 - 고른 조각을 그 값으로 바꾼다(Ctrl+Z 로 되돌림, Esc 는 편집 전체 취소). 고르지 않았으면 수식 전체 값을 알린다 */
+  function evalF9(el) {
+    const r = evalPart(el); if (!r) return;
+    if (r.bad) { toast("고른 부분이 완전한 식이 아닙니다 - 괄호·인자를 함께 고르세요"); return; }
+    if (r.whole) { toast(`= ${r.text}`, 4000); return; }
+    el.focus(); el.setSelectionRange(r.s, r.t);
+    if (!document.execCommand("insertText", false, r.text)) { el.setRangeText(r.text, r.s, r.t, "end"); el.dispatchEvent(new Event("input", { bubbles: true })); }
+    fmlHl();
+  }
+
   function onEditorKey(e) {
     if (e.isComposing || e.keyCode === 229) return;  // 한글 조합 중 - 입력기에 맡긴다
     const ctrl = e.ctrlKey || e.metaKey;
@@ -1200,6 +1293,7 @@
         move(e.key === "ArrowDown" ? 1 : e.key === "ArrowUp" ? -1 : 0, e.key === "ArrowRight" ? 1 : e.key === "ArrowLeft" ? -1 : 0); return;
       }
       if (e.key === "F2") { e.preventDefault(); S.edit.mode = S.edit.mode === "enter" ? "edit" : "enter"; return; }
+      if (e.key === "F9") { e.preventDefault(); evalF9(ED()); return; }  // 고른 수식 조각 계산(엑셀과 같다)
       return;
     }
     const k = e.key;
@@ -2111,10 +2205,14 @@
     W.addEventListener("drop", (e) => { const fs2 = [...(e.dataTransfer.files || [])]; if (!fs2.some((f) => /^image\//.test(f.type))) return; e.preventDefault(); const td = document.elementFromPoint(e.clientX, e.clientY); const c = td && td.closest("td[data-r]"); if (c) selectCell(+c.dataset.r, +c.dataset.c); insertImages(fs2); });
     // 수식 줄
     const fx = $("#fxIn");
-    fx.addEventListener("focus", () => { if (S.edit) { fx.value = ED().value; } });
-    fx.addEventListener("input", () => { if (S.edit) { ED().value = fx.value; placeEditor(); } });
+    fx.addEventListener("focus", () => { if (S.edit) { fx.value = ED().value; } fmlHl(); });
+    fx.addEventListener("input", () => { if (S.edit) { ED().value = fx.value; placeEditor(); } else fmlHl(); });
+    fx.addEventListener("blur", () => setTimeout(fmlHl, 0));
+    fx.addEventListener("scroll", () => { $("#fxHl").scrollLeft = fx.scrollLeft; });
+    document.addEventListener("selectionchange", () => { if (fmlEl()) { $("#fxHl").scrollLeft = fx.scrollLeft; evalTip(); } else $("#evalTip").hidden = true; });
     fx.addEventListener("keydown", (e) => {
       if (e.isComposing) return;
+      if (e.key === "F9") { e.preventDefault(); evalF9(fx); return; }
       if (e.key === "Enter" || e.key === "Tab") {
         e.preventDefault(); const v = fx.value, k = key(S.cur.r, S.cur.c);
         if (S.edit) { S.edit = null; ED().classList.remove("on"); ED().value = ""; }
