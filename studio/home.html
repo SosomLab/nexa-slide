@@ -303,8 +303,8 @@
           </div>
           </div>
           <div id="sheetOpts" style="display:none">
-            <div class="row" style="justify-content:space-between;margin:8px 0 4px"><label class="f" style="margin:0">템플릿(시트 테마)</label>
-              <button type="button" class="chip sm" id="fSheetPreview" title="고른 시트 테마로 만들 첫 시트(표지·이력·개요·요약·상세목록)를 시트 화면 그대로 미리 봅니다">미리 보기</button></div>
+            <div class="row" style="justify-content:space-between;margin:8px 0 4px"><label class="f" style="margin:0">템플릿</label>
+              <button type="button" class="chip sm" id="fSheetPreview" title="고른 템플릿(시트 테마)으로 만든 시트를 미리 봅니다"></button></div>
             <div class="tpls" id="fSheetThemes"></div>
             <div class="hint" style="margin:4px 0 0">테마의 색·셀 스타일과 표지·이력·개요·요약·상세목록 페이지로 첫 시트를 만듭니다. 다른 작업 공간의 회사 테마(로고 포함)는 새 작업 공간으로 복사합니다.</div>
             <label class="f" style="margin:10px 0 4px">또는 엑셀 파일로 시작</label>
@@ -1775,7 +1775,7 @@
     await load();
   };
   document.addEventListener("click", (e) => { const b = e.target.closest("[data-wz]"); if (b) openWizard(b.dataset.wz); });
-  $("#fPreview").innerHTML = `${icon("eye", 13)} 미리 보기`;
+  $("#fPreview").innerHTML = $("#fSheetPreview").innerHTML = `${icon("eye", 13)} 미리 보기`;  // 시트 양식의 미리 보기도 같은 모양
   $("#fPreview").onclick = () => openPreview(H.tpl, $("#fStarter").value);
   document.addEventListener("click", (e) => {
     const a = e.target.closest("[data-pv-tpl]"); if (a) openPreview(a.dataset.pvTpl, "");
