@@ -525,7 +525,8 @@
   }
   // ---------------------------------------------------------------- VBA(사용자 함수 실행기 vba.js · 코드 창)
   // 모듈 소스 = 문서 macros.modules(가져올 때 넣는다). 없으면(0.25.3 전에 가져온 문서) 서버가 vbaProject.bin 에서 읽어 준다(/api/vba) - 고치기 전에는 문서에 넣지 않는다
-  const VB = { mods: null, compiled: null, sel: 0, draft: null };
+  // 계산은 Worker(vbaworker.js - NexaVBA.client): 문서의 코드가 화면을 멈추지 못하게. 처음 보는 부르기는 그 칸의 저장값을 두고, 결과가 오면 vbaReady 가 다시 계산
+  const VB = { mods: null, compiled: null, client: null, sel: 0, draft: null };
   async function setupVba(deck) {
     const mc = deck.macros || {};
     let mods = Array.isArray(mc.modules) ? mc.modules : null;
@@ -535,8 +536,15 @@
   }
   function compileVba() {
     if (!window.NexaVBA || !window.NexaCalc) return;
+    if (VB.client) { VB.client.close(); VB.client = null; }
     VB.compiled = VB.mods && VB.mods.length ? NexaVBA.compile(VB.mods) : null;
-    NexaCalc.setVba(VB.compiled, NexaVBA);
+    if (VB.compiled && window.Worker) VB.client = NexaVBA.client(VB.mods, VB.compiled, { onReady: vbaReady });
+    NexaCalc.setVba(VB.client || VB.compiled, NexaVBA);
+  }
+  function vbaReady() {
+    if (!S.deck || (VB.client && VB.client.busy())) return;
+    if (recalc() && !reqBusy()) { S.dirty = true; setStatus("dirty", "저장 대기"); scheduleSave(); }
+    renderAll();
   }
   function vbaOpen() {
     if (!VB.mods) return toast("이 문서에는 VBA 프로젝트가 없습니다(엑셀 매크로 통합 문서 .xlsm 을 가져오면 생긴다)");
@@ -545,13 +553,14 @@
   }
   function vbaErrors(list) { const c = NexaVBA.compile(list); return c.errors; }
   function vbaRender() {
-    const errs = vbaErrors(VB.draft), kind = { std: "표준", cls: "클래스", doc: "문서" };
-    $("#vbaMods").innerHTML = VB.draft.map((m, i) => { const n = errs.filter((e) => e.module === m.name).length; return `<button data-vm="${i}" class="${i === VB.sel ? "on" : ""}${n ? " err" : ""}" title="${esc(kind[m.kind] || m.kind)} 모듈">${esc(m.name)}<small>${n ? "⚠" + n : esc(kind[m.kind] || "")}</small></button>`; }).join("");
+    const errs = vbaErrors(VB.draft), risks = NexaVBA.risks(VB.draft), kind = { std: "표준", cls: "클래스", doc: "문서" };
+    $("#vbaMods").innerHTML = VB.draft.map((m, i) => { const n = errs.filter((e) => e.module === m.name).length, k = risks.filter((e) => e.module === m.name).length; return `<button data-vm="${i}" class="${i === VB.sel ? "on" : ""}${n ? " err" : ""}${k ? " risk" : ""}" title="${esc(kind[m.kind] || m.kind)} 모듈${k ? ` · 엑셀에서 위험할 수 있는 줄 ${k}개` : ""}">${esc(m.name)}<small>${k ? `<i class="rk">⛨${k}</i>` : ""}${n ? "⚠" + n : esc(kind[m.kind] || "")}</small></button>`; }).join("");
     const m = VB.draft[VB.sel], ta = $("#vbaCode");
     if (m) { if (ta.dataset.i !== String(VB.sel) || ta.value !== m.code) { ta.value = m.code || ""; ta.dataset.i = String(VB.sel); } }
     const fns = m ? [...(m.code || "").matchAll(/^\s*(?:Public\s+|Private\s+)?Function\s+([\p{L}_][\p{L}\p{N}_]*)/gimu)].map((x) => x[1]) : [];
-    const mine = errs.filter((e) => m && e.module === m.name);
-    $("#vbaMsgs").innerHTML = (mine.length ? mine.map((e) => `<div class="e" data-ln="${e.line}">⚠ ${esc(e.line ? e.line + "행" : "")} ${esc(e.name ? e.name + ": " : "")}${esc(e.msg.replace(/^\d+행: /, ""))} - 이 함수는 계산하지 않고 엑셀이 저장한 값을 그대로 둔다</div>`).join("") : "")
+    const mine = errs.filter((e) => m && e.module === m.name), danger = risks.filter((e) => m && e.module === m.name);
+    $("#vbaMsgs").innerHTML = danger.map((e) => `<div class="r" data-ln="${e.line}">⛨ ${e.line}행 <code>${esc(e.word)}</code> - ${esc(e.msg)}(엑셀에서 매크로를 켜면 실행된다 · 이 화면은 실행하지 않는다)</div>`).join("")
+      + (mine.length ? mine.map((e) => `<div class="e" data-ln="${e.line}">⚠ ${esc(e.line ? e.line + "행" : "")} ${esc(e.name ? e.name + ": " : "")}${esc(e.msg.replace(/^\d+행: /, ""))} - 이 함수는 계산하지 않고 엑셀이 저장한 값을 그대로 둔다</div>`).join("") : "")
       + (m && m.kind === "std" ? `<div>칸에서 부를 수 있는 함수: ${fns.length ? fns.map((f) => `<code>=${esc(f)}(…)</code>`).join(" ") : "없음"}</div>` : m ? "<div>문서·클래스 모듈 - 칸에서 부를 수 없다(이벤트·매크로는 엑셀에서 돈다). 코드는 고쳐서 내보낼 수 있다</div>" : "");
     $("#vbaDel").disabled = !m || m.kind !== "std";
     $("#vbaSub").textContent = `모듈 ${VB.draft.length}개 · 함수 ${VB.compiled ? [...VB.compiled.runtime.procs.values()].filter((p) => p.kind === "FUNCTION").length : 0}개`;
@@ -1781,14 +1790,31 @@
   async function exportXlsx() {
     if (S.edit) endEdit(true);
     if (S.dirty) await save();
+    let macros = true;
+    if (S.deck.macros && S.deck.macros.vba) {  // 매크로 통합 문서 - 엑셀에서 실제로 돌 위험한 코드가 있으면 넣을지 고른다
+      const risks = window.NexaVBA ? NexaVBA.risks(VB.mods || []) : [];
+      if (risks.length) { const pick = await macroAsk(risks); if (!pick) return; macros = pick === "keep"; }
+    }
     const b = $("#exportBtn"); b.disabled = true; const t0 = b.textContent; b.textContent = "내보내는 중…";
     try {
-      const r = await api("POST", `/api/export/${encodeURIComponent(S.id)}`);
+      const r = await api("POST", `/api/export/${encodeURIComponent(S.id)}${macros ? "" : "?macros=0"}`);
       if (!r.ok || !r.data || !r.data.url) { toast("내보내기 실패: " + ((r.data && r.data.error) || r.status), 6000); return; }
       const a = document.createElement("a"); a.href = (r.data.url.startsWith("/") ? BASE : "") + r.data.url; a.download = r.data.name || `${S.deck.title || S.id}.xlsx`;
       document.body.appendChild(a); a.click(); a.remove();
       toast(`내보냈습니다: ${r.data.name || "xlsx"}`);
     } finally { b.disabled = false; b.textContent = t0; }
+  }
+  /** 위험 코드 목록을 보여 주고 고르기 → "keep"(매크로 포함 .xlsm) | "drop"(매크로 빼고 .xlsx) | null(취소) */
+  function macroAsk(risks) {
+    const d = $("#macroDlg");
+    $("#macroList").innerHTML = risks.slice(0, 200).map((e) => `<li><b>${esc(e.module)}</b> ${e.line}행 <code>${esc(e.word)}</code> - ${esc(e.msg)}</li>`).join("") + (risks.length > 200 ? `<li>… 그 밖에 ${risks.length - 200}줄</li>` : "");
+    $("#macroCnt").textContent = String(risks.length);
+    d.classList.add("show"); $("#macroDrop").focus();
+    return new Promise((done) => {
+      const end = (v) => { d.classList.remove("show"); d.onclick = null; d.onkeydown = null; done(v); };
+      d.onclick = (e) => { const b = e.target.closest("[data-mk]"); if (b) end(b.dataset.mk || null); else if (e.target === d) end(null); };
+      d.onkeydown = (e) => { if (e.key === "Escape") { e.stopPropagation(); end(null); } };
+    });
   }
   async function deckListMenu(btn) {
     const r = await api("GET", "/api/decks"); S.decks = r.ok && Array.isArray(r.data) ? r.data : [];
@@ -2175,7 +2201,7 @@
     window.addEventListener("beforeunload", (e) => { if (S.dirty) { save(); e.preventDefault(); e.returnValue = ""; } });
   }
   // 시험용(브라우저 콘솔·스모크) - 수식 계산·표시 형식을 따로 불러 볼 수 있게
-  window.NexaSheet = { S, TH, VB, copyHtml, parseHtmlTable, pasteHtml, setZoom, zoom: () => Z, numFmt, bumpFmt, insertLink, formatDialog, drawDelete, autoFitCols, lastCell, noteEdit, insertImages, vbaOpen, vbaApply, effCell, bdSides, fillVars, reload: reloadExternal, applyVersion, recalc, parseFormula, display, fmtNumber, parseNumberText, shiftFormula, setInput, parseTsv, fillSeries, fillTarget,
+  window.NexaSheet = { S, TH, VB, copyHtml, parseHtmlTable, pasteHtml, setZoom, zoom: () => Z, numFmt, bumpFmt, insertLink, formatDialog, drawDelete, autoFitCols, lastCell, noteEdit, insertImages, vbaOpen, vbaApply, macroAsk, exportXlsx, effCell, bdSides, fillVars, reload: reloadExternal, applyVersion, recalc, parseFormula, display, fmtNumber, parseNumberText, shiftFormula, setInput, parseTsv, fillSeries, fillTarget,
     // 엑셀 기능 모듈(sheetx.js)이 쓰는 안쪽 함수 - 격자·선택·고치기(실행 취소·저장 포함)
     x: { shiftAxis, G, sheet, key, parseRef, colHidden, rowHidden, rectOf, colIndex, parseRange, rangeName, colName, cellObj, putCell, mutate, renderAll, renderSel, selectRange, selectCell, clampRange, eachCell, toast, openMenu,
       endEdit, startEdit, focusGrid, pasteText, scrollIntoView, growSize, clone, ED, esc,

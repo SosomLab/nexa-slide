@@ -99,6 +99,17 @@
   #vbaDlg textarea[readonly] { background: var(--tone, #F6F4F4); }
   #vbaDlg .msgs { max-height: 120px; overflow-y: auto; border-top: 1px solid var(--line); padding: 6px 12px; font-size: 12px; color: var(--ink2); }
   #vbaDlg .msgs .e { color: var(--err, #C62828); cursor: pointer; }
+  #vbaDlg .msgs .r { color: #B45309; cursor: pointer; }
+  #vbaDlg .mods button .rk { font-style: normal; color: #B45309; margin-right: 4px; }
+  #macroDlg { position: fixed; inset: 0; background: rgba(0,0,0,.35); z-index: 106; display: none; align-items: center; justify-content: center; }
+  #macroDlg.show { display: flex; }
+  #macroDlg .box { width: min(640px, 94vw); max-height: 86vh; background: var(--card); border-radius: 14px; box-shadow: 0 8px 32px rgba(0,0,0,.25); display: flex; flex-direction: column; overflow: hidden; font-size: 13px; }
+  #macroDlg .hd { padding: 12px 16px; border-bottom: 1px solid var(--line); }
+  #macroDlg .hd b { font-size: 14px; }
+  #macroDlg .bd { padding: 10px 16px; overflow-y: auto; color: var(--ink2); line-height: 1.55; }
+  #macroDlg ul { margin: 8px 0 0; padding-left: 18px; font-size: 12px; }
+  #macroDlg li code { color: #B45309; }
+  #macroDlg .ft { display: flex; gap: 6px; justify-content: flex-end; padding: 10px 16px; border-top: 1px solid var(--line); flex-wrap: wrap; }
   #vbaDlg .ft { display: flex; gap: 6px; align-items: center; padding: 8px 14px; border-top: 1px solid var(--line); font-size: 12px; color: var(--ink2); }
   #vbaDlg .ft .sp { flex: 1; }
   #engNotice .sp { flex: 1; }
@@ -394,6 +405,11 @@
   <span class="fx">fx</span>
   <input id="fxIn" spellcheck="false" placeholder="값 또는 = 로 시작하는 수식">
 </div>
+<div id="macroDlg" role="dialog" aria-label="매크로 포함 여부" tabindex="-1"><div class="box">
+  <div class="hd"><b>⛨ 엑셀에서 위험할 수 있는 매크로 <span id="macroCnt"></span>줄</b></div>
+  <div class="bd">이 문서의 VBA 에 엑셀에서 매크로를 켜면 저절로 실행되거나, 파일·프로그램·네트워크에 닿는 코드가 있습니다. 직접 쓴 코드가 아니라면 매크로를 빼고 내보내세요.<ul id="macroList"></ul></div>
+  <div class="ft"><button class="chip" data-mk="">취소</button><button class="chip" data-mk="keep">매크로 포함 (.xlsm)</button><button class="chip on" data-mk="drop" id="macroDrop">매크로 빼고 내보내기 (.xlsx)</button></div>
+</div></div>
 <div id="vbaDlg" role="dialog" aria-label="VBA 코드"><div class="box">
   <div class="hd"><b>VBA 코드</b><span class="hint" id="vbaSub"></span><span class="sp"></span><button class="chip sm" id="vbaAdd" title="새 표준 모듈(Function 을 칸에서 부를 수 있다)">＋ 모듈</button><button class="chip sm" id="vbaDel" title="고른 표준 모듈 지우기">모듈 지우기</button><button class="chip sm" id="vbaClose">닫기</button></div>
   <div class="bd"><div class="mods" id="vbaMods"></div><div class="ed"><textarea id="vbaCode" spellcheck="false" autocomplete="off"></textarea><div class="msgs" id="vbaMsgs"></div></div></div>

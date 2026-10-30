@@ -2,6 +2,7 @@
 """시트 문서(kind sheet) JSON → 엑셀 .xlsx (XlsxWriter - python-pptx 의존성으로 이미 설치돼 있다).
 
     python3 studio/export_xlsx.py <id>              # → out/<id>.xlsx (문서에 매크로(macros.vba)가 있으면 out/<id>.xlsm)
+    python3 studio/export_xlsx.py <id> --no-macros  # 매크로를 빼고 out/<id>.xlsx
     python3 studio/export_xlsx.py <id> --out x.xlsx
 
 형식은 docs/sheets.md. 수식(f)은 수식 그대로, 마지막 계산값(v)을 캐시로 넣어 엑셀이 열기 전에도 값이 보이게 한다.
@@ -225,7 +226,27 @@ def define_names(wb, deck):
                 wb.define_name("'" + scope.replace("'", "''") + f"'!{nm}" if scope else str(nm), ref)
 
 
-def export(deck, out):
+def source_project(vp, mods):
+    """내보낼 VBA 프로젝트 - 늘 모듈 소스로 다시 쓴 것(vba_project.write_modules: 컴파일된 코드를 버려 엑셀이 소스에서 다시 컴파일).
+    원본에 남은 p-code 가 화면에 보이는 소스와 다른 코드를 돌리지 못하게(VBA stomping). 다시 쓰지 못하면 None - 매크로를 빼고 .xlsx 로."""
+    import tempfile
+    import vba_project
+    data = vp.read_bytes()
+    try:
+        if not (isinstance(mods, list) and mods):  # 0.25.3 전에 가져온 문서 - 바이너리의 소스로
+            mods = vba_project.read_modules(data)
+        tmp = Path(tempfile.mkdtemp(prefix="nexa-vba-")) / "vbaProject.bin"
+        tmp.write_bytes(vba_project.write_modules(data, mods))
+    except Exception as e:  # noqa: BLE001 - 깨진 프로젝트
+        print(f"  VBA 프로젝트를 소스로 다시 쓰지 못해 매크로를 빼고 내보낸다: {e}", file=sys.stderr)
+        return None
+    risky = vba_project.risks(mods)
+    if risky:
+        print(f"  ⛨ 엑셀에서 위험할 수 있는 매크로 {len(risky)}줄 - " + ", ".join(f"{r['module']} {r['line']}행 {r['word']}" for r in risky[:8]) + (" …" if len(risky) > 8 else ""))
+    return tmp
+
+
+def export(deck, out, macros=True):
     if deck.get("kind") != "sheet":
         raise ValueError("시트 문서가 아니다(kind sheet) - 슬라이드 덱은 export_pptx.py")
     import copy
@@ -238,11 +259,13 @@ def export(deck, out):
     if theme:
         opts["default_format_properties"] = {"font_name": theme.get("font") or "맑은 고딕", "font_size": float(theme.get("size") or 10)}
     vba = None
-    if (deck.get("macros") or {}).get("vba"):  # 매크로 통합 문서 - VBA 프로젝트를 넣고 .xlsm 으로(엑셀은 확장자가 .xlsm 이어야 매크로를 연다)
+    if macros and (deck.get("macros") or {}).get("vba"):  # 매크로 통합 문서 - VBA 프로젝트를 넣고 .xlsm 으로(엑셀은 확장자가 .xlsm 이어야 매크로를 연다)
         from common import ASSET_ROOT
         vp = ASSET_ROOT / deck["macros"]["vba"]
         if vp.is_file():
-            vba, out = vp, out.with_suffix(".xlsm")
+            vba = source_project(vp, deck["macros"].get("modules"))
+            if vba:
+                out = out.with_suffix(".xlsm")
     wb = xlsxwriter.Workbook(str(out), opts)
     # 열 너비 px ↔ 엑셀 글자 단위, 그림 앵커 칸 계산 - 엑셀이 이 파일을 그릴 글꼴의 숫자 폭·기본 행 높이에 맞춘다(안 맞으면 그림·열이 엑셀에서 커진다)
     # 엑셀이 쓰는 글꼴 = 테마 글꼴(theme) 또는 xlsxwriter 기본(Calibri 11 + 테마 한글 글꼴 맑은 고딕 - 한국어 엑셀은 맑은 고딕으로 잰다)
@@ -254,19 +277,6 @@ def export(deck, out):
     wb.max_digit_width, wb.cell_padding, wb.default_col_width = mdw, 5 if mdw <= 8 else 7 if mdw <= 12 else 9, DEF_COL_PX.get(mdw, 64)
     wb.default_row_height = row_px  # 높이를 정하지 않은 행(파일에는 쓰지 않는다 - 엑셀이 글꼴로 정한다)
     if vba:
-        mods = (deck.get("macros") or {}).get("modules")
-        if isinstance(mods, list) and mods:  # 코드 창에서 고친 모듈 - 원본 프로젝트와 다르면 소스를 고쳐 쓴 프로젝트로(엑셀이 열 때 다시 컴파일)
-            import tempfile
-            import vba_project
-            data = vba.read_bytes()
-            norm = lambda ms: [(m.get("name"), (m.get("code") or "").replace("\r\n", "\n").rstrip()) for m in ms]  # noqa: E731
-            try:
-                if norm(vba_project.read_modules(data)) != norm(mods):
-                    tmp = Path(tempfile.mkdtemp(prefix="nexa-vba-")) / "vbaProject.bin"
-                    tmp.write_bytes(vba_project.write_modules(data, mods))
-                    vba = tmp
-            except Exception as e:  # noqa: BLE001 - 고쳐 쓰지 못하면 원본 프로젝트 그대로
-                print(f"  VBA 모듈을 고쳐 쓰지 못해 원본을 넣는다: {e}", file=sys.stderr)
         wb.add_vba_project(str(vba))
         wb.set_vba_name(deck["macros"].get("codeName") or "ThisWorkbook")
     wb.set_properties({"title": deck.get("title") or deck.get("id") or ""})
@@ -416,11 +426,12 @@ def main():
     ap = argparse.ArgumentParser(description="시트 문서 → xlsx")
     ap.add_argument("id")
     ap.add_argument("--out")
+    ap.add_argument("--no-macros", action="store_true", help="매크로(VBA)를 빼고 .xlsx 로")
     a = ap.parse_args()
     if not safe_id(a.id):
         sys.exit(f"쓸 수 없는 id: {a.id}")
     try:
-        out = export(load_deck(a.id), Path(a.out) if a.out else OUT / f"{a.id}.xlsx")
+        out = export(load_deck(a.id), Path(a.out) if a.out else OUT / f"{a.id}.xlsx", macros=not a.no_macros)
     except (OSError, ValueError) as e:
         sys.exit(str(e))
     print(f"{out.suffix[1:]}: {out}")

@@ -195,6 +195,48 @@ C.setVba(null);
 const fn = (nm) => `Function ${nm}()\n ${nm} = 1\nEnd Function\n`;
 check("모듈과 이름이 같은 함수는 칸에서 못 부른다(엑셀 #NAME?)", [V.compile([{ name: "Dup", kind: "std", code: fn("Dup") }]).has("Dup"), V.compile([{ name: "M2", kind: "std", code: fn("Dup2") }]).has("Dup2")], [false, true]);
 
+// ---------------------------------------------------------------- 보안 한도(0.25.8) - 문서의 코드가 화면을 멈추거나 탭을 죽이지 못한다
+const run1 = (code) => { const c = V.compile([{ name: "M", kind: "std", code }]); const t = Date.now(); try { return [c.call("F", []), Date.now() - t]; } catch (e) { return [e.constructor.name + ":" + e.message, Date.now() - t]; } };
+const sec = {
+  "배열 칸 한도": ["Function F()\n Dim a(1 To 300000000)\n F = 1\nEnd Function", /^VErr:배열이 너무 큽니다/],
+  "ReDim 칸 한도": ["Function F()\n Dim a()\n ReDim a(1 To 20000, 1 To 20000)\n F = 1\nEnd Function", /^VErr:배열이 너무 큽니다/],
+  "문자열 길이 한도(Space)": ["Function F()\n F = Len(Space(2000000000))\nEnd Function", /^VErr:문자열이 너무 깁니다/],
+  "문자열 길이 한도(& 두 배씩)": ["Function F()\n s = \"x\"\n For i = 1 To 40\n s = s & s\n Next\n F = Len(s)\nEnd Function", /^VErr:문자열이 너무 깁니다/],
+  "부르기 깊이 한도": ["Function F(Optional n = 0)\n F = F(n + 1)\nEnd Function", /^VErr:스택 공간이 부족합니다/],
+  "형식 이름 constructor 는 내부 개체가 아니다": ["Function F()\n Dim x As constructor\n F = TypeName(x)\nEnd Function", /^Empty$/],
+  "잘못된 Like 패턴 - VBA 오류 93": ["Function F()\n F = \"a\" Like \"[z-a]\"\nEnd Function", /^VErr:패턴 문자열이 잘못되었습니다/],
+};
+for (const [nm, [code, re]] of Object.entries(sec)) { const [v2, ms] = run1(code); check(`보안 - ${nm}`, [re.test(String(v2)), ms < 3000], [true, true]); }
+const [lk, lms] = run1("Function F()\n F = String(5000, \"a\") Like \"*a*a*a*a*a*a*a*a*a*a*a*a*b\"\nEnd Function");
+check("보안 - Like 되짚기 폭주 없음(5000자·별 13개)", [lk, lms < 1000], [false, true]);
+const L = (s, p) => run1(`Function F()\n F = "${s}" Like "${p}"\nEnd Function`)[0];
+check("Like - * ? # [a-c] [!0-9] 엑셀과 같게", [L("abc", "a*"), L("abc", "a?c"), L("a1c", "a#c"), L("abc", "[a-c]bc"), L("xbc", "[!0-9]bc"), L("1bc", "[!0-9]bc"), L("a*c", "a[*]c"), L("", "*"), L("ab", "a*b*"), L("aXbXc", "a*b*c"), L("abc", "ABC")],
+  [true, true, true, true, true, false, true, true, true, true, false]);
+const dead = V.compile([{ name: "M", kind: "std", code: "Const K = 1\nFunction F()\n F = K\nEnd Function\nFunction G(\n" }]);
+check("깨진 모듈도 컴파일은 오류 목록으로(화면이 죽지 않는다)", [Array.isArray(dead.errors), dead.call("F", [])], [true, 1]);
+const deep = V.compile([{ name: "M", kind: "std", code: "Function F()\n" + "If 1 Then\n".repeat(20000) + "End If\n".repeat(20000) + "End Function\n" }]);
+check("아주 깊은 중첩 - 그 모듈만 못 씀(스택 넘침을 오류 목록으로)", deep.errors.length > 0, true);
+
+// Worker 주고받기 - 값 묶기·한 메시지 처리(vbaworker.js 가 쓰는 serve)
+const R0 = new V.VRange([[1, { code: "#N/A" }], [null, "x"]], 2, 3, "S"), A0 = new V.VArr([[1, 2]], [V.EMPTY, new V.CVErr("#DIV/0!")]);
+const back = JSON.parse(JSON.stringify([R0, A0, V.MISSING, 3, "s"].map(V.pack))).map(V.unpack);
+check("pack·unpack - Range·배열·Missing·값", [back[0] instanceof V.VRange && back[0].r0 === 2 && back[0].rows[0][1].code, back[1] instanceof V.VArr && back[1].d[0] === V.EMPTY && back[1].d[1].code, back[2] === V.MISSING, back[3], back[4]], ["#N/A", "#DIV/0!", true, 3, "s"]);
+const st = {}; V.serve(st, { type: "init", modules: [{ name: "M", kind: "std", code: "Function Tw(x)\n Tw = x * 2\nEnd Function\nFunction W()\n With x\n End With\nEnd Function\nFunction Z(r)\n Z = r.Count\nEnd Function\n" }] }, {});
+check("serve - 결과·못 쓰는 문법·실행 오류·Range 인자", [V.serve(st, { type: "call", id: 1, name: "Tw", args: [21] }, {}), V.serve(st, { type: "call", id: 2, name: "W", args: [] }, {}).err.kind, V.serve(st, { type: "call", id: 3, name: "Tw", args: ["글"] }, {}).err.kind, V.serve(st, { type: "call", id: 4, name: "Z", args: [V.pack(R0)] }, {}).v],
+  [{ id: 1, v: 42 }, "unsupported", "verr", 4]);
+
+// 계산 중(Pending) - 그 칸과 그 칸에 기대는 칸(IFERROR 로 감싸도)은 저장값을 그대로, 다른 칸은 계산
+let pend = true;
+const fake = { has: (n) => /^slow$/i.test(n), call: () => { if (pend) throw new V.Pending("계산 중"); return 7; } };
+C.setVba(fake, V);
+const dp = { sheets: [{ id: "t01", name: "S", cells: { A1: { f: "=Slow()", v: 5 }, A2: { f: "=A1+1", v: 6 }, A3: { f: "=IFERROR(A1,0)", v: 5 }, A4: { f: "=1+1" }, B1: { f: "=SEQUENCE(2)+Slow()", v: 6, da: 1 }, B2: { v: 7, sp: "B1" } } }] };
+C.recalc(dp);
+const cv = (k) => dp.sheets[0].cells[k].v;
+check("Pending - 기다리는 칸·기대는 칸·넘친 칸은 저장값 그대로, 나머지는 계산", [cv("A1"), cv("A2"), cv("A3"), cv("A4"), cv("B1"), cv("B2"), dp.sheets[0].cells.B2.sp], [5, 6, 5, 2, 6, 7, "B1"]);
+pend = false; C.recalc(dp);
+check("결과가 오면 다시 계산", [cv("A1"), cv("A2"), cv("A3"), cv("B1"), cv("B2")], [7, 8, 7, 8, 9]);
+C.setVba(null);
+
 console.log(`VBA 사례 ${ok + fails.length}개 중 ${ok}개 같음`);
 console.log("\n실패:", fails.length ? fails.join(", ") : "없음");
 process.exit(fails.length ? 1 : 0);
