@@ -118,6 +118,8 @@
   main { flex: 1; display: grid; grid-template-columns: 1fr var(--sideW, 340px); min-height: 0; }
   body.noside main { grid-template-columns: 1fr 0; }
   body.noside #side { display: none; }
+  /* 테마 미리 보기(sheet.html?preview=) - 시작 페이지 창 안. 저장·요청·세션·내보내기 단추는 없다 */
+  body.preview #backLink, body.preview #deckList, body.preview #themeChip, body.preview #sessChip, body.preview #exportBtn, body.preview #sideBtn, body.preview #vbaBtn { display: none !important; }
   #center { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
   #gridWrap { flex: 1; overflow: auto; background: #fff; position: relative; outline: none; }
   #gridIn { position: relative; width: max-content; }

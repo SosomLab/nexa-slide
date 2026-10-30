@@ -16,6 +16,7 @@ import shutil
 import subprocess
 import sys
 from pathlib import Path
+from urllib.parse import quote
 
 from paths import (ENGINE, LOCAL_CONFIG, default_projects_root, documents_dir, forget, inside_engine, load_settings, load_ws_config, projects_root,
                    remember, repo_workspace, save_settings, user_dir)
@@ -259,7 +260,7 @@ def sheet_themes(rows=None):
         except (OSError, ValueError):
             return
         pal = t.get("palette") or {}
-        out.append({"key": f"{src}:{d.name}", "name": d.name, "label": t.get("label") or d.name, "source": src, "from": str(ws) if ws else "",
+        out.append({"key": f"{src}:{d.name}", "name": d.name, "label": t.get("label") or d.name, "source": src, "from": str(ws) if ws else "", "dir": str(d),
                     "wsTitle": title or "", "font": t.get("font") or "", "swatches": [pal.get(k) for k in ("primary", "secondary", "line", "band", "input") if pal.get(k)],
                     "pages": [p.get("name") for p in t.get("pages", [])], "logo": (d / "logo.png").is_file()})
     for d in sorted((STUDIO / "sheet_themes").glob("*")) if (STUDIO / "sheet_themes").is_dir() else []:
@@ -275,6 +276,60 @@ def sheet_themes(rows=None):
             if (d / "theme.json").is_file() and not any(x["source"] == "ws" and x["name"] == d.name for x in out):  # 같은 이름은 먼저 본(최근) 작업 공간 것
                 add(d, "ws", p, cfg.get("title") or p.name)
     return out
+
+
+PREVIEW_IMG = (".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg", ".bmp")
+
+
+def _sheet_theme_entry(key):
+    t = next((x for x in sheet_themes() if x["key"] == key), None)  # 목록에 있는 테마만 - 아무 폴더나 읽지 않게
+    if not t:
+        raise HubError(f"없는 시트 테마: {key}")
+    return t
+
+
+def sheet_theme_preview(key, title="", url=""):
+    """시트 테마 미리 보기 - 새 시트를 만들 때와 같은 탭(sheet_theme.new_tabs)을 파일 없이 만들어 {deck, theme} 로.
+    그림 주소는 url(= /api/sheet-preview?key=…&f=) 뒤에 파일 이름 - sheet_theme_file 이 테마 폴더·작업 공간 assets·brand 로고에서 준다. docs/sheets.md 5절."""
+    import sheet_theme
+    t = _sheet_theme_entry(key)
+    try:
+        theme = json.loads((Path(t["dir"]) / "theme.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError) as e:
+        raise HubError(f"테마를 읽지 못했다: {e}") from None
+    title = " ".join(str(title or "").split())[:200] or theme.get("label") or t["name"]
+    tabs, vs = sheet_theme.new_tabs(theme, None, None, title)
+    for tab in tabs:  # 작업 공간 그림(assets/…)은 미리 보기 주소로
+        for dr in tab.get("drawings") or []:
+            if isinstance(dr.get("src"), str) and dr["src"].startswith("assets/"):
+                dr["src"] = url + quote(dr["src"])
+    theme.update(name=t["name"], source="workspace" if t["source"] == "ws" else "engine", base=url, brandLogo=url + "@brand")
+    deck = {"id": "preview", "title": title, "kind": "sheet", "theme": t["name"], "vars": vs, "slides": [], "sheets": tabs}
+    return {"ok": True, "key": key, "label": t["label"], "deck": deck, "theme": theme}
+
+
+def sheet_theme_file(key, f):
+    """미리 보기 그림 - 테마 폴더 · 작업 공간 assets/…(회사 테마) · @brand = 그 작업 공간 brand 로고(엔진 테마는 예제의 자리 표시 로고). 그림만."""
+    t = _sheet_theme_entry(key)
+    d = Path(t["dir"]).resolve()
+    if f == "@brand":
+        p, cfg = None, load_ws_config(Path(t["from"])) if t["from"] else None
+        if cfg and (cfg.get("brand") or {}).get("logo"):
+            p = Path(t["from"]) / cfg.get("assetRoot", ".") / cfg["brand"]["logo"]
+        if not (p and p.is_file()):
+            p = ENGINE / "example" / "assets" / "brand" / "logo.png"
+        return p
+    if f.startswith("assets/"):
+        if not t["from"]:
+            raise HubError("엔진 테마에는 작업 공간 그림이 없다")
+        cfg = load_ws_config(Path(t["from"])) or {}
+        root = (Path(t["from"]) / cfg.get("assetRoot", ".")).resolve()
+    else:
+        root = d
+    p = (root / f).resolve()
+    if root not in p.parents or p.suffix.lower() not in PREVIEW_IMG or not p.is_file():
+        raise HubError("없는 그림")
+    return p
 
 
 def save_attach(b):

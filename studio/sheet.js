@@ -22,9 +22,12 @@
                set(k, v) { try { if (v === "" || v == null) localStorage.removeItem("nexa-" + k); else localStorage.setItem("nexa-" + k, v); } catch (e) { /* 저장소 없음 */ } } };
   const TAB = (() => { try { let t = sessionStorage.getItem("nexaTab"); if (!t) { t = (crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2)).slice(0, 8); sessionStorage.setItem("nexaTab", t); } return t; } catch (e) { return Math.random().toString(36).slice(2, 10); } })();
 
+  // 테마 미리 보기(시작 페이지 → sheet.html?preview=<테마 키>&title=) - 새 시트와 같은 탭을 서버가 파일 없이 만들어 준다(/api/sheet-preview).
+  // 고쳐 볼 수는 있지만 저장·요청·세션·실시간 연결은 없다(그 밖의 API 는 부르지 않는다)
+  const PREVIEW = new URLSearchParams(location.search).get("preview") || "";
   const DEF_W = 96, DEF_H = 24, HW = 46, HH = 24, DEF_ROWS = 100, DEF_COLS = 26;
   const S = {
-    id: new URLSearchParams(location.search).get("deck") || "", deck: null, version: null, savedJson: null, reqVersion: null,
+    id: PREVIEW ? "preview" : new URLSearchParams(location.search).get("deck") || "", deck: null, version: null, savedJson: null, reqVersion: null,
     dirty: false, saving: false, conflict: false, undo: [], redo: [], decks: [],
     ti: 0, cur: { r: 0, c: 0 }, anchor: { r: 0, c: 0 }, sel: { r1: 0, c1: 0, r2: 0, c2: 0 },
     edit: null,  // {r, c, mode:"enter"|"edit", orig}
@@ -34,6 +37,7 @@
 
   // ---------------------------------------------------------------- 공통
   async function api(method, url, body) {
+    if (PREVIEW && !url.startsWith("/api/sheet-preview")) return { ok: false, status: 0, data: null, headers: new Headers() };  // 미리 보기 - 저장·요청 없음
     const headers = { "X-Nexa-Tab": TAB }; if (body !== undefined) headers["Content-Type"] = "application/json";
     const r = await fetch(BASE + url, { method, headers, body: body !== undefined ? JSON.stringify(body) : undefined, cache: "no-store" });
     let data = null;
@@ -451,6 +455,7 @@
   let saveT = 0;
   function scheduleSave() { clearTimeout(saveT); saveT = setTimeout(save, 700); }
   async function save(force) {
+    if (PREVIEW) { S.dirty = false; setStatus("saved", "미리 보기 · 저장 안 됨"); return; }
     if (!S.deck || (S.conflict && !force)) return;
     if (S.saving) { scheduleSave(); return; }
     const body = deckJson();
@@ -493,6 +498,7 @@
 
   // ---------------------------------------------------------------- 불러오기·외부 변경 감지
   async function loadDeck(keepView) {
+    if (PREVIEW) return loadPreview();
     const r = await fetch(`${BASE}/api/deck/${encodeURIComponent(S.id)}`, { cache: "no-store" });
     if (r.status === 401) { if (window.NexaMenu) NexaMenu.auth401(r, await r.json().catch(() => null)); return false; }
     if (!r.ok) { setStatus("error", "읽기 실패"); toast("시트를 불러오지 못했습니다 (" + r.status + ")", 6000); return false; }
@@ -521,6 +527,22 @@
     // 세션이 값만 넣고 계산값(v)을 비웠으면 여기서 계산해 저장(엑셀 내보내기에 계산값이 들어가게)
     if (recalc() && !reqBusy()) { S.dirty = true; setStatus("dirty", "저장 대기"); scheduleSave(); }
     renderAll();
+    return true;
+  }
+  /** 테마 미리 보기 - 서버가 만든 탭과 테마를 그대로(loadDeck 의 미리 보기 판) */
+  async function loadPreview() {
+    const q = new URLSearchParams(location.search);
+    const r = await api("GET", `/api/sheet-preview?key=${encodeURIComponent(PREVIEW)}&title=${encodeURIComponent(q.get("title") || "")}`);
+    if (!r.ok || !r.data || !r.data.deck) { setStatus("error", "미리 보기 실패"); toast("미리 보기를 만들지 못했습니다: " + ((r.data && r.data.error) || r.status), 6000); return false; }
+    const deck = r.data.deck;
+    deck.sheets.forEach(normSheet);
+    TH.name = deck.theme || null; TH.theme = r.data.theme || null;
+    S.deck = deck; S.savedJson = deckJson(); S.undo = []; S.redo = []; S.struct = []; S.dirty = false; S.ti = 0;
+    selectRange({ r1: 0, c1: 0, r2: 0, c2: 0 }, true);
+    document.title = `${r.data.label || deck.title} - 시트 테마 미리 보기`;
+    $("#titleText").textContent = deck.title; $("#title").title = `시트 테마 ${r.data.label || ""} 미리 보기 - 고쳐 볼 수 있지만 저장되지 않습니다`;
+    setStatus("saved", "미리 보기 · 저장 안 됨"); updUndo(); renderThemeChip();
+    recalc(); renderAll();
     return true;
   }
   // ---------------------------------------------------------------- VBA(사용자 함수 실행기 vba.js · 코드 창)
@@ -2029,19 +2051,20 @@
 
   // ---------------------------------------------------------------- 시작
   async function init() {
-    if (window.NexaMenu && NexaMenu.mount) NexaMenu.mount($("#menuBtn")); else $("#menuBtn").remove();
+    if (PREVIEW) document.body.classList.add("preview", "noside");
+    if (window.NexaMenu && NexaMenu.mount && !PREVIEW) NexaMenu.mount($("#menuBtn")); else $("#menuBtn").remove();
     if (!S.id) { location.replace("index.html"); return; }
     $("#sizeSel").innerHTML = [8, 9, 10, 11, 12, 14, 16, 18, 20, 24, 28, 36].map((n) => `<option value="${n}">${n}</option>`).join("");
     fillFmtSel("");
-    if (LS.get("sheetNoSide", "0") === "1") document.body.classList.add("noside");
+    if (LS.get("sheetNoSide", "0") === "1" && !PREVIEW) document.body.classList.add("noside");
     { const w = +LS.get("sheetSideW", 0); if (w) document.documentElement.style.setProperty("--sideW", w + "px"); }
-    { const c = await api("GET", "/api/config"); if (c.ok && c.data && c.data.brand && c.data.brand.logo) TH.brandLogo = "/" + String(c.data.brand.logo).replace(/^[/]+/, ""); }
+    if (!PREVIEW) { const c = await api("GET", "/api/config"); if (c.ok && c.data && c.data.brand && c.data.brand.logo) TH.brandLogo = "/" + String(c.data.brand.logo).replace(/^[/]+/, ""); }
     if (window.NexaSession) SESS = NexaSession.create({ api, toast, openMenu, esc, base: BASE, deckId: () => S.id, onChange: (st, changed) => { S.session = st; if (changed && S.deck) renderReqs(); } });
     $("#sessChip").onclick = (e) => (SESS ? SESS.menu(e.currentTarget) : null);  // 웹 세션 시작·끊기·모델·진행
     RQ = NexaRequests.create({ api, toast, esc, base: BASE, deckId: () => S.id, session: SESS,
       getReqs: () => S.reqs, setReqs: (l) => { S.reqs = l; }, onChange: () => { if (!S.deck) return; renderReqs(); renderMarks(); renderTabs(); aiWatch(); },
       target: SHEET_TARGET, att: { boxes: { tab: "#reqAtt", fu: "#fuAtt" } }, onDeckChanged: () => { pollAt = 0; poll(); } });
-    { const [q, ss] = await Promise.all([api("GET", `/api/requests/${encodeURIComponent(S.id)}`), api("GET", "/api/session")]);
+    if (!PREVIEW) { const [q, ss] = await Promise.all([api("GET", `/api/requests/${encodeURIComponent(S.id)}`), api("GET", "/api/session")]);
       if (q.ok && Array.isArray(q.data)) S.reqs = q.data; if (ss.ok && ss.data) renderSession(ss.data); }
     if (!(await loadDeck(false))) return;
     {  // 엑셀 가져오기 경고(그림·조건부 서식·배열 수식 등 - sheetnew.js 가 남김) - 한 번 보이고 지운다
@@ -2049,12 +2072,12 @@
       if (w) toast(`엑셀에서 가져오며 바뀐 것\n${w}`, 12000);
     }
     { const t = LS.get(typedKey(), ""); if (t) $("#reqText").value = t; }
-    await loadReqs();
-    { const v = await api("GET", `/api/version/${encodeURIComponent(S.id)}`); if (v.ok && v.data.session) renderSession(v.data.session, v.data.activity); }
+    if (!PREVIEW) await loadReqs();
+    if (!PREVIEW) { const v = await api("GET", `/api/version/${encodeURIComponent(S.id)}`); if (v.ok && v.data.session) renderSession(v.data.session, v.data.activity); }
     scrollIntoView(S.cur.r, S.cur.c); focusGrid();
-    setInterval(poll, 2000);
+    if (!PREVIEW) setInterval(poll, 2000);
     // 실시간 연결(동시 편집 2단계) - 바뀌면 바로 applyVersion · 함께 보는 사람은 격자 테두리와 머리줄 칩. 내 위치는 1초마다 보고 바뀐 때만 보낸다
-    if (window.NexaLive) { LIVE = NexaLive.create({ api, base: BASE, deckId: () => S.id, tab: TAB, onVersion: (v) => applyVersion(v), onPresence: () => renderMarks(), chip: "#sessChip" }); setInterval(livePresence, 1000); }
+    if (window.NexaLive && !PREVIEW) { LIVE = NexaLive.create({ api, base: BASE, deckId: () => S.id, tab: TAB, onVersion: (v) => applyVersion(v), onPresence: () => renderMarks(), chip: "#sessChip" }); setInterval(livePresence, 1000); }
 
     const W = $("#gridWrap");
     W.addEventListener("scroll", onGridScroll, { passive: true });
