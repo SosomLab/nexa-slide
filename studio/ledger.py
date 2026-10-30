@@ -375,7 +375,8 @@ def _merge_item(g, it):
 
 def recent(entries, deck_obj=None):
     """슬라이드별 가장 최근에 그 장을 건드린 줄 하나씩 - 최근 것부터. idx 는 지금 덱 순서로 다시 센다."""
-    pos = {s.get("id"): i for i, s in enumerate((deck_obj or {}).get("slides") or [])}
+    d = deck_obj or {}
+    pos = {s.get("id"): i for i, s in enumerate((d.get("sheets") if d.get("kind") == "sheet" else d.get("slides")) or []) if isinstance(s, dict)}
     seen, out = set(), []
     for e in reversed(entries):
         for it in e.get("items") or []:

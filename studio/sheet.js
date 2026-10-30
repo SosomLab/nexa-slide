@@ -459,7 +459,8 @@
     // 병합 저장(merge=1) - 그 사이 다른 창·AI 가 저장했어도 서버가 탭·셀 단위로 합친다(같은 셀은 나중 저장인 내 값). 409 는 기준본을 모를 때뿐
     // 행·열 삽입·삭제(동시 편집 3-2) - 기준판 이후의 구조 작업을 함께 보내면 서버가 기준본·지금 파일도 같이 옮긴 뒤 셀을 합친다
     const sentStruct = force ? [] : (S.struct || []).slice();
-    const r = await api("PUT", `/api/deck/${encodeURIComponent(S.id)}?base=${encodeURIComponent(S.version || "")}${force ? "&force=1" : "&merge=1"}`, sentStruct.length ? { ...JSON.parse(body), __struct: sentStruct } : JSON.parse(body));
+    const meta = S.saveMeta ? `&action=${encodeURIComponent(S.saveMeta.action)}${S.saveMeta.note ? "&note=" + encodeURIComponent(S.saveMeta.note) : ""}` : ""; S.saveMeta = null;  // 되돌리기 등 - 변경 원장에 action 으로 남는다
+    const r = await api("PUT", `/api/deck/${encodeURIComponent(S.id)}?base=${encodeURIComponent(S.version || "")}${force ? "&force=1" : "&merge=1"}${meta}`, sentStruct.length ? { ...JSON.parse(body), __struct: sentStruct } : JSON.parse(body));
     if (r.ok) S.struct = (S.struct || []).slice(sentStruct.length);  // 저장된 판이 새 기준 - 보낸 구조 작업은 그 안에 들어 있다
     S.saving = false;
     if (r.ok && r.data.merged && r.data.deck) {  // 합쳐졌다 - 병합 결과(+ 저장하는 사이 더 고친 것)를 화면에, 남의 변경은 내 실행 취소에 섞지 않는다
@@ -602,6 +603,7 @@
         else if (v.engine !== S.engine) { S.engine = v.engine; $("#engReload").textContent = S.dirty ? "저장하고 새로 고침" : "새로 고침"; $("#engNotice").classList.add("show"); }
       }
       if (RQ) await RQ.sync(v);  // 요청 파일이 바뀌었으면 다시 읽기(편집기와 같다)
+      if (window.NexaSheetSide) NexaSheetSide.onVersion(v);  // 변경 원장이 바뀌었으면 변경 탭·표시 갱신
       if (v.deck !== S.version && !S.saving) {
         // 편집 중에 밖에서 바뀌었다 - 배너로 고르게 하지 않고, 내 저장이 서버에서 합쳐지게 바로 저장한다(셀 입력 중이면 입력을 넣고 저장할 때)
         if (S.dirty || S.edit) { if (S.dirty && !S.edit && !S.conflict) { clearTimeout(saveT); await save(); } }
@@ -695,7 +697,7 @@
 
   // ---------------------------------------------------------------- 그리기
   const G = { colX: [], rowY: [], rows: 0, cols: 0 };
-  function renderAll() { renderGrid(); renderTabs(); renderSel(); renderReqs(); }
+  function renderAll() { renderGrid(); renderTabs(); renderSel(); renderReqs(); if (window.NexaSheetSide) NexaSheetSide.onRender(); }
   function cellStyle(o, isNum) {
     const st = [];
     if (o.fill) st.push(`background:${o.fill}`);
@@ -834,6 +836,7 @@
     let hd = $("#drawHandle"); if (!hd) { hd = document.createElement("div"); hd.id = "drawHandle"; hd.title = "끌어서 크기(Shift = 비율 그대로)"; $("#gridIn").appendChild(hd); }
     const one = S.drawSel && S.drawSel.size === 1 ? $(`#draws img.drw[data-did="${CSS.escape([...S.drawSel][0])}"]`) : null;
     hd.hidden = !one; if (one) { hd.style.left = one.offsetLeft + one.offsetWidth - 4 + "px"; hd.style.top = one.offsetTop + one.offsetHeight - 4 + "px"; }
+    if (window.NexaSheetSide) NexaSheetSide.onSel();
   }
   const drawIdx = (sh) => (sh.drawings || []).map((d, i) => [drawId(d, i), i]);
   /** 그림 끌기 - move: 고른 그림 모두 옮김(놓은 자리의 칸 + 남는 px 로 at·dx·dy) · size: 하나의 w·h */
@@ -931,6 +934,7 @@
     if (!S.edit) placeEditor();
     renderToolState(); renderReqTarget();
     if (window.NexaSheetX) NexaSheetX.onSel();  // 엑셀 기능(sheetx.js) - 상태 표시줄 합계 등
+    if (window.NexaSheetSide) NexaSheetSide.onSel();  // 패널 속성 탭(sheetside.js)
     clearTimeout(renderSel.t); renderSel.t = setTimeout(() => history.replaceState(null, "", `#${encodeURIComponent(sh.id)}!${rangeName(g)}`), 300);  // 새로 고쳐도 같은 탭·범위
   }
   function clampRange(g) { return { r1: Math.max(0, Math.min(g.r1, G.rows - 1)), c1: Math.max(0, Math.min(g.c1, G.cols - 1)), r2: Math.max(0, Math.min(g.r2, G.rows - 1)), c2: Math.max(0, Math.min(g.c2, G.cols - 1)) }; }
@@ -1838,6 +1842,8 @@
     if (rzc || rzr) { e.preventDefault(); startResize(e, rzc ? "c" : "r", +(rzc || rzr).dataset[rzc ? "rzc" : "rzr"]); return; }
     const td = e.target.closest("td[data-r]"), thc = e.target.closest("th[data-col]"), thr = e.target.closest("th[data-row]");
     if (e.target.closest("th.corner")) { e.preventDefault(); S.anchor = { r: 0, c: 0 }; S.sel = { r1: 0, c1: 0, r2: G.rows - 1, c2: G.cols - 1 }; renderSel(); focusGrid(); return; }
+    const im2 = e.button === 2 && e.target.closest("#draws img.drw");
+    if (im2) { if (S.edit) endEdit(true); if (!(S.drawSel && S.drawSel.has(im2.dataset.did))) drawPick(im2.dataset.did, false); return; }  // 그림 오른쪽 클릭 - 고르고 그림 메뉴(gridMenu)
     if (e.button === 2) {  // 오른쪽 클릭 - 선택 밖이면 그 셀로 옮기고 메뉴
       if (td && !inRange(S.sel, +td.dataset.r, +td.dataset.c)) { if (S.edit) endEdit(true); selectCell(+td.dataset.r, +td.dataset.c); }
       return;
@@ -1968,6 +1974,8 @@
   }
   function pickImages() { const inp = document.createElement("input"); inp.type = "file"; inp.accept = "image/*"; inp.multiple = true; inp.onchange = () => insertImages(inp.files); inp.click(); }
   function gridMenu(e) {
+    const im = e.target.closest("#draws img.drw");
+    if (im && window.NexaSheetSide) { e.preventDefault(); NexaSheetSide.drawMenu(e); return; }  // 그림 - 슬라이드 요소 메뉴처럼(sheetside.js)
     if (!e.target.closest("td, th")) return;
     e.preventDefault();
     const g = S.sel;
@@ -1987,7 +1995,7 @@
       { label: mergeAt(sheet(), S.cur.r, S.cur.c) ? "병합 해제" : "셀 병합", act: toggleMerge },
       { label: "행·열 삽입·삭제…", act: () => rowColMenu({ x: e.clientX, y: e.clientY }) },
       "-",
-      { label: "이 범위에 AI 요청 남기기", act: () => { $("#reqWhole").checked = false; document.body.classList.remove("noside"); renderReqTarget(); $("#reqText").focus(); } },
+      { label: "이 범위에 AI 요청 남기기", act: () => { $("#reqWhole").checked = false; document.body.classList.remove("noside"); if (window.NexaSheetSide) NexaSheetSide.showTab("reqs"); renderReqTarget(); $("#reqText").focus(); } },
     ]);
   }
 
@@ -2169,6 +2177,8 @@
   window.NexaSheet = { S, TH, VB, copyHtml, parseHtmlTable, pasteHtml, setZoom, zoom: () => Z, numFmt, bumpFmt, insertLink, formatDialog, drawDelete, autoFitCols, lastCell, noteEdit, insertImages, vbaOpen, vbaApply, effCell, bdSides, fillVars, reload: reloadExternal, applyVersion, recalc, parseFormula, display, fmtNumber, parseNumberText, shiftFormula, setInput, parseTsv, fillSeries, fillTarget,
     // 엑셀 기능 모듈(sheetx.js)이 쓰는 안쪽 함수 - 격자·선택·고치기(실행 취소·저장 포함)
     x: { shiftAxis, G, sheet, key, parseRef, colHidden, rowHidden, rectOf, colIndex, parseRange, rangeName, colName, cellObj, putCell, mutate, renderAll, renderSel, selectRange, selectCell, clampRange, eachCell, toast, openMenu,
-      endEdit, startEdit, focusGrid, pasteText, scrollIntoView, growSize, clone, ED, esc } };
+      endEdit, startEdit, focusGrid, pasteText, scrollIntoView, growSize, clone, ED, esc,
+      // 패널 속성·기록·변경 탭(sheetside.js)
+      api, TAB, LS, FMTS, styleOf, defSize, rawText, normSheet, setupVba, place, drawId, drawPick, markDrawings, drawDelete, assetUrl, inRange, switchTab, save, snapshot, afterChange, setZoomRef: () => Z } };
   init();
 })();
