@@ -9,11 +9,14 @@ write_modules(data, mods)  → 새 vbaProject.bin 바이트. mods 의 code 로 �
     문서·클래스 모듈(통합 문서·시트·폼)은 코드만 바꾸고 더하거나 빼지 않는다.
     다시 쓴 프로젝트는 컴파일된 코드(p-code 성능 캐시·__SRP_ 스트림)를 버리고 _VBA_PROJECT 판을 0xFFFF 로 둔다 -
     MS-OVBA 2.3.4.1 규칙대로라 엑셀이 열 때 소스에서 다시 컴파일한다.
+risks(mods)                → [{"module", "line", "kind", "word", "msg"}] 엑셀에서 실제로 돌 때 위험할 수 있는 줄 - 규칙은 vba.js RISKS(화면과 같은 목록)
 """
 import argparse
 import json
+import re
 import struct
 import sys
+from pathlib import Path
 
 # ---------------------------------------------------------------- MS-OVBA 2.4.1 압축
 def decompress(buf):
@@ -399,6 +402,46 @@ def write_modules(data, mods):
             at += 1
         streams[base + "PROJECT"] = "\r\n".join(lines).encode(enc, "replace")
     return cfb_write(streams, cf.storages, cf.clsid)
+
+
+_RISKS = None
+
+
+def _risk_rules():
+    """vba.js 의 RISKS 배열(JSON 과 같은 꼴)을 읽는다 - 화면·내보내기·가져오기가 같은 규칙을 쓰게."""
+    global _RISKS
+    if _RISKS is None:
+        src = (Path(__file__).with_name("vba.js")).read_text(encoding="utf-8")
+        body = src[src.index("const RISKS = [") + len("const RISKS = "):]
+        body = body[:body.index("\n  ];") + 4]
+        _RISKS = [(k, re.compile(r, re.I), m) for k, r, m in json.loads(re.sub(r",\s*\]$", "]", body.strip()))]
+    return _RISKS
+
+
+def _code_part(ln):
+    if re.match(r"\s*Rem(\s|$)", ln, re.I):
+        return ""
+    q = False
+    for i, c in enumerate(ln):
+        if c == '"':
+            q = not q
+        elif c == "'" and not q:
+            return ln[:i]
+    return ln
+
+
+def risks(mods):
+    out = []
+    for m in mods or []:
+        for i, raw in enumerate(str(m.get("code") or "").replace("\r\n", "\n").replace("\r", "\n").split("\n")):
+            ln = _code_part(raw)
+            if not ln.strip():
+                continue
+            for kind, rx, msg in _risk_rules():
+                h = rx.search(ln)
+                if h:
+                    out.append({"module": m.get("name"), "line": i + 1, "kind": kind, "word": h.group(1) if h.groups() and h.group(1) else h.group(0), "msg": msg})
+    return out
 
 
 def main():

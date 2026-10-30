@@ -665,6 +665,10 @@ def to_doc(i, title, src, asset_root=None):
             try:  # 모듈 소스 - 화면 VBA 실행기(vba.js)·코드 창이 쓴다. 내보낼 때 바뀌었으면 vbaProject.bin 을 고쳐 쓴다(vba_project.py)
                 import vba_project
                 doc["macros"]["modules"] = vba_project.read_modules(z.read("xl/vbaProject.bin"))
+                risky = vba_project.risks(doc["macros"]["modules"])
+                if risky:
+                    warnings.append(f"⛨ 엑셀에서 위험할 수 있는 매크로 {len(risky)}줄(이 편집기는 실행하지 않는다 - 내보낼 때 매크로를 뺄 수 있다): "
+                                    + ", ".join(f"{r['module']} {r['line']}행 {r['word']}" for r in risky[:6]) + (" …" if len(risky) > 6 else ""))
             except Exception as e:  # noqa: BLE001 - 읽지 못하면 바이너리만 보관(엑셀에서는 그대로 돈다)
                 warnings.append(f"VBA 모듈 소스를 읽지 못했다(바이너리는 보관): {e}")
             warnings.append("매크로(VBA)를 옮겼다 - 엑셀로 내보내면 .xlsm(매크로 포함). 매크로 단추·양식 컨트롤은 옮기지 않았다")

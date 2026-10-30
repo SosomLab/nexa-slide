@@ -387,7 +387,7 @@ def activity():
     return {"watcher": w, "othersBusy": sum(1 for x in out if x is not w and x["state"] == "busy"), "sessions": len(out)}
 
 
-ENGINE_UI = ("index.html", "studio.js", "sheet.html", "sheet.js", "sheetnew.js", "sheetcalc.js", "sheetx.js", "sheetside.js", "vba.js", "wsession.js", "nexa-requests.js", "nexa-requests.css", "nexa-merge.js", "nexa-live.js", "render.js", "menu.js", "fonts.css", "i18n.js", "i18n/en.js", "i18n/en.pages.js", "i18n/en.review.js")
+ENGINE_UI = ("index.html", "studio.js", "sheet.html", "sheet.js", "sheetnew.js", "sheetcalc.js", "sheetx.js", "sheetside.js", "vba.js", "vbaworker.js", "wsession.js", "nexa-requests.js", "nexa-requests.css", "nexa-merge.js", "nexa-live.js", "render.js", "menu.js", "fonts.css", "i18n.js", "i18n/en.js", "i18n/en.pages.js", "i18n/en.review.js")
 
 
 def hub_ui_stamp():
@@ -2388,7 +2388,8 @@ class H(BaseHTTPRequestHandler):
         if not deck_path(i).exists():
             return self.err(404, "덱 없음")
         if deck_kind(i) == "sheet":  # 시트 문서 → out/<id>.xlsx, 매크로(VBA)가 있으면 .xlsm (export_xlsx.py)
-            code, log = run([sys.executable, str(STUDIO / "export_xlsx.py"), i], 120)
+            no_macros = (q.get("macros") or ["1"])[0] == "0"  # 매크로를 빼고 .xlsx(위험 코드 확인창에서 고른 것)
+            code, log = run([sys.executable, str(STUDIO / "export_xlsx.py"), i] + (["--no-macros"] if no_macros else []), 120)
             f = OUT / f"{i}.xlsx"
             m = re.search(r"^xls[xm]: (.+)$", log, re.M)  # export_xlsx 가 실제로 쓴 파일(매크로면 .xlsm)
             if m:

@@ -101,8 +101,35 @@ LET 이름에 담아 `=LET(f,LAMBDA(a,b,a+b),f(2,3))` 으로 부르고, **이름
 - 문서 `macros.modules: [{"name": "Module1", "kind": "std", "code": "…"}…]`(kind = `std` 표준 · `doc` 문서 · `cls` 클래스) - xlsm 을 가져올 때 넣는다. 전에 가져온 문서는 서버가 vbaProject.bin 에서 읽어 준다(`GET /api/vba/<id>`).
 - 되는 문법: Function·Sub · Dim·ReDim(Preserve)·Const · If·For·For Each·Do·While·Select Case · Exit · On Error Resume Next · 배열 · ByRef/ByVal · 선택 인수 · ParamArray · Range 인자(`.Value`·`.Cells`·`.Count`·`.Rows.Count`·`.Row`·`.Address`) · 내장 함수 약 70개 · `WorksheetFunction.<시트 함수>`.
 - 못 쓰는 문법(With·GoTo·New·날짜 상수·시트 쓰기 등)이 든 함수는 계산하지 않고 **엑셀이 저장한 값을 그대로** 둔다. 실행 오류는 `#VALUE!`, 끝나지 않는 반복은 500만 단계에서 멈춘다. 모듈과 같은 이름의 함수·문서/클래스 모듈의 함수는 엑셀처럼 `#NAME?`.
+- **보안(0.25.8)**:
+  - 실행기는 코드를 해석만 한다(eval 없음). 파일·네트워크·Shell·개체 만들기는 아예 없어 이 편집기에서는 매크로가 PC 에 닿지 않는다. 서버는 VBA 를 실행하지 않는다.
+  - 문서의 코드가 화면을 멈추거나 탭을 죽이지 못하게 한도(`NexaVBA.LIMIT`)를 둔다. 넘으면 그 칸은 `#VALUE!`.
+
+    | 한도 | 값 |
+    |---|---|
+    | 배열 | 100만 칸 |
+    | 문자열 | 1천만 자 |
+    | 부르기 깊이 | 500 |
+    | 반복 | 500만 단계 |
+    | 한 번 부르기 | 2초 |
+
+  - `Like` 는 정규식 없이 비교한다(되짚기 폭주 없음, 잘못된 패턴은 오류 93). 형식 이름을 조회할 때는 그 표에 실제로 정의된 이름만 본다(`constructor` 같은 JS 기본 속성이 값으로 새지 않게).
+  - 화면에서는 계산을 **Worker**(`studio/vbaworker.js`, `NexaVBA.client`)에서 한다. 처음 보는 부르기(함수 + 인자)는 그 칸과 그 칸에 기대는 칸의 저장값을 그대로 두고 Worker 에 맡긴다. 결과가 오면 다시 계산한다(결과는 함수 + 인자별로 기억).
+  - Worker 가 4.5초 넘게 답이 없으면 화면이 Worker 를 끝내고, 그 부르기를 오류로 둔 뒤 새 Worker 로 이어 간다. node(시험·`xlsm_calc.js`)는 예전처럼 바로 계산한다.
+- **엑셀에서 위험할 수 있는 매크로(0.25.8)**:
+  - `NexaVBA.risks(modules)` 가 줄마다 다음을 찾는다. Python `vba_project.risks` 는 vba.js 의 `RISKS` 를 그대로 읽어 같은 규칙을 쓴다.
+    - 자동 실행: `Auto_Open`, `Workbook_*`·`Worksheet_*` 이벤트
+    - 프로그램 실행: `Shell`, `CreateObject`·`GetObject`, `Declare`(DLL), `Application.Run`·`Evaluate`, `SendKeys`
+    - 파일·코드·레지스트리: 파일 쓰기·지우기·`SaveAs`, `VBProject`(코드 고치기), 레지스트리
+    - 네트워크·명령: 네트워크(`URLDownloadToFile`·`XMLHTTP`·URL), 명령·실행 파일(`WScript`·`PowerShell`·`cmd`·`.exe` 등)
+  - 주석은 빼고 본다.
+  - 가져오기 경고, 코드 창(⛨ 줄·모듈 목록 개수), 내보내기 기록에 알린다.
+  - 내보낼 때 위험 줄이 있으면 **확인창**에서 [매크로 포함 .xlsm] / [매크로 빼고 내보내기 .xlsx] / [취소] 를 고른다(`POST /api/export/<id>?macros=0`, `export_xlsx.py --no-macros`).
+  - 문서·클래스 모듈(ThisWorkbook 등)도 지금처럼 고칠 수 있고, 위험 표시만 한다.
 - **{ } VBA 코드 창**(매크로가 있는 문서): 모듈 목록·코드 편집(Ctrl+S = 적용)·표준 모듈 더하기·지우기·못 쓰는 문법 경고·칸에서 부를 수 있는 함수 목록. [적용·다시 계산] 이 `macros.modules` 에 저장하고 그 함수를 쓰는 칸을 다시 계산한다.
-- 내보내기: 모듈 소스가 원본과 다르면 vbaProject.bin 을 고쳐 쓴다(`vba_project.py` - 컴파일된 코드를 버리고 판을 0xFFFF 로 둬 엑셀이 열 때 소스에서 다시 컴파일).
+- 내보내기: vbaProject.bin 을 **늘** 모듈 소스로 다시 쓴다(0.25.8 - 전에는 고쳤을 때만). `vba_project.py` 가 컴파일된 코드(p-code·`__SRP_`)를 버리고 판을 0xFFFF 로 둬, 엑셀이 열 때 소스에서 다시 컴파일한다.
+  - 원본에 남은 p-code 가 화면에 보이는 소스와 다른 코드를 돌리지 못하게 하려는 것이다(VBA stomping).
+  - 다시 쓰지 못하는 프로젝트는 원본을 넣지 않고 매크로를 빼고 .xlsx 로 내보낸다.
 - 동시 편집: `macros` 는 문서 최상위 키 하나로 병합한다(두 창이 같은 때 모듈을 고치면 한쪽만 남는다).
 
 **그림 편집(0.25.4)** — 탭 `drawings`(아래 5절)의 그림을 화면에서 다룬다.

@@ -3,16 +3,27 @@
    Select Case · Exit · On Error Resume Next/GoTo 0 · 배열(여러 차원·LBound·UBound) · Range 인자(.Value·.Cells·.Count·.Rows.Count·For Each) ·
    자주 쓰는 내장 함수(문자열·변환·수학·IsEmpty/IsNumeric 등) · WorksheetFunction.<시트 함수>(계산기 함수 그대로).
    모르는 문법(With·GoTo·클래스·시트 조작 등)은 컴파일할 때 알려 주고 그 함수는 계산하지 않는다 - 칸은 엑셀이 저장해 둔 값을 그대로 둔다(sheetcalc.js #NAME? 규칙).
-   NexaVBA.compile(modules) → {fns: {이름: 함수}, errors: [{module, line, msg}]}  · 쓰는 곳: sheet.js(화면), tests/vba_test.js */
+   NexaVBA.compile(modules) → {fns: {이름: 함수}, errors: [{module, line, msg}]}  · 쓰는 곳: sheet.js(화면), tests/vba_test.js
+   보안(0.25.8): 해석만 한다(eval 없음 · 파일·네트워크·Shell·개체 만들기 없음). 문서의 코드가 화면을 멈추거나 탭을 죽이지 못하게
+   배열 칸 수·문자열 길이·부르기 깊이·반복 수·실행 시간에 한도를 두고(LIMIT), Like 는 정규식 없이 비교한다.
+   화면에서는 계산을 Worker(vbaworker.js)에서 돌린다 - NexaVBA.client. 엑셀에서 실제로 돌 위험한 코드는 NexaVBA.risks 로 알린다(vba_project.py risks 와 같은 규칙). */
 (function (root) {
   "use strict";
   const EMPTY = { vba: "Empty" }, NULLV = { vba: "Null" }, NOTHING = { vba: "Nothing" }, MISSING = { vba: "Missing" };
+  const LIMIT = { cells: 1e6, str: 1e7, depth: 500, steps: 5e6, ms: 2000 };  // 배열 칸 · 문자열 글자 · 부르기 깊이 · 반복 · 한 번 부르기 시간(ms)
+  const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);  // 표 조회는 자기 키만(constructor·__proto__ 같은 이름이 새지 않게)
+  const cap = (s) => { if (s.length > LIMIT.str) throw new VErr(14, "문자열이 너무 깁니다"); return s; };
   class Unsupported extends Error {}
   class VErr extends Error { constructor(num, msg) { super(msg); this.num = num; } }
   class ExitSig { constructor(kind) { this.kind = kind; } }
   class CVErr { constructor(code) { this.code = code; } }  // 엑셀 오류 값(#N/A 등)
   class VArr {  // 배열 - 차원마다 [하한, 상한], 값은 평평하게(첫 차원이 가장 빨리 - 순서는 안에서만 쓴다)
-    constructor(bounds, data) { this.b = bounds; this.n = bounds.map(([l, u]) => Math.max(0, u - l + 1)); this.d = data || new Array(this.n.reduce((a, x) => a * x, 1)).fill(EMPTY); }
+    constructor(bounds, data) {
+      this.b = bounds; this.n = bounds.map(([l, u]) => Math.max(0, u - l + 1));
+      const total = this.n.reduce((a, x) => a * x, 1);
+      if (!data && !(total <= LIMIT.cells)) throw new VErr(7, `배열이 너무 큽니다(${LIMIT.cells}칸까지)`);
+      this.d = data || new Array(total).fill(EMPTY);
+    }
     at(idx) {
       if (idx.length !== this.b.length) throw new VErr(9, "첨자가 범위를 벗어났습니다(차원 수)");
       let k = 0, m = 1;
@@ -330,30 +341,34 @@
   }
 
   // ---------------------------------------------------------------- 실행
-  const STEP_LIMIT = 5e6;
   function Runtime(mods, host) {
-    this.procs = new Map(); this.errors = []; this.globals = new Map(); this.host = host || {}; this.steps = 0;
+    this.procs = new Map(); this.errors = []; this.globals = new Map(); this.host = host || {}; this.steps = 0; this.depth = 0; this.until = Infinity;
     const gconsts = [];
     for (const m of mods) {
       if (m.kind && m.kind !== "std") continue;  // 문서·클래스 모듈의 함수는 셀에서 못 부른다(엑셀과 같다)
-      let r; try { r = parseModule(m.code || "", m.name); } catch (e) { if (e instanceof Unsupported) { this.errors.push({ module: m.name, line: 0, msg: e.message }); continue; } throw e; }
+      let r; try { r = parseModule(m.code || "", m.name); } catch (e) { this.errors.push({ module: m.name, line: 0, msg: e instanceof Unsupported ? e.message : `모듈을 읽지 못했습니다(${e.message})` }); continue; }
       this.errors.push(...r.errors);
       for (const pr of r.procs) this.procs.set(pr.name.toUpperCase(), pr);
       gconsts.push(...r.consts);
     }
     const env = { vars: this.globals, parent: null };
+    this.until = Date.now() + LIMIT.ms;  // 모듈 수준 Const 식도 함수를 부를 수 있다 - 화면 쪽 컴파일이 멈추지 않게 같은 한도
     for (const st of gconsts) { try { this.exec([st], env); } catch (e) { /* 모듈 수준 선언 오류 - 무시 */ } }
+    this.steps = 0; this.until = Infinity;
   }
   const R = Runtime.prototype;
   R.lookup = function (env, nm) { const k = nm.toUpperCase(); for (let e = env; e; e = e.parent) if (e.vars.has(k)) return e.vars.get(k); return null; };
-  R.declare = function (env, nm, type, init) { const cell = { v: init !== undefined ? init : type in DEFAULT ? DEFAULT[type] : EMPTY, type }; env.vars.set(nm.toUpperCase(), cell); return cell; };
-  R.tick = function () { if (++this.steps > STEP_LIMIT) throw new VErr(28, "실행이 너무 오래 걸립니다(반복 한도)"); };
+  R.declare = function (env, nm, type, init) { const cell = { v: init !== undefined ? init : own(DEFAULT, type) ? DEFAULT[type] : EMPTY, type }; env.vars.set(nm.toUpperCase(), cell); return cell; };
+  R.tick = function () {
+    if (++this.steps > LIMIT.steps) throw new VErr(28, "실행이 너무 오래 걸립니다(반복 한도)");
+    if ((this.steps & 4095) === 0 && Date.now() > this.until) throw new VErr(28, `실행이 너무 오래 걸립니다(${LIMIT.ms / 1000}초 한도)`);
+  };
   /** 셀에서 부르기 - args 는 값·VRange·VArr */
   R.call = function (name, args) {
     const pr = this.procs.get(String(name).toUpperCase());
     if (!pr) throw new VErr(35, `함수 ${name} 이 없습니다`);
     if (pr.unsupported) throw new Unsupported(pr.unsupported);
-    this.steps = 0;
+    this.steps = 0; this.depth = 0; this.until = Date.now() + LIMIT.ms;
     return this.invoke(pr, args.map((v) => ({ v, type: "variant" })), true);
   };
   R.invoke = function (pr, cells, fromCell) {
@@ -362,13 +377,14 @@
     pr.params.forEach((prm, i) => {
       if (prm.rest) { const rest = cells.slice(i).map((c) => (c ? c.v : MISSING)); this.declare(env, prm.name, "variant", new VArr([[0, rest.length - 1]], rest)); return; }
       const c = cells[i];
-      if (!c || c.v === MISSING) { if (!prm.optional) throw new VErr(449, `인수 ${prm.name} 가 없습니다`); this.declare(env, prm.name, prm.type, prm.def ? coerce(prm.type, this.ev(prm.def, env)) : prm.type in DEFAULT ? DEFAULT[prm.type] : MISSING); return; }
+      if (!c || c.v === MISSING) { if (!prm.optional) throw new VErr(449, `인수 ${prm.name} 가 없습니다`); this.declare(env, prm.name, prm.type, prm.def ? coerce(prm.type, this.ev(prm.def, env)) : own(DEFAULT, prm.type) ? DEFAULT[prm.type] : MISSING); return; }
       if (!prm.byval && !fromCell && c.ref) { env.vars.set(prm.name.toUpperCase(), c.ref); return; }  // ByRef - 부른 쪽 변수와 같은 칸
       let v = c.v; if (v instanceof VArr && prm.byval) v = v.copy();
       this.declare(env, prm.name, prm.type, prm.type === "variant" || prm.type === "range" || prm.type === "object" ? v : coerce(prm.type, v));
     });
     const ret = pr.kind === "FUNCTION" ? this.declare(env, pr.name, pr.rtype || "variant") : null;
-    try { this.exec(pr.body, env, pr); } catch (e) { if (!(e instanceof ExitSig && (e.kind === "FUNCTION" || e.kind === "SUB"))) throw e; }
+    if (++this.depth > LIMIT.depth) throw new VErr(28, "스택 공간이 부족합니다(부르기가 너무 깊습니다)");
+    try { this.exec(pr.body, env, pr); } catch (e) { if (!(e instanceof ExitSig && (e.kind === "FUNCTION" || e.kind === "SUB"))) throw e; } finally { this.depth--; }
     return ret ? ret.v : EMPTY;
   };
   R.exec = function (body, env, pr) {
@@ -388,7 +404,7 @@
         let cell = this.lookup(env, d.name); if (!cell) cell = this.declare(env, d.name, "variant");
         const dims = d.dims.map(([a, b]) => [num(this.ev(a, env)), num(this.ev(b, env))]), arr = new VArr(dims);
         const ty = d.type !== "variant" ? d.type : cell.type;  // Dim a() As Long 뒤 ReDim a(…) - 선언한 형식
-        if (ty in DEFAULT) arr.d.fill(DEFAULT[ty]);
+        if (own(DEFAULT, ty)) arr.d.fill(DEFAULT[ty]);
         if (st[1] && cell.v instanceof VArr) {  // Preserve - 마지막 차원만 바뀐다
           const old = cell.v;
           const walk = (k, idx) => { if (k === old.b.length) { try { arr.d[arr.at(idx)] = old.d[old.at(idx)]; } catch (e) { /* 새 범위 밖 */ } return; } for (let j = old.b[k][0]; j <= old.b[k][1]; j++) walk(k + 1, [...idx, j]); };
@@ -473,9 +489,9 @@
       case "name": {
         const c = this.lookup(env, n[1]); if (c) return c.v;
         const K = n[1].toUpperCase();
-        if (K in CONSTS) return CONSTS[K];
+        if (own(CONSTS, K)) return CONSTS[K];
         if (this.procs.has(K)) return this.callName(n[1], [], env);
-        if (BUILTIN[K]) return BUILTIN[K].call(this, [], env);
+        if (own(BUILTIN, K)) return BUILTIN[K].call(this, [], env);
         return EMPTY;  // 선언 없는 변수(Option Explicit 없음) - Empty
       }
       case "neg": return -num(this.ev(n[1], env));
@@ -512,7 +528,7 @@
       });
       return this.invoke(pr, cells, false);
     }
-    const b = BUILTIN[K];
+    const b = own(BUILTIN, K) && BUILTIN[K];
     if (b) return b.call(this, argNodes, env);
     throw new Unsupported(`함수 ${nm} 는 아직 못 씁니다`);
   };
@@ -564,9 +580,9 @@
   const cmpOp = (o, d) => ({ "=": d === 0, "<>": d !== 0, "<": d < 0, ">": d > 0, "<=": d <= 0, ">=": d >= 0 }[o]);
   function binop(o, a, b) {
     if (a instanceof VRange) a = a.value(); if (b instanceof VRange) b = b.value();
-    if (o === "&") { if (a === NULLV && b === NULLV) return NULLV; return str(a === NULLV ? "" : a) + str(b === NULLV ? "" : b); }
+    if (o === "&") { if (a === NULLV && b === NULLV) return NULLV; return cap(str(a === NULLV ? "" : a) + str(b === NULLV ? "" : b)); }
     if (a === NULLV || b === NULLV) return NULLV;
-    if (o === "+") { if (isStr(a) && isStr(b)) return a + b; if (isStr(a) && b === EMPTY) return a; if (isStr(b) && a === EMPTY) return b; return num(a) + num(b); }
+    if (o === "+") { if (isStr(a) && isStr(b)) return cap(a + b); if (isStr(a) && b === EMPTY) return a; if (isStr(b) && a === EMPTY) return b; return num(a) + num(b); }
     if (["AND", "OR", "XOR", "EQV", "IMP"].includes(o)) {
       if (typeof a === "boolean" && typeof b === "boolean") return o === "AND" ? a && b : o === "OR" ? a || b : o === "XOR" ? a !== b : o === "EQV" ? a === b : !a || b;
       const x = Math.round(num(a)), y = Math.round(num(b));
@@ -583,21 +599,42 @@
     }
     throw new Unsupported(`연산 ${o}`);
   }
+  /** s Like p - * ? # [a-z] [!a-z]. 패턴을 조각으로 나눠 별(*) 하나만 되짚는 비교(길이 곱에 비례 - 정규식처럼 폭주하지 않는다) */
   function like(s, p) {
-    let re = "^";
+    const T = [];
     for (let i = 0; i < p.length; i++) {
       const c = p[i];
-      if (c === "*") re += "[\\s\\S]*"; else if (c === "?") re += "[\\s\\S]"; else if (c === "#") re += "\\d";
-      else if (c === "[") { const j = p.indexOf("]", i); if (j < 0) { re += "\\["; continue; } let cls = p.slice(i + 1, j); if (cls[0] === "!") cls = "^" + cls.slice(1); re += "[" + cls.replace(/\\/g, "\\\\") + "]"; i = j; }
-      else re += c.replace(/[.+^${}()|\\]/g, "\\$&");
+      if (c === "*") { if (T[T.length - 1] !== "*") T.push("*"); continue; }
+      if (c === "?") { T.push((x) => true); continue; }
+      if (c === "#") { T.push((x) => x >= "0" && x <= "9"); continue; }
+      if (c === "[") {
+        const j = p.indexOf("]", i + 1); if (j < 0) throw new VErr(93, "패턴 문자열이 잘못되었습니다");
+        let body = p.slice(i + 1, j), neg = false; if (body[0] === "!") { neg = true; body = body.slice(1); }
+        const parts = [];
+        for (let k = 0; k < body.length; k++) {
+          if (body[k + 1] === "-" && k + 2 < body.length) { const lo = body[k], hi = body[k + 2]; if (lo > hi) throw new VErr(93, "패턴 문자열이 잘못되었습니다"); parts.push([lo, hi]); k += 2; }
+          else parts.push([body[k], body[k]]);
+        }
+        T.push((x) => parts.some(([lo, hi]) => x >= lo && x <= hi) !== neg); i = j; continue;
+      }
+      T.push((x) => x === c);
     }
-    return new RegExp(re + "$").test(s);
+    let i = 0, k = 0, star = -1, mark = 0;
+    while (i < s.length) {
+      if (k < T.length && T[k] !== "*" && T[k](s[i])) { i++; k++; }
+      else if (k < T.length && T[k] === "*") { star = k++; mark = i; }
+      else if (star >= 0) { k = star + 1; i = ++mark; }
+      else return false;
+    }
+    while (k < T.length && T[k] === "*") k++;
+    return k === T.length;
   }
 
   // ---------------------------------------------------------------- 내장 함수 (인자는 식 노드 - 이 런타임에서 계산)
   const V = (rt, a, env) => a.map((x) => (x[0] === "missing" ? MISSING : rt.ev(x, env)));
   const opt = (v, d) => (v === undefined || v === MISSING ? d : v);
   const plain = (f) => function (a, env) { return f.apply(null, V(this, a, env)); };
+  const len = (n) => { const k = Math.max(0, Math.round(num(n))); if (k > LIMIT.str) throw new VErr(14, "문자열이 너무 깁니다"); return k; };
   const arrOf = (v) => { if (v instanceof VRange) v = v.value(); if (!(v instanceof VArr)) throw new VErr(13, "배열이 아닙니다"); return v; };
   const BUILTIN = {
     LEN: plain((s) => (s === NULLV ? NULLV : str(s).length)),
@@ -606,10 +643,10 @@
     MID: plain((s, st, n) => { s = str(s); const a = Math.round(num(st)) - 1; if (a < 0) throw new VErr(5, "잘못된 인수"); return n === undefined || n === MISSING ? s.slice(a) : s.substr(a, Math.max(0, Math.round(num(n)))); }),
     INSTR: plain((...a) => { let st = 1; if (a.length >= 3 && a[0] !== MISSING && (isNum(a[0]) || isNumeric(a[0]) && !isStr(a[0]))) { st = Math.round(num(a[0])); a = a.slice(1); } const [s, f, cmp] = a; let x = str(s), y = str(f); if (num(opt(cmp, 0)) === 1) { x = x.toLowerCase(); y = y.toLowerCase(); } return x.indexOf(y, st - 1) + 1; }),
     INSTRREV: plain((s, f, st, cmp) => { let x = str(s), y = str(f); if (num(opt(cmp, 0)) === 1) { x = x.toLowerCase(); y = y.toLowerCase(); } const from = st === undefined || st === MISSING || num(st) < 0 ? x.length : Math.round(num(st)) - 1; return x.lastIndexOf(y, from) + 1; }),
-    REPLACE: plain((s, f, r, st, cnt, cmp) => { s = str(s); f = str(f); r = str(r); if (!f) return s; let out = "", i = Math.round(num(opt(st, 1))) - 1, n = Math.round(num(opt(cnt, -1))); const text = num(opt(cmp, 0)) === 1; s = s.slice(i); const hay = text ? s.toLowerCase() : s, nd = text ? f.toLowerCase() : f; let p = 0; for (;;) { if (n === 0) break; const k = hay.indexOf(nd, p); if (k < 0) break; out += s.slice(p, k) + r; p = k + f.length; n--; } return out + s.slice(p); }),
+    REPLACE: plain((s, f, r, st, cnt, cmp) => { s = str(s); f = str(f); r = str(r); if (!f) return s; let out = "", i = Math.round(num(opt(st, 1))) - 1, n = Math.round(num(opt(cnt, -1))); const text = num(opt(cmp, 0)) === 1; s = s.slice(i); const hay = text ? s.toLowerCase() : s, nd = text ? f.toLowerCase() : f; let p = 0; for (;;) { if (n === 0) break; const k = hay.indexOf(nd, p); if (k < 0) break; out += s.slice(p, k) + r; cap(out); p = k + f.length; n--; } return cap(out + s.slice(p)); }),
     TRIM: plain((s) => str(s).replace(/^ +| +$/g, "")), LTRIM: plain((s) => str(s).replace(/^ +/, "")), RTRIM: plain((s) => str(s).replace(/ +$/, "")),
     UCASE: plain((s) => str(s).toUpperCase()), LCASE: plain((s) => str(s).toLowerCase()),
-    SPACE: plain((n) => " ".repeat(Math.max(0, Math.round(num(n))))), STRING: plain((n, c) => (isNum(c) ? String.fromCharCode(c) : str(c)[0] || "").repeat(Math.max(0, Math.round(num(n))))),
+    SPACE: plain((n) => " ".repeat(len(n))), STRING: plain((n, c) => (isNum(c) ? String.fromCharCode(c) : str(c)[0] || "").repeat(len(n))),
     STRREVERSE: plain((s) => [...str(s)].reverse().join("")),
     STRCOMP: plain((a, b, cmp) => { let x = str(a), y = str(b); if (num(opt(cmp, 0)) === 1) { x = x.toLowerCase(); y = y.toLowerCase(); } return x < y ? -1 : x > y ? 1 : 0; }),
     CHR: plain((n) => String.fromCharCode(Math.round(num(n)))), CHRW: plain((n) => String.fromCharCode(Math.round(num(n)))),
@@ -632,7 +669,7 @@
     UBOUND: plain((a, d) => { a = arrOf(a); const k = Math.round(num(opt(d, 1))) - 1; if (!a.b[k]) throw new VErr(9, "차원이 없습니다"); return a.b[k][1]; }),
     ARRAY: plain((...a) => new VArr([[0, a.length - 1]], a)),
     SPLIT: plain((s, d, lim) => { s = str(s); d = d === undefined || d === MISSING ? " " : str(d); let parts = d === "" ? [s] : s.split(d); const n = Math.round(num(opt(lim, -1))); if (n > 0 && parts.length > n) parts = [...parts.slice(0, n - 1), parts.slice(n - 1).join(d)]; if (s === "") parts = []; return new VArr([[0, parts.length - 1]], parts); }),
-    JOIN: plain((a, d) => arrOf(a).d.map(str).join(d === undefined || d === MISSING ? " " : str(d))),
+    JOIN: plain((a, d) => cap(arrOf(a).d.map(str).join(d === undefined || d === MISSING ? " " : str(d)))),
     FORMAT: plain((v, f) => { if (f === undefined || f === MISSING) return str(v); const fs = str(f); if (/^0+(\.0+)?$/.test(fs)) { const dec = (fs.split(".")[1] || "").length; const s = num(v).toFixed(dec); const [ip, dp] = s.split("."); return ip.padStart(fs.split(".")[0].length, "0") + (dp ? "." + dp : ""); } if (/^#,##0(\.0+)?$/.test(fs)) { const dec = (fs.split(".")[1] || "").length; return num(v).toLocaleString("en-US", { minimumFractionDigits: dec, maximumFractionDigits: dec }); } throw new Unsupported(`Format "${fs}" 는 아직 못 씁니다`); }),
     NOW: function () { throw new Unsupported("Now·Date·Time 은 아직 못 씁니다"); },
   };
@@ -658,6 +695,116 @@
     }
     return v;
   }
-  const API = { compile, toCell, VRange, VArr, EMPTY, MISSING, Unsupported, VErr, CVErr };
+  // ---------------------------------------------------------------- 위험 코드 - 엑셀에서 열면 실제로 도는 매크로(이 실행기는 하지 않는다). vba_project.py RISKS 와 같은 목록(tests/vba_test.js 가 맞춰 본다)
+  const RISKS = [
+    ["auto", "^\\s*(?:(?:Public|Private|Static)\\s+)*Sub\\s+(Auto_?Open|Auto_?Close|Auto_?Exec|Auto_?Exit|Workbook_[A-Za-z0-9_]+|Worksheet_[A-Za-z0-9_]+|Chart_[A-Za-z0-9_]+|App_[A-Za-z0-9_]+)\\s*\\(", "열거나 이벤트가 생기면 저절로 실행된다"],
+    ["exec", "(?<![A-Za-z0-9_.])(Shell|ShellExecute[A-Za-z0-9_]*|WinExec|CreateProcess[A-Za-z0-9_]*|SendKeys|AppActivate|CallByName|MacScript|ExecuteExcel4Macro)(?![A-Za-z0-9_])", "다른 프로그램·명령을 실행할 수 있다"],
+    ["exec", "(?<![A-Za-z0-9_])(Application\\.Run|Evaluate)(?![A-Za-z0-9_])","이름으로 다른 코드를 실행할 수 있다"],
+    ["object", "(?<![A-Za-z0-9_.])(CreateObject|GetObject)(?![A-Za-z0-9_])", "외부 개체(셸·파일·네트워크·다른 앱)를 만든다"],
+    ["api", "^\\s*(?:(?:Public|Private)\\s+)?Declare\\s", "윈도 API(DLL)를 직접 부른다"],
+    ["file", "(?<![A-Za-z0-9_.])(Kill|RmDir|MkDir|ChDir|ChDrive|FileCopy|SetAttr)(?![A-Za-z0-9_])", "파일·폴더를 바꾸거나 지운다"],
+    ["file", "^\\s*Open\\s.+\\sFor\\s+(Output|Append|Binary|Random)", "파일을 쓴다"],
+    ["file", "\\.(SaveAs|SaveCopyAs|SaveAs2|ExportAsFixedFormat)(?![A-Za-z0-9_])", "파일을 다른 곳에 저장한다"],
+    ["code", "(?<![A-Za-z0-9_])(VBProject|VBComponents|CodeModule)(?![A-Za-z0-9_])", "매크로 코드를 고친다"],
+    ["net", "(URLDownloadToFile[A-Za-z0-9_]*|XMLHTTP|WinHttp|ServerXMLHTTP|InternetOpen[A-Za-z0-9_]*|Msxml2|https?://)", "네트워크로 내려받거나 보낸다"],
+    ["exec", "(WScript|PowerShell|cmd\\.exe|cmd /c|mshta|rundll32|regsvr32|certutil|bitsadmin|\\.exe(?![A-Za-z0-9_])|\\.ps1(?![A-Za-z0-9_])|\\.bat(?![A-Za-z0-9_])|\\.vbs(?![A-Za-z0-9_])|\\.hta(?![A-Za-z0-9_]))", "명령·실행 파일을 가리킨다"],
+    ["setting", "(?<![A-Za-z0-9_.])(SaveSetting|DeleteSetting|RegWrite|RegDelete)(?![A-Za-z0-9_])", "레지스트리를 바꾼다"],
+  ];
+  const RISK_RE = RISKS.map(([kind, re, msg]) => [kind, new RegExp(re, "i"), msg]);
+  /** 한 줄에서 주석(' 또는 Rem)을 뺀 코드 - 문자열 안의 ' 는 그대로 */
+  function codePart(ln) {
+    if (/^\s*Rem(\s|$)/i.test(ln)) return "";
+    let q = false;
+    for (let i = 0; i < ln.length; i++) { const c = ln[i]; if (c === '"') q = !q; else if (c === "'" && !q) return ln.slice(0, i); }
+    return ln;
+  }
+  /** modules [{name, kind, code}] → [{module, line, kind, word, msg}] - 엑셀에서 실제로 실행될 때 위험할 수 있는 줄(모듈 종류 무관) */
+  function risks(modules) {
+    const out = [];
+    for (const m of modules || []) {
+      String(m.code || "").replace(/\r\n?/g, "\n").split("\n").forEach((raw, i) => {
+        const ln = codePart(raw); if (!ln.trim()) return;
+        for (const [kind, re, msg] of RISK_RE) { const h = re.exec(ln); if (h) out.push({ module: m.name, line: i + 1, kind, word: h[1] || h[0], msg }); }
+      });
+    }
+    return out;
+  }
+
+  // ---------------------------------------------------------------- 값 주고받기(Worker) - 구조화 복제가 되는 평범한 값으로
+  function pack(v) {
+    if (v === EMPTY) return { t: "E" }; if (v === MISSING) return { t: "M" }; if (v === NULLV) return { t: "N" }; if (v === NOTHING) return { t: "O" };
+    if (v instanceof CVErr) return { t: "X", c: v.code };
+    if (v instanceof VRange) return { t: "R", rows: v.rows, r: v.r0, c: v.c0, s: v.sheet };
+    if (v instanceof VArr) return { t: "A", b: v.b, d: v.d.map(pack) };
+    return v;
+  }
+  function unpack(v) {
+    if (!v || typeof v !== "object") return v;
+    switch (v.t) {
+      case "E": return EMPTY; case "M": return MISSING; case "N": return NULLV; case "O": return NOTHING;
+      case "X": return new CVErr(v.c);
+      case "R": return new VRange(v.rows, v.r, v.c, v.s);
+      case "A": return new VArr(v.b, v.d.map(unpack));
+    }
+    return v;
+  }
+  class Pending extends Error {}  // Worker 가 아직 계산 중 - 그 칸은 저장된 값을 그대로 둔다(sheetcalc.js)
+
+  /** 화면용 - 계산은 Worker 에서, 결과는 (이름 + 인자)별로 기억한다. 처음 보는 부르기는 Pending 을 던지고 Worker 에 맡긴 뒤
+   *  다 끝나면 onReady() (다시 계산하라는 신호). Worker 가 LIMIT.ms 의 두 배 넘게 답이 없으면 끝내고 그 부르기를 오류로 둔다.
+   *  compiled = compile(modules) (has·오류 목록은 화면에서 - 읽기만 하고 실행하지 않는다) */
+  function client(modules, compiled, opts) {
+    const url = (opts && opts.url) || "vbaworker.js", onReady = (opts && opts.onReady) || (() => {}), wait = (opts && opts.wait) || LIMIT.ms * 2 + 500;
+    const memo = new Map(), queue = [];  // queue: [{id, key, name, args}] - 앞의 것이 Worker 가 지금 계산하는 것
+    let w = null, seq = 0, timer = null, dead = false, ready = false;  // ready - Worker 가 스크립트를 다 읽었다(감시 시간은 그 뒤부터 잰다)
+    const start = () => {
+      w = new Worker(url); ready = false;
+      w.onmessage = (e) => {
+        const m = e.data; if (m && m.type === "ready") { ready = true; arm(); return; }
+        if (!queue.length || m.id !== queue[0].id) return;
+        const q = queue.shift(); memo.set(q.key, m.err ? { err: m.err } : { v: m.v });
+        if (memo.size > 20000) memo.delete(memo.keys().next().value);
+        arm(); if (!queue.length) onReady();
+      };
+      w.onerror = (e) => { e.preventDefault(); fail("실행기 오류"); };
+      w.postMessage({ type: "init", modules });
+      for (const q of queue) w.postMessage({ type: "call", id: q.id, name: q.name, args: q.args });
+    };
+    const arm = () => { clearTimeout(timer); timer = queue.length && ready ? setTimeout(() => fail(`실행이 너무 오래 걸립니다(${wait / 1000}초 동안 답이 없어 멈췄습니다)`), wait) : null; };
+    function fail(msg) {  // 지금 계산하던 부르기를 오류로 두고 Worker 를 새로(남은 것은 다시 보낸다)
+      clearTimeout(timer); timer = null;
+      if (w) { w.terminate(); w = null; }
+      const q = queue.shift(); if (q) memo.set(q.key, { err: { kind: "verr", msg } });
+      if (dead) return;
+      if (queue.length) start(); else onReady();
+    }
+    return {
+      has: compiled.has, errors: compiled.errors, unsupported: compiled.unsupported, runtime: compiled.runtime,
+      call(name, args) {
+        const pa = args.map(pack), key = String(name).toUpperCase() + "\u0000" + JSON.stringify(pa), hit = memo.get(key);
+        if (hit) { if (hit.err) throw hit.err.kind === "unsupported" ? new Unsupported(hit.err.msg) : new VErr(hit.err.num || 0, hit.err.msg); return hit.v; }
+        if (!queue.some((q) => q.key === key)) {
+          const q = { id: ++seq, key, name, args: pa }; queue.push(q);
+          if (!w) start(); else { w.postMessage({ type: "call", id: q.id, name, args: pa }); if (queue.length === 1) arm(); }
+        }
+        throw new Pending("계산 중");
+      },
+      busy: () => queue.length > 0,
+      close() { dead = true; clearTimeout(timer); if (w) w.terminate(); w = null; queue.length = 0; },
+    };
+  }
+  /** Worker 쪽 - 메시지 하나 처리(vbaworker.js). 결과는 toCell 한 평범한 값 */
+  function serve(state, m, host) {
+    if (m.type === "init") { state.c = compile(m.modules, host); return null; }
+    try {
+      const v = toCell(state.c.call(m.name, m.args.map(unpack)));
+      return { id: m.id, v };
+    } catch (e) {
+      if (e instanceof Unsupported) return { id: m.id, err: { kind: "unsupported", msg: e.message } };
+      return { id: m.id, err: { kind: "verr", num: e.num || 0, msg: e instanceof VErr ? e.message : `실행 오류(${e.message})` } };
+    }
+  }
+
+  const API = { compile, toCell, risks, RISKS, client, serve, pack, unpack, LIMIT, VRange, VArr, EMPTY, MISSING, Unsupported, VErr, CVErr, Pending };
   if (typeof module === "object" && module.exports) module.exports = API; else root.NexaVBA = API;
 })(typeof window !== "undefined" ? window : globalThis);
