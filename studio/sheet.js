@@ -703,7 +703,8 @@
   }
 
   // ---------------------------------------------------------------- 글꼴(슬라이드와 같은 글꼴 세트 - docs/fonts.md) - 작업 공간 fonts/ 웹 글꼴(../api/fontcss)·세트(tokens.json fontPresets)
-  // 문서 기본 글꼴 = 문서 fontPreset 세트의 본문 > 테마 font > 엑셀에서 가져온 문서 글꼴(font.name) > 작업 공간 세트 본문.
+  // 문서 기본 글꼴 = 문서 fontPreset 세트의 본문 > 테마 font > 작업 공간 세트 본문. 엑셀에서 가져온 문서의 font.name(통합 문서 '표준' 글꼴)은 쓰지 않는다 -
+  // 칸들은 대개 다른 글꼴(맑은 고딕)을 따로 지정하고 0.25.18 전에 가져온 문서에는 칸 글꼴이 없어, 표준 글꼴(굴림체 등)로 그리면 엑셀과 달라진다.
   // 셀 font = 역할(body·heading·mono - 그 세트의 글꼴) 또는 글꼴 이름. 내보내기(export_xlsx.py font_name)와 같은 규칙
   const FT = { tokens: null, catalog: [] };
   async function loadFonts() {
@@ -726,7 +727,6 @@
     const pf = S.deck && S.deck.fontPreset && presetFonts(S.deck.fontPreset), T = theme();
     if (pf && pf.body) return String(pf.body.css).replace(/"/g, "'");
     if (T && T.font) return famOf(T.font);
-    if (S.deck && S.deck.font && S.deck.font.name) return famOf(S.deck.font.name);
     const fs = FT.tokens && FT.tokens.fonts; return fs && fs.body ? String(fs.body.css).replace(/"/g, "'") : "";
   }
   const FONT_ROLES = { body: "본문 글꼴", heading: "제목 글꼴", mono: "고정폭 글꼴" };
@@ -2125,7 +2125,8 @@
   let measureCtx = null, measureFam = "";
   function textPx(o, txt) {
     measureCtx = measureCtx || document.createElement("canvas").getContext("2d");
-    const fam = cellFamily(o) || baseFamily() || measureFam || (measureFam = getComputedStyle(document.body).getPropertyValue("--font") || "sans-serif");  // 글꼴 이름은 한 번만 읽는다(격자 넘침이 칸마다 잰다)
+    const root = measureFam || (measureFam = getComputedStyle(document.body).getPropertyValue("--font").trim() || "sans-serif");
+    const fam = (cellFamily(o) || baseFamily() || root).replace(/var\(--font\)/g, root);  // 캔버스 글꼴에는 CSS 변수를 쓸 수 없다(쓰면 글꼴 지정이 무시돼 폭이 틀린다)  // 글꼴 이름은 한 번만 읽는다(격자 넘침이 칸마다 잰다)
     measureCtx.font = `${o.i ? "italic " : ""}${o.b ? "700 " : ""}${+o.size || defSize()}pt ${fam}`;
     return Math.max(...String(txt).split("\n").map((t) => measureCtx.measureText(t).width));
   }

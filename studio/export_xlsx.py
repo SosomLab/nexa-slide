@@ -51,14 +51,14 @@ ROLES = ("body", "heading", "mono")
 
 def font_names(deck, theme):
     """(문서 기본 글꼴 이름 또는 None, 역할 → 글꼴 이름) - 화면(sheet.js baseFamily·cellFamily)과 같은 순서:
-    문서 fontPreset 세트의 본문 > 테마 font > 엑셀에서 가져온 문서 글꼴(font.name) > (엑셀 기본). 역할은 문서 세트, 없으면 작업 공간 세트.
+    문서 fontPreset 세트의 본문 > 테마 font > (엑셀 기본 - 가져온 문서의 font.name 은 쓰지 않는다). 역할은 문서 세트, 없으면 작업 공간 세트.
     엑셀 칸 글꼴은 이름 하나라 한글 글꼴(ea)을, 없으면 latin 을 쓴다. docs/fonts.md"""
     from common import preset_fonts, tokens
     pf = preset_fonts(deck.get("fontPreset")) if deck.get("fontPreset") else None
     fs = pf or (tokens().get("fonts") or {})
     name = lambda r: (r or {}).get("ea") or (r or {}).get("latin")  # noqa: E731
     roles = {k: name(fs.get(k) or fs.get("body")) for k in ROLES}
-    base = name(pf.get("body")) if pf else (theme or {}).get("font") or (deck.get("font") or {}).get("name")
+    base = name(pf.get("body")) if pf else (theme or {}).get("font")
     return base, roles
 
 

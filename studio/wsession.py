@@ -29,6 +29,7 @@ from common import HUB, STATE, WORKSPACE, read_config  # noqa: E402
 from paths import ENGINE, user_dir  # noqa: E402
 import agents  # noqa: E402
 import requests_core as rc  # noqa: E402
+import procutil  # noqa: E402
 
 REGISTRY = user_dir() / "hub" / ".studio" / "wsessions"
 INTERVAL = 1.0
@@ -704,6 +705,7 @@ class WebSession:
         cont_max = int(self.limits.get("engineContinue") or 0) if eng and hasattr(self.p, "continue_prompt") else 0
         self.emit("turn.start", turn=n, count=len(batch), reason=reason, ids=self.p.ids(batch), model=self.model)
         env = {**os.environ, **ag.env(), **self.p.env(self)}
+        procutil.with_py_shims(env)  # 세션의 python3·python = 이 서버의 파이썬(Windows 스토어 대리 실행기가 PATH 앞에 있어도)
         kw = {}
         if os.name == "nt":
             kw["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.CREATE_NO_WINDOW

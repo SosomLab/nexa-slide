@@ -28,6 +28,46 @@ def session_meta(agent=None, model=None):
     return {k: v for k, v in out.items() if v}
 
 
+def py_shims(root=None):
+    """세션이 부를 python3·python 을 이 서버의 파이썬(sys.executable)으로 - 대리 파일 폴더를 만들어 돌려준다(실패하면 None).
+    Windows 는 PATH 에서 스토어 대리 실행기(WindowsApps\python3.exe - 실행하면 종료 코드 49 나 9009)가 pyenv 등 실제 파이썬보다
+    앞에 있는 일이 흔해, 세션의 `python3 nexa.py …` 가 아무것도 못 하던 것(0.25.19). Git Bash 용 확장자 없는 스크립트와 cmd·PowerShell 용 .cmd 를 둔다.
+    pyenv-win 의 .bat 대리 실행기(여러 줄·< > | & 인자가 깨진다)도 거치지 않게 된다."""
+    try:
+        if root is None:
+            from paths import user_dir
+            root = user_dir() / "hub" / "bin"
+        root.mkdir(parents=True, exist_ok=True)
+        exe = sys.executable
+        posix = exe.replace("\\", "/")
+        if os.name == "nt" and len(posix) > 2 and posix[1] == ":":  # C:/… → /c/… (Git Bash)
+            posix = "/" + posix[0].lower() + posix[2:]
+        for n in ("python3", "python"):
+            sh, cmd = f'#!/bin/sh\nexec "{posix}" "$@"\n', f'@"{exe}" %*\r\n'
+            p = root / n
+            if not p.is_file() or p.read_text(encoding="utf-8") != sh:
+                p.write_text(sh, encoding="utf-8", newline="\n")
+                try:
+                    p.chmod(0o755)
+                except OSError:
+                    pass
+            if os.name == "nt":
+                c = root / f"{n}.cmd"
+                if not c.is_file() or c.read_text(encoding="utf-8") != cmd:
+                    c.write_text(cmd, encoding="utf-8", newline="")
+        return root
+    except OSError:
+        return None
+
+
+def with_py_shims(env):
+    """env(dict)의 PATH 맨 앞에 py_shims 폴더 - 세션·도구가 부르는 python3 가 이 서버의 파이썬이 되게."""
+    d = py_shims()
+    if d:
+        env["PATH"] = str(d) + os.pathsep + env.get("PATH", "")
+    return env
+
+
 def pid_alive(pid):
     try:
         pid = int(pid)
