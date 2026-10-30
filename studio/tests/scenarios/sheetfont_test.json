@@ -1,0 +1,19 @@
+{
+ "base": "http://127.0.0.1:5667",
+ "pages": [
+  {
+   "url": "/studio/sheet.html?deck=zsheetfill",
+   "wait": 1500,
+   "steps": [
+    {
+     "name": "글꼴 고르기 - 기본·제목/고정폭(세트의 역할)·글꼴 이름 목록, 고르면 셀 font 와 화면 글꼴",
+     "js": "const N=window.NexaSheet, S=N.S, w=(n)=>new Promise(r=>setTimeout(r,n)); await until(async () => (S.deck && document.querySelector('#fontSel').options.length > 3), 8000); const td=(r,c)=>document.querySelector(`td[data-r=\"${r}\"][data-c=\"${c}\"] .cv`); const sel=document.querySelector('#fontSel'), vals=[...sel.options].map(o=>o.value); N.x.selectCell(2, 1); sel.value='mono'; sel.dispatchEvent(new Event('change')); await w(200); const c=S.deck.sheets[0].cells.B3, ff=td(2,1).style.fontFamily; N.x.selectCell(4, 1); sel.value='Consolas'; sel.dispatchEvent(new Event('change')); await w(200); const c2=S.deck.sheets[0].cells.B5, ff2=td(4,1).style.fontFamily; N.x.selectCell(2, 1); await w(50); const back=sel.value; return vals.includes('') && vals.includes('heading') && vals.includes('mono') && vals.includes('Pretendard') && c.font==='mono' && /Consolas|D2Coding|JetBrains/i.test(ff) && c2.font==='Consolas' && /Consolas/.test(ff2) && back==='mono' ? true : JSON.stringify({vals:vals.slice(0,6),c,ff,c2,ff2,back})"
+    },
+    {
+     "name": "문서 글꼴 세트 칩 - 메뉴에서 modern 을 고르면 문서 fontPreset·격자 글꼴(Pretendard), 작업 공간 기본으로 되돌리기",
+     "js": "const N=window.NexaSheet, S=N.S, w=(n)=>new Promise(r=>setTimeout(r,n)); await until(async () => (S.deck && document.querySelector('#fontSel').options.length > 3), 8000); const td=(r,c)=>document.querySelector(`td[data-r=\"${r}\"][data-c=\"${c}\"] .cv`); const chip=document.querySelector('#fontChip'); chip.click(); await until(async () => ([...document.querySelectorAll('.menu button, .menu .mi, .menu [role=menuitem], .menu div')].some(e=>/^modern/.test(e.textContent.trim()))), 4000); const it=[...document.querySelectorAll('.menu *')].find(e=>e.children.length===0 && /^modern/.test(e.textContent.trim())); (it.closest('button')||it).click(); await w(300); const fp=S.deck.fontPreset, gf=document.querySelector('#grid').style.fontFamily, txt=chip.textContent; chip.click(); await w(300); const it2=[...document.querySelectorAll('.menu *')].find(e=>e.children.length===0 && /^작업 공간 기본/.test(e.textContent.trim())); (it2.closest('button')||it2).click(); await w(300); N.x.mutate(()=>{ const cs=S.deck.sheets[0].cells; for (const k of ['B3','B5']) { const o=cs[k]; if (o && typeof o==='object') { delete o.font; if (Object.keys(o).length===1 && 'v' in o) cs[k]=o.v; } } }); await w(200); return fp==='modern' && /Pretendard/.test(gf) && /modern/.test(txt) && !S.deck.fontPreset ? true : JSON.stringify({fp,gf,txt,after:S.deck.fontPreset})"
+    }
+   ]
+  }
+ ]
+}

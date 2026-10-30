@@ -32,6 +32,7 @@ NEXA_TEST_DIR=/tmp/nexa-tests python3 studio/tests/run_all.py   # 산출물 자�
 | vba | `vba_test.js` | 0.25.3 - VBA 실행기(`vba.js`): 셀에서 부르는 Function·제어문·배열·Range 인자·ByRef·내장 함수, 못 쓰는 문법은 엑셀 저장값 유지(25가지) · 0.25.8 보안 한도(배열·문자열·깊이·Like 폭주·깨진 모듈)·Worker 주고받기(pack·serve)·계산 중(Pending) 칸은 저장값 유지 | Node |
 | tplrec | `template_rec_test.py` + `scenarios/tplrec_test.json` | 0.25.15 - 템플릿 추천: 점수(사용·미리 보기·비슷한 색 순서, 중복 묶음), 시작 페이지 추천 7개 + 회사 템플릿 만들기 + 더 보기(양식·템플릿 탭) | - |
 | pptstart | `pptx_start_test.py` | 0.25.14 - PPT 파일로 시작: 계획(`--pptx-import`, 시작용 내용 빠짐·이상한 이름 무시·시트 제외), 만들기(가져온 덱이 첫 덱·content 원본 없음), 시작용 교안과 함께면 거절 | python-pptx |
+| sheetfont | `sheet_font_test.py` + `scenarios/sheetfont_test.json` | 0.25.18 - 시트 글꼴: 문서 fontPreset → xlsx 기본 글꼴, 셀 font(역할 mono·heading·이름) → 글꼴 이름, 세트 없으면 엑셀 기본, 가져오기 칸 글꼴. 화면: 글꼴 상자·문서 글꼴 세트 칩 | - |
 | vbasafe | `vba_safety_test.py` | 0.25.8 - VBA 보안: 위험 코드 검사 화면(vba.js)·Python 같은 결과, 내보내기는 늘 소스로 다시 쓴 프로젝트(p-code·`__SRP_` 버림, 판 0xFFFF), `--no-macros` → .xlsx, 깨진 프로젝트는 매크로 없이(시험 안에서 만든 프로젝트) | Node |
 | (수동) xlsm_crosscheck | `xlsm_crosscheck.py <원본.xlsm> [--keep 폴더] [--no-excel]` | 0.25.2~ - 가져오기 → Python·JS(+VBA) 계산 = 엑셀 저장값 → 내보내기 → 다시 가져오기(문서 같음) → VBA 모듈 소스 · 칸 서식(`xlsx_styles.py`) · 엑셀이 있으면 원본·저장본을 COM 으로 다시 계산해 수식·값·숨김·필터·이름·그림·열 너비·행 높이 대조(`xlsm_dump.ps1`), VBA 고친 판을 엑셀이 계산하는지까지. 원본은 읽기만 | Node, (엑셀은 선택) |
 | (수동) shift_bench | `shift_bench.py <작업 공간> <preset|->` | 글 세로 위치 대조 — 상자·타원(흰 글)을 크기×줄 높이로 깔고 PowerPoint 렌더와 브라우저 캡처의 글자 세로 중심 차이를 재 `shift = size×(a×lh+b)` 를 맞춘다(보정이 맞으면 a≈0·b≈0, 잔차 ±1px) | PowerPoint, Chrome, Pillow |

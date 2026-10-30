@@ -172,6 +172,9 @@ def import_xlsx(src, title=None):
             sz = f.find(N + "sz")
             if sz is not None and float(sz.get("val")) != base_font["size"]:
                 d["size"] = float(sz.get("val"))
+            fn = f.find(N + "name")
+            if fn is not None and fn.get("val") and fn.get("val") != base_font["name"]:  # 기본과 다른 칸 글꼴(화면·내보내기 font)
+                d["font"] = fn.get("val")
         pf = fills[int(x.get("fillId") or 0)].find(N + "patternFill") if fills is not None else None
         if pf is not None and pf.get("patternType") == "solid":
             c = color(pf.find(N + "fgColor"))

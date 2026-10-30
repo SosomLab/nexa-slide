@@ -6,6 +6,7 @@
 <title>시트 - nexa-slide</title>
 <link rel="icon" id="favicon" href="data:,">
 <link rel="stylesheet" href="fonts.css">
+<link rel="stylesheet" href="../api/fontcss"><!-- 작업 공간 fonts/ 의 글꼴(편집기 index.html 과 같다) - 상대 경로: 허브 중계(/w/<id>/studio/)로 열려도 그 작업 공간 것 -->
 <link rel="stylesheet" href="nexa-requests.css"><!-- 요청 카드·후속·첨부·기록 창 - 편집기와 같은 규칙 -->
 <script src="menu.js"></script>
 <script src="sheetnew.js"></script>
@@ -70,6 +71,8 @@
   /* ---------- 서식 줄·수식 줄 ---------- */
   #tools { display: flex; align-items: center; gap: 2px; padding: 4px 10px; background: var(--card); border-top: 1px solid var(--tone2); flex-wrap: wrap; }
   #tools select { border: 1px solid var(--line); border-radius: 8px; background: #fff; padding: 3px 6px; height: 30px; }
+  #tools #fontSel { width: 84px; }  /* 글꼴 상자를 넣어도 서식 줄이 한 줄에 들게(표시 형식 상자와 나눠 쓴다) */
+  #tools #fmtSel { width: 88px; }
   #tools label.clr { position: relative; display: inline-flex; flex-direction: column; align-items: center; justify-content: center; height: 30px; min-width: 30px; border-radius: 8px; cursor: pointer; padding: 0 5px; }
   #tools label.clr:hover { background: var(--tone); }
   #tools label.clr input { position: absolute; opacity: 0; width: 0; height: 0; pointer-events: none; }
@@ -133,7 +136,7 @@
   body.noside main { grid-template-columns: 1fr 0; }
   body.noside #side { display: none; }
   /* 테마 미리 보기(sheet.html?preview=) - 시작 페이지 창 안. 저장·요청·세션·내보내기 단추는 없다 */
-  body.preview #backLink, body.preview #deckList, body.preview #themeChip, body.preview #sessChip, body.preview #exportBtn, body.preview #sideBtn, body.preview #vbaBtn { display: none !important; }
+  body.preview #backLink, body.preview #deckList, body.preview #themeChip, body.preview #fontChip, body.preview #sessChip, body.preview #exportBtn, body.preview #sideBtn, body.preview #vbaBtn { display: none !important; }
   #center { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
   #gridWrap { flex: 1; overflow: auto; background: #fff; position: relative; outline: none; }
   #gridIn { position: relative; width: max-content; }
@@ -382,6 +385,7 @@
   <h1 id="title"><span class="k">▦</span><span id="titleText">시트</span></h1>
   <span id="status" class="chip sm saved">저장됨</span>
   <button id="themeChip" class="chip sm" title="시트 테마">테마 없음</button>
+  <button id="fontChip" class="chip sm" title="문서 글꼴 세트">글꼴</button>
   <span class="sp"></span>
   <button id="sessChip" class="chip sm off" title="요청을 처리할 AI 세션 - 눌러서 웹 세션 시작·진행 보기"><span class="dot"></span>세션 연결 없음 ▾</button>
   <button class="ib" id="undoBtn" title="실행 취소 (Ctrl+Z)" disabled>↶</button>
@@ -394,6 +398,7 @@
   <button class="ib" data-t="b" title="굵게 (Ctrl+B)"><b>B</b></button>
   <button class="ib" data-t="i" title="기울임 (Ctrl+I)"><i>I</i></button>
   <button class="ib" data-t="u" title="밑줄 (Ctrl+U)"><u>U</u></button>
+  <select id="fontSel" title="글꼴 - 문서 기본 · 제목/고정폭(글꼴 세트의 역할) · 글꼴 이름"></select>
   <select id="sizeSel" title="글자 크기(pt)"></select>
   <span class="vsep"></span>
   <label class="clr" title="글자색"><span>A</span><span class="bar" id="colorBar" style="background:#000"></span><input type="color" id="colorIn" value="#000000"></label>

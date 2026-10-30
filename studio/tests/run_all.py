@@ -53,6 +53,7 @@ TESTS = [  # (이름, 실행, 설명, claude 필요)
     ("tplrec", [sys.executable, "template_rec_test.py"], "템플릿 추천 점수(0.25.15) - 사용 ×10 · 미리 보기 ×3 · 비슷한 색 ×2 · 중복 묶음", False),
     ("pptstart", [sys.executable, "pptx_start_test.py"], "PPT 파일로 시작(0.25.14) - 새로 만들기 deckFrom → init_workspace --pptx-import → 가져온 덱이 첫 덱", False),
     ("vbasafe", [sys.executable, "vba_safety_test.py"], "VBA 보안(0.25.8) - 위험 코드 검사 화면·Python 같음, 내보내기는 늘 소스로 다시 쓴 프로젝트(p-code 버림)·--no-macros·깨진 프로젝트는 매크로 없이", False),
+    ("sheetfont", [sys.executable, "sheet_font_test.py"], "시트 글꼴(0.25.18) - 문서 fontPreset·셀 font(역할·이름) → xlsx 글꼴, 가져오기는 칸 글꼴을 되살린다", False),
     ("sheetrt", [sys.executable, "sheet_roundtrip_test.py"], "시트 엑셀 왕복(내보내기 → 가져오기 - 값·수식·서식·병합·숨김·유효성·조건부 서식·메모·넘침·표)", False),
     ("runs", [sys.executable, "runs_test.py"], "인라인 강조 겹치기(runs) - Python·render.js 같은 결과", False),
     ("effect", [sys.executable, "effect_test.py"], "그림 프레임 효과(effect·effectLevel) - PPTX XML(softEdge·glow·roundRect·ellipse·테두리)·render.js CSS", False),
