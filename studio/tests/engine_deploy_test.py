@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """엔진 배포(studio/engine_deploy.py) - 0.22.29. 임시 저장소(엔진 사본 + bare origin)와 격리된 사용자 설정 폴더에서:
-계획(커밋·요청·막는 이유) · 배포(--no-tests --no-restart: 병합 커밋·push·적용됨·engine-dev 맞춤) · 충돌이면 main 불변 ·
+계획(커밋·요청·막는 이유) · 배포(시험 기본 건너뜀 · --no-restart: 병합 커밋·push·적용됨·engine-dev 맞춤) · 충돌이면 main 불변 ·
 커밋하지 않은 변경이 겹치면 막음 · 시험 비교(원래 있던 실패는 통과, 새 실패는 막음). 실제 허브 재시작·운영 원격 push 는 하지 않는다."""
 import json
 import os
@@ -90,9 +90,12 @@ p = plan()
 check("(b) 계획: 커밋 1 · 요청 #1 · 막는 이유 없음", p.get("ok") and len(p.get("commits", [])) == 1 and [r["id"] for r in p.get("requests", [])] == [1] and p.get("files") == ["added.txt"],
       json.dumps(p, ensure_ascii=False)[:400])
 prev = git("rev-parse", "main")
-code, out = deploy("run", "--by", "admin1", "--no-tests", "--no-restart")
+code, out = deploy("run", "--by", "admin1", "--no-restart")  # 시험 플래그 없음 = 기본(0.25.9 - 건너뛴다)
 st = json.loads(deploy("status")[1])
 check("(b) 배포 성공(state ok)", code == 0 and st.get("state") == "ok", out[-600:])
+check("(b) 시험은 기본으로 건너뜀(계획 testsDefault false · 예상 시간에 시험 없음 · 단계 '건너뜀 - 기본')",
+      p.get("testsDefault") is False and p.get("estimate") == 30 and any(x.get("step") == "시험" and "건너뜀 - 기본" in (x.get("msg") or "") for x in st.get("steps", [])),
+      json.dumps(st.get("steps"), ensure_ascii=False)[:400])
 head = git("rev-parse", "main")
 parents = git("rev-list", "--parents", "-n", "1", "main").split()
 check("(b) main = --no-ff 병합 커밋(부모 2: 이전 main · engine-dev)", len(parents) == 3 and parents[1] == prev, " ".join(parents))

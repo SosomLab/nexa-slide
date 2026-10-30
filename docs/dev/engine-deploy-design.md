@@ -34,7 +34,8 @@ push 를 재시작 뒤에 두는 것은 새 판이 뜨지 않을 때 원격을 �
 - 카드: 관리자에게, 완료 요청이나 engine-dev 앞선 커밋이 있으면 `완료(적용 대기) n건 · engine-dev +k 커밋 [🚀 배포 준비 ▾]`(0.22.32~ 주 색 단추). 누르면 아래로 펼쳐지는 판이 열리고 단추는 판과 이어진 [▴ 접기] 탭이 된다. 펼치면 요청·커밋·파일·막는 이유·순서 안내와 [배포 시작]. 진행 중에는 큰 단계 표시줄(확인·병합·시험·턴 대기·main 반영·재시작·push·적용됨 - 끝난 것 ✓, 지금 것 돌아감), 끝난 단계마다 한 줄과 걸린 시간, 지금 하는 단계(`deploy.json` 의 `cur` - 시험·턴 대기·재시작·push 처럼 오래 걸리는 단계를 시작할 때 기록, 끝나면 지움)와 경과 시간, 시험 묶음별 진행 막대·칩(`tests[병합본|병합 전]` = {total, names, done:[{name, ok, sec}]} - `run_all` 이 묶음마다 찍는 `-- 통과|실패 <이름> <초>s` 줄을 따라가 남김), 경과·예상 시간(`test-times.json` 의 지난 묶음 시간 합)을 2.5초마다 갱신(허브 재시작 중의 무응답은 계속 기다림). 마지막 배포는 배지(배포 완료·실패·되돌림). 배포할 것이 없어도 지난 배포가 있으면 머리줄(배지·[지난 배포 보기])을 남기고, 펼치면 "배포할 변경 없음" 한 줄과 지난 배포의 진행판을 보인다(0.22.42 - 그 전에는 성공한 배포 뒤 판이 통째로 사라졌다).
 - `GET /api/engine/deploy` 계획 + 마지막 기록(관리자, git fetch) · `?fetch=0` 기록만 · `POST {action: run}`(관리자) · `GET /api/engine` 에 `deploy`(관리자).
 - 기록: 사용자 설정 폴더 `hub/engine/deploy.json`(마지막 1건) · 출력 `hub/engine/deploy-logs/<시각>.log` · 묶음별 시험 시간 `test-times.json` · 커밋별 실패 묶음 `test-baseline.json`(최근 20개).
-- CLI: `python3 studio/engine_deploy.py plan|status|run [--no-tests] [--no-restart] [--no-push]`.
+- CLI: `python3 studio/engine_deploy.py plan|status|run [--tests] [--no-restart] [--no-push]`.
+- **시험은 기본으로 건너뛴다(0.25.10)** - 배포 시간 대부분(약 7분 중 6분 50초)이 전체 시험이었고, 요청을 처리한 세션이 커밋 전에 관련 시험을 이미 돌린다. 카드의 **[시험도 돌리기]**(`POST /api/engine/deploy {action: run, tests: true}`) 또는 `--tests` 로 켜면 아래 시험 단계(run_all·check_parity·실패 분류)를 그대로 한다. 끄면 단계 기록은 `시험 · 건너뜀 - 기본`, 예상 시간은 30초. 기본값은 `engine_deploy.TESTS_DEFAULT`.
 
 ## 5. 시험 실패 분류 (0.22.37)
 

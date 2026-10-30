@@ -949,7 +949,7 @@
   // 배포(관리자) - 완료된 엔진 요청(engine-dev)을 main 병합·시험·재시작·push·적용됨까지 한 번에(engine_deploy.py, docs/dev/engine-deploy-design.md)
   // anim = 막 펼침(판 애니메이션 한 번) · shown = 지난번에 그린 끝난 단계 수(그 뒤 줄만 .new) · html = 지난번 내용(같으면 다시 안 그림)
   // hide = 펼칠 때 이미 끝나 있던 지난 배포의 started(그 기록은 진행판에 다시 그리지 않는다)
-  const DEP = { open: false, plan: null, last: null, timer: 0, anim: false, shown: 0, html: "", hide: null };
+  const DEP = { open: false, plan: null, last: null, timer: 0, anim: false, shown: 0, html: "", hide: null, tests: false };  // tests = [시험도 돌리기](기본 꺼짐)
   const DEP_KO = { running: "배포 중", ok: "배포 완료", warn: "배포 완료(경고)", failed: "배포 실패", rolledback: "배포 되돌림" };
   function renderDeploy(admin, g, c) {
     const box = $("#engDeploy"), last = (H.engine && H.engine.deploy) || DEP.last || null;
@@ -974,8 +974,8 @@
         + `<div style="font-size:12px;margin-top:3px"><b>커밋</b> ${p.commits.map((x) => `<code>${esc(x.hash)}</code> ${esc(x.subject)}`).join("<br>") || "-"}</div>`
         + `<div class="hint" style="margin-top:3px" title="${esc(p.files.join("\n"))}">파일 ${p.files.length}개: ${esc(p.files.slice(0, 6).join(", "))}${p.files.length > 6 ? " …" : ""}</div>`
         + (p.blockers.length ? `<div class="warn">${p.blockers.map(esc).join("<br>")}</div>` : "")
-        + `<div class="hint" style="margin-top:6px">순서: 시험용 worktree 에서 병합 → 시험(새로 생긴 실패만 막음, 몇 분) → 처리 중 턴 대기 → main 반영 → 허브·작업 공간 서버 재시작(엔진 세션은 끊김) → push → 적용됨 · 원 요청 재개. 허브가 뜨지 않으면 main 을 되돌린다.${p.estimate ? ` <b>예상 약 ${Math.ceil(p.estimate / 60)}분</b>(지난 시험 시간 기준).` : ""}</div>`
-        + `<div class="row" style="justify-content:flex-end;margin-top:6px"><button type="button" class="chip sm primary" data-eng="deployrun" ${p.ready && !(L && L.state === "running") ? "" : "disabled"}>${icon("rocket", 15)}배포 시작</button></div>`;
+        + `<div class="hint" style="margin-top:6px">순서: 시험용 worktree 에서 병합 → 시험(기본은 건너뜀 · [시험도 돌리기]면 새로 생긴 실패만 막음, 몇 분) → 처리 중 턴 대기 → main 반영 → 허브·작업 공간 서버 재시작(엔진 세션은 끊김) → push → 적용됨 · 원 요청 재개. 허브가 뜨지 않으면 main 을 되돌린다.${p.estimate ? ` <b>예상 약 ${Math.ceil(p.estimate / 60)}분</b>(지난 시험 시간 기준).` : ""}</div>`
+        + `<div class="row" style="justify-content:flex-end;align-items:center;gap:8px;margin-top:6px"><label class="hint" style="margin:0;display:flex;align-items:center;gap:4px;cursor:pointer" title="병합본에서 전체 시험(run_all)과 렌더 동일성(check_parity)을 돌리고, 새로 생긴 실패가 있으면 막는다. 기본은 건너뛴다 - 요청을 처리한 세션이 커밋 전에 관련 시험을 돌린다"><input type="checkbox" id="depTests" ${DEP.tests ? "checked" : ""}> 시험도 돌리기${p.estimateTests ? ` (약 ${Math.ceil(p.estimateTests / 60)}분)` : ""}</label><button type="button" class="chip sm primary" data-eng="deployrun" ${p.ready && !(L && L.state === "running") ? "" : "disabled"}>${icon("rocket", 15)}배포 시작</button></div>`;
     }
     // 펼칠 때 이미 끝나 있던 지난 배포(hide)는 그리지 않고 진행 예정만 - 이번에 시작했거나 진행 중인 배포만 진행판으로.
     // 배포할 것이 없으면(idle) 진행 예정이 뜻이 없으므로 지난 배포 결과를 그대로 보인다
@@ -1088,6 +1088,7 @@
     return `<div class="dep-prog"><div class="dep-stages">${DEP_STAGES.map((s, i) => `<div class="dep-st todo"><span class="dot">${i + 1}</span><span class="lb">${s}</span></div>`).join("")}</div>`
       + `<div class="hint" style="margin-top:4px">진행 예정 - [배포 시작]을 누르면 단계·시험 진행이 여기 표시됩니다</div></div>`;
   }
+  document.addEventListener("change", (e) => { if (e.target.id === "depTests") DEP.tests = e.target.checked; });
   const depHide = (L) => (L && L.state !== "running" ? L.started || null : null);
   async function loadDeploy(fetchGit) {
     try {
@@ -1185,11 +1186,12 @@
       DEP.tsel = same ? null : { label: b.dataset.tl, name: b.dataset.tn }; loadEngine(); return;
     }
     if (b.dataset.eng === "tinfo") { DEP.tinfo = { ...(DEP.tinfo || {}), [b.dataset.tl]: !(DEP.tinfo && DEP.tinfo[b.dataset.tl]) }; loadEngine(); return; }
-    if (b.dataset.eng === "deployrun") {
+    if (b.dataset.eng === "deployrun") {  // [시험도 돌리기] 는 바꿀 때마다 DEP.tests 에 남긴다(카드가 5초마다 다시 그려도 그대로)
       const p = DEP.plan || {};
       const what = (p.requests || []).map((r) => `#${r.id} ${r.title}`).join("\n") || `커밋 ${(p.commits || []).length}개`;
-      if (!confirm(`엔진을 배포할까요?\n\n${what}\n\nmain 병합 → 시험 → 허브·작업 공간 서버 재시작(엔진 세션은 끊깁니다) → push → 적용됨`)) return;
-      const r = await post("/api/engine/deploy", { action: "run" });
+      const tests = !!($("#depTests") && $("#depTests").checked); DEP.tests = tests;
+      if (!confirm(`엔진을 배포할까요?\n\n${what}\n\nmain 병합 → ${tests ? "시험" : "시험 건너뜀"} → 허브·작업 공간 서버 재시작(엔진 세션은 끊깁니다) → push → 적용됨`)) return;
+      const r = await post("/api/engine/deploy", { action: "run", tests });
       if (!r.ok) { toast(r.data.error || "배포를 시작하지 못했습니다", 6000); return; }
       DEP.last = r.data.last; loadEngine(); pollDeploy(); return;
     }
