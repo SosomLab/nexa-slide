@@ -5,7 +5,10 @@ docs/dev/engine-deploy-design.md. 세션은 여전히 병합·push·재시작을
     python3 studio/engine_deploy.py plan                    # 들어갈 커밋·요청·막는 이유(JSON)
     python3 studio/engine_deploy.py status                  # 마지막 배포 기록(JSON)
     python3 studio/engine_deploy.py run --by <관리자>        # 배포(허브가 떼어 낸 프로세스로 부른다 - 허브 재시작에도 끊기지 않게)
-        [--no-tests] [--no-restart] [--no-push]             # 시험용·비상용
+        [--tests] [--no-restart] [--no-push]                # --tests = 시험(run_all·check_parity)도 돌린다. 기본은 건너뛴다(0.25.9)
+
+시험은 기본으로 건너뛴다 - 요청을 처리한 세션이 커밋 전에 관련 시험을 돌리고, 배포 때 전체 시험(약 7분)을 다시 돌리는 것이 배포를 느리게 했다.
+허브 카드의 [시험도 돌리기] 또는 --tests 로 켠다.
 
 순서(run): 확인(운영 트리가 main·origin 새 커밋 ff) → 시험용 worktree 에서 --no-ff 병합 → 시험(run_all; 실패한 묶음은 병합 전 main 에서 다시 돌려
 원래 있던 실패면 통과) → 처리 중 턴 기다림 → 운영 트리 main 을 병합 커밋으로 ff → 허브 재시작·생존 확인(실패하면 main 을 되돌리고 다시 재시작)
@@ -95,9 +98,12 @@ def save_baseline(sha, fail):
     _write_json(BASELINE, dict(sorted(d.items(), key=lambda kv: kv[1]["t"])[-20:]))
 
 
-def estimate(files=()):
+TESTS_DEFAULT = False  # 배포 때 시험 - 기본은 건너뛴다(--tests · 카드 [시험도 돌리기] 로 켠다)
+
+
+def estimate(files=(), tests=True):
     """예상 시간(초) - 지난 시험 시간 합 + 재시작·push 여유. 시험 기록이 없으면 None."""
-    if files and all(DOCS_ONLY.match(f) for f in files):
+    if not tests or (files and all(DOCS_ONLY.match(f) for f in files)):
         return 30
     t = _read_json(TEST_TIMES, {})
     return round(sum(t.values())) + 30 if t else None
@@ -185,7 +191,8 @@ def plan(fetch=True):
         blockers.append("다른 배포가 진행 중이다")
     return {"ok": not blockers, "main": _out("rev-parse", "--short", "main"), "branch": BRANCH, "commits": commits, "files": files,
             "render": any(f in RENDER_FILES for f in files), "requests": reqs, "originAhead": origin_ahead, "localAhead": local_ahead,
-            "blockers": blockers, "version": version(), "last": st, "estimate": estimate(files)}
+            "blockers": blockers, "version": version(), "last": st, "estimate": estimate(files, TESTS_DEFAULT),
+            "estimateTests": estimate(files), "testsDefault": TESTS_DEFAULT}
 
 
 # ---------- 시작(허브가 부른다) ----------
@@ -196,7 +203,9 @@ def start(by, extra=()):
         raise ValueError(" · ".join(p["blockers"]))
     LOG_DIR.mkdir(parents=True, exist_ok=True)
     log = LOG_DIR / f"{dt.datetime.now().strftime('%Y%m%d-%H%M%S')}.log"
-    _save({"state": "running", "by": by, "started": _now(), "steps": [], "ids": [r["id"] for r in p["requests"]], "log": str(log), "pid": None, "estimate": p["estimate"]})
+    tests = "--tests" in extra or ("--no-tests" not in extra and TESTS_DEFAULT)
+    _save({"state": "running", "by": by, "started": _now(), "steps": [], "ids": [r["id"] for r in p["requests"]], "log": str(log), "pid": None,
+           "estimate": p["estimateTests"] if tests else p["estimate"], "tests": tests})
     kw = {}
     if os.name == "nt":
         kw["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.CREATE_NO_WINDOW
@@ -411,7 +420,7 @@ class Run:
                     return self.fail("렌더 동일성", ((r.stdout or "") + (r.stderr or ""))[-400:])
                 self.step("렌더 동일성", True, "check_parity -W example")
         else:
-            self.step("시험", True, "건너뜀(--no-tests)")
+            self.step("시험", True, "건너뜀 - 기본(시험은 [시험도 돌리기]·--tests 로)")
         # 3) 처리 중인 턴이 끝나길 기다린다 - 재시작하면 턴이 끊긴다
         if self.restart:
             self.doing("처리 중인 턴이 끝나길 기다림")
@@ -524,7 +533,8 @@ def main():
     ap = argparse.ArgumentParser(description="엔진 배포(engine-dev → main → 재시작 → push → 적용됨)")
     ap.add_argument("cmd", choices=("plan", "status", "run"))
     ap.add_argument("--by", default=os.environ.get("USERNAME") or os.environ.get("USER") or "cli")
-    ap.add_argument("--no-tests", action="store_true")
+    ap.add_argument("--tests", action="store_true", help="시험(run_all·check_parity)도 돌린다 - 기본은 건너뛴다")
+    ap.add_argument("--no-tests", action="store_true", help="(예전 이름 - 지금은 기본이 건너뛰기)")
     ap.add_argument("--no-restart", action="store_true")
     ap.add_argument("--no-push", action="store_true")
     a = ap.parse_args()
@@ -535,7 +545,7 @@ def main():
     if a.cmd == "status":
         print(json.dumps(status(), ensure_ascii=False, indent=1))
         return 0
-    return Run(a.by, tests=not a.no_tests, restart=not a.no_restart, push=not a.no_push).run()
+    return Run(a.by, tests=a.tests or (TESTS_DEFAULT and not a.no_tests), restart=not a.no_restart, push=not a.no_push).run()
 
 
 if __name__ == "__main__":

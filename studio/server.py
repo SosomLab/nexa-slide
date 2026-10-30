@@ -1829,7 +1829,7 @@ class H(BaseHTTPRequestHandler):
                 return self.err(409, "엔진 세션이 턴을 처리 중이다 - 끝난 뒤 배포한다")
             import engine_deploy
             try:
-                d = engine_deploy.start(who)
+                d = engine_deploy.start(who, ("--tests",) if b.get("tests") else ("--no-tests",))  # 시험은 기본으로 건너뛴다 - 카드 [시험도 돌리기]
             except ValueError as e:
                 return self.err(409, str(e))
             if WS_ENGINE is not None:  # 세션은 병합·시험(몇 분) 동안 그대로 두고 재시작 직전에 끈다(0.22.40)
