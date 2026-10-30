@@ -810,6 +810,31 @@
     const visN = (a, b, hid) => { let n = 0; for (let i = a; i <= b; i++) if (!hid(sh, i)) n++; return n; };
     const CF = window.NexaSheetX && NexaSheetX.condMap ? NexaSheetX.condMap(sh) : null;  // 조건부 서식(sheetx.js) - 칸 → 덧씌울 서식
     const [r0, r1] = G.win = rowWindow(sh, rows, fz, ms), nVis = visN(0, cols - 1, colHidden) + 1;
+    // 넘침(엑셀과 같다) - 줄바꿈 없는 글(숫자·오류 아님)이 칸보다 길면 빈 옆 칸으로 이어 보인다. 왼쪽 정렬은 오른쪽, 오른쪽 정렬은 왼쪽, 가운데는 양쪽.
+    // 값·수식이 있는 칸·병합·숨긴 열·틀 고정 칸에서 멈춘다. 이어진 칸 사이 눈금선은 감춘다(직접 준 테두리는 그대로)
+    const rowCells = new Map();
+    for (const k of Object.keys(sh.cells)) { const p = parseRef(k); if (p) (rowCells.get(p.r) || rowCells.set(p.r, []).get(p.r)).push(p.c); }
+    const filled = (r, c) => { const v = sh.cells[key(r, c)]; if (v == null) return false; if (typeof v !== "object") return v !== ""; return !!v.f || (v.v != null && v.v !== ""); };
+    function overflowRow(r) {
+      const ov = new Map(), hideR = new Set();
+      for (const c of rowCells.get(r) || []) {
+        if (c >= cols || colHidden(sh, c) || cover.has(r * 4096 + c) || r < fz.r || c < fz.c) continue;
+        let o = effCell(sh.cells[key(r, c)]); if (CF && CF.has(r * 4096 + c)) o = { ...o, ...CF.get(r * 4096 + c) };
+        if (o.wrap || o.shrink || typeof o.v === "number" || typeof o.v === "boolean" || (o.f && isErrStr(o.v))) continue;
+        const txt = display(o); if (!txt || /\n/.test(txt)) continue;
+        const w0 = G.colX[c + 1] - G.colX[c]; if ([...String(txt)].reduce((n, ch) => n + (ch.charCodeAt(0) > 0x2e7f ? 9 : 4), 0) < w0 - 8) continue;  // 짧은 글은 재지 않는다(한글 등 넓은 글자는 9px 이상)
+        let need = textPx(o, txt) + 9 - w0; if (need <= 0) continue;
+        const free = (cc) => cc >= fz.c && cc < cols && !colHidden(sh, cc) && !cover.has(r * 4096 + cc) && !filled(r, cc);
+        const al = o.align || "left"; let L = c, R = c;
+        if (al === "center") { let half = need / 2, h2 = need / 2; while (half > 0 && free(R + 1)) { R++; half -= G.colX[R + 1] - G.colX[R]; } while (h2 > 0 && free(L - 1)) { L--; h2 -= G.colX[L + 1] - G.colX[L]; } }
+        else if (al === "right") while (need > 0 && free(L - 1)) { L--; need -= G.colX[L + 1] - G.colX[L]; }
+        else while (need > 0 && free(R + 1)) { R++; need -= G.colX[R + 1] - G.colX[R]; }
+        if (L === c && R === c) continue;
+        ov.set(c, { L, R });
+        for (let cc = L; cc < R; cc++) hideR.add(cc);
+      }
+      return { ov, hideR };
+    }
     const spacer = (a, b) => (G.rowY[b] > G.rowY[a] ? `<tr class="vsp" aria-hidden="true"><td colspan="${nVis}" style="height:${G.rowY[b] - G.rowY[a]}px"></td></tr>` : "");
     for (let r = 0; r < rows; r++) {
       if (r >= fz.r && (r < r0 || r > r1)) {  // 가상 스크롤 - 보이는 범위 밖은 높이만(틀 고정 행은 늘 그린다)
@@ -821,6 +846,7 @@
       const rh = rowH(sh, r);
       const thc = [rowHidden(sh, r + 1) || (r > 0 && rowHidden(sh, r - 1)) ? "hidN" : "", fg && r > fg.r1 && r <= fg.r2 ? "flr" : ""].filter(Boolean).join(" ");  // flr - 조건이 걸린 필터의 데이터 행(엑셀은 행 번호가 파랗다)
       h.push(`<tr style="height:${rh}px"><th data-row="${r}"${thc ? ` class="${thc}"` : ""}>${r + 1}<span class="rz" data-rzr="${r}"></span></th>`);
+      const OV = overflowRow(r);
       for (let c = 0; c < cols; c++) {
         if (colHidden(sh, c)) continue;
         const cm = cover.get(r * 4096 + c); if (cm === "x") continue;
@@ -838,14 +864,16 @@
         if (err) cls.push("err");
         if (o.note) cls.push("nt");  // 메모 - 오른쪽 위 빨간 삼각형(엑셀과 같다)
         const hl = o.f && !err && HL_RE.test(o.f);
+        const ovg = OV.ov.get(c), ovS = ovg ? `;width:${G.colX[ovg.R + 1] - G.colX[ovg.L] - 1}px;margin-left:${G.colX[ovg.L] - G.colX[c]}px` : "";
+        if (ovg) { cls.push("ovf"); }
         {  // 테두리
           const r2 = cm ? cm.r2 : r, c2 = cm ? cm.c2 : c, bb = eB.get(r2 * 4096 + c), br = eR.get(r * 4096 + c2), sh2 = [];
-          if (bb) extra.push(`border-bottom-color:${bb}`); if (br) extra.push(`border-right-color:${br}`);
+          if (bb) extra.push(`border-bottom-color:${bb}`); if (br) extra.push(`border-right-color:${br}`); else if (OV.hideR.has(c)) extra.push("border-right-color:transparent");
           if (r === 0 && eT.get(c)) sh2.push(`inset 0 1px 0 ${eT.get(c)}`); if (c === 0 && eL.get(r)) sh2.push(`inset 1px 0 0 ${eL.get(r)}`);
           if (sh2.length) extra.push(`box-shadow:${sh2.join(",")}`);
         }
         h.push(`<td data-r="${r}" data-c="${c}"${span}${cls.length ? ` class="${cls.join(" ")}"` : ""} style="${[tdS, ...extra.filter(Boolean)].filter(Boolean).join(";")}"${o.note ? ` title="${esc(o.note)}"` : err && ERR_WHY[o.v] ? ` title="${esc(o.v + " - " + ERR_WHY[o.v])}"` : hl ? ' title="Ctrl+클릭 = 링크로 이동"' : ""}>`
-          + `<div class="cv${o.wrap ? " wrap" : ""}" style="height:${hh - 1}px;${cvS}"><span>${esc(txt)}</span></div></td>`);
+          + `<div class="cv${o.wrap ? " wrap" : ""}" style="height:${hh - 1}px;${cvS}${ovS}"><span>${esc(txt)}</span></div></td>`);
       }
       h.push("</tr>");
     }
@@ -2027,10 +2055,10 @@
     addEventListener("mousemove", onMove); addEventListener("mouseup", onUp);
   }
   // ---------------------------------------------------------------- 열 너비·행 높이 자동 맞춤(엑셀 경계 두 번 누르기)
-  let measureCtx = null;
+  let measureCtx = null, measureFam = "";
   function textPx(o, txt) {
     measureCtx = measureCtx || document.createElement("canvas").getContext("2d");
-    const fam = getComputedStyle(document.body).getPropertyValue("--font") || "sans-serif";
+    const fam = measureFam || (measureFam = getComputedStyle(document.body).getPropertyValue("--font") || "sans-serif");  // 글꼴 이름은 한 번만 읽는다(격자 넘침이 칸마다 잰다)
     measureCtx.font = `${o.i ? "italic " : ""}${o.b ? "700 " : ""}${+o.size || defSize()}pt ${fam}`;
     return Math.max(...String(txt).split("\n").map((t) => measureCtx.measureText(t).width));
   }
