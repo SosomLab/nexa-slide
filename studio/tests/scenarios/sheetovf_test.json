@@ -1,0 +1,19 @@
+{
+ "base": "http://127.0.0.1:5667",
+ "pages": [
+  {
+   "url": "/studio/sheet.html?deck=zsheetfill",
+   "wait": 1500,
+   "steps": [
+    {
+     "name": "넘침 - 긴 글은 빈 옆 칸으로 이어 보이고(엑셀과 같다) 이어진 칸 사이 눈금선은 감춘다",
+     "js": "const N=window.NexaSheet, S=N.S, w=(n)=>new Promise(r=>setTimeout(r,n)); await until(async () => (S.deck), 8000); const td=(k)=>{ const p=/([A-Z]+)(\\d+)/.exec(k); return document.querySelector(`td[data-r=\"${+p[2]-1}\"][data-c=\"${p[1].charCodeAt(0)-65}\"]`); }; const cw=(k)=>td(k).querySelector('.cv').getBoundingClientRect().width; N.x.mutate(()=>{ const sh=N.x.sheet(); N.x.putCell(sh,'G20',{v:\",CONSTRAINT PK_TB_BOM_20260529 PRIMARY KEY(PLANT_CD,BOM_CD,ALT_BOM,ITEM_CD)\"}); N.x.putCell(sh,'C22',{v:'오른쪽 정렬 긴 글 왼쪽으로 넘친다',align:'right'}); N.x.putCell(sh,'B24',{v:'옆 칸에 값이 있으면 넘치지 않는다 - 잘린다'}); N.x.putCell(sh,'C24',{v:'x'}); N.x.putCell(sh,'B26',{v:12345678901234567890}); }); await w(300); const g=td('G20'), gw=cw('G20'), col=g.getBoundingClientRect().width, hid=getComputedStyle(td('H20')).borderRightColor; const c22=td('C22'), left=c22.querySelector('.cv').getBoundingClientRect().left < c22.getBoundingClientRect().left - 10; const b24=td('B24').classList.contains('ovf'), b26=td('B26').classList.contains('ovf'); return g.classList.contains('ovf') && gw > col*2 && /rgba\\(0, 0, 0, 0\\)|transparent/.test(hid) && left && !b24 && !b26 ? true : JSON.stringify({ovf:g.className,gw,col,hid,left,b24,b26})"
+    },
+    {
+     "name": "넘친 자리 옆 칸에 값을 넣으면 거기서 멈춘다",
+     "js": "const N=window.NexaSheet, S=N.S, w=(n)=>new Promise(r=>setTimeout(r,n)); await until(async () => (S.deck), 8000); const td=(k)=>{ const p=/([A-Z]+)(\\d+)/.exec(k); return document.querySelector(`td[data-r=\"${+p[2]-1}\"][data-c=\"${p[1].charCodeAt(0)-65}\"]`); }; const cw=(k)=>td(k).querySelector('.cv').getBoundingClientRect().width; const before=cw('G20'); N.x.mutate(()=>{ N.x.putCell(N.x.sheet(),'I20',{v:'막음'}); }); await w(300); const after=cw('G20'), lim=td('I20').getBoundingClientRect().left - td('G20').getBoundingClientRect().left; N.x.mutate(()=>{ const sh=N.x.sheet(); for (const k of ['G20','C22','B24','C24','B26','I20']) delete sh.cells[k]; }); await w(200); return after < before && after <= lim + 1 ? true : JSON.stringify({before,after,lim})"
+    }
+   ]
+  }
+ ]
+}
