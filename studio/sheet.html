@@ -323,8 +323,9 @@
   .chg-tbl tr { cursor: pointer; } .chg-tbl tr:hover { background: var(--tone); }
   /* 격자의 변경 표시(확인하지 않은 변경 - 파란 점선, 편집기 캔버스와 같다) */
   #chgMarks { position: absolute; left: 0; top: 0; pointer-events: none; }
-  #chgMarks .cm { position: absolute; outline: 1.5px dashed #2F6FDB; outline-offset: -2px; background: rgba(47, 111, 219, .06); }
-  #draws img.drw.chg { outline: 2px dashed #2F6FDB; outline-offset: 2px; }
+  /* 셀·그림 모두 같은 기준 - 그 칸(병합이면 병합 전체)·그림의 바깥 경계에 2px 파란 점선 */
+  #chgMarks .cm { position: absolute; box-sizing: border-box; border: 2px dashed #2F6FDB; background: rgba(47, 111, 219, .06); z-index: 2; }
+  #draws img.drw.chg { outline: 2px dashed #2F6FDB; outline-offset: -1px; }
   #reqList .req { cursor: pointer; }  /* 카드를 누르면 그 탭·범위로 */
   #reqList .req:hover { box-shadow: 0 0 0 1px var(--line); }
   #reqList .req.cur { outline: 2px solid var(--sel); }
