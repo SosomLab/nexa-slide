@@ -51,6 +51,15 @@ python3 nexa.py install_fonts --list   # 설치 여부만
   우선순위 = 슬라이드 `fontPreset` > 덱 `fontPreset` > 작업 공간(`nexa-slide.json`). 템플릿의 글꼴 덮어쓰기(`tokenOverrides.fonts`)는 어느 세트든 뒤에 적용된다.
   편집기(`render.js presetFonts`)·PPTX(`common.preset_fonts`)·레이아웃 검사(글자 폭 측정)가 같은 규칙으로 그 장의 글꼴을 쓴다. 쓴 글꼴 기록에도 장별 글꼴이 들어간다.
 
+## 시트에서 (0.25.18)
+
+시트도 슬라이드와 같은 글꼴 세트를 쓴다([sheets.md](sheets.md)).
+- 화면은 작업 공간 `fonts/` 글꼴을 바로 쓴다(`../api/fontcss` - 편집기와 같다).
+- 머리줄 **글꼴 칩** → 문서 글꼴 세트(템플릿 기본 · 작업 공간 지정 · 작업 공간 기본)를 고른다. 시트 문서 JSON 에 `fontPreset` 으로 남는다(덱의 fontPreset 과 같은 이름 목록). 칩 메뉴에서 글꼴 안내 페이지와 편집기 글꼴 창(작업 공간 세트 고치기)으로 간다.
+- 서식 줄 **글꼴 상자** → 셀 `font`: 역할(`heading` 제목 · `mono` 고정폭 - 그 세트의 글꼴) 또는 글꼴 이름(세트에 든 글꼴·무료/시스템 글꼴 목록). 빈 값 = 문서 기본.
+- 문서 기본 글꼴 = 문서 `fontPreset` 세트의 본문 > 시트 테마 `font` > 엑셀에서 가져온 문서 글꼴 > 작업 공간 세트 본문.
+- 엑셀 내보내기(`export_xlsx.font_names`): 문서 세트가 있으면 그 본문 글꼴(한글 이름 `ea`, 없으면 `latin`)이 통합 문서 기본 글꼴, 셀 역할은 그 세트의 글꼴 이름으로. 엑셀 가져오기는 기본과 다른 칸 글꼴을 `font` 로 되살린다.
+
 ## 무료 글꼴 목록과 안내 페이지
 
 - 엔진 `studio/font_catalog.json` — 글꼴 파일 없이 이름·라이선스·공식 받는 곳만 적은 목록. `free`(누구나 직접 받아 문서·상업용으로 쓸 수 있는 SIL OFL 등 — Pretendard·Noto Sans/Serif KR·나눔고딕/명조/스퀘어·IBM Plex Sans KR·Spoqa Han Sans Neo·JetBrains Mono·D2Coding)와 `system`(맑은 고딕·Consolas — Windows 기본).

@@ -46,6 +46,22 @@ def sheet_name(name, used):
     return s
 
 
+ROLES = ("body", "heading", "mono")
+
+
+def font_names(deck, theme):
+    """(문서 기본 글꼴 이름 또는 None, 역할 → 글꼴 이름) - 화면(sheet.js baseFamily·cellFamily)과 같은 순서:
+    문서 fontPreset 세트의 본문 > 테마 font > 엑셀에서 가져온 문서 글꼴(font.name) > (엑셀 기본). 역할은 문서 세트, 없으면 작업 공간 세트.
+    엑셀 칸 글꼴은 이름 하나라 한글 글꼴(ea)을, 없으면 latin 을 쓴다. docs/fonts.md"""
+    from common import preset_fonts, tokens
+    pf = preset_fonts(deck.get("fontPreset")) if deck.get("fontPreset") else None
+    fs = pf or (tokens().get("fonts") or {})
+    name = lambda r: (r or {}).get("ea") or (r or {}).get("latin")  # noqa: E731
+    roles = {k: name(fs.get(k) or fs.get("body")) for k in ROLES}
+    base = name(pf.get("body")) if pf else (theme or {}).get("font") or (deck.get("font") or {}).get("name")
+    return base, roles
+
+
 def cell_format(c):
     """셀 객체(테마를 푼 것) → XlsxWriter 서식 속성(없으면 빈 dict)."""
     if not isinstance(c, dict):
@@ -69,6 +85,8 @@ def cell_format(c):
         f["valign"] = VALIGN[c["valign"]]
     if c.get("size"):
         f["font_size"] = float(c["size"])
+    if c.get("font"):  # 셀 글꼴 - export() 가 역할(body·heading·mono)을 글꼴 이름으로 풀어 둔다
+        f["font_name"] = str(c["font"])
     if c.get("wrap"):
         f["text_wrap"] = True
     if c.get("fmt"):
@@ -256,8 +274,9 @@ def export(deck, out, macros=True):
     theme = sheet_theme.load(deck["theme"]) if deck.get("theme") else None
     opts = {"strings_to_numbers": False, "strings_to_formulas": False, "strings_to_urls": False,
             "use_future_functions": True}  # 새 함수(TEXTJOIN·XMATCH·LET …)에 _xlfn. 을 붙여야 엑셀이 #NAME? 없이 연다(가져올 때 뗀다)
-    if theme:
-        opts["default_format_properties"] = {"font_name": theme.get("font") or "맑은 고딕", "font_size": float(theme.get("size") or 10)}
+    base_font, role_font = font_names(deck, theme)
+    if theme or deck.get("fontPreset"):
+        opts["default_format_properties"] = {"font_name": base_font or "맑은 고딕", "font_size": float((theme or {}).get("size") or (deck.get("font") or {}).get("size") or 10)}
     vba = None
     if macros and (deck.get("macros") or {}).get("vba"):  # 매크로 통합 문서 - VBA 프로젝트를 넣고 .xlsm 으로(엑셀은 확장자가 .xlsm 이어야 매크로를 연다)
         from common import ASSET_ROOT
@@ -271,7 +290,7 @@ def export(deck, out, macros=True):
     # 엑셀이 쓰는 글꼴 = 테마 글꼴(theme) 또는 xlsxwriter 기본(Calibri 11 + 테마 한글 글꼴 맑은 고딕 - 한국어 엑셀은 맑은 고딕으로 잰다)
     from sheet_import import DEF_COL_PX, mdw_of, row_px_of
     fnt = deck.get("font") or {}
-    eff = (theme.get("font") or "맑은 고딕", float(theme.get("size") or 10)) if theme else ("맑은 고딕", 11)
+    eff = (opts["default_format_properties"]["font_name"], opts["default_format_properties"]["font_size"]) if "default_format_properties" in opts else ("맑은 고딕", 11)
     mdw = int(fnt.get("mdw") or (7 if deck.get("source") else mdw_of(*eff)))  # 0.25.2 전에 가져온 문서(source, mdw 없음)는 px 를 7 로 쟀다 - 글자 단위가 그대로이게
     row_px = int(fnt.get("rowPx") or row_px_of(*eff))
     wb.max_digit_width, wb.cell_padding, wb.default_col_width = mdw, 5 if mdw <= 8 else 7 if mdw <= 12 else 9, DEF_COL_PX.get(mdw, 64)
@@ -334,6 +353,8 @@ def export(deck, out, macros=True):
                 continue
             r, col = int(mm.group(2)) - 1, col_index(mm.group(1))
             d = sheet_theme.resolve_cell(theme, c)
+            if d.get("font") in role_font:  # 역할 → 그 세트의 글꼴 이름
+                d["font"] = role_font[d["font"]]
             f = fmt(cell_format(d))
             v = d.get("v")
             if ref in merged:

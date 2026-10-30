@@ -701,6 +701,71 @@
     if (name) S.deck.theme = name; else delete S.deck.theme;
     renderThemeChip(); afterChange();
   }
+
+  // ---------------------------------------------------------------- 글꼴(슬라이드와 같은 글꼴 세트 - docs/fonts.md) - 작업 공간 fonts/ 웹 글꼴(../api/fontcss)·세트(tokens.json fontPresets)
+  // 문서 기본 글꼴 = 문서 fontPreset 세트의 본문 > 테마 font > 엑셀에서 가져온 문서 글꼴(font.name) > 작업 공간 세트 본문.
+  // 셀 font = 역할(body·heading·mono - 그 세트의 글꼴) 또는 글꼴 이름. 내보내기(export_xlsx.py font_name)와 같은 규칙
+  const FT = { tokens: null, catalog: [] };
+  async function loadFonts() {
+    try { FT.tokens = await (await fetch("tokens.json", { cache: "no-store" })).json(); } catch (e) { FT.tokens = null; }
+    try { FT.catalog = ((await (await fetch("font_catalog.json", { cache: "no-store" })).json()).fonts || []).map((f) => f.name); } catch (e) { FT.catalog = []; }
+  }
+  /** 세트 이름 → 역할별 글꼴(render.js presetFonts 와 같다: 빠진 body·mono 는 지금 값, 덮어쓰기는 뒤에, heading 은 body) */
+  function presetFonts(name) {
+    const T = FT.tokens, p = name && T && T.fontPresets && T.fontPresets[name]; if (!p) return null;
+    const f = JSON.parse(JSON.stringify(p));
+    for (const k of ["body", "mono"]) if (!f[k]) f[k] = T.fonts[k];
+    for (const [k, v] of Object.entries(T.fontOverrides || {})) f[k] = { ...(f[k] || {}), ...v };
+    if (!f.heading) f.heading = f.body;
+    return f;
+  }
+  const fontSet = () => (S.deck && S.deck.fontPreset && presetFonts(S.deck.fontPreset)) || (FT.tokens && FT.tokens.fonts) || null;
+  const famOf = (name) => `'${String(name).replace(/["']/g, "")}', var(--font)`;
+  /** 문서 기본 글꼴(CSS) - 빈 글이면 화면 기본(--font) */
+  function baseFamily() {
+    const pf = S.deck && S.deck.fontPreset && presetFonts(S.deck.fontPreset), T = theme();
+    if (pf && pf.body) return String(pf.body.css).replace(/"/g, "'");
+    if (T && T.font) return famOf(T.font);
+    if (S.deck && S.deck.font && S.deck.font.name) return famOf(S.deck.font.name);
+    const fs = FT.tokens && FT.tokens.fonts; return fs && fs.body ? String(fs.body.css).replace(/"/g, "'") : "";
+  }
+  const FONT_ROLES = { body: "본문 글꼴", heading: "제목 글꼴", mono: "고정폭 글꼴" };
+  /** 셀 글꼴(CSS) - 역할은 지금 세트의 글꼴, 이름은 그 글꼴(없으면 문서 기본으로) */
+  function cellFamily(o) {
+    if (!o || !o.font) return "";
+    const fs = fontSet();
+    if (FONT_ROLES[o.font]) return fs && (fs[o.font] || fs.body) ? String((fs[o.font] || fs.body).css).replace(/"/g, "'") : "";
+    return `'${String(o.font).replace(/["']/g, "")}', ${baseFamily() || "var(--font)"}`;
+  }
+  /** 글꼴 고르기 목록 - 역할 · 세트에 든 글꼴 · 무료/시스템 글꼴 목록(font_catalog.json) */
+  function fillFontSel(cur) {
+    const names = new Set();
+    for (const p of Object.values((FT.tokens && FT.tokens.fontPresets) || {})) for (const r of Object.values(p || {})) for (const k of ["ea", "latin"]) if (r && r[k]) names.add(r[k]);
+    FT.catalog.forEach((n) => names.add(n));
+    if (cur && !FONT_ROLES[cur]) names.add(cur);
+    const base = fontSet() && fontSet().body ? fontSet().body.ea || fontSet().body.latin : "";
+    $("#fontSel").innerHTML = `<option value="">기본${base ? ` (${esc(base)})` : ""}</option>` + Object.entries(FONT_ROLES).filter(([k]) => k !== "body").map(([k, l]) => `<option value="${k}">${l}</option>`).join("")
+      + `<option disabled>──────</option>` + [...names].sort((a, b) => a.localeCompare(b, "ko")).map((n) => `<option value="${esc(n)}" style="font-family:${esc(famOf(n))}">${esc(n)}</option>`).join("");
+    $("#fontSel").value = cur || "";
+  }
+  function renderFontChip() {
+    const c = $("#fontChip"); if (!c || !S.deck) return;
+    const fs = fontSet(), nm = fs && fs.body ? fs.body.ea || fs.body.latin : "";
+    c.textContent = `글꼴 ${S.deck.fontPreset ? S.deck.fontPreset : "기본"}${nm ? ` · ${nm}` : ""}`;
+    c.title = S.deck.fontPreset ? `문서 글꼴 세트 ${S.deck.fontPreset} - 눌러서 바꾸기` : "작업 공간 글꼴 세트를 따른다(테마·엑셀 글꼴이 있으면 그것) - 눌러서 문서 글꼴 세트 고르기";
+  }
+  /** 문서 글꼴 세트 고르기 - 슬라이드의 덱 글꼴 세트와 같다(덱 JSON fontPreset). 작업 공간 세트 정의·글꼴 파일은 편집기 글꼴 창에서 */
+  async function fontMenu(btn) {
+    const r = await api("GET", "/api/fonts"), info = r.ok && r.data && r.data.presets ? r.data : null;
+    const ps = info ? info.presets : Object.keys((FT.tokens && FT.tokens.fontPresets) || {}).map((n) => ({ name: n, source: "template", label: "" }));
+    const set = (name) => { if ((name || null) === (S.deck.fontPreset || null)) return; mutate(() => { if (name) S.deck.fontPreset = name; else delete S.deck.fontPreset; }); renderFontChip(); };
+    const item = (p) => ({ label: `${p.name}${p.label ? ` - ${p.label}` : ""}`, on: S.deck.fontPreset === p.name, act: () => set(p.name) });
+    openMenu(btn, [{ h: "문서 글꼴 세트 - 슬라이드와 같은 세트" }, { label: `작업 공간 기본${info && info.current ? ` (${info.current})` : ""}`, on: !S.deck.fontPreset, act: () => set(null) },
+      ...(ps.some((p) => p.source === "template") ? [{ h: "템플릿 기본" }, ...ps.filter((p) => p.source === "template").map(item)] : []),
+      ...(ps.some((p) => p.source === "workspace") ? [{ h: "작업 공간 지정" }, ...ps.filter((p) => p.source === "workspace").map(item)] : []),
+      "-", { label: "글꼴 받기·설치 안내 ↗", act: () => window.open(`${BASE}/studio/fonts.html`, "_blank") },
+      { label: "작업 공간 글꼴 세트 고치기 ↗ (편집기 글꼴 창)", act: () => window.open(`${BASE}/studio/index.html`, "_blank") }]);
+  }
   const defSize = () => (theme() && +theme().size) || 11;
   /** 눈금선 - 탭 grid 가 있으면 그것, 없으면 테마 grid(기본 보임) */
   const gridOn = (sh) => (sh.grid !== undefined ? sh.grid !== false : !(theme() && theme().grid === false));
@@ -728,7 +793,7 @@
 
   // ---------------------------------------------------------------- 그리기
   const G = { colX: [], rowY: [], rows: 0, cols: 0 };
-  function renderAll() { renderGrid(); renderTabs(); renderSel(); renderReqs(); if (window.NexaSheetSide) NexaSheetSide.onRender(); }
+  function renderAll() { renderFontChip(); renderGrid(); renderTabs(); renderSel(); renderReqs(); if (window.NexaSheetSide) NexaSheetSide.onRender(); }
   function cellStyle(o, isNum) {
     const st = [];
     if (o.fill) st.push(`background:${o.fill}`);
@@ -738,6 +803,7 @@
     if (o.i) cv.push("font-style:italic");
     if (o.u || o.strike) cv.push(`text-decoration:${[o.u ? "underline" : "", o.strike ? "line-through" : ""].filter(Boolean).join(" ")}`);
     if (o.size) cv.push(`font-size:${+o.size}pt`);
+    if (o.font) { const ff = cellFamily(o); if (ff) cv.push(`font-family:${ff}`); }
     const al = o.align || (isNum === "num" ? "right" : isNum === "mid" ? "center" : "left");
     cv.push(`justify-content:${al === "right" ? "flex-end" : al === "center" ? "center" : "flex-start"}`, `text-align:${al}`);
     cv.push(`align-items:${o.valign === "top" ? "flex-start" : o.valign === "middle" ? "center" : "flex-end"}`);
@@ -800,7 +866,7 @@
     const T = theme(), grid = $("#grid");
     grid.classList.toggle("nogrid", !gridOn(sh));
     grid.style.width = G.colX[cols] + "px";  // 표 너비가 auto 면 table-layout: fixed 가 무시돼 긴 글이 열을 넓힌다 - 선택 상자(G.colX)와 칸이 어긋남
-    grid.style.fontFamily = T && T.font ? `"${String(T.font).replace(/"/g, "")}", var(--font)` : "";
+    grid.style.fontFamily = baseFamily();  // 문서 글꼴 세트 > 테마 > 엑셀 글꼴 > 작업 공간 세트
     grid.style.fontSize = T && T.size ? `${+T.size}pt` : "";
     const h = [`<colgroup><col style="width:${HW}px">`];
     for (let c = 0; c < cols; c++) if (!colHidden(sh, c)) h.push(`<col style="width:${colW(sh, c)}px">`);
@@ -1012,6 +1078,7 @@
     $('#tools [data-t="freeze"]').classList.toggle("on", !!sh.freeze);
     $("#colorBar").style.background = o.color || "#000"; $("#fillBar").style.background = o.fill || "#fff";
     fillFmtSel(o.fmt || ""); $("#sizeSel").value = String(o.size || defSize());
+    if ([...$("#fontSel").options].some((x) => x.value === (o.font || ""))) $("#fontSel").value = o.font || ""; else fillFontSel(o.font || "");
     $('#tools [data-t="grid"]').classList.toggle("on", gridOn(sh));
     $('#tools [data-t="border"]').classList.toggle("on", !!o.bd && Object.keys(bdSides(o.bd)).length > 0);
     const ss = $("#styleSel"), names = Object.keys((theme() && theme().styles) || {});
@@ -1183,7 +1250,7 @@
     if (S.edit) {
       const o = effCell(sh.cells[key(S.cur.r, S.cur.c)]);
       e.style.fontWeight = o.b ? "700" : ""; e.style.fontStyle = o.i ? "italic" : ""; e.style.fontSize = (o.size || defSize()) + "pt";
-      e.style.fontFamily = $("#grid").style.fontFamily;
+      e.style.fontFamily = cellFamily(o) || $("#grid").style.fontFamily;
       e.style.width = "1px"; e.style.width = Math.max(R.w + 3, Math.min(e.scrollWidth + 8, 640)) + "px";
       e.style.height = "1px"; e.style.height = Math.max(R.h + 3, e.scrollHeight + 2) + "px";
     }
@@ -2058,7 +2125,7 @@
   let measureCtx = null, measureFam = "";
   function textPx(o, txt) {
     measureCtx = measureCtx || document.createElement("canvas").getContext("2d");
-    const fam = measureFam || (measureFam = getComputedStyle(document.body).getPropertyValue("--font") || "sans-serif");  // 글꼴 이름은 한 번만 읽는다(격자 넘침이 칸마다 잰다)
+    const fam = cellFamily(o) || baseFamily() || measureFam || (measureFam = getComputedStyle(document.body).getPropertyValue("--font") || "sans-serif");  // 글꼴 이름은 한 번만 읽는다(격자 넘침이 칸마다 잰다)
     measureCtx.font = `${o.i ? "italic " : ""}${o.b ? "700 " : ""}${+o.size || defSize()}pt ${fam}`;
     return Math.max(...String(txt).split("\n").map((t) => measureCtx.measureText(t).width));
   }
@@ -2188,6 +2255,7 @@
       target: SHEET_TARGET, att: { boxes: { tab: "#reqAtt", fu: "#fuAtt" } }, onDeckChanged: () => { pollAt = 0; poll(); } });
     if (!PREVIEW) { const [q, ss] = await Promise.all([api("GET", `/api/requests/${encodeURIComponent(S.id)}`), api("GET", "/api/session")]);
       if (q.ok && Array.isArray(q.data)) S.reqs = q.data; if (ss.ok && ss.data) renderSession(ss.data); }
+    await loadFonts(); fillFontSel("");  // 글꼴 세트·목록(슬라이드와 같은 tokens.json) - 격자를 그리기 전에
     if (!(await loadDeck(false))) return;
     {  // 엑셀 가져오기 경고(그림·조건부 서식·배열 수식 등 - sheetnew.js 가 남김) - 한 번 보이고 지운다
       let w = ""; try { w = sessionStorage.getItem("nexaImportWarn") || ""; sessionStorage.removeItem("nexaImportWarn"); } catch (e) { /* 저장소 없음 */ }
@@ -2277,6 +2345,8 @@
     });
     $("#colorIn").addEventListener("change", (e) => { applyStyle({ color: e.target.value.toUpperCase() }); focusGrid(); });
     $("#fillIn").addEventListener("change", (e) => { applyStyle({ fill: e.target.value.toUpperCase() }); focusGrid(); });
+    $("#fontSel").addEventListener("change", (e) => { applyStyle({ font: e.target.value || undefined }); focusGrid(); });  // 셀 글꼴 - 역할 또는 이름(빈 값 = 문서 기본)
+    $("#fontChip").onclick = (e) => fontMenu(e.currentTarget);
     $("#sizeSel").addEventListener("change", (e) => { const n = +e.target.value; applyStyle({ size: n === defSize() ? undefined : n }); focusGrid(); });
     $("#styleSel").addEventListener("change", (e) => { applyStyle({ s: e.target.value || undefined }); focusGrid(); });
     $("#themeChip").onclick = (e) => themeMenu(e.currentTarget);
