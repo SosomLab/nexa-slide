@@ -1744,13 +1744,14 @@
   /** 바뀐 셀 강조 - 지금 탭에 없으면 바뀐 셀이 있는 첫 탭으로 */
   function showAi(rid, on) {
     const D = AI.diff[rid];
-    if (!on || !D || !D.cells || !D.cells.length) { AI.hl = null; renderMarks(); renderReqs(); return; }
+    if (!on || !D || !D.cells || !D.cells.length) { AI.hl = null; renderMarks(); renderReqs(); aiSide(); return; }
     AI.hl = { rid, cells: D.cells };
     if (!D.cells.some((c) => c.tab === sheet().id)) { const i = S.deck.sheets.findIndex((s) => s.id === D.cells[0].tab); if (i >= 0) switchTab(i); }
     const first = D.cells.find((c) => c.tab === sheet().id), p = first && parseRef(first.key);
     if (p) scrollIntoView(p.r, p.c);
-    renderMarks(); renderReqs();
+    renderMarks(); renderReqs(); aiSide();
   }
+  function aiSide() { if (window.NexaSheetSide) NexaSheetSide.onAi(); }  // 변경 탭의 AI 강조 줄도 같이
   function aiUndo(rid) {
     const D = AI.diff[rid]; if (!D || !D.cells) return;
     const norm = (x) => (x == null ? null : typeof x === "object" ? x : { v: x });
@@ -1763,7 +1764,7 @@
         done++;
       }
     });
-    AI.hl = null; renderMarks(); renderReqs();
+    AI.hl = null; renderMarks(); renderReqs(); aiSide();
     toast(`AI 가 바꾼 셀 ${done}개를 되돌렸습니다${kept ? ` · 그 뒤 고친 ${kept}개는 그대로` : ""} (Ctrl+Z 로 다시)`, 4500);
   }
   /** 요청 목록이 바뀔 때 - 이 화면을 연 동안 완료로 바뀐 요청이면 바뀐 셀을 강조하고 알린다 */
@@ -2206,6 +2207,6 @@
     x: { shiftAxis, G, sheet, key, parseRef, colHidden, rowHidden, rectOf, colIndex, parseRange, rangeName, colName, cellObj, putCell, mutate, renderAll, renderSel, selectRange, selectCell, clampRange, eachCell, toast, openMenu,
       endEdit, startEdit, focusGrid, pasteText, scrollIntoView, growSize, clone, ED, esc,
       // 패널 속성·기록·변경 탭(sheetside.js)
-      api, TAB, LS, FMTS, paneOf, mergeAt, styleOf, defSize, rawText, normSheet, setupVba, place, drawId, drawPick, markDrawings, drawDelete, assetUrl, inRange, switchTab, save, snapshot, afterChange, setZoomRef: () => Z } };
+      api, TAB, LS, FMTS, ai: { hl: () => AI.hl, diff: (rid) => AI.diff[rid], load: loadAiDiff, show: showAi, undo: aiUndo }, paneOf, mergeAt, styleOf, defSize, rawText, normSheet, setupVba, place, drawId, drawPick, markDrawings, drawDelete, assetUrl, inRange, switchTab, save, snapshot, afterChange, setZoomRef: () => Z } };
   init();
 })();
