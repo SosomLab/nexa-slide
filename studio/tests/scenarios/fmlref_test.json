@@ -1,0 +1,27 @@
+{
+ "base": "http://127.0.0.1:5667",
+ "pages": [
+  {
+   "url": "/studio/sheet.html?deck=zsheetfill",
+   "wait": 1500,
+   "steps": [
+    {
+     "name": "수식 편집 - 참조마다 색 테두리(격자)·같은 색 글자(편집 칸), 같은 참조는 같은 색",
+     "js": "const N=window.NexaSheet, S=N.S, ed=document.querySelector('#editor'), w=(n)=>new Promise(r=>setTimeout(r,n)); await until(async () => (S.deck), 8000); N.x.selectCell(12, 2); N.x.startEdit('edit', '=A13*B13+A13'); ed.dispatchEvent(new Event('input')); await w(100); const rf=[...document.querySelectorAll('#refMarks .rf')], cols=rf.map(x=>x.style.borderColor); const sp=[...document.querySelectorAll('#edHl span')].map(s=>[s.textContent,s.style.color]); const hl=ed.classList.contains('hl') && document.querySelector('#edHl').classList.contains('on'); return rf.length===2 && cols[0]!==cols[1] && sp.length===3 && sp[0][1]===sp[2][1] && sp[0][1]!==sp[1][1] && hl ? true : JSON.stringify({n:rf.length,cols,sp,hl})"
+    },
+    {
+     "name": "고른 조각 미리 보기 - SUM(A13:A16) 을 고르면 '= 10', F9 로 그 값으로 바꾼다 · 완전한 식이 아닌 조각(10+)은 미리 보기 없음",
+     "js": "const N=window.NexaSheet, S=N.S, ed=document.querySelector('#editor'), w=(n)=>new Promise(r=>setTimeout(r,n)); await until(async () => (S.deck), 8000); ed.value='=SUM(A13:A16)+B13*2'; ed.dispatchEvent(new Event('input')); await w(50); ed.focus(); ed.setSelectionRange(1, 13); await w(150); const tip=document.querySelector('#evalTip'), tt=tip.hidden?'':tip.textContent; ed.dispatchEvent(new KeyboardEvent('keydown',{key:'F9',bubbles:true,cancelable:true})); await w(100); const after=ed.value; ed.setSelectionRange(1, 4); await w(150); const bad=document.querySelector('#evalTip').hidden; return /= 10/.test(tt) && after==='=10+B13*2' && bad ? true : JSON.stringify({tt,after,bad})"
+    },
+    {
+     "name": "Esc - 편집 취소, 원래 수식 그대로 · 참조 표시 사라짐",
+     "js": "const N=window.NexaSheet, S=N.S, ed=document.querySelector('#editor'), w=(n)=>new Promise(r=>setTimeout(r,n)); await until(async () => (S.deck), 8000); ed.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true,cancelable:true})); await w(100); const c=S.deck.sheets[0].cells.C13; const n=document.querySelectorAll('#refMarks .rf').length; return c.f==='=A13*B13' && n===0 && !ed.classList.contains('hl') && !document.querySelector('#edHl').classList.contains('on') ? true : JSON.stringify({c,n})"
+    },
+    {
+     "name": "수식 줄에서 고쳐도 - 탭 이름 참조('채우기'!B3)도 이 탭이면 테두리, 글 상수 안의 \"A1\" 은 참조가 아니다",
+     "js": "const N=window.NexaSheet, S=N.S, ed=document.querySelector('#editor'), w=(n)=>new Promise(r=>setTimeout(r,n)); await until(async () => (S.deck), 8000); const fx=document.querySelector('#fxIn'); N.x.selectCell(12, 2); fx.focus(); fx.value=\"='채우기'!B3+C3&\\\"A1\\\"\"; fx.dispatchEvent(new Event('input')); await w(100); const n=document.querySelectorAll('#refMarks .rf').length, sp=[...document.querySelectorAll('#fxHl span')].map(s=>s.textContent); fx.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true,cancelable:true})); await w(100); const n2=document.querySelectorAll('#refMarks .rf').length; return n===2 && sp.join('|')===\"'채우기'!B3|C3\" && n2===0 && S.deck.sheets[0].cells.C13.f==='=A13*B13' ? true : JSON.stringify({n,sp,n2})"
+    }
+   ]
+  }
+ ]
+}
