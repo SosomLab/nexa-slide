@@ -184,7 +184,7 @@ LET 이름에 담아 `=LET(f,LAMBDA(a,b,a+b),f(2,3))` 으로 부르고, **이름
 
 | 위치 | 내용 |
 |---|---|
-| 엔진 `studio/sheet_themes/<이름>/theme.json` | 공개 테마만 둔다(로고 없음, 작업 공간 brand 로고 `@brand/logo` 를 쓴다) |
+| 엔진 `studio/sheet_themes/<이름>/theme.json` | 공개 테마만 둔다(로고 없음, 작업 공간 brand 로고 `@brand/logo` 를 쓴다). `basic`(기본 산출물: 표지·이력·개요·요약·상세목록) · `screen-spec`(화면 설계서 0.25.13: 개요·변경이력·사용테이블목록·테이블정의·화면_Tab1·화면레이아웃(셀로 그린 와이어프레임)·코드소스·쿼리·동작·유효성검증 - 실제 설계서의 구조·서식만, 내용은 일반 예시. 고칠 때는 `build.py` 를 고쳐 다시 만든다) |
 | 작업 공간 `assets/sheet-themes/<이름>/theme.json` + 그림 | 회사 테마. 로고 같은 상표 파일은 엔진 저장소에 넣지 않는다 |
 
 ```jsonc

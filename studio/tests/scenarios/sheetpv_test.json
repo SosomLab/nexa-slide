@@ -21,6 +21,16 @@
    ]
   },
   {
+   "url": "/studio/sheet.html?preview=engine%3Ascreen-spec&title=%ED%99%94%EB%A9%B4%20%EC%8B%9C%ED%97%98",
+   "wait": 1500,
+   "steps": [
+    {
+     "name": "엔진 테마 '화면 설계서' - 10페이지(개요~유효성검증)·제목 자리·절 띠·와이어프레임 병합",
+     "js": "const N=window.NexaSheet; await until(async () => (N.S.deck && N.S.deck.sheets.length), 8000); const S=N.S, sh=S.deck.sheets; const names=sh.map(t=>t.name).join(','), ov=JSON.stringify(sh[0].cells), lay=sh.find(t=>t.name==='화면레이아웃'); const sec=Object.values(sh.find(t=>t.name==='화면_Tab1').cells).some(c=>c.s==='section'), fill=N.effCell(sh[0].cells.A1).fill; return sh.length===10 && /화면 시험/.test(ov) && sec && lay && lay.merges.length>10 && fill==='#1F4E78' && S.deck.theme==='screen-spec' ? true : JSON.stringify({names,fill,sec})"
+    }
+   ]
+  },
+  {
    "url": "/studio/home.html#templates",
    "wait": 1500,
    "steps": [
