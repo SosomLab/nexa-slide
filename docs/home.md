@@ -144,6 +144,12 @@ python3 <작업 공간>/nexa.py start      # 작업 공간 서버 → 덱이 있
 - 만들기: `POST /api/project {action: "template", ws, name, base, colors, label?, brand?, font?, overwrite?}`(관리자, 또는 이 허브에서 연 작업 공간(최근 작업)에 한해 로그인 사용자 · 작업 공간 서버는 자기 작업 공간만) → `templates/<이름>/template.json` · `assets/brand/logo.png` · `fonts/<파일>` 을 쓰고 `nexa-slide.json` 의 `template`(·`brand`·`fontPresets`·`fontPreset`)을 바꾼다(`set_template` 과 같은 처리 — 공유 파일에만). 접근 로그 `event=template.create:<작업 공간>:<이름>`.
 - 만든 뒤: 그 작업 공간 서버가 떠 있으면 **[지금 다시 시작]**(허브에서 `stop` → `start`; 작업 공간 서버 자신의 페이지면 터미널 `nexa.py restart` 안내). 기존 덱의 글자 크기 하한은 `build_deck --force` 때 적용되고 PPTX 는 다시 내보낸다.
 
+### PPT 파일로 시작 (0.25.14)
+
+새 슬라이드 양식 ①의 **"또는 PPT 파일로 시작"** 에서 .pptx 를 고르면 시작용 내용 대신 그 파일이 첫 덱이 된다(시트의 "엑셀 파일로 시작"과 같은 흐름).
+- 파일은 `POST /api/project {action: attach}` 로 올려 두고, 만들 때 `deckFrom: {name, orig}` → `init_workspace.py --pptx-import <파일>` → `import_pptx.py --deck <첫 덱>`(글·글머리·표·그림·차트·도형). 원본은 작업 공간 `materials/` 에 남는다.
+- 덱 제목은 작업 공간 제목, 색·글꼴은 고른 템플릿 기본값. `content/<덱>.json`(빈 시작 원본)은 만들지 않는다. .ppt 는 PowerPoint 에서 .pptx 로 저장해 고른다.
+
 ### 새로 만들 때 하는 일
 
 버튼과 명령이 같은 일을 한다. 서버의 `plan`(`POST /api/project {"action": "plan", …}`)이 양식 값으로 만들 폴더·포트와
