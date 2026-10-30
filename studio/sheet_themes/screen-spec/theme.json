@@ -1,0 +1,5347 @@
+{
+ "label": "화면 설계서",
+ "font": "맑은 고딕",
+ "size": 10,
+ "grid": false,
+ "palette": {
+  "primary": "#1F4E78",
+  "secondary": "#2E75B6",
+  "line": "#BFBFBF",
+  "band": "#F2F2F2",
+  "input": "#FFF2CC",
+  "warn": "#C00000",
+  "muted": "#808080",
+  "text": "#262626",
+  "code": "#F7F7F7",
+  "light": "#DEEBF7",
+  "button": "#D9D9D9",
+  "ok": "#70AD47",
+  "dark": "#404040"
+ },
+ "styles": {
+  "title": {
+   "size": 13,
+   "b": true,
+   "color": "#FFFFFF",
+   "fill": "primary",
+   "align": "left",
+   "valign": "middle"
+  },
+  "section": {
+   "b": true,
+   "color": "#FFFFFF",
+   "fill": "secondary",
+   "align": "left",
+   "valign": "middle",
+   "bd": "line"
+  },
+  "header": {
+   "size": 10,
+   "b": true,
+   "color": "#FFFFFF",
+   "fill": "primary",
+   "align": "center",
+   "valign": "middle",
+   "wrap": true,
+   "bd": "line"
+  },
+  "label": {
+   "size": 10,
+   "b": true,
+   "fill": "band",
+   "align": "center",
+   "valign": "middle",
+   "wrap": true,
+   "bd": "line"
+  },
+  "cell": {
+   "size": 10,
+   "align": "left",
+   "valign": "middle",
+   "wrap": true,
+   "bd": "line"
+  },
+  "center": {
+   "size": 10,
+   "align": "center",
+   "valign": "middle",
+   "wrap": true,
+   "bd": "line"
+  },
+  "key": {
+   "size": 10,
+   "b": true,
+   "align": "left",
+   "valign": "middle",
+   "wrap": true,
+   "bd": "line"
+  },
+  "input": {
+   "fill": "input",
+   "align": "center",
+   "valign": "middle",
+   "bd": "line"
+  },
+  "code": {
+   "size": 9,
+   "fill": "code",
+   "align": "left",
+   "valign": "top",
+   "wrap": true,
+   "bd": "line"
+  },
+  "memo": {
+   "size": 10,
+   "align": "left",
+   "valign": "top",
+   "wrap": true
+  },
+  "warn": {
+   "b": true,
+   "color": "warn"
+  },
+  "note": {
+   "size": 9,
+   "color": "muted"
+  },
+  "wfTitle": {
+   "b": true,
+   "fill": "band",
+   "align": "left",
+   "valign": "middle",
+   "bd": "line"
+  },
+  "wfBtn": {
+   "fill": "button",
+   "align": "center",
+   "valign": "middle",
+   "bd": "line"
+  },
+  "wfSave": {
+   "b": true,
+   "color": "#FFFFFF",
+   "fill": "ok",
+   "align": "center",
+   "valign": "middle",
+   "bd": "line"
+  },
+  "wfTabOn": {
+   "b": true,
+   "color": "#FFFFFF",
+   "fill": "secondary",
+   "align": "center",
+   "valign": "middle",
+   "bd": "line"
+  },
+  "wfTabOff": {
+   "fill": "light",
+   "align": "center",
+   "valign": "middle",
+   "bd": "line"
+  },
+  "wfSec": {
+   "b": true,
+   "color": "#FFFFFF",
+   "fill": "secondary",
+   "align": "left",
+   "valign": "middle"
+  },
+  "wfLabel": {
+   "b": true,
+   "color": "text",
+   "fill": "band",
+   "align": "left",
+   "valign": "middle"
+  },
+  "wfInput": {
+   "fill": "input",
+   "align": "left",
+   "valign": "middle",
+   "bd": "line"
+  },
+  "wfPanel": {
+   "fill": "band"
+  },
+  "wfGridHead": {
+   "b": true,
+   "color": "#FFFFFF",
+   "fill": "primary",
+   "align": "left",
+   "valign": "middle"
+  },
+  "wfGridBody": {
+   "fill": "#FFFFFF"
+  },
+  "wfGrid": {
+   "b": true,
+   "color": "primary",
+   "fill": "light",
+   "align": "center",
+   "valign": "middle",
+   "wrap": true
+  },
+  "wfHint": {
+   "size": 9,
+   "color": "muted",
+   "align": "left",
+   "valign": "middle"
+  }
+ },
+ "vars": {
+  "project": "",
+  "screen": "",
+  "author": "",
+  "version": "1.0"
+ },
+ "pages": [
+  {
+   "kind": "overview",
+   "name": "개요",
+   "grid": false,
+   "print": {
+    "landscape": false,
+    "fitWidth": 1
+   },
+   "cols": {
+    "A": 144,
+    "B": 840
+   },
+   "rows": {
+    "1": 35,
+    "3": 27,
+    "4": 27,
+    "5": 27,
+    "6": 40,
+    "7": 40,
+    "8": 27,
+    "9": 27,
+    "10": 27,
+    "11": 27,
+    "12": 27,
+    "13": 27,
+    "14": 27,
+    "15": 40
+   },
+   "merges": [
+    "A1:B1"
+   ],
+   "cells": {
+    "A1": {
+     "v": "화면 설계서 — {{title}}",
+     "s": "title"
+    },
+    "B1": {
+     "s": "title"
+    },
+    "A3": {
+     "v": "화면명",
+     "s": "label"
+    },
+    "B3": {
+     "v": "{{title}}",
+     "s": "cell"
+    },
+    "A4": {
+     "v": "화면 ID",
+     "s": "label"
+    },
+    "B4": {
+     "v": "{{screen}}",
+     "s": "cell"
+    },
+    "A5": {
+     "v": "메뉴 경로",
+     "s": "label"
+    },
+    "B5": {
+     "v": "예) 기준정보 > 우선순위 관리",
+     "s": "cell"
+    },
+    "A6": {
+     "v": "목적",
+     "s": "label"
+    },
+    "B6": {
+     "v": "이 화면으로 무엇을 결정·관리하는지 한두 문장으로 적는다.",
+     "s": "cell"
+    },
+    "A7": {
+     "v": "결정 로직",
+     "s": "label"
+    },
+    "B7": {
+     "v": "핵심 규칙 요약 - 예) 기본 규칙(등급 조합) + 예외 규칙(특정 고객·품목)의 2계층.",
+     "s": "cell"
+    },
+    "A8": {
+     "v": "대상 테이블",
+     "s": "label"
+    },
+    "B8": {
+     "v": "주 테이블(CRUD)과 참조 테이블 - 상세는 [사용테이블목록].",
+     "s": "cell"
+    },
+    "A9": {
+     "v": "Tab 1",
+     "s": "label"
+    },
+    "B9": {
+     "v": "예) 규칙 설정 : 상단 = 기본 규칙 그리드, 하단 = 예외 규칙 그리드",
+     "s": "cell"
+    },
+    "A10": {
+     "v": "Tab 2",
+     "s": "label"
+    },
+    "B10": {
+     "v": "예) 결과 조회 : 조회 조건으로 대상을 불러와 적용 결과 확인(조회 전용)",
+     "s": "cell"
+    },
+    "A11": {
+     "v": "공통 기준",
+     "s": "label"
+    },
+    "B11": {
+     "v": "예) 고정 상수·권한·조회 기준(사업장·버전 등)",
+     "s": "cell"
+    },
+    "A12": {
+     "v": "프로젝트",
+     "s": "label"
+    },
+    "B12": {
+     "v": "{{project}}",
+     "s": "cell"
+    },
+    "A13": {
+     "v": "작성자",
+     "s": "label"
+    },
+    "B13": {
+     "v": "{{author}}",
+     "s": "cell"
+    },
+    "A14": {
+     "v": "작성일 · 버전",
+     "s": "label"
+    },
+    "B14": {
+     "v": "{{date}} · v{{version}}",
+     "s": "cell"
+    },
+    "A15": {
+     "v": "시트 구성",
+     "s": "label"
+    },
+    "B15": {
+     "v": "①개요 ②변경이력 ③사용테이블목록 ④테이블정의 ⑤화면_Tab1 ⑥화면레이아웃 ⑦코드소스 ⑧쿼리 ⑨동작 ⑩유효성검증",
+     "s": "cell"
+    }
+   }
+  },
+  {
+   "kind": "history",
+   "name": "변경이력",
+   "grid": false,
+   "print": {
+    "landscape": false,
+    "fitWidth": 1
+   },
+   "cols": {
+    "A": 72,
+    "B": 104,
+    "C": 560,
+    "D": 120,
+    "E": 120
+   },
+   "rows": {
+    "1": 35
+   },
+   "merges": [
+    "A1:E1"
+   ],
+   "cells": {
+    "A1": {
+     "v": "변경 이력",
+     "s": "title"
+    },
+    "B1": {
+     "s": "title"
+    },
+    "C1": {
+     "s": "title"
+    },
+    "D1": {
+     "s": "title"
+    },
+    "E1": {
+     "s": "title"
+    },
+    "A3": {
+     "v": "버전",
+     "s": "header"
+    },
+    "B3": {
+     "v": "일자",
+     "s": "header"
+    },
+    "C3": {
+     "v": "변경 내용",
+     "s": "header"
+    },
+    "D3": {
+     "v": "작성자",
+     "s": "header"
+    },
+    "E3": {
+     "v": "검토자",
+     "s": "header"
+    },
+    "A4": {
+     "v": "{{version}}",
+     "s": "center"
+    },
+    "B4": {
+     "v": "{{date}}",
+     "s": "center"
+    },
+    "C4": {
+     "v": "최초 작성",
+     "s": "cell"
+    },
+    "D4": {
+     "v": "{{author}}",
+     "s": "center"
+    },
+    "E4": {
+     "v": "",
+     "s": "center"
+    },
+    "A5": {
+     "v": "",
+     "s": "center"
+    },
+    "B5": {
+     "v": "",
+     "s": "center"
+    },
+    "C5": {
+     "v": "",
+     "s": "cell"
+    },
+    "D5": {
+     "v": "",
+     "s": "center"
+    },
+    "E5": {
+     "v": "",
+     "s": "center"
+    },
+    "A6": {
+     "v": "",
+     "s": "center"
+    },
+    "B6": {
+     "v": "",
+     "s": "center"
+    },
+    "C6": {
+     "v": "",
+     "s": "cell"
+    },
+    "D6": {
+     "v": "",
+     "s": "center"
+    },
+    "E6": {
+     "v": "",
+     "s": "center"
+    },
+    "A7": {
+     "v": "",
+     "s": "center"
+    },
+    "B7": {
+     "v": "",
+     "s": "center"
+    },
+    "C7": {
+     "v": "",
+     "s": "cell"
+    },
+    "D7": {
+     "v": "",
+     "s": "center"
+    },
+    "E7": {
+     "v": "",
+     "s": "center"
+    }
+   }
+  },
+  {
+   "kind": "tables",
+   "name": "사용테이블목록",
+   "grid": false,
+   "print": {
+    "landscape": false,
+    "fitWidth": 1
+   },
+   "cols": {
+    "A": 160,
+    "B": 160,
+    "C": 496,
+    "D": 64
+   },
+   "rows": {
+    "1": 35
+   },
+   "merges": [
+    "A1:D1"
+   ],
+   "cells": {
+    "A1": {
+     "v": "사용 테이블 목록",
+     "s": "title"
+    },
+    "B1": {
+     "s": "title"
+    },
+    "C1": {
+     "s": "title"
+    },
+    "D1": {
+     "s": "title"
+    },
+    "A3": {
+     "v": "테이블",
+     "s": "header"
+    },
+    "B3": {
+     "v": "논리명",
+     "s": "header"
+    },
+    "C3": {
+     "v": "용도",
+     "s": "header"
+    },
+    "D3": {
+     "v": "접근",
+     "s": "header"
+    },
+    "A4": {
+     "v": "TB_RULE_MST",
+     "s": "key"
+    },
+    "B4": {
+     "v": "우선순위 규칙",
+     "s": "cell"
+    },
+    "C4": {
+     "v": "주 테이블(CRUD) — 기본/예외 규칙 저장",
+     "s": "cell"
+    },
+    "D4": {
+     "v": "R/W",
+     "s": "center"
+    },
+    "A5": {
+     "v": "TB_ORDER",
+     "s": "key"
+    },
+    "B5": {
+     "v": "주문 현황",
+     "s": "cell"
+    },
+    "C5": {
+     "v": "Tab2 조회 대상",
+     "s": "cell"
+    },
+    "D5": {
+     "v": "R",
+     "s": "center"
+    },
+    "A6": {
+     "v": "TB_CUST_GRP",
+     "s": "key"
+    },
+    "B6": {
+     "v": "고객그룹 마스터",
+     "s": "cell"
+    },
+    "C6": {
+     "v": "고객그룹 팝업·콤보 + 고객 등급",
+     "s": "cell"
+    },
+    "D6": {
+     "v": "R",
+     "s": "center"
+    },
+    "A7": {
+     "v": "TB_ITEM",
+     "s": "key"
+    },
+    "B7": {
+     "v": "품목 마스터",
+     "s": "cell"
+    },
+    "C7": {
+     "v": "품목 팝업 + 품목 등급",
+     "s": "cell"
+    },
+    "D7": {
+     "v": "R",
+     "s": "center"
+    },
+    "A8": {
+     "v": "TB_CODE_DTL",
+     "s": "key"
+    },
+    "B8": {
+     "v": "공통코드 상세",
+     "s": "cell"
+    },
+    "C8": {
+     "v": "등급·우선순위 콤보",
+     "s": "cell"
+    },
+    "D8": {
+     "v": "R",
+     "s": "center"
+    }
+   }
+  },
+  {
+   "kind": "tabledef",
+   "name": "테이블정의",
+   "grid": false,
+   "print": {
+    "landscape": true,
+    "fitWidth": 1
+   },
+   "cols": {
+    "A": 128,
+    "B": 128,
+    "C": 88,
+    "D": 160,
+    "E": 176,
+    "F": 120,
+    "G": 104,
+    "H": 72,
+    "I": 88,
+    "J": 144
+   },
+   "rows": {
+    "1": 35,
+    "12": 29
+   },
+   "merges": [
+    "A1:J1",
+    "A12:J12",
+    "D13:J13",
+    "D14:J14",
+    "D15:J15",
+    "D16:J16",
+    "D17:J17"
+   ],
+   "cells": {
+    "A1": {
+     "v": "테이블 정의 — TB_RULE_MST  (설계서용 조회 쿼리 결과를 붙여 넣어도 된다)",
+     "s": "title"
+    },
+    "B1": {
+     "s": "title"
+    },
+    "C1": {
+     "s": "title"
+    },
+    "D1": {
+     "s": "title"
+    },
+    "E1": {
+     "s": "title"
+    },
+    "F1": {
+     "s": "title"
+    },
+    "G1": {
+     "s": "title"
+    },
+    "H1": {
+     "s": "title"
+    },
+    "I1": {
+     "s": "title"
+    },
+    "J1": {
+     "s": "title"
+    },
+    "A3": {
+     "v": "TABLE_NAME",
+     "s": "header"
+    },
+    "B3": {
+     "v": "TABLE_DESC",
+     "s": "header"
+    },
+    "C3": {
+     "v": "COLUMN_ID",
+     "s": "header"
+    },
+    "D3": {
+     "v": "COLUMN_NAME",
+     "s": "header"
+    },
+    "E3": {
+     "v": "COLUMN_DESC",
+     "s": "header"
+    },
+    "F3": {
+     "v": "DATA_TYPE",
+     "s": "header"
+    },
+    "G3": {
+     "v": "PK_POSITION",
+     "s": "header"
+    },
+    "H3": {
+     "v": "DESCEND",
+     "s": "header"
+    },
+    "I3": {
+     "v": "NULLABLE",
+     "s": "header"
+    },
+    "J3": {
+     "v": "DATA_DEFAULT",
+     "s": "header"
+    },
+    "A4": {
+     "v": "TB_RULE_MST",
+     "s": "cell"
+    },
+    "B4": {
+     "v": "우선순위 규칙",
+     "s": "cell"
+    },
+    "C4": {
+     "v": "1",
+     "s": "center"
+    },
+    "D4": {
+     "v": "PROJECT_CD",
+     "s": "key"
+    },
+    "E4": {
+     "v": "프로젝트 코드",
+     "s": "cell"
+    },
+    "F4": {
+     "v": "VARCHAR2(50)",
+     "s": "cell"
+    },
+    "G4": {
+     "v": "1",
+     "s": "center"
+    },
+    "H4": {
+     "v": "ASC",
+     "s": "center"
+    },
+    "I4": {
+     "v": "N",
+     "s": "center"
+    },
+    "J4": {
+     "v": "",
+     "s": "cell"
+    },
+    "A5": {
+     "v": "TB_RULE_MST",
+     "s": "cell"
+    },
+    "B5": {
+     "v": "우선순위 규칙",
+     "s": "cell"
+    },
+    "C5": {
+     "v": "2",
+     "s": "center"
+    },
+    "D5": {
+     "v": "CUST_GRP_CD",
+     "s": "key"
+    },
+    "E5": {
+     "v": "고객그룹 코드",
+     "s": "cell"
+    },
+    "F5": {
+     "v": "VARCHAR2(30)",
+     "s": "cell"
+    },
+    "G5": {
+     "v": "2",
+     "s": "center"
+    },
+    "H5": {
+     "v": "ASC",
+     "s": "center"
+    },
+    "I5": {
+     "v": "N",
+     "s": "center"
+    },
+    "J5": {
+     "v": "'*'",
+     "s": "cell"
+    },
+    "A6": {
+     "v": "TB_RULE_MST",
+     "s": "cell"
+    },
+    "B6": {
+     "v": "우선순위 규칙",
+     "s": "cell"
+    },
+    "C6": {
+     "v": "3",
+     "s": "center"
+    },
+    "D6": {
+     "v": "ITEM_CD",
+     "s": "key"
+    },
+    "E6": {
+     "v": "품목 코드",
+     "s": "cell"
+    },
+    "F6": {
+     "v": "VARCHAR2(30)",
+     "s": "cell"
+    },
+    "G6": {
+     "v": "3",
+     "s": "center"
+    },
+    "H6": {
+     "v": "ASC",
+     "s": "center"
+    },
+    "I6": {
+     "v": "N",
+     "s": "center"
+    },
+    "J6": {
+     "v": "'*'",
+     "s": "cell"
+    },
+    "A7": {
+     "v": "TB_RULE_MST",
+     "s": "cell"
+    },
+    "B7": {
+     "v": "우선순위 규칙",
+     "s": "cell"
+    },
+    "C7": {
+     "v": "4",
+     "s": "center"
+    },
+    "D7": {
+     "v": "APLY_PRORT",
+     "s": "key"
+    },
+    "E7": {
+     "v": "적용 우선순위",
+     "s": "cell"
+    },
+    "F7": {
+     "v": "VARCHAR2(10)",
+     "s": "cell"
+    },
+    "G7": {
+     "v": "",
+     "s": "center"
+    },
+    "H7": {
+     "v": "",
+     "s": "center"
+    },
+    "I7": {
+     "v": "Y",
+     "s": "center"
+    },
+    "J7": {
+     "v": "",
+     "s": "cell"
+    },
+    "A8": {
+     "v": "TB_RULE_MST",
+     "s": "cell"
+    },
+    "B8": {
+     "v": "우선순위 규칙",
+     "s": "cell"
+    },
+    "C8": {
+     "v": "5",
+     "s": "center"
+    },
+    "D8": {
+     "v": "DEL_YN",
+     "s": "key"
+    },
+    "E8": {
+     "v": "삭제 여부",
+     "s": "cell"
+    },
+    "F8": {
+     "v": "CHAR(1)",
+     "s": "cell"
+    },
+    "G8": {
+     "v": "",
+     "s": "center"
+    },
+    "H8": {
+     "v": "",
+     "s": "center"
+    },
+    "I8": {
+     "v": "N",
+     "s": "center"
+    },
+    "J8": {
+     "v": "'N'",
+     "s": "cell"
+    },
+    "A9": {
+     "v": "TB_RULE_MST",
+     "s": "cell"
+    },
+    "B9": {
+     "v": "우선순위 규칙",
+     "s": "cell"
+    },
+    "C9": {
+     "v": "6",
+     "s": "center"
+    },
+    "D9": {
+     "v": "UPD_USER",
+     "s": "key"
+    },
+    "E9": {
+     "v": "수정자",
+     "s": "cell"
+    },
+    "F9": {
+     "v": "VARCHAR2(30)",
+     "s": "cell"
+    },
+    "G9": {
+     "v": "",
+     "s": "center"
+    },
+    "H9": {
+     "v": "",
+     "s": "center"
+    },
+    "I9": {
+     "v": "Y",
+     "s": "center"
+    },
+    "J9": {
+     "v": "",
+     "s": "cell"
+    },
+    "A10": {
+     "v": "TB_RULE_MST",
+     "s": "cell"
+    },
+    "B10": {
+     "v": "우선순위 규칙",
+     "s": "cell"
+    },
+    "C10": {
+     "v": "7",
+     "s": "center"
+    },
+    "D10": {
+     "v": "UPD_DTTM",
+     "s": "key"
+    },
+    "E10": {
+     "v": "수정 일시",
+     "s": "cell"
+    },
+    "F10": {
+     "v": "DATE",
+     "s": "cell"
+    },
+    "G10": {
+     "v": "",
+     "s": "center"
+    },
+    "H10": {
+     "v": "",
+     "s": "center"
+    },
+    "I10": {
+     "v": "Y",
+     "s": "center"
+    },
+    "J10": {
+     "v": "SYSDATE",
+     "s": "cell"
+    },
+    "A12": {
+     "v": "[코드 값 정의] 규칙 유형 (CUST_GRP_CD / ITEM_CD 조합)",
+     "s": "section"
+    },
+    "B12": {
+     "s": "section"
+    },
+    "C12": {
+     "s": "section"
+    },
+    "D12": {
+     "s": "section"
+    },
+    "E12": {
+     "s": "section"
+    },
+    "F12": {
+     "s": "section"
+    },
+    "G12": {
+     "s": "section"
+    },
+    "H12": {
+     "s": "section"
+    },
+    "I12": {
+     "s": "section"
+    },
+    "J12": {
+     "s": "section"
+    },
+    "A13": {
+     "v": "유형",
+     "s": "header"
+    },
+    "B13": {
+     "v": "CUST_GRP_CD",
+     "s": "header"
+    },
+    "C13": {
+     "v": "ITEM_CD",
+     "s": "header"
+    },
+    "D13": {
+     "v": "의미",
+     "s": "header"
+    },
+    "E13": {
+     "s": "header"
+    },
+    "F13": {
+     "s": "header"
+    },
+    "G13": {
+     "s": "header"
+    },
+    "H13": {
+     "s": "header"
+    },
+    "I13": {
+     "s": "header"
+    },
+    "J13": {
+     "s": "header"
+    },
+    "A14": {
+     "v": "BASE",
+     "s": "key"
+    },
+    "B14": {
+     "v": "*",
+     "s": "center"
+    },
+    "C14": {
+     "v": "*",
+     "s": "center"
+    },
+    "D14": {
+     "v": "기본 규칙 - 등급 조합으로 결정",
+     "s": "cell"
+    },
+    "E14": {
+     "s": "cell"
+    },
+    "F14": {
+     "s": "cell"
+    },
+    "G14": {
+     "s": "cell"
+    },
+    "H14": {
+     "s": "cell"
+    },
+    "I14": {
+     "s": "cell"
+    },
+    "J14": {
+     "s": "cell"
+    },
+    "A15": {
+     "v": "CUST",
+     "s": "key"
+    },
+    "B15": {
+     "v": "고객그룹",
+     "s": "center"
+    },
+    "C15": {
+     "v": "*",
+     "s": "center"
+    },
+    "D15": {
+     "v": "특정 고객그룹 예외",
+     "s": "cell"
+    },
+    "E15": {
+     "s": "cell"
+    },
+    "F15": {
+     "s": "cell"
+    },
+    "G15": {
+     "s": "cell"
+    },
+    "H15": {
+     "s": "cell"
+    },
+    "I15": {
+     "s": "cell"
+    },
+    "J15": {
+     "s": "cell"
+    },
+    "A16": {
+     "v": "ITEM",
+     "s": "key"
+    },
+    "B16": {
+     "v": "*",
+     "s": "center"
+    },
+    "C16": {
+     "v": "품목",
+     "s": "center"
+    },
+    "D16": {
+     "v": "특정 품목 예외",
+     "s": "cell"
+    },
+    "E16": {
+     "s": "cell"
+    },
+    "F16": {
+     "s": "cell"
+    },
+    "G16": {
+     "s": "cell"
+    },
+    "H16": {
+     "s": "cell"
+    },
+    "I16": {
+     "s": "cell"
+    },
+    "J16": {
+     "s": "cell"
+    },
+    "A17": {
+     "v": "BOTH",
+     "s": "key"
+    },
+    "B17": {
+     "v": "고객그룹",
+     "s": "center"
+    },
+    "C17": {
+     "v": "품목",
+     "s": "center"
+    },
+    "D17": {
+     "v": "고객그룹 + 품목 예외(가장 우선)",
+     "s": "cell"
+    },
+    "E17": {
+     "s": "cell"
+    },
+    "F17": {
+     "s": "cell"
+    },
+    "G17": {
+     "s": "cell"
+    },
+    "H17": {
+     "s": "cell"
+    },
+    "I17": {
+     "s": "cell"
+    },
+    "J17": {
+     "s": "cell"
+    }
+   }
+  },
+  {
+   "kind": "screen",
+   "name": "화면_Tab1",
+   "grid": false,
+   "print": {
+    "landscape": true,
+    "fitWidth": 1
+   },
+   "cols": {
+    "A": 128,
+    "B": 112,
+    "C": 64,
+    "D": 72,
+    "E": 72,
+    "F": 144,
+    "G": 56,
+    "H": 48,
+    "I": 64,
+    "J": 48,
+    "K": 48,
+    "L": 240
+   },
+   "rows": {
+    "1": 35,
+    "3": 29,
+    "8": 29,
+    "15": 29,
+    "22": 29,
+    "28": 29,
+    "33": 29,
+    "34": 50
+   },
+   "merges": [
+    "A1:L1",
+    "A3:L3",
+    "C4:F4",
+    "G4:I4",
+    "J4:L4",
+    "C5:F5",
+    "G5:I5",
+    "J5:L5",
+    "C6:F6",
+    "G6:I6",
+    "J6:L6",
+    "A8:L8",
+    "A15:L15",
+    "A22:L22",
+    "C23:K23",
+    "C24:K24",
+    "C25:K25",
+    "C26:K26",
+    "A28:L28",
+    "C29:F29",
+    "G29:L29",
+    "C30:F30",
+    "G30:L30",
+    "C31:F31",
+    "G31:L31",
+    "A33:L33",
+    "A34:L34"
+   ],
+   "cells": {
+    "A1": {
+     "v": "Tab 1 — 규칙 설정 (상/하 2그리드)",
+     "s": "title"
+    },
+    "B1": {
+     "s": "title"
+    },
+    "C1": {
+     "s": "title"
+    },
+    "D1": {
+     "s": "title"
+    },
+    "E1": {
+     "s": "title"
+    },
+    "F1": {
+     "s": "title"
+    },
+    "G1": {
+     "s": "title"
+    },
+    "H1": {
+     "s": "title"
+    },
+    "I1": {
+     "s": "title"
+    },
+    "J1": {
+     "s": "title"
+    },
+    "K1": {
+     "s": "title"
+    },
+    "L1": {
+     "s": "title"
+    },
+    "A3": {
+     "v": "[조회조건]",
+     "s": "section"
+    },
+    "B3": {
+     "s": "section"
+    },
+    "C3": {
+     "s": "section"
+    },
+    "D3": {
+     "s": "section"
+    },
+    "E3": {
+     "s": "section"
+    },
+    "F3": {
+     "s": "section"
+    },
+    "G3": {
+     "s": "section"
+    },
+    "H3": {
+     "s": "section"
+    },
+    "I3": {
+     "s": "section"
+    },
+    "J3": {
+     "s": "section"
+    },
+    "K3": {
+     "s": "section"
+    },
+    "L3": {
+     "s": "section"
+    },
+    "A4": {
+     "v": "항목",
+     "s": "header"
+    },
+    "B4": {
+     "v": "컨트롤",
+     "s": "header"
+    },
+    "C4": {
+     "v": "소스",
+     "s": "header"
+    },
+    "D4": {
+     "s": "header"
+    },
+    "E4": {
+     "s": "header"
+    },
+    "F4": {
+     "s": "header"
+    },
+    "G4": {
+     "v": "전체옵션",
+     "s": "header"
+    },
+    "H4": {
+     "s": "header"
+    },
+    "I4": {
+     "s": "header"
+    },
+    "J4": {
+     "v": "기본값",
+     "s": "header"
+    },
+    "K4": {
+     "s": "header"
+    },
+    "L4": {
+     "s": "header"
+    },
+    "A5": {
+     "v": "삭제여부",
+     "s": "key"
+    },
+    "B5": {
+     "v": "콤보",
+     "s": "cell"
+    },
+    "C5": {
+     "v": "공통코드 YN_CD (Y=삭제 / N=미삭제)",
+     "s": "cell"
+    },
+    "D5": {
+     "s": "cell"
+    },
+    "E5": {
+     "s": "cell"
+    },
+    "F5": {
+     "s": "cell"
+    },
+    "G5": {
+     "v": "예 (전체·N·Y)",
+     "s": "cell"
+    },
+    "H5": {
+     "s": "cell"
+    },
+    "I5": {
+     "s": "cell"
+    },
+    "J5": {
+     "v": "N (미삭제만)",
+     "s": "cell"
+    },
+    "K5": {
+     "s": "cell"
+    },
+    "L5": {
+     "s": "cell"
+    },
+    "A6": {
+     "v": "고객그룹",
+     "s": "key"
+    },
+    "B6": {
+     "v": "입력+찾기",
+     "s": "cell"
+    },
+    "C6": {
+     "v": "TB_CUST_GRP 팝업",
+     "s": "cell"
+    },
+    "D6": {
+     "s": "cell"
+    },
+    "E6": {
+     "s": "cell"
+    },
+    "F6": {
+     "s": "cell"
+    },
+    "G6": {
+     "v": "-",
+     "s": "cell"
+    },
+    "H6": {
+     "s": "cell"
+    },
+    "I6": {
+     "s": "cell"
+    },
+    "J6": {
+     "v": "(빈칸 = 전체)",
+     "s": "cell"
+    },
+    "K6": {
+     "s": "cell"
+    },
+    "L6": {
+     "s": "cell"
+    },
+    "A8": {
+     "v": "[상단 그리드] 기본 규칙 (BASE) — 등급 조합별 적용 우선순위",
+     "s": "section"
+    },
+    "B8": {
+     "s": "section"
+    },
+    "C8": {
+     "s": "section"
+    },
+    "D8": {
+     "s": "section"
+    },
+    "E8": {
+     "s": "section"
+    },
+    "F8": {
+     "s": "section"
+    },
+    "G8": {
+     "s": "section"
+    },
+    "H8": {
+     "s": "section"
+    },
+    "I8": {
+     "s": "section"
+    },
+    "J8": {
+     "s": "section"
+    },
+    "K8": {
+     "s": "section"
+    },
+    "L8": {
+     "s": "section"
+    },
+    "A9": {
+     "v": "컬럼",
+     "s": "header"
+    },
+    "B9": {
+     "v": "논리명",
+     "s": "header"
+    },
+    "C9": {
+     "v": "타입",
+     "s": "header"
+    },
+    "D9": {
+     "v": "가로정렬",
+     "s": "header"
+    },
+    "E9": {
+     "v": "세로정렬",
+     "s": "header"
+    },
+    "F9": {
+     "v": "포맷",
+     "s": "header"
+    },
+    "G9": {
+     "v": "넓이",
+     "s": "header"
+    },
+    "H9": {
+     "v": "표시",
+     "s": "header"
+    },
+    "I9": {
+     "v": "행병합",
+     "s": "header"
+    },
+    "J9": {
+     "v": "필수",
+     "s": "header"
+    },
+    "K9": {
+     "v": "편집",
+     "s": "header"
+    },
+    "L9": {
+     "v": "입력/코드소스",
+     "s": "header"
+    },
+    "A10": {
+     "v": "CUST_PRORT",
+     "s": "key"
+    },
+    "B10": {
+     "v": "고객 등급",
+     "s": "cell"
+    },
+    "C10": {
+     "v": "문자",
+     "s": "center"
+    },
+    "D10": {
+     "v": "가운데",
+     "s": "center"
+    },
+    "E10": {
+     "v": "가운데",
+     "s": "center"
+    },
+    "F10": {
+     "v": "",
+     "s": "center"
+    },
+    "G10": {
+     "v": "80",
+     "s": "center"
+    },
+    "H10": {
+     "v": "Y",
+     "s": "center"
+    },
+    "I10": {
+     "v": "Y",
+     "s": "center"
+    },
+    "J10": {
+     "v": "Y",
+     "s": "center"
+    },
+    "K10": {
+     "v": "N",
+     "s": "center"
+    },
+    "L10": {
+     "v": "공통코드 MP_CUST_PRORT",
+     "s": "cell"
+    },
+    "A11": {
+     "v": "ITEM_PRORT",
+     "s": "key"
+    },
+    "B11": {
+     "v": "품목 등급",
+     "s": "cell"
+    },
+    "C11": {
+     "v": "문자",
+     "s": "center"
+    },
+    "D11": {
+     "v": "가운데",
+     "s": "center"
+    },
+    "E11": {
+     "v": "가운데",
+     "s": "center"
+    },
+    "F11": {
+     "v": "",
+     "s": "center"
+    },
+    "G11": {
+     "v": "80",
+     "s": "center"
+    },
+    "H11": {
+     "v": "Y",
+     "s": "center"
+    },
+    "I11": {
+     "v": "N",
+     "s": "center"
+    },
+    "J11": {
+     "v": "Y",
+     "s": "center"
+    },
+    "K11": {
+     "v": "N",
+     "s": "center"
+    },
+    "L11": {
+     "v": "공통코드 MP_ITEM_PRORT",
+     "s": "cell"
+    },
+    "A12": {
+     "v": "APLY_PRORT",
+     "s": "key"
+    },
+    "B12": {
+     "v": "적용 우선순위",
+     "s": "cell"
+    },
+    "C12": {
+     "v": "콤보",
+     "s": "center"
+    },
+    "D12": {
+     "v": "가운데",
+     "s": "center"
+    },
+    "E12": {
+     "v": "가운데",
+     "s": "center"
+    },
+    "F12": {
+     "v": "",
+     "s": "center"
+    },
+    "G12": {
+     "v": "100",
+     "s": "center"
+    },
+    "H12": {
+     "v": "Y",
+     "s": "center"
+    },
+    "I12": {
+     "v": "N",
+     "s": "center"
+    },
+    "J12": {
+     "v": "Y",
+     "s": "center"
+    },
+    "K12": {
+     "v": "Y",
+     "s": "center"
+    },
+    "L12": {
+     "v": "공통코드 MP_APLY_PRORT",
+     "s": "cell"
+    },
+    "A13": {
+     "v": "UPD_USER",
+     "s": "key"
+    },
+    "B13": {
+     "v": "수정자",
+     "s": "cell"
+    },
+    "C13": {
+     "v": "문자",
+     "s": "center"
+    },
+    "D13": {
+     "v": "가운데",
+     "s": "center"
+    },
+    "E13": {
+     "v": "가운데",
+     "s": "center"
+    },
+    "F13": {
+     "v": "",
+     "s": "center"
+    },
+    "G13": {
+     "v": "90",
+     "s": "center"
+    },
+    "H13": {
+     "v": "Y",
+     "s": "center"
+    },
+    "I13": {
+     "v": "N",
+     "s": "center"
+    },
+    "J13": {
+     "v": "N",
+     "s": "center"
+    },
+    "K13": {
+     "v": "N",
+     "s": "center"
+    },
+    "L13": {
+     "v": "자동(로그인 사용자)",
+     "s": "cell"
+    },
+    "A15": {
+     "v": "[하단 그리드] 예외 규칙 — 특정 고객/품목",
+     "s": "section"
+    },
+    "B15": {
+     "s": "section"
+    },
+    "C15": {
+     "s": "section"
+    },
+    "D15": {
+     "s": "section"
+    },
+    "E15": {
+     "s": "section"
+    },
+    "F15": {
+     "s": "section"
+    },
+    "G15": {
+     "s": "section"
+    },
+    "H15": {
+     "s": "section"
+    },
+    "I15": {
+     "s": "section"
+    },
+    "J15": {
+     "s": "section"
+    },
+    "K15": {
+     "s": "section"
+    },
+    "L15": {
+     "s": "section"
+    },
+    "A16": {
+     "v": "컬럼",
+     "s": "header"
+    },
+    "B16": {
+     "v": "논리명",
+     "s": "header"
+    },
+    "C16": {
+     "v": "타입",
+     "s": "header"
+    },
+    "D16": {
+     "v": "가로정렬",
+     "s": "header"
+    },
+    "E16": {
+     "v": "세로정렬",
+     "s": "header"
+    },
+    "F16": {
+     "v": "포맷",
+     "s": "header"
+    },
+    "G16": {
+     "v": "넓이",
+     "s": "header"
+    },
+    "H16": {
+     "v": "표시",
+     "s": "header"
+    },
+    "I16": {
+     "v": "행병합",
+     "s": "header"
+    },
+    "J16": {
+     "v": "필수",
+     "s": "header"
+    },
+    "K16": {
+     "v": "편집",
+     "s": "header"
+    },
+    "L16": {
+     "v": "입력/코드소스",
+     "s": "header"
+    },
+    "A17": {
+     "v": "CUST_GRP_CD",
+     "s": "key"
+    },
+    "B17": {
+     "v": "고객그룹",
+     "s": "cell"
+    },
+    "C17": {
+     "v": "찾기",
+     "s": "center"
+    },
+    "D17": {
+     "v": "왼쪽",
+     "s": "center"
+    },
+    "E17": {
+     "v": "가운데",
+     "s": "center"
+    },
+    "F17": {
+     "v": "",
+     "s": "center"
+    },
+    "G17": {
+     "v": "120",
+     "s": "center"
+    },
+    "H17": {
+     "v": "Y",
+     "s": "center"
+    },
+    "I17": {
+     "v": "N",
+     "s": "center"
+    },
+    "J17": {
+     "v": "Y",
+     "s": "center"
+    },
+    "K17": {
+     "v": "Y",
+     "s": "center"
+    },
+    "L17": {
+     "v": "고객그룹 팝업",
+     "s": "cell"
+    },
+    "A18": {
+     "v": "ITEM_CD",
+     "s": "key"
+    },
+    "B18": {
+     "v": "품목",
+     "s": "cell"
+    },
+    "C18": {
+     "v": "찾기",
+     "s": "center"
+    },
+    "D18": {
+     "v": "왼쪽",
+     "s": "center"
+    },
+    "E18": {
+     "v": "가운데",
+     "s": "center"
+    },
+    "F18": {
+     "v": "",
+     "s": "center"
+    },
+    "G18": {
+     "v": "120",
+     "s": "center"
+    },
+    "H18": {
+     "v": "Y",
+     "s": "center"
+    },
+    "I18": {
+     "v": "N",
+     "s": "center"
+    },
+    "J18": {
+     "v": "Y",
+     "s": "center"
+    },
+    "K18": {
+     "v": "Y",
+     "s": "center"
+    },
+    "L18": {
+     "v": "품목 팝업",
+     "s": "cell"
+    },
+    "A19": {
+     "v": "APLY_PRORT",
+     "s": "key"
+    },
+    "B19": {
+     "v": "적용 우선순위",
+     "s": "cell"
+    },
+    "C19": {
+     "v": "콤보",
+     "s": "center"
+    },
+    "D19": {
+     "v": "가운데",
+     "s": "center"
+    },
+    "E19": {
+     "v": "가운데",
+     "s": "center"
+    },
+    "F19": {
+     "v": "",
+     "s": "center"
+    },
+    "G19": {
+     "v": "100",
+     "s": "center"
+    },
+    "H19": {
+     "v": "Y",
+     "s": "center"
+    },
+    "I19": {
+     "v": "N",
+     "s": "center"
+    },
+    "J19": {
+     "v": "Y",
+     "s": "center"
+    },
+    "K19": {
+     "v": "Y",
+     "s": "center"
+    },
+    "L19": {
+     "v": "공통코드 MP_APLY_PRORT",
+     "s": "cell"
+    },
+    "A20": {
+     "v": "DEL_YN",
+     "s": "key"
+    },
+    "B20": {
+     "v": "삭제여부",
+     "s": "cell"
+    },
+    "C20": {
+     "v": "콤보",
+     "s": "center"
+    },
+    "D20": {
+     "v": "가운데",
+     "s": "center"
+    },
+    "E20": {
+     "v": "가운데",
+     "s": "center"
+    },
+    "F20": {
+     "v": "",
+     "s": "center"
+    },
+    "G20": {
+     "v": "70",
+     "s": "center"
+    },
+    "H20": {
+     "v": "Y",
+     "s": "center"
+    },
+    "I20": {
+     "v": "N",
+     "s": "center"
+    },
+    "J20": {
+     "v": "Y",
+     "s": "center"
+    },
+    "K20": {
+     "v": "Y",
+     "s": "center"
+    },
+    "L20": {
+     "v": "공통코드 YN_CD",
+     "s": "cell"
+    },
+    "A22": {
+     "v": "[버튼]",
+     "s": "section"
+    },
+    "B22": {
+     "s": "section"
+    },
+    "C22": {
+     "s": "section"
+    },
+    "D22": {
+     "s": "section"
+    },
+    "E22": {
+     "s": "section"
+    },
+    "F22": {
+     "s": "section"
+    },
+    "G22": {
+     "s": "section"
+    },
+    "H22": {
+     "s": "section"
+    },
+    "I22": {
+     "s": "section"
+    },
+    "J22": {
+     "s": "section"
+    },
+    "K22": {
+     "s": "section"
+    },
+    "L22": {
+     "s": "section"
+    },
+    "A23": {
+     "v": "버튼",
+     "s": "header"
+    },
+    "B23": {
+     "v": "위치",
+     "s": "header"
+    },
+    "C23": {
+     "v": "동작",
+     "s": "header"
+    },
+    "D23": {
+     "s": "header"
+    },
+    "E23": {
+     "s": "header"
+    },
+    "F23": {
+     "s": "header"
+    },
+    "G23": {
+     "s": "header"
+    },
+    "H23": {
+     "s": "header"
+    },
+    "I23": {
+     "s": "header"
+    },
+    "J23": {
+     "s": "header"
+    },
+    "K23": {
+     "s": "header"
+    },
+    "L23": {
+     "v": "권한",
+     "s": "header"
+    },
+    "A24": {
+     "v": "조회",
+     "s": "key"
+    },
+    "B24": {
+     "v": "상단 오른쪽",
+     "s": "cell"
+    },
+    "C24": {
+     "v": "조회조건으로 두 그리드를 다시 읽는다",
+     "s": "cell"
+    },
+    "D24": {
+     "s": "cell"
+    },
+    "E24": {
+     "s": "cell"
+    },
+    "F24": {
+     "s": "cell"
+    },
+    "G24": {
+     "s": "cell"
+    },
+    "H24": {
+     "s": "cell"
+    },
+    "I24": {
+     "s": "cell"
+    },
+    "J24": {
+     "s": "cell"
+    },
+    "K24": {
+     "s": "cell"
+    },
+    "L24": {
+     "v": "전체",
+     "s": "center"
+    },
+    "A25": {
+     "v": "저장",
+     "s": "key"
+    },
+    "B25": {
+     "v": "상단 오른쪽",
+     "s": "cell"
+    },
+    "C25": {
+     "v": "바뀐 행만 저장 - [동작] 저장 분기 규칙",
+     "s": "cell"
+    },
+    "D25": {
+     "s": "cell"
+    },
+    "E25": {
+     "s": "cell"
+    },
+    "F25": {
+     "s": "cell"
+    },
+    "G25": {
+     "s": "cell"
+    },
+    "H25": {
+     "s": "cell"
+    },
+    "I25": {
+     "s": "cell"
+    },
+    "J25": {
+     "s": "cell"
+    },
+    "K25": {
+     "s": "cell"
+    },
+    "L25": {
+     "v": "편집",
+     "s": "center"
+    },
+    "A26": {
+     "v": "추가 · 삭제",
+     "s": "key"
+    },
+    "B26": {
+     "v": "하단 그리드 위",
+     "s": "cell"
+    },
+    "C26": {
+     "v": "하단 그리드 전용 - 빈 행 추가 · 논리 삭제",
+     "s": "cell"
+    },
+    "D26": {
+     "s": "cell"
+    },
+    "E26": {
+     "s": "cell"
+    },
+    "F26": {
+     "s": "cell"
+    },
+    "G26": {
+     "s": "cell"
+    },
+    "H26": {
+     "s": "cell"
+    },
+    "I26": {
+     "s": "cell"
+    },
+    "J26": {
+     "s": "cell"
+    },
+    "K26": {
+     "s": "cell"
+    },
+    "L26": {
+     "v": "편집",
+     "s": "center"
+    },
+    "A28": {
+     "v": "[팝업]",
+     "s": "section"
+    },
+    "B28": {
+     "s": "section"
+    },
+    "C28": {
+     "s": "section"
+    },
+    "D28": {
+     "s": "section"
+    },
+    "E28": {
+     "s": "section"
+    },
+    "F28": {
+     "s": "section"
+    },
+    "G28": {
+     "s": "section"
+    },
+    "H28": {
+     "s": "section"
+    },
+    "I28": {
+     "s": "section"
+    },
+    "J28": {
+     "s": "section"
+    },
+    "K28": {
+     "s": "section"
+    },
+    "L28": {
+     "s": "section"
+    },
+    "A29": {
+     "v": "팝업",
+     "s": "header"
+    },
+    "B29": {
+     "v": "소스",
+     "s": "header"
+    },
+    "C29": {
+     "v": "반환",
+     "s": "header"
+    },
+    "D29": {
+     "s": "header"
+    },
+    "E29": {
+     "s": "header"
+    },
+    "F29": {
+     "s": "header"
+    },
+    "G29": {
+     "v": "표시 컬럼",
+     "s": "header"
+    },
+    "H29": {
+     "s": "header"
+    },
+    "I29": {
+     "s": "header"
+    },
+    "J29": {
+     "s": "header"
+    },
+    "K29": {
+     "s": "header"
+    },
+    "L29": {
+     "s": "header"
+    },
+    "A30": {
+     "v": "고객그룹 찾기",
+     "s": "key"
+    },
+    "B30": {
+     "v": "TB_CUST_GRP",
+     "s": "cell"
+    },
+    "C30": {
+     "v": "CUST_GRP_CD, 고객 등급",
+     "s": "cell"
+    },
+    "D30": {
+     "s": "cell"
+    },
+    "E30": {
+     "s": "cell"
+    },
+    "F30": {
+     "s": "cell"
+    },
+    "G30": {
+     "v": "코드 · 이름 · 등급",
+     "s": "cell"
+    },
+    "H30": {
+     "s": "cell"
+    },
+    "I30": {
+     "s": "cell"
+    },
+    "J30": {
+     "s": "cell"
+    },
+    "K30": {
+     "s": "cell"
+    },
+    "L30": {
+     "s": "cell"
+    },
+    "A31": {
+     "v": "품목 찾기",
+     "s": "key"
+    },
+    "B31": {
+     "v": "TB_ITEM",
+     "s": "cell"
+    },
+    "C31": {
+     "v": "ITEM_CD, 품목 등급",
+     "s": "cell"
+    },
+    "D31": {
+     "s": "cell"
+    },
+    "E31": {
+     "s": "cell"
+    },
+    "F31": {
+     "s": "cell"
+    },
+    "G31": {
+     "v": "코드 · 이름 · 등급",
+     "s": "cell"
+    },
+    "H31": {
+     "s": "cell"
+    },
+    "I31": {
+     "s": "cell"
+    },
+    "J31": {
+     "s": "cell"
+    },
+    "K31": {
+     "s": "cell"
+    },
+    "L31": {
+     "s": "cell"
+    },
+    "A33": {
+     "v": "[저장 규칙]",
+     "s": "section"
+    },
+    "B33": {
+     "s": "section"
+    },
+    "C33": {
+     "s": "section"
+    },
+    "D33": {
+     "s": "section"
+    },
+    "E33": {
+     "s": "section"
+    },
+    "F33": {
+     "s": "section"
+    },
+    "G33": {
+     "s": "section"
+    },
+    "H33": {
+     "s": "section"
+    },
+    "I33": {
+     "s": "section"
+    },
+    "J33": {
+     "s": "section"
+    },
+    "K33": {
+     "s": "section"
+    },
+    "L33": {
+     "s": "section"
+    },
+    "A34": {
+     "v": "· 같은 키(고객그룹 + 품목)가 이미 있으면 저장하지 않고 알린다.\n· 삭제된 행과 같은 키로 다시 추가하면 삭제를 되살린다(DEL_YN = 'N').",
+     "s": "memo"
+    },
+    "B34": {
+     "s": "memo"
+    },
+    "C34": {
+     "s": "memo"
+    },
+    "D34": {
+     "s": "memo"
+    },
+    "E34": {
+     "s": "memo"
+    },
+    "F34": {
+     "s": "memo"
+    },
+    "G34": {
+     "s": "memo"
+    },
+    "H34": {
+     "s": "memo"
+    },
+    "I34": {
+     "s": "memo"
+    },
+    "J34": {
+     "s": "memo"
+    },
+    "K34": {
+     "s": "memo"
+    },
+    "L34": {
+     "s": "memo"
+    }
+   }
+  },
+  {
+   "kind": "layout",
+   "name": "화면레이아웃",
+   "grid": false,
+   "print": {
+    "landscape": true,
+    "fitWidth": 1
+   },
+   "cols": {
+    "A": 30,
+    "B": 30,
+    "C": 30,
+    "D": 30,
+    "E": 30,
+    "F": 30,
+    "G": 30,
+    "H": 30,
+    "I": 30,
+    "J": 30,
+    "K": 30,
+    "L": 30,
+    "M": 30,
+    "N": 30,
+    "O": 30,
+    "P": 30,
+    "Q": 30,
+    "R": 30,
+    "S": 30,
+    "T": 30,
+    "U": 30,
+    "V": 30,
+    "W": 30,
+    "X": 30
+   },
+   "rows": {
+    "1": 22,
+    "2": 22,
+    "3": 22,
+    "4": 22,
+    "5": 22,
+    "6": 22,
+    "7": 22,
+    "8": 22,
+    "9": 22,
+    "10": 22,
+    "11": 22,
+    "12": 22,
+    "13": 22,
+    "14": 22,
+    "15": 22,
+    "16": 22,
+    "17": 22,
+    "18": 22,
+    "19": 22,
+    "20": 22,
+    "21": 22,
+    "22": 22,
+    "23": 22,
+    "24": 22,
+    "25": 22,
+    "26": 22,
+    "27": 22,
+    "28": 22,
+    "29": 22,
+    "30": 22,
+    "32": 22
+   },
+   "merges": [
+    "A1:S2",
+    "U1:V2",
+    "W1:X2",
+    "A3:D3",
+    "E3:H3",
+    "A4:E4",
+    "A5:E5",
+    "A6:E6",
+    "A7:E7",
+    "A8:D8",
+    "F4:X4",
+    "F9:X10",
+    "F16:S16",
+    "U16:V16",
+    "W16:X16",
+    "F17:X17",
+    "F23:X24",
+    "A32:X32"
+   ],
+   "cells": {
+    "A1": {
+     "v": "  {{title}} (Tab 1 · 규칙 설정)   〔화면 제목〕",
+     "s": "wfTitle"
+    },
+    "B1": {
+     "s": "wfTitle"
+    },
+    "C1": {
+     "s": "wfTitle"
+    },
+    "D1": {
+     "s": "wfTitle"
+    },
+    "E1": {
+     "s": "wfTitle"
+    },
+    "F1": {
+     "s": "wfTitle"
+    },
+    "G1": {
+     "s": "wfTitle"
+    },
+    "H1": {
+     "s": "wfTitle"
+    },
+    "I1": {
+     "s": "wfTitle"
+    },
+    "J1": {
+     "s": "wfTitle"
+    },
+    "K1": {
+     "s": "wfTitle"
+    },
+    "L1": {
+     "s": "wfTitle"
+    },
+    "M1": {
+     "s": "wfTitle"
+    },
+    "N1": {
+     "s": "wfTitle"
+    },
+    "O1": {
+     "s": "wfTitle"
+    },
+    "P1": {
+     "s": "wfTitle"
+    },
+    "Q1": {
+     "s": "wfTitle"
+    },
+    "R1": {
+     "s": "wfTitle"
+    },
+    "S1": {
+     "s": "wfTitle"
+    },
+    "A2": {
+     "s": "wfTitle"
+    },
+    "B2": {
+     "s": "wfTitle"
+    },
+    "C2": {
+     "s": "wfTitle"
+    },
+    "D2": {
+     "s": "wfTitle"
+    },
+    "E2": {
+     "s": "wfTitle"
+    },
+    "F2": {
+     "s": "wfTitle"
+    },
+    "G2": {
+     "s": "wfTitle"
+    },
+    "H2": {
+     "s": "wfTitle"
+    },
+    "I2": {
+     "s": "wfTitle"
+    },
+    "J2": {
+     "s": "wfTitle"
+    },
+    "K2": {
+     "s": "wfTitle"
+    },
+    "L2": {
+     "s": "wfTitle"
+    },
+    "M2": {
+     "s": "wfTitle"
+    },
+    "N2": {
+     "s": "wfTitle"
+    },
+    "O2": {
+     "s": "wfTitle"
+    },
+    "P2": {
+     "s": "wfTitle"
+    },
+    "Q2": {
+     "s": "wfTitle"
+    },
+    "R2": {
+     "s": "wfTitle"
+    },
+    "S2": {
+     "s": "wfTitle"
+    },
+    "U1": {
+     "v": "조회",
+     "s": "wfBtn"
+    },
+    "V1": {
+     "s": "wfBtn"
+    },
+    "U2": {
+     "s": "wfBtn"
+    },
+    "V2": {
+     "s": "wfBtn"
+    },
+    "W1": {
+     "v": "저장",
+     "s": "wfSave"
+    },
+    "X1": {
+     "s": "wfSave"
+    },
+    "W2": {
+     "s": "wfSave"
+    },
+    "X2": {
+     "s": "wfSave"
+    },
+    "A3": {
+     "v": "규칙 설정",
+     "s": "wfTabOn"
+    },
+    "B3": {
+     "s": "wfTabOn"
+    },
+    "C3": {
+     "s": "wfTabOn"
+    },
+    "D3": {
+     "s": "wfTabOn"
+    },
+    "E3": {
+     "v": "결과 조회",
+     "s": "wfTabOff"
+    },
+    "F3": {
+     "s": "wfTabOff"
+    },
+    "G3": {
+     "s": "wfTabOff"
+    },
+    "H3": {
+     "s": "wfTabOff"
+    },
+    "A4": {
+     "v": "▼ 조회조건",
+     "s": "wfSec"
+    },
+    "B4": {
+     "s": "wfSec"
+    },
+    "C4": {
+     "s": "wfSec"
+    },
+    "D4": {
+     "s": "wfSec"
+    },
+    "E4": {
+     "s": "wfSec"
+    },
+    "A5": {
+     "v": "삭제여부   〔콤보〕",
+     "s": "wfLabel"
+    },
+    "B5": {
+     "s": "wfLabel"
+    },
+    "C5": {
+     "s": "wfLabel"
+    },
+    "D5": {
+     "s": "wfLabel"
+    },
+    "E5": {
+     "s": "wfLabel"
+    },
+    "A6": {
+     "v": "N                     ▼",
+     "s": "wfInput"
+    },
+    "B6": {
+     "s": "wfInput"
+    },
+    "C6": {
+     "s": "wfInput"
+    },
+    "D6": {
+     "s": "wfInput"
+    },
+    "E6": {
+     "s": "wfInput"
+    },
+    "A7": {
+     "v": "고객그룹   〔입력+찾기〕",
+     "s": "wfLabel"
+    },
+    "B7": {
+     "s": "wfLabel"
+    },
+    "C7": {
+     "s": "wfLabel"
+    },
+    "D7": {
+     "s": "wfLabel"
+    },
+    "E7": {
+     "s": "wfLabel"
+    },
+    "A8": {
+     "s": "wfInput"
+    },
+    "B8": {
+     "s": "wfInput"
+    },
+    "C8": {
+     "s": "wfInput"
+    },
+    "D8": {
+     "s": "wfInput"
+    },
+    "E8": {
+     "v": "찾기",
+     "s": "wfBtn"
+    },
+    "A9": {
+     "s": "wfPanel"
+    },
+    "B9": {
+     "s": "wfPanel"
+    },
+    "C9": {
+     "s": "wfPanel"
+    },
+    "D9": {
+     "s": "wfPanel"
+    },
+    "E9": {
+     "s": "wfPanel"
+    },
+    "A10": {
+     "s": "wfPanel"
+    },
+    "B10": {
+     "s": "wfPanel"
+    },
+    "C10": {
+     "s": "wfPanel"
+    },
+    "D10": {
+     "s": "wfPanel"
+    },
+    "E10": {
+     "s": "wfPanel"
+    },
+    "A11": {
+     "s": "wfPanel"
+    },
+    "B11": {
+     "s": "wfPanel"
+    },
+    "C11": {
+     "s": "wfPanel"
+    },
+    "D11": {
+     "s": "wfPanel"
+    },
+    "E11": {
+     "s": "wfPanel"
+    },
+    "A12": {
+     "s": "wfPanel"
+    },
+    "B12": {
+     "s": "wfPanel"
+    },
+    "C12": {
+     "s": "wfPanel"
+    },
+    "D12": {
+     "s": "wfPanel"
+    },
+    "E12": {
+     "s": "wfPanel"
+    },
+    "A13": {
+     "s": "wfPanel"
+    },
+    "B13": {
+     "s": "wfPanel"
+    },
+    "C13": {
+     "s": "wfPanel"
+    },
+    "D13": {
+     "s": "wfPanel"
+    },
+    "E13": {
+     "s": "wfPanel"
+    },
+    "A14": {
+     "s": "wfPanel"
+    },
+    "B14": {
+     "s": "wfPanel"
+    },
+    "C14": {
+     "s": "wfPanel"
+    },
+    "D14": {
+     "s": "wfPanel"
+    },
+    "E14": {
+     "s": "wfPanel"
+    },
+    "A15": {
+     "s": "wfPanel"
+    },
+    "B15": {
+     "s": "wfPanel"
+    },
+    "C15": {
+     "s": "wfPanel"
+    },
+    "D15": {
+     "s": "wfPanel"
+    },
+    "E15": {
+     "s": "wfPanel"
+    },
+    "A16": {
+     "s": "wfPanel"
+    },
+    "B16": {
+     "s": "wfPanel"
+    },
+    "C16": {
+     "s": "wfPanel"
+    },
+    "D16": {
+     "s": "wfPanel"
+    },
+    "E16": {
+     "s": "wfPanel"
+    },
+    "A17": {
+     "s": "wfPanel"
+    },
+    "B17": {
+     "s": "wfPanel"
+    },
+    "C17": {
+     "s": "wfPanel"
+    },
+    "D17": {
+     "s": "wfPanel"
+    },
+    "E17": {
+     "s": "wfPanel"
+    },
+    "A18": {
+     "s": "wfPanel"
+    },
+    "B18": {
+     "s": "wfPanel"
+    },
+    "C18": {
+     "s": "wfPanel"
+    },
+    "D18": {
+     "s": "wfPanel"
+    },
+    "E18": {
+     "s": "wfPanel"
+    },
+    "A19": {
+     "s": "wfPanel"
+    },
+    "B19": {
+     "s": "wfPanel"
+    },
+    "C19": {
+     "s": "wfPanel"
+    },
+    "D19": {
+     "s": "wfPanel"
+    },
+    "E19": {
+     "s": "wfPanel"
+    },
+    "A20": {
+     "s": "wfPanel"
+    },
+    "B20": {
+     "s": "wfPanel"
+    },
+    "C20": {
+     "s": "wfPanel"
+    },
+    "D20": {
+     "s": "wfPanel"
+    },
+    "E20": {
+     "s": "wfPanel"
+    },
+    "A21": {
+     "s": "wfPanel"
+    },
+    "B21": {
+     "s": "wfPanel"
+    },
+    "C21": {
+     "s": "wfPanel"
+    },
+    "D21": {
+     "s": "wfPanel"
+    },
+    "E21": {
+     "s": "wfPanel"
+    },
+    "A22": {
+     "s": "wfPanel"
+    },
+    "B22": {
+     "s": "wfPanel"
+    },
+    "C22": {
+     "s": "wfPanel"
+    },
+    "D22": {
+     "s": "wfPanel"
+    },
+    "E22": {
+     "s": "wfPanel"
+    },
+    "A23": {
+     "s": "wfPanel"
+    },
+    "B23": {
+     "s": "wfPanel"
+    },
+    "C23": {
+     "s": "wfPanel"
+    },
+    "D23": {
+     "s": "wfPanel"
+    },
+    "E23": {
+     "s": "wfPanel"
+    },
+    "A24": {
+     "s": "wfPanel"
+    },
+    "B24": {
+     "s": "wfPanel"
+    },
+    "C24": {
+     "s": "wfPanel"
+    },
+    "D24": {
+     "s": "wfPanel"
+    },
+    "E24": {
+     "s": "wfPanel"
+    },
+    "A25": {
+     "s": "wfPanel"
+    },
+    "B25": {
+     "s": "wfPanel"
+    },
+    "C25": {
+     "s": "wfPanel"
+    },
+    "D25": {
+     "s": "wfPanel"
+    },
+    "E25": {
+     "s": "wfPanel"
+    },
+    "A26": {
+     "s": "wfPanel"
+    },
+    "B26": {
+     "s": "wfPanel"
+    },
+    "C26": {
+     "s": "wfPanel"
+    },
+    "D26": {
+     "s": "wfPanel"
+    },
+    "E26": {
+     "s": "wfPanel"
+    },
+    "A27": {
+     "s": "wfPanel"
+    },
+    "B27": {
+     "s": "wfPanel"
+    },
+    "C27": {
+     "s": "wfPanel"
+    },
+    "D27": {
+     "s": "wfPanel"
+    },
+    "E27": {
+     "s": "wfPanel"
+    },
+    "A28": {
+     "s": "wfPanel"
+    },
+    "B28": {
+     "s": "wfPanel"
+    },
+    "C28": {
+     "s": "wfPanel"
+    },
+    "D28": {
+     "s": "wfPanel"
+    },
+    "E28": {
+     "s": "wfPanel"
+    },
+    "A29": {
+     "s": "wfPanel"
+    },
+    "B29": {
+     "s": "wfPanel"
+    },
+    "C29": {
+     "s": "wfPanel"
+    },
+    "D29": {
+     "s": "wfPanel"
+    },
+    "E29": {
+     "s": "wfPanel"
+    },
+    "A30": {
+     "s": "wfPanel"
+    },
+    "B30": {
+     "s": "wfPanel"
+    },
+    "C30": {
+     "s": "wfPanel"
+    },
+    "D30": {
+     "s": "wfPanel"
+    },
+    "E30": {
+     "s": "wfPanel"
+    },
+    "F4": {
+     "v": "  상단 그리드 — 기본 규칙(BASE) · 등급 조합 → 적용 우선순위",
+     "s": "wfGridHead"
+    },
+    "G4": {
+     "s": "wfGridHead"
+    },
+    "H4": {
+     "s": "wfGridHead"
+    },
+    "I4": {
+     "s": "wfGridHead"
+    },
+    "J4": {
+     "s": "wfGridHead"
+    },
+    "K4": {
+     "s": "wfGridHead"
+    },
+    "L4": {
+     "s": "wfGridHead"
+    },
+    "M4": {
+     "s": "wfGridHead"
+    },
+    "N4": {
+     "s": "wfGridHead"
+    },
+    "O4": {
+     "s": "wfGridHead"
+    },
+    "P4": {
+     "s": "wfGridHead"
+    },
+    "Q4": {
+     "s": "wfGridHead"
+    },
+    "R4": {
+     "s": "wfGridHead"
+    },
+    "S4": {
+     "s": "wfGridHead"
+    },
+    "T4": {
+     "s": "wfGridHead"
+    },
+    "U4": {
+     "s": "wfGridHead"
+    },
+    "V4": {
+     "s": "wfGridHead"
+    },
+    "W4": {
+     "s": "wfGridHead"
+    },
+    "X4": {
+     "s": "wfGridHead"
+    },
+    "F5": {
+     "s": "wfGridBody"
+    },
+    "G5": {
+     "s": "wfGridBody"
+    },
+    "H5": {
+     "s": "wfGridBody"
+    },
+    "I5": {
+     "s": "wfGridBody"
+    },
+    "J5": {
+     "s": "wfGridBody"
+    },
+    "K5": {
+     "s": "wfGridBody"
+    },
+    "L5": {
+     "s": "wfGridBody"
+    },
+    "M5": {
+     "s": "wfGridBody"
+    },
+    "N5": {
+     "s": "wfGridBody"
+    },
+    "O5": {
+     "s": "wfGridBody"
+    },
+    "P5": {
+     "s": "wfGridBody"
+    },
+    "Q5": {
+     "s": "wfGridBody"
+    },
+    "R5": {
+     "s": "wfGridBody"
+    },
+    "S5": {
+     "s": "wfGridBody"
+    },
+    "T5": {
+     "s": "wfGridBody"
+    },
+    "U5": {
+     "s": "wfGridBody"
+    },
+    "V5": {
+     "s": "wfGridBody"
+    },
+    "W5": {
+     "s": "wfGridBody"
+    },
+    "X5": {
+     "s": "wfGridBody"
+    },
+    "F6": {
+     "s": "wfGridBody"
+    },
+    "G6": {
+     "s": "wfGridBody"
+    },
+    "H6": {
+     "s": "wfGridBody"
+    },
+    "I6": {
+     "s": "wfGridBody"
+    },
+    "J6": {
+     "s": "wfGridBody"
+    },
+    "K6": {
+     "s": "wfGridBody"
+    },
+    "L6": {
+     "s": "wfGridBody"
+    },
+    "M6": {
+     "s": "wfGridBody"
+    },
+    "N6": {
+     "s": "wfGridBody"
+    },
+    "O6": {
+     "s": "wfGridBody"
+    },
+    "P6": {
+     "s": "wfGridBody"
+    },
+    "Q6": {
+     "s": "wfGridBody"
+    },
+    "R6": {
+     "s": "wfGridBody"
+    },
+    "S6": {
+     "s": "wfGridBody"
+    },
+    "T6": {
+     "s": "wfGridBody"
+    },
+    "U6": {
+     "s": "wfGridBody"
+    },
+    "V6": {
+     "s": "wfGridBody"
+    },
+    "W6": {
+     "s": "wfGridBody"
+    },
+    "X6": {
+     "s": "wfGridBody"
+    },
+    "F7": {
+     "s": "wfGridBody"
+    },
+    "G7": {
+     "s": "wfGridBody"
+    },
+    "H7": {
+     "s": "wfGridBody"
+    },
+    "I7": {
+     "s": "wfGridBody"
+    },
+    "J7": {
+     "s": "wfGridBody"
+    },
+    "K7": {
+     "s": "wfGridBody"
+    },
+    "L7": {
+     "s": "wfGridBody"
+    },
+    "M7": {
+     "s": "wfGridBody"
+    },
+    "N7": {
+     "s": "wfGridBody"
+    },
+    "O7": {
+     "s": "wfGridBody"
+    },
+    "P7": {
+     "s": "wfGridBody"
+    },
+    "Q7": {
+     "s": "wfGridBody"
+    },
+    "R7": {
+     "s": "wfGridBody"
+    },
+    "S7": {
+     "s": "wfGridBody"
+    },
+    "T7": {
+     "s": "wfGridBody"
+    },
+    "U7": {
+     "s": "wfGridBody"
+    },
+    "V7": {
+     "s": "wfGridBody"
+    },
+    "W7": {
+     "s": "wfGridBody"
+    },
+    "X7": {
+     "s": "wfGridBody"
+    },
+    "F8": {
+     "s": "wfGridBody"
+    },
+    "G8": {
+     "s": "wfGridBody"
+    },
+    "H8": {
+     "s": "wfGridBody"
+    },
+    "I8": {
+     "s": "wfGridBody"
+    },
+    "J8": {
+     "s": "wfGridBody"
+    },
+    "K8": {
+     "s": "wfGridBody"
+    },
+    "L8": {
+     "s": "wfGridBody"
+    },
+    "M8": {
+     "s": "wfGridBody"
+    },
+    "N8": {
+     "s": "wfGridBody"
+    },
+    "O8": {
+     "s": "wfGridBody"
+    },
+    "P8": {
+     "s": "wfGridBody"
+    },
+    "Q8": {
+     "s": "wfGridBody"
+    },
+    "R8": {
+     "s": "wfGridBody"
+    },
+    "S8": {
+     "s": "wfGridBody"
+    },
+    "T8": {
+     "s": "wfGridBody"
+    },
+    "U8": {
+     "s": "wfGridBody"
+    },
+    "V8": {
+     "s": "wfGridBody"
+    },
+    "W8": {
+     "s": "wfGridBody"
+    },
+    "X8": {
+     "s": "wfGridBody"
+    },
+    "F9": {
+     "v": "◈  상단 그리드 (Grid 1)  ◈  등급 조합 행 · 콤보 입력",
+     "s": "wfGrid"
+    },
+    "G9": {
+     "s": "wfGrid"
+    },
+    "H9": {
+     "s": "wfGrid"
+    },
+    "I9": {
+     "s": "wfGrid"
+    },
+    "J9": {
+     "s": "wfGrid"
+    },
+    "K9": {
+     "s": "wfGrid"
+    },
+    "L9": {
+     "s": "wfGrid"
+    },
+    "M9": {
+     "s": "wfGrid"
+    },
+    "N9": {
+     "s": "wfGrid"
+    },
+    "O9": {
+     "s": "wfGrid"
+    },
+    "P9": {
+     "s": "wfGrid"
+    },
+    "Q9": {
+     "s": "wfGrid"
+    },
+    "R9": {
+     "s": "wfGrid"
+    },
+    "S9": {
+     "s": "wfGrid"
+    },
+    "T9": {
+     "s": "wfGrid"
+    },
+    "U9": {
+     "s": "wfGrid"
+    },
+    "V9": {
+     "s": "wfGrid"
+    },
+    "W9": {
+     "s": "wfGrid"
+    },
+    "X9": {
+     "s": "wfGrid"
+    },
+    "F10": {
+     "s": "wfGrid"
+    },
+    "G10": {
+     "s": "wfGrid"
+    },
+    "H10": {
+     "s": "wfGrid"
+    },
+    "I10": {
+     "s": "wfGrid"
+    },
+    "J10": {
+     "s": "wfGrid"
+    },
+    "K10": {
+     "s": "wfGrid"
+    },
+    "L10": {
+     "s": "wfGrid"
+    },
+    "M10": {
+     "s": "wfGrid"
+    },
+    "N10": {
+     "s": "wfGrid"
+    },
+    "O10": {
+     "s": "wfGrid"
+    },
+    "P10": {
+     "s": "wfGrid"
+    },
+    "Q10": {
+     "s": "wfGrid"
+    },
+    "R10": {
+     "s": "wfGrid"
+    },
+    "S10": {
+     "s": "wfGrid"
+    },
+    "T10": {
+     "s": "wfGrid"
+    },
+    "U10": {
+     "s": "wfGrid"
+    },
+    "V10": {
+     "s": "wfGrid"
+    },
+    "W10": {
+     "s": "wfGrid"
+    },
+    "X10": {
+     "s": "wfGrid"
+    },
+    "F11": {
+     "s": "wfGridBody"
+    },
+    "G11": {
+     "s": "wfGridBody"
+    },
+    "H11": {
+     "s": "wfGridBody"
+    },
+    "I11": {
+     "s": "wfGridBody"
+    },
+    "J11": {
+     "s": "wfGridBody"
+    },
+    "K11": {
+     "s": "wfGridBody"
+    },
+    "L11": {
+     "s": "wfGridBody"
+    },
+    "M11": {
+     "s": "wfGridBody"
+    },
+    "N11": {
+     "s": "wfGridBody"
+    },
+    "O11": {
+     "s": "wfGridBody"
+    },
+    "P11": {
+     "s": "wfGridBody"
+    },
+    "Q11": {
+     "s": "wfGridBody"
+    },
+    "R11": {
+     "s": "wfGridBody"
+    },
+    "S11": {
+     "s": "wfGridBody"
+    },
+    "T11": {
+     "s": "wfGridBody"
+    },
+    "U11": {
+     "s": "wfGridBody"
+    },
+    "V11": {
+     "s": "wfGridBody"
+    },
+    "W11": {
+     "s": "wfGridBody"
+    },
+    "X11": {
+     "s": "wfGridBody"
+    },
+    "F12": {
+     "s": "wfGridBody"
+    },
+    "G12": {
+     "s": "wfGridBody"
+    },
+    "H12": {
+     "s": "wfGridBody"
+    },
+    "I12": {
+     "s": "wfGridBody"
+    },
+    "J12": {
+     "s": "wfGridBody"
+    },
+    "K12": {
+     "s": "wfGridBody"
+    },
+    "L12": {
+     "s": "wfGridBody"
+    },
+    "M12": {
+     "s": "wfGridBody"
+    },
+    "N12": {
+     "s": "wfGridBody"
+    },
+    "O12": {
+     "s": "wfGridBody"
+    },
+    "P12": {
+     "s": "wfGridBody"
+    },
+    "Q12": {
+     "s": "wfGridBody"
+    },
+    "R12": {
+     "s": "wfGridBody"
+    },
+    "S12": {
+     "s": "wfGridBody"
+    },
+    "T12": {
+     "s": "wfGridBody"
+    },
+    "U12": {
+     "s": "wfGridBody"
+    },
+    "V12": {
+     "s": "wfGridBody"
+    },
+    "W12": {
+     "s": "wfGridBody"
+    },
+    "X12": {
+     "s": "wfGridBody"
+    },
+    "F13": {
+     "s": "wfGridBody"
+    },
+    "G13": {
+     "s": "wfGridBody"
+    },
+    "H13": {
+     "s": "wfGridBody"
+    },
+    "I13": {
+     "s": "wfGridBody"
+    },
+    "J13": {
+     "s": "wfGridBody"
+    },
+    "K13": {
+     "s": "wfGridBody"
+    },
+    "L13": {
+     "s": "wfGridBody"
+    },
+    "M13": {
+     "s": "wfGridBody"
+    },
+    "N13": {
+     "s": "wfGridBody"
+    },
+    "O13": {
+     "s": "wfGridBody"
+    },
+    "P13": {
+     "s": "wfGridBody"
+    },
+    "Q13": {
+     "s": "wfGridBody"
+    },
+    "R13": {
+     "s": "wfGridBody"
+    },
+    "S13": {
+     "s": "wfGridBody"
+    },
+    "T13": {
+     "s": "wfGridBody"
+    },
+    "U13": {
+     "s": "wfGridBody"
+    },
+    "V13": {
+     "s": "wfGridBody"
+    },
+    "W13": {
+     "s": "wfGridBody"
+    },
+    "X13": {
+     "s": "wfGridBody"
+    },
+    "F14": {
+     "s": "wfGridBody"
+    },
+    "G14": {
+     "s": "wfGridBody"
+    },
+    "H14": {
+     "s": "wfGridBody"
+    },
+    "I14": {
+     "s": "wfGridBody"
+    },
+    "J14": {
+     "s": "wfGridBody"
+    },
+    "K14": {
+     "s": "wfGridBody"
+    },
+    "L14": {
+     "s": "wfGridBody"
+    },
+    "M14": {
+     "s": "wfGridBody"
+    },
+    "N14": {
+     "s": "wfGridBody"
+    },
+    "O14": {
+     "s": "wfGridBody"
+    },
+    "P14": {
+     "s": "wfGridBody"
+    },
+    "Q14": {
+     "s": "wfGridBody"
+    },
+    "R14": {
+     "s": "wfGridBody"
+    },
+    "S14": {
+     "s": "wfGridBody"
+    },
+    "T14": {
+     "s": "wfGridBody"
+    },
+    "U14": {
+     "s": "wfGridBody"
+    },
+    "V14": {
+     "s": "wfGridBody"
+    },
+    "W14": {
+     "s": "wfGridBody"
+    },
+    "X14": {
+     "s": "wfGridBody"
+    },
+    "F15": {
+     "s": "wfGridBody"
+    },
+    "G15": {
+     "s": "wfGridBody"
+    },
+    "H15": {
+     "s": "wfGridBody"
+    },
+    "I15": {
+     "s": "wfGridBody"
+    },
+    "J15": {
+     "s": "wfGridBody"
+    },
+    "K15": {
+     "s": "wfGridBody"
+    },
+    "L15": {
+     "s": "wfGridBody"
+    },
+    "M15": {
+     "s": "wfGridBody"
+    },
+    "N15": {
+     "s": "wfGridBody"
+    },
+    "O15": {
+     "s": "wfGridBody"
+    },
+    "P15": {
+     "s": "wfGridBody"
+    },
+    "Q15": {
+     "s": "wfGridBody"
+    },
+    "R15": {
+     "s": "wfGridBody"
+    },
+    "S15": {
+     "s": "wfGridBody"
+    },
+    "T15": {
+     "s": "wfGridBody"
+    },
+    "U15": {
+     "s": "wfGridBody"
+    },
+    "V15": {
+     "s": "wfGridBody"
+    },
+    "W15": {
+     "s": "wfGridBody"
+    },
+    "X15": {
+     "s": "wfGridBody"
+    },
+    "F16": {
+     "v": "▲ [추가]·[삭제] = 하단 그리드 전용",
+     "s": "wfHint"
+    },
+    "G16": {
+     "s": "wfHint"
+    },
+    "H16": {
+     "s": "wfHint"
+    },
+    "I16": {
+     "s": "wfHint"
+    },
+    "J16": {
+     "s": "wfHint"
+    },
+    "K16": {
+     "s": "wfHint"
+    },
+    "L16": {
+     "s": "wfHint"
+    },
+    "M16": {
+     "s": "wfHint"
+    },
+    "N16": {
+     "s": "wfHint"
+    },
+    "O16": {
+     "s": "wfHint"
+    },
+    "P16": {
+     "s": "wfHint"
+    },
+    "Q16": {
+     "s": "wfHint"
+    },
+    "R16": {
+     "s": "wfHint"
+    },
+    "S16": {
+     "s": "wfHint"
+    },
+    "U16": {
+     "v": "추가",
+     "s": "wfBtn"
+    },
+    "V16": {
+     "s": "wfBtn"
+    },
+    "W16": {
+     "v": "삭제",
+     "s": "wfBtn"
+    },
+    "X16": {
+     "s": "wfBtn"
+    },
+    "F17": {
+     "v": "  하단 그리드 — 예외 규칙 · 특정 고객/품목",
+     "s": "wfGridHead"
+    },
+    "G17": {
+     "s": "wfGridHead"
+    },
+    "H17": {
+     "s": "wfGridHead"
+    },
+    "I17": {
+     "s": "wfGridHead"
+    },
+    "J17": {
+     "s": "wfGridHead"
+    },
+    "K17": {
+     "s": "wfGridHead"
+    },
+    "L17": {
+     "s": "wfGridHead"
+    },
+    "M17": {
+     "s": "wfGridHead"
+    },
+    "N17": {
+     "s": "wfGridHead"
+    },
+    "O17": {
+     "s": "wfGridHead"
+    },
+    "P17": {
+     "s": "wfGridHead"
+    },
+    "Q17": {
+     "s": "wfGridHead"
+    },
+    "R17": {
+     "s": "wfGridHead"
+    },
+    "S17": {
+     "s": "wfGridHead"
+    },
+    "T17": {
+     "s": "wfGridHead"
+    },
+    "U17": {
+     "s": "wfGridHead"
+    },
+    "V17": {
+     "s": "wfGridHead"
+    },
+    "W17": {
+     "s": "wfGridHead"
+    },
+    "X17": {
+     "s": "wfGridHead"
+    },
+    "F18": {
+     "s": "wfGridBody"
+    },
+    "G18": {
+     "s": "wfGridBody"
+    },
+    "H18": {
+     "s": "wfGridBody"
+    },
+    "I18": {
+     "s": "wfGridBody"
+    },
+    "J18": {
+     "s": "wfGridBody"
+    },
+    "K18": {
+     "s": "wfGridBody"
+    },
+    "L18": {
+     "s": "wfGridBody"
+    },
+    "M18": {
+     "s": "wfGridBody"
+    },
+    "N18": {
+     "s": "wfGridBody"
+    },
+    "O18": {
+     "s": "wfGridBody"
+    },
+    "P18": {
+     "s": "wfGridBody"
+    },
+    "Q18": {
+     "s": "wfGridBody"
+    },
+    "R18": {
+     "s": "wfGridBody"
+    },
+    "S18": {
+     "s": "wfGridBody"
+    },
+    "T18": {
+     "s": "wfGridBody"
+    },
+    "U18": {
+     "s": "wfGridBody"
+    },
+    "V18": {
+     "s": "wfGridBody"
+    },
+    "W18": {
+     "s": "wfGridBody"
+    },
+    "X18": {
+     "s": "wfGridBody"
+    },
+    "F19": {
+     "s": "wfGridBody"
+    },
+    "G19": {
+     "s": "wfGridBody"
+    },
+    "H19": {
+     "s": "wfGridBody"
+    },
+    "I19": {
+     "s": "wfGridBody"
+    },
+    "J19": {
+     "s": "wfGridBody"
+    },
+    "K19": {
+     "s": "wfGridBody"
+    },
+    "L19": {
+     "s": "wfGridBody"
+    },
+    "M19": {
+     "s": "wfGridBody"
+    },
+    "N19": {
+     "s": "wfGridBody"
+    },
+    "O19": {
+     "s": "wfGridBody"
+    },
+    "P19": {
+     "s": "wfGridBody"
+    },
+    "Q19": {
+     "s": "wfGridBody"
+    },
+    "R19": {
+     "s": "wfGridBody"
+    },
+    "S19": {
+     "s": "wfGridBody"
+    },
+    "T19": {
+     "s": "wfGridBody"
+    },
+    "U19": {
+     "s": "wfGridBody"
+    },
+    "V19": {
+     "s": "wfGridBody"
+    },
+    "W19": {
+     "s": "wfGridBody"
+    },
+    "X19": {
+     "s": "wfGridBody"
+    },
+    "F20": {
+     "s": "wfGridBody"
+    },
+    "G20": {
+     "s": "wfGridBody"
+    },
+    "H20": {
+     "s": "wfGridBody"
+    },
+    "I20": {
+     "s": "wfGridBody"
+    },
+    "J20": {
+     "s": "wfGridBody"
+    },
+    "K20": {
+     "s": "wfGridBody"
+    },
+    "L20": {
+     "s": "wfGridBody"
+    },
+    "M20": {
+     "s": "wfGridBody"
+    },
+    "N20": {
+     "s": "wfGridBody"
+    },
+    "O20": {
+     "s": "wfGridBody"
+    },
+    "P20": {
+     "s": "wfGridBody"
+    },
+    "Q20": {
+     "s": "wfGridBody"
+    },
+    "R20": {
+     "s": "wfGridBody"
+    },
+    "S20": {
+     "s": "wfGridBody"
+    },
+    "T20": {
+     "s": "wfGridBody"
+    },
+    "U20": {
+     "s": "wfGridBody"
+    },
+    "V20": {
+     "s": "wfGridBody"
+    },
+    "W20": {
+     "s": "wfGridBody"
+    },
+    "X20": {
+     "s": "wfGridBody"
+    },
+    "F21": {
+     "s": "wfGridBody"
+    },
+    "G21": {
+     "s": "wfGridBody"
+    },
+    "H21": {
+     "s": "wfGridBody"
+    },
+    "I21": {
+     "s": "wfGridBody"
+    },
+    "J21": {
+     "s": "wfGridBody"
+    },
+    "K21": {
+     "s": "wfGridBody"
+    },
+    "L21": {
+     "s": "wfGridBody"
+    },
+    "M21": {
+     "s": "wfGridBody"
+    },
+    "N21": {
+     "s": "wfGridBody"
+    },
+    "O21": {
+     "s": "wfGridBody"
+    },
+    "P21": {
+     "s": "wfGridBody"
+    },
+    "Q21": {
+     "s": "wfGridBody"
+    },
+    "R21": {
+     "s": "wfGridBody"
+    },
+    "S21": {
+     "s": "wfGridBody"
+    },
+    "T21": {
+     "s": "wfGridBody"
+    },
+    "U21": {
+     "s": "wfGridBody"
+    },
+    "V21": {
+     "s": "wfGridBody"
+    },
+    "W21": {
+     "s": "wfGridBody"
+    },
+    "X21": {
+     "s": "wfGridBody"
+    },
+    "F22": {
+     "s": "wfGridBody"
+    },
+    "G22": {
+     "s": "wfGridBody"
+    },
+    "H22": {
+     "s": "wfGridBody"
+    },
+    "I22": {
+     "s": "wfGridBody"
+    },
+    "J22": {
+     "s": "wfGridBody"
+    },
+    "K22": {
+     "s": "wfGridBody"
+    },
+    "L22": {
+     "s": "wfGridBody"
+    },
+    "M22": {
+     "s": "wfGridBody"
+    },
+    "N22": {
+     "s": "wfGridBody"
+    },
+    "O22": {
+     "s": "wfGridBody"
+    },
+    "P22": {
+     "s": "wfGridBody"
+    },
+    "Q22": {
+     "s": "wfGridBody"
+    },
+    "R22": {
+     "s": "wfGridBody"
+    },
+    "S22": {
+     "s": "wfGridBody"
+    },
+    "T22": {
+     "s": "wfGridBody"
+    },
+    "U22": {
+     "s": "wfGridBody"
+    },
+    "V22": {
+     "s": "wfGridBody"
+    },
+    "W22": {
+     "s": "wfGridBody"
+    },
+    "X22": {
+     "s": "wfGridBody"
+    },
+    "F23": {
+     "v": "◈  하단 그리드 (Grid 2)  ◈  [찾기] 팝업으로 고객/품목 지정",
+     "s": "wfGrid"
+    },
+    "G23": {
+     "s": "wfGrid"
+    },
+    "H23": {
+     "s": "wfGrid"
+    },
+    "I23": {
+     "s": "wfGrid"
+    },
+    "J23": {
+     "s": "wfGrid"
+    },
+    "K23": {
+     "s": "wfGrid"
+    },
+    "L23": {
+     "s": "wfGrid"
+    },
+    "M23": {
+     "s": "wfGrid"
+    },
+    "N23": {
+     "s": "wfGrid"
+    },
+    "O23": {
+     "s": "wfGrid"
+    },
+    "P23": {
+     "s": "wfGrid"
+    },
+    "Q23": {
+     "s": "wfGrid"
+    },
+    "R23": {
+     "s": "wfGrid"
+    },
+    "S23": {
+     "s": "wfGrid"
+    },
+    "T23": {
+     "s": "wfGrid"
+    },
+    "U23": {
+     "s": "wfGrid"
+    },
+    "V23": {
+     "s": "wfGrid"
+    },
+    "W23": {
+     "s": "wfGrid"
+    },
+    "X23": {
+     "s": "wfGrid"
+    },
+    "F24": {
+     "s": "wfGrid"
+    },
+    "G24": {
+     "s": "wfGrid"
+    },
+    "H24": {
+     "s": "wfGrid"
+    },
+    "I24": {
+     "s": "wfGrid"
+    },
+    "J24": {
+     "s": "wfGrid"
+    },
+    "K24": {
+     "s": "wfGrid"
+    },
+    "L24": {
+     "s": "wfGrid"
+    },
+    "M24": {
+     "s": "wfGrid"
+    },
+    "N24": {
+     "s": "wfGrid"
+    },
+    "O24": {
+     "s": "wfGrid"
+    },
+    "P24": {
+     "s": "wfGrid"
+    },
+    "Q24": {
+     "s": "wfGrid"
+    },
+    "R24": {
+     "s": "wfGrid"
+    },
+    "S24": {
+     "s": "wfGrid"
+    },
+    "T24": {
+     "s": "wfGrid"
+    },
+    "U24": {
+     "s": "wfGrid"
+    },
+    "V24": {
+     "s": "wfGrid"
+    },
+    "W24": {
+     "s": "wfGrid"
+    },
+    "X24": {
+     "s": "wfGrid"
+    },
+    "F25": {
+     "s": "wfGridBody"
+    },
+    "G25": {
+     "s": "wfGridBody"
+    },
+    "H25": {
+     "s": "wfGridBody"
+    },
+    "I25": {
+     "s": "wfGridBody"
+    },
+    "J25": {
+     "s": "wfGridBody"
+    },
+    "K25": {
+     "s": "wfGridBody"
+    },
+    "L25": {
+     "s": "wfGridBody"
+    },
+    "M25": {
+     "s": "wfGridBody"
+    },
+    "N25": {
+     "s": "wfGridBody"
+    },
+    "O25": {
+     "s": "wfGridBody"
+    },
+    "P25": {
+     "s": "wfGridBody"
+    },
+    "Q25": {
+     "s": "wfGridBody"
+    },
+    "R25": {
+     "s": "wfGridBody"
+    },
+    "S25": {
+     "s": "wfGridBody"
+    },
+    "T25": {
+     "s": "wfGridBody"
+    },
+    "U25": {
+     "s": "wfGridBody"
+    },
+    "V25": {
+     "s": "wfGridBody"
+    },
+    "W25": {
+     "s": "wfGridBody"
+    },
+    "X25": {
+     "s": "wfGridBody"
+    },
+    "F26": {
+     "s": "wfGridBody"
+    },
+    "G26": {
+     "s": "wfGridBody"
+    },
+    "H26": {
+     "s": "wfGridBody"
+    },
+    "I26": {
+     "s": "wfGridBody"
+    },
+    "J26": {
+     "s": "wfGridBody"
+    },
+    "K26": {
+     "s": "wfGridBody"
+    },
+    "L26": {
+     "s": "wfGridBody"
+    },
+    "M26": {
+     "s": "wfGridBody"
+    },
+    "N26": {
+     "s": "wfGridBody"
+    },
+    "O26": {
+     "s": "wfGridBody"
+    },
+    "P26": {
+     "s": "wfGridBody"
+    },
+    "Q26": {
+     "s": "wfGridBody"
+    },
+    "R26": {
+     "s": "wfGridBody"
+    },
+    "S26": {
+     "s": "wfGridBody"
+    },
+    "T26": {
+     "s": "wfGridBody"
+    },
+    "U26": {
+     "s": "wfGridBody"
+    },
+    "V26": {
+     "s": "wfGridBody"
+    },
+    "W26": {
+     "s": "wfGridBody"
+    },
+    "X26": {
+     "s": "wfGridBody"
+    },
+    "F27": {
+     "s": "wfGridBody"
+    },
+    "G27": {
+     "s": "wfGridBody"
+    },
+    "H27": {
+     "s": "wfGridBody"
+    },
+    "I27": {
+     "s": "wfGridBody"
+    },
+    "J27": {
+     "s": "wfGridBody"
+    },
+    "K27": {
+     "s": "wfGridBody"
+    },
+    "L27": {
+     "s": "wfGridBody"
+    },
+    "M27": {
+     "s": "wfGridBody"
+    },
+    "N27": {
+     "s": "wfGridBody"
+    },
+    "O27": {
+     "s": "wfGridBody"
+    },
+    "P27": {
+     "s": "wfGridBody"
+    },
+    "Q27": {
+     "s": "wfGridBody"
+    },
+    "R27": {
+     "s": "wfGridBody"
+    },
+    "S27": {
+     "s": "wfGridBody"
+    },
+    "T27": {
+     "s": "wfGridBody"
+    },
+    "U27": {
+     "s": "wfGridBody"
+    },
+    "V27": {
+     "s": "wfGridBody"
+    },
+    "W27": {
+     "s": "wfGridBody"
+    },
+    "X27": {
+     "s": "wfGridBody"
+    },
+    "F28": {
+     "s": "wfGridBody"
+    },
+    "G28": {
+     "s": "wfGridBody"
+    },
+    "H28": {
+     "s": "wfGridBody"
+    },
+    "I28": {
+     "s": "wfGridBody"
+    },
+    "J28": {
+     "s": "wfGridBody"
+    },
+    "K28": {
+     "s": "wfGridBody"
+    },
+    "L28": {
+     "s": "wfGridBody"
+    },
+    "M28": {
+     "s": "wfGridBody"
+    },
+    "N28": {
+     "s": "wfGridBody"
+    },
+    "O28": {
+     "s": "wfGridBody"
+    },
+    "P28": {
+     "s": "wfGridBody"
+    },
+    "Q28": {
+     "s": "wfGridBody"
+    },
+    "R28": {
+     "s": "wfGridBody"
+    },
+    "S28": {
+     "s": "wfGridBody"
+    },
+    "T28": {
+     "s": "wfGridBody"
+    },
+    "U28": {
+     "s": "wfGridBody"
+    },
+    "V28": {
+     "s": "wfGridBody"
+    },
+    "W28": {
+     "s": "wfGridBody"
+    },
+    "X28": {
+     "s": "wfGridBody"
+    },
+    "F29": {
+     "s": "wfGridBody"
+    },
+    "G29": {
+     "s": "wfGridBody"
+    },
+    "H29": {
+     "s": "wfGridBody"
+    },
+    "I29": {
+     "s": "wfGridBody"
+    },
+    "J29": {
+     "s": "wfGridBody"
+    },
+    "K29": {
+     "s": "wfGridBody"
+    },
+    "L29": {
+     "s": "wfGridBody"
+    },
+    "M29": {
+     "s": "wfGridBody"
+    },
+    "N29": {
+     "s": "wfGridBody"
+    },
+    "O29": {
+     "s": "wfGridBody"
+    },
+    "P29": {
+     "s": "wfGridBody"
+    },
+    "Q29": {
+     "s": "wfGridBody"
+    },
+    "R29": {
+     "s": "wfGridBody"
+    },
+    "S29": {
+     "s": "wfGridBody"
+    },
+    "T29": {
+     "s": "wfGridBody"
+    },
+    "U29": {
+     "s": "wfGridBody"
+    },
+    "V29": {
+     "s": "wfGridBody"
+    },
+    "W29": {
+     "s": "wfGridBody"
+    },
+    "X29": {
+     "s": "wfGridBody"
+    },
+    "F30": {
+     "s": "wfGridBody"
+    },
+    "G30": {
+     "s": "wfGridBody"
+    },
+    "H30": {
+     "s": "wfGridBody"
+    },
+    "I30": {
+     "s": "wfGridBody"
+    },
+    "J30": {
+     "s": "wfGridBody"
+    },
+    "K30": {
+     "s": "wfGridBody"
+    },
+    "L30": {
+     "s": "wfGridBody"
+    },
+    "M30": {
+     "s": "wfGridBody"
+    },
+    "N30": {
+     "s": "wfGridBody"
+    },
+    "O30": {
+     "s": "wfGridBody"
+    },
+    "P30": {
+     "s": "wfGridBody"
+    },
+    "Q30": {
+     "s": "wfGridBody"
+    },
+    "R30": {
+     "s": "wfGridBody"
+    },
+    "S30": {
+     "s": "wfGridBody"
+    },
+    "T30": {
+     "s": "wfGridBody"
+    },
+    "U30": {
+     "s": "wfGridBody"
+    },
+    "V30": {
+     "s": "wfGridBody"
+    },
+    "W30": {
+     "s": "wfGridBody"
+    },
+    "X30": {
+     "s": "wfGridBody"
+    },
+    "A32": {
+     "v": "도형 대신 셀 병합·채우기로 그린 와이어프레임 - 칸을 늘리거나 색을 바꿔 화면 배치를 고친다(엑셀 그림 붙여넣기도 된다).",
+     "s": "memo"
+    },
+    "B32": {
+     "s": "memo"
+    },
+    "C32": {
+     "s": "memo"
+    },
+    "D32": {
+     "s": "memo"
+    },
+    "E32": {
+     "s": "memo"
+    },
+    "F32": {
+     "s": "memo"
+    },
+    "G32": {
+     "s": "memo"
+    },
+    "H32": {
+     "s": "memo"
+    },
+    "I32": {
+     "s": "memo"
+    },
+    "J32": {
+     "s": "memo"
+    },
+    "K32": {
+     "s": "memo"
+    },
+    "L32": {
+     "s": "memo"
+    },
+    "M32": {
+     "s": "memo"
+    },
+    "N32": {
+     "s": "memo"
+    },
+    "O32": {
+     "s": "memo"
+    },
+    "P32": {
+     "s": "memo"
+    },
+    "Q32": {
+     "s": "memo"
+    },
+    "R32": {
+     "s": "memo"
+    },
+    "S32": {
+     "s": "memo"
+    },
+    "T32": {
+     "s": "memo"
+    },
+    "U32": {
+     "s": "memo"
+    },
+    "V32": {
+     "s": "memo"
+    },
+    "W32": {
+     "s": "memo"
+    },
+    "X32": {
+     "s": "memo"
+    }
+   }
+  },
+  {
+   "kind": "codes",
+   "name": "코드소스",
+   "grid": false,
+   "print": {
+    "landscape": false,
+    "fitWidth": 1
+   },
+   "cols": {
+    "A": 144,
+    "B": 176,
+    "C": 160,
+    "D": 176
+   },
+   "rows": {
+    "1": 35,
+    "3": 29,
+    "10": 29
+   },
+   "merges": [
+    "A1:D1",
+    "A3:D3",
+    "A10:D10"
+   ],
+   "cells": {
+    "A1": {
+     "v": "코드 / 콤보 / 팝업 소스 요약",
+     "s": "title"
+    },
+    "B1": {
+     "s": "title"
+    },
+    "C1": {
+     "s": "title"
+    },
+    "D1": {
+     "s": "title"
+    },
+    "A3": {
+     "v": "[공통코드 값] TB_CODE_DTL",
+     "s": "section"
+    },
+    "B3": {
+     "s": "section"
+    },
+    "C3": {
+     "s": "section"
+    },
+    "D3": {
+     "s": "section"
+    },
+    "A4": {
+     "v": "화면 항목",
+     "s": "header"
+    },
+    "B4": {
+     "v": "코드 그룹",
+     "s": "header"
+    },
+    "C4": {
+     "v": "코드값(저장)",
+     "s": "header"
+    },
+    "D4": {
+     "v": "이름(표시)",
+     "s": "header"
+    },
+    "A5": {
+     "v": "적용 우선순위",
+     "s": "key"
+    },
+    "B5": {
+     "v": "MP_APLY_PRORT",
+     "s": "cell"
+    },
+    "C5": {
+     "v": "A / B / C / D / Z",
+     "s": "center"
+    },
+    "D5": {
+     "v": "A=최우선 … Z=제외",
+     "s": "cell"
+    },
+    "A6": {
+     "v": "고객 등급",
+     "s": "key"
+    },
+    "B6": {
+     "v": "MP_CUST_PRORT",
+     "s": "cell"
+    },
+    "C6": {
+     "v": "1 / 2 / 3 / 4",
+     "s": "center"
+    },
+    "D6": {
+     "v": "1등급 … 4등급",
+     "s": "cell"
+    },
+    "A7": {
+     "v": "품목 등급",
+     "s": "key"
+    },
+    "B7": {
+     "v": "MP_ITEM_PRORT",
+     "s": "cell"
+    },
+    "C7": {
+     "v": "1 / 2 / 3 / 4",
+     "s": "center"
+    },
+    "D7": {
+     "v": "1등급 … 4등급",
+     "s": "cell"
+    },
+    "A8": {
+     "v": "삭제여부",
+     "s": "key"
+    },
+    "B8": {
+     "v": "YN_CD",
+     "s": "cell"
+    },
+    "C8": {
+     "v": "Y / N",
+     "s": "center"
+    },
+    "D8": {
+     "v": "삭제 / 미삭제",
+     "s": "cell"
+    },
+    "A10": {
+     "v": "[콤보/팝업 소스 요약] — 각 SELECT 는 [쿼리] 참고",
+     "s": "section"
+    },
+    "B10": {
+     "s": "section"
+    },
+    "C10": {
+     "s": "section"
+    },
+    "D10": {
+     "s": "section"
+    },
+    "A11": {
+     "v": "화면 항목",
+     "s": "header"
+    },
+    "B11": {
+     "v": "입력 UI",
+     "s": "header"
+    },
+    "C11": {
+     "v": "소스 테이블",
+     "s": "header"
+    },
+    "D11": {
+     "v": "쿼리",
+     "s": "header"
+    },
+    "A12": {
+     "v": "적용 우선순위",
+     "s": "key"
+    },
+    "B12": {
+     "v": "콤보",
+     "s": "center"
+    },
+    "C12": {
+     "v": "TB_CODE_DTL",
+     "s": "cell"
+    },
+    "D12": {
+     "v": "[쿼리] ①",
+     "s": "center"
+    },
+    "A13": {
+     "v": "고객그룹",
+     "s": "key"
+    },
+    "B13": {
+     "v": "팝업",
+     "s": "center"
+    },
+    "C13": {
+     "v": "TB_CUST_GRP",
+     "s": "cell"
+    },
+    "D13": {
+     "v": "[쿼리] ②",
+     "s": "center"
+    },
+    "A14": {
+     "v": "품목",
+     "s": "key"
+    },
+    "B14": {
+     "v": "팝업",
+     "s": "center"
+    },
+    "C14": {
+     "v": "TB_ITEM",
+     "s": "cell"
+    },
+    "D14": {
+     "v": "[쿼리] ③",
+     "s": "center"
+    }
+   }
+  },
+  {
+   "kind": "queries",
+   "name": "쿼리",
+   "grid": false,
+   "print": {
+    "landscape": true,
+    "fitWidth": 1
+   },
+   "cols": {
+    "A": 144,
+    "B": 144,
+    "C": 144,
+    "D": 144,
+    "E": 144,
+    "F": 144
+   },
+   "rows": {
+    "1": 35,
+    "3": 29,
+    "4": 100,
+    "6": 29,
+    "7": 90,
+    "9": 29,
+    "10": 75,
+    "12": 29,
+    "13": 100
+   },
+   "merges": [
+    "A1:F1",
+    "A3:F3",
+    "A4:F4",
+    "A6:F6",
+    "A7:F7",
+    "A9:F9",
+    "A10:F10",
+    "A12:F12",
+    "A13:F13"
+   ],
+   "cells": {
+    "A1": {
+     "v": "콤보 / 팝업 / 조회 SELECT 쿼리",
+     "s": "title"
+    },
+    "B1": {
+     "s": "title"
+    },
+    "C1": {
+     "s": "title"
+    },
+    "D1": {
+     "s": "title"
+    },
+    "E1": {
+     "s": "title"
+    },
+    "F1": {
+     "s": "title"
+    },
+    "A3": {
+     "v": "① 적용 우선순위 콤보  (MP_APLY_PRORT)",
+     "s": "section"
+    },
+    "B3": {
+     "s": "section"
+    },
+    "C3": {
+     "s": "section"
+    },
+    "D3": {
+     "s": "section"
+    },
+    "E3": {
+     "s": "section"
+    },
+    "F3": {
+     "s": "section"
+    },
+    "A4": {
+     "v": "SELECT CODE_CD AS VALUE, CODE_NM AS LABEL\n  FROM TB_CODE_DTL\n WHERE CODE_GRP = 'MP_APLY_PRORT'\n   AND USE_YN = 'Y'\n ORDER BY SORT_SEQ",
+     "s": "code"
+    },
+    "B4": {
+     "s": "code"
+    },
+    "C4": {
+     "s": "code"
+    },
+    "D4": {
+     "s": "code"
+    },
+    "E4": {
+     "s": "code"
+    },
+    "F4": {
+     "s": "code"
+    },
+    "A6": {
+     "v": "② 고객그룹 팝업  (TB_CUST_GRP)",
+     "s": "section"
+    },
+    "B6": {
+     "s": "section"
+    },
+    "C6": {
+     "s": "section"
+    },
+    "D6": {
+     "s": "section"
+    },
+    "E6": {
+     "s": "section"
+    },
+    "F6": {
+     "s": "section"
+    },
+    "A7": {
+     "v": "SELECT CUST_GRP_CD, CUST_GRP_NM, CUST_PRORT_VAL\n  FROM TB_CUST_GRP\n WHERE (:KEYWORD IS NULL OR CUST_GRP_NM LIKE '%' || :KEYWORD || '%')\n ORDER BY CUST_GRP_CD",
+     "s": "code"
+    },
+    "B7": {
+     "s": "code"
+    },
+    "C7": {
+     "s": "code"
+    },
+    "D7": {
+     "s": "code"
+    },
+    "E7": {
+     "s": "code"
+    },
+    "F7": {
+     "s": "code"
+    },
+    "A9": {
+     "v": "③ 품목 팝업  (TB_ITEM)",
+     "s": "section"
+    },
+    "B9": {
+     "s": "section"
+    },
+    "C9": {
+     "s": "section"
+    },
+    "D9": {
+     "s": "section"
+    },
+    "E9": {
+     "s": "section"
+    },
+    "F9": {
+     "s": "section"
+    },
+    "A10": {
+     "v": "SELECT ITEM_CD, ITEM_NM, ITEM_GRADE\n  FROM TB_ITEM\n WHERE (:KEYWORD IS NULL OR ITEM_NM LIKE '%' || :KEYWORD || '%')",
+     "s": "code"
+    },
+    "B10": {
+     "s": "code"
+    },
+    "C10": {
+     "s": "code"
+    },
+    "D10": {
+     "s": "code"
+    },
+    "E10": {
+     "s": "code"
+    },
+    "F10": {
+     "s": "code"
+    },
+    "A12": {
+     "v": "④ [Tab1] 상단(BASE) 그리드 조회",
+     "s": "section"
+    },
+    "B12": {
+     "s": "section"
+    },
+    "C12": {
+     "s": "section"
+    },
+    "D12": {
+     "s": "section"
+    },
+    "E12": {
+     "s": "section"
+    },
+    "F12": {
+     "s": "section"
+    },
+    "A13": {
+     "v": "SELECT CUST_PRORT, ITEM_PRORT, APLY_PRORT, UPD_USER, UPD_DTTM\n  FROM TB_RULE_MST\n WHERE PROJECT_CD = :PROJECT_CD\n   AND CUST_GRP_CD = '*' AND ITEM_CD = '*'\n ORDER BY CUST_PRORT, ITEM_PRORT",
+     "s": "code"
+    },
+    "B13": {
+     "s": "code"
+    },
+    "C13": {
+     "s": "code"
+    },
+    "D13": {
+     "s": "code"
+    },
+    "E13": {
+     "s": "code"
+    },
+    "F13": {
+     "s": "code"
+    }
+   }
+  },
+  {
+   "kind": "actions",
+   "name": "동작",
+   "grid": false,
+   "print": {
+    "landscape": false,
+    "fitWidth": 1
+   },
+   "cols": {
+    "A": 112,
+    "B": 128,
+    "C": 736
+   },
+   "rows": {
+    "1": 35
+   },
+   "merges": [
+    "A1:C1"
+   ],
+   "cells": {
+    "A1": {
+     "v": "동작 방식 (Tab 1) — 데이터 / 컬럼 / 저장",
+     "s": "title"
+    },
+    "B1": {
+     "s": "title"
+    },
+    "C1": {
+     "s": "title"
+    },
+    "A3": {
+     "v": "기능",
+     "s": "header"
+    },
+    "B3": {
+     "v": "구분",
+     "s": "header"
+    },
+    "C3": {
+     "v": "상세",
+     "s": "header"
+    },
+    "A4": {
+     "v": "공통",
+     "s": "label"
+    },
+    "B4": {
+     "v": "고정상수",
+     "s": "center"
+    },
+    "C4": {
+     "v": "예) PROJECT_CD = :PROJECT_CD, 조회 기준 버전 등 화면 전체에 붙는 조건",
+     "s": "cell"
+    },
+    "A5": {
+     "v": "조회",
+     "s": "label"
+    },
+    "B5": {
+     "v": "데이터설정",
+     "s": "center"
+    },
+    "C5": {
+     "v": "상단(BASE) / 하단(예외) 그리드를 각각 [쿼리] ④·⑤ 로 읽는다",
+     "s": "cell"
+    },
+    "A6": {
+     "v": "조회",
+     "s": "label"
+    },
+    "B6": {
+     "v": "컬럼설정",
+     "s": "center"
+    },
+    "C6": {
+     "v": "[화면_Tab1] 그리드 컬럼 정의대로 - 콤보 소스는 [코드소스]",
+     "s": "cell"
+    },
+    "A7": {
+     "v": "추가",
+     "s": "label"
+    },
+    "B7": {
+     "v": "데이터설정",
+     "s": "center"
+    },
+    "C7": {
+     "v": "하단 빈 행(상태 = INSERT). 기본값: 삭제여부 N",
+     "s": "cell"
+    },
+    "A8": {
+     "v": "저장",
+     "s": "label"
+    },
+    "B8": {
+     "v": "분기규칙",
+     "s": "center"
+    },
+    "C8": {
+     "v": "INSERT(키 없음) → INSERT · 키 있음 → UPDATE · 삭제 행과 같은 키 → 되살리기",
+     "s": "cell"
+    },
+    "A9": {
+     "v": "삭제",
+     "s": "label"
+    },
+    "B9": {
+     "v": "논리삭제",
+     "s": "center"
+    },
+    "C9": {
+     "v": "저장 전 새 행 → 그리드에서 제거. 기존 행 → DEL_YN = 'Y' 로 UPDATE",
+     "s": "cell"
+    }
+   }
+  },
+  {
+   "kind": "validation",
+   "name": "유효성검증",
+   "grid": false,
+   "print": {
+    "landscape": false,
+    "fitWidth": 1
+   },
+   "cols": {
+    "A": 48,
+    "B": 144,
+    "C": 640
+   },
+   "rows": {
+    "1": 35
+   },
+   "merges": [
+    "A1:C1"
+   ],
+   "cells": {
+    "A1": {
+     "v": "유효성 검증 (저장 시)",
+     "s": "title"
+    },
+    "B1": {
+     "s": "title"
+    },
+    "C1": {
+     "s": "title"
+    },
+    "A3": {
+     "v": "No",
+     "s": "header"
+    },
+    "B3": {
+     "v": "항목",
+     "s": "header"
+    },
+    "C3": {
+     "v": "규칙",
+     "s": "header"
+    },
+    "A4": {
+     "v": "1",
+     "s": "center"
+    },
+    "B4": {
+     "v": "필수 입력",
+     "s": "key"
+    },
+    "C4": {
+     "v": "[화면_Tab1] 필수 = Y 컬럼이 비어 있으면 저장하지 않고 그 셀로 이동",
+     "s": "cell"
+    },
+    "A5": {
+     "v": "2",
+     "s": "center"
+    },
+    "B5": {
+     "v": "키 중복",
+     "s": "key"
+    },
+    "C5": {
+     "v": "같은 고객그룹 + 품목 조합이 이미 있으면 알림",
+     "s": "cell"
+    },
+    "A6": {
+     "v": "3",
+     "s": "center"
+    },
+    "B6": {
+     "v": "코드 값",
+     "s": "key"
+    },
+    "C6": {
+     "v": "콤보 값이 공통코드에 없으면 저장하지 않음",
+     "s": "cell"
+    }
+   }
+  }
+ ]
+}
