@@ -708,6 +708,11 @@ def plan(b):
             args += ["--sheet-theme", st["name"]]
             if st.get("from"):
                 args += ["--sheet-theme-from", str(st["from"])]
+    else:
+        df = b.get("deckFrom") if isinstance(b.get("deckFrom"), dict) else {}
+        if re.fullmatch(r"[\w.-]+\.pptx", str(df.get("name") or "")) and (NEW_ATTACH / df["name"]).is_file():  # PPT 파일로 시작 - 시작용 내용 대신
+            args += ["--pptx-import", NEW_ATTACH / df["name"]]
+            starter = None
     if starter:
         args += ["--starter", starter]
         lang = re.sub(r"[^a-z]", "", str(b.get("lang") or "ko").lower())[:5]
@@ -769,6 +774,8 @@ def create(b):
     atts = list(b.get("attachments") or [])
     if isinstance(b.get("sheetFrom"), dict) and b.get("kind") == "sheet":  # 시작한 엑셀 원본도 materials/ 에 남긴다
         atts.append(b["sheetFrom"])
+    if isinstance(b.get("deckFrom"), dict) and b.get("kind") != "sheet":  # 시작한 PPT 원본도
+        atts.append(b["deckFrom"])
     moved = claim_attachments(ws, atts)  # 참고 자료 첨부 → materials/ · BRIEF.md
     if moved:
         log += "\n첨부: " + ", ".join(moved)

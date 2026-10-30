@@ -763,6 +763,7 @@ def main():
     ap.add_argument("--kind", choices=("deck", "sheet"), default="deck", help="첫 문서 종류 - sheet 면 시작용 내용 없이 빈 시트(docs/sheets.md)")
     ap.add_argument("--sheet-theme", help="시트 테마 - 첫 시트를 이 테마의 페이지로(엔진 studio/sheet_themes 또는 --sheet-theme-from 작업 공간의 테마를 복사)")
     ap.add_argument("--sheet-import", help="첫 시트를 이 엑셀 파일(.xlsx·.xlsm)에서 - 값·수식·서식·그림·매크로까지(sheet_import.py)")
+    ap.add_argument("--pptx-import", help="첫 덱을 이 PowerPoint 파일(.pptx)에서 - 글·글머리·표·그림·차트·도형(import_pptx.py --deck). 시작용 내용 대신")
     ap.add_argument("--sheet-theme-from", help="테마를 가져올 작업 공간 폴더(assets/sheet-themes/<이름>/ 을 새 작업 공간으로 복사)")
     ap.add_argument("--asset-root", default=".", help="덱 그림 경로의 기준 폴더(작업 공간 기준). 저장소 루트 자산을 쓰려면 ..")
     ap.add_argument("--starter", help="시작용 교안(엔진 starters/ 폴더 이름) — 예: lecture-course")
@@ -792,6 +793,11 @@ def main():
             sys.exit("--kind sheet 에는 시작용 교안(--starter)을 쓸 수 없다")
         if a.deck == "intro":
             a.deck = "sheet"
+    if a.pptx_import:
+        if a.kind == "sheet" or a.starter:
+            sys.exit("--pptx-import 는 슬라이드 덱에만, 시작용 교안(--starter) 없이 쓴다")
+        if not Path(a.pptx_import).is_file():
+            sys.exit(f"없는 파일: {a.pptx_import}")
     if a.starter:
         if not (STARTERS / a.starter / "starter.json").is_file():
             names = ", ".join(p.name for p in STARTERS.iterdir() if (p / "starter.json").is_file())
@@ -865,7 +871,7 @@ def main():
                     else:
                         shutil.copy2(src, dst)
                     made.append(rel(dst, top))
-    elif a.kind != "sheet":  # 시트는 content 원본 없이 decks/ 에 바로 만든다(아래 new_sheet)
+    elif a.kind != "sheet" and not a.pptx_import:  # 시트는 content 원본 없이 decks/ 에 바로 만든다(아래 new_sheet) · PPT 로 시작하면 가져온 덱이 첫 덱
         write(ws / "content" / f"{a.deck}.json", json.dumps(starter(a.deck, cfg.get("title", ws.name)), ensure_ascii=False, indent=1) + "\n")
     write(ws / "fonts" / "README.md", FONTS_README)
     write(ws / ".gitignore", GITIGNORE)
@@ -901,7 +907,19 @@ def main():
         r = subprocess.run([sys.executable, str(ENGINE / "studio" / "sheet_import.py"), str(a.sheet_import), "--id", a.deck, "--title", cfg.get("title", ws.name)],
                            cwd=str(ws), env=env, capture_output=True)
         print((r.stdout or b"").decode("utf-8", "replace").strip() or (r.stderr or b"").decode("utf-8", "replace").strip()[-300:])
+    if a.pptx_import:  # PPT 파일로 시작 - 가져온 덱이 첫 덱(content 원본 없이 decks/ 에)
+        env = {**os.environ, "NEXA_SLIDE_WORKSPACE": str(ws), "PYTHONIOENCODING": "utf-8"}
+        tmp = ws / "out" / "attach" / "_start" / "start.pptx"  # import_pptx 는 작업 공간 안의 파일만 연다 - 잠깐 복사(원본은 허브가 materials/ 로 옮긴다)
+        tmp.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(a.pptx_import, tmp)
+        r = subprocess.run([sys.executable, str(ENGINE / "studio" / "import_pptx.py"), str(tmp), "--deck", a.deck, "--title", cfg.get("title", ws.name), "--out", str(ws / "out" / "import" / "_start")],
+                           cwd=str(ws), env=env, capture_output=True)
+        shutil.rmtree(tmp.parent, ignore_errors=True)
+        out = (r.stdout or b"").decode("utf-8", "replace").strip() or (r.stderr or b"").decode("utf-8", "replace").strip()[-300:]
+        print(("  " if r.returncode == 0 else "  PPT 가져오기 실패: ") + out.splitlines()[-1] if out else "")
     built = new_sheet(ws, cfg, a.deck, cfg.get("title", ws.name), a.sheet_theme) if a.kind == "sheet" else build_decks(ws, cfg) if a.build or a.ask_draft else []
+    if a.pptx_import and (ws / cfg.get("decks", "decks") / f"{a.deck}.json").is_file() and a.deck not in built:
+        built.insert(0, a.deck)
     if a.ask_draft and built:
         ask_draft(ws, cfg, deck_ids[0] if deck_ids[0] in built else built[0])
     if not a.no_remember:
