@@ -50,6 +50,7 @@ TESTS = [  # (이름, 실행, 설명, claude 필요)
     ("content_i18n", [sys.executable, "content_i18n_test.py"], "견본 내용 언어(content_i18n) - layout_samples --lang en · /api/slidetypes?lang=en · tr()", False),
     ("sheetcalc", [sys.executable, "sheetcalc_test.py"], "시트 수식 계산기(sheet_calc·sheetcalc.js 같은 사례 174개 - 집계·조건·조회·글·날짜·배열·넘침·표·다른 탭·순환 참조)", False),
     ("vba", ["node", "vba_test.js"], "VBA 실행기(vba.js) - 셀에서 부르는 Function·제어문·배열·Range·ByRef·내장 함수·못 쓰는 문법은 엑셀 값 유지", False),
+    ("tplrec", [sys.executable, "template_rec_test.py"], "템플릿 추천 점수(0.25.15) - 사용 ×10 · 미리 보기 ×3 · 비슷한 색 ×2 · 중복 묶음", False),
     ("pptstart", [sys.executable, "pptx_start_test.py"], "PPT 파일로 시작(0.25.14) - 새로 만들기 deckFrom → init_workspace --pptx-import → 가져온 덱이 첫 덱", False),
     ("vbasafe", [sys.executable, "vba_safety_test.py"], "VBA 보안(0.25.8) - 위험 코드 검사 화면·Python 같음, 내보내기는 늘 소스로 다시 쓴 프로젝트(p-code 버림)·--no-macros·깨진 프로젝트는 매크로 없이", False),
     ("sheetrt", [sys.executable, "sheet_roundtrip_test.py"], "시트 엑셀 왕복(내보내기 → 가져오기 - 값·수식·서식·병합·숨김·유효성·조건부 서식·메모·넘침·표)", False),

@@ -28,6 +28,7 @@ TEMPLATES = STUDIO / "templates"
 CONFIG_NAME = "nexa-slide.json"
 DEMO_DIR = "nexa-slide-demo"
 PREVIEW_ROOT = user_dir() / "hub" / "preview"  # 미리보기용 임시 작업 공간(엔진·기준 폴더 밖, 사용자 설정 폴더)
+TPL_STATS = user_dir() / "hub" / "template-stats.json"  # 템플릿 미리 보기 횟수 {이름: {preview, last}} - 추천 점수(template_rec)
 NEW_ATTACH = user_dir() / "hub" / "new-attach"  # 새로 만들기 "참고 자료" 첨부 - 만들 때 작업 공간 materials/ 로 옮긴다
 
 
@@ -149,6 +150,73 @@ def templates(ws=None):
             continue
         out.append(_template_card(d, t))
     return out + ws_templates(ws)
+
+
+# ---------- 템플릿 추천(시작 페이지 맨 위 7개) ----------
+# 점수 = 사용(그 템플릿으로 만든 작업 공간 - 최근 작업 목록) × REC_USED + 미리 보기 횟수(최대 10) × REC_PREVIEW
+#      + 가장 비슷한 '쓰거나 본' 템플릿과의 색 유사도(0.5~1 → 0~1) × REC_SIMILAR. 화면은 1 + 점수를 무게로 뽑는다(새로 고칠 때마다 바뀐다).
+# 중복: 색 견본이 거의 같은 템플릿(lecture · lecture-large 등)은 dup 이 같은 묶음 - 한 번에 하나만 뽑는다. docs/home.md
+REC_USED, REC_PREVIEW, REC_SIMILAR, REC_DUP = 10, 3, 2, 0.95
+
+
+def note_template(name):
+    """미리 보기 한 번 - 템플릿 추천 점수의 중간 배점(사용자 설정 폴더, 엔진 밖)."""
+    if not re.fullmatch(r"[A-Za-z0-9_-]+", str(name or "")):
+        return
+    d = _read_json(TPL_STATS, {}) or {}
+    e = d.setdefault(name, {})
+    e["preview"] = int(e.get("preview") or 0) + 1
+    e["last"] = __import__("datetime").datetime.now().isoformat(timespec="seconds")
+    try:
+        TPL_STATS.parent.mkdir(parents=True, exist_ok=True)
+        TPL_STATS.write_text(json.dumps(d, ensure_ascii=False, indent=1), encoding="utf-8")
+    except OSError:
+        pass
+
+
+def _rgb(h):
+    h = str(h or "").lstrip("#")
+    return tuple(int(h[i:i + 2], 16) for i in (0, 2, 4)) if re.fullmatch(r"[0-9A-Fa-f]{6}", h) else None
+
+
+def _tpl_sim(a, b):
+    """색 유사도 0~1 - 앞 견본 3개(주색·주색 면·강조)의 RGB 거리 평균."""
+    ds = []
+    for x, y in zip((a or [])[:3], (b or [])[:3]):
+        p, q = _rgb(x), _rgb(y)
+        if p and q:
+            ds.append(sum((i - j) ** 2 for i, j in zip(p, q)) ** 0.5)
+    return max(0.0, 1 - (sum(ds) / len(ds)) / 160) if ds else 0.0
+
+
+def template_rec(tpls, recent):
+    """템플릿 카드마다 rec {score, used, preview, like, sim, dup} - 화면(home.html recTemplates)이 무게로 7개를 뽑는다."""
+    eng = [t for t in tpls if not t.get("workspace")]
+    names = {t["name"] for t in eng}
+    used = {}
+    for r in recent or []:
+        n = r.get("template")
+        if r.get("workspace") and n:
+            if n not in names:  # 회사 템플릿 - 바탕 엔진 템플릿으로 센다
+                n = ((_read_json(Path(r["path"]) / "templates" / n / "template.json") or {}).get("extends")) or n
+            used[n] = used.get(n, 0) + 1
+    st = _read_json(TPL_STATS, {}) or {}
+    pv = {n: int((st.get(n) or {}).get("preview") or 0) for n in names}
+    seen = [t for t in eng if used.get(t["name"]) or pv.get(t["name"])]
+    dup = {}
+    for i, t in enumerate(eng):  # 중복 묶음 - 앞(이름순)에 있는 거의 같은 템플릿을 대표로
+        dup[t["name"]] = next((u["name"] for u in eng[:i] if _tpl_sim(t["swatches"], u["swatches"]) >= REC_DUP), t["name"])
+    for t in eng:
+        n = t["name"]
+        like, sim = None, 0.0
+        for u in seen:
+            if u["name"] != n and dup[u["name"]] != dup[n]:
+                s = _tpl_sim(t["swatches"], u["swatches"])
+                if s > sim:
+                    like, sim = u["name"], s
+        score = REC_USED * used.get(n, 0) + REC_PREVIEW * min(pv.get(n, 0), 10) + REC_SIMILAR * max(0.0, (sim - 0.5) * 2)  # 반쯤 닮은 것(0.5)부터 배점
+        t["rec"] = {"score": round(score, 2), "used": used.get(n, 0), "preview": pv.get(n, 0), "like": like, "sim": round(sim, 2), "dup": dup[n]}
+    return tpls
 
 
 def starters():
@@ -486,7 +554,7 @@ def home(current=None, refused=None):
             "projectsRootFromEnv": bool(os.environ.get("NEXA_SLIDE_PROJECTS")), "engine": str(ENGINE),
             "current": cur, "refused": str(refused) if refused else None, "proxy": proxy_on(),
             "sessionGlobal": {k: s.get(k) for k in SESSION_KEYS if s.get(k) is not None},
-            "recent": recent, "templates": templates(current), "starters": starters() if _supports_starter() else [], "sheetThemes": sheet_themes(rows),
+            "recent": recent, "templates": template_rec(templates(current), recent), "starters": starters() if _supports_starter() else [], "sheetThemes": sheet_themes(rows),
             "samples": s.get("samples", []), "demo": str(projects_root() / DEMO_DIR)}
 
 

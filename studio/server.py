@@ -2054,6 +2054,7 @@ class H(BaseHTTPRequestHandler):
         self.hub_call(hub.project, b)
 
     def api_get_preview(self, _, q):
+        hub.note_template((q.get("template") or [None])[0])  # 템플릿 추천 - 미리 보기 횟수(중간 배점)
         with PREVIEW_LOCK:  # 같은 미리보기를 동시에 만들지 않게
             self.hub_call(hub.preview, (q.get("template") or [None])[0], (q.get("starter") or [None])[0], (q.get("lang") or ["ko"])[0], None if HUB else WORKSPACE)
 
