@@ -160,6 +160,11 @@
 
 진행 현황(2026-10-15 새벽): E-1~E-4 완료·운영 중. 엔진 개발 세션이 운영에서 요청 #3(import_pptx·set_template)·#4(place·extra·spread)·#5(scale_fonts·fontScale)·#6(채우기 투명도·그라데이션)을 처리했고 모두 검토·main 병합·`applied` 표시됨(0.20.1·0.20.3·0.21.2·0.21.4). 적용 절차는 `docs/server-admin.md` 9절(협업 세션 작성). 이어서 #7(표 font·colFont 글꼴 역할 적용)·#8(표 유형 선택)도 처리·병합·적용(0.21.10). 큐는 비어 있다. 카드 [적용됨]은 병합 커밋 해시를 기록한다. 2026-10-15 오전: 수동 세션 연결을 슬래시 명령 `/nexa-slide-server` 로(0.21.12~13), 수명·웹 [끊기]·모델 표시·오판 방지(0.21.14~16, 아래 12.2) — 협업 세션(nexa-slide-f4)과 개발 세션이 번갈아 수동 세션으로 큐를 맡아 봤고 정상. 요청 #9(글머리 번호 자동 감지)는 개발 세션이 수동 세션으로 받아 engine-dev 118340c → main bc9b3a8 병합·[적용됨](0.21.17) — 수동 세션 경로의 첫 실사용. 이어 사용자 요청으로 기호 감지·글머리 종류·도형·다이어그램(0.21.18~0.21.20)은 개발 브랜치에서 직접.
 
+최신(2026-10-30 · 0.25.19):
+- 수동 엔진 세션(`/nexa-slide-server`)이 요청 #14(시트 AI 변경 표시를 변경 탭에서 제어)를 처리했다(0.25.9).
+- 배포는 0.25.10 부터 시험을 기본으로 건너뛴다. 전체 시험은 배포 판 [시험도 돌리기]·`--tests` 로 켠다([engine-deploy-design.md](engine-deploy-design.md)).
+- 세션은 PATH 맨 앞의 `python3`·`python` 대리 파일로 서버의 파이썬을 쓴다(0.25.19 - Windows 스토어 대리 실행기가 앞에 있으면 `python3 nexa.py` 가 종료 코드 49 로 실패하던 것).
+
 ### 12.2 수동 엔진 세션 (2026-10-15)
 
 `studio/watch_engine_requests.py --stream`(Monitor) — 터미널 세션이 큐를 맡는다. 하트비트 `hub/engine/.studio/session.json`(kind=manual, label·pid·cwd·user), 1초마다 쓰고 끝나면 `stopped`. open 요청이 생기거나 바뀌면(`updated` 기준) `{"event":"request","item":{id,title,body,from,evidence,attachments,…},"open":n,"triage":n}`. 웹 엔진 세션(kind=engine)이 살아 있으면 `refused`(web-engine-session), 다른 수동 감시가 살아 있으면 `--takeover`. 허브 `/api/engine`·`/api/engine/notice`·`/api/home(/live)` 는 WS_ENGINE 이 꺼져 있을 때 이 하트비트를 보고 `state=manual` 로 알리며, `EngineProfile.check_start` 가 거절한다. 작업 공간(common)에 묶이지 않도록 `requests_core` 를 쓰지 않는다. 승인(triage→open)은 여전히 관리자가 카드에서 한다.
