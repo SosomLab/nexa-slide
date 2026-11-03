@@ -30,6 +30,22 @@ LOG = STATE / "server.log"
 START_LOCK = STATE / "start.lock"  # 시작 잠금 - 같은 작업 공간의 start 가 동시에 들어와도(허브 중계 자동 기동 + nexa.py restart) 하나만 띄운다
 
 
+def _console_python():
+    """서버는 python.exe(숨은 콘솔)로 띄운다 - pythonw.exe(자동 시작)로 불려도. 콘솔이 없는 서버가 git·powershell 같은
+    콘솔 프로그램을 부르면 그때마다 새 창이 열린다. 숨은 콘솔은 자식들이 물려받는다."""
+    exe = Path(sys.executable)
+    if exe.name.lower() == "pythonw.exe" and exe.with_name("python.exe").exists():
+        return str(exe.with_name("python.exe"))
+    return sys.executable
+
+
+def _windowless_python():
+    """자동 시작 작업이 실행할 파이썬 - pythonw.exe 라 로그온 때 콘솔 창이 뜨지 않는다(없으면 지금 파이썬)."""
+    exe = Path(sys.executable)
+    w = exe.with_name("pythonw.exe")
+    return str(w) if exe.name.lower() == "python.exe" and w.exists() else sys.executable
+
+
 def start(extra):
     STATE.mkdir(parents=True, exist_ok=True)
     with FileLock(START_LOCK, wait=25):  # 먼저 잡은 쪽이 서버를 띄우고 server.json 을 쓸 때까지 기다린다 - 뒤의 쪽은 "이미 실행 중" 을 본다
@@ -59,7 +75,7 @@ def _start(extra):
     else:
         env["NEXA_SLIDE_WORKSPACE"] = str(WORKSPACE)
         cwd = WORKSPACE
-    p = subprocess.Popen([sys.executable, str(STUDIO / "server.py"), *extra], cwd=str(cwd), env=env,
+    p = subprocess.Popen([_console_python(), str(STUDIO / "server.py"), *extra], cwd=str(cwd), env=env,
                          stdout=log, stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL, **kw)
     for _ in range(40):  # 최대 10초 — 포트가 열리고 server.json 이 쓰일 때까지
         time.sleep(0.25)
@@ -144,7 +160,8 @@ def autostart(arg, dry=False):
         return 1
     if arg == "on":
         # 작업 폴더는 사용자 폴더(작업 공간 밖) - 작업 공간 안이면 허브가 아니라 그 작업 공간 서버가 뜬다
-        script = (f"$a = New-ScheduledTaskAction -Execute {q(sys.executable)} -Argument {q(chr(34) + str(STUDIO / 'service.py') + chr(34) + ' start')}"
+        # pythonw.exe 로 등록 - python.exe 면 로그온 때마다 service.py 의 콘솔 창이 뜬다(서버는 _console_python 으로 숨은 콘솔)
+        script = (f"$a = New-ScheduledTaskAction -Execute {q(_windowless_python())} -Argument {q(chr(34) + str(STUDIO / 'service.py') + chr(34) + ' start')}"
                   f" -WorkingDirectory $env:USERPROFILE; "
                   f"$t = New-ScheduledTaskTrigger -AtLogOn -User $env:USERNAME; "
                   f"$s = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -ExecutionTimeLimit 0; "

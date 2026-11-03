@@ -36,6 +36,8 @@ def main():
         code, out = run("on", "--dry-run")
         check("on --dry-run - 로그온 시 실행·이 사용자·사용자 폴더·service.py start", code == 0 and "-AtLogOn -User $env:USERNAME" in out
               and "-WorkingDirectory $env:USERPROFILE" in out and "service.py\" start" in out and "Register-ScheduledTask -TaskName 'nexa-slide hub'" in out, out)
+        if Path(sys.executable).with_name("pythonw.exe").exists():
+            check("on --dry-run - pythonw.exe 로 등록(로그온 때 콘솔 창 없음)", "pythonw.exe'" in out.split("-Argument")[0], out)
         code, out = run("off", "--dry-run")
         check("off --dry-run - 작업 지우기", code == 0 and "Unregister-ScheduledTask -TaskName 'nexa-slide hub'" in out, out)
         code, out = run("status")
