@@ -11,6 +11,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from common import CONFIG, DECKS, DEFAULT_PORT, HUB, REFUSED, SERVER_INFO, WORKSPACE, running_server  # noqa: E402
 from watch_requests import session_status  # noqa: E402
+import tmpfiles  # noqa: E402
 
 
 def server_info():
@@ -24,12 +25,18 @@ def server_info():
         return {"running": False}
 
 
+def temp_status():
+    """OS 임시 폴더 항목 수 · 엔진 잔여물 수 · 경고(항목이 tmpfiles.WARN_COUNT 넘음)."""
+    n = tmpfiles.count()
+    return {"count": n, "leftovers": len(tmpfiles.leftovers()), "warn": n is not None and n > tmpfiles.WARN_COUNT}
+
+
 def main():
     sv, ss = server_info(), session_status()
     decks = sorted(p.stem for p in DECKS.glob("*.json") if not p.name.endswith(".requests.json"))
     out = {"workspace": "" if HUB else str(WORKSPACE), "mode": "hub" if HUB else "workspace",
            "title": "nexa-slide 시작 페이지" if HUB else CONFIG.get("title", WORKSPACE.name), "port": DEFAULT_PORT,
-           "server": sv, "session": ss, "decks": decks}
+           "server": sv, "session": ss, "decks": decks, "temp": temp_status()}
     if "--json" in sys.argv:
         print(json.dumps(out, ensure_ascii=False, indent=1))
         return
@@ -46,6 +53,10 @@ def main():
         print(f"세션      연결됨 — {ss['label']} (pid {ss['pid']}, {ss['age']}초 전) · 대기 {ss['open']} · 처리 중 {ss['working']}")
     else:
         print(f"세션      연결 없음{' — 마지막 ' + ss['last_seen'] if ss['last_seen'] else ''} · 대기 {ss['open']} · 처리 중 {ss['working']}")
+    tp = out["temp"]
+    if tp["count"] is not None:
+        warn = f" ⚠ {tmpfiles.WARN_COUNT}개 넘음 - 로그온이 느려질 수 있다(engine_tidy.py · docs/dev/temp-files-design.md)" if tp["warn"] else ""
+        print(f"임시 폴더  {tp['count']}개 · 엔진 잔여물 {tp['leftovers']}개{warn}")
 
 
 if __name__ == "__main__":
