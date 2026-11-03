@@ -168,7 +168,7 @@
 최신(2026-11-03):
 - 엔진 요청 #15(시트 변경 탭 - 셀이 많은 항목은 접어 종류별 개수·앞 6개만)를 처리·병합했다(10-31, 9cf2c1f).
 - 허브 자동 시작이 로그온마다 콘솔 창을 띄우던 것 - `autostart on` 이 `pythonw.exe` 로 등록하고, 서버는 숨은 콘솔의 `python.exe` 로 띄운다(34928f8). 이 PC 의 작업 'nexa-slide hub' 도 다시 등록했다.
-- `smoke.js` 가 Temp 에 헤드리스 Chrome 프로필을 남겨 2,000회 가까이 쌓였고 로그온이 4~5분 걸렸다 - 종료 때 지우게 고쳤다(818453f). 같은 종류의 누수 9곳(운영 코드 2곳 포함)을 찾아 고치고 예방 장치를 넣었다([temp-files-design.md](temp-files-design.md)): `studio/tmpfiles.py`(임시 폴더는 여기서만), `run_all` 누수 시험·시작 때 쓸어내기, 허브 시작 때 쓸어내기, `engine_tidy` `temp` 범주, `status.py` Temp 경고.
+- `smoke.js` 가 Temp 에 헤드리스 Chrome 프로필을 남겨 2,000회 가까이 쌓였고 로그온이 4~5분 걸렸다 - 종료 때 지우게 고쳤다(818453f). 같은 종류의 누수 9곳(운영 코드 2곳 포함)을 찾아 고치고 예방 장치를 넣었다([temp-files-design.md](temp-files-design.md)): `studio/tmpfiles.py`(임시 폴더는 여기서만), `run_all` 누수 시험·시작 때 쓸어내기, 허브 시작 때 쓸어내기, `engine_tidy` `temp` 범주, `status.py` Temp 경고(ee4ec52, 운영 허브 반영). 남은 것: `smoke.js` 전체 시간 제한(englist 가 한 번 17분 멈춤).
 
 ### 12.2 수동 엔진 세션 (2026-10-15)
 
