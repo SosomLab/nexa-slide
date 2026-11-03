@@ -4,13 +4,14 @@ on 이 만들 명령(로그온 시 실행·이 사용자·작업 폴더 = 사용
 import os
 import subprocess
 import sys
-import tempfile
 from pathlib import Path
 
 for _s in (sys.stdout, sys.stderr):
     _s.reconfigure(encoding="utf-8", errors="replace")
 HERE = Path(__file__).resolve().parent
 SERVICE = HERE.parent / "service.py"
+sys.path.insert(0, str(HERE.parent))
+import tmpfiles  # noqa: E402
 FAILS = []
 
 
@@ -45,10 +46,10 @@ def main():
         if ".claude" in SERVICE.parts and "worktrees" in SERVICE.parts:
             code, out = run("on")
             check("worktree 엔진에서는 켜지 않는다", code == 1 and "worktree" in out, out)
-    ws = Path(tempfile.mkdtemp(prefix="nexa-autostart-"))
-    (ws / "nexa-slide.json").write_text("{}", encoding="utf-8")
-    code, out = run("status", env={"NEXA_SLIDE_WORKSPACE": str(ws)}, cwd=ws)
-    check("작업 공간 안에서는 거절(허브만)", code == 1 and "허브만" in out, out)
+    with tmpfiles.temp_dir("autostart") as ws:
+        (ws / "nexa-slide.json").write_text("{}", encoding="utf-8")
+        code, out = run("status", env={"NEXA_SLIDE_WORKSPACE": str(ws)}, cwd=ws)
+        check("작업 공간 안에서는 거절(허브만)", code == 1 and "허브만" in out, out)
     print("\n실패:", FAILS or "없음")
     sys.exit(1 if FAILS else 0)
 

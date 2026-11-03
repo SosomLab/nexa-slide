@@ -10,15 +10,15 @@ import os
 import shutil
 import subprocess
 import sys
-import tempfile
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 STUDIO = HERE.parent
-WORK = Path(tempfile.mkdtemp(prefix="nexa-pptx-start-"))
+sys.path.insert(0, str(STUDIO))
+import tmpfiles  # noqa: E402
+WORK = tmpfiles.process_dir("pptx-start")  # 시험이 끝나면(실패여도) 지운다
 os.environ["NEXA_SLIDE_USER_DIR"] = str(WORK / "user")
 os.environ.pop("NEXA_SLIDE_WORKSPACE", None)
-sys.path.insert(0, str(STUDIO))
 FAILS = []
 
 

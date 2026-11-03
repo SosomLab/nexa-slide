@@ -4,10 +4,11 @@
     python3 studio/engine_tidy.py                       # 정리 대상 보고(지우지 않음)
     python3 studio/engine_tidy.py --apply [--only attach,scratch]   # 지운다(다시 생기거나 기록뿐인 것이라 옮겨 두지 않고 바로 지운다)
 
-정리 대상(category) - 모두 사용자 설정 폴더 hub/engine/ 와 엔진 <엔진>/.claude/worktrees/ 안:
+정리 대상(category) - 사용자 설정 폴더 hub/engine/ 와 엔진 <엔진>/.claude/worktrees/ 안(temp 만 OS 임시 폴더):
     attach    큐에 없는 요청의 attach/<id>/, 하루 넘게 요청에 붙지 않은 attach/_new/ 파일(engine_requests.tidy_scan)
     copy      엔진 worktree 의 .nexa/attach/<id>/ 중 끝난(done·applied·rejected)·없는 요청의 사본 - 세션에 보낼 때마다 다시 복사한다
     scratch   회귀 확인 사본 scratch/regress-*(--keep·지우기 실패로 남은 것)·풀다 남은 engine-*.zip, 쓰다 남은 *.tmp - 한 시간 지난 것만
+    temp      OS 임시 폴더(%TEMP%) 바로 아래 엔진·시험이 남긴 것(tmpfiles.PATTERNS - 다른 앱의 것은 건드리지 않는다) - 한 시간 지난 것만
     log       엔진 세션 턴 로그 .studio/sessions/<시각>/(최근 SESSION_KEEP 개 제외)·배포 로그 deploy-logs/*.log(최근 DEPLOY_LOG_KEEP 개 제외)
     worktree  배포가 죽어 남은 시험용 worktree(.claude/worktrees/deploy-*) - 배포 중이 아닐 때만
 큐(requests.json)·배포 기록(deploy.json)·시험 시간·기준 엔진 사본(scratch/engine-<해시>, engine_regress 가 3개로 줄인다)·.nexa/outbox(반영 전 status)는 손대지 않는다.
@@ -22,6 +23,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import engine_requests  # noqa: E402
+import tmpfiles  # noqa: E402
 from paths import ENGINE  # noqa: E402
 
 ENGINE_DIR = engine_requests.ENGINE_DIR
@@ -31,9 +33,10 @@ SCRATCH = ENGINE_DIR / "scratch"
 SESSIONS = ENGINE_DIR / ".studio" / "sessions"
 DEPLOY_LOGS = ENGINE_DIR / "deploy-logs"
 DEPLOY_STATE = ENGINE_DIR / "deploy.json"
-CATEGORIES = ("attach", "copy", "scratch", "log", "worktree")
-CAT_KO = {"attach": "고아 첨부", "copy": "worktree 첨부 사본", "scratch": "회귀 확인 사본·임시 파일", "log": "오래된 세션·배포 로그", "worktree": "남은 시험용 worktree"}
-DEFAULTS = ("attach", "copy", "scratch", "worktree")  # 로그는 문제를 되짚을 때 쓰므로 기본으로 고르지 않는다
+CATEGORIES = ("attach", "copy", "scratch", "temp", "log", "worktree")
+CAT_KO = {"attach": "고아 첨부", "copy": "worktree 첨부 사본", "scratch": "회귀 확인 사본·임시 파일", "temp": "OS 임시 폴더의 엔진 잔여물",
+          "log": "오래된 세션·배포 로그", "worktree": "남은 시험용 worktree"}
+DEFAULTS = ("attach", "copy", "scratch", "temp", "worktree")  # 로그는 문제를 되짚을 때 쓰므로 기본으로 고르지 않는다
 SESSION_KEEP = 10
 DEPLOY_LOG_KEEP = 20
 STALE_SECONDS = 3600  # 이보다 새것은 쓰는 중일 수 있어 건너뛴다
@@ -94,6 +97,11 @@ def scan():
         for p in sorted(ENGINE_DIR.glob("*.tmp")):
             if p.is_file() and _old(p):
                 items.append(_item(p, "scratch", "쓰다 남은 임시 파일(원자적 쓰기 중 끊김)"))
+    # 3-2. OS 임시 폴더 - 엔진·시험이 만들고 비정상 종료로 남긴 것(tmpfiles.PATTERNS, docs/dev/temp-files-design.md)
+    for name in sorted(tmpfiles.leftovers()):
+        p = tmpfiles.root() / name
+        if _old(p):
+            items.append(_item(p, "temp", "엔진·시험이 OS 임시 폴더에 남긴 것(비정상 종료) - 쌓이면 로그온이 느려진다"))
     deploying = _deploying()
     # 4. 로그 - 최근 것은 남긴다
     if SESSIONS.is_dir():
@@ -128,7 +136,7 @@ def _remove_worktree(p):
 def clean(categories=None):
     """scan 이 보고한 것 중 고른 범주를 지운다 → {moved, size, items, report}(moved 는 작업 공간 정리 화면과 같은 이름)."""
     cats = set(categories or DEFAULTS)
-    roots = [ENGINE_DIR.resolve(), WORKTREES.resolve()]
+    roots = [ENGINE_DIR.resolve(), WORKTREES.resolve(), tmpfiles.root().resolve()]
     done, size = [], 0
     for it in scan()["items"]:
         if it["category"] not in cats:
@@ -136,6 +144,8 @@ def clean(categories=None):
         p = Path(it["path"])
         if not any(r in p.resolve().parents for r in roots):  # 보고에서 온 경로지만 한 번 더 - 엔진 영역 밖은 지우지 않는다
             continue
+        if it["category"] == "temp" and (p.parent.resolve() != tmpfiles.root().resolve() or not p.name.startswith(tmpfiles.PATTERNS)):
+            continue  # 임시 폴더에서는 엔진이 만든 이름만, 바로 아래 것만
         try:
             if it["category"] == "worktree":
                 _remove_worktree(p)

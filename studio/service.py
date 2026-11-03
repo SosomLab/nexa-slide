@@ -47,6 +47,12 @@ def _windowless_python():
 
 
 def start(extra):
+    if HUB:  # 허브는 로그온 때 뜬다 - 비정상 종료로 Temp 에 남은 엔진 임시 파일(하루 넘은 것)을 그때 쓸어낸다(docs/dev/temp-files-design.md)
+        try:
+            import tmpfiles
+            tmpfiles.sweep()
+        except Exception:  # noqa: BLE001 - 정리는 덤, 시작을 막지 않는다
+            pass
     STATE.mkdir(parents=True, exist_ok=True)
     with FileLock(START_LOCK, wait=25):  # 먼저 잡은 쪽이 서버를 띄우고 server.json 을 쓸 때까지 기다린다 - 뒤의 쪽은 "이미 실행 중" 을 본다
         return _start(extra)

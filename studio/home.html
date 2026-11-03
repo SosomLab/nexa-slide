@@ -1001,7 +1001,7 @@
       : banner ? ""
       : `<button type="button" class="svc" data-eng="start" title="엔진 요청 큐를 처리하는 개발 세션을 띄웁니다(엔진 worktree, 관리자)">${icon("play", 14)}세션 시작</button>`;
     else if (on) btn = `<button type="button" class="chip sm" data-eng="progress">진행</button>`;
-    if (admin) btn += `<button type="button" class="ib" data-eng="tidy" title="엔진 개발 영역 정리 - 고아 첨부·worktree 첨부 사본·회귀 확인 사본·오래된 로그·남은 시험용 worktree" style="height:24px;min-width:24px;padding:0 4px;font-size:13px">🧹</button>`;
+    if (admin) btn += `<button type="button" class="ib" data-eng="tidy" title="엔진 개발 영역 정리 - 고아 첨부·worktree 첨부 사본·회귀 확인 사본·OS 임시 폴더 잔여물·오래된 로그·남은 시험용 worktree" style="height:24px;min-width:24px;padding:0 4px;font-size:13px">🧹</button>`;
     if (admin) btn += `<button type="button" class="ib" data-eng="manualhow" title="터미널의 Claude Code 세션이 큐를 맡게 하는 방법(숨김 메뉴)" style="height:24px;min-width:24px;padding:0 4px">⋯</button>`;
     $("#engSess").innerHTML = `${btn}<span class="rdesc">${line}</span>`;
     // 배너 - 처리·승인 대기가 있는데 세션이 꺼져 있으면(관리자: 시작 버튼 · 일반: 관리자에게 시작 요청)

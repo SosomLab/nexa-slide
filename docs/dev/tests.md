@@ -33,6 +33,7 @@ NEXA_TEST_DIR=/tmp/nexa-tests python3 studio/tests/run_all.py   # 산출물 자�
 | tplrec | `template_rec_test.py` + `scenarios/tplrec_test.json` | 0.25.15 - 템플릿 추천: 점수(사용·미리 보기·비슷한 색 순서, 중복 묶음), 시작 페이지 추천 7개 + 회사 템플릿 만들기 + 더 보기(양식·템플릿 탭) | - |
 | pptstart | `pptx_start_test.py` | 0.25.14 - PPT 파일로 시작: 계획(`--pptx-import`, 시작용 내용 빠짐·이상한 이름 무시·시트 제외), 만들기(가져온 덱이 첫 덱·content 원본 없음), 시작용 교안과 함께면 거절 | python-pptx |
 | pyshim | `py_shims_test.py` | 0.25.19 - 세션 PATH 맨 앞 python3·python 대리 파일(procutil.py_shims): cmd·PowerShell·Git Bash 에서 python3 = 서버의 파이썬 | - |
+| tmpfiles | `tmpfiles_test.py` | 임시 파일(`tmpfiles.py`): `temp_dir` 정상·예외 모두 지움, `process_dir` 프로세스 끝에 지움, `leftovers`·`sweep` 은 엔진 이름·하루 넘은 것만(다른 앱 `nexa-*` 제외), `engine_tidy` `temp` 범주 보고·지움, `status.py --json` 의 `temp` | - |
 | sheetfont | `sheet_font_test.py` + `scenarios/sheetfont_test.json` | 0.25.18 - 시트 글꼴: 문서 fontPreset → xlsx 기본 글꼴, 셀 font(역할 mono·heading·이름) → 글꼴 이름, 세트 없으면 엑셀 기본, 가져오기 칸 글꼴. 화면: 글꼴 상자·문서 글꼴 세트 칩 | - |
 | vbasafe | `vba_safety_test.py` | 0.25.8 - VBA 보안: 위험 코드 검사 화면(vba.js)·Python 같은 결과, 내보내기는 늘 소스로 다시 쓴 프로젝트(p-code·`__SRP_` 버림, 판 0xFFFF), `--no-macros` → .xlsx, 깨진 프로젝트는 매크로 없이(시험 안에서 만든 프로젝트) | Node |
 | (수동) xlsm_crosscheck | `xlsm_crosscheck.py <원본.xlsm> [--keep 폴더] [--no-excel]` | 0.25.2~ - 가져오기 → Python·JS(+VBA) 계산 = 엑셀 저장값 → 내보내기 → 다시 가져오기(문서 같음) → VBA 모듈 소스 · 칸 서식(`xlsx_styles.py`) · 엑셀이 있으면 원본·저장본을 COM 으로 다시 계산해 수식·값·숨김·필터·이름·그림·열 너비·행 높이 대조(`xlsm_dump.ps1`), VBA 고친 판을 엑셀이 계산하는지까지. 원본은 읽기만 | Node, (엑셀은 선택) |
@@ -65,4 +66,6 @@ NEXA_TEST_DIR=/tmp/nexa-tests python3 studio/tests/run_all.py   # 산출물 자�
 
 **시험 잠금(0.22.41)**: 시험들은 고정 포트(5799·5667·9333 등)와 같은 임시 폴더를 쓰므로 둘이 동시에 돌면 서로의 서버에 물어 엉뚱하게 실패한다(엔진 배포 ↔ 엔진 세션). 그래서 이 PC 에서 시험 실행은 한 번에 하나다 - `run_all.py` 와 각 시험 파일이 머리에서 `import testlock` 으로 `<임시 폴더>/nexa-slide-tests.lock` 을 잡고, 잡혀 있으면 `== 대기 · …` 를 찍고 기다린다(최대 `NEXA_TEST_LOCK_WAIT` 초, 기본 2400). 잡은 프로세스가 죽으면 저절로 풀린다.
 
-시험을 더하려면: `studio/tests/<이름>_test.py` 를 만들고(머리는 `e4_manual_stop_test.py` 를 본뜬다 — `STUDIO = parents[1]`, `WORK`/`USER`/`PROJ`, `check()`, **`import testlock`**), `run_all.py` 의 `TESTS` 에 한 줄 넣는다. OS 임시 폴더에 만든 것은 시험이 끝날 때 지운다 - 남으면 Temp 에 쌓여 로그온이 느려진다([temp-files-design.md](temp-files-design.md)).
+시험을 더하려면: `studio/tests/<이름>_test.py` 를 만들고(머리는 `e4_manual_stop_test.py` 를 본뜬다 — `STUDIO = parents[1]`, `WORK`/`USER`/`PROJ`, `check()`, **`import testlock`**), `run_all.py` 의 `TESTS` 에 한 줄 넣는다. OS 임시 폴더는 `tmpfiles.temp_dir(prefix)`(with 블록) 또는 `tmpfiles.process_dir(prefix)`(끝날 때 지움)로만 만든다 - 직접 `mkdtemp` 금지, 그 안의 파일은 닫고 끝낸다.
+
+**임시 파일 누수 시험**: `run_all.py` 가 시험마다 전후로 Temp 의 엔진 이름(`tmpfiles.PATTERNS`)을 비교해 새로 남은 것이 있으면 `FAIL 임시 파일 누수 …` 로 그 시험을 실패로 하고 지운다. 시작 때는 하루 넘은 잔여물을 쓸어낸다. Temp 에 쌓이면 로그온이 느려진다(smoke.js 프로필 2,000개 → 4~5분, [temp-files-design.md](temp-files-design.md)).

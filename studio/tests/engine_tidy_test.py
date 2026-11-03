@@ -4,7 +4,6 @@ worktree 자리는 임시 폴더로 바꿔 끼워 scan 보고(남길 것은 빠�
 import json
 import os
 import sys
-import tempfile
 import time
 from pathlib import Path
 
@@ -12,9 +11,10 @@ import testlock  # noqa: F401 - 이 PC 에서 시험은 한 번에 하나(고정
 for _s in (sys.stdout, sys.stderr): _s.reconfigure(encoding="utf-8", errors="replace")
 HERE = Path(__file__).resolve().parent
 STUDIO = HERE.parent
-WORK = Path(tempfile.mkdtemp(prefix="nexa-engine-tidy-"))
-os.environ["NEXA_SLIDE_USER_DIR"] = str(WORK / "user")
 sys.path.insert(0, str(STUDIO))
+import tmpfiles  # noqa: E402
+WORK = tmpfiles.process_dir("engine-tidy")  # 시험이 끝나면 지운다
+os.environ["NEXA_SLIDE_USER_DIR"] = str(WORK / "user")
 import engine_requests  # noqa: E402
 import engine_tidy as et  # noqa: E402
 FAILS = []

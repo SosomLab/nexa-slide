@@ -30,33 +30,38 @@
 ## 4. 예방 설계
 
 **① 임시 폴더는 한 가지 방법으로만**
-- `common.py` 에 `temp_dir(prefix)` context manager 를 둔다. 이름은 늘 `nexa-<prefix>-`.
+- `studio/tmpfiles.py` 에 `temp_dir(prefix)` context manager 를 둔다. 이름은 늘 `nexa-slide-tmp-<prefix>-`.
+  - `common.py` 가 아니라 따로 둔 까닭: common 은 불러오기만 해도 작업 공간을 찾고 설정·템플릿을 읽는다(시험 머리에서 부르면 동작이 바뀐다).
+  - 접두사를 `nexa-` 가 아니라 `nexa-slide-tmp-` 로: 이 PC 의 다른 Nexa 앱(NexaCoffee·NexaClip …)이 만든 `nexa-*` 를 쓸어내지 않게. 예전 이름(`nexa-vba-` 등)은 `tmpfiles.PATTERNS` 에 하나씩 적어 둔다.
+- 모듈 머리에서 만들어 환경 변수로 넘기는 시험용 폴더는 `process_dir(prefix)` - 프로세스가 끝날 때(atexit) 지운다. 그 안의 파일을 연 채(zipfile 등) 끝나면 Windows 에서 지우지 못하므로 `with` 로 닫는다.
 - 블록이 끝나면 지운다(Windows 에서 파일을 쥐고 있으면 다시 시도, 끝내 실패하면 경고만).
 - 3절의 곳을 모두 이것으로 바꾼다. 값을 돌려주는 함수(`source_project`)는 호출부(`export`)가 `with` 로 감싼다.
 - `smoke.js` 는 Node 라 그대로 두되 접두사 규칙(`nx-smoke-`)을 지킨다.
 
 **② 비정상 종료로 남은 것 쓸어내기**
-- `run_all.py` 시작 때와 허브 `service.py start` 때 Temp 의 `nexa-*`·`nx-smoke-*` 중 **하루 넘게 지난 것**을 지운다.
-- 지우지 못하는 것(사용 중)은 건너뛴다. `nexa-slide-tests`·`nexa-slide-tests.lock` 은 빼고 지운다.
+- `run_all.py` 시작 때와 허브 `service.py start` 때(로그온 자동 시작 포함) `tmpfiles.sweep()` - Temp 바로 아래 `tmpfiles.PATTERNS` 이름 중 **하루 넘게 지난 것**을 지운다.
+- 지우지 못하는 것(사용 중)은 건너뛴다. 실행마다 다시 쓰는 `nexa-slide-tests`·`nexa-slide-tests.lock` 은 이름이 달라 대상이 아니다.
 
 **③ 누수 시험 - 재발 방지의 핵심**
-- `run_all.py` 가 각 시험 전후 Temp 의 `nexa-*`·`nx-*` 목록을 비교해, 새로 남은 것이 있으면 그 시험 이름과 함께 FAIL 로 처리한다.
+- `run_all.py` 가 각 시험 전후 `tmpfiles.leftovers()` 를 비교해, 새로 남은 것이 있으면 `FAIL 임시 파일 누수 …` 를 찍고 그 시험을 실패로 처리한다(남은 것은 지운다). 방금 끝난 자식이 지우는 중일 수 있어 2초까지 다시 본다.
+- 처음 돌렸을 때 바로 하나를 잡았다: `sheet_roundtrip_test` 가 `zipfile.ZipFile` 을 닫지 않아 끝날 때 임시 폴더를 지우지 못했다(with 로 고침).
 - 배포는 0.25.10 부터 시험을 기본으로 건너뛴다 - 이 시험은 `run_all` 과 배포 [시험도 돌리기]·`--tests` 에서 걸린다. 엔진 요청 처리의 검증 단계에서 `run_all` 을 돌릴 때 함께 확인된다.
 
 **④ 눈에 보이게**
-- `engine_tidy.py` 범주에 "Temp 의 nexa 잔여물"을 더한다(보고 → 고른 범주만 지움, 기존 흐름 그대로).
-- 허브 상태에 Temp 항목 수를 보이고 500개를 넘으면 경고한다 - 이번처럼 로그온이 느려진 뒤에야 알게 되는 것을 막는다.
+- `engine_tidy.py` 범주 `temp`(OS 임시 폴더의 엔진 잔여물, 한 시간 지난 것, 기본 선택) - 시작 페이지 서버 요청 카드의 🧹 창에 그대로 나온다. 지울 때 한 번 더 Temp 바로 아래·엔진 이름인지 본다.
+- `status.py` 에 `임시 폴더  <항목 수>개 · 엔진 잔여물 <n>개` 줄(`--json` 은 `temp`), 항목이 `tmpfiles.WARN_COUNT`(500)를 넘으면 ⚠ - 이번처럼 로그온이 느려진 뒤에야 알게 되는 것을 막는다.
+- `python3 studio/tmpfiles.py` 로 지금 남은 것을 보고, `python3 studio/tmpfiles.py sweep` 로 쓸어낸다.
 
 **⑤ 규칙으로 적기**
-- CLAUDE.md: "임시 파일·폴더는 `common.temp_dir` 만 - 직접 `mkdtemp` 금지(누수 시험이 잡는다)."
+- CLAUDE.md: "임시 파일·폴더는 `tmpfiles.temp_dir`/`process_dir` 만 - 직접 `mkdtemp` 금지(누수 시험이 잡는다)."
 - `docs/dev/tests.md` "시험을 더하려면" 에 같은 줄.
 
 ## 5. 진행
 
 - [x] smoke.js 프로필 삭제(818453f) · 확인
 - [x] 점검(3절) · 설계(4절) - 이 문서
-- [ ] ① `common.temp_dir` · 3절 9곳 바꾸기
-- [ ] ② 오래된 잔여물 쓸어내기
-- [ ] ③ 누수 시험
-- [ ] ④ engine_tidy 범주 · 허브 경고
-- [ ] ⑤ CLAUDE.md · tests.md 규칙
+- [x] ① `tmpfiles.temp_dir`·`process_dir` · 3절 9곳 바꾸기(운영 2곳: `export_xlsx.export` 가 VBA 자리를 `with` 로, `sheet_import.import_drawings` 가 도형 PNG 자리를 `with` 로)
+- [x] ② 오래된 잔여물 쓸어내기(`run_all` 시작 · 허브 `start`)
+- [x] ③ 누수 시험(`run_all`) · `tmpfiles_test`
+- [x] ④ engine_tidy `temp` 범주 · `status.py` 경고
+- [x] ⑤ CLAUDE.md · tests.md 규칙
