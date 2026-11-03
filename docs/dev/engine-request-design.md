@@ -165,6 +165,11 @@
 - 배포는 0.25.10 부터 시험을 기본으로 건너뛴다. 전체 시험은 배포 판 [시험도 돌리기]·`--tests` 로 켠다([engine-deploy-design.md](engine-deploy-design.md)).
 - 세션은 PATH 맨 앞의 `python3`·`python` 대리 파일로 서버의 파이썬을 쓴다(0.25.19 - Windows 스토어 대리 실행기가 앞에 있으면 `python3 nexa.py` 가 종료 코드 49 로 실패하던 것).
 
+최신(2026-11-03):
+- 엔진 요청 #15(시트 변경 탭 - 셀이 많은 항목은 접어 종류별 개수·앞 6개만)를 처리·병합했다(10-31, 9cf2c1f).
+- 허브 자동 시작이 로그온마다 콘솔 창을 띄우던 것 - `autostart on` 이 `pythonw.exe` 로 등록하고, 서버는 숨은 콘솔의 `python.exe` 로 띄운다(34928f8). 이 PC 의 작업 'nexa-slide hub' 도 다시 등록했다.
+- `smoke.js` 가 Temp 에 헤드리스 Chrome 프로필을 남겨 2,000회 가까이 쌓였고 로그온이 4~5분 걸렸다 - 종료 때 지우게 고쳤다(818453f). 같은 종류의 누수 9곳(운영 코드 2곳 포함)을 찾았고 예방 설계는 [temp-files-design.md](temp-files-design.md) - 구현은 아직.
+
 ### 12.2 수동 엔진 세션 (2026-10-15)
 
 `studio/watch_engine_requests.py --stream`(Monitor) — 터미널 세션이 큐를 맡는다. 하트비트 `hub/engine/.studio/session.json`(kind=manual, label·pid·cwd·user), 1초마다 쓰고 끝나면 `stopped`. open 요청이 생기거나 바뀌면(`updated` 기준) `{"event":"request","item":{id,title,body,from,evidence,attachments,…},"open":n,"triage":n}`. 웹 엔진 세션(kind=engine)이 살아 있으면 `refused`(web-engine-session), 다른 수동 감시가 살아 있으면 `--takeover`. 허브 `/api/engine`·`/api/engine/notice`·`/api/home(/live)` 는 WS_ENGINE 이 꺼져 있을 때 이 하트비트를 보고 `state=manual` 로 알리며, `EngineProfile.check_start` 가 거절한다. 작업 공간(common)에 묶이지 않도록 `requests_core` 를 쓰지 않는다. 승인(triage→open)은 여전히 관리자가 카드에서 한다.
