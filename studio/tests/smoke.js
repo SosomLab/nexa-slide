@@ -10,7 +10,14 @@ const CHROME = "C:/Program Files/Google/Chrome/Application/chrome.exe";
 const PORT = 9333 + Math.floor(Math.random() * 2000);  // 실행마다 다른 디버그 포트 - 앞선 실행의 Chrome 이 남아 있으면 그 창에 붙어 엉뚱한 상태로 시작하던 것
 const FILES = process.argv.slice(2);
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-const UNTIL = "const until = async (f, ms = 5000) => { const t0 = Date.now(); for (;;) { let v; try { v = await f(); } catch (e) { v = false; } if (v) return v; if (Date.now() - t0 > ms) return false; await new Promise((r) => setTimeout(r, 50)); } };";
+// 시간 상한 - 멈춘 페이지·응답 없는 Chrome 에 run_all·배포가 붙잡히지 않게(docs/dev/temp-files-design.md 6절). 넘으면 FAIL TIMEOUT 줄을 찍고 다음으로 간다.
+//   단계: step.timeout(ms, 기본 NX_SMOKE_STEP_SEC 또는 90초) · 시나리오: 시나리오의 timeout(초, 기본 NX_SMOKE_SCENARIO_SEC 또는 240초)
+//   시나리오가 두 번 시간을 넘기면 Chrome 이 죽은 것으로 보고 남은 시나리오는 돌지 않고 FAIL 로 적는다.
+const STEP_MS = (Number(process.env.NX_SMOKE_STEP_SEC) || 90) * 1000;
+const SCENARIO_MS = (Number(process.env.NX_SMOKE_SCENARIO_SEC) || 240) * 1000;
+const TIMEOUT = Symbol("timeout");
+const within = (promise, ms) => { let t; return Promise.race([promise, new Promise((r) => { t = setTimeout(() => r(TIMEOUT), ms); })]).finally(() => clearTimeout(t)); };
+const UNTIL ="const until = async (f, ms = 5000) => { const t0 = Date.now(); for (;;) { let v; try { v = await f(); } catch (e) { v = false; } if (v) return v; if (Date.now() - t0 > ms) return false; await new Promise((r) => setTimeout(r, 50)); } };";
 
 async function main() {
   const prof = fs.mkdtempSync(path.join(require("os").tmpdir(), "nx-smoke-"));
@@ -21,7 +28,7 @@ async function main() {
     for (let i = 0; i < 100 && !ver; i++) { try { ver = await (await fetch(`http://127.0.0.1:${PORT}/json/version`)).json(); } catch (e) { /* 아직 안 떴다 */ } if (!ver) await sleep(200); }
     if (!ver) throw new Error("Chrome 디버그 포트가 열리지 않았다");
     const ws = new WebSocket(ver.webSocketDebuggerUrl);
-    await new Promise((r) => (ws.onopen = r));
+    if ((await within(new Promise((r, j) => { ws.onopen = r; ws.onerror = () => j(new Error("Chrome 디버그 소켓 연결 실패")); }), 20000)) === TIMEOUT) throw new Error("Chrome 디버그 소켓이 20초 안에 열리지 않았다");
     let id = 0; const pending = {}; const handlers = {};
     ws.onmessage = (m) => {
       const d = JSON.parse(m.data);
@@ -29,8 +36,14 @@ async function main() {
       if (d.sessionId && handlers[d.sessionId]) handlers[d.sessionId](d);
     };
     const send = (method, params = {}, sessionId) => new Promise((r) => { const i = ++id; pending[i] = r; ws.send(JSON.stringify({ id: i, method, params, ...(sessionId ? { sessionId } : {}) })); });
+    let timeouts = 0;
     for (const f of FILES) {
-      const t0 = Date.now(); const fails = await runScenario(f, send, handlers);
+      if (timeouts >= 2) { total++; console.log(`\nFAIL ${path.basename(f)} - 앞선 시나리오가 두 번 시간을 넘겨 돌지 않았다\n## RESULT ${path.basename(f)} FAIL 1 0.0초`); continue; }
+      const t0 = Date.now(); const at = { where: "시작 전" };
+      let limit = SCENARIO_MS; try { limit = (Number(JSON.parse(fs.readFileSync(f, "utf8")).timeout) * 1000) || SCENARIO_MS; } catch (e) { /* 읽기 오류는 runScenario 가 낸다 */ }
+      const run = runScenario(f, send, handlers, at); run.catch(() => {});  // 시간을 넘긴 뒤 늦게 나는 오류가 처리 안 된 거부로 프로세스를 죽이지 않게
+      let fails = await within(run, limit);
+      if (fails === TIMEOUT) { timeouts++; fails = 1; console.log(`FAIL TIMEOUT ${path.basename(f)} - ${limit / 1000}초를 넘김 (멈춘 곳: ${at.where})`); }
       total += fails;
       console.log(`\n## RESULT ${path.basename(f)} ${fails ? "FAIL" : "OK"} ${fails} ${((Date.now() - t0) / 1000).toFixed(1)}초`);
     }
@@ -46,7 +59,7 @@ async function main() {
   process.exit(total ? 1 : 0);
 }
 
-async function runScenario(file, bsend, handlers) {
+async function runScenario(file, bsend, handlers, at = {}) {
   const sc = JSON.parse(fs.readFileSync(file, "utf8"));
   let fails = 0;
   const ctx = (await bsend("Target.createBrowserContext", { disposeOnDetach: true })).result.browserContextId;
@@ -66,8 +79,9 @@ async function runScenario(file, bsend, handlers) {
     else if (d.method === "Network.requestWillBeSent" && p.type !== "EventSource") { inflight.set(p.requestId, Date.now()); lastNet = Date.now(); }
     else if (d.method === "Network.loadingFinished" || d.method === "Network.loadingFailed") { if (inflight.delete(p.requestId)) lastNet = Date.now(); }
   };
-  const evalJs = async (js) => {
-    const r = await send("Runtime.evaluate", { expression: `(async () => { ${UNTIL} ${js.includes("return") ? js : "return (" + js + "\n)"}\n})()`, awaitPromise: true, returnByValue: true });
+  const evalJs = async (js, ms = STEP_MS) => {
+    const r = await within(send("Runtime.evaluate", { expression: `(async () => { ${UNTIL} ${js.includes("return") ? js : "return (" + js + "\n)"}\n})()`, awaitPromise: true, returnByValue: true }), ms);
+    if (r === TIMEOUT) throw new Error(`TIMEOUT ${ms / 1000}초 안에 끝나지 않았다`);
     if (r.result.exceptionDetails) throw new Error(r.result.exceptionDetails.exception?.description || r.result.exceptionDetails.text);
     return r.result.result.value;
   };
@@ -91,7 +105,7 @@ async function runScenario(file, bsend, handlers) {
       if (sameDoc) await sleep(300);
       for (let i = 0; i < 200; i++) {
         let ready = false;
-        try { ready = await evalJs(`${sameDoc ? "" : "!window.__nxOld && "}document.readyState === "complete" && (!document.querySelector("#host") || !!document.querySelector("#host .rs-slide, #host .empty, #host .rs-el"))`); } catch (e) { ready = false; }
+        try { ready = await evalJs(`${sameDoc ? "" : "!window.__nxOld && "}document.readyState === "complete" && (!document.querySelector("#host") || !!document.querySelector("#host .rs-slide, #host .empty, #host .rs-el"))`, 5000); } catch (e) { ready = false; }
         if (ready) break;
         await sleep(100);
       }
@@ -103,11 +117,13 @@ async function runScenario(file, bsend, handlers) {
     }
     for (const p of sc.pages) {
       errors.length = 0;
+      at.where = `${p.url} 진입`;
       const t0 = Date.now(); await nav(sc.base + p.url); await sleep(150); await settle(p.wait || 1500);
       console.log(`\n== ${p.url} (진입 ${((Date.now() - t0) / 1000).toFixed(1)}초)`);
       for (const s of p.steps || []) {
         let v, err = null;
-        try { v = await evalJs(s.js); } catch (e) { err = e.message; }
+        at.where = `${p.url} · ${s.name.trim()}`;
+        try { v = await evalJs(s.js, Number(s.timeout) || STEP_MS); } catch (e) { err = e.message; }
         if (s.wait) await sleep(s.wait);
         if (s.shot) {  // 단계 뒤 화면을 PNG 로 남긴다(사람이 보는 점검용) - {shot: "<파일 경로>"}
           try { const r = await send("Page.captureScreenshot", { format: "png" }); fs.writeFileSync(s.shot, Buffer.from(r.result.data, "base64")); console.log(`     화면 → ${s.shot}`); } catch (e) { console.log(`     화면 저장 실패: ${e.message}`); }
