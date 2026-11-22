@@ -1,5 +1,32 @@
 # 변경 이력
 
+## 0.25.22 - 2026-11-22 · VBA 위험 경고 보강 · 파이썬 경고
+
+- **VBA 위험 경고 목록**(`vba.js` RISKS - 화면 코드 창·가져오기·내보내기가 같이 쓴다)에 세 가지를 더했다. 실행기의 차단 동작은 그대로다(원래 이 셋도 돌지 않는다).
+  - 파일 이름 바꾸기 `Name <원래> As <새 이름>`: 문장 머리의 Name 문만 잡는다(`Dim Name`·`Name =`·`.Name`·`Name:=` 는 아님).
+  - 폴더 파일 목록 `Dir(…)` · 환경 변수 `Environ(…)`: 함수로 부를 때만 잡는다(`myDir`·`obj.Dir()`·`environment` 는 아님).
+  - 쓰기 계열 `Open … For Output/Append/Binary/Random` 은 이미 있었다.
+- `procutil.py` 문서 문자열의 `\p` 가 SyntaxWarning(파이썬 3.12 부터) 이던 것을 고쳤다. 뜻은 같다.
+- 시험: `vba_safety_test`(run_all `vbasafe`) 위험 낱말 사례 +5.
+
+## 0.25.21 - 2026-11-22 · 엑셀 가져오기 매크로 차단 · smoke 시간 상한
+
+- **보안 - xlsm 을 가져오면 그 파일의 매크로가 서버 PC 에서 돌 수 있었다.**
+  - 원인: 도형을 PNG 로 떠낼 때(`xlsx_shapes.ps1`, Windows + Excel) Excel 을 자동화로 띄워 파일을 연다. 자동화로 연 문서는 매크로가 기본으로 켜져 `Workbook_Open` 이 돌았다.
+  - 고침: 열기 전에 `AutomationSecurity = 3`(강제로 끔)·`EnableEvents = false`. 도형을 떠내는 데는 매크로가 필요 없다.
+  - 확인: 열 때 표식 파일을 쓰는 xlsm 으로 시험했다. 고치기 전에는 표식이 생겼고, 고친 뒤에는 생기지 않는다. 테이블 정의서의 도형 PNG 13개·shapes.json 은 고치기 전과 바이트까지 같다.
+- **`smoke.js` 시간 상한**: 멈춘 페이지·응답 없는 Chrome 에 `run_all`·배포 시험이 붙잡히던 것.
+  - 단계 상한: 기본 90초, `NX_SMOKE_STEP_SEC` 나 단계 `timeout`(ms)으로 바꾼다.
+  - 시나리오 상한: 기본 240초, `NX_SMOKE_SCENARIO_SEC` 나 시나리오 `timeout`(초)으로 바꾼다. 넘으면 `FAIL TIMEOUT <파일> - n초를 넘김 (멈춘 곳: …)`.
+  - 두 번 넘기면 남은 시나리오는 돌지 않고 FAIL 로 적는다.
+- `run_all` 요약이 끝 12줄 밖의 `FAIL` 줄도 보인다 - 실패 뒤에 OK 가 길게 이어지면 "실패 2" 만 남고 어느 단계인지 안 보이던 것.
+
+## 0.25.20 - 2026-11-22 · PDF 내장 읽개(엔진 요청 #16)
+
+- **PDF 첨부를 추가 설치 없이 읽는다**(`import_doc` - `studio/pdf_text.py`, 표준 라이브러리만): 쪽별 글·책갈피·JPEG 그림.
+  - 전에는 PyMuPDF·pypdf 가 없으면 읽지 못했다. 읽는 순서는 PyMuPDF(글·표·그림) → pypdf(글만) → 내장 읽개다. 내장 읽개는 암호 PDF·표 구조를 못 하고, 표는 줄글로 나온다.
+  - 원 요청: 영어독해 작업 공간 세션이 PDF 첨부를 읽지 못해 넘긴 엔진 요청.
+
 ## 0.25.19 - 2026-10-30 · 세션의 python3 · 엑셀 문서 글꼴 회귀
 
 - **웹 세션에서 `python3 nexa.py` 가 실행되지 않던 것**(종료 코드 49):
