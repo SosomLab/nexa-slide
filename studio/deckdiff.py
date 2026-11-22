@@ -138,6 +138,8 @@ def diff_deck(old, new):
             if e.get("id") not in ne:
                 els.append({"id": e.get("id"), "kinds": ["삭제"], "before": _label(e), "after": "", "gone": True})
         extra = []
+        if [e.get("id") for e in (o.get("elements") or []) if e.get("id") in ne] != [e.get("id") for e in (s.get("elements") or []) if e.get("id") in oe]:
+            extra.append("요소 순서")  # 겹침 순서(앞으로·뒤로) - 요소 값은 그대로라 els 에는 안 잡힌다
         if canon(o.get("notes") or "") != canon(s.get("notes") or ""):
             extra.append("노트")
         for k, name in (("layout", "레이아웃"), ("bg", "바탕"), ("part", "부")):

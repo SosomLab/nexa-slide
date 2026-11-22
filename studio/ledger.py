@@ -180,6 +180,14 @@ def read(deck):
     return entries
 
 
+def last_write(deck):
+    """파일을 쓴 마지막 줄(종류 무관 - change · quiet · touch). 지금 파일이 원장의 끝과 같은지 볼 때."""
+    for e in reversed(read(deck)):
+        if (e.get("after") or {}).get("hash"):
+            return e
+    return None
+
+
 def tail(deck, n=5):
     return read(deck)[-n:]
 
@@ -266,9 +274,9 @@ def record(deck, old_obj, before, new_obj, after, origin, confidence, action, ac
     else:
         items = deckdiff.diff_deck(old_obj or {"slides": []}, new_obj or {"slides": []}) if old_obj is not None else None
         fields = deckdiff.deck_fields(old_obj or {}, new_obj or {}) if old_obj is not None else []
-        if items is not None and not items and not fields and before.get("hash"):
-            return None  # 글자 하나 안 바뀜(공백·키 순서만 다름)
-        kind = "change"
+        # 항목으로 잡히는 것이 없어도(공백·키 순서·저장 시각만 다름) 파일 해시가 바뀌었으면 줄은 남긴다 - 안 그러면 원장의 사슬(앞 줄 결과 = 다음 줄 시작)이 끊긴다.
+        # kind "quiet" 는 변경 탭·last_change 에 나오지 않고 원장 재생(verify)만 본다
+        kind = "quiet" if items is not None and not items and not fields and before.get("hash") else "change"
     entry = {"ts": ts, "kind": kind, "origin": origin, "confidence": confidence, "action": action,
              "actor": {"label": "", "tab": None, "request": None, "note": None, **(actor or {})},
              "before": before, "after": after,
@@ -307,7 +315,7 @@ def verify(deck):
       끝     마지막 줄의 after.hash == 지금 파일의 해시
     통째·병합 저장은 보낸 문서가 원장에 없어 재생하지 못한다 - 사슬·백업으로만 확인한다."""
     import deckops
-    entries = [e for e in read(deck) if e.get("kind", "change") == "change"]
+    entries = [e for e in read(deck) if (e.get("after") or {}).get("hash")]  # change · quiet · touch - 파일을 쓴 줄 전부
     hdir = path(deck).parent
     res = {"deck": deck, "entries": len(entries), "chain": {"ok": 0, "broken": 0}, "backup": {"ok": 0, "bad": 0, "missing": 0},
            "replay": {"ok": 0, "bad": 0, "skipped": 0}, "end": None, "problems": []}

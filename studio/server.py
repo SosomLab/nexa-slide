@@ -266,7 +266,7 @@ def track(i):
     data, obj = _load(p)
     if obj is None:
         return
-    last = ledger.last_change(i)
+    last = ledger.last_write(i)  # 항목 없는 쓰기(quiet)까지 - 그것을 빼면 그런 저장 뒤 서버를 켤 때마다 "꺼진 사이 바뀜" 으로 본다
     want = (last.get("after") or {}).get("hash") if last else None
     if want and want != ledger.sha256(data):
         before_obj, bname = None, None
@@ -1383,7 +1383,7 @@ class H(BaseHTTPRequestHandler):
         with WRITE_LOCK:
             track(i)
         # replay(작업 목록 그대로·행·열 작업)는 원장 재생용이라 화면에 보내지 않는다 - 작업 저장 한 줄마다 최대 8KB 가 목록 응답에 실린다
-        entries = [{k: v for k, v in e.items() if k != "replay"} if "replay" in e else e for e in ledger.read(i)]
+        entries = [{k: v for k, v in e.items() if k != "replay"} if "replay" in e else e for e in ledger.read(i) if e.get("kind") != "quiet"]  # quiet = 항목 없는 쓰기(사슬용)
         hdir = DECKS / ".history" / i
 
         def g1(k, d=None):
