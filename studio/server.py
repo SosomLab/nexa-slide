@@ -1118,7 +1118,8 @@ class H(BaseHTTPRequestHandler):
             seq = None
             try:
                 ev = {"merge": {"base": base, "conflicts": conflicts[:50]}} if conflicts is not None else None  # 병합 저장 - 진 값을 원장에 남긴다
-                seq = ledger.record(i, old["obj"] if old else None, before, deck, _meta(p, data), origin, "exact", action, actor, ev)
+                rp = {"struct": struct[:50]} if isinstance(struct, list) and struct and deck.get("kind") == "sheet" else None  # 행·열 작업 - 이 저장이 칸을 옮겼다는 기록
+                seq = ledger.record(i, old["obj"] if old else None, before, deck, _meta(p, data), origin, "exact", action, actor, ev, replay=rp)
             except Exception as e:  # noqa: BLE001
                 sys.stderr.write(f"ledger put {i}: {e}\n")
             _remember(i, p, data, deck)
@@ -1190,7 +1191,7 @@ class H(BaseHTTPRequestHandler):
             collab.PRESENCE.detach(i, tab)
 
     # ---------- AI 제안(동시 편집 3단계 첫 조각, docs/collab.md) - 큰 변경을 파일에 바로 쓰지 않고 남겨 두고, 사람이 장·탭마다 골라 받는다 ----------
-    def _save_doc(self, i, deck, origin, action, actor, evidence=None):
+    def _save_doc(self, i, deck, origin, action, actor, evidence=None, replay=None):
         """서버가 직접 만든 문서를 저장(WRITE_LOCK 안에서) - PUT 과 같은 백업·원장·기억. 원장 seq"""
         p = deck_path(i)
         track(i)
@@ -1208,7 +1209,7 @@ class H(BaseHTTPRequestHandler):
         data = text.encode("utf-8")
         seq = None
         try:
-            seq = ledger.record(i, old["obj"] if old else None, before, deck, _meta(p, data), origin, "exact", action, actor, evidence)
+            seq = ledger.record(i, old["obj"] if old else None, before, deck, _meta(p, data), origin, "exact", action, actor, evidence, replay=replay)
         except Exception as e:  # noqa: BLE001
             sys.stderr.write(f"ledger {action} {i}: {e}\n")
         _remember(i, p, data, deck)
@@ -1244,7 +1245,7 @@ class H(BaseHTTPRequestHandler):
             seq = None
             if doc != now:
                 ev = {"ops": {"base": base, "n": len(ops), "applied": n, "dropped": dropped[:20], "list": [deckops.label(o) for o in ops[:200]]}}
-                seq = self._save_doc(i, doc, "editor", "save", actor, ev)
+                seq = self._save_doc(i, doc, "editor", "save", actor, ev, replay=ledger.replay_ops(ops))  # 작업 목록 그대로 - 원장 재생(ledger verify)이 다시 얹어 본다
             stale = bool(base) and base != cur
             res = {"ok": True, "version": ver(p), "updated": doc.get("updated"), "seq": seq, "applied": n, "dropped": dropped, "stale": stale}
             if stale or dropped:  # 파일이 보낸 쪽의 저장본+작업과 다르다 - 결과 문서를 같이 준다(PUT 병합의 deck 처럼). 판만 받으면 다음 PUT 병합이 남의 변경을 지운다(collab_sim --naive)
