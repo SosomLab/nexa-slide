@@ -284,7 +284,7 @@
   //     작업을 저장본에 얹은 결과가 지금 문서와 다르면(같은 id 가 둘 등) PUT - 작업으로 잃는 것이 없게.
   //   saveOps(api, deckId, base, ops)  POST /api/ops → 응답 data, 서버가 모르거나(404·405) 거절하면(400) null - 그러면 화면은 PUT ?merge=1 로
   function planSave(saved, now, opt = {}) {
-    const bytes = (now || "").length;
+    const bytes = new TextEncoder().encode(now || "").length;  // 보내는 크기(UTF-8) - 글자 수(.length)로 재면 한글 덱은 문턱이 두세 배로 늦게 걸린다
     if (!saved) return { mode: "put", bytes, why: "저장본 없음" };
     if (saved === now) return { mode: "none", bytes, why: "같음" };
     if (opt.struct && opt.struct.length) return { mode: "put", bytes, why: "구조 작업" };
