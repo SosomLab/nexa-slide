@@ -180,6 +180,14 @@ def read(deck):
     return entries
 
 
+def last_write(deck):
+    """파일을 쓴 마지막 줄(종류 무관 - change · quiet · touch). 지금 파일이 원장의 끝과 같은지 볼 때."""
+    for e in reversed(read(deck)):
+        if (e.get("after") or {}).get("hash"):
+            return e
+    return None
+
+
 def tail(deck, n=5):
     return read(deck)[-n:]
 
@@ -255,8 +263,9 @@ def _compact_locked(p: Path):
     _replace(str(tmp), str(p))
 
 
-def record(deck, old_obj, before, new_obj, after, origin, confidence, action, actor=None, evidence=None, ts=None):
-    """변경 한 건을 비교해 원장에 적는다. 내용이 같으면(해시 동일, 또는 항목·덱 수준 변경 없음) 적지 않고 None."""
+def record(deck, old_obj, before, new_obj, after, origin, confidence, action, actor=None, evidence=None, ts=None, replay=None):
+    """변경 한 건을 비교해 원장에 적는다. 내용이 같으면(해시 동일, 또는 항목·덱 수준 변경 없음) 적지 않고 None.
+    replay = 원장 재생(verify)이 다시 적용할 것 - {"ops": [...]} (작업 저장, REPLAY_MAX 이하일 때만) · {"struct": [...]} (시트 행·열 작업, 기록용)."""
     assert origin in ORIGINS, origin
     if before.get("hash") and before.get("hash") == after.get("hash"):
         if not LEDGER_CFG.get("recordTouch"):
@@ -265,16 +274,144 @@ def record(deck, old_obj, before, new_obj, after, origin, confidence, action, ac
     else:
         items = deckdiff.diff_deck(old_obj or {"slides": []}, new_obj or {"slides": []}) if old_obj is not None else None
         fields = deckdiff.deck_fields(old_obj or {}, new_obj or {}) if old_obj is not None else []
-        if items is not None and not items and not fields and before.get("hash"):
-            return None  # 글자 하나 안 바뀜(공백·키 순서만 다름)
-        kind = "change"
+        # 항목으로 잡히는 것이 없어도(공백·키 순서·저장 시각만 다름) 파일 해시가 바뀌었으면 줄은 남긴다 - 안 그러면 원장의 사슬(앞 줄 결과 = 다음 줄 시작)이 끊긴다.
+        # kind "quiet" 는 변경 탭·last_change 에 나오지 않고 원장 재생(verify)만 본다
+        kind = "quiet" if items is not None and not items and not fields and before.get("hash") else "change"
     entry = {"ts": ts, "kind": kind, "origin": origin, "confidence": confidence, "action": action,
              "actor": {"label": "", "tab": None, "request": None, "note": None, **(actor or {})},
              "before": before, "after": after,
              "summary": deckdiff.summary(items or []), "fields": fields, "items": items}
     if evidence:
         entry["evidence"] = evidence
+    if replay:
+        entry["replay"] = replay
     return append(deck, entry)
+
+
+# ---------- 원장 재생(동시 편집 3-5) - python studio/ledger.py verify <덱> (작업 공간에서는 nexa.py ledger verify <덱>) ----------
+REPLAY_MAX = 8192  # 작업 저장의 작업 목록을 원장에 그대로 남기는 상한(JSON 바이트) - 넘으면 재생은 건너뛰고 사슬·백업 검사만
+
+
+def replay_ops(ops):
+    """작업 목록 → 원장에 남길 replay(너무 크면 None)."""
+    try:
+        size = len(json.dumps(ops, ensure_ascii=False, separators=(",", ":")).encode("utf-8"))
+    except (TypeError, ValueError):
+        return None
+    return {"ops": ops} if size <= REPLAY_MAX else None
+
+
+def _same_doc(a, b):
+    """저장 시각(updated)만 빼고 같은 문서인가 - 서버가 저장할 때마다 새로 찍는다."""
+    strip = lambda d: {k: v for k, v in d.items() if k != "updated"} if isinstance(d, dict) else d  # noqa: E731
+    return strip(a) == strip(b)
+
+
+def verify(deck):
+    """원장을 처음부터 따라가며 파일·백업과 맞는지 본다. 결과 dict - ok 가 False 면 problems 에 어긋난 곳.
+      사슬   줄 k 의 before.hash == 줄 k-1 의 after.hash (사이에 원장에 없는 쓰기가 없었다)
+      백업   before.backup 파일이 남아 있으면 그 해시 == before.hash (지워진 백업은 건너뜀으로 센다)
+      재생   작업 저장(replay.ops)은 백업 문서에 작업을 다시 얹어 그 저장의 결과 문서(다음 줄의 백업, 마지막 줄이면 지금 파일)와 같은지
+      끝     마지막 줄의 after.hash == 지금 파일의 해시
+    통째·병합 저장은 보낸 문서가 원장에 없어 재생하지 못한다 - 사슬·백업으로만 확인한다."""
+    import deckops
+    entries = [e for e in read(deck) if (e.get("after") or {}).get("hash")]  # change · quiet · touch - 파일을 쓴 줄 전부
+    hdir = path(deck).parent
+    res = {"deck": deck, "entries": len(entries), "chain": {"ok": 0, "broken": 0}, "backup": {"ok": 0, "bad": 0, "missing": 0},
+           "replay": {"ok": 0, "bad": 0, "skipped": 0}, "end": None, "problems": []}
+    bad = lambda seq, what: res["problems"].append({"seq": seq, "what": what})  # noqa: E731
+
+    def backup_bytes(e):
+        name = (e.get("before") or {}).get("backup")
+        f = hdir / name if name else None
+        return f.read_bytes() if f and f.is_file() else None
+
+    def load(data):
+        try:
+            return json.loads(data.decode("utf-8"))
+        except (ValueError, UnicodeDecodeError):
+            return None
+
+    p = DECKS / f"{deck}.json"
+    cur = p.read_bytes() if p.is_file() else None
+    by_ver = {}  # after.ver → 그 저장의 결과 문서 바이트(다음 줄의 백업 또는 지금 파일) - 오래된 판 위 작업의 기준본 찾기
+    after_bytes = []
+    for k, e in enumerate(entries):
+        nxt = entries[k + 1] if k + 1 < len(entries) else None
+        data = backup_bytes(nxt) if nxt else cur
+        want = (e.get("after") or {}).get("hash")
+        if data is not None and want and sha256(data) != want:
+            data = None  # 그 사이 원장에 없는 쓰기가 있었다 - 사슬 검사가 따로 알린다
+        after_bytes.append(data)
+        if data is not None:
+            by_ver[str((e.get("after") or {}).get("ver"))] = data
+    for k, e in enumerate(entries):
+        seq, before, after = e.get("seq"), e.get("before") or {}, e.get("after") or {}
+        if k:
+            prev = (entries[k - 1].get("after") or {}).get("hash")
+            if before.get("hash") and prev:
+                if before["hash"] == prev:
+                    res["chain"]["ok"] += 1
+                else:
+                    res["chain"]["broken"] += 1
+                    bad(seq, "사슬 끊김 - 앞 줄의 결과와 이 줄의 시작이 다르다(원장에 없는 쓰기)")
+        bdata = backup_bytes(e)
+        if before.get("backup"):
+            if bdata is None:
+                res["backup"]["missing"] += 1
+            elif before.get("hash") and sha256(bdata) != before["hash"]:
+                res["backup"]["bad"] += 1
+                bad(seq, f"백업 {before['backup']} 의 해시가 원장과 다르다")
+            else:
+                res["backup"]["ok"] += 1
+        ops = (e.get("replay") or {}).get("ops")
+        if ops is None:
+            continue
+        src, dst = load(bdata) if bdata is not None else None, load(after_bytes[k]) if after_bytes[k] is not None else None
+        if src is None or dst is None:
+            res["replay"]["skipped"] += 1
+            continue
+        base = str(((e.get("evidence") or {}).get("ops") or {}).get("base") or "")
+        bdoc = load(by_ver[base]) if base and base != str(before.get("ver")) and base in by_ver else None
+        out, _, _ = deckops.apply(src, ops, base=bdoc)
+        if _same_doc(out, dst):
+            res["replay"]["ok"] += 1
+        elif base and base != str(before.get("ver")) and bdoc is None:
+            res["replay"]["skipped"] += 1  # 오래된 판 위의 작업인데 그 판의 문서가 남아 있지 않다(지운 것 되살리기를 재현할 수 없음)
+        else:
+            res["replay"]["bad"] += 1
+            bad(seq, "작업 재생 결과가 저장된 문서와 다르다")
+    if entries and cur is not None:
+        res["end"] = sha256(cur) == (entries[-1].get("after") or {}).get("hash")
+        if not res["end"]:
+            bad(entries[-1].get("seq"), "지금 파일이 원장의 마지막 결과와 다르다(원장에 없는 쓰기)")
+    res["ok"] = not res["problems"]
+    return res
+
+
+def _main(argv):
+    import argparse
+    ap = argparse.ArgumentParser(prog="ledger", description="변경 원장 도구")
+    sp = ap.add_subparsers(dest="cmd", required=True)
+    v = sp.add_parser("verify", help="원장을 처음부터 따라가며 백업·파일과 맞는지, 작업 저장을 다시 적용해 같은지 본다")
+    v.add_argument("deck")
+    v.add_argument("--json", action="store_true")
+    a = ap.parse_args(argv)
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    r = verify(a.deck)
+    if a.json:
+        print(json.dumps(r, ensure_ascii=False))
+    else:
+        c, b, rp = r["chain"], r["backup"], r["replay"]
+        print(f"원장 {r['deck']}: 변경 {r['entries']}줄")
+        print(f"  사슬   확인 {c['ok']} · 끊김 {c['broken']}")
+        print(f"  백업   확인 {b['ok']} · 다름 {b['bad']} · 없음(지워짐) {b['missing']}")
+        print(f"  재생   같음 {rp['ok']} · 다름 {rp['bad']} · 건너뜀 {rp['skipped']}")
+        print(f"  끝     {'지금 파일과 같음' if r['end'] else '확인할 것 없음' if r['end'] is None else '지금 파일과 다름'}")
+        for pr in r["problems"][:20]:
+            print(f"  FAIL seq {pr['seq']}: {pr['what']}")
+        print("전부 통과" if r["ok"] else f"실패 {len(r['problems'])}")
+    return 0 if r["ok"] else 1
 
 
 # ---------- 표시용 가공 ----------
@@ -393,3 +530,7 @@ def recent(entries, deck_obj=None):
                         "kind": it["kind"], "kinds": kinds, "extra": it.get("extra") or [], "seq": e["seq"], "ts": e.get("ts"),
                         "origin": e.get("origin"), "confidence": e.get("confidence"), "actor": e.get("actor") or {}})
     return out
+
+
+if __name__ == "__main__":
+    sys.exit(_main(sys.argv[1:]))

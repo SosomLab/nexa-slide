@@ -170,6 +170,23 @@
 - 허브 자동 시작이 로그온마다 콘솔 창을 띄우던 것 - `autostart on` 이 `pythonw.exe` 로 등록하고, 서버는 숨은 콘솔의 `python.exe` 로 띄운다(34928f8). 이 PC 의 작업 'nexa-slide hub' 도 다시 등록했다.
 - `smoke.js` 가 Temp 에 헤드리스 Chrome 프로필을 남겨 2,000회 가까이 쌓였고 로그온이 4~5분 걸렸다 - 종료 때 지우게 고쳤다(818453f). 같은 종류의 누수 9곳(운영 코드 2곳 포함)을 찾아 고치고 예방 장치를 넣었다([temp-files-design.md](temp-files-design.md)): `studio/tmpfiles.py`(임시 폴더는 여기서만), `run_all` 누수 시험·시작 때 쓸어내기, 허브 시작 때 쓸어내기, `engine_tidy` `temp` 범주, `status.py` Temp 경고(ee4ec52, 운영 허브 반영). 남은 것: `smoke.js` 전체 시간 제한(englist 가 한 번 17분 멈춤).
 
+최신(2026-11-22):
+- 오늘 main 에 들어간 것(판은 CHANGELOG):
+  - 0.25.20 엔진 요청 #16 - import_doc PDF 내장 읽개(PyMuPDF·pypdf 없이 글·책갈피·JPEG 그림).
+  - 0.25.21 보안 - xlsm 가져오기의 Excel COM 이 매크로를 켠 채 열던 것(고치기 전 `Workbook_Open` 이 서버 PC 에서 실제로 도는 것을 표식 파일로 확인) · `smoke.js` 단계·시나리오 시간 상한 · `run_all` 이 끝 12줄 밖 FAIL 줄도 보임.
+  - 0.25.22 VBA 위험 경고에 Name·Dir·Environ · 템플릿 추천에 색이 같은 lecture·lecture-large 가 함께 보이던 것(`tplrec_test` 10회 8/10 → 10/10) · procutil 잘못된 이스케이프.
+  - 0.25.23 e3·e4 시험이 실제 저장소에 엔진 worktree·세션을 만들던 것(`NEXA_SLIDE_TEST_NO_ENGINE_START`).
+  - 0.25.24 동시 편집 3-4 - 화면 저장 → 작업 저장(큰 덱 글 한 글자 405,132 B → 111 B, 문턱은 UTF-8 바이트).
+  - 0.25.25 동시 편집 3-5 - 원장 재생 `ledger verify` · replay 기록 · 요소 순서 변경을 변경으로 · `quiet` 줄.
+- 시험: run_all 기본 44/44(새 묶음 `ledger`). 새 시험 파일 = `ledger_verify_test.py` · 시나리오 `opsave_test`·`sheetops_test`·`ledgerorder_test` · `collab_sim` 끝 원장 재생 · `nexa_ops_check` 작업 저장 사례 +10 · `vba_safety_test` +5.
+- 남은 것:
+  - 시트 구조 작업 결함 - 다른 창의 행 삽입 뒤 옛 판 위 셀 저장이 한 행 어긋남, 양쪽 구조 작업이 409 가 아니라 어긋난 채 합쳐짐(재현표 = [collab.md](../collab.md) 3-5 결과). 고친 뒤 시뮬레이터에 구조 작업 섞기.
+  - 시트에서 수식 칸이 걸린 셀을 고치면 계산값(v)이 작업에 섞인다(A1 → B1·C1 이면 3개 중 2개) - 뺄지 판단.
+  - 운영 서버의 파이썬은 dc436fe 판(17:42 재시작) - 다음 재시작 때 0.25.21~0.25.25 의 파이썬 변경이 반영된다. 그 전에는 운영 원장에 replay·quiet 줄이 남지 않는다(정적 js 변경은 이미 나감).
+  - CHANGELOG 소급 누락(#15·임시 파일 누수 예방·허브 자동 시작 창)을 채울지 · 병합된 원격 `fix/*`·`feat/*` 브랜치와 detached worktree 3개 정리 - 사용자 결정 대기.
+  - 시트 기능(넘침 테두리·표 줄무늬·가상 스크롤·표 요약 행·시트 차트) · Codex 서버 세션 재시험 · editor 시험의 고정 대기 줄이기(지금 약 240~280초).
+- 작업 방식: 전역 규칙(사용자 2026-11-05)대로 개발 세션(설계·구현·원인 분석)과 협업 세션(시험 작성·실행·병합·기록)을 나눠, 개발 세션이 브랜치·worktree 를 만들어 구현하면 협업 세션이 시험을 쓰고 돌려 통과하면 main 에 병합한다. 남의 파일은 SEM 요청·승인으로만 고친다. 서버 작업 세션("개발")이 엔진 요청 큐를 감시한다.
+
 ### 12.2 수동 엔진 세션 (2026-10-15)
 
 `studio/watch_engine_requests.py --stream`(Monitor) — 터미널 세션이 큐를 맡는다. 하트비트 `hub/engine/.studio/session.json`(kind=manual, label·pid·cwd·user), 1초마다 쓰고 끝나면 `stopped`. open 요청이 생기거나 바뀌면(`updated` 기준) `{"event":"request","item":{id,title,body,from,evidence,attachments,…},"open":n,"triage":n}`. 웹 엔진 세션(kind=engine)이 살아 있으면 `refused`(web-engine-session), 다른 수동 감시가 살아 있으면 `--takeover`. 허브 `/api/engine`·`/api/engine/notice`·`/api/home(/live)` 는 WS_ENGINE 이 꺼져 있을 때 이 하트비트를 보고 `state=manual` 로 알리며, `EngineProfile.check_start` 가 거절한다. 작업 공간(common)에 묶이지 않도록 `requests_core` 를 쓰지 않는다. 승인(triage→open)은 여전히 관리자가 카드에서 한다.
