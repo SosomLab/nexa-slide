@@ -465,7 +465,9 @@
     // 행·열 삽입·삭제(동시 편집 3-2) - 기준판 이후의 구조 작업을 함께 보내면 서버가 기준본·지금 파일도 같이 옮긴 뒤 셀을 합친다
     const sentStruct = force ? [] : (S.struct || []).slice();
     const meta = S.saveMeta ? `&action=${encodeURIComponent(S.saveMeta.action)}${S.saveMeta.note ? "&note=" + encodeURIComponent(S.saveMeta.note) : ""}` : ""; S.saveMeta = null;  // 되돌리기 등 - 변경 원장에 action 으로 남는다
-    const r = await api("PUT", `/api/deck/${encodeURIComponent(S.id)}?base=${encodeURIComponent(S.version || "")}${force ? "&force=1" : "&merge=1"}${meta}`, sentStruct.length ? { ...JSON.parse(body), __struct: sentStruct } : JSON.parse(body));
+    // 작업 저장(동시 편집 3-4 다) - 큰 시트에서 조금 고쳤으면 바뀐 셀만 POST /api/ops 로. 구조 작업·되돌리기(action)·강제 저장과 작업으로 보낼 수 없는 경우는 PUT
+    let r = force || meta ? null : await NexaMerge.trySaveOps(api, S.id, S.version, S.savedJson, body, { struct: sentStruct });
+    if (!r) r = await api("PUT", `/api/deck/${encodeURIComponent(S.id)}?base=${encodeURIComponent(S.version || "")}${force ? "&force=1" : "&merge=1"}${meta}`, sentStruct.length ? { ...JSON.parse(body), __struct: sentStruct } : JSON.parse(body));
     if (r.ok) S.struct = (S.struct || []).slice(sentStruct.length);  // 저장된 판이 새 기준 - 보낸 구조 작업은 그 안에 들어 있다
     S.saving = false;
     if (r.ok && r.data.merged && r.data.deck) {  // 합쳐졌다 - 병합 결과(+ 저장하는 사이 더 고친 것)를 화면에, 남의 변경은 내 실행 취소에 섞지 않는다
@@ -482,7 +484,8 @@
       if (window.NexaSheetX) NexaSheetX.onChange();
       setStatus(S.dirty ? "dirty" : "saved", S.dirty ? "저장 대기" : "저장됨");
       const nt = NexaMerge.notice(r.data.conflicts), n = (r.data.conflicts || []).length;
-      toast(nt.text + (n ? "\n" + nt.detail : ""), n ? 7000 : 3500);
+      const dn = r.viaOps ? NexaMerge.droppedNotice(r.data) : "";
+      toast(nt.text + (n ? "\n" + nt.detail : "") + (dn ? "\n" + dn : ""), n || dn ? 7000 : 3500);
       if (S.dirty) scheduleSave();
     } else if (r.ok) {
       S.version = r.data.version; if (r.data.updated) S.deck.updated = r.data.updated;
