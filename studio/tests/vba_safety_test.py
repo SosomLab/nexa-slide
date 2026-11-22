@@ -55,6 +55,20 @@ CASES = [
         "Sub Auto_Open()",
         "End Sub",
     ])},
+    {"name": "Module2", "kind": "std", "code": "\r\n".join([  # 파일 이름 바꾸기(Name … As …)·Dir·Environ - 문장 머리의 Name 문과 함수 부르기만
+        "Sub Files()",
+        "    Name \"C:\\a.txt\" As \"C:\\b.txt\"",
+        "    f = Dir(\"C:\\*.*\")",
+        "    u = Environ$(\"USERNAME\")",
+        "    Dim Name As String",
+        "    Name = ws.Name",
+        "    ws.Name = \"표\"",
+        "    Call Go(Name:=\"x\")",
+        "    myDir = 1: DirCount = 2: ChDir \"C:\\\"",
+        "    p = obj.Dir(1)",
+        "    environment = 1",
+        "End Sub",
+    ])},
 ]
 
 # ---------------------------------------------------------------- 1. 위험 코드 - 화면과 같은가
@@ -73,6 +87,10 @@ for nope in [("ThisWorkbook", 2, "kill"), ("Module1", 3, "createobject"), ("Modu
     check(f"위험 아님(주석·문자열 뒤·다른 개체 속성) - {nope}", nope in got, False)
 check("Module1 6행 - 문자열 안 낱말은 위험 목록 낱말이면 고른다(Shell 은 낱말 경계 - 문자열 \"Shell 은\" 도 고름)", ("Module1", 6, "shell") in got, True)
 check("한글에 붙은 Shell(가Shell)도 고른다 - 낱말 경계는 ASCII(두 곳 같게)", ("Module1", 15, "shell") in got, True)
+for want in [("Module2", 2, "name"), ("Module2", 3, "dir"), ("Module2", 4, "environ$"), ("Module2", 9, "chdir")]:
+    check(f"위험 코드 - {want}", want in got, True)
+m2 = sorted((x["line"], x["word"].lower()) for x in pr if x["module"] == "Module2")
+check("위험 아님 - Dim Name·Name =·.Name·Name:=·myDir·DirCount·obj.Dir()·environment 는 고르지 않는다", m2, [(2, "name"), (3, "dir"), (4, "environ$"), (9, "chdir")])
 
 
 # ---------------------------------------------------------------- 2. VBA 프로젝트 만들기(읽고 쓰기에 필요한 레코드만)

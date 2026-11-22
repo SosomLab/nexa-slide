@@ -30,7 +30,7 @@ def session_meta(agent=None, model=None):
 
 def py_shims(root=None):
     """세션이 부를 python3·python 을 이 서버의 파이썬(sys.executable)으로 - 대리 파일 폴더를 만들어 돌려준다(실패하면 None).
-    Windows 는 PATH 에서 스토어 대리 실행기(WindowsApps\python3.exe - 실행하면 종료 코드 49 나 9009)가 pyenv 등 실제 파이썬보다
+    Windows 는 PATH 에서 스토어 대리 실행기(WindowsApps\\python3.exe - 실행하면 종료 코드 49 나 9009)가 pyenv 등 실제 파이썬보다
     앞에 있는 일이 흔해, 세션의 `python3 nexa.py …` 가 아무것도 못 하던 것(0.25.19). Git Bash 용 확장자 없는 스크립트와 cmd·PowerShell 용 .cmd 를 둔다.
     pyenv-win 의 .bat 대리 실행기(여러 줄·< > | & 인자가 깨진다)도 거치지 않게 된다."""
     try:

@@ -776,12 +776,17 @@
     if (r.like && r.sim >= 0.5) w.push(`${r.like} 와 비슷한 색`);
     return w.length ? `추천 - ${w.join(" · ")} (점수 ${r.score})` : "추천 - 새로 둘러보기";
   }
-  /** 보일 엔진 템플릿 - 추천 7개(고른 템플릿이 그 밖이면 마지막 자리에) 또는 [더 보기] 면 전체 */
+  /** 보일 엔진 템플릿 - 추천 7개(고른 템플릿이 그 밖이면 색이 같은 묶음의 자리에, 그런 것이 없으면 마지막 자리에) 또는 [더 보기] 면 전체 */
   function shownTpls(all, keep) {
     const ts = H.home.templates.filter((t) => !t.workspace);
     if (all) return ts;
     const names = recPick().slice();
-    if (keep && ts.some((t) => t.name === keep) && !names.includes(keep)) names[names.length - 1] = keep;
+    if (keep && ts.some((t) => t.name === keep) && !names.includes(keep)) {
+      // 뽑기가 같은 묶음(rec.dup)의 다른 템플릿을 골랐으면 그 자리를 바꾼다 - 마지막 자리에 덧붙이면 lecture·lecture-large 처럼 색이 같은 둘이 함께 보였다(기본 선택이 lecture 라 뽑기에 따라 실행마다 달라짐)
+      const grp = (n) => { const t = ts.find((x) => x.name === n); return (t && t.rec && t.rec.dup) || n; };
+      const i = names.findIndex((n) => grp(n) === grp(keep));
+      names[i >= 0 ? i : names.length - 1] = keep;
+    }
     return names.map((n) => ts.find((t) => t.name === n)).filter(Boolean);
   }
   const moreBtn = (all, attr, n) => `<button type="button" class="tpl tpl-more" ${attr} title="${all ? "추천 7개만 보기" : "맨 위 7개는 추천 - 만든 작업 공간(높음)·미리 보기(중간)·그와 비슷한 색(낮음)으로 점수를 매겨 새로 고칠 때마다 다시 뽑습니다"}"><b>${all ? "추천만 보기" : "더 보기"}</b><small>${all ? `추천 ${REC_N}개` : `전체 ${n}개`}</small></button>`;
