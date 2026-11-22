@@ -6,6 +6,9 @@ $ErrorActionPreference = "Stop"
 New-Item -ItemType Directory -Force $OutDir | Out-Null
 $xl = New-Object -ComObject Excel.Application
 $xl.Visible = $false; $xl.DisplayAlerts = $false; $xl.ScreenUpdating = $false
+# 가져오는 파일은 남이 만든 것이다 - 자동화로 연 문서는 매크로가 기본으로 켜지므로(AutomationSecurity 1) 강제로 끄고(3 = msoAutomationSecurityForceDisable) 이벤트도 막는다.
+# 안 그러면 xlsm 의 Workbook_Open·Auto_Open 이 서버 PC 에서 돈다. 도형을 떠내는 데는 매크로가 필요 없다.
+$xl.AutomationSecurity = 3; $xl.EnableEvents = $false
 $out = @()
 try {
   $wb = $null

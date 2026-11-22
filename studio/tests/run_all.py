@@ -108,7 +108,9 @@ def main():
         before = tmpfiles.leftovers()
         r = subprocess.run(cmd, cwd=str(HERE), env=env, capture_output=True, text=True, encoding="utf-8", errors="replace")
         out = (r.stdout or "") + (r.stderr or "")
-        tail = [l for l in out.splitlines() if l.startswith(("OK", "FAIL", "실패", "전부 통과", "SKIP")) or "오류" in l][-12:]
+        marks = [l for l in out.splitlines() if l.startswith(("OK", "FAIL", "실패", "전부 통과", "SKIP")) or "오류" in l]
+        tail = marks[-12:]
+        tail = [l for l in marks[:-12] if l.startswith("FAIL")][:12] + tail  # 끝 12줄 밖의 FAIL 줄도 보인다 - 실패 뒤에 OK 가 길게 이어지면 "실패 2" 만 남고 어느 단계인지 안 보였다
         print("\n".join("   " + l for l in tail) if tail else out[-600:])
         rc = r.returncode
         leaked = leak_check(before)
