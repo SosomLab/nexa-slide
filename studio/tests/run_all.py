@@ -21,6 +21,8 @@ from pathlib import Path
 import testlock  # noqa: F401 - 이 PC 에서 시험은 한 번에 하나(고정 포트·임시 폴더를 같이 쓴다, testlock.py)
 
 HERE = Path(__file__).resolve().parent
+sys.path.insert(0, str(HERE.parent))
+import tmpfiles  # noqa: E402
 TESTS = [  # (이름, 실행, 설명, claude 필요)
     ("i18n", ["node", "i18n_check.js"], "i18n.js 문법·중복 키·번역 표본", False),
     ("smoke", [sys.executable, "smoke_run.py"], "허브·Studio 헤드리스 클릭 스모크(데모 작업 공간 생성)", False),
@@ -43,6 +45,7 @@ TESTS = [  # (이름, 실행, 설명, claude 필요)
     ("mergesave", [sys.executable, "merge_save_test.py"], "병합 저장(PUT ?merge=1·save_deck) - 편집기 둘·AI 대 사람(사람 우선)·원장 evidence·--no-merge 409·no-base·시트 셀", False),
     ("ops", [sys.executable, "deckops_test.py"], "작업(op) 저장(deckops, 동시 편집 3-4) - 저장본 → 지금 차이를 작업으로·남의 변경 위에 얹기(수정 > 삭제·되살리기·버리기) 골든 - 화면 nexa-merge.js 와 같음", False),
     ("sim", [sys.executable, "collab_sim.py", "--seed", "1"], "다중 창 시뮬레이터(collab_sim, 동시 편집 3-5) - 창 3개가 무작위 편집을 작업 저장·PUT 병합으로 섞어 보내도 자기 몫을 잃지 않고 같은 문서로 모임(덱·시트)", False),
+    ("tmpfiles", [sys.executable, "tmpfiles_test.py"], "임시 파일(tmpfiles) - temp_dir·process_dir 정리, 엔진 이름·하루 넘은 것만 쓸어내기(다른 앱 nexa-* 제외), engine_tidy temp 범주, 상태 경고", False),
     ("autostart", [sys.executable, "autostart_test.py"], "허브 자동 시작(service.py autostart) - 로그온 시 실행 명령·worktree·작업 공간 거절(이 PC 설정은 바꾸지 않음)", False),
     ("struct", [sys.executable, "sheet_struct_test.py"], "시트 행·열 구조 작업(sheet_struct, 동시 편집 3-2) - 셀 키·병합·너비·틀 고정·수식 참조(열 전체·행 전체·H2#) 골든 - 화면 shiftAxis 와 같음(sheetstruct_test)", False),
     ("deploy", [sys.executable, "engine_deploy_test.py"], "엔진 배포(engine_deploy) - 계획·병합 커밋·push·적용됨·충돌 시 main 불변·겹치는 미커밋 변경·새 실패만 막는 시험 비교(임시 저장소)", False),
@@ -71,6 +74,16 @@ TESTS = [  # (이름, 실행, 설명, claude 필요)
 ]
 
 
+def leak_check(before):
+    """시험 뒤 새로 남은 것(tmpfiles.PATTERNS) - 방금 끝난 자식이 아직 지우는 중일 수 있어 2초까지 다시 본다."""
+    for _ in range(5):
+        leaked = sorted(tmpfiles.leftovers() - before)
+        if not leaked:
+            return []
+        time.sleep(0.4)
+    return leaked
+
+
 def main():
     ap = argparse.ArgumentParser(description="nexa-slide 시험 모음")
     ap.add_argument("names", nargs="*", help="이름 일부로 고르기(비우면 기본 묶음)")
@@ -85,16 +98,27 @@ def main():
     hit = (lambda n, t: n == t) if a.exact else (lambda n, t: n in t)
     picked = [t for t in TESTS if (not a.names or any(hit(n, t[0]) for n in a.names)) and (a.sessions or not t[3])]
     print(f"== 묶음 {len(picked)}개: {' '.join(t[0] for t in picked)}", flush=True)
+    swept, busy = tmpfiles.sweep()  # 앞선 실행이 시간 초과·Ctrl+C 로 끝나 남긴 것(하루 넘은 tmpfiles.PATTERNS)
+    if swept or busy:
+        print(f"== Temp 잔여물 정리: 지움 {swept} · 사용 중 {busy}", flush=True)
     results = []
     for name, cmd, desc, _ in picked:
         print(f"\n== {name} · {desc}", flush=True)
         t0 = time.time()
+        before = tmpfiles.leftovers()
         r = subprocess.run(cmd, cwd=str(HERE), env=env, capture_output=True, text=True, encoding="utf-8", errors="replace")
         out = (r.stdout or "") + (r.stderr or "")
         tail = [l for l in out.splitlines() if l.startswith(("OK", "FAIL", "실패", "전부 통과", "SKIP")) or "오류" in l][-12:]
         print("\n".join("   " + l for l in tail) if tail else out[-600:])
-        results.append((name, r.returncode, time.time() - t0))
-        print(f"-- {'통과' if r.returncode == 0 else '실패'} {name} {time.time() - t0:.0f}s", flush=True)  # 묶음마다 바로 - 엔진 배포가 이 줄로 진행을 보인다
+        rc = r.returncode
+        leaked = leak_check(before)
+        if leaked:  # 누수 시험 - 시험이 Temp 에 남긴 것(docs/dev/temp-files-design.md). 지우고 실패로
+            print(f"   FAIL 임시 파일 누수 {len(leaked)}개: {', '.join(leaked[:5])}{' …' if len(leaked) > 5 else ''} - studio/tmpfiles.py 로 만들고 지운다")
+            for n in leaked:
+                tmpfiles.remove(tmpfiles.root() / n)
+            rc = rc or 1
+        results.append((name, rc, time.time() - t0))
+        print(f"-- {'통과' if rc == 0 else '실패'} {name} {time.time() - t0:.0f}s", flush=True)  # 묶음마다 바로 - 엔진 배포가 이 줄로 진행을 보인다
     print("\n---- 결과")
     for name, rc, dt in results:
         print(f"{'통과' if rc == 0 else '실패'}  {name:8s} {dt:5.0f}s")

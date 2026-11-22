@@ -19,6 +19,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from common import OUT, load_deck, safe_id  # noqa: E402
 import sheet_calc  # noqa: E402
 import sheet_theme  # noqa: E402
+import tmpfiles  # noqa: E402
 
 import xlsxwriter  # noqa: E402  (python-pptx 의존성)
 from xlsxwriter.utility import xl_cell_to_rowcol  # noqa: E402
@@ -244,16 +245,16 @@ def define_names(wb, deck):
                 wb.define_name("'" + scope.replace("'", "''") + f"'!{nm}" if scope else str(nm), ref)
 
 
-def source_project(vp, mods):
+def source_project(vp, mods, tmp_dir):
     """내보낼 VBA 프로젝트 - 늘 모듈 소스로 다시 쓴 것(vba_project.write_modules: 컴파일된 코드를 버려 엑셀이 소스에서 다시 컴파일).
-    원본에 남은 p-code 가 화면에 보이는 소스와 다른 코드를 돌리지 못하게(VBA stomping). 다시 쓰지 못하면 None - 매크로를 빼고 .xlsx 로."""
-    import tempfile
+    원본에 남은 p-code 가 화면에 보이는 소스와 다른 코드를 돌리지 못하게(VBA stomping). 다시 쓰지 못하면 None - 매크로를 빼고 .xlsx 로.
+    tmp_dir/vbaProject.bin 에 쓴다 - xlsxwriter 가 wb.close() 때 읽으므로 그때까지 남아 있어야 한다(export 가 지운다)."""
     import vba_project
     data = vp.read_bytes()
     try:
         if not (isinstance(mods, list) and mods):  # 0.25.3 전에 가져온 문서 - 바이너리의 소스로
             mods = vba_project.read_modules(data)
-        tmp = Path(tempfile.mkdtemp(prefix="nexa-vba-")) / "vbaProject.bin"
+        tmp = Path(tmp_dir) / "vbaProject.bin"
         tmp.write_bytes(vba_project.write_modules(data, mods))
     except Exception as e:  # noqa: BLE001 - 깨진 프로젝트
         print(f"  VBA 프로젝트를 소스로 다시 쓰지 못해 매크로를 빼고 내보낸다: {e}", file=sys.stderr)
@@ -267,6 +268,11 @@ def source_project(vp, mods):
 def export(deck, out, macros=True):
     if deck.get("kind") != "sheet":
         raise ValueError("시트 문서가 아니다(kind sheet) - 슬라이드 덱은 export_pptx.py")
+    with tmpfiles.temp_dir("vba") as tmp:  # 다시 쓴 VBA 프로젝트 자리 - 내보낸 뒤(예외여도) 지운다
+        return _export(deck, out, macros, tmp)
+
+
+def _export(deck, out, macros, tmp):
     import copy
     deck = copy.deepcopy(deck)
     sheet_calc.recalc(deck)  # 수식 계산값 캐시 - AI 세션이 f 만 쓴 칸도 뷰어·미리보기에서 0 이 아니라 값이 보이게(엑셀은 열 때 다시 계산)
@@ -282,7 +288,7 @@ def export(deck, out, macros=True):
         from common import ASSET_ROOT
         vp = ASSET_ROOT / deck["macros"]["vba"]
         if vp.is_file():
-            vba = source_project(vp, deck["macros"].get("modules"))
+            vba = source_project(vp, deck["macros"].get("modules"), tmp)
             if vba:
                 out = out.with_suffix(".xlsm")
     wb = xlsxwriter.Workbook(str(out), opts)

@@ -11,13 +11,13 @@ import os
 import struct
 import subprocess
 import sys
-import tempfile
 import zipfile
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 STUDIO = HERE.parent
 sys.path.insert(0, str(STUDIO))
+import tmpfiles  # noqa: E402
 import vba_project  # noqa: E402
 
 fails, ok = [], 0
@@ -100,7 +100,7 @@ def make_project(mods):
     return vba_project.cfb_write(streams, ["VBA"])
 
 
-T = Path(tempfile.mkdtemp(prefix="vbasafe-"))
+T = tmpfiles.process_dir("vbasafe")  # 시험이 끝나면 지운다
 WS = T / "ws"
 mods = [{"name": "ThisWorkbook", "kind": "doc", "code": "Private Sub Workbook_Open()\r\nEnd Sub\r\n"}, {"name": "Module1", "kind": "std", "code": "Function Twice(x)\r\n    Twice = x * 2\r\nEnd Function\r\n"}]
 binp = WS / "assets" / "sheets" / "zv" / "vbaProject.bin"

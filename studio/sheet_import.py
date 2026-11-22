@@ -409,14 +409,20 @@ def _offset_px(tab, r, c):
 
 def import_drawings(src, z, tabs, asset_root, i, warnings):
     """그림·도형 → assets/sheets/<id>/d<탭>-<n>.png + 탭 drawings[{type:image, src, at, dx, dy, w, h}]."""
-    import shutil
-    import tempfile
+    import tmpfiles
     dest_rel = f"assets/sheets/{i}"
     dest = asset_root / dest_rel
-    shapes = []
+    with tmpfiles.temp_dir("shapes") as tmp:  # Excel 이 그린 도형 PNG - 자산 폴더로 옮긴 뒤 지운다
+        if _import_shapes(src, tmp, tabs, dest, dest_rel, warnings):
+            return
+    _import_pictures(z, tabs, dest, dest_rel, warnings)
+
+
+def _import_shapes(src, tmp, tabs, dest, dest_rel, warnings):
+    """Excel(COM)로 그림·도형을 PNG 로 - 옮겼으면 True(Excel 이 없거나 실패면 False - 파일 안 그림으로)."""
+    import shutil
     try:
         import sheet_theme
-        tmp = Path(tempfile.mkdtemp(prefix="nexa-shapes-"))
         shapes = sheet_theme.export_shapes(Path(src), tmp, text=True)
     except Exception:  # noqa: BLE001 - Excel 없음·실패면 파일 안 그림으로
         shapes = []
@@ -443,8 +449,12 @@ def import_drawings(src, z, tabs, asset_root, i, warnings):
                                                    "w": round(float(s["width"]) / 0.75), "h": round(float(s["height"]) / 0.75)})
         if lines:
             warnings.append(f"선 {lines}개는 옮기지 않았다(그림·글 상자·도형 묶음은 그림으로 옮김)")
-        return
-    # Excel 이 없을 때 - drawing XML 의 그림(pic)만, 앵커 칸 + 오프셋(EMU → px)
+        return True
+    return False
+
+
+def _import_pictures(z, tabs, dest, dest_rel, warnings):
+    """Excel 이 없을 때 - drawing XML 의 그림(pic)만, 앵커 칸 + 오프셋(EMU → px)."""
     XD = "{http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing}"
     A = "{http://schemas.openxmlformats.org/drawingml/2006/main}"
     moved = skipped = 0

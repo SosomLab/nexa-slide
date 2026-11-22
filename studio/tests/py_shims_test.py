@@ -10,11 +10,11 @@ import os
 import shutil
 import subprocess
 import sys
-import tempfile
 from pathlib import Path
 
-os.environ["NEXA_SLIDE_USER_DIR"] = tempfile.mkdtemp(prefix="nexa-pyshim-user-")  # with_py_shims 기본 폴더 - 실제 사용자 설정을 건드리지 않게
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+import tmpfiles  # noqa: E402
+os.environ["NEXA_SLIDE_USER_DIR"] = str(tmpfiles.process_dir("pyshim-user"))  # with_py_shims 기본 폴더 - 실제 사용자 설정을 건드리지 않게(끝나면 지운다)
 import procutil  # noqa: E402
 
 FAILS = []
@@ -26,7 +26,7 @@ def check(name, ok, got=""):
         FAILS.append(name)
 
 
-d = Path(tempfile.mkdtemp(prefix="nexa-pyshim-")) / "bin"
+d = tmpfiles.process_dir("pyshim") / "bin"
 check("대리 폴더를 만든다(python3·python)", procutil.py_shims(d) == d and (d / "python3").is_file() and (d / "python").is_file()
       and (os.name != "nt" or (d / "python3.cmd").is_file()), sorted(p.name for p in d.iterdir()) if d.is_dir() else None)
 env = procutil.with_py_shims({"PATH": os.environ.get("PATH", "")})

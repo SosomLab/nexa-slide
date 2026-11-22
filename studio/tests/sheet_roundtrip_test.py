@@ -7,15 +7,15 @@ import json
 import os
 import re
 import sys
-import tempfile
 import zipfile
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
-TMP = Path(tempfile.mkdtemp(prefix="nexa-sheet-rt-"))
+sys.path.insert(0, str(HERE.parent))
+import tmpfiles  # noqa: E402
+TMP = tmpfiles.process_dir("sheet-rt")  # 시험이 끝나면 지운다
 (TMP / "nexa-slide.json").write_text("{}", encoding="utf-8")
 os.environ["NEXA_SLIDE_WORKSPACE"] = str(TMP)  # export_xlsx 가 common 을 읽는다 - 빈 작업 공간이면 된다
-sys.path.insert(0, str(HERE.parent))
 import export_xlsx  # noqa: E402
 import sheet_calc  # noqa: E402
 import sheet_import  # noqa: E402
@@ -75,10 +75,11 @@ def main():
     out = TMP / "rt.xlsx"
     export_xlsx.export(copy.deepcopy(DOC), out)
     check("내보내기 - 파일이 생김", out.is_file())
-    z = zipfile.ZipFile(out)
-    xml = z.read("xl/worksheets/sheet1.xml").decode("utf-8")
+    with zipfile.ZipFile(out) as z:  # 닫아야 끝날 때 임시 폴더를 지울 수 있다(Windows)
+        names = z.namelist()
+        xml, wbx, x3 = (z.read(f"xl/{n}.xml").decode("utf-8") for n in ("worksheets/sheet1", "workbook", "worksheets/sheet3"))
     check("파일 형식 - 새 함수 접두사·이 행·넘친 범위", all(s in xml for s in ("_xlfn._xlws.SORT(", "_xlfn.ANCHORARRAY(J1)", "_xlfn.LET(_xlpm.x", "매출표[[#This Row],[1분기]]")), xml[:0])
-    check("파일 형식 - 표 파트", any(n.startswith("xl/tables/") for n in z.namelist()), z.namelist())
+    check("파일 형식 - 표 파트", any(n.startswith("xl/tables/") for n in names), names)
     tabs, warnings, _ = sheet_import.import_xlsx(out)
     check("가져오기 - 탭 2개·이름·숨김", [t["name"] for t in tabs] == ["데이터", "요약", "필터"] and tabs[1].get("hidden") is True, [(t["name"], t.get("hidden")) for t in tabs])
     a, e = tabs[0], src["sheets"][0]
@@ -107,7 +108,6 @@ def main():
     check("GROUPBY - 수식 글·넘친 값(합계 줄)", f.get("O1") == "=GROUPBY(D2:D5,B2:B5,SUM)" and val(a["cells"].get("O4")) == "Total" and val(a["cells"].get("P4")) == 2800, {k: a["cells"].get(k) for k in ("O1", "O4", "P4")})
     check("배열 상수 - 파일 형식·수식 글·넘친 값(정렬 {-1}, 합계 위)", "_xlfn.GROUPBY(D2:D5,B2:B5,_xleta.SUM,0,-1,{-1})" in xml and f.get("R1") == "=GROUPBY(D2:D5,B2:B5,SUM,0,-1,{-1})"
           and [val(a["cells"].get(k)) for k in ("R1", "R2", "S2")] == ["Total", "진행", 800], {k: a["cells"].get(k) for k in ("R1", "R2", "S2")})
-    wbx = z.read("xl/workbook.xml").decode("utf-8")
     check("파일 형식 - 이름 정의 LAMBDA 는 _xlfn.·_xlpm.", "_xlfn.LAMBDA(_xlpm.x,_xlpm.x*0.9)" in wbx, re.findall(r"<definedName[^>]*>[^<]*</definedName>", wbx))
     check("파일 형식 - LAMBDA 매개변수 _xlpm.", "_xlfn.LAMBDA(_xlpm.x,_xlpm.x*2)" in xml, "")
     check("LAMBDA - 수식 글·계산값(MAP·이름 정의 사용자 함수)", f.get("N4") == "=SUM(MAP(B2:B5,LAMBDA(x,x*2)))" and val(a["cells"].get("N4")) == 5600 and val(a["cells"].get("N5")) == 900, {k: a["cells"].get(k) for k in ("N4", "N5")})
@@ -115,7 +115,6 @@ def main():
     ft, fe = tabs[2], DOC["sheets"][2]
     srt = lambda fl: json.dumps({**fl, "cols": {k: ({**v, "vals": sorted(v["vals"])} if "vals" in v else v) for k, v in (fl or {}).get("cols", {}).items()}}, ensure_ascii=False, sort_keys=True)  # 값 목록 순서는 xlsxwriter 가 정렬
     check("자동 필터 - 범위·열 조건·가린 행(filter.rows)과 따로 숨긴 행(hiddenRows)", srt(ft.get("filter")) == srt(fe["filter"]) and [str(x) for x in ft.get("hiddenRows") or []] == ["9"], (ft.get("filter"), ft.get("hiddenRows")))
-    x3 = z.read("xl/worksheets/sheet3.xml").decode("utf-8")
     check("파일 형식 - autoFilter·숨긴 행", '<autoFilter ref="A1:D6">' in x3 and '<row r="4"' in x3 and 'hidden="1"' in x3.split('<row r="4"')[1].split(">")[0], re.findall(r"<autoFilter.*?</autoFilter>", x3))
     doc2, _ = sheet_import.to_doc("rt", "왕복", out)
     nb, nt = doc2.get("names") or {}, doc2["sheets"][0].get("names") or {}

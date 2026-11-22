@@ -4,13 +4,14 @@ on 이 만들 명령(로그온 시 실행·이 사용자·작업 폴더 = 사용
 import os
 import subprocess
 import sys
-import tempfile
 from pathlib import Path
 
 for _s in (sys.stdout, sys.stderr):
     _s.reconfigure(encoding="utf-8", errors="replace")
 HERE = Path(__file__).resolve().parent
 SERVICE = HERE.parent / "service.py"
+sys.path.insert(0, str(HERE.parent))
+import tmpfiles  # noqa: E402
 FAILS = []
 
 
@@ -36,6 +37,8 @@ def main():
         code, out = run("on", "--dry-run")
         check("on --dry-run - 로그온 시 실행·이 사용자·사용자 폴더·service.py start", code == 0 and "-AtLogOn -User $env:USERNAME" in out
               and "-WorkingDirectory $env:USERPROFILE" in out and "service.py\" start" in out and "Register-ScheduledTask -TaskName 'nexa-slide hub'" in out, out)
+        if Path(sys.executable).with_name("pythonw.exe").exists():
+            check("on --dry-run - pythonw.exe 로 등록(로그온 때 콘솔 창 없음)", "pythonw.exe'" in out.split("-Argument")[0], out)
         code, out = run("off", "--dry-run")
         check("off --dry-run - 작업 지우기", code == 0 and "Unregister-ScheduledTask -TaskName 'nexa-slide hub'" in out, out)
         code, out = run("status")
@@ -43,10 +46,10 @@ def main():
         if ".claude" in SERVICE.parts and "worktrees" in SERVICE.parts:
             code, out = run("on")
             check("worktree 엔진에서는 켜지 않는다", code == 1 and "worktree" in out, out)
-    ws = Path(tempfile.mkdtemp(prefix="nexa-autostart-"))
-    (ws / "nexa-slide.json").write_text("{}", encoding="utf-8")
-    code, out = run("status", env={"NEXA_SLIDE_WORKSPACE": str(ws)}, cwd=ws)
-    check("작업 공간 안에서는 거절(허브만)", code == 1 and "허브만" in out, out)
+    with tmpfiles.temp_dir("autostart") as ws:
+        (ws / "nexa-slide.json").write_text("{}", encoding="utf-8")
+        code, out = run("status", env={"NEXA_SLIDE_WORKSPACE": str(ws)}, cwd=ws)
+        check("작업 공간 안에서는 거절(허브만)", code == 1 and "허브만" in out, out)
     print("\n실패:", FAILS or "없음")
     sys.exit(1 if FAILS else 0)
 

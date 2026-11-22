@@ -17,7 +17,6 @@ import os
 import shutil
 import subprocess
 import sys
-import tempfile
 import zipfile
 from pathlib import Path
 
@@ -137,12 +136,13 @@ def main():
             st.reconfigure(encoding="utf-8", errors="replace")
         except Exception:  # noqa: BLE001
             pass
-    work = Path(a.keep) if a.keep else Path(tempfile.mkdtemp(prefix="nexa-xcheck-"))
+    sys.path.insert(0, str(STUDIO))
+    sys.path.insert(0, str(HERE))
+    import tmpfiles  # noqa: E402
+    work = Path(a.keep) if a.keep else tmpfiles.process_dir("xcheck")  # --keep 이 없으면 끝날 때 지운다
     work.mkdir(parents=True, exist_ok=True)
     (work / "nexa-slide.json").write_text("{}", encoding="utf-8")
     os.environ["NEXA_SLIDE_WORKSPACE"] = str(work)
-    sys.path.insert(0, str(STUDIO))
-    sys.path.insert(0, str(HERE))
     import export_xlsx  # noqa: E402
     import sheet_calc  # noqa: E402
     import sheet_import  # noqa: E402
@@ -272,7 +272,7 @@ def main():
         rep.part("VBA 코드 고치기 - 새 함수를 엑셀이 계산(=NexaCheck(21) → '확인 42')·원래 모듈 소스 그대로",
                  [] if got == "확인 42" and same_src else [f"엑셀 값 {got!r} · 원래 소스 유지 {same_src}"], 1)
 
-    print("\n다른 항목:", rep.failed or "없음", f"\n작업 폴더: {work}")
+    print("\n다른 항목:", rep.failed or "없음", f"\n작업 폴더: {work}" + ("" if a.keep else " (끝나면 지운다 - 남기려면 --keep)"))
     sys.exit(1 if rep.failed else 0)
 
 

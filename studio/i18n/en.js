@@ -429,7 +429,8 @@
     "정리하지 못했습니다": "Could not clean", "비우지 못했습니다": "Could not empty", "보관하지 못했습니다": "Could not archive", "백업 참조": "backup ref", "되돌리기·되살리기에 쓰이므로 보통은 두세요": "used for restore and undelete - usually keep", "백업이 참조하는 그림(표시)은 기본으로 남깁니다": "images referenced by backups (marked) are kept by default",
     "산출물(다시 만들 수 있음)": "Outputs (can be regenerated)", "백업·휴지통": "Backups · trash", "참조 없는 그림": "Unreferenced images", "고아 첨부": "Orphan attachments", "세션 로그": "Session logs",
     // 엔진 개발 영역 정리(서버 요청 카드 🧹, engine_tidy.py)
-    "엔진 개발 영역 정리 - 고아 첨부·worktree 첨부 사본·회귀 확인 사본·오래된 로그·남은 시험용 worktree": "Tidy the engine dev area - orphan attachments, worktree attachment copies, regression copies, old logs, leftover test worktrees",
+    "엔진 개발 영역 정리 - 고아 첨부·worktree 첨부 사본·회귀 확인 사본·OS 임시 폴더 잔여물·오래된 로그·남은 시험용 worktree": "Tidy the engine dev area - orphan attachments, worktree attachment copies, regression copies, OS temp leftovers, old logs, leftover test worktrees",
+    "OS 임시 폴더의 엔진 잔여물": "Engine leftovers in the OS temp folder",
     "엔진 영역": "Engine area", "배포 중": "Deploying", " - 로그·worktree 는 건너뜁니다.": " - logs and worktrees are skipped.",
     "worktree 첨부 사본": "Worktree attachment copies", "회귀 확인 사본·임시 파일": "Regression copies · temp files", "오래된 세션·배포 로그": "Old session · deploy logs", "남은 시험용 worktree": "Leftover test worktrees",
     "문제를 되짚을 때 쓰므로 기본으로 고르지 않습니다": "used to trace problems - not selected by default", "고른 범주를 바로 지웁니다(되돌릴 수 없음). 계속할까요?": "Delete the selected categories now (cannot be undone). Continue?",

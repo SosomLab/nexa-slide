@@ -39,6 +39,8 @@ async function main() {
     // Windows 는 자식 프로세스까지 끝낸다(chrome.kill 만으로는 브라우저 프로세스가 남아 다음 실행을 느리게 하거나 포트를 쥔다)
     if (process.platform === "win32") { try { require("child_process").spawnSync("taskkill", ["/PID", String(chrome.pid), "/T", "/F"], { stdio: "ignore" }); } catch (e) { /* 무시 */ } }
     chrome.kill();
+    // 임시 프로필을 지운다 - 실행마다 약 1,000개 항목이 Temp 에 남아 2,000회 뒤 로그인이 4~5분 걸렸다(프로필 서비스가 Temp 전체를 훑음). 방금 끝난 Chrome 이 파일을 쥐고 있을 수 있어 다시 시도한다
+    try { fs.rmSync(prof, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 }); } catch (e) { console.error(`임시 프로필 삭제 실패: ${prof} - ${e.message}`); }
   }
   console.log(total ? `\n실패 ${total}` : "\n전부 통과");
   process.exit(total ? 1 : 0);

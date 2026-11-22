@@ -8,11 +8,11 @@
 """
 import os
 import sys
-import tempfile
 from pathlib import Path
 
-os.environ["NEXA_SLIDE_USER_DIR"] = tempfile.mkdtemp(prefix="nexa-tplrec-")
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+import tmpfiles  # noqa: E402
+os.environ["NEXA_SLIDE_USER_DIR"] = str(tmpfiles.process_dir("tplrec"))  # 시험이 끝나면 지운다
 import hub  # noqa: E402
 
 FAILS = []

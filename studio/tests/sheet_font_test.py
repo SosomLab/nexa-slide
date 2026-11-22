@@ -9,15 +9,15 @@ import json
 import os
 import re
 import sys
-import tempfile
 import zipfile
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
-TMP = Path(tempfile.mkdtemp(prefix="nexa-sheet-font-"))
+sys.path.insert(0, str(HERE.parent))
+import tmpfiles  # noqa: E402
+TMP = tmpfiles.process_dir("sheet-font")  # 시험이 끝나면 지운다
 (TMP / "nexa-slide.json").write_text(json.dumps({"fontPresets": {"corp": {"body": {"css": "\"사내체\", sans-serif", "latin": "CorpSans", "ea": "사내체"}}}}, ensure_ascii=False), encoding="utf-8")
 os.environ["NEXA_SLIDE_WORKSPACE"] = str(TMP)
-sys.path.insert(0, str(HERE.parent))
 import common  # noqa: E402
 import export_xlsx  # noqa: E402
 import sheet_import  # noqa: E402
