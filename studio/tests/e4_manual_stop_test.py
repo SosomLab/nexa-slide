@@ -25,7 +25,8 @@ for _d in (WORK / "user", WORK / "projects"):
     _d.mkdir(parents=True, exist_ok=True)
 USER, PROJ, HUB_PORT = WORK / "user", WORK / "projects", 5799
 BASE = f"http://127.0.0.1:{HUB_PORT}"
-ENV = {**os.environ, "NEXA_SLIDE_USER_DIR": str(USER), "NEXA_SLIDE_PROJECTS": str(PROJ), "PYTHONIOENCODING": "utf-8"}
+ENV = {**os.environ, "NEXA_SLIDE_USER_DIR": str(USER), "NEXA_SLIDE_PROJECTS": str(PROJ), "PYTHONIOENCODING": "utf-8",
+       "NEXA_SLIDE_TEST_NO_ENGINE_START": "1"}  # 시험용 허브의 엔진 = 시험 중인 저장소 - 웹 세션 시작이 거기에 worktree·세션을 만들지 않게(wsession.EngineProfile.check_start)
 ENV.pop("NEXA_SLIDE_WORKSPACE", None)
 FAILS = []
 HB = USER / "hub" / "engine" / ".studio" / "session.json"
@@ -136,7 +137,7 @@ try:
     st, r = admin("POST", BASE + "/api/engine/session", {"action": "stop", "reason": "web"})
     check("수동 세션 없을 때 끊기 → stopped false, 오류 없음", st == 200 and r.get("stopped") is False, (st, r))
     st, r = admin("POST", BASE + "/api/engine/session", {"action": "start", "agent": "claude", "model": "haiku"})
-    # 이 시험은 개발 worktree 를 엔진으로 쓰므로 engine-dev 브랜치가 운영 트리의 worktree 에 이미 있어 worktree 생성은 실패할 수 있다 - "수동 세션" 거절이 아니면 통과
+    # 시험 모드(ENV 의 NEXA_SLIDE_TEST_NO_ENGINE_START)라 수동 세션 검사를 지난 뒤 "시험 모드" 로 거절된다(실제 저장소에 worktree·세션을 만들지 않는다) - "수동 세션" 거절이 아니면 통과
     check("끊은 뒤 웹 엔진 세션 시작 허용(수동 세션 거절 아님)", st == 200 or "수동" not in str(r.get("error", "")), (st, r))
     if st == 200:
         admin("POST", BASE + "/api/engine/session", {"action": "stop"})
