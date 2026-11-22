@@ -1,5 +1,11 @@
 # 변경 이력
 
+## 0.25.23 - 2026-11-22 · 시험이 실제 저장소에 엔진 worktree 를 만들던 것
+
+- **e3·e4 시험이 시험 중인 저장소(= 실제 엔진 저장소)에 `engine-dev` worktree 를 만들 수 있었다.** 시험용 허브에 웹 엔진 세션 시작을 보내면 `wsession.EngineProfile.check_start → ensure_worktree` 가 그 저장소에 `git worktree add` 를 했다. 평소에는 engine-dev 브랜치가 이미 쓰이고 있어 실패했지만, 비어 있으면 만들어졌고 worktree 가 이미 있으면 실제 세션까지 뜰 수 있었다.
+  - 고침: 환경 변수 `NEXA_SLIDE_TEST_NO_ENGINE_START` 가 있으면 `check_start` 가 수동 세션 검사 뒤 "시험 모드" 로 거절한다. e3·e4 시험의 환경에만 넣는다(운영 동작은 그대로).
+  - 확인: e4 의 시작 요청이 400 "시험 모드…" 로 끝나고, 시험 전후 `git worktree list`·claude 프로세스가 같다.
+
 ## 0.25.22 - 2026-11-22 · VBA 위험 경고 보강 · 템플릿 추천 중복 · 파이썬 경고
 
 - **VBA 위험 경고 목록**(`vba.js` RISKS - 화면 코드 창·가져오기·내보내기가 같이 쓴다)에 세 가지를 더했다. 실행기의 차단 동작은 그대로다(원래 이 셋도 돌지 않는다).

@@ -290,6 +290,9 @@ class EngineProfile:
         st = rc.heartbeat_status(self.heartbeat_path)
         if st.get("connected") and st.get("kind") != "engine" and rc.pid_alive(st.get("pid")):
             raise ValueError(f"수동 엔진 개발 세션({st.get('label') or '?'}, pid {st.get('pid')})이 맡고 있다")
+        if os.environ.get("NEXA_SLIDE_TEST_NO_ENGINE_START"):
+            # 시험용 허브(e3·e4)는 시험 중인 저장소가 곧 엔진이다 - 여기서 더 가면 그 저장소에 worktree 를 만들고(engine-dev 브랜치가 비어 있으면 성공해 버린다) 실제 세션까지 띄운다
+            raise ValueError("시험 모드(NEXA_SLIDE_TEST_NO_ENGINE_START) - 엔진 worktree·세션을 만들지 않는다")
         self.ensure_worktree()
         import engine_requests
         engine_requests.reclaim_stale(by="hub")  # 이전 세션이 끊긴 채 남긴 working → open (새 세션이 이어서 받는다)

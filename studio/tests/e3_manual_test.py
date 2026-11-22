@@ -22,7 +22,8 @@ for _d in (WORK / "user", WORK / "projects"):
     _d.mkdir(parents=True, exist_ok=True)
 USER, PROJ, HUB_PORT = WORK / "user", WORK / "projects", 5799
 BASE = f"http://127.0.0.1:{HUB_PORT}"
-ENV = {**os.environ, "NEXA_SLIDE_USER_DIR": str(USER), "NEXA_SLIDE_PROJECTS": str(PROJ), "PYTHONIOENCODING": "utf-8"}
+ENV = {**os.environ, "NEXA_SLIDE_USER_DIR": str(USER), "NEXA_SLIDE_PROJECTS": str(PROJ), "PYTHONIOENCODING": "utf-8",
+       "NEXA_SLIDE_TEST_NO_ENGINE_START": "1"}  # 시험용 허브의 엔진 = 시험 중인 저장소 - 웹 세션 시작이 거기에 worktree·세션을 만들지 않게(wsession.EngineProfile.check_start)
 ENV.pop("NEXA_SLIDE_WORKSPACE", None)
 FAILS = []
 
