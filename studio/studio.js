@@ -133,7 +133,9 @@
     S.saving = true; setStatus("dirty", "저장 중…");
     const qs = extra ? "&" + new URLSearchParams(extra).toString() : "";
     // 병합 저장(merge=1) - 그 사이 다른 창·AI 가 저장했어도 서버가 요소 단위로 합친다(같은 곳은 나중 저장인 내 값). 409 는 기준본을 모를 때뿐
-    const r = await api("PUT", `/api/deck/${S.id}?base=${encodeURIComponent(S.version || "")}${force ? "&force=1" : "&merge=1"}${qs}`, JSON.parse(body));
+    // 작업 저장(동시 편집 3-4 다) - 큰 덱에서 조금 고쳤으면 바뀐 것만 POST /api/ops 로. 복원·강제 저장과 작업으로 보낼 수 없는 경우는 PUT
+    let r = force || extra ? null : await NexaMerge.trySaveOps(api, S.id, S.version, S.savedJson, body);
+    if (!r) r = await api("PUT", `/api/deck/${S.id}?base=${encodeURIComponent(S.version || "")}${force ? "&force=1" : "&merge=1"}${qs}`, JSON.parse(body));
     S.saving = false;
     if (r.ok && r.data.merged && r.data.deck) {  // 합쳐졌다 - 병합 결과(+ 저장하는 사이 더 고친 것)를 화면에, 남의 변경은 내 실행 취소에 섞지 않는다
       const now = deckJson();
@@ -146,11 +148,18 @@
       renderAll(); scheduleCheck();
       setStatus(S.dirty ? "dirty" : "saved", S.dirty ? "저장 대기" : "저장됨");
       const nt = NexaMerge.notice(r.data.conflicts);
-      if (r.data.conflicts && r.data.conflicts.length) { notice(nt.text, [{ act: "changes", label: "변경 보기", primary: true }]); $("#noticeMsg").title = nt.detail; } else toast(nt.text, 3500);
+      const dn = r.viaOps ? NexaMerge.droppedNotice(r.data) : "";
+      if (r.data.conflicts && r.data.conflicts.length) { notice(nt.text, [{ act: "changes", label: "변경 보기", primary: true }]); $("#noticeMsg").title = nt.detail; } else toast(dn ? nt.text + "\n" + dn : nt.text, dn ? 7000 : 3500);
       if (S.dirty) scheduleSave();
     } else if (r.ok) {
-      S.version = r.data.version; S.deck.updated = r.data.updated; S.savedJson = deckJson(); scheduleCheck();
-      if (JSON.parse(body).slides && deckJson() === S.savedJson) S.dirty = false;
+      // 저장본 = 보낸 것(+ 서버가 찍은 updated) - 저장하는 사이 더 고친 것은 저장본에 넣지 않는다(다음 저장의 차이·작업 계산이 그것을 빠뜨리지 않게)
+      S.version = r.data.version;
+      const same = deckJson() === body;  // 저장하는 사이 더 고치지 않았다 - 그러면 지금 문서가 곧 저장본(키 순서까지 같게 - 다시 읽어 만든 글과 비교하면 숫자 꼴 키 순서가 달라 저장이 되풀이될 수 있다)
+      if (r.data.updated) S.deck.updated = r.data.updated;
+      if (same) S.savedJson = deckJson();
+      else { const o = JSON.parse(body); if (r.data.updated) o.updated = r.data.updated; S.savedJson = JSON.stringify(o); }
+      scheduleCheck();
+      S.dirty = !same;
       S.conflict = false; banner(false);
       setStatus(S.dirty ? "dirty" : "saved", S.dirty ? "저장 대기" : "저장됨");
       if (S.dirty) scheduleSave();

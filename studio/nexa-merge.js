@@ -284,7 +284,7 @@
   //     작업을 저장본에 얹은 결과가 지금 문서와 다르면(같은 id 가 둘 등) PUT - 작업으로 잃는 것이 없게.
   //   saveOps(api, deckId, base, ops)  POST /api/ops → 응답 data, 서버가 모르거나(404·405) 거절하면(400) null - 그러면 화면은 PUT ?merge=1 로
   function planSave(saved, now, opt = {}) {
-    const bytes = (now || "").length;
+    const bytes = new TextEncoder().encode(now || "").length;  // 보내는 크기(UTF-8) - 글자 수(.length)로 재면 한글 덱은 문턱이 두세 배로 늦게 걸린다
     if (!saved) return { mode: "put", bytes, why: "저장본 없음" };
     if (saved === now) return { mode: "none", bytes, why: "같음" };
     if (opt.struct && opt.struct.length) return { mode: "put", bytes, why: "구조 작업" };
@@ -304,5 +304,24 @@
     return { ok: false, status: r.status, error: (r.data && r.data.error) || r.status };
   }
 
-  root.NexaMerge = { merge3, describe, eq, seal, undoTarget, afterSave, notice, ops, applyOps, planSave, saveOps };
+  /** 화면 저장의 작업 저장 시도(3-4 다) - 작업으로 보낼 만하면 POST /api/ops 로 보내고 PUT 응답과 같은 꼴 { ok, status, data, viaOps } 로 돌려준다.
+   *  null 이면 화면은 예전처럼 PUT ?merge=1 로 저장한다(작은 문서·작업이 많음·구조 작업·서버가 모름·거절·오류 - 어느 경우든 PUT 이 다시 합친다).
+   *  서버가 deck 을 주면(오래된 판 위에 얹었거나 버린 작업이 있음) 병합 저장의 merged 응답과 같게 만든다 - 화면은 afterSave(보낸 것, 지금, deck) 로 받는다.
+   *  시험은 window.__nxOpsMin(바이트)으로 문턱을 낮춘다. */
+  async function trySaveOps(api, deckId, base, saved, now, opt = {}) {
+    const o = { ...opt };
+    if (o.minBytes == null && typeof root.__nxOpsMin === "number") o.minBytes = root.__nxOpsMin;
+    const plan = planSave(saved, now, o);
+    if (plan.mode !== "ops") return null;
+    const d = await saveOps(api, deckId, base, plan.ops);
+    if (!d || d.ok === false || !d.version) return null;
+    return { ok: true, status: 200, viaOps: true, data: d.deck ? { ...d, merged: true, conflicts: [] } : d };
+  }
+  /** 작업 저장에서 서버가 버린 작업(대상이 그 사이 지워짐) 알림 문구 - 없으면 "" */
+  function droppedNotice(data) {
+    const n = ((data && data.dropped) || []).length;
+    return n ? `그 사이 지워진 곳이라 반영되지 않은 변경 ${n}건` : "";
+  }
+
+  root.NexaMerge = { merge3, describe, eq, seal, undoTarget, afterSave, notice, ops, applyOps, planSave, saveOps, trySaveOps, droppedNotice };
 })(typeof window !== "undefined" ? window : globalThis);
