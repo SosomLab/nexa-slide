@@ -198,6 +198,14 @@ def run(seed, steps):
         check(f"{deck} - 다시 읽은 창 3개가 같은 문서로 모임", all(w.doc == wins[0].doc for w in wins) and wins[0].doc == final, f"씨앗 {seed}")
         st, led, _ = call("GET", f"/api/changes/{deck}")
         check(f"{deck} - 원장이 읽힌다", st == 200, json.dumps(led, ensure_ascii=False)[:200])
+        # 원장 재생(3-5) - 사슬·백업·작업 저장 재생·끝이 파일과 맞는가
+        r = subprocess.run([sys.executable, str(STUDIO / "ledger.py"), "verify", deck, "--json"], env=ENV, cwd=str(WS), capture_output=True, text=True, encoding="utf-8", errors="replace")
+        try:
+            v = json.loads(r.stdout.strip().splitlines()[-1])
+        except (ValueError, IndexError):
+            v = {"raw": (r.stdout + r.stderr)[-400:]}
+        print(f"   {deck} 원장 {v.get('entries')}줄 · 사슬 {v.get('chain')} · 백업 {v.get('backup')} · 재생 {v.get('replay')} · 끝 {v.get('end')}")
+        check(f"{deck} - 원장 재생(ledger verify) rc 0", r.returncode == 0 and v.get("ok"), f"씨앗 {seed}: " + json.dumps(v.get("problems") or v, ensure_ascii=False)[:600])
     if FAILS:
         print("\n".join(log[-30:]))
 
@@ -214,7 +222,10 @@ def main():
     if not (WS / "nexa-slide.json").is_file():
         subprocess.run([sys.executable, str(STUDIO / "init_workspace.py"), str(WS.parent), "--title", "sim시험", "--port", str(PORT)], env=ENV, capture_output=True, text=True, encoding="utf-8")
     decks = WS / "decks"; decks.mkdir(parents=True, exist_ok=True)
-    slides = [{"id": f"s{k}", "elements": [{"id": "c1", "type": "text", "x": 10, "y": 10, "w": 300, "h": 40, "text": "공용"}] if k == 1 else []} for k in range(1, 4)]
+    import shutil
+    for d in ("sim", "simsheet"):  # 지난 실행의 원장·백업 - 이번 실행만 재생해 본다
+        shutil.rmtree(decks / ".history" / d, ignore_errors=True)
+    slides =[{"id": f"s{k}", "elements": [{"id": "c1", "type": "text", "x": 10, "y": 10, "w": 300, "h": 40, "text": "공용"}] if k == 1 else []} for k in range(1, 4)]
     (decks / "sim.json").write_text(json.dumps({"id": "sim", "title": "시뮬", "slides": slides}, ensure_ascii=False), encoding="utf-8")
     (decks / "simsheet.json").write_text(json.dumps({"id": "simsheet", "title": "시뮬 시트", "kind": "sheet", "slides": [], "sheets": [{"id": "t01", "name": "S", "cells": {"D1": 1}}]}, ensure_ascii=False), encoding="utf-8")
     srv = subprocess.Popen([sys.executable, str(STUDIO / "server.py"), "--workspace", str(WS), "--port", str(PORT)], env=ENV, cwd=str(WS), stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
