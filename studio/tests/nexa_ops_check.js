@@ -37,6 +37,29 @@ const check = (name, ok, info) => { if (!ok) { bad++; console.log("FAIL", name, 
   check("saveOps - 거절(400) → null", (await M.saveOps(fake(400, { ok: false }), "d", "v", [])) === null);
   const r5 = await M.saveOps(fake(500, { error: "x" }), "d", "v", []);
   check("saveOps - 서버 오류(500) → {ok:false}", r5 && r5.ok === false && r5.status === 500, r5);
-  console.log(bad ? `\n실패 ${bad}` : `전부 통과 (${cases.length}사례 - deckops.py 와 같음 · 저장 방식 11)`);
+  // 화면 저장의 작업 저장 시도(trySaveOps) - PUT 응답과 같은 꼴로 돌려주거나 null(화면이 PUT ?merge=1 로)
+  {
+    const big = { title: "t", slides: [{ id: "s1", elements: [{ id: "e1", text: "a" }, { id: "e2", text: "x".repeat(300000) }] }] };
+    const saved = JSON.stringify(big), n = JSON.parse(saved); n.slides[0].elements[0].text = "b"; const now = JSON.stringify(n);
+    const t1 = await M.trySaveOps(fake(200, { ok: true, version: "v2", applied: 1, dropped: [] }), "d", "v1", saved, now);
+    check("trySaveOps - 작업 저장 성공 → {ok, status 200, viaOps, data}(merged 없음)", t1 && t1.ok && t1.status === 200 && t1.viaOps && t1.data.version === "v2" && !t1.data.merged && fake.last.url === "/api/ops/d" && fake.last.body.ops.length === 1, t1);
+    const t2 = await M.trySaveOps(fake(200, { ok: true, version: "v3", applied: 1, dropped: [{ i: 0 }], stale: true, deck: big }), "d", "v1", saved, now);
+    check("trySaveOps - 서버가 deck 을 주면 merged:true · conflicts [] (PUT 병합 응답과 같은 꼴)", t2 && t2.data.merged === true && Array.isArray(t2.data.conflicts) && !t2.data.conflicts.length && t2.data.deck === big, t2);
+    check("droppedNotice - 버린 작업 n건 문구 · 없으면 빈 글", /반영되지 않은 변경 1건/.test(M.droppedNotice(t2.data)) && M.droppedNotice(t1.data) === "" && M.droppedNotice(null) === "");
+    check("trySaveOps - 404 → null(PUT 으로)", (await M.trySaveOps(fake(404, null), "d", "v1", saved, now)) === null);
+    check("trySaveOps - 500 → null(PUT 이 다시 합친다)", (await M.trySaveOps(fake(500, { error: "x" }), "d", "v1", saved, now)) === null);
+    check("trySaveOps - 판 없는 응답 → null", (await M.trySaveOps(fake(200, { ok: true }), "d", "v1", saved, now)) === null);
+    let called = 0; const spy = async () => { called++; return { ok: true, status: 200, data: { ok: true, version: "v9" } }; };
+    const small = JSON.stringify({ slides: [{ id: "s", elements: [{ id: "e", text: "a" }] }] }), small2 = small.replace('"a"', '"b"');
+    check("trySaveOps - 작은 문서 → null · 요청 없음", (await M.trySaveOps(spy, "d", "v1", small, small2)) === null && called === 0);
+    globalThis.__nxOpsMin = 0;
+    const t3 = await M.trySaveOps(spy, "d", "v1", small, small2);
+    delete globalThis.__nxOpsMin;
+    check("trySaveOps - window.__nxOpsMin = 0 이면 작은 문서도 작업 저장", t3 && t3.viaOps && called === 1, t3);
+    const ko = JSON.stringify({ slides: [{ id: "s", elements: [{ id: "e", text: "a" }, { id: "k", text: "가".repeat(80000) }] }] }), ko2 = ko.replace('"a"', '"b"');  // 글자 8만(문턱 아래) · UTF-8 24만 바이트(위)
+    check("planSave - 문턱은 UTF-8 바이트: 글자 수는 문턱 아래지만 바이트는 위인 한글 문서 → ops", ko.length < 200000 && M.planSave(ko, ko2).mode === "ops", M.planSave(ko, ko2).why);
+    check("trySaveOps - 같은 내용 → null · 구조 작업 → null", (await M.trySaveOps(spy, "d", "v1", saved, saved)) === null && (await M.trySaveOps(spy, "d", "v1", saved, now, { struct: [{ op: "insertRows" }] })) === null && called === 1);
+  }
+  console.log(bad ? `\n실패 ${bad}` : `전부 통과 (${cases.length}사례 - deckops.py 와 같음 · 저장 방식 21)`);
   process.exit(bad ? 1 : 0);
 })();
