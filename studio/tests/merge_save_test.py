@@ -221,6 +221,114 @@ def main():
         check("시트 행 삽입 병합 - 그 사이 다른 창이 고친 B2 는 옮겨진 B3 에, 수식도 =B3*2(E3)", sa == 200 and c9.get("B3") == "B 가 고침" and "B2" not in c9
               and (c9.get("E3") or {}).get("f") == "=B3*2" and "__struct" not in json.dumps(get("ms")[0]), json.dumps(c9, ensure_ascii=False)[:400])
         check("시트 - 다른 셀 둘 다 · 같은 셀은 값(A)과 굵게(B) 둘 다", sb == 200 and c.get("B2") == 2 and c.get("C3") == "추가" and c.get("A1") == {"b": True, "v": "새 제목"}, json.dumps(c, ensure_ascii=False))
+        # 10. 시트 구조 작업 뒤 옛 판 저장(3-5 재현표 → 고침) - 기준판 뒤에 남이 넣거나 지운 행·열(원장 replay.struct)만큼 기준본·보낸 문서를 옮긴 뒤 합친다
+        def post_ops(deck, body):
+            rq = urllib.request.Request(f"{B}/api/ops/{deck}", data=json.dumps(body, ensure_ascii=False).encode(), method="POST", headers={"Content-Type": "application/json"})
+            try:
+                with urllib.request.urlopen(rq, timeout=10) as r:
+                    return r.status, json.loads(r.read())
+            except urllib.error.HTTPError as ex:
+                return ex.code, json.loads(ex.read() or b"{}")
+
+        def sdeck(i):  # A1:A7 = r1~r7 · B2 = 옛B2 · B5 = 옛B5 · C5 = =B5*2
+            cells = {f"A{r}": f"r{r}" for r in range(1, 8)}
+            cells.update({"B2": "옛B2", "B5": "옛B5", "C5": {"f": "=B5*2"}})
+            st, r = put(i, {"id": i, "title": "구조 뒤 옛 판", "kind": "sheet", "slides": [], "sheets": [{"id": "t01", "name": "S", "cells": cells}]})
+            assert st == 200, (st, r)
+            return get(i)
+
+        def cells(i):
+            return get(i)[0]["sheets"][0]["cells"]
+
+        def struct_put(i, d, v, so):
+            return put(i, {**sheet_struct.apply(d, so), "__struct": so}, base=v, merge=1)
+
+        def edited(d, **kv):
+            d = json.loads(json.dumps(d))
+            for k, val in kv.items():
+                if val is None:
+                    d["sheets"][0]["cells"].pop(k, None)
+                else:
+                    d["sheets"][0]["cells"][k] = val
+            return d
+        INS = lambda at, n=1: [{"op": "insertRows", "tab": "t01", "at": at, "n": n}]  # noqa: E731
+        notes = []
+        # (i) A 행 삽입(2행 위) 저장 → 옛 판 B 가 B5 만 고침 · 수식 C5 → C6 =B6*2 · 세 번째 창 C(같은 옛 판)가 B2 고침
+        d0, v0 = sdeck("zst1")
+        sa, _ = struct_put("zst1", d0, v0, INS(1))
+        sb, rb = put("zst1", edited(d0, B5="B가 고침"), base=v0, merge=1)
+        c = cells("zst1")
+        check("10(i) 행 삽입 뒤 옛 판 셀 저장 - B 의 값은 옮겨진 B6(옛B5 를 바꿈) · B5 는 비어 있음(밀려 온 값 = 빈 칸) · 충돌 0 · 수식 C6 =B6*2",
+              sa == 200 and sb == 200 and c.get("B6") == "B가 고침" and "B5" not in c and not (rb.get("conflicts") or []) and (c.get("C6") or {}).get("f") == "=B6*2" and c.get("A3") == "r2",
+              json.dumps({"st": [sa, sb], "conflicts": rb.get("conflicts"), "cells": c}, ensure_ascii=False)[:500])
+        sc, rc_ = put("zst1", edited(d0, B2="C가 고침"), base=v0, merge=1)
+        c = cells("zst1")
+        check("10 세 번째 창 C(같은 옛 판)가 B2 를 고침 - 옮겨진 B3 에 · B 의 B6 은 그대로", sc == 200 and c.get("B3") == "C가 고침" and "B2" not in c and c.get("B6") == "B가 고침", json.dumps(c, ensure_ascii=False)[:400])
+        # (iii) 양쪽 다 행 삽입 → 409 struct-both · 파일 그대로
+        d0, v0 = sdeck("zst3")
+        struct_put("zst3", d0, v0, INS(1))
+        before = get("zst3")
+        so2 = INS(3)
+        st3, r3 = put("zst3", {**edited(sheet_struct.apply(d0, so2), B6="B가 고침"), "__struct": so2}, base=v0, merge=1)
+        after = get("zst3")
+        check("10(iii) 양쪽 다 행 삽입 - 409 reason struct-both · 파일 그대로", st3 == 409 and r3.get("reason") == "struct-both" and before[1] == after[1] and before[0] == after[0], json.dumps({"st": st3, "r": r3}, ensure_ascii=False))
+        # 열 삽입(B 왼쪽) 뒤 옛 판 B5 → C5
+        d0, v0 = sdeck("zst4")
+        struct_put("zst4", d0, v0, [{"op": "insertCols", "tab": "t01", "at": 1, "n": 1}])
+        st, r = put("zst4", edited(d0, B5="B가 고침"), base=v0, merge=1)
+        c = cells("zst4")
+        check("10 열 삽입(B 왼쪽) 뒤 옛 판 B5 저장 - 옮겨진 C5 에 · B5 는 빈 칸 · 수식 D5 =C5*2", st == 200 and c.get("C5") == "B가 고침" and "B5" not in c and (c.get("D5") or {}).get("f") == "=C5*2", json.dumps(c, ensure_ascii=False)[:400])
+        # 행 삭제(5행) 뒤 옛 판에서 그 행의 B5 와 다른 칸 B2 를 고침
+        d0, v0 = sdeck("zst5")
+        struct_put("zst5", d0, v0, [{"op": "deleteRows", "tab": "t01", "at": 4, "n": 1}])
+        st, r = put("zst5", edited(d0, B5="지운 행 고침", B2="B2 고침"), base=v0, merge=1)
+        c = cells("zst5")
+        notes.append(f"10 행 삭제 뒤 옛 판 저장: {st} · 충돌 {len(r.get('conflicts') or [])} · 칸 {json.dumps({k: c[k] for k in sorted(c) if k[0] in 'BC'}, ensure_ascii=False)} · A5={c.get('A5')}")
+        check("10 행 삭제 뒤 옛 판 저장 - 지운 행의 편집은 사라지고(값 '지운 행 고침' 없음) B2 는 제자리 · 아래 행은 당겨짐(A5 = r6)",
+              st == 200 and "지운 행 고침" not in json.dumps(c, ensure_ascii=False) and c.get("B2") == "B2 고침" and c.get("A5") == "r6", json.dumps({"st": st, "r": {k: r.get(k) for k in ("conflicts",)}, "cells": c}, ensure_ascii=False)[:500])
+        # A 가 구조 작업 저장 두 번(at=1 → 다시 at=4) 뒤 옛 판 B
+        d0, v0 = sdeck("zst6")
+        struct_put("zst6", d0, v0, INS(1))
+        d1, v1 = get("zst6")
+        struct_put("zst6", d1, v1, INS(4))
+        st, r = put("zst6", edited(d0, B5="B가 고침"), base=v0, merge=1)
+        c = cells("zst6")
+        check("10 A 의 행 삽입 두 번(2행 위 → 5행 위) 뒤 옛 판 B5 - 두 번 옮겨진 B7 에 · 수식 C7 =B7*2", st == 200 and c.get("B7") == "B가 고침" and (c.get("C7") or {}).get("f") == "=B7*2" and c.get("A8") == "r6",
+              json.dumps(c, ensure_ascii=False)[:400])
+        # 옛 판 작업 저장 → 400 → 화면처럼 PUT ?merge=1 로 이어서 제 칸
+        d0, v0 = sdeck("zst7")
+        struct_put("zst7", d0, v0, INS(1))
+        so_, ro_ = post_ops("zst7", {"base": v0, "ops": [{"op": "cell", "tab": "t01", "key": "B5", "value": "작업 저장"}]})
+        st, r = put("zst7", edited(d0, B5="작업 저장"), base=v0, merge=1)
+        c = cells("zst7")
+        check("10 옛 판 작업 저장(POST /api/ops) - 400(통째 저장으로) → PUT ?merge=1 로 B6 에", so_ == 400 and st == 200 and c.get("B6") == "작업 저장", json.dumps({"ops": [so_, ro_], "put": st, "cells": c}, ensure_ascii=False)[:400])
+        # 회귀 - 구조 작업이 없던 평소 병합
+        d0, v0 = sdeck("zst8")
+        put("zst8", edited(d0, A1="A 가 고침"), base=v0)
+        st, r = put("zst8", edited(d0, B5="B가 고침"), base=v0, merge=1)
+        c = cells("zst8")
+        check("10 회귀 - 구조 작업 없는 평소 병합: 다른 셀 둘 다 제자리", st == 200 and c.get("A1") == "A 가 고침" and c.get("B5") == "B가 고침" and c.get("A2") == "r2", json.dumps(c, ensure_ascii=False)[:300])
+        # 원장 재생 - 이 저장들 뒤 verify
+        bad = []
+        for i in ("zst1", "zst3", "zst4", "zst5", "zst6", "zst7", "zst8"):
+            rr = subprocess.run([sys.executable, str(STUDIO / "ledger.py"), "verify", i, "--json"], env=ENV, cwd=str(WS), capture_output=True, text=True, encoding="utf-8", errors="replace")
+            if rr.returncode:
+                bad.append((i, rr.stdout[-300:]))
+        check("10 원장 - 구조 작업 뒤 옛 판 저장들의 ledger verify rc 0(7개 덱)", not bad, json.dumps(bad, ensure_ascii=False)[:600])
+        # 서버 재시작 뒤(기준본 없음) - 예전과 같은 409 no-base
+        d0, v0 = sdeck("zst9")
+        struct_put("zst9", d0, v0, INS(1))
+        srv.terminate(); srv.wait(timeout=10)
+        srv = subprocess.Popen([sys.executable, str(STUDIO / "server.py"), "--workspace", str(WS), "--port", str(PORT)], env=ENV, cwd=str(WS), stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        for _ in range(60):
+            try:
+                urllib.request.urlopen(f"{B}/api/decks", timeout=2).read(); break
+            except Exception:  # noqa: BLE001
+                time.sleep(0.5)
+        st, r = put("zst9", edited(d0, B5="B가 고침"), base=v0, merge=1)
+        check("10 서버 재시작 뒤(기준본 없음) 옛 판 저장 - 예전과 같은 409 reason no-base", st == 409 and r.get("reason") == "no-base", json.dumps({"st": st, "r": r}, ensure_ascii=False))
+        for n in notes:
+            print("  ·", n)
     finally:
         srv.terminate()
         try:
