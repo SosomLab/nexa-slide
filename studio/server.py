@@ -1382,7 +1382,8 @@ class H(BaseHTTPRequestHandler):
             return self.err(404, "덱 없음")
         with WRITE_LOCK:
             track(i)
-        entries = ledger.read(i)
+        # replay(작업 목록 그대로·행·열 작업)는 원장 재생용이라 화면에 보내지 않는다 - 작업 저장 한 줄마다 최대 8KB 가 목록 응답에 실린다
+        entries = [{k: v for k, v in e.items() if k != "replay"} if "replay" in e else e for e in ledger.read(i)]
         hdir = DECKS / ".history" / i
 
         def g1(k, d=None):
