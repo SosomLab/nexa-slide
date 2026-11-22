@@ -4,11 +4,14 @@
 - 창마다 자기 몫(만든 요소·자기 열의 셀)이 있고, 끝에서 서버 파일의 자기 몫이 창이 마지막으로 본 자기 몫과 같아야 한다(잃어버린 갱신 없음).
   같은 곳을 함께 고치는 편집(덱 제목·공용 요소 글)은 어느 쪽이 이겨도 되고, 모든 창이 같은 결과로 모이는지만 본다.
 - 창은 가끔만 다시 읽는다(오래된 판에서 고치기) - 실시간 연결이 늦게 오는 경우를 흉내 낸다.
+- 시트는 가끔 행을 넣는다(구조 작업 - 창이 자기 문서를 sheet_struct 로 옮기고 다음 저장에 __struct 로 보낸다). 양쪽이 모두 행을 넣어
+  409 struct-both 가 나면 그 창은 다시 읽는다(화면의 [밖의 것 다시 읽기]). 칸이 움직이므로 시트의 자기 몫은 "자기 열 값의 위→아래 순서"로 본다.
 - 실패하면 씨앗(seed)을 알린다 - 같은 씨앗으로 다시 돌리면 같은 순서가 된다."""
 import argparse
 import json
 import os
 import random
+import re
 import subprocess
 import sys
 import tempfile
@@ -30,6 +33,9 @@ os.environ["NEXA_SLIDE_WORKSPACE"] = str(WS)  # deckops·deckmerge 를 불러오
 B = f"http://127.0.0.1:{PORT}"
 FAILS = []
 COLS = "ABC"  # 창 i 의 몫 = 시트 i 열
+STRUCT = True  # --no-struct: 시트에 행 넣기를 섞지 않는다
+STATS = {"struct": 0, "struct-both": 0, "ops400": 0}
+LOST = []  # 저장마다 본 잃어버린 갱신(시트 - 병합 결과의 내 열이 보낸 것과 다름)
 NAIVE = False  # --naive: 작업 저장 응답의 결과 문서(deck)를 무시하고 새 판만 받는다 - 잃어버린 갱신이 나야 한다(시뮬레이터가 잡는지 확인)
 
 
@@ -62,6 +68,7 @@ class Win:
     def refresh(self):
         _, self.doc, self.version = call("GET", f"/api/deck/{self.deck}")
         self.saved = clone(self.doc)
+        self.struct = []  # 다음 저장에 보낼 행·열 작업(시트)
 
     def uid(self):
         self.n += 1
@@ -72,28 +79,56 @@ class Win:
         if self.doc == self.saved:
             return
         sent = clone(self.doc)
-        if rnd.random() < 0.5:
+        if self.struct:  # 행·열 작업이 있으면 PUT(__struct) - 화면 planSave 와 같다
+            st, r, _ = call("PUT", f"/api/deck/{self.deck}?base={self.version}&merge=1", {**sent, "__struct": self.struct})
+            how = f"put struct {len(self.struct)}"
+            if st == 409 and r.get("reason") == "struct-both":  # 다른 창도 행을 넣었다 - 다시 읽는다(내 것 버림)
+                log.append(f"w{self.k} {how} → 409 struct-both · 다시 읽음")
+                STATS["struct-both"] += 1
+                self.refresh()
+                return
+            if st == 200:
+                STATS["struct"] += 1
+        elif rnd.random() < 0.5:
             ops = deckops.diff(self.saved, sent)
             st, r, _ = call("POST", f"/api/ops/{self.deck}", {"base": self.version, "ops": ops})
             how = f"ops {len(ops)}"
+            if st == 400 and "행·열" in str(r.get("error", "")):  # 그 사이 행·열이 바뀌었다 - 화면처럼 PUT 으로
+                STATS["ops400"] += 1
+                st, r, _ = call("PUT", f"/api/deck/{self.deck}?base={self.version}&merge=1", sent)
+                how = "ops→put"
         else:
             st, r, _ = call("PUT", f"/api/deck/{self.deck}?base={self.version}&merge=1", sent)
             how = "put"
+        if st == 200:
+            self.struct = []
         if st != 200:
             log.append(f"w{self.k} {how} → {st} {json.dumps(r, ensure_ascii=False)[:200]}")
             FAILS.append(f"저장 실패 w{self.k} {how} {st}")
             print("  ", log[-1])
             return
         log.append(f"w{self.k} {how} v{self.version[:6]}→{r['version'][:6]}" + (" 병합" if r.get("merged") else "") + (f" 버림{len(r['dropped'])}" if r.get("dropped") else ""))
+        if self.deck == "simsheet":  # 저장마다 - 서버가 돌려준(또는 그대로 저장한) 문서의 내 열 = 보낸 문서의 내 열(남은 내 열을 건드리지 않는다 - 행이 들어가도 순서는 같다)
+            got = r.get("deck") if r.get("deck") is not None else None
+            if got is not None and col_values(got, COLS[self.k]) != col_values(sent, COLS[self.k]):
+                LOST.append(f"w{self.k} {how} 저장 결과의 내 열 {COLS[self.k]}: 보냄 {json.dumps(col_values(sent, COLS[self.k]), ensure_ascii=False)[:160]} ≠ 결과 {json.dumps(col_values(got, COLS[self.k]), ensure_ascii=False)[:160]}")
         if r.get("merged"):  # 화면과 같다 - 병합 결과를 받아 둔다(NexaMerge.afterSave: 보낸 뒤 고친 것이 없으므로 그대로)
             self.doc, self.saved = clone(r["deck"]), clone(r["deck"])
             self.version = r["version"]
-        elif how == "put":
+        elif how.startswith("put") or how == "ops→put":
             self.saved, self.version = sent, r["version"]
         elif how != "put" and r.get("deck") is not None and not NAIVE:  # 작업 저장 - 오래된 판 위에 얹었으면 서버가 결과 문서를 준다 → PUT 병합과 같게 받는다
             self.doc, self.saved, self.version = clone(r["deck"]), clone(r["deck"]), r["version"]
         else:  # 그대로 저장됨(작업 저장이 지금 판 위였거나 PUT) - 저장본 = 보낸 것
             self.saved, self.version = sent, r["version"]
+
+
+def col_values(d, col):
+    """시트의 자기 몫 - 그 열의 비지 않은 값을 위→아래 순서로(행이 들어가 칸 이름이 바뀌어도 같다). 수식의 행 번호는 지운다"""
+    cells = d["sheets"][0].get("cells") or {}
+    keys = sorted((k for k in cells if re.fullmatch(col + r"\d+", k)), key=lambda k: int(k[len(col):]))
+    norm = lambda v: {**v, "f": re.sub(r"\d+", "#", v["f"])} if isinstance(v, dict) and v.get("f") else v  # noqa: E731
+    return [norm(cells[k]) for k in keys]
 
 
 def mine_slides(d, k):
@@ -147,6 +182,12 @@ def edit_sheet(w, rnd):
     col = COLS[w.k]
     mine = [k for k in cells if k[0] == col]
     r = rnd.random()
+    if STRUCT and r < 0.06:  # 행 넣기(구조 작업) - 모든 열이 같이 움직인다
+        import sheet_struct
+        so = [{"op": "insertRows", "tab": "t01", "at": rnd.randint(0, 25), "n": 1}]
+        w.doc = sheet_struct.apply(w.doc, so)
+        w.struct.extend(so)
+        return
     if r < 0.55 or not mine:
         cells[f"{col}{rnd.randint(1, 30)}"] = f"w{w.k}-{rnd.randint(0, 9999)}"
     elif r < 0.7:
@@ -188,10 +229,12 @@ def run(seed, steps):
                     lost.append(f"w{w.k} 순서 {json.dumps(wo)[:120]} ≠ {json.dumps(go)[:120]}")
             else:
                 col = COLS[w.k]
-                want = {k: v for k, v in w.doc["sheets"][0]["cells"].items() if k[0] == col}
-                got = {k: v for k, v in final["sheets"][0]["cells"].items() if k[0] == col}
+                want, got = col_values(w.doc, col), col_values(final, col)
                 if want != got:
-                    lost.append(f"w{w.k} 셀 {sorted(set(want) ^ set(got)) or [k for k in want if want[k] != got.get(k)]}")
+                    lost.append(f"w{w.k} 열 {col} 값 순서 {json.dumps(want, ensure_ascii=False)[:200]} ≠ {json.dumps(got, ensure_ascii=False)[:200]}")
+        if deck == "simsheet":
+            check("simsheet - 저장마다 병합 결과의 내 열이 보낸 것과 같음(행이 들어간 뒤 옛 판 저장 포함)", not LOST, f"씨앗 {seed}: {len(LOST)}건 · " + " | ".join(LOST[:3]))
+            print(f"   simsheet 구조 작업: 행 넣기 저장 {STATS['struct']} · 양쪽 행 넣기 409 {STATS['struct-both']} · 작업 저장 400 → PUT {STATS['ops400']}")
         check(f"{deck} - 창마다 자기 몫(요소·순서·셀)이 서버 파일에 그대로(잃어버린 갱신 없음)", not lost, f"씨앗 {seed}: " + "; ".join(lost))
         for w in wins:
             w.refresh()
@@ -215,9 +258,10 @@ def main():
     ap.add_argument("--seed", type=int, default=None)
     ap.add_argument("--steps", type=int, default=120)
     ap.add_argument("--naive", action="store_true")
+    ap.add_argument("--no-struct", action="store_true")
     a = ap.parse_args()
-    global NAIVE
-    NAIVE = a.naive
+    global NAIVE, STRUCT
+    NAIVE, STRUCT = a.naive, not a.no_struct
     seed = a.seed if a.seed is not None else int(time.time()) % 100000
     if not (WS / "nexa-slide.json").is_file():
         subprocess.run([sys.executable, str(STUDIO / "init_workspace.py"), str(WS.parent), "--title", "sim시험", "--port", str(PORT)], env=ENV, capture_output=True, text=True, encoding="utf-8")

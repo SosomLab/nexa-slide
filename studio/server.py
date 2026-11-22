@@ -234,6 +234,24 @@ def _meta(p, data):
     return {"ver": ver(p), "size": len(data), "hash": ledger.sha256(data)}
 
 
+def _structs_since(i, base):
+    """기준판(base) 뒤의 저장들이 한 시트 행·열 작업(원장 replay.struct, 저장 순서대로). 그 판 뒤에 남이 행·열을 넣거나 지웠으면
+    옛 판 위에서 고친 셀은 칸이 어긋나 있다 - 병합 전에 기준본과 보낸 문서를 같은 만큼 옮겨야 한다."""
+    try:
+        b = int(base)
+    except (TypeError, ValueError):
+        return []
+    out = []
+    for e in ledger.read(i):
+        st = (e.get("replay") or {}).get("struct")
+        try:
+            if st and int((e.get("after") or {}).get("ver") or 0) > b:
+                out.extend(st)
+        except (TypeError, ValueError):
+            continue
+    return out
+
+
 def _working_requests(i):
     try:
         return [r.get("id") for r in json.loads(req_path(i).read_text(encoding="utf-8")) if r.get("status") == "working"]
@@ -1098,7 +1116,14 @@ class H(BaseHTTPRequestHandler):
                 _, theirs = _load(p)
                 if theirs is None:
                     return self.send_json({"ok": False, "error": "conflict", "version": cur}, 409)
-                if isinstance(struct, list) and struct and deck.get("kind") == "sheet":
+                since = _structs_since(i, base) if deck.get("kind") == "sheet" else []
+                if since and isinstance(struct, list) and struct:
+                    # 양쪽이 모두 행·열을 넣거나 지웠다 - 서로의 위치를 다시 계산해야 맞는데(아직 없음) 그냥 합치면 한 행씩 어긋난다. 사람이 고른다(docs/collab.md 3-2)
+                    return self.send_json({"ok": False, "error": "conflict", "version": cur, "reason": "struct-both"}, 409)
+                if since:
+                    # 기준판 뒤에 남이 행·열을 넣거나 지웠다 - 옛 판 위에서 고친 것(기준본·보낸 문서)을 같은 만큼 옮긴 뒤 합쳐야 내 셀이 제 칸에 간다
+                    bdoc, deck = sheet_struct.apply(bdoc, since), sheet_struct.apply(deck, since)
+                elif isinstance(struct, list) and struct and deck.get("kind") == "sheet":
                     # 보낸 쪽이 행·열을 넣거나 지웠다 - 기준본과 지금 파일을 같은 만큼 옮긴 뒤 합쳐야 다른 쪽이 고친 셀이 제 칸에 남는다
                     bdoc, theirs = sheet_struct.apply(bdoc, struct), sheet_struct.apply(theirs, struct)
                 deck, conflicts = deckmerge.merge3(bdoc, deck, theirs, prefer="theirs" if origin == "claude" else "ours")
@@ -1118,7 +1143,7 @@ class H(BaseHTTPRequestHandler):
             seq = None
             try:
                 ev = {"merge": {"base": base, "conflicts": conflicts[:50]}} if conflicts is not None else None  # 병합 저장 - 진 값을 원장에 남긴다
-                rp = {"struct": struct[:50]} if isinstance(struct, list) and struct and deck.get("kind") == "sheet" else None  # 행·열 작업 - 이 저장이 칸을 옮겼다는 기록
+                rp = {"struct": struct[:500]} if isinstance(struct, list) and struct and deck.get("kind") == "sheet" else None  # 행·열 작업 - 이 저장이 칸을 옮겼다는 기록
                 seq = ledger.record(i, old["obj"] if old else None, before, deck, _meta(p, data), origin, "exact", action, actor, ev, replay=rp)
             except Exception as e:  # noqa: BLE001
                 sys.stderr.write(f"ledger put {i}: {e}\n")
@@ -1238,6 +1263,9 @@ class H(BaseHTTPRequestHandler):
             _, now = _load(p)
             if now is None:
                 return self.send_json({"ok": False, "error": "conflict", "version": cur}, 409)
+            if base and base != cur and now.get("kind") == "sheet" and _structs_since(i, base):
+                # 기준판 뒤에 남이 행·열을 넣거나 지웠다 - 셀 작업의 칸 이름(B5)이 옛 위치다. 거절하면 화면이 PUT ?merge=1 로 다시 보내고 거기서 옮겨 합친다
+                return self.err(400, "그 사이 행·열이 바뀌었다 - 통째 저장으로")
             bdoc = _base_doc(i, base) if base and base != cur else None  # 기준본 - 지운 요소·장을 되살릴 때만 쓴다
             doc, n, dropped = deckops.apply(now, ops, base=bdoc)
             if not isinstance(doc.get("slides"), list) or (doc.get("kind") == "sheet" and not doc.get("sheets")):

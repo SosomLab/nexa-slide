@@ -495,7 +495,9 @@
       if (S.dirty) scheduleSave();
     } else if (r.status === 409) {
       S.conflict = true; setStatus("conflict", "충돌");
-      banner(true, "저장하려는 사이 시트 파일이 밖에서(Claude 등) 바뀌었고, 자동으로 합칠 수 없습니다(서버가 다시 시작됨 등). 어느 쪽을 남길까요?");
+      banner(true, r.data && r.data.reason === "struct-both"
+        ? "저장하려는 사이 다른 창도 행·열을 넣거나 지웠습니다. 양쪽의 행·열 변경은 자동으로 합칠 수 없습니다. 어느 쪽을 남길까요?"
+        : "저장하려는 사이 시트 파일이 밖에서(Claude 등) 바뀌었고, 자동으로 합칠 수 없습니다(서버가 다시 시작됨 등). 어느 쪽을 남길까요?");
     } else { setStatus("error", "저장 실패"); toast("저장 실패: " + ((r.data && r.data.error) || r.status), 5000); }
   }
 
