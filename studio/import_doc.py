@@ -10,7 +10,8 @@
     python3 nexa.py import_doc --selftest [--out <폴더>]   # 견본 docx·xlsx(·pdf)를 만들어 추출을 확인
 
 Word·Excel 은 표준 라이브러리(zip + XML)로 읽는다 - 추가 설치 없음. PDF 는 PyMuPDF(`pip install pymupdf`)가 있으면 글·표·그림을,
-없고 pypdf 가 있으면 글만 꺼낸다. 옛 형식(.doc·.xls)은 Word·Excel 에서 .docx·.xlsx 로 저장해 다시 올린다.
+없고 pypdf 가 있으면 글만, 둘 다 없으면 내장 읽개(pdf_text.py, 표준 라이브러리)로 글·책갈피·JPEG 그림을 꺼낸다(암호 PDF·표 구조는 못 한다).
+옛 형식(.doc·.xls)은 Word·Excel 에서 .docx·.xlsx 로 저장해 다시 올린다.
 문서를 덱으로 자동 변환하지는 않는다 - 세션이 content.md 를 읽고 slide_types·layout_samples 로 장을 고른다.
 """
 import argparse
@@ -391,8 +392,7 @@ def read_pdf(src, imgs):
         try:
             from pypdf import PdfReader
         except ImportError:
-            raise ValueError("PDF 를 읽을 라이브러리가 없다 - `python3 -m pip install pymupdf`(글·표·그림) 또는 `pypdf`(글만). "
-                             "그 전에는 세션이 Read 로 PDF 를 직접 열어 볼 수 있다")
+            return read_pdf_builtin(src, imgs)
         rd = PdfReader(str(src))
         if rd.is_encrypted:
             raise ValueError("암호가 걸린 PDF 다")
@@ -427,15 +427,31 @@ def read_pdf(src, imgs):
     return {"type": "pdf", "engine": "pymupdf", "pages": pages, "meta": meta, "toc": [{"level": l, "title": t, "page": p} for l, t, p in d.get_toc()][:200]}
 
 
+def read_pdf_builtin(src, imgs):
+    """PyMuPDF·pypdf 가 없을 때 - 표준 라이브러리 읽개(pdf_text)로 글·책갈피·JPEG 그림만(표 구조·암호 PDF 는 못 한다)."""
+    import pdf_text
+    try:
+        d = pdf_text.read(src)
+    except (OSError, ValueError) as e:
+        raise ValueError(f"{e} - 설치 없이 읽는 내장 읽개로도 열지 못했다") from None
+    pages = []
+    for p in d["pages"]:
+        pages.append({"n": p["n"], "text": p["text"], "tables": [], "images": [imgs.put(b, "jpg", f"p{p['n']:02d}") for b in p["jpegs"]]})
+    return {"type": "pdf", "engine": "builtin", "pages": pages, "meta": d["meta"], "toc": d["toc"]}
+
+
 def md_pdf(doc):
     L = []
     if doc.get("meta", {}).get("title"):
         L += [f"제목(메타): {doc['meta']['title']}", ""]
     if doc.get("toc"):
-        L += ["## 목차(책갈피)", ""] + ["  " * (t["level"] - 1) + f"- {t['title']} (p.{t['page']})" for t in doc["toc"]] + [""]
+        L += ["## 목차(책갈피)", ""] + ["  " * (t["level"] - 1) + f"- {t['title']}" + (f" (p.{t['page']})" if t["page"] else "") for t in doc["toc"]] + [""]
+    if doc.get("engine") == "builtin":
+        L += ["※ PyMuPDF·pypdf 가 없어 내장 읽개로 글만 꺼냈다 - 표는 줄글로, 글 순서는 PDF 안 순서다. 더 정확히는 `python3 -m pip install pymupdf`", ""]
     for p in doc["pages"]:
         L += ["", f"## {p['n']}쪽", ""]
-        L.append(p["text"] or "(글 없음 - 스캔 이미지일 수 있다. 그림을 Read 로 열어 본다)")
+        L.append(p["text"] or ("(글 없음 - 스캔 이미지이거나, 글꼴에 글자 대응표(ToUnicode)가 없어 내장 읽개가 못 읽었다)" if doc.get("engine") == "builtin"
+                               else "(글 없음 - 스캔 이미지일 수 있다. 그림을 Read 로 열어 본다)"))
         for t in p["tables"]:
             L += ["", "표:"] + _table_md(t)
         for im in p["images"]:
@@ -536,6 +552,32 @@ def _make_xlsx(path):
         z.writestr("xl/worksheets/sheet2.xml", f'<worksheet {s}><sheetData/></worksheet>')
 
 
+def _make_pdf(path):
+    """내장 읽개 점검용 PDF - 압축(Flate) 내용, 자간 띄어쓰기, ToUnicode 한글 CID 글꼴, 책갈피."""
+    import zlib
+    cmap = (b"/CIDInit /ProcSet findresource begin 12 dict begin begincmap 1 begincodespacerange <0000> <FFFF> endcodespacerange\n"
+            b"1 beginbfchar <0001> <D55C> endbfchar 1 beginbfrange <0002> <0003> <AE00> endbfrange endcmap end end")
+    body = zlib.compress(b"BT /F1 14 Tf 72 720 Td (Sample PDF page one) Tj 0 -20 Td [(Hello)-300(World)] TJ ET\n"
+                         b"BT /F2 12 Tf 1 0 0 1 72 600 Tm <00010002> Tj ET")
+    objs = [b"<< /Type /Catalog /Pages 2 0 R /Outlines 8 0 R >>",
+            b"<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+            b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R /Resources << /Font << /F1 5 0 R /F2 6 0 R >> >> >>",
+            b"<< /Length %d /Filter /FlateDecode >>\nstream\n" % len(body) + body + b"\nendstream",
+            b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+            b"<< /Type /Font /Subtype /Type0 /BaseFont /Gothic /Encoding /Identity-H /ToUnicode 7 0 R >>",
+            b"<< /Length %d >>\nstream\n" % len(cmap) + cmap + b"\nendstream",
+            b"<< /Type /Outlines /First 9 0 R /Last 9 0 R >>",
+            b"<< /Title <FEFFAC150031> /Parent 8 0 R /Dest [3 0 R /Fit] >>"]
+    out, offs = bytearray(b"%PDF-1.4\n"), []
+    for i, o in enumerate(objs):
+        offs.append(len(out))
+        out += b"%d 0 obj\n" % (i + 1) + o + b"\nendobj\n"
+    x = len(out)
+    out += b"xref\n0 %d\n0000000000 65535 f \n" % (len(objs) + 1) + b"".join(b"%010d 00000 n \n" % o for o in offs)
+    out += b"trailer\n<< /Size %d /Root 1 0 R >>\nstartxref\n%d\n%%%%EOF\n" % (len(objs) + 1, x)
+    Path(path).write_bytes(bytes(out))
+
+
 def selftest(out_dir):
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -555,6 +597,10 @@ def selftest(out_dir):
                ("Excel 숫자·날짜", s1["rows"][1] == ["1분기", "10.5", "2024-10-15"]),
                ("Excel 수식", s1["formulas"].get("B3") == "=SUM(B2:B2)" and s1["rows"][2][1] == "10.5"),
                ("Excel 숨긴 시트", s2["hidden"] and s2["rows"] == [])]
+    _make_pdf(out_dir / "sample-builtin.pdf")
+    b = read_pdf_builtin(out_dir / "sample-builtin.pdf", _Images(out_dir / "pdf-builtin", False))
+    checks += [("PDF 내장 읽개 글·줄·띄어쓰기", b["pages"][0]["text"] == "Sample PDF page one\nHello World\n한글"),
+               ("PDF 내장 읽개 책갈피", b["toc"] == [{"level": 1, "title": "강1", "page": 1}])]
     try:
         import fitz
         pdf = fitz.open()
