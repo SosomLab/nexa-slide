@@ -20,6 +20,7 @@
   Word(.docx)·Excel(.xlsx/.xlsm)·PDF 첨부는 `python3 nexa.py import_doc <파일>` 로 제목·문단·목록·표·시트(값·수식·차트 값)·쪽별 글·그림을 `out/import/<이름>/content.md` 에 꺼내 읽는다(PDF 는 Read 로 바로 열어 봐도 된다).
 - 요청에 `context` 가 있으면 **후속 요청**이다 — `context` 는 같은 대화의 앞선 요청(`text`)과 너의 답(`reply`)이 오래된 순서로 들어 있고, 이번 요청은 항목 자신의 `text` 다. 앞선 답에서 물었던 것에 대한 사용자의 대답일 수 있으니 이어서 처리한다. 앞선 요청의 `status` 는 바꾸지 않는다(이번 `id` 만 처리). 앞선 첨부는 경로만 있다 — 필요하면 Read.
 - 테마(디자인)를 바꿔 달라는 요청은 `python3 nexa.py set_template`(목록) → `set_template <이름>` 으로 고른다. 반영에는 서버 재시작이 필요한데 웹 세션 안에서는 `restart` 를 하지 말고 `reply` 에 재시작을 안내한다.
+- 글꼴을 바꿔 달라는 요청은 `python3 nexa.py set_fonts`(목록) → `set_fonts <세트>`. 사용자가 작업 공간 `fonts/` 에 글꼴 파일(.ttf·.otf)을 넣어 두었으면 `set_fonts <세트 이름> --from <보통 굵기 파일> --bold <굵은 파일>` 로 세트를 만들어 고른다(`nexa-slide.json` 을 직접 고치지 않는다).
 {web}
 요청 1건마다 (덱 전체를 새로 쓰지 않는다 — 수천 줄이다)
 1. `decks/<deck>.requests.json` 에서 그 `id` 의 `status` 를 `"working"` 으로 바꾼다(Edit).

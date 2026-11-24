@@ -308,6 +308,8 @@ def set_preset(name, weight, fname, family):
             if isinstance((cur.get(role) or {}).get("measure"), dict):
                 cur[role]["measure"]["bold"] = fname
     else:
+        if not family or '"' in family or len(family) > 60:
+            raise Refuse("글꼴 파일에서 패밀리 이름을 읽지 못했다 - --family \"<글꼴 이름>\" 으로 준다")
         body = (cur or {}).get("body") if isinstance((cur or {}).get("body"), dict) else {}
         old = body.get("measure") if isinstance(body.get("measure"), dict) else {}
         bold = old.get("bold") if body.get("latin") == family and old.get("bold") != old.get("regular") else None  # 같은 글꼴의 굵은 파일은 지킨다

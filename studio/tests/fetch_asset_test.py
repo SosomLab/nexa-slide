@@ -254,6 +254,35 @@ for argv, what in ((("https://www.example/go", "--to", "assets/img/p.png", "--pr
     rc, out = run(*argv)
     check(f"  거절: {what} → 1 · 접속 전에", rc == 1 and len(SEEN) == n, (rc, out))
 
+# ---- 7-3) set_fonts <세트> --from: fonts/ 에 손으로 넣어 둔 파일로 세트 만들기(엔진 요청 #23 - 내려받을 주소가 없는 글꼴)
+import subprocess  # noqa: E402
+SET_FONTS = str(Path(fa.__file__).with_name("set_fonts.py"))
+
+
+def set_fonts(*args):
+    r = subprocess.run([sys.executable, SET_FONTS, *args], env={**os.environ, "PYTHONIOENCODING": "utf-8"}, cwd=str(WS), capture_output=True, text=True, encoding="utf-8", errors="replace")
+    return r.returncode, r.stdout + r.stderr
+
+
+(WS / "fonts" / "Hand-Regular.ttf").write_bytes(font("Hand Gothic"))
+(WS / "fonts" / "Hand-Bold.ttf").write_bytes(font("Hand Gothic Bold"))
+(WS / "fonts" / "page.ttf").write_bytes(HTML)
+rc, out = set_fonts("hand", "--from", "Hand-Regular.ttf", "--bold", "Hand-Bold.ttf")
+pr = shared()["fontPresets"].get("hand") or {}
+check("set_fonts <세트> --from --bold → 세트 만들고 고름(패밀리 이름은 파일에서)", rc == 0 and shared()["fontPreset"] == "hand" and pr.get("body", {}).get("latin") == "Hand Gothic"
+      and pr["body"]["measure"] == {"regular": "Hand-Regular.ttf", "bold": "Hand-Bold.ttf"} and pr["heading"]["measure"]["bold"] == "Hand-Bold.ttf" and "sebang" in shared()["fontPresets"], (rc, out, pr))
+rc, out = set_fonts()
+check("  목록에 새 세트가 보인다", rc == 0 and "hand" in out and "Hand Gothic" in out, (rc, out))
+rc, out = set_fonts("sebang")
+check("  이름만 주면 예전처럼 고르기", rc == 0 and shared()["fontPreset"] == "sebang", (rc, out))
+before = (WS / "nexa-slide.json").read_bytes()
+for args, what in ((("x1", "--from", "Missing.ttf"), "없는 파일"), (("x1", "--from", "../nexa-slide.json"), "fonts/ 밖"), (("x1", "--from", "page.ttf"), "글꼴이 아닌 내용"),
+                   (("x1", "--from", "NoName.ttf"), "패밀리 이름 없음"), (("bad name!", "--from", "Hand-Regular.ttf"), "세트 이름"), (("x1", "--from", "Hand-Regular.ttf", "--bold", "Missing.ttf"), "없는 굵은 파일")):
+    rc, out = set_fonts(*args)
+    check(f"  거절: {what} → 설정 그대로", rc != 0 and (WS / "nexa-slide.json").read_bytes() == before, (rc, out))
+rc, out = set_fonts("x1", "--from", "NoName.ttf", "--family", "Named Sans")
+check("  --family 로 직접", rc == 0 and shared()["fontPresets"]["x1"]["body"]["latin"] == "Named Sans", (rc, out))
+
 # ---- 8) 웹 세션 확인
 fa.web_block = lambda: "이 웹 세션에는 웹 접근이 허용되지 않았다"
 n = len(SEEN)
