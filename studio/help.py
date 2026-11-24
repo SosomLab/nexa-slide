@@ -19,6 +19,7 @@ COMMANDS = [
     ("sheet_theme list|show <이름>|import <샘플.xlsx>… --name <이름>", "시트 테마(색·셀 스타일·표지/이력/개요/요약/목록 틀·로고) 목록·보기·샘플 엑셀에서 만들기 → assets/sheet-themes/<이름>/"),
     ("set_fonts <세트>", "글꼴 세트 고르기"),
     ("set_template [<이름>] [--json]", "템플릿(디자인) 목록 보기·고르기 - 바꾼 뒤 서버 재시작(사용자에게 안내) → build_deck --force"),
+    ("fetch_asset <https 주소> --to assets/…|fonts/… [--brand logo] [--force]", "공개 웹의 그림(png·jpg·svg → assets/)·글꼴(ttf·otf → fonts/) 가져오기 - 웹 검색 허용 세션만. image src 에 https 주소를 직접 쓰지 않는다(PPTX 에서 빠진다). --brand logo 는 nexa-slide.json brand.logo 로 지정"),
     ("deck list|create <id> [--title …] [--kind sheet]|rename <id> <새 id>|retitle <id> \"제목\"|delete <id>", "덱 관리 - 추가·이름(id)·제목·삭제(휴지통 decks/.trash/). 편집기 덱 탭의 ＋·오른쪽 클릭과 같다"),
     ("import_doc <파일> [--out <폴더>]", "첨부 Word(.docx)·Excel(.xlsx/.xlsm)·PDF 의 글·제목·목록·표·시트·차트 값·그림 → out/import/<이름>/content.md·.json, images/"),
     ("import_pptx <파일.pptx> [--out <폴더>]", "첨부 PPTX 의 글·표·차트·노트 → out/import/<이름>/slides.md·.json, 그림 → images/ (Read 로 못 여는 PPTX 를 꺼낼 때)"),

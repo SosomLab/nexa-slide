@@ -60,6 +60,7 @@ TESTS = [  # (이름, 실행, 설명, claude 필요)
     ("pyshim", [sys.executable, "py_shims_test.py"], "세션 python3 대리 파일(0.25.19) - 스토어 대리 실행기가 PATH 앞에 있어도 cmd·PowerShell·Git Bash 의 python3 = 서버 파이썬", False),
     ("sheetfont", [sys.executable, "sheet_font_test.py"], "시트 글꼴(0.25.18) - 문서 fontPreset·셀 font(역할·이름) → xlsx 글꼴, 가져오기는 칸 글꼴을 되살린다", False),
     ("sheetrt", [sys.executable, "sheet_roundtrip_test.py"], "시트 엑셀 왕복(내보내기 → 가져오기 - 값·수식·서식·병합·숨김·유효성·조건부 서식·메모·넘침·표)", False),
+    ("fetch", [sys.executable, "fetch_asset_test.py"], "공개 웹 파일 가져오기(fetch_asset, 엔진 요청 #17) - https·공인 주소만·리다이렉트 재검사·크기·assets/·fonts/ 만·내용 검사·--force 백업·--brand·웹 검색 허용 세션만(인터넷 접속 없음)", False),
     ("runs", [sys.executable, "runs_test.py"], "인라인 강조 겹치기(runs) - Python·render.js 같은 결과", False),
     ("effect", [sys.executable, "effect_test.py"], "그림 프레임 효과(effect·effectLevel) - PPTX XML(softEdge·glow·roundRect·ellipse·테두리)·render.js CSS", False),
     ("tableobj", [sys.executable, "tableobj_test.py"], "표 객체(table-obj, 0.22.17) - 리졸버 우선순위·span·변환 왕복·PPTX 셀 서식", False),

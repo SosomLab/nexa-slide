@@ -199,6 +199,7 @@ LAUNCHER = '''# -*- coding: utf-8 -*-
     python3 {ws}/nexa.py set_template [<이름>]                      # 템플릿(디자인) 목록·고르기 (바꾼 뒤 restart → build_deck --force)
     python3 {ws}/nexa.py import_pptx <파일.pptx>                    # PPTX 의 글·표·차트·노트·그림 꺼내기 → out/import/<이름>/
     python3 {ws}/nexa.py import_doc <파일>                          # Word·Excel·PDF 의 글·표·시트·그림 꺼내기 → out/import/<이름>/
+    python3 {ws}/nexa.py fetch_asset <https 주소> --to assets/brand/x.png   # 공개 웹의 그림(→ assets/)·글꼴(→ fonts/) 가져오기(--brand logo 로 brand.logo 지정)
     python3 {ws}/nexa.py deck list|create|copy|start|retitle|delete   # 덱 관리(추가·복제·시작 덱·제목·삭제, rename 은 CLI 만) - 편집기 덱 탭 ＋·오른쪽 클릭과 같다
     python3 {ws}/nexa.py tidy [--apply] [--only output,attach,log]    # 정리 - 산출물·고아 첨부·세션 로그·참조 없는 그림·백업 보고(--apply 로 out/.tidy/ 에 옮김, --purge 비움)
     python3 {ws}/nexa.py archive [--all] [--out <zip>]               # 작업 공간 통째로 zip 보관(기본: 산출물·백업·PC 전용 설정 제외)

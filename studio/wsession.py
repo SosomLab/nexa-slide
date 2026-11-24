@@ -95,7 +95,9 @@ class WorkspaceProfile:
 
     WEB_NOTE = ("\n웹 검색 허용 세션(관리자가 켬) - WebSearch·WebFetch 를 쓸 수 있다. 웹에서 얻은 내용은 **출처 URL** 을 적고(슬라이드 각주 또는 reply), "
                 "수집 자료를 별도 문서로 보관하라는 요청이면 작업 공간 **루트**의 `research/<주제>.md` 에 정리한다(`content/` 안이 아님 - 거기는 덱 원본 폴더. Write 범위). "
-                "검색어·요청 URL 에 덱 내용·사내 이름·개인 정보를 넣지 않는다.\n")
+                "검색어·요청 URL 에 덱 내용·사내 이름·개인 정보를 넣지 않는다.\n"
+                "웹의 그림·글꼴 **파일**이 필요하면(로고·CI 그림·글꼴) `python3 nexa.py fetch_asset <https 주소> --to assets/<폴더>/<이름>.png`(글꼴은 `--to fonts/<이름>.ttf`)로 받아 그 경로를 `image` 요소의 `src` 에 쓴다 - "
+                "`src` 에 https 주소를 그대로 넣지 않는다(PPTX 에서 빠진다). 작업 공간 로고로 삼으려면 `--brand logo`. 사용자가 요청한 출처의 파일만 받고, 거절되면 출력의 이유를 `reply` 에 적는다.\n")
 
     def git_note(self, sess):
         """git·push·저장소 루트 허용 세션에만 덧붙이는 규칙."""
