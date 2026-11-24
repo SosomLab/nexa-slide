@@ -6,6 +6,8 @@
     python3 nexa.py fetch_asset <https 주소> --to fonts/Acme-Regular.ttf
     python3 nexa.py fetch_asset <https 주소> --to fonts/Acme-Regular.ttf --preset acme                # 받은 글꼴로 글꼴 세트 acme 를 만들고 고른다
     python3 nexa.py fetch_asset <https 주소> --to fonts/Acme-Bold.ttf --preset acme --weight bold    # 그 세트의 굵은 글꼴 파일
+    python3 nexa.py fetch_asset <https …/Acme.zip> --to fonts/Acme-Regular.ttf --preset acme           # zip 묶음 안의 글꼴 - 굵은 파일이 같이 있으면 함께 꺼내 짝짓는다
+    python3 nexa.py fetch_asset <https …/Acme.zip> --to fonts/Acme-Light.ttf --member Light            # 여러 개 가운데 이름(또는 굵기 낱말)으로 고른다
     python3 nexa.py fetch_asset --url-file out/.studio/url.txt --to assets/img/photo.jpg    # 주소에 & 가 있으면(Windows python 래퍼가 인자를 자른다)
 
 덱의 image 요소 src 에 https 주소를 그대로 넣으면 PPTX 에서 "이미지 없음" 이 된다 - 이 명령으로 받아 둔 뒤 그 경로(--to 값)를 src 에 쓴다.
@@ -25,12 +27,17 @@
 draft_deck → src 수정 → save_deck 으로 바꾼다(또는 같은 경로에 --force 로 덮어쓰면 덱을 고치지 않아도 된다).
 --preset <세트>: 받은 글꼴을 작업 공간에 적용한다 - 공유 설정의 fontPresets.<세트>(본문·제목 = 이 글꼴, 코드 글꼴은 템플릿 것)를 만들고 fontPreset 으로 고른다.
 패밀리 이름은 글꼴 파일(name 표)에서 읽는다(--family 로 직접 줄 수 있다). 파일은 fonts/ 바로 아래에 받는다. --weight bold 는 이미 만든 세트의 굵은 파일만 바꾼다.
+zip 묶음(엔진 요청 #24 - 회사 서체는 zip 으로만 배포되는 경우가 많다): --to 가 글꼴인데 받은 내용이 zip 이면 **안의 .ttf·.otf 하나만** 꺼내 --to 에 쓴다(묶음은 디스크에 풀지 않고,
+안의 경로는 저장 자리에 쓰지 않는다). --to 와 확장자가 같은 것 가운데 하나면 그것, 여러 개면 굵기 낱말(--weight bold 또는 --to 이름의 Bold → Bold, 아니면 Regular)로 고르고,
+그래도 못 고르면 목록을 보여 주고 거절한다 - --member <안의 이름 또는 낱말> 로 고른다. --preset(보통 굵기)이면 묶음 안의 굵은 파일(하나로 정해질 때)도 fonts/ 에 꺼내 세트에 짝짓는다.
+크기 한도(묶음·꺼낸 파일 모두 30 MB)와 글꼴 머리 검사는 그대로다. 암호가 걸린 묶음·.ttc·.woff 는 받지 않는다.
 종료 코드: 0 저장됨 · 1 거절·실패 · 2 이 세션에 웹이 허용되지 않음
 """
 import argparse
 import datetime as dt
 import hashlib
 import http.client
+import io
 import ipaddress
 import json
 import os
@@ -42,6 +49,8 @@ import sys
 import time
 import urllib.parse
 import urllib.request
+import zipfile
+import zlib
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -226,8 +235,96 @@ def sniff(data, ext):
             raise Refuse("SVG 에 이벤트 속성(on…=)이 있어 받지 않는다")
         return None
     if data[:4] not in (b"\x00\x01\x00\x00", b"OTTO", b"true"):  # TrueType · OpenType(CFF) · 옛 Mac TrueType
-        raise Refuse("글꼴 파일(TTF·OTF)이 아니다(파일 머리가 다르다 - 묶음 .ttc·.woff·압축 파일은 받지 않는다)")
+        raise Refuse("글꼴 파일(TTF·OTF)이 아니다(파일 머리가 다르다 - 묶음 .ttc·.woff 는 받지 않는다. 압축은 zip 만 안의 .ttf·.otf 를 꺼낸다)")
     return None
+
+
+# ---------- zip 묶음 안의 글꼴 ----------
+ZIP_SIG = b"PK\x03\x04"
+ZIP_MAX_ENTRIES = 2000
+BOLD_RX = re.compile(r"(?<![a-z])bold")  # Bold 만 - ExtraBold·SemiBold·DemiBold 는 아니다
+
+
+def zip_fonts(data):
+    """zip 묶음(bytes) → (ZipFile, [(안의 경로, ZipInfo)…]) - 글꼴(.ttf·.otf)만, 숨김·__MACOSX 는 뺀다. 디스크에 풀지 않는다."""
+    try:
+        zf = zipfile.ZipFile(io.BytesIO(data))
+        infos = zf.infolist()
+    except (zipfile.BadZipFile, ValueError, OSError) as e:
+        raise Refuse(f"zip 묶음을 읽지 못했다: {e}")
+    if len(infos) > ZIP_MAX_ENTRIES:
+        raise Refuse(f"zip 묶음 안의 항목이 너무 많다({len(infos)}개) - {ZIP_MAX_ENTRIES}개까지")
+    out = []
+    for i in infos:
+        name = i.filename
+        if not i.flag_bits & 0x800:  # UTF-8 표시가 없는 한글 Windows 묶음(cp949)의 이름 - 목록·--member 에 제대로 보이게
+            try:
+                name = name.encode("cp437").decode("cp949")
+            except UnicodeError:
+                pass
+        parts = name.replace("\\", "/").split("/")
+        if i.is_dir() or Path(parts[-1]).suffix.lower() not in FONT_EXTS or any(p.startswith(".") or p == "__MACOSX" for p in parts):
+            continue
+        out.append(("/".join(parts), i))
+    return zf, out
+
+
+def _weight_is(name, want):
+    stem = Path(name).stem.lower()
+    return bool(BOLD_RX.search(stem)) if want == "bold" else "regular" in stem
+
+
+def _zip_list(fonts):
+    return ", ".join(n for n, _ in fonts[:20]) + (f" … 외 {len(fonts) - 20}개" if len(fonts) > 20 else "")
+
+
+def zip_pick(fonts, ext, member, want):
+    """묶음 안의 글꼴 가운데 하나 → (안의 경로, ZipInfo). member = 안의 경로·파일 이름·낱말(Regular·Bold…), want = 굵기 낱말 regular|bold. 못 고르면 목록과 함께 Refuse."""
+    if not fonts:
+        raise Refuse("zip 묶음 안에 글꼴 파일(.ttf·.otf)이 없다(.ttc·.woff 는 받지 않는다)")
+    cands = fonts
+    if member:
+        m = member.strip().replace("\\", "/").lower()
+        base = [(f, f[0].lower().rsplit("/", 1)[-1]) for f in fonts]
+        cands = ([f for f, b in base if m in (f[0].lower(), b)]  # 안의 경로·파일 이름 그대로
+                 or [f for f, b in base if re.search(r"(?<![a-z0-9])" + re.escape(m), b)]  # 낱말(Bold 는 ExtraBold 에 맞지 않게)
+                 or [f for f, b in base if m in b])
+        if not cands:
+            raise Refuse(f"zip 묶음 안에 --member {member} 에 맞는 글꼴이 없다 - 안의 글꼴: {_zip_list(fonts)}")
+    same = [f for f in cands if f[0].lower().endswith(ext)]
+    if not same:
+        raise Refuse(f"zip 묶음 안에 {ext} 글꼴이 없다 - --to 의 확장자를 안의 파일에 맞춘다. 안의 글꼴: {_zip_list(cands)}")
+    if len(same) > 1:
+        by_weight = [f for f in same if _weight_is(f[0], want)]
+        if len(by_weight) != 1:
+            raise Refuse(f"zip 묶음 안에 글꼴이 여러 개다 - --member <안의 이름 또는 낱말> 로 고른다: {_zip_list(same)}")
+        same = by_weight
+    return same[0]
+
+
+def zip_bold(fonts, picked, ext):
+    """보통 굵기로 고른 것(picked)과 짝지을 굵은 글꼴 - 같은 확장자의 Bold 가 하나로 정해질 때만, 아니면 None."""
+    bolds = [f for f in fonts if f[0] != picked and f[0].lower().endswith(ext) and _weight_is(f[0], "bold")]
+    if len(bolds) > 1:  # 패밀리가 여럿 든 묶음 - 고른 파일 이름의 Regular 자리가 Bold 인 것
+        twin = re.sub("regular", "bold", picked.lower())
+        bolds = [f for f in bolds if f[0].lower() == twin]
+    return bolds[0] if len(bolds) == 1 else None
+
+
+def zip_read(zf, info, limit):
+    """묶음 안의 파일 하나 → bytes. 풀린 크기가 한도를 넘으면(압축 폭탄 포함) Refuse."""
+    if info.file_size > limit:
+        raise Refuse(f"zip 묶음 안의 파일이 너무 크다({info.file_size // 1024} KB) - {limit // MB} MB 까지")
+    try:
+        with zf.open(info) as f:
+            data = f.read(limit + 1)  # 머리의 크기 값을 믿지 않는다
+    except RuntimeError as e:  # 암호
+        raise Refuse(f"zip 묶음 안의 파일을 꺼내지 못했다(암호가 걸린 묶음은 받지 않는다): {e}")
+    except (zipfile.BadZipFile, NotImplementedError, zlib.error, EOFError, ValueError, OSError) as e:
+        raise Refuse(f"zip 묶음 안의 파일을 꺼내지 못했다: {type(e).__name__}: {e}")
+    if len(data) > limit:
+        raise Refuse(f"zip 묶음 안의 파일이 너무 크다 - {limit // MB} MB 까지")
+    return data
 
 
 def save(path, data, force):
@@ -376,7 +473,10 @@ def main(argv=None):
     ap.add_argument("--preset", help="받은 글꼴로 글꼴 세트(nexa-slide.json fontPresets.<이름>)를 만들고 그 세트를 고른다")
     ap.add_argument("--weight", choices=("regular", "bold"), default="regular", help="--preset 과 함께 - bold 면 있는 세트의 굵은 글꼴 파일만 바꾼다")
     ap.add_argument("--family", help="--preset 과 함께 - 글꼴 패밀리 이름(비우면 글꼴 파일에서 읽는다)")
+    ap.add_argument("--member", help="주소가 zip 묶음일 때 - 안의 글꼴 가운데 고를 것(안의 경로·파일 이름 또는 낱말, 예 Regular · Bold)")
     a = ap.parse_args(argv)
+    member = bold = bold_note = None  # zip 묶음에서 꺼낸 것 · 짝지은 굵은 파일 이름 · 짝짓지 못한 이유
+    in_zip = []
     try:
         why = web_block()
         if why:
@@ -402,13 +502,36 @@ def main(argv=None):
             preset_check(a.preset, a.weight)
         if path.is_file() and not a.force:
             raise Refuse(f"이미 있는 파일이다: {rel} - 다른 이름으로 받거나, 바꾸려면 --force(기존 파일은 백업한다)")
+        if a.member and kind != "font":
+            raise Refuse("--member 는 글꼴 zip 묶음에만 쓴다")
         data, final = download(url, LIMITS[kind])
+        bold_src = None
+        if kind == "font" and data[:4] == ZIP_SIG:  # zip 묶음 - 안의 글꼴 하나만 꺼낸다(묶음은 디스크에 풀지 않는다)
+            zf, in_zip = zip_fonts(data)
+            want = "bold" if a.weight == "bold" or BOLD_RX.search(path.stem.lower()) else "regular"
+            member, info = zip_pick(in_zip, ext, a.member, want)
+            data = zip_read(zf, info, LIMITS["font"])
+            if a.preset and a.weight == "regular":
+                bold_src = zip_bold(in_zip, member, ext)
+        elif a.member:
+            raise Refuse("--member 는 zip 묶음에만 쓴다 - 이 주소는 zip 이 아니다")
         size = sniff(data, ext)
         family = " ".join((a.family or family_name(data) or "").split()) if a.preset else ""
         if a.preset and a.weight == "regular" and (not family or '"' in family or len(family) > 60):  # 파일을 쓰기 전에
             raise Refuse("글꼴 파일에서 패밀리 이름을 읽지 못했다 - --family \"<글꼴 이름>\" 으로 준다")
         backup = save(path, data, a.force)
         preset = set_preset(a.preset, a.weight, path.name, family) if a.preset else None
+        if bold_src:  # 묶음 안의 굵은 파일 - 안의 파일 이름으로 fonts/ 바로 아래에. 못 꺼내도 보통 굵기는 이미 적용됐다
+            try:
+                _k, bpath, _rel = dest("fonts/" + bold_src[0].rsplit("/", 1)[-1])
+                if bpath == path:
+                    raise Refuse("--to 와 같은 이름이다")
+                bdata = zip_read(zf, bold_src[1], LIMITS["font"])
+                sniff(bdata, ext)
+                save(bpath, bdata, a.force)
+                preset, bold = set_preset(a.preset, "bold", bpath.name, family), bpath.name
+            except Refuse as e:
+                bold_note = f"{bold_src[0]} - {e}"
     except Refuse as e:
         print(f"가져오지 않음: {e}", file=sys.stderr)
         return 1
@@ -417,6 +540,10 @@ def main(argv=None):
         return 1
     print(f"저장됨: {rel} · {len(data):,} 바이트" + (f" · {size[0]}×{size[1]}px" if size else "") + f" · sha256 {hashlib.sha256(data).hexdigest()[:12]}")
     print(f"출처: {final}")
+    if member:
+        print(f"zip 묶음에서 꺼냄: {member}" + (f" · 굵은 파일 {bold}" if bold else "") + (f" (안의 글꼴 {len(in_zip)}개: {_zip_list(in_zip)})" if len(in_zip) > 1 else ""))
+    if bold_note:
+        print(f"알림: 묶음 안의 굵은 파일을 꺼내지 못했다: {bold_note}")
     if backup:
         print(f"기존 파일 백업: {backup.relative_to(WORKSPACE) if WORKSPACE in backup.parents else backup}")
     if preset:

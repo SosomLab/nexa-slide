@@ -20,7 +20,7 @@ COMMANDS = [
     ("set_fonts <세트>", "글꼴 세트 고르기(인자 없이 = 목록)"),
     ("set_fonts <세트> --from <보통.ttf> [--bold <굵게.ttf>] [--family \"이름\"]", "fonts/ 에 넣어 둔 글꼴 파일(.ttf·.otf)로 글꼴 세트를 만들고 고른다(회사 서체) - nexa-slide.json 을 손으로 고치지 않는다"),
     ("set_template [<이름>] [--json]", "템플릿(디자인) 목록 보기·고르기 - 바꾼 뒤 서버 재시작(사용자에게 안내) → build_deck --force"),
-    ("fetch_asset <https 주소> --to assets/…|fonts/… [--brand logo] [--preset <세트>] [--force]", "공개 웹의 그림(png·jpg·svg → assets/)·글꼴(ttf·otf → fonts/) 가져오기 - 웹 검색 허용 세션만. image src 에 https 주소를 직접 쓰지 않는다(PPTX 에서 빠진다). --brand logo 는 nexa-slide.json brand.logo 로 지정, 글꼴은 --preset <세트> 로 글꼴 세트를 만들어 고른다(굵은 파일은 --weight bold)"),
+    ("fetch_asset <https 주소> --to assets/…|fonts/… [--brand logo] [--preset <세트>] [--force]", "공개 웹의 그림(png·jpg·svg → assets/)·글꼴(ttf·otf → fonts/) 가져오기 - 웹 검색 허용 세션만. image src 에 https 주소를 직접 쓰지 않는다(PPTX 에서 빠진다). --brand logo 는 nexa-slide.json brand.logo 로 지정, 글꼴은 --preset <세트> 로 글꼴 세트를 만들어 고른다(굵은 파일은 --weight bold). 글꼴 주소가 zip 묶음이면 안의 .ttf·.otf 를 꺼낸다(여러 개면 --member <이름·낱말>, --preset 이면 굵은 파일도 같이)"),
     ("deck list|create <id> [--title …] [--kind sheet]|rename <id> <새 id>|retitle <id> \"제목\"|delete <id>", "덱 관리 - 추가·이름(id)·제목·삭제(휴지통 decks/.trash/). 편집기 덱 탭의 ＋·오른쪽 클릭과 같다"),
     ("import_doc <파일> [--out <폴더>]", "첨부 Word(.docx)·Excel(.xlsx/.xlsm)·PDF 의 글·제목·목록·표·시트·차트 값·그림 → out/import/<이름>/content.md·.json, images/"),
     ("import_pptx <파일.pptx> [--out <폴더>]", "첨부 PPTX 의 글·표·차트·노트 → out/import/<이름>/slides.md·.json, 그림 → images/ (Read 로 못 여는 PPTX 를 꺼낼 때)"),

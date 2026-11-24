@@ -97,7 +97,7 @@ class WorkspaceProfile:
                 "수집 자료를 별도 문서로 보관하라는 요청이면 작업 공간 **루트**의 `research/<주제>.md` 에 정리한다(`content/` 안이 아님 - 거기는 덱 원본 폴더. Write 범위). "
                 "검색어·요청 URL 에 덱 내용·사내 이름·개인 정보를 넣지 않는다.\n"
                 "웹의 그림·글꼴 **파일**이 필요하면(로고·CI 그림·글꼴) `python3 nexa.py fetch_asset <https 주소> --to assets/<폴더>/<이름>.png`(글꼴은 `--to fonts/<이름>.ttf`)로 받아 그 경로를 `image` 요소의 `src` 에 쓴다 - "
-                "`src` 에 https 주소를 그대로 넣지 않는다(PPTX 에서 빠진다). 작업 공간 로고로 삼으려면 `--brand logo`, 받은 글꼴을 작업 공간 글꼴로 쓰려면 `--to fonts/<파일> --preset <세트 이름>`(굵은 파일은 이어서 `--weight bold`). 사용자가 요청한 출처의 파일만 받고, 거절되면 출력의 이유를 `reply` 에 적는다.\n")
+                "`src` 에 https 주소를 그대로 넣지 않는다(PPTX 에서 빠진다). 작업 공간 로고로 삼으려면 `--brand logo`, 받은 글꼴을 작업 공간 글꼴로 쓰려면 `--to fonts/<파일> --preset <세트 이름>`(굵은 파일은 이어서 `--weight bold`). 글꼴이 zip 묶음으로만 배포되면 그 zip 주소를 그대로 준다 - 안의 .ttf·.otf 를 꺼내고(`--preset` 이면 굵은 파일도 같이), 여러 개라 못 고르면 출력의 목록에서 `--member <이름>` 으로 고른다. 사용자가 요청한 출처의 파일만 받고, 거절되면 출력의 이유를 `reply` 에 적는다.\n")
 
     def git_note(self, sess):
         """git·push·저장소 루트 허용 세션에만 덧붙이는 규칙."""
