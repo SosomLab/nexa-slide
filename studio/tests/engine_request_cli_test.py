@@ -69,5 +69,53 @@ check("applied 의 옛 --commit 도 appliedCommit 으로(처리 커밋 보존)",
 r = cli("status", "2", "open", "--reply", "x || goto :error", "--by", "t")
 check("잘린 --reply 도 거부", r.returncode != 0)
 
+# ---- 적용됨은 처리 커밋이 엔진에 병합된 뒤에만(엔진 요청 #23 - 병합 전에 적용됨으로 바뀌어 작업 공간이 없는 명령을 쓰려 했다)
+os.environ["NEXA_SLIDE_USER_DIR"] = str(USER)
+sys.path.insert(0, str(STUDIO))
+import engine_requests as er  # noqa: E402
+REPO = USER.parent / "repo"
+
+
+def rm_repo():
+    """git 개체 파일은 읽기 전용이라 Windows 에서 rmtree 가 못 지운다 - 쓰기 가능으로 바꿔 지운다(앞선 실행이 남긴 것도)."""
+    if REPO.exists():
+        shutil.rmtree(REPO, onerror=lambda fn, p, _e: (os.chmod(p, 0o700), fn(p)))
+
+
+rm_repo()
+REPO.mkdir()
+
+
+def git(*args):
+    r = subprocess.run(["git", "-c", "user.name=t", "-c", "user.email=t@example.invalid", "-c", "commit.gpgsign=false", *args], cwd=str(REPO), capture_output=True, text=True, encoding="utf-8", errors="replace")
+    return r.stdout.strip()
+
+
+git("init", "-q", "-b", "main")
+(REPO / "a.txt").write_text("a", encoding="utf-8")
+git("add", "a.txt"); git("commit", "-q", "-m", "a")
+base = git("rev-parse", "--short", "HEAD")
+git("checkout", "-q", "-b", "dev")
+(REPO / "b.txt").write_text("b", encoding="utf-8")
+git("add", "b.txt"); git("commit", "-q", "-m", "b")
+dev = git("rev-parse", "--short", "HEAD")
+git("checkout", "-q", "main")
+er.ENGINE = REPO
+check("unmerged: 병합 안 된 커밋 참 · 들어 있는 커밋 거짓 · 모르는 커밋·빈 값 거짓(막지 않음)", bool(base and dev) and er.unmerged(dev) is True and er.unmerged(base) is False
+      and er.unmerged("abc1234") is False and er.unmerged(None) is False and er.unmerged("--help") is False, (base, dev))
+rid = er.add("병합 전 적용됨", kind="cli")["id"]
+er.update(rid, status="working", by="t")
+er.update(rid, status="done", by="t", commit=dev, branch="dev")
+try:
+    er.update(rid, status="applied", by="admin", appliedCommit=base)
+    err = ""
+except ValueError as e:
+    err = str(e)
+check("병합 전 applied → 거절(커밋·브랜치·배포 안내) · 상태 done 그대로", dev in err and "dev" in err and "배포" in err and show(rid).get("status") == "done" and not show(rid).get("appliedAt"), (err, show(rid).get("status")))
+git("merge", "-q", "--no-ff", "-m", "merge dev", "dev")
+x = er.update(rid, status="applied", by="admin", appliedCommit=git("rev-parse", "--short", "HEAD"))
+check("병합 뒤 applied → 통과", x.get("status") == "applied" and show(rid).get("appliedAt"), x)
+rm_repo()
+
 print("\n실패:", ", ".join(FAILS) if FAILS else "없음")
 sys.exit(1 if FAILS else 0)

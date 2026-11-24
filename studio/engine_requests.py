@@ -200,8 +200,24 @@ def add(title, body="", kind="user", user=None, ws=None, ws_id=None, request=Non
         return item
 
 
+ENGINE = Path(__file__).resolve().parent.parent  # 이 큐를 다루는 엔진(허브가 도는 체크아웃 = 운영 main)
+
+
+def unmerged(commit):
+    """처리 커밋이 이 엔진의 HEAD 에 아직 들어 있지 않으면 True. 판단할 수 없으면(git 없음·저장소 아님·모르는 커밋) False - 막지 않는다."""
+    import subprocess
+    if not commit or str(commit).startswith("-"):
+        return False
+    try:
+        r = subprocess.run(["git", "merge-base", "--is-ancestor", str(commit), "HEAD"], cwd=str(ENGINE), capture_output=True, timeout=20)
+    except (OSError, subprocess.SubprocessError):
+        return False
+    return r.returncode == 1  # 0 = 들어 있음 · 1 = 없음 · 그 밖 = 알 수 없음
+
+
 def update(rid, status=None, by=None, **fields):
-    """상태 전이(TRANSITIONS 안에서만)와 필드 갱신(reply·branch·commit·test·appliedCommit·engineVersion·priority·title·body)."""
+    """상태 전이(TRANSITIONS 안에서만)와 필드 갱신(reply·branch·commit·test·appliedCommit·engineVersion·priority·title·body).
+    applied 는 처리 커밋이 이 엔진에 병합된 뒤에만 - applied 는 되돌릴 수 없고, 원 요청(작업 공간)이 "적용됨" 으로 다시 열려 없는 기능을 쓰려 한다(#23)."""
     with FileLock(LOCK):
         d = _read()
         x = next((x for x in d["items"] if x.get("id") == int(rid)), None)
@@ -213,6 +229,8 @@ def update(rid, status=None, by=None, **fields):
                 raise ValueError(f"상태는 {'|'.join(STATUSES)}")
             if status != x["status"] and status not in TRANSITIONS.get(x["status"], ()):
                 raise ValueError(f"{x['status']} → {status} 로 바꿀 수 없다")
+            if status == "applied" and x["status"] != "applied" and unmerged(x.get("commit")):
+                raise ValueError(f"처리 커밋 {x.get('commit')}({x.get('branch') or '브랜치 모름'})이 이 엔진에 아직 병합되지 않았다 - 먼저 [배포](또는 main 에 병합)한 뒤 적용됨으로 바꾼다")
         now = _now()
         if by != "engine-session":  # 세션 밖(사람·허브·CLI)이 손대면 "세션이 되돌려 답을 기다리는 중" 표시를 지운다 → 큐가 다시 보낸다(wsession EngineQueueSource)
             x.pop("awaiting", None)
