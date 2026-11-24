@@ -5,7 +5,7 @@
 
 주소 검사(https·443·사용자 정보) · 공인 주소 검사(사설·루프백·링크 로컬·CGNAT·IPv4-mapped) · 리다이렉트마다 다시 검사 · 크기 제한 ·
 저장 자리(assets/·fonts/ 만, .. 거절) · 내용 검사(PNG·JPEG·SVG·글꼴 머리, SVG 스크립트) · 덮어쓰기 거절과 --force 백업 ·
---brand(공유 설정·옛 경로를 쓰는 덱 요소 목록) · 웹 세션 확인(웹 검색 허용이 아닌 세션이면 종료 코드 2).
+--brand(공유 설정·옛 경로를 쓰는 덱 요소 목록) · --preset · zip 묶음 안의 글꼴(--member·굵은 파일 짝짓기·크기·머리 검사) · 웹 세션 확인(웹 검색 허용이 아닌 세션이면 종료 코드 2).
 """
 import contextlib
 import io
@@ -253,6 +253,75 @@ for argv, what in ((("https://www.example/go", "--to", "assets/img/p.png", "--pr
                    (("https://www.example/sg-r.ttf", "--to", "fonts/a.ttf", "--preset", next(iter(common.resolve_tokens({}).get("fontPresets") or {"default": 1}))), "템플릿 세트와 같은 이름")):
     rc, out = run(*argv)
     check(f"  거절: {what} → 1 · 접속 전에", rc == 1 and len(SEEN) == n, (rc, out))
+
+# ---- 7-2b) zip 묶음 안의 글꼴(엔진 요청 #24 - 회사 서체는 zip 으로만 배포되는 경우가 많다)
+import zipfile  # noqa: E402
+
+
+def zipped(members, method=zipfile.ZIP_DEFLATED):
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", method) as z:
+        for name, body in members:
+            z.writestr(name, body)
+    return buf.getvalue()
+
+
+ZR, ZB, ZX, ZO = font("Zip Gothic"), font("Zip Gothic Bold"), font("Zip Gothic ExtraBold"), font("Zip Gothic", b"OTTO")
+ROUTES.update({
+    ("www.example", "/one.zip"): Resp(200, zipped([("ZIP_GOTHIC_Regular/ZipGothic_Regular.ttf", ZR), ("ZIP_GOTHIC_Regular/License.txt", b"free"), ("__MACOSX/._ZipGothic_Regular.ttf", b"junk")])),
+    ("www.example", "/all.zip"): Resp(200, zipped([("TTF/ZipGothic_Regular.ttf", ZR), ("TTF/ZipGothic_Bold.ttf", ZB), ("TTF/ZipGothic_ExtraBold.ttf", ZX), ("OTF/ZipGothic_Regular.otf", ZO),
+                                                  ("Webfont/ZipGothic_Regular.woff", b"wOFF" + b"\x00" * 20), ("../evil.ttf", ZX)])),
+    ("www.example", "/multi.zip"): Resp(200, zipped([("ZipGothic_Light.ttf", ZR), ("ZipGothic_Medium.ttf", ZB)])),
+    ("www.example", "/nofont.zip"): Resp(200, zipped([("readme.txt", b"hi"), ("a.woff2", b"wOF2")])),
+    ("www.example", "/fake.zip"): Resp(200, zipped([("Fake_Regular.ttf", HTML)])),
+    ("www.example", "/bomb.zip"): Resp(200, zipped([("Big_Regular.ttf", b"\x00\x01\x00\x00" + b"\x00" * (fa.LIMITS["font"] + 10))])),
+    ("www.example", "/broken.zip"): Resp(200, b"PK\x03\x04" + b"\x00" * 200),
+})
+rc, out = run("https://www.example/one.zip", "--to", "fonts/ZG-Regular.ttf", "--preset", "zipg")
+pr = shared()["fontPresets"].get("zipg") or {}
+check("zip(글꼴 하나) → 안의 글꼴을 --to 에 · 세트 만들고 고름", rc == 0 and (WS / "fonts" / "ZG-Regular.ttf").read_bytes() == ZR and shared()["fontPreset"] == "zipg"
+      and pr.get("body", {}).get("latin") == "Zip Gothic" and pr["body"]["measure"] == {"regular": "ZG-Regular.ttf", "bold": "ZG-Regular.ttf"} and "zip 묶음에서 꺼냄: ZIP_GOTHIC_Regular/ZipGothic_Regular.ttf" in out, (rc, out, pr))
+check("  묶음을 풀어 놓지 않는다(글꼴 말고는 남지 않음)", not list(WS.rglob("License.txt")) and not list(WS.rglob("*.zip")) and not list(WS.rglob("__MACOSX")))
+rc, out = run("https://www.example/all.zip", "--to", "fonts/ZA-Regular.ttf", "--preset", "zipall")
+pr = shared()["fontPresets"].get("zipall") or {}
+check("zip(여러 개) + --preset → Regular 를 고르고 Bold 를 같이 꺼내 짝짓는다(ExtraBold 아님)", rc == 0 and (WS / "fonts" / "ZA-Regular.ttf").read_bytes() == ZR and (WS / "fonts" / "ZipGothic_Bold.ttf").read_bytes() == ZB
+      and pr.get("body", {}).get("measure") == {"regular": "ZA-Regular.ttf", "bold": "ZipGothic_Bold.ttf"} and pr["heading"]["measure"]["bold"] == "ZipGothic_Bold.ttf"
+      and "굵은 파일 ZipGothic_Bold.ttf" in out and "안의 글꼴" in out and "--weight bold 로 더한다" not in out, (rc, out, pr))
+check("  안의 경로(../)는 저장 자리에 쓰이지 않는다", not (WS / "evil.ttf").exists() and not (WS.parent / "evil.ttf").exists() and not (WS / "fonts" / "TTF").exists())
+rc, out = run("https://www.example/all.zip", "--to", "fonts/ZA-Regular.otf")
+check("  --to 가 .otf 면 OTF 쪽을 꺼낸다", rc == 0 and (WS / "fonts" / "ZA-Regular.otf").read_bytes() == ZO, (rc, out))
+rc, out = run("https://www.example/all.zip", "--to", "fonts/ZA-Bold.ttf")
+check("  --to 이름의 Bold → Bold 를 꺼낸다", rc == 0 and (WS / "fonts" / "ZA-Bold.ttf").read_bytes() == ZB, (rc, out))
+rc, out = run("https://www.example/all.zip", "--to", "fonts/ZA-B2.ttf", "--preset", "zipall", "--weight", "bold")
+check("  --weight bold → Bold 를 꺼내 세트의 굵은 파일로", rc == 0 and (WS / "fonts" / "ZA-B2.ttf").read_bytes() == ZB and shared()["fontPresets"]["zipall"]["body"]["measure"] == {"regular": "ZA-Regular.ttf", "bold": "ZA-B2.ttf"}, (rc, out))
+rc, out = run("https://www.example/all.zip", "--to", "fonts/ZA-XB.ttf", "--member", "ExtraBold")
+check("  --member 낱말(ExtraBold)", rc == 0 and (WS / "fonts" / "ZA-XB.ttf").read_bytes() == ZX, (rc, out))
+rc, out = run("https://www.example/all.zip", "--to", "fonts/ZA-M1.ttf", "--member", "Bold")
+check("  --member Bold 는 ExtraBold 에 맞지 않는다", rc == 0 and (WS / "fonts" / "ZA-M1.ttf").read_bytes() == ZB, (rc, out))
+rc, out = run("https://www.example/all.zip", "--to", "fonts/ZA-M3.ttf", "--member", "ZipGothic")
+check("  --member 가 여러 개에 맞으면 굵기 낱말(Regular)로 마저 고른다", rc == 0 and (WS / "fonts" / "ZA-M3.ttf").read_bytes() == ZR, (rc, out))
+rc, out = run("https://www.example/all.zip", "--to", "fonts/ZA-M2.ttf", "--member", "TTF/ZipGothic_ExtraBold.ttf")
+check("  --member 안의 경로 그대로", rc == 0 and (WS / "fonts" / "ZA-M2.ttf").read_bytes() == ZX, (rc, out))
+for argv, want, what in ((("https://www.example/all.zip", "--to", "fonts/n1.ttf", "--member", "Light"), "안의 글꼴:", "--member 에 맞는 것이 없음(목록을 보여 준다)"),
+                         (("https://www.example/multi.zip", "--to", "fonts/n1.ttf"), "여러 개", "굵기 낱말로도 못 고름(목록을 보여 준다)"),
+                         (("https://www.example/multi.zip", "--to", "fonts/n1.ttf", "--member", "ZipGothic"), "여러 개", "--member 가 여러 개에 맞음"),
+                         (("https://www.example/one.zip", "--to", "fonts/n1.otf"), ".otf 글꼴이 없다", "묶음에 그 확장자가 없음"),
+                         (("https://www.example/nofont.zip", "--to", "fonts/n1.ttf"), "글꼴 파일(.ttf·.otf)이 없다", "글꼴이 없는 묶음"),
+                         (("https://www.example/fake.zip", "--to", "fonts/n1.ttf"), "글꼴 파일(TTF·OTF)이 아니다", "안의 파일이 글꼴이 아님(머리 검사)"),
+                         (("https://www.example/bomb.zip", "--to", "fonts/n1.ttf"), "너무 크다", "풀린 크기가 한도를 넘음"),
+                         (("https://www.example/broken.zip", "--to", "fonts/n1.ttf"), "zip 묶음을 읽지 못했다", "깨진 묶음"),
+                         (("https://www.example/sg-r.ttf", "--to", "fonts/n1.ttf", "--member", "Regular"), "zip 이 아니다", "zip 이 아닌데 --member"),
+                         (("https://www.example/go", "--to", "assets/img/n1.png", "--member", "Regular"), "--member", "그림에 --member")):
+    rc, out = run(*argv)
+    check(f"  거절: {what} → 1 · 파일 없음", rc == 1 and want in out and not (WS / "fonts" / "n1.ttf").exists() and not (WS / "fonts" / "n1.otf").exists(), (rc, out))
+rc, out = run("https://www.example/one.zip", "--to", "assets/img/z.png")
+check("  거절: zip 을 그림으로 → 1", rc == 1 and "PNG 가 아니다" in out and not (WS / "assets" / "img" / "z.png").exists(), (rc, out))
+(WS / "fonts" / "ZipGothic_Bold.ttf").write_bytes(ZX)  # 굵은 파일 자리에 다른 내용이 이미 있다
+rc, out = run("https://www.example/all.zip", "--to", "fonts/ZC-Regular.ttf", "--preset", "zipc")
+pr = shared()["fontPresets"].get("zipc") or {}
+check("  굵은 파일 자리가 이미 있으면 덮어쓰지 않고 알림 · 보통 굵기는 적용", rc == 0 and (WS / "fonts" / "ZipGothic_Bold.ttf").read_bytes() == ZX and pr.get("body", {}).get("measure") == {"regular": "ZC-Regular.ttf", "bold": "ZC-Regular.ttf"}
+      and "굵은 파일을 꺼내지 못했다" in out and "--weight bold" in out, (rc, out, pr))
+check("  .part 가 남지 않는다", not list((WS / "fonts").rglob("*.part")))
 
 # ---- 7-3) set_fonts <세트> --from: fonts/ 에 손으로 넣어 둔 파일로 세트 만들기(엔진 요청 #23 - 내려받을 주소가 없는 글꼴)
 import subprocess  # noqa: E402
