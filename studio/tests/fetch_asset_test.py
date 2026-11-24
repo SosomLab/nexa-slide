@@ -208,6 +208,52 @@ rc, out = run("https://www.example/a.svg", "--to", "assets/brand/mark.svg", "--b
 cfg = json.loads((WS / "nexa-slide.json").read_text(encoding="utf-8"))
 check("--brand wordmark(SVG)", rc == 0 and cfg["brand"].get("wordmark") == "assets/brand/mark.svg" and cfg["brand"]["logo"] == "assets/brand/client.png", (rc, cfg))
 
+# ---- 7-2) --preset: 받은 글꼴을 글꼴 세트로(엔진 요청 #22)
+def font(family, sig=b"\x00\x01\x00\x00"):
+    """name 표(nameID 1 = family, Windows 영문)만 든 가장 작은 글꼴 파일."""
+    s = family.encode("utf-16-be")
+    name = struct.pack(">HHH", 0, 1, 18) + struct.pack(">6H", 3, 1, 0x409, 1, len(s), 0) + s
+    return sig + struct.pack(">HHHH", 1, 0, 0, 0) + struct.pack(">4sIII", b"name", 0, 28, len(name)) + name
+
+
+def shared():
+    return json.loads((WS / "nexa-slide.json").read_text(encoding="utf-8"))
+
+
+FR, FB = font("Sebang Gothic"), font("Sebang Gothic Bold", b"OTTO")
+ROUTES.update({("www.example", "/sg-r.ttf"): Resp(200, FR), ("www.example", "/sg-b.otf"): Resp(200, FB)})
+check("패밀리 이름을 글꼴 파일에서 읽는다", fa.family_name(FR) == "Sebang Gothic" and fa.family_name(TTF) is None and fa.family_name(b"") is None, fa.family_name(FR))
+n = len(SEEN)
+rc, out = run("https://www.example/sg-b.otf", "--to", "fonts/SG-Bold.otf", "--preset", "sebang", "--weight", "bold")
+check("세트가 없는데 --weight bold → 1 · 접속 전에 거절", rc == 1 and len(SEEN) == n and not (WS / "fonts" / "SG-Bold.otf").exists(), (rc, out))
+rc, out = run("https://www.example/sg-r.ttf", "--to", "fonts/SG-Regular.ttf", "--preset", "sebang")
+cfg = shared()
+pr = (cfg.get("fontPresets") or {}).get("sebang") or {}
+check("--preset → 파일 저장 · fontPresets.sebang(본문·제목) · fontPreset 고름", rc == 0 and (WS / "fonts" / "SG-Regular.ttf").read_bytes() == FR and cfg.get("fontPreset") == "sebang"
+      and pr.get("body", {}).get("latin") == "Sebang Gothic" and pr["body"]["ea"] == "Sebang Gothic" and '"Sebang Gothic"' in pr["body"]["css"]
+      and pr["body"]["measure"] == {"regular": "SG-Regular.ttf", "bold": "SG-Regular.ttf"} and pr["heading"] == pr["body"], (rc, out, cfg))
+check("  다른 설정(brand·title)은 그대로 · 굵은 파일 안내", cfg["title"] == "fetch" and cfg["brand"]["logo"] == "assets/brand/client.png" and "--weight bold" in out, (cfg, out))
+import common  # noqa: E402
+tk = common.resolve_tokens(common.read_config())
+check("  resolve_tokens 가 그 세트를 쓴다(본문·제목 = 새 글꼴, 코드 글꼴은 템플릿 것)", tk["fonts"]["body"]["latin"] == "Sebang Gothic" and tk["fonts"]["heading"]["latin"] == "Sebang Gothic"
+      and tk["fonts"]["mono"].get("latin") not in (None, "Sebang Gothic"), tk["fonts"])
+rc, out = run("https://www.example/sg-b.otf", "--to", "fonts/SG-Bold.otf", "--preset", "sebang", "--weight", "bold")
+pr = shared()["fontPresets"]["sebang"]
+check("--weight bold → 굵은 파일만 바뀜(본문·제목)", rc == 0 and pr["body"]["measure"] == {"regular": "SG-Regular.ttf", "bold": "SG-Bold.otf"} and pr["heading"]["measure"]["bold"] == "SG-Bold.otf"
+      and pr["body"]["latin"] == "Sebang Gothic", (rc, out, pr))
+rc, out = run("https://www.example/sg-r.ttf", "--to", "fonts/SG-Regular.ttf", "--preset", "sebang", "--force")
+check("보통 굵기를 다시 받아도 굵은 파일은 지킨다", rc == 0 and shared()["fontPresets"]["sebang"]["body"]["measure"]["bold"] == "SG-Bold.otf", (rc, out))
+rc, out = run("https://www.example/f.ttf", "--to", "fonts/NoName.ttf", "--preset", "noname")
+check("패밀리 이름을 못 읽음 → 1 · 파일·세트 없음", rc == 1 and "--family" in out and not (WS / "fonts" / "NoName.ttf").exists() and "noname" not in shared()["fontPresets"], (rc, out))
+rc, out = run("https://www.example/f.ttf", "--to", "fonts/NoName.ttf", "--preset", "noname", "--family", "Acme Sans")
+check("--family 로 직접", rc == 0 and shared()["fontPresets"]["noname"]["body"]["latin"] == "Acme Sans" and shared()["fontPreset"] == "noname" and "sebang" in shared()["fontPresets"], (rc, out))
+n = len(SEEN)
+for argv, what in ((("https://www.example/go", "--to", "assets/img/p.png", "--preset", "x"), "그림에 --preset"), (("https://www.example/sg-r.ttf", "--to", "fonts/sub/a.ttf", "--preset", "x"), "fonts/ 하위 폴더"),
+                   (("https://www.example/sg-r.ttf", "--to", "fonts/a.ttf", "--preset", "bad name!"), "세트 이름"),
+                   (("https://www.example/sg-r.ttf", "--to", "fonts/a.ttf", "--preset", next(iter(common.resolve_tokens({}).get("fontPresets") or {"default": 1}))), "템플릿 세트와 같은 이름")):
+    rc, out = run(*argv)
+    check(f"  거절: {what} → 1 · 접속 전에", rc == 1 and len(SEEN) == n, (rc, out))
+
 # ---- 8) 웹 세션 확인
 fa.web_block = lambda: "이 웹 세션에는 웹 접근이 허용되지 않았다"
 n = len(SEEN)

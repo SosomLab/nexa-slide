@@ -4,6 +4,8 @@
     python3 nexa.py fetch_asset <https 주소> --to assets/brand/acme-logo.png
     python3 nexa.py fetch_asset <https 주소> --to assets/brand/acme-logo.png --brand logo   # 받은 그림을 nexa-slide.json 의 brand.logo 로
     python3 nexa.py fetch_asset <https 주소> --to fonts/Acme-Regular.ttf
+    python3 nexa.py fetch_asset <https 주소> --to fonts/Acme-Regular.ttf --preset acme                # 받은 글꼴로 글꼴 세트 acme 를 만들고 고른다
+    python3 nexa.py fetch_asset <https 주소> --to fonts/Acme-Bold.ttf --preset acme --weight bold    # 그 세트의 굵은 글꼴 파일
     python3 nexa.py fetch_asset --url-file out/.studio/url.txt --to assets/img/photo.jpg    # 주소에 & 가 있으면(Windows python 래퍼가 인자를 자른다)
 
 덱의 image 요소 src 에 https 주소를 그대로 넣으면 PPTX 에서 "이미지 없음" 이 된다 - 이 명령으로 받아 둔 뒤 그 경로(--to 값)를 src 에 쓴다.
@@ -21,6 +23,8 @@
 --brand logo|wordmark|favicon: 받은 그림을 공유 설정 nexa-slide.json 의 brand.<키> 로 적는다(그림만). 새로 빌드하는 장과 편집기 머리 로고가 따라 바뀐다
 (서버 재시작 뒤). **이미 만든 덱의 로고 요소는 src 가 덱에 적혀 있어** 자동으로 바뀌지 않는다 - 옛 경로를 쓰는 요소 목록을 출력하니
 draft_deck → src 수정 → save_deck 으로 바꾼다(또는 같은 경로에 --force 로 덮어쓰면 덱을 고치지 않아도 된다).
+--preset <세트>: 받은 글꼴을 작업 공간에 적용한다 - 공유 설정의 fontPresets.<세트>(본문·제목 = 이 글꼴, 코드 글꼴은 템플릿 것)를 만들고 fontPreset 으로 고른다.
+패밀리 이름은 글꼴 파일(name 표)에서 읽는다(--family 로 직접 줄 수 있다). 파일은 fonts/ 바로 아래에 받는다. --weight bold 는 이미 만든 세트의 굵은 파일만 바꾼다.
 종료 코드: 0 저장됨 · 1 거절·실패 · 2 이 세션에 웹이 허용되지 않음
 """
 import argparse
@@ -41,7 +45,7 @@ import urllib.request
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from common import ASSET_ROOT, CONFIG_NAME, DECKS, LOCAL_NAME, OUT, WORKSPACE, fonts_dir, read_config, running_server  # noqa: E402
+from common import ASSET_ROOT, CONFIG_NAME, DECKS, LOCAL_NAME, OUT, WORKSPACE, fonts_dir, read_config, resolve_tokens, running_server  # noqa: E402
 
 IMAGE_EXTS = (".png", ".jpg", ".jpeg", ".svg")
 FONT_EXTS = (".ttf", ".otf")
@@ -256,6 +260,67 @@ def set_brand(key, rel):
     return old
 
 
+# ---------- 글꼴 세트 ----------
+PRESET_RX = re.compile(r"[A-Za-z0-9_-]{1,64}")
+
+
+def family_name(data):
+    """글꼴 파일의 패밀리 이름(name 표의 nameID 1) - 영문(Windows 0x409) 먼저, 없으면 다른 언어, 못 읽으면 None."""
+    try:
+        num = struct.unpack(">H", data[4:6])[0]
+        tab = next(o for tag, _cs, o, _ln in (struct.unpack(">4sIII", data[12 + i * 16:28 + i * 16]) for i in range(num)) if tag == b"name")
+        count, strings = struct.unpack(">HH", data[tab + 2:tab + 6])
+        found = {}
+        for i in range(count):
+            plat, _enc, lang, nid, ln, off = struct.unpack(">6H", data[tab + 6 + i * 12:tab + 18 + i * 12])
+            if nid != 1 or plat not in (1, 3):
+                continue
+            raw = data[tab + strings + off:tab + strings + off + ln]
+            s = " ".join(raw.decode("utf-16-be" if plat == 3 else "mac_roman", "replace").split())
+            if s:
+                found.setdefault(0 if (plat, lang) == (3, 0x409) else 1 if plat == 3 else 2, s)
+        return found[min(found)] if found else None
+    except (StopIteration, struct.error, ValueError):
+        return None
+
+
+def preset_check(name, weight):
+    """내려받기 전 검사 - 세트 이름, 템플릿(엔진)의 세트와 같은 이름은 쓰지 않는다(작업 공간 것이 가려 버린다), bold 는 있는 세트에만."""
+    if not PRESET_RX.fullmatch(name):
+        raise Refuse("글꼴 세트 이름은 영문·숫자·-·_ 로 1~64자")
+    shared = read_config(shared=True)
+    mine = shared.get("fontPresets") if isinstance(shared.get("fontPresets"), dict) else {}
+    if name not in mine and name in (resolve_tokens({**shared, "fontPresets": None}).get("fontPresets") or {}):
+        raise Refuse(f"템플릿의 글꼴 세트와 같은 이름은 쓸 수 없다: {name} - 다른 이름을 고른다")
+    cur = mine.get(name) if isinstance(mine.get(name), dict) else {}
+    if weight == "bold" and not isinstance((cur.get("body") or {}).get("measure"), dict):
+        raise Refuse(f"글꼴 세트 {name} 가 아직 없다 - 보통 굵기 파일을 먼저 --preset {name} 로 받는다")
+
+
+def set_preset(name, weight, fname, family):
+    """공유 설정 nexa-slide.json 의 fontPresets.<name> 을 만들거나 고치고 fontPreset 으로 고른다(마법사 hub.create_template 와 같은 모양).
+    regular = 세트를 이 글꼴로(굵은 파일이 아직 없으면 같은 파일) · bold = 있는 세트의 굵은 파일만 바꾼다. 세트(dict)를 돌려준다."""
+    shared = read_config(shared=True)  # 공유 파일에만 쓴다(PC 별 nexa-slide.local.json 값은 섞지 않는다)
+    presets = shared.get("fontPresets") if isinstance(shared.get("fontPresets"), dict) else {}
+    cur = presets.get(name) if isinstance(presets.get(name), dict) else None
+    if weight == "bold":  # 세트가 있는지는 preset_check 가 내려받기 전에 봤다
+        for role in ("body", "heading"):
+            if isinstance((cur.get(role) or {}).get("measure"), dict):
+                cur[role]["measure"]["bold"] = fname
+    else:
+        body = (cur or {}).get("body") if isinstance((cur or {}).get("body"), dict) else {}
+        old = body.get("measure") if isinstance(body.get("measure"), dict) else {}
+        bold = old.get("bold") if body.get("latin") == family and old.get("bold") != old.get("regular") else None  # 같은 글꼴의 굵은 파일은 지킨다
+        face = {"css": f'"{family}", "Malgun Gothic", "맑은 고딕", "Apple SD Gothic Neo", sans-serif', "latin": family, "ea": family,
+                "measure": {"regular": fname, "bold": bold or fname}}
+        cur = {**(cur or {}), "body": dict(face, measure=dict(face["measure"])), "heading": dict(face, measure=dict(face["measure"]))}
+        cur.pop("pptTextShift", None)  # 글꼴이 바뀌었으니 줄 배치 보정은 새 파일의 메트릭으로 다시 계산되게
+    shared["fontPresets"] = {**presets, name: cur}
+    shared["fontPreset"] = name
+    (WORKSPACE / CONFIG_NAME).write_text(json.dumps(shared, ensure_ascii=False, indent=2) + "\n", encoding="utf-8", newline="\n")
+    return cur
+
+
 def _image_ids(els, src):
     for e in els if isinstance(els, list) else []:
         if isinstance(e, dict):
@@ -306,6 +371,9 @@ def main(argv=None):
     ap.add_argument("--to", required=True, help="저장할 자리(작업 공간 기준) - 그림 assets/… · 글꼴 fonts/…")
     ap.add_argument("--force", action="store_true", help="이미 있는 파일을 바꾼다(기존 파일은 out/.history/fetch/ 에 백업)")
     ap.add_argument("--brand", choices=sorted(BRAND_KEYS), help="받은 그림을 nexa-slide.json 의 brand.<키> 로 적는다")
+    ap.add_argument("--preset", help="받은 글꼴로 글꼴 세트(nexa-slide.json fontPresets.<이름>)를 만들고 그 세트를 고른다")
+    ap.add_argument("--weight", choices=("regular", "bold"), default="regular", help="--preset 과 함께 - bold 면 있는 세트의 굵은 글꼴 파일만 바꾼다")
+    ap.add_argument("--family", help="--preset 과 함께 - 글꼴 패밀리 이름(비우면 글꼴 파일에서 읽는다)")
     a = ap.parse_args(argv)
     try:
         why = web_block()
@@ -326,11 +394,19 @@ def main(argv=None):
         ext = path.suffix.lower()
         if a.brand and kind != "image":
             raise Refuse("--brand 는 그림에만 쓴다")
+        if a.preset:
+            if kind != "font" or path.parent != fonts_dir().resolve():
+                raise Refuse("--preset 은 글꼴에만 쓴다 - fonts/ 바로 아래(--to fonts/<파일 이름>)로 받는다")
+            preset_check(a.preset, a.weight)
         if path.is_file() and not a.force:
             raise Refuse(f"이미 있는 파일이다: {rel} - 다른 이름으로 받거나, 바꾸려면 --force(기존 파일은 백업한다)")
         data, final = download(url, LIMITS[kind])
         size = sniff(data, ext)
+        family = " ".join((a.family or family_name(data) or "").split()) if a.preset else ""
+        if a.preset and a.weight == "regular" and (not family or '"' in family or len(family) > 60):  # 파일을 쓰기 전에
+            raise Refuse("글꼴 파일에서 패밀리 이름을 읽지 못했다 - --family \"<글꼴 이름>\" 으로 준다")
         backup = save(path, data, a.force)
+        preset = set_preset(a.preset, a.weight, path.name, family) if a.preset else None
     except Refuse as e:
         print(f"가져오지 않음: {e}", file=sys.stderr)
         return 1
@@ -341,6 +417,15 @@ def main(argv=None):
     print(f"출처: {final}")
     if backup:
         print(f"기존 파일 백업: {backup.relative_to(WORKSPACE) if WORKSPACE in backup.parents else backup}")
+    if preset:
+        ms = preset["body"]["measure"]
+        print(f"글꼴 세트 {a.preset}: {preset['body']['latin']} · 보통 {ms['regular']} · 굵게 {ms['bold']} → fontPreset = {a.preset} ({CONFIG_NAME})")
+        if read_config().get("fontPreset") != a.preset:
+            print(f"알림: 이 PC 의 {LOCAL_NAME} 에 fontPreset 이 있어 이 PC 에서는 그 값이 쓰인다")
+        if ms["regular"] == ms["bold"]:
+            print(f"다음: 굵은 글꼴 파일이 따로 있으면 fetch_asset <주소> --to fonts/<파일> --preset {a.preset} --weight bold 로 더한다.")
+        print("다음: 편집기는 새로 고치면 이 글꼴로 보인다. PowerPoint 에 쓰려면 install_fonts, PPTX 는 다시 내보낸다. 글꼴은 라이선스를 확인한다(배포·임베드 허용 범위).")
+        return 0
     if kind == "font":
         print("다음: 글꼴 세트는 nexa-slide.json 의 fontPresets 에 정의하고(measure 에 이 파일 이름) set_fonts <세트> 로 고른다. PowerPoint 에 쓰려면 install_fonts. "
               "글꼴은 라이선스를 확인한다(배포·임베드 허용 범위).")
