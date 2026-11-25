@@ -36,36 +36,11 @@
   const sheet = () => S.deck.sheets[S.ti];
 
   // ---------------------------------------------------------------- 공통
-  async function api(method, url, body) {
-    if (PREVIEW && !url.startsWith("/api/sheet-preview")) return { ok: false, status: 0, data: null, headers: new Headers() };  // 미리 보기 - 저장·요청 없음
-    const headers = { "X-Nexa-Tab": TAB }; if (body !== undefined) headers["Content-Type"] = "application/json";
-    const r = await fetch(BASE + url, { method, headers, body: body !== undefined ? JSON.stringify(body) : undefined, cache: "no-store" });
-    let data = null;
-    try { data = await r.json(); } catch (e) { /* 빈 응답 */ }
-    if (window.NexaMenu && NexaMenu.auth401) NexaMenu.auth401(r, data);
-    return { ok: r.ok, status: r.status, data, headers: r.headers };
-  }
-  let toastT = 0;
-  function toast(msg, ms = 2400) { const t = $("#toast"); t.textContent = msg; t.classList.add("show"); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove("show"), ms); }
-  function setStatus(kind, text) { const s = $("#status"); s.className = "chip sm " + kind; s.textContent = text; }
-  function banner(on, msg) { $("#banner").classList.toggle("show", !!on); if (msg) $("#bannerMsg").textContent = msg; }
-  function closeMenu() { $$(".menu").forEach((m) => m.remove()); }
-  /** items: [{label, key, act, disabled, on}] | "-" | {h} - anchor 요소 아래(또는 {x,y}) */
-  function openMenu(anchor, items) {
-    closeMenu();
-    const m = document.createElement("div"); m.className = "menu";
-    m.innerHTML = items.map((it, i) => it === "-" ? "<hr>" : it.h ? `<div class="h">${esc(it.h)}</div>`
-      : it.html ? `<div data-i="${i}">${it.html}</div>`
-      : `<button data-i="${i}" ${it.disabled ? "disabled" : ""}>${it.on ? "✓ " : ""}${it.icon ? `<span>${it.icon}</span>` : ""}<span>${esc(it.label)}</span>${it.key ? `<span class="k">${esc(it.key)}</span>` : ""}</button>`).join("");
-    document.body.appendChild(m);
-    let x, y;
-    if (anchor.getBoundingClientRect) { const r = anchor.getBoundingClientRect(); x = r.left; y = r.bottom + 4; } else { x = anchor.x; y = anchor.y; }
-    x = Math.max(6, Math.min(x, innerWidth - m.offsetWidth - 6));
-    if (y + m.offsetHeight > innerHeight - 6) y = Math.max(6, y - m.offsetHeight - (anchor.getBoundingClientRect ? anchor.getBoundingClientRect().height + 8 : 0));
-    m.style.left = x + "px"; m.style.top = y + "px";
-    m.addEventListener("mousedown", (e) => e.preventDefault());  // 격자 입력칸의 초점을 뺏지 않게
-    m.addEventListener("click", (e) => { const b = e.target.closest("button[data-i]"); if (!b || b.disabled) return; const it = items[+b.dataset.i]; closeMenu(); it.act && it.act(); });
-  }
+  // api · toast · setStatus · banner · openMenu · closeMenu = 공용 뼈대(nexa-shell.js) - 슬라이드·페이지와 같은 것
+  const { api, toast, setStatus, banner, closeMenu, openMenu } = NexaShell.create({
+    base: BASE, tab: TAB, esc, toastMs: 2400, cache: "no-store", menuKeepFocus: true,  // menuKeepFocus - 격자 입력칸의 초점을 뺏지 않게
+    guard: (method, url) => (PREVIEW && !url.startsWith("/api/sheet-preview") ? { ok: false, status: 0, data: null, headers: new Headers() } : null),  // 미리 보기 - 저장·요청 없음
+  });
   document.addEventListener("mousedown", (e) => { if (!e.target.closest(".menu")) closeMenu(); });
 
   // ---------------------------------------------------------------- 주소
@@ -508,7 +483,7 @@
     if (r.status === 401) { if (window.NexaMenu) NexaMenu.auth401(r, await r.json().catch(() => null)); return false; }
     if (!r.ok) { setStatus("error", "읽기 실패"); toast("시트를 불러오지 못했습니다 (" + r.status + ")", 6000); return false; }
     const deck = await r.json();
-    if (deck.kind !== "sheet") { location.replace(`index.html#${encodeURIComponent(S.id)}`); return false; }  // 슬라이드 덱이면 편집기로
+    if (deck.kind !== "sheet") { location.replace(NexaKinds.url({ id: S.id, kind: deck.kind })); return false; }  // 슬라이드 덱이면 편집기로
     if (!keepView) S.struct = [];
     if (keepView && S.deck) NexaMerge.seal(S.undo, S.redo, deckJson());  // 밖의 변경을 받는다 - 내 실행 취소에 넣지 않고, 이전 기록은 내 편집만 되돌리게 봉인
     else { S.undo = []; S.redo = []; }
@@ -2035,7 +2010,7 @@
   }
   async function deckListMenu(btn) {
     const r = await api("GET", "/api/decks"); S.decks = r.ok && Array.isArray(r.data) ? r.data : [];
-    const go = (d) => { location.href = d.kind === "sheet" ? `sheet.html?deck=${encodeURIComponent(d.id)}` : `index.html#${encodeURIComponent(d.id)}`; };
+    const go = (d) => { location.href = NexaKinds.url(d); };
     openMenu(btn, [{ h: `덱·시트 ${S.decks.length}개` },
       ...S.decks.map((d) => ({ label: `${d.kind === "sheet" ? "▦ " : d.start ? "★ " : ""}${d.title || d.id}${d.kind === "sheet" ? "" : ` (${d.slides}장)`}`, on: d.id === S.id, act: () => { if (d.id !== S.id) leave(() => go(d)); } })),
       "-", { label: "새 시트", act: newSheet }]);

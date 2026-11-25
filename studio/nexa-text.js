@@ -223,6 +223,32 @@
     return { blocks: [...blocks.slice(0, i), ...made, ...blocks.slice(i + 1)], pos: { id: lastB.id, off: length(paras[paras.length - 1]) } };
   }
 
+  // ---------------------------------------------------------------- 그리기(DOM)
+  function paintRun(span, r, opts) {
+    opts = opts || {};
+    const st = span.style;
+    if (r.b) st.fontWeight = "700";
+    if (r.i) st.fontStyle = "italic";
+    const deco = [r.u ? "underline" : "", r.s ? "line-through" : ""].filter(Boolean).join(" ");
+    if (deco) st.textDecoration = deco;
+    if (r.u && r.u !== true) st.textDecorationStyle = { double: "double", dot: "dotted", dash: "dashed", wave: "wavy" }[r.u] || "";
+    if (r.c) st.color = opts.color ? opts.color(r.c) : r.c;
+    if (r.hl) st.backgroundColor = opts.color ? opts.color(r.hl) : r.hl;
+    if (r.sup || r.sub) { st.verticalAlign = r.sup ? "super" : "sub"; st.fontSize = "0.7em"; }
+    if (r.font) st.fontFamily = opts.font ? opts.font(r.font) : r.font;
+    if (r.size) st.fontSize = r.size + "pt";
+    if (r.link) { span.dataset.link = r.link; span.classList.add("nt-link"); }
+    if (r.ruby) span.dataset.ruby = r.ruby;
+  }
+  /** 문단 요소에 글 조각을 그린다 - 편집기(mount)와 인쇄·미리 보기(page-render.js)가 같이 쓴다. opts: color(c) · font(f) 토큰 → CSS 값 */
+  function fillRuns(el, runs, opts) {
+    const doc = el.ownerDocument;
+    el.replaceChildren();
+    for (const r of runs || []) { const sp = doc.createElement("span"); sp.textContent = r.t; paintRun(sp, r, opts); el.appendChild(sp); }
+    // 빈 문단, 또는 줄바꿈으로 끝나는 문단은 마지막 줄이 높이를 갖게 <br> 을 둔다(글 길이에는 세지 않는다)
+    if (!runs || !runs.length || /\n$/.test(runs[runs.length - 1].t)) el.appendChild(doc.createElement("br"));
+  }
+
   // ---------------------------------------------------------------- 입력(DOM) - contenteditable 호스트에 붙인다(PG-031)
   //   mount(host, opts) → 편집기. **모델이 진실**이다: 입력(beforeinput)을 가로채 모델을 고치고 바뀐 블록만 다시 그린 뒤 선택을 되돌린다.
   //   한글 조합(IME) 중에는 브라우저가 DOM 을 고치게 두고 조합이 끝나면 그 문단의 글을 모델과 비교해(앞뒤 같은 부분을 빼고) 읽어 들인다.
@@ -238,27 +264,7 @@
     const blocks = () => opts.get() || [];
     const esc = (s) => (win.CSS && win.CSS.escape ? win.CSS.escape(s) : String(s).replace(/"/g, '\\"'));
 
-    function paint(span, r) {
-      const st = span.style;
-      if (r.b) st.fontWeight = "700";
-      if (r.i) st.fontStyle = "italic";
-      const deco = [r.u ? "underline" : "", r.s ? "line-through" : ""].filter(Boolean).join(" ");
-      if (deco) st.textDecoration = deco;
-      if (r.u && r.u !== true) st.textDecorationStyle = { double: "double", dot: "dotted", dash: "dashed", wave: "wavy" }[r.u] || "";
-      if (r.c) st.color = opts.color ? opts.color(r.c) : r.c;
-      if (r.hl) st.backgroundColor = opts.color ? opts.color(r.hl) : r.hl;
-      if (r.sup || r.sub) { st.verticalAlign = r.sup ? "super" : "sub"; st.fontSize = "0.7em"; }
-      if (r.font) st.fontFamily = opts.font ? opts.font(r.font) : r.font;
-      if (r.size) st.fontSize = r.size + "pt";
-      if (r.link) { span.dataset.link = r.link; span.classList.add("nt-link"); }
-      if (r.ruby) span.dataset.ruby = r.ruby;
-    }
-    function fill(el, runs) {
-      el.replaceChildren();
-      for (const r of runs || []) { const sp = doc.createElement("span"); sp.textContent = r.t; paint(sp, r); el.appendChild(sp); }
-      // 빈 문단, 또는 줄바꿈으로 끝나는 문단은 마지막 줄이 높이를 갖게 <br> 을 둔다(글 길이에는 세지 않는다)
-      if (!runs || !runs.length || /\n$/.test(runs[runs.length - 1].t)) el.appendChild(doc.createElement("br"));
-    }
+    const fill = (el, runs) => fillRuns(el, runs, opts);
     function blockEl(b) {
       let el;
       if (isText(b)) { el = doc.createElement("div"); el.className = "nt-p"; fill(el, b.runs); if (opts.decorate) opts.decorate(el, b); }
@@ -468,5 +474,5 @@
 
   root.NexaText = { MARKS, marksOf, sameMarks, normalize, length, text, fromPlain, slice, split, join, marksAt, commonMarks,
     insertRuns, insertText, remove, replaceText, setMark, toggleMark, clearMarks, splitBlock, joinBlocks, plainToParagraphs,
-    isText, ordered, deleteRange, insertAt, splitAt, joinBackward, joinForward, spans, markRange, marksInRange, setBlockAttrs, insertParas, mount };
+    isText, ordered, deleteRange, insertAt, splitAt, joinBackward, joinForward, spans, markRange, marksInRange, setBlockAttrs, insertParas, paintRun, fillRuns, mount };
 })(typeof window !== "undefined" ? window : globalThis);

@@ -40,21 +40,12 @@
   };
 
   // ---------------------------------------------------------------- 공통
-  async function api(method, url, body) {
-    const headers = { "X-Nexa-Tab": TAB }; if (body !== undefined) headers["Content-Type"] = "application/json";
-    const r = await fetch(BASE + url, { method, headers, body: body !== undefined ? JSON.stringify(body) : undefined });
-    let data = null;
-    try { data = await r.json(); } catch (e) { /* 빈 응답 */ }
-    NexaMenu.auth401(r, data);  // 허브 로그인이 끊겼으면 로그인 페이지로(허브 중계로 열었을 때)
-    return { ok: r.ok, status: r.status, data, headers: r.headers };
-  }
-  let toastT = 0;
-  function toast(msg, ms = 2200) {
-    const t = $("#toast"); t.textContent = msg; t.classList.add("show");
-    const mb = $("#markbar");  // "보낼 요청" 바가 떠 있으면 그 바로 위에(겹치지 않게), 아니면 기본 자리
-    t.style.bottom = mb && mb.classList.contains("show") ? `${Math.max(70, window.innerHeight - mb.getBoundingClientRect().top + 10)}px` : "";
-    clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove("show"), ms);
-  }
+  // api · toast · setStatus · banner · openMenu · closeMenu = 공용 뼈대(nexa-shell.js) - 시트·페이지와 같은 것
+  const { api, toast, setStatus, banner, closeMenu, openMenu } = NexaShell.create({
+    base: BASE, tab: TAB, esc, toastMs: 2200, menuId: "menu", menuFlipGap: 4,
+    // "보낼 요청" 바가 떠 있으면 토스트를 그 바로 위에(겹치지 않게), 아니면 기본 자리
+    toastBottom: () => { const mb = $("#markbar"); return mb && mb.classList.contains("show") ? `${Math.max(70, window.innerHeight - mb.getBoundingClientRect().top + 10)}px` : ""; },
+  });
   const slide = () => (S.deck && S.deck.slides[S.cur]) || null;
   const elById = (id, s = slide()) => (s ? s.elements.find((e) => e.id === id) : null);
   const selEl = () => (S.sel ? elById(S.sel) : null);
@@ -67,30 +58,6 @@
   const clone = (o) => JSON.parse(JSON.stringify(o));
   const deckJson = () => JSON.stringify(S.deck);
 
-  function setStatus(kind, text) { const s = $("#status"); s.className = "chip sm " + kind; s.textContent = text; }
-
-  // ---------------------------------------------------------------- 공통 팝업 메뉴
-  function closeMenu() { $$(".menu").forEach((m) => m.remove()); }
-  /** items: [{label, key, act, disabled, on}] | "-" | {h:"제목"} | {html, bind(m)} - anchor 요소 아래(또는 x,y) */
-  function openMenu(anchor, items, opts = {}) {
-    closeMenu();
-    const m = document.createElement("div"); m.className = "menu"; m.id = opts.id || "menu";
-    m.innerHTML = items.map((it, i) => it === "-" ? "<hr>" : it.h ? `<div class="h">${esc(it.h)}</div>` : it.html ? `<div data-i="${i}">${it.html}</div>`
-      : `<button data-i="${i}" ${it.disabled ? "disabled" : ""}>${it.on ? "✓ " : ""}${it.icon ? `<span>${it.icon}</span>` : ""}<span>${esc(it.label)}</span>${it.key ? `<span class="k">${esc(it.key)}</span>` : ""}</button>`).join("");
-    document.body.appendChild(m);
-    let x, y;
-    if (anchor && anchor.getBoundingClientRect) { const r = anchor.getBoundingClientRect(); x = opts.right ? r.right - m.offsetWidth : r.left; y = r.bottom + 4; }
-    else { x = anchor.x; y = anchor.y; }
-    x = Math.max(6, Math.min(x, innerWidth - m.offsetWidth - 6));
-    if (y + m.offsetHeight > innerHeight - 6) y = Math.max(6, (anchor.getBoundingClientRect ? anchor.getBoundingClientRect().top : y) - m.offsetHeight - 4);
-    m.style.left = x + "px"; m.style.top = y + "px";
-    m.addEventListener("click", (e) => {
-      const b = e.target.closest("button[data-i]"); if (!b || b.disabled) return;
-      const it = items[+b.dataset.i]; if (!it.keep) closeMenu(); it.act && it.act();
-    });
-    items.forEach((it, i) => it.bind && it.bind(m.querySelector(`[data-i="${i}"]`), m));
-    return m;
-  }
 
   // ---------------------------------------------------------------- 기록(실행 취소)·저장
   function snapshot() { aiBusyWarn(); S.undo.push(deckJson()); if (S.undo.length > 150) S.undo.shift(); S.redo = []; updUndo(); }
@@ -168,7 +135,6 @@
       banner(true, "저장하려는 사이 덱 파일이 밖에서(Claude 등) 바뀌었고, 자동으로 합칠 수 없습니다(서버가 다시 시작됨 등). 어느 쪽을 남길까요?");
     } else { setStatus("error", "저장 실패"); toast("저장 실패: " + (r.data && r.data.error || r.status)); }
   }
-  function banner(on, msg) { $("#banner").classList.toggle("show", !!on); if (msg) $("#bannerMsg").textContent = msg; }
 
   // ---------------------------------------------------------------- 불러오기·외부 변경 감지
   async function loadDeck(id, keep) {
@@ -176,6 +142,7 @@
     if (r.status === 401) { NexaMenu.auth401(r, await r.json().catch(() => null)); return false; }
     if (!r.ok) { toast("덱을 불러오지 못했습니다"); return false; }
     const deck = await r.json();
+    if (deck.kind === "page") { location.href = NexaKinds.url(deck); return false; }  // 페이지 문서는 page.html 에서
     if (deck.kind === "sheet") { location.href = sheetUrl(id); return false; }  // 시트(엑셀) 문서는 시트 화면(sheet.html)에서 - docs/sheets.md
     if (keep && S.deck && S.id === id) { NexaMerge.seal(S.undo, S.redo, deckJson()); }  // 밖의 변경을 받는다 - 내 실행 취소에 넣지 않고, 이전 기록은 내 편집만 되돌리게 봉인
     else { S.undo = []; S.redo = []; }
@@ -3104,7 +3071,7 @@ ${names}
     if (S.brand.logo) { const l = $("#brandLogo"); l.src = BASE + "/" + S.brand.logo; l.alt = S.brand.name || ""; l.style.display = ""; l.onerror = () => (l.style.display = "none"); }
     if (S.brand.favicon) $("#favicon").href = BASE + "/" + S.brand.favicon;
   }
-  async function switchDeck(id) { if (id === S.id) return; if (S.dirty) await save(); if (isSheet(S.decks.find((d) => d.id === id))) { location.href = sheetUrl(id); return; } await loadDeck(id); if (LIVE) LIVE.reconnect(); }
+  async function switchDeck(id) { if (id === S.id) return; if (S.dirty) await save(); { const d = S.decks.find((x) => x.id === id); if (d && d.kind === "page") { location.href = NexaKinds.url(d); return; } } if (isSheet(S.decks.find((d) => d.id === id))) { location.href = sheetUrl(id); return; } await loadDeck(id); if (LIVE) LIVE.reconnect(); }
   async function init() {
     if (window.NexaMenu) NexaMenu.mount($("#menuBtn"));
     if ((await loadConfig()) === false) return;

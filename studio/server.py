@@ -368,6 +368,17 @@ def export(i):
     return run([sys.executable, str(STUDIO / "export_pptx.py"), i], 120)
 
 
+def experimental(name):
+    """실험 기능이 켜져 있는가 - 작업 공간 nexa-slide.json 의 "experimental": {"<이름>": true} 또는 환경 변수 NEXA_SLIDE_EXPERIMENTAL=<이름>[,…].
+    완성 전인 기능(페이지 문서 = "page")을 운영 사용자에게 숨긴다(docs/dev/page-editor/decisions.md DR-P11)."""
+    if name in [x.strip() for x in (os.environ.get("NEXA_SLIDE_EXPERIMENTAL") or "").split(",")]:
+        return True
+    try:
+        return bool(((read_config() or {}).get("experimental") or {}).get(name))
+    except Exception:  # noqa: BLE001
+        return False
+
+
 def deck_kind(i):
     """문서 종류 - "sheet"(시트, docs/sheets.md) 또는 "deck"(슬라이드)."""
     try:
@@ -405,7 +416,7 @@ def activity():
     return {"watcher": w, "othersBusy": sum(1 for x in out if x is not w and x["state"] == "busy"), "sessions": len(out)}
 
 
-ENGINE_UI = ("index.html", "studio.js", "sheet.html", "sheet.js", "sheetnew.js", "sheetcalc.js", "sheetx.js", "sheetside.js", "vba.js", "vbaworker.js", "wsession.js", "nexa-requests.js", "nexa-requests.css", "nexa-merge.js", "nexa-live.js", "render.js", "menu.js", "fonts.css", "i18n.js", "i18n/en.js", "i18n/en.pages.js", "i18n/en.review.js")
+ENGINE_UI = ("index.html", "studio.js", "sheet.html", "sheet.js", "sheetnew.js", "sheetcalc.js", "sheetx.js", "sheetside.js", "vba.js", "vbaworker.js", "wsession.js", "nexa-requests.js", "nexa-requests.css", "nexa-merge.js", "nexa-live.js", "nexa-shell.js", "nexa-text.js", "nexa-kinds.js", "page.html", "page.js", "page-render.js", "render.js", "menu.js", "fonts.css", "i18n.js", "i18n/en.js", "i18n/en.pages.js", "i18n/en.review.js")
 
 
 def hub_ui_stamp():
@@ -930,7 +941,10 @@ class H(BaseHTTPRequestHandler):
         try:
             with WRITE_LOCK:
                 if act == "create":
-                    out = deck_admin.create(i, b.get("title"), b.get("layout") or "cover", b.get("part") or "day1", "sheet" if b.get("kind") == "sheet" else "deck",
+                    kind = b.get("kind") if b.get("kind") in ("sheet", "page") else "deck"
+                    if kind == "page" and not experimental("page"):
+                        return self.err(400, "페이지 문서는 아직 실험 기능이다(nexa-slide.json 의 experimental.page)")
+                    out = deck_admin.create(i, b.get("title"), b.get("layout") or "cover", b.get("part") or "day1", kind,
                                             theme=b.get("theme"), pages=b.get("pages"), vars_=b.get("vars"))
                 elif act == "import":  # 엑셀 파일 → 시트 문서 {name, data(base64), title?} (sheet_import.py)
                     out = self._import_xlsx(b)
@@ -1076,6 +1090,11 @@ class H(BaseHTTPRequestHandler):
         for s in deck["slides"]:
             if not isinstance(s, dict) or not isinstance(s.get("elements", []), list):
                 return self.err(400, "슬라이드 형식 아님")
+        if deck.get("kind") == "page":  # 페이지 문서 - 형식 검사는 page_doc(블록 종류 · id 중복 · 스타일 · 쪽 설정)
+            import page_doc
+            e = page_doc.validate(deck)
+            if e:
+                return self.err(400, "페이지 형식 아님 - " + e)
         if deck.get("kind") == "sheet":  # 시트 문서(docs/sheets.md) - 탭 목록과 탭마다 cells 객체
             shs = deck.get("sheets")
             if not isinstance(shs, list) or not shs or any(not isinstance(t, dict) or not t.get("id") or not isinstance(t.get("cells", {}), dict) for t in shs):
@@ -1608,6 +1627,7 @@ class H(BaseHTTPRequestHandler):
         self.send_json({"mode": "workspace", "workspace": WORKSPACE.name, "path": str(WORKSPACE), "port": self.server.server_port,
                         "template": {"name": TEMPLATE["name"], "label": TEMPLATE.get("label", TEMPLATE["name"])},
                         "title": CONFIG.get("title", WORKSPACE.name), "user": self.me(),
+                        "experimental": [n for n in ("page",) if experimental(n)],  # 켜진 실험 기능 - 화면이 "페이지" 선택지를 보일지
                         "brand": {**BRAND, "logo": LOGO, "wordmark": WORDMARK, "logoRatio": LOGO_RATIO}})
 
     # ---------- 인증(허브) - auth.py ----------
