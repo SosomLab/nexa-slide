@@ -100,7 +100,7 @@ def main():
     row("쪽 번호(머리말 필드)", "number.show 또는 경고", json.dumps(num, ensure_ascii=False), bool(num.get("show")) or any("쪽 번호" in w for w in warns), next(iter(hdrs.values()), "")[:600])
     wtxt = " | ".join(warns)
     box = [text(b.get("runs")) for b in paras if "글 상자 글" in text(b.get("runs"))]
-    print("글 상자 글이 문단으로 들어왔나:", box or "아니오(버려짐)")
+    row("글 상자의 글 - 문단으로 옮겨짐(한 번만)", "1개", len(box), len(box) == 1, xml_around(dx, "상자 글", 300))
     row("경고 - 각주", "경고에 각주", wtxt[:200], "각주" in wtxt)
     row("경고 - 글 상자·떠 있는 개체", "경고에 글 상자/떠 있는", wtxt[:200], bool(re.search("글 상자|떠 있는|도형|개체", wtxt)))
     row("문단 글 보존(각주 붙는 문단·둘째 쪽)", "둘 다", [text(b.get("runs")) for b in paras if "각주" in text(b.get("runs")) or "둘째 쪽" in text(b.get("runs"))],

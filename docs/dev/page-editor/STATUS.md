@@ -3,27 +3,69 @@
 > 무인 개발 규칙 = [../autodev.md](../autodev.md) · 설계 = [design.md](design.md) · 결정 = [decisions.md](decisions.md) · 할 일 = [TODO.md](TODO.md) · 경과 = [../journal/](../journal/)
 > 작업판 = `out/status/now.md`(저장소 main 트리) · 한 화면 보기 = `python studio/devstatus.py [--watch]` · 검증 = `python studio/tests/verify.py --level quick|full`
 
+## 아침 보고 - 2026-11-26 (밤사이 무인 진행 · 협업 세션 작성)
+
+**결론**: 페이지 편집기 1단계의 뼈대가 거의 다 main 에 들어갔다(숨김 스위치 뒤 - 운영 사용자에게는 보이지 않는다). 슬라이드·시트 화면은 공용 뼈대(nexa-shell)와 새 문서 대화 상자로 바뀌었고 회귀 시험은 전부 통과했다. **운영 서버는 재시작하지 않았다** - 서버 파이썬 변경(페이지 만들기·검사·내보내기·가져오기·404 수정)은 재시작해야 운영에 반영된다.
+
+- **main 에 들어간 것**(병합 4번):
+
+| main | 들어간 것 |
+|---|---|
+| 1b1dfb6 | 무인 체계 A0(verify.py · devboard.py · devstatus.py · autodev.md) · nexa-text 모델·입력 · 한글 조합 시험(CDP) |
+| a890c88 | 공용 뼈대 nexa-shell(PG-010) · 새 문서 대화 상자(슬라이드 [＋]·☰) · 종류별 편집기 이동 · page.html 편집기 · 쪽 설정 · 표 · 그림 · DOCX 내보내기 · Word PDF · 템플릿 11종 · 페이지 병합·diff · 지운 덱 404 수정 |
+| 95e851d | Chrome 인쇄 PDF · 템플릿 토큰 글꼴·색 · 첫 문서로 페이지(init_workspace·허브·홈) · 홈 #new 단추 수정 |
+| (진행 중) | 글꼴·줄 간격·링크·찾기/바꾸기 · 표 칸 합치기·나누기 · 윗주 · Word 문서 가져오기 |
+
+- **시험 수치**:
+  - verify full: run_all 58/58(마지막 병합 기준) · parity 같음 · engine_regress 작업 공간 8·덱 16 모두 same.
+  - verify quick: 약 40~55초, 묶음 35개.
+  - 새 시험 묶음: textmodel · textui · textime · pagedoc · pagerender · pagedocx · pagetpl · pagemerge · pagemergejs · pagediff · pageimport · pageui · pageword · pagewordimp · hubpage.
+  - pageui 화면 단계 약 70개(편집·목록·쪽 설정·표·그림·링크·찾기·합치기·윗주·내보내기·가져오기·새 문서 대화 상자·두 창).
+  - Word 로 연 DOCX 12개(템플릿 11 + 종합)가 모두 경고 없이 열림.
+  - smoke 8/8.
+- **추천안으로 정한 것(DP)**: 작업판·검증 기록 위치 = 저장소 main 트리 `out/status`·`out/verify` 한 곳(worktree 가 여러 개여도 같은 판) - 확인해 주시면 DR 로.
+- **결정 대기**:
+  1. 운영 서버(허브 5599·작업 공간 서버) 재시작 시점 - 추천: 처리 중인 세션이 없을 때 한 번.
+  2. 페이지 숨김 해제 시점(D-P02) - 추천: 1단계 마감 보고(PG-090) 때.
+  3. 허브 실험 스위치(`NEXA_SLIDE_EXPERIMENTAL=page`)를 운영 허브에 켤지 - 추천: 숨김 해제와 같이.
+  4. D-P01 단어 **아래** 주석(Word 에 대응 기능 없음) - 2단계 해설지 때.
+  5. 사람이 Word 에서 직접 만든 **2단계 목록** 문서로 가져오기를 한 번 확인(이 PC 의 Word 자동화로는 2단계 목록을 만들지 못해 미확인).
+- **밤사이 깨졌다가 고친 것(사실대로)**:
+  - 개발 쪽:
+    - 덱 탭 메뉴 "새 문서…" 줄임표(UX 규칙 위반)
+    - 열린 덱을 밖에서 지운 뒤 404
+    - 홈 #new 에서 페이지 단추가 안 보임
+    - Word 문서의 글 상자가 경고 없이 빠짐
+    - smoke 간헐 실패(지운 덱 변경 탭 요청 404 - 원래 있던 결함)
+  - 협업(시험) 쪽:
+    - [＋] = prompt 를 가정한 smoke·deck_test 가 대화 상자에서 덱을 못 만든 채 **원래 시험 덱을 지워** 한 번의 full 에서 편집기 시나리오가 연쇄로 실패했다 → 만든 덱일 때만 id 를 남기게 고침.
+    - 판정 실수: 내보내기 url 의 `?v=` · const 겹침 · 파이썬 문자열 붙음 · 시험 문서의 page 설정 누락 · 가져오기 단추를 템플릿 카드로 셈 · heredoc 백슬래시 · zip 을 닫지 않아 임시 폴더 남음.
+    - 그쪽 Chrome 시험과 동시에 돌려 누수 검사가 서로를 잡음 → autodev.md 에 "브라우저 시험은 협업 세션만".
+    - 시험용 데모 작업 공간 정리에 `rm -rf` 를 써서 승인 창에 20분 넘게 멈췄다 → 정리는 시험 스크립트 안에서.
+- **다음 일**:
+  - 개발: 2단계 목록·남은 1단계 항목(PG-043 서식 막대 마무리·PG-054 인쇄 미리 보기)
+  - 협업: 글 상자 가져오기 수정 반영 시험 → main · PG-082 두 창 시나리오·collab_sim 페이지 덱 · PG-090 마감 보고 준비
+
 ## 다음 세션 시작점
 
-(2026-11-25 밤) A0 무인 체계가 끝났다: 검증 진입점 `verify.py`(quick 약 55초) · 작업판 `devboard.py` · 한 화면 보기 `devstatus.py` · 규칙 정본 `docs/dev/autodev.md`. B1 의 PG-030(모델 연산)·PG-031(입력)은 개발 세션이 끝냈고 시험 묶음 `textmodel`(quick 에 포함)·`textui` 가 run_all 에 들어갔다. **다음 = 개발 세션 PG-010(공용 뼈대 nexa-shell.js) · 협업 세션 PG-032 의 실제 IME 시험(CDP `Input.imeSetComposition`)**. 작업은 브랜치 `feat/page-editor`(worktree `.claude/worktrees/page-editor`, 협업은 `feat/page-collab` · `.claude/worktrees/page-collab`)에서.
+(2026-11-26 03:20) 브랜치 `feat/page-editor`(개발, worktree `.claude/worktrees/page-editor`) · `feat/page-collab`(협업, `.claude/worktrees/page-collab`). 세 번째 묶음(서식·링크·찾기·합치기·윗주·가져오기)의 full 이 돌고 있고, 통과하면 main 에 넣는다. 그다음 개발 세션의 글 상자 가져오기 수정(import_docx)을 받아 `page_word_import_test` 에 "글 상자 글" 보존을 기대값으로 넣는다. 시험은 `run_all` 의 page* 묶음 · `hubpage` · `verify.py`.
 
 ## 결정 대기
 
 | 무엇 | 선택지 | 추천안 | 막힌 범위 |
 |---|---|---|---|
-| D-P01 단어 **아래** 주석(Word 에 대응 기능 없음) | 윗주 위·아래 겹쳐 쓰기 / 줄 사이 주석 줄 / 글 상자 | (2단계에 정함) | 2단계 해설지 |
-| D-P02 숨김 해제 시점 | 1단계 마감 뒤 바로 / 2단계 뒤 | 1단계 마감 보고 때 묻는다 | PG-090 |
-| D-P03 운영 서버 재시작 시점 | 서버 파이썬 변경이 main 에 들어간 뒤 사용자가 정함 | 처리 중인 세션이 없을 때 한 번에 | 운영 반영 |
-| 작업판·검증 기록 위치 | 저장소 main 트리 `out/` 한 곳(지금) / worktree 마다 | 한 곳 - 세션·worktree 가 같은 판을 본다(git common-dir 의 부모) | 없음(진행 중) |
+| 운영 서버 재시작 시점(D-P03) | 사용자가 정함 | 처리 중인 세션이 없을 때 한 번에 | 서버 파이썬 변경의 운영 반영 |
+| 숨김 해제 시점(D-P02) | 1단계 마감 뒤 바로 / 2단계 뒤 | 1단계 마감 보고 때 묻는다 | PG-090 |
+| 허브 실험 스위치를 운영 허브에 켤지 | 켬 / 숨김 해제와 같이 | 숨김 해제와 같이 | 홈에서 "페이지(워드)" 선택 |
+| D-P01 단어 **아래** 주석 | 윗주 위·아래 겹쳐 쓰기 / 줄 사이 주석 줄 / 글 상자 | (2단계에 정함) | 2단계 해설지 |
+| 2단계 목록 가져오기 확인 | 사람이 Word 에서 만든 문서로 한 번 | - | 미확인 |
+| 작업판·검증 기록 위치(DP) | main 트리 `out/` 한 곳 / worktree 마다 | 한 곳 | 없음(진행 중) |
 
 ## 최근 main 에 들어간 것
 
 | 날짜 | ID | 한 줄 | 커밋 |
 |---|---|---|---|
-| 2026-11-25 | PG-001~003 | 무인 체계 - verify.py · devboard.py · devstatus.py · autodev.md · STATUS · journal | (병합 커밋은 journal) |
-| 2026-11-25 | PG-030·031 | nexa-text 모델 연산 · 입력 처리(feat/page-editor → 함께 병합) | bafc086 · 155a20b |
+| 2026-11-26 | PG-061 PG-070 PG-021 | Chrome PDF · 템플릿 토큰 · 첫 문서 페이지 · 홈 단추 | 95e851d |
+| 2026-11-26 | PG-010 PG-022 PG-023 PG-040~042 PG-051~053 PG-060~062 PG-070 PG-080 | 공용 뼈대 · 새 문서 대화 상자 · 페이지 편집기 · 표 · 그림 · DOCX/PDF · 템플릿 · 병합·diff | a890c88 |
+| 2026-11-26 | PG-001~003 PG-030~032 | 무인 체계 · nexa-text 모델·입력·한글 조합 시험 | 1b1dfb6 |
 | 2026-11-25 | PG-004 | 설계·결정·백로그 · `/autodev` | 5d8e3c0 |
-
-## 아침 보고
-
-(아직 없음 - 형식은 [../autodev.md](../autodev.md) §9)
