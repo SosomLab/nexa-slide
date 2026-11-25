@@ -98,6 +98,22 @@ for name in PT.names():
     check(f"템플릿 {name} - 본문 글이 그대로", text(t) == text(back), None)
     check(f"템플릿 {name} - 표·목록 수가 그대로", [sum(1 for x in d["blocks"] if x["type"] == "table") for d in (t, back)][0] == sum(1 for x in back["blocks"] if x["type"] == "table")
           and sum(1 for x in t["blocks"] if x.get("list")) == sum(1 for x in back["blocks"] if x.get("list")), w)
+# 떠 있는 글 상자·도형 - Word 가 쓰는 꼴(AlternateContent 안에 새 형식과 옛 형식이 같이 있다)
+NSX = ('xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" '
+       'xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" xmlns:wps="http://schemas.microsoft.com/office/word/2010/wordprocessingShape" xmlns:v="urn:schemas-microsoft-com:vml"')
+TX = '<w:txbxContent><w:p><w:r><w:t>글</w:t></w:r><w:r><w:t xml:space="preserve"> 상자 글</w:t></w:r></w:p><w:p><w:r><w:rPr><w:b/></w:rPr><w:t>둘째 줄</w:t></w:r></w:p></w:txbxContent>'
+body = (f'<w:p><w:r><w:t>앞 문단</w:t></w:r><w:r><mc:AlternateContent><mc:Choice Requires="wps"><w:drawing><wp:anchor><wps:wsp><wps:txbx>{TX}</wps:txbx></wps:wsp></wp:anchor></w:drawing></mc:Choice>'
+        f'<mc:Fallback><w:pict><v:shape><v:textbox>{TX}</v:textbox></v:shape></w:pict></mc:Fallback></mc:AlternateContent></w:r></w:p>'
+        '<w:p><w:r><w:drawing><wp:anchor><wps:wsp/></wp:anchor></w:drawing></w:r></w:p><w:p><w:r><w:t>뒤 문단</w:t></w:r></w:p>')
+bio = io.BytesIO()
+with zipfile.ZipFile(bio, "w") as zz:
+    zz.writestr("word/document.xml", f'<?xml version="1.0" encoding="UTF-8"?><w:document {NSX}><w:body>{body}</w:body></w:document>')
+tb, _, tw = I.read(bio.getvalue(), doc_id="tb")
+texts = [P.runs_text(x["runs"]) for x in tb["blocks"] if x["type"] == "p"]
+check("글 상자 - 글을 문단으로 꺼낸다(한 번만 · 순서)", texts == ["앞 문단", "글 상자 글", "둘째 줄", "뒤 문단"], texts)
+check("글 상자 - 안의 서식 유지", tb["blocks"][2]["runs"] == [{"t": "둘째 줄", "b": True}], tb["blocks"][2])
+check("글 상자·떠 있는 도형 - 경고", any("글 상자" in w for w in tw) and any("떠 있는" in w for w in tw), tw)
+
 # 거절
 for bad_name, payload in (("zip 이 아님", b"not a zip"), ("docx 가 아닌 zip", (lambda: (lambda bio: (zipfile.ZipFile(bio, "w").writestr("a.txt", "x"), bio.getvalue())[1])(io.BytesIO()))())):
     try:
