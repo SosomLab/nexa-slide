@@ -273,6 +273,87 @@ def image_steps(pid):
     ]
 
 
+# 서식·링크·찾기 시험 문서 - f1 "첫 문단 글" · f2 "둘째 " + 굵은 "문단" + " 끝" · f3 "셋째 문단" · 표(칸에 "문단")
+FMT_DOC = {"id": "pgfmt", "title": "서식 시험", "kind": "page", "slides": [], "blocks": [
+    {"id": "f1", "type": "p", "runs": [{"t": "첫 문단 글"}]},
+    {"id": "f2", "type": "p", "runs": [{"t": "둘째 "}, {"t": "문단", "b": True}, {"t": " 끝"}]},
+    {"id": "f3", "type": "p", "runs": [{"t": "셋째 문단"}]},
+    {"id": "ft", "type": "table", "cols": [40, 40], "rows": [{"id": "fr1", "cells": [{"id": "fc1", "blocks": [{"id": "fp1", "type": "p", "runs": [{"t": "칸 문단"}]}]},
+                                                                                {"id": "fc2", "blocks": [{"id": "fp2", "type": "p", "runs": [{"t": "칸"}]}]}]}]},
+    {"id": "f4", "type": "p", "runs": [{"t": "끝"}]}]}
+MRG_DOC = {"id": "pgmrg", "title": "합치기 시험", "kind": "page", "slides": [], "blocks": [
+    {"id": "m0", "type": "p", "runs": [{"t": "표"}]},
+    {"id": "mt", "type": "table", "cols": [30, 30, 30], "rows": [
+        {"id": f"mr{r}", "cells": [{"id": f"mc{r}{c}", "blocks": [{"id": f"mp{r}{c}", "type": "p", "runs": [{"t": f"{r}{c}"}]}]} for c in range(3)]} for r in range(3)]},
+    {"id": "m9", "type": "p", "runs": [{"t": "끝"}]}]}
+B_ = "const blk=(id)=>S.deck.blocks.find(b=>b.id===id);const chg=(id,v)=>{const e=document.querySelector(id);e.value=v;e.dispatchEvent(new Event('change',{bubbles:true}));};"
+
+
+def fmt_steps():
+    return [
+        step("줄 간격 2 → block.line 2 · 화면 line-height = 글자 크기의 2배",
+             H + B_ + "E.ed.select({id:'f1',off:1});chg('#selLine','2');await new Promise(r=>setTimeout(r,120));const e=el('f1'),cs=getComputedStyle(e);const lh=parseFloat(cs.lineHeight),fs=parseFloat(cs.fontSize);"
+                      "return blk('f1').line===2&&Math.abs(lh-2*fs)<1.5 || JSON.stringify({line:blk('f1').line,lh,fs});"),
+        step("글꼴 고정폭(mono) → runs font mono · 화면 font-family 가 고정폭",
+             H + B_ + "E.ed.select({id:'f1',off:0},{id:'f1',off:2});chg('#selFont','mono');await new Promise(r=>setTimeout(r,120));const r=blk('f1').runs.find(x=>x.font==='mono');"
+                      "const sp=[...el('f1').querySelectorAll('span')].find(x=>x.textContent===(r&&r.t));return r&&r.t==='첫 '&&sp&&/consolas|mono/i.test(getComputedStyle(sp).fontFamily) || JSON.stringify({runs:blk('f1').runs,ff:sp&&getComputedStyle(sp).fontFamily});"),
+        step("링크 - 고른 글에 https://example.com → runs link · 화면 .nt-link",
+             H + B_ + "E.ed.select({id:'f3',off:0},{id:'f3',off:2});window.prompt=()=>'https://example.com';document.querySelector('[data-act=link]').click();await new Promise(r=>setTimeout(r,120));"
+                      "const r=blk('f3').runs.find(x=>x.link);return r&&r.link==='https://example.com'&&r.t==='셋째'&&!!el('f3').querySelector('.nt-link') || JSON.stringify(blk('f3').runs);"),
+        step("링크 - javascript: 는 거절 토스트 · 빈 값이면 링크 풀림 · 선택이 없으면 '먼저 고르세요'",
+             H + B_ + "E.ed.select({id:'f3',off:0},{id:'f3',off:2});window.prompt=()=>'javascript:alert(1)';document.querySelector('[data-act=link]').click();await new Promise(r=>setTimeout(r,120));const t1=document.querySelector('#toast').textContent,still=blk('f3').runs.some(x=>x.link==='https://example.com');"
+                      "window.prompt=()=>'';E.ed.select({id:'f3',off:0},{id:'f3',off:2});document.querySelector('[data-act=link]').click();await new Promise(r=>setTimeout(r,120));const gone=!blk('f3').runs.some(x=>x.link);"
+                      "E.ed.select({id:'f3',off:1});document.querySelector('[data-act=link]').click();await new Promise(r=>setTimeout(r,120));const t2=document.querySelector('#toast').textContent;"
+                      "return /http/.test(t1)&&still&&gone&&/먼저 고르세요/.test(t2) || JSON.stringify({t1,still,gone,t2});"),
+        step("찾기 - '문단' 다음 2번 → '2 / n' · 그 자리 선택 / 바꾸기 1건 → 그 자리만 '단락'(굵은 글 안이면 굵게 유지)",
+             H + B_ + "document.querySelector('[data-act=find]').click();await until(async()=>getComputedStyle(document.querySelector('#findBar')).display!=='none',2000);const f=document.querySelector('#fdFind');f.value='문단';f.dispatchEvent(new Event('input',{bubbles:true}));"
+                      "document.querySelector('#fdNext').click();document.querySelector('#fdNext').click();await new Promise(r=>setTimeout(r,120));const info=document.querySelector('#fdInfo').textContent;const sel=E.ed.selection();"
+                      "document.querySelector('#fdRepl').value='단락';document.querySelector('#fdOne').click();await new Promise(r=>setTimeout(r,150));const f2=blk('f2').runs;"
+                      "return /^2 \\/ \\d+$/.test(info)&&sel&&sel.f.id==='f2'&&tx(blk('f2'))==='둘째 단락 끝'&&f2.some(x=>x.b&&x.t==='단락')&&tx(blk('f1'))==='첫 문단 글' || JSON.stringify({info,sel,f1:tx(blk('f1')),f2});"),
+        step("찾기 - 모두 바꾸기 → 본문+표 칸 수 합계 · 실행 취소 1번에 모두 되돌아감 · Esc 로 닫힘",
+             H + B_ + "const f=document.querySelector('#fdFind');f.value='문단';f.dispatchEvent(new Event('input',{bubbles:true}));document.querySelector('#fdRepl').value='段';const u0=S.undo.length;document.querySelector('#fdAll').click();await new Promise(r=>setTimeout(r,150));"
+                      "const info=document.querySelector('#fdInfo').textContent;const cell=blk('ft').rows[0].cells[0].blocks[0].runs.map(r=>r.t).join('');const after=[tx(blk('f1')),tx(blk('f3')),cell];E.undo();await new Promise(r=>setTimeout(r,150));"
+                      "const back=[tx(blk('f1')),tx(blk('f3')),blk('ft').rows[0].cells[0].blocks[0].runs.map(r=>r.t).join('')];document.querySelector('#fdFind').dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}));await new Promise(r=>setTimeout(r,100));"
+                      "const closed=getComputedStyle(document.querySelector('#findBar')).display==='none';"
+                      "return /^3곳 바꿈$/.test(info)&&after.join('|')==='첫 段 글|셋째 段|칸 段'&&back.join('|')==='첫 문단 글|셋째 문단|칸 문단'&&closed || JSON.stringify({info,after,back,closed,u0,u:S.undo.length});"),
+    ]
+
+
+def ruby_steps():
+    return [
+        step("윗주 - '글' 에 윗주 'S' → runs ruby · block.line 2 · 화면 data-ruby 와 ::before 내용",
+             H + B_ + "chg('#selLine','');E.ed.select({id:'f4',off:0},{id:'f4',off:1});window.prompt=()=>'S';const rb=document.querySelector('[data-act=ruby]');if(!rb)return 'no ruby button';rb.click();await new Promise(r=>setTimeout(r,150));"
+                      "const r=blk('f4').runs.find(x=>x.ruby);const sp=el('f4').querySelector('[data-ruby]');const before=sp&&getComputedStyle(sp,'::before').content;"
+                      "return r&&r.ruby==='S'&&r.t==='끝'&&blk('f4').line===2&&sp&&sp.dataset.ruby==='S'&&/S/.test(before||'') || JSON.stringify({runs:blk('f4').runs,line:blk('f4').line,ruby:sp&&sp.dataset.ruby,before});"),
+        step("윗주 - 있어도 선택 위치·글 길이 그대로(뒤에 친 글의 offset)",
+             H + B_ + "await new Promise(r=>setTimeout(r,100));return tx(blk('f4'))==='끝!'&&(E.ed.selection()||{}).f.off===2 || JSON.stringify({t:tx(blk('f4')),sel:E.ed.selection()});",
+             pre=B_ + "E.ed.select({id:'f4',off:1});", cdp=INS("!")),
+        step("윗주 - 빈 값으로 떼기",
+             H + B_ + "E.ed.select({id:'f4',off:0},{id:'f4',off:1});window.prompt=()=>'';document.querySelector('[data-act=ruby]').click();await new Promise(r=>setTimeout(r,150));const gone=!blk('f4').runs.some(x=>x.ruby);"
+                      "E.ed.select({id:'f4',off:0},{id:'f4',off:1});window.prompt=()=>'S';document.querySelector('[data-act=ruby]').click();await new Promise(r=>setTimeout(r,150));await idle();"
+                      "return gone&&blk('f4').runs.some(x=>x.ruby==='S') || JSON.stringify({gone,runs:blk('f4').runs});"),
+    ]
+
+
+def merge_steps():
+    M = ("const t=()=>S.deck.blocks.find(b=>b.id==='mt');const td=(r,c)=>document.querySelector('#ed [data-id=mt] td[data-id=mc'+r+c+'],#ed [data-id=mt] th[data-id=mc'+r+c+']');"
+         "const menu=async(r,c,label)=>{const x=td(r,c);if(!x)return 'no cell '+r+c;x.dispatchEvent(new MouseEvent('contextmenu',{bubbles:true,cancelable:true,clientX:200,clientY:200}));await until(async()=>document.querySelector('.menu'),2000);"
+         "const mb=[...document.querySelectorAll('.menu button')].find(b=>b.textContent.includes(label));if(!mb){document.querySelectorAll('.menu').forEach(m=>m.remove());return 'no item '+label;}const dis=mb.disabled;if(!dis)mb.click();else document.querySelectorAll('.menu').forEach(m=>m.remove());await new Promise(r=>setTimeout(r,150));return dis?'disabled':'ok';};"
+         "const ctext=(c)=>c.blocks.map(b=>(b.runs||[]).map(r=>r.t).join('')).join('/');")
+    return [
+        step("칸 합치기 - (1,1) 오른쪽과 → colspan 2 · 그 행 칸 2개 · 두 칸의 글이 이어짐",
+             H + M + "const a=await menu(0,0,'오른쪽 칸과 합치기');const r0=t().rows[0];return a==='ok'&&r0.cells.length===2&&r0.cells[0].colspan===2&&/00.*01/.test(ctext(r0.cells[0])) || JSON.stringify({a,r0});"),
+        step("칸 합치기 - 합친 칸에서 '아래 칸과 합치기' 는 아래 칸 너비가 달라 꺼져 있음",
+             H + M + "const a=await menu(0,0,'아래 칸과 합치기');return a==='disabled' || a;"),
+        step("칸 합치기 - (2,1) 아래와 → rowspan 2 · 아래 행 칸 2개 · 칸 나누기 → 원래 칸 수 · 다시 아래와 합침",
+             H + M + "const a=await menu(1,0,'아래 칸과 합치기');const r1=t().rows[1],r2=t().rows[2];const ok1=a==='ok'&&r1.cells[0].rowspan===2&&r2.cells.length===2;"
+                     "const b=await menu(1,0,'칸 나누기');const n=[t().rows[1].cells.length,t().rows[2].cells.length];const c=await menu(1,0,'아래 칸과 합치기');"
+                     "return ok1&&b==='ok'&&n.join()==='3,3'&&c==='ok'&&t().rows[1].cells[0].rowspan===2 || JSON.stringify({a,ok1,b,n,c,rows:t().rows.map(r=>r.cells.map(x=>[x.id,x.colspan,x.rowspan]))});"),
+        step("합친 표 저장 - 서버 파일에 colspan·rowspan",
+             H + M + "await idle();const f=await srv('pgmrg');const tt=f.blocks.find(b=>b.id==='mt');return tt.rows[0].cells[0].colspan===2&&tt.rows[1].cells[0].rowspan===2 || JSON.stringify(tt.rows.map(r=>r.cells.map(x=>[x.colspan,x.rowspan])));"),
+    ]
+
+
 ND = ("const nd=()=>document.querySelector('.nd-back');const open=async()=>{document.querySelector('#deckTabs [data-deckadd]').click();await until(async()=>nd()&&nd().querySelector('#ndTitle'),5000);};"
       "const kinds=()=>[...nd().querySelectorAll('[data-kind]')].map(b=>b.dataset.kind);")
 
@@ -386,8 +467,15 @@ def main():
                 step("긴 문서(문단 80개) - 쪽 경계선 수 = #pageInfo 의 n쪽 - 1 · 2쪽 이상", "const n=document.querySelectorAll('#pagelines i').length;const t=document.querySelector('#pageInfo').textContent;const k=parseInt(t);return k>=2&&n===k-1 || JSON.stringify({lines:n,info:t});")]},
             {"url": f"/studio/page.html?deck={pid}", "wait": 2500, "steps": token_steps() + setup_steps(pid) + export_steps(pid) + image_steps(pid)},
             {"url": "/studio/page.html?deck=pgtbl", "wait": 2500, "steps": table_steps("pgtbl")},
+            {"url": "/studio/page.html?deck=pgfmt", "wait": 2500, "steps": fmt_steps() + ruby_steps()},
+            {"url": "/studio/page.html?deck=pgmrg", "wait": 2500, "steps": merge_steps()},
             {"url": "/studio/index.html#pgslide", "wait": 2500, "steps": newdoc_on_steps()},
         ]
+        import page_doc
+        for doc_ in (FMT_DOC, MRG_DOC):  # 쪽 설정·스타일은 새 문서 기본값에 블록만 바꿔 넣는다
+            full = page_doc.new_page(doc_["id"], doc_["title"]); full["blocks"] = doc_["blocks"]
+            st_, r_, _ = call("PUT", f"/api/deck/{doc_['id']}", full)
+            check(f"서식·합치기 시험 문서 {doc_['id']} 만들기 200", st_ == 200, (st_, r_))
         st, r, _ = call("POST", "/api/decks", {"action": "create", "kind": "page", "title": "표 시험"})
         tbl_id = (r or {}).get("id") or "pgtbl"
         pages = [dict(x, url=x["url"].replace("pgtbl", tbl_id)) for x in pages]
@@ -466,6 +554,44 @@ def main():
                     else:
                         tb = next((b for b in deck_file(ws_on, tbl_id)["blocks"] if b.get("type") == "table"), {})
                         check(f"4 표 문서 DOCX 를 Word 로 열면 표 {1 if tb else 0}개", w.returncode == 0 and j.get("tables") == (1 if tb else 0), json.dumps(j, ensure_ascii=False)[:300])
+        # 서식 문서 DOCX - f1 문단의 pPr 에 spacing line=480(pStyle·numPr 뒤 · ind·jc 앞) · hyperlink 는 링크를 풀었으므로 없음 · 합친 표 gridSpan·vMerge · Word 로 열림
+        import re as _re
+        st, r, _ = call("POST", "/api/export/pgfmt")
+        fx = b""
+        if st == 200 and r.get("url"):
+            with urllib.request.urlopen(B + r["url"], timeout=30) as rr:
+                fx = rr.read()
+        dx = zipfile.ZipFile(io.BytesIO(fx)).read("word/document.xml").decode("utf-8") if fx[:2] == b"PK" else ""
+        ppr = next((m.group(1) for m in _re.finditer(r"<w:p>(?:<w:pPr>(.*?)</w:pPr>)?(?:(?!</w:p>).)*?첫 (?:(?!</w:p>).)*?</w:p>", dx)), "") or ""
+        order = _re.findall(r"<w:(pStyle|numPr|spacing|ind|jc)\b", ppr)
+        sp_ok = 'w:line="480"' in ppr and order.index("spacing") > max([order.index(x) for x in ("pStyle", "numPr") if x in order] or [-1]) and order.index("spacing") < min([order.index(x) for x in ("ind", "jc") if x in order] or [99])
+        check("4 DOCX 줄 간격 2 - 그 문단 pPr 에 spacing line=480(pStyle·numPr 뒤, ind·jc 앞)", st == 200 and sp_ok, json.dumps({"st": st, "pPr": ppr[:300], "order": order}, ensure_ascii=False))
+        check("4 DOCX 윗주 - document.xml 에 w:ruby 1개(본문 '끝' 위 'S')", dx.count("<w:ruby>") == 1, f"w:ruby {dx.count('<w:ruby>')}개")
+        if pw_ := (__import__("shutil").which("pwsh") or __import__("shutil").which("powershell")):
+            with tmpfiles.temp_dir("nx-pgfmt-") as d:
+                f = Path(d) / "f.docx"; f.write_bytes(fx)
+                w = subprocess.run([pw_, "-NoProfile", "-File", str(HERE / "docx_open_check.ps1"), "-Docx", str(f)], capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=180)
+                j = json.loads((w.stdout.strip().splitlines() or ["{}"])[-1] or "{}")
+                if w.returncode != 99:
+                    check("4 서식 문서(줄 간격·고정폭·윗주) DOCX 를 Word 로 - 경고 없이 열림", w.returncode == 0 and j.get("ok"), json.dumps(j, ensure_ascii=False)[:300])
+        st, r, _ = call("POST", "/api/export/pgmrg")
+        mx = b""
+        if st == 200 and r.get("url"):
+            with urllib.request.urlopen(B + r["url"], timeout=30) as rr:
+                mx = rr.read()
+        mdx = zipfile.ZipFile(io.BytesIO(mx)).read("word/document.xml").decode("utf-8") if mx[:2] == b"PK" else ""
+        check("4 합친 표 DOCX - gridSpan 2 · vMerge(restart + 이어짐)", 'w:gridSpan w:val="2"' in mdx and 'w:vMerge w:val="restart"' in mdx and "<w:vMerge/>" in mdx,
+              json.dumps({"gridSpan": 'w:gridSpan w:val="2"' in mdx, "restart": 'w:vMerge w:val="restart"' in mdx, "cont": "<w:vMerge/>" in mdx}, ensure_ascii=False))
+        pw_ = __import__("shutil").which("pwsh") or __import__("shutil").which("powershell")
+        if pw_ and mx[:2] == b"PK":
+            with tmpfiles.temp_dir("nx-pgmrg-") as d:
+                f = Path(d) / "m.docx"; f.write_bytes(mx)
+                w = subprocess.run([pw_, "-NoProfile", "-File", str(HERE / "docx_open_check.ps1"), "-Docx", str(f)], capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=180)
+                j = json.loads((w.stdout.strip().splitlines() or ["{}"])[-1] or "{}")
+                if w.returncode == 99:
+                    NOTES.append(f"합친 표 Word 열기 - 판정 불가: {j.get('skip')}")
+                else:
+                    check("4 합친 표 DOCX 를 Word 로 - 경고 없이 열림 · 표 1", w.returncode == 0 and j.get("ok") and j.get("tables") == 1, json.dumps(j, ensure_ascii=False)[:300])
         # 그림이 든 문서를 Word 로 - InlineShapes
         st, r, _ = call("POST", f"/api/export/{pid}")
         if st == 200 and r.get("url"):
