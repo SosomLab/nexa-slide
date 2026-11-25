@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>페이지 - nexa-slide</title>
+<link rel="stylesheet" href="fonts.css">
+<script src="menu.js"></script>
+<style>
+  /* 페이지 편집기(실험) - 머리 막대·상태 칩·배너·토스트는 슬라이드·시트와 같은 id 를 쓴다(공용 스타일로 뽑는 것은 PG-012) */
+  :root { --bg: #f3f2f0; --ink: #1f1f1f; --line: #d9d6d0; --accent: #c8553d; --muted: #7a756d; --paper: #fff; }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body { font: 13px/1.5 "Pretendard", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif; color: var(--ink); background: var(--bg); display: flex; flex-direction: column; }
+  header { display: flex; align-items: center; gap: 10px; padding: 6px 12px; background: #fff; border-bottom: 1px solid var(--line); }
+  header .title { font-weight: 700; font-size: 14px; border: 0; background: transparent; min-width: 120px; flex: 0 1 360px; padding: 4px 6px; border-radius: 6px; }
+  header .title:hover, header .title:focus { background: #f4f2ee; outline: none; }
+  .chip { display: inline-block; padding: 2px 8px; border-radius: 999px; background: #eee; font-size: 11px; white-space: nowrap; }
+  .chip.saved { background: #e3f1e6; color: #24693a; } .chip.dirty { background: #fff0d6; color: #8a5a00; } .chip.error, .chip.conflict { background: #fde2dd; color: #a3301c; }
+  .sp { flex: 1; }
+  .btn { border: 1px solid var(--line); background: #fff; border-radius: 6px; padding: 4px 9px; font: inherit; cursor: pointer; }
+  .btn:hover { background: #f6f4f0; } .btn.on { background: #ffe9e3; border-color: var(--accent); color: #8f2f1c; } .btn:disabled { opacity: .4; cursor: default; }
+  #tools { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; padding: 5px 12px; background: #fbfaf8; border-bottom: 1px solid var(--line); }
+  #tools select { font: inherit; padding: 3px 4px; border: 1px solid var(--line); border-radius: 6px; background: #fff; }
+  #tools .sep { width: 1px; height: 18px; background: var(--line); margin: 0 4px; }
+  #tools .btn { min-width: 28px; padding: 3px 7px; }
+  #tools input[type=color] { width: 26px; height: 24px; padding: 0; border: 1px solid var(--line); border-radius: 6px; background: #fff; }
+  #banner { display: none; padding: 8px 12px; background: #fde2dd; color: #7d2414; gap: 10px; align-items: center; }
+  #banner.show { display: flex; }
+  #scroll { flex: 1; overflow: auto; padding: 24px 0 60px; }
+  /* 종이 - 너비·여백은 page.js 가 mm 로 넣는다. 쪽 경계는 본문 높이마다 점선(근사 - 정확한 쪽 모양은 인쇄 미리 보기) */
+  #paper { position: relative; margin: 0 auto; background: var(--paper); box-shadow: 0 1px 3px rgba(0,0,0,.12), 0 8px 28px rgba(0,0,0,.08); }
+  #ed { outline: none; min-height: 60mm; }
+  #ed:empty::before { content: "여기에 입력"; color: #bbb; }
+  #pagelines { position: absolute; left: 0; right: 0; top: 0; pointer-events: none; }
+  #pagelines i { position: absolute; left: 0; right: 0; border-top: 1px dashed #c9c5bd; }
+  #pagelines i::after { content: attr(data-n); position: absolute; right: 4px; top: 2px; font: 10px sans-serif; color: #aaa; }
+  .nt-obj { cursor: default; } .nt-obj.sel { outline: 2px solid var(--accent); }
+  #toast { position: fixed; left: 50%; bottom: 28px; transform: translateX(-50%) translateY(20px); background: #222; color: #fff; padding: 8px 14px; border-radius: 8px; opacity: 0; pointer-events: none; transition: .18s; white-space: pre-line; z-index: 50; }
+  #toast.show { opacity: 1; transform: translateX(-50%); }
+  .menu { position: fixed; z-index: 60; background: #fff; border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,.14); padding: 4px; min-width: 160px; }
+  .menu button { display: flex; gap: 8px; width: 100%; border: 0; background: transparent; padding: 6px 10px; font: inherit; text-align: left; border-radius: 6px; cursor: pointer; }
+  .menu button:hover { background: #f4f2ee; } .menu hr { border: 0; border-top: 1px solid var(--line); margin: 4px 0; } .menu .h { padding: 4px 10px; color: var(--muted); font-size: 11px; } .menu .k { margin-left: auto; color: var(--muted); }
+  @media print { header, #tools, #banner, #toast, #pagelines { display: none !important; } #scroll { padding: 0; overflow: visible; } #paper { box-shadow: none; } body { background: #fff; } }
+</style>
+</head>
+<body>
+<header>
+  <button class="btn" id="btnDecks" title="문서 목록">☰</button>
+  <input class="title" id="docTitle" spellcheck="false" aria-label="문서 제목">
+  <span class="chip sm" id="status">불러오는 중…</span>
+  <span class="chip" title="실험 기능 - 아직 개발 중입니다">실험</span>
+  <span class="sp"></span>
+  <span class="chip" id="pageInfo"></span>
+  <button class="btn" id="btnPrint" title="인쇄 · PDF 로 저장(브라우저 인쇄)">인쇄</button>
+</header>
+<div id="tools">
+  <button class="btn" data-act="undo" title="실행 취소 (Ctrl+Z)">↶</button>
+  <button class="btn" data-act="redo" title="다시 실행 (Ctrl+Y)">↷</button>
+  <span class="sep"></span>
+  <select id="selStyle" title="문단 스타일"></select>
+  <select id="selSize" title="글자 크기"><option value="">크기</option><option>8</option><option>9</option><option>10</option><option>10.5</option><option>11</option><option>12</option><option>14</option><option>16</option><option>18</option><option>20</option><option>24</option><option>28</option><option>36</option></select>
+  <span class="sep"></span>
+  <button class="btn" data-mark="b" title="굵게 (Ctrl+B)"><b>가</b></button>
+  <button class="btn" data-mark="i" title="기울임 (Ctrl+I)"><i>가</i></button>
+  <button class="btn" data-mark="u" title="밑줄 (Ctrl+U)"><u>가</u></button>
+  <button class="btn" data-mark="s" title="취소선"><s>가</s></button>
+  <button class="btn" data-mark="sup" title="위 첨자">x²</button>
+  <button class="btn" data-mark="sub" title="아래 첨자">x₂</button>
+  <input type="color" id="inColor" value="#c8553d" title="글자색"><button class="btn" data-act="color" title="글자색 적용">가</button>
+  <input type="color" id="inHl" value="#fff59d" title="형광펜 색"><button class="btn" data-act="hl" title="형광펜">▍</button>
+  <button class="btn" data-act="clear" title="서식 지우기">⌫</button>
+  <span class="sep"></span>
+  <button class="btn" data-align="left" title="왼쪽 맞춤">⇤</button>
+  <button class="btn" data-align="center" title="가운데 맞춤">↔</button>
+  <button class="btn" data-align="right" title="오른쪽 맞춤">⇥</button>
+  <button class="btn" data-align="justify" title="양쪽 맞춤">☰</button>
+  <span class="sep"></span>
+  <button class="btn" data-list="bullet" title="글머리 기호">•</button>
+  <button class="btn" data-list="number" title="번호 매기기">1.</button>
+  <button class="btn" data-list="check" title="확인란">☐</button>
+  <button class="btn" data-act="outdent" title="내어쓰기 (Shift+Tab)">⇠</button>
+  <button class="btn" data-act="indent" title="들여쓰기 (Tab)">⇢</button>
+  <span class="sep"></span>
+  <button class="btn" data-act="break" title="쪽 나누기 (Ctrl+Enter)">쪽 나누기</button>
+</div>
+<div id="banner"><span id="bannerMsg"></span><button class="btn" id="bnMine">내 것으로 덮어쓰기</button><button class="btn" id="bnTheirs">밖의 것 다시 읽기</button></div>
+<div id="scroll"><div id="paper"><div id="pagelines"></div><div id="ed"></div></div></div>
+<div id="toast"></div>
+<script src="nexa-kinds.js"></script>
+<script src="nexa-shell.js"></script>
+<script src="nexa-merge.js"></script>
+<script src="nexa-text.js"></script>
+<script src="page-render.js"></script>
+<script src="page.js"></script>
+</body>
+</html>
