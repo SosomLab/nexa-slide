@@ -139,5 +139,15 @@ except ValueError as e:
 empty = zipfile.ZipFile(io.BytesIO(X.build(P.new_page("e", ""))))
 check("빈 문서 - 머리말·꼬리말 없이도 만들어진다", "word/header1.xml" not in empty.namelist() and ET.fromstring(empty.read("word/document.xml")) is not None)
 
+# 템플릿 토큰 - 영문·한글 글꼴을 따로, 색 별칭(accent·muted·ink)·글꼴 별칭(title = heading)
+fonts, colors = X.token_maps({"fonts": {"body": {"css": "x", "latin": "Pretendard", "ea": "맑은 고딕"}, "heading": {"latin": "Inter", "ea": "Pretendard"}, "mono": "Consolas, monospace"},
+                              "colors": {"primary": "#A91F24", "on-surface": "#1F1B1B", "on-surface-variant": "#534343", "bad": "red"}})
+check("토큰 - 글꼴 {latin, ea}·별칭", fonts["body"] == {"latin": "Pretendard", "ea": "맑은 고딕"} and fonts["title"] == fonts["heading"] and fonts["mono"] == "Consolas", fonts)
+check("토큰 - 색 별칭·형식이 아닌 색은 뺌", colors["accent"] == "#A91F24" and colors["muted"] == "#534343" and colors["ink"] == "#1F1B1B" and "bad" not in colors, colors)
+zt = zipfile.ZipFile(io.BytesIO(X.build(doc, fonts=fonts, colors=colors, images={"assets/a.png": (png(4, 2), 400, 200)})))
+st2, dx2 = zt.read("word/styles.xml").decode("utf-8"), zt.read("word/document.xml").decode("utf-8")
+check("토큰 - 본문 글꼴이 영문·한글 따로 나간다", 'w:ascii="Pretendard" w:hAnsi="Pretendard" w:eastAsia="맑은 고딕"' in st2, st2[st2.find("<w:rFonts"):][:120])
+check("토큰 - 제목 글꼴(title → heading)·강조 색", 'w:ascii="Inter" w:hAnsi="Inter" w:eastAsia="Pretendard"' in st2 and 'w:val="A91F24"' in dx2)
+
 print(f"\n실패 {len(fails)}" if fails else f"\n전부 통과 ({n}사례)")
 sys.exit(1 if fails else 0)

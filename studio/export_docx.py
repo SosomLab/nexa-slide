@@ -77,8 +77,10 @@ def _rpr(m, ctx, style=False):
     font, size, color = m.get("font"), m.get("size"), (m.get("color") if style else m.get("c"))
     x = []
     if font:
-        f = escape(ctx.font(font), {'"': "&quot;"})
-        x.append(f'<w:rFonts w:ascii="{f}" w:hAnsi="{f}" w:eastAsia="{f}" w:cs="{f}"/>')
+        f = ctx.font(font)  # 글꼴 이름, 또는 {latin, ea} - 영문과 한글(동아시아) 글꼴을 따로 준다
+        la, ea = (f.get("latin") or f.get("ea"), f.get("ea") or f.get("latin")) if isinstance(f, dict) else (f, f)
+        la, ea = escape(str(la), {'"': "&quot;"}), escape(str(ea), {'"': "&quot;"})
+        x.append(f'<w:rFonts w:ascii="{la}" w:hAnsi="{la}" w:eastAsia="{ea}" w:cs="{la}"/>')
     if b:
         x.append("<w:b/><w:bCs/>")
     if i:
@@ -447,10 +449,29 @@ def workspace_tokens():
         t = resolve_tokens()
     except Exception:  # noqa: BLE001
         return {}, {}
-    fonts = {k: (v.split(",")[0].strip().strip('"\'') if isinstance(v, str) else v) for k, v in (t.get("fonts") or {}).items() if isinstance(v, str)}
-    if "heading" in fonts and "title" not in fonts:
-        fonts["title"] = fonts["heading"]
+    return token_maps(t)
+
+
+# 페이지 스타일이 쓰는 이름 → 템플릿 토큰 이름(화면 page.js 의 TOKEN_ALIAS 와 같다)
+COLOR_ALIAS = {"accent": "primary", "muted": "on-surface-variant", "ink": "on-surface"}
+FONT_ALIAS = {"title": "heading"}
+
+
+def token_maps(t):
+    """템플릿 토큰(tokens.json) → (글꼴 {역할: {latin, ea}}, 색 {이름: #RRGGBB}) - 별칭(accent·muted·ink · title)을 채운다."""
+    fonts = {}
+    for k, v in (t.get("fonts") or {}).items():
+        if isinstance(v, dict) and (v.get("latin") or v.get("ea")):
+            fonts[k] = {"latin": v.get("latin") or v.get("ea"), "ea": v.get("ea") or v.get("latin")}
+        elif isinstance(v, str) and v:
+            fonts[k] = v.split(",")[0].strip().strip("\"'")
+    for alias, name in FONT_ALIAS.items():
+        if name in fonts and alias not in fonts:
+            fonts[alias] = fonts[name]
     colors = {k: v for k, v in (t.get("colors") or {}).items() if isinstance(v, str) and re.fullmatch(r"#?[0-9a-fA-F]{6}", v)}
+    for alias, name in COLOR_ALIAS.items():
+        if name in colors and alias not in colors:
+            colors[alias] = colors[name]
     return fonts, colors
 
 

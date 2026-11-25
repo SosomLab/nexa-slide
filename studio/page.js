@@ -15,6 +15,17 @@
   // 색·글꼴 토큰 → CSS 값. 작업 공간 토큰(tokens.json)을 읽어 오는 것은 서식 막대 작업(PG-043)에서 - 그 전에는 기본값
   const COLORS = { accent: "#c8553d", muted: "#7a756d", ink: "#1f1f1f" };
   const FONTS = { body: '"Pretendard", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif', title: '"Pretendard", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif', mono: 'Consolas, "D2Coding", monospace' };
+  // 템플릿 토큰(tokens.json - 슬라이드와 같은 것)을 읽으면 그 글꼴·색을 쓴다. 페이지 스타일의 이름 → 토큰 이름은 export_docx.py 의 별칭과 같다
+  const TOKEN_ALIAS = { color: { accent: "primary", muted: "on-surface-variant", ink: "on-surface" }, font: { title: "heading" } };
+  async function loadTokens() {
+    try {
+      const t = await (await fetch("tokens.json", { cache: "no-store" })).json();
+      for (const [k, v] of Object.entries(t.colors || {})) if (typeof v === "string") COLORS[k] = v;
+      for (const [a, n] of Object.entries(TOKEN_ALIAS.color)) if (t.colors && t.colors[n]) COLORS[a] = t.colors[n];
+      for (const [k, v] of Object.entries(t.fonts || {})) if (v && v.css) FONTS[k] = v.css;
+      for (const [a, n] of Object.entries(TOKEN_ALIAS.font)) if (t.fonts && t.fonts[n] && t.fonts[n].css) FONTS[a] = t.fonts[n].css;
+    } catch (e) { /* 토큰을 못 읽으면 기본값 */ }
+  }
   const ctx = { color: (c) => COLORS[c] || c, font: (f) => FONTS[f] || f, asset: (src) => (/^(https?:|data:|\/)/.test(src) ? src : `${BASE}/${src}`) };
   const deckJson = () => JSON.stringify(S.deck);
   const blocks = () => S.deck.blocks;
@@ -380,6 +391,7 @@
   }
   async function init() {
     P.injectCss();
+    await loadTokens();
     if (!(await loadDeck())) return;
     document.title = `${S.deck.title || S.id} - 페이지`;
     $("#docTitle").value = S.deck.title || "";
