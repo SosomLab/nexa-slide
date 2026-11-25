@@ -10,8 +10,8 @@
      "js": "const b=document.querySelector('#deckTabs [data-deck=\"tbltest\"]'); return b && b.textContent.trim()==='표·글머리' && /id tbltest/.test(b.title) ? true : 'text='+(b&&b.textContent)+' title='+(b&&b.title)"
     },
     {
-     "name": "＋ → 제목만 묻고 짧은 해시 id 로 새 덱 · 탭에 제목",
-     "js": "window.prompt=()=>'덱 시험 새'; document.querySelector('#deckTabs [data-deckadd]').click(); await new Promise(r=>setTimeout(r,1200)); const on=document.querySelector('#deckTabs button.on'); const id=on&&on.dataset.deck; window.__newDeck=id; return on && on.textContent.trim()==='덱 시험 새' && /^[a-z][0-9a-f]{7}$/.test(id) ? true : 'on='+(on&&on.textContent)+' id='+id"
+     "name": "＋ → 새 문서 대화 상자(슬라이드) → 제목만 적고 짧은 해시 id 로 새 덱 · 탭에 제목",
+     "js": "document.querySelector('#deckTabs [data-deckadd]').click(); await until(async()=>document.querySelector('.nd-back #ndTitle'),5000); const dlg=document.querySelector('.nd-back'); if(!dlg) return 'no-dialog'; const kb=dlg.querySelector('[data-kind=\"deck\"]'); if(kb) kb.click(); dlg.querySelector('#ndTitle').value='덱 시험 새'; dlg.querySelector('#ndOk').click(); await until(async()=>{const o=document.querySelector('#deckTabs button.on'); return o&&o.textContent.trim()==='덱 시험 새'&&!document.querySelector('.nd-back');},8000); const on=document.querySelector('#deckTabs button.on'); const id=on&&on.textContent.trim()==='덱 시험 새'?on.dataset.deck:null; window.__newDeck=id; return id && /^[a-z][0-9a-f]{7}$/.test(id) ? true : 'on='+(on&&on.textContent)+' id='+(on&&on.dataset.deck);"
     },
     {
      "name": "오른쪽 클릭 메뉴: 새 덱·제목·복제·시작 덱·삭제(이름 바꾸기 없음, 줄임표 없음)",
