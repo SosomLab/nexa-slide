@@ -190,7 +190,7 @@ def setup_steps(pid):
 def table_steps(pid):
     """표 - 넣기(prompt 2×3) · 칸 안 편집 · Tab · 칸 안 서식 · 칸 안 목록 막음 · 오른쪽 클릭 메뉴 · 실행 취소 · 칸 안 한글 조합"""
     T = "const tb=()=>S.deck.blocks.find(b=>b.type==='table');const cells=()=>[...document.querySelectorAll('#ed .pg-cell')];const ctext=(c)=>((c.blocks||[])[0]&&(c.blocks[0].runs||[]).map(r=>r.t).join(''))||'';"
-    menu = lambda label: ("{const td=document.querySelector('#ed table td,#ed table th');td.dispatchEvent(new MouseEvent('contextmenu',{bubbles:true,cancelable:true,clientX:200,clientY:200}));"  # noqa: E731
+    menu = lambda label, cell="#ed table td,#ed table th": ("{const td=document.querySelector('" + cell + "');td.dispatchEvent(new MouseEvent('contextmenu',{bubbles:true,cancelable:true,clientX:200,clientY:200}));"  # noqa: E731
                           "await until(async()=>document.querySelector('.menu'),2000);const mb=[...document.querySelectorAll('.menu button')].find(b=>b.textContent.includes('" + label + "'));if(!mb)return 'no menu item " + label + "';mb.click();await new Promise(r=>setTimeout(r,150));}")
     return [
         step("표 - [표] → '2×3' → table 블록(행 2·열 3·첫 행 머리글)",
@@ -211,7 +211,7 @@ def table_steps(pid):
              H + T + "await new Promise(r=>setTimeout(r,150));const t=document.querySelector('#toast').textContent;return /표 칸 안에서는 아직/.test(t)&&!S.deck.blocks.some(b=>b.list&&b.type==='table') || t;",
              pre=T + "cells()[1].focus();", cdp=[{"method": "Runtime.evaluate", "params": {"expression": "document.querySelector('[data-list=bullet]').click()"}, "wait": 120}]),
         step("표 - 오른쪽 클릭 메뉴: 아래에 행 넣기(행 3) · 오른쪽에 열 넣기(열 4, 모든 행 4칸) · 행 지우기(행 2) · 머리글 행 끄기",
-             H + T + menu("아래에 행 넣기") + "const r3=tb().rows.length;" + menu("오른쪽에 열 넣기") + "const c4=tb().cols.length,all4=tb().rows.every(r=>r.cells.length===4);" + menu("행 지우기") + "const r2=tb().rows.length;"
+             H + T + menu("아래에 행 넣기") + "const r3=tb().rows.length;" + menu("오른쪽에 열 넣기") + "const c4=tb().cols.length,all4=tb().rows.every(r=>r.cells.length===4);" + menu("행 지우기", "#ed table tr:last-child td") + "const r2=tb().rows.length;"
                      + menu("머리글 행") + "const head=!!tb().rows[0].head;return r3===3&&c4===4&&all4&&r2===2&&!head || JSON.stringify({r3,c4,all4,r2,head});"),
         step("표 - 칸 안 한글 조합 '한' 이 한 번만",
              H + T + "await idle();const c=tb().rows[1].cells[0];const t=ctext(c);return t==='한' || JSON.stringify(c.blocks);",

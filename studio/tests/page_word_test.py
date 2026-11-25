@@ -113,4 +113,6 @@ def main():
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    rc = main()
+    # run_all 은 0 이 아니면 실패로 센다 - 판정 불가(Word 없음·사용자 Word 실행 중)는 SKIP 줄만 남기고 0. 직접 돌릴 때는 --strict 로 99 를 그대로
+    sys.exit(rc if rc != 99 or "--strict" in sys.argv else 0)
