@@ -283,7 +283,7 @@
       { label: "작게 (-20%)", act: () => width((w) => w * 0.8) }, { label: "크게 (+25%)", act: () => width((w) => w * 1.25) },
       { label: "본문 너비에 맞춤", act: () => width(() => S.box.cw) }, { label: "본문 너비의 절반", act: () => width(() => S.box.cw / 2) }, "-",
       { label: "왼쪽", on: b.align === "left", act: () => align("left") }, { label: "가운데", on: !b.align || b.align === "center", act: () => align("center") }, { label: "오른쪽", on: b.align === "right", act: () => align("right") }, "-",
-      { label: "설명(캡션)…", act: () => { const t = prompt("그림 설명", b.caption || ""); if (t === null) return; changeBlock(id, (x) => { const y = { ...x }; if (t.trim()) y.caption = t.trim(); else delete y.caption; return y; }); } },
+      { label: "설명(캡션)", act: () => { const t = prompt("그림 설명", b.caption || ""); if (t === null) return; changeBlock(id, (x) => { const y = { ...x }; if (t.trim()) y.caption = t.trim(); else delete y.caption; return y; }); } },
       { label: "그림 지우기", key: "Del", act: () => changeBlock(id, () => null) }]);
   }
 
@@ -366,7 +366,7 @@
   async function deckListMenu(btn) {
     const r = await api("GET", "/api/decks"), list = r.ok && Array.isArray(r.data) ? r.data : [];
     openMenu(btn, [{ h: `문서 ${list.length}개` }, ...list.map((d) => ({ label: `${NexaKinds.of(d).icon} ${d.title || d.id}`, on: d.id === S.id, act: async () => { if (d.id === S.id) return; if (S.dirty) await save(); location.href = NexaKinds.url(d); } })),
-      "-", { label: "새 문서…", act: async () => { const n = await NexaNewDoc.open({ api, kind: "page" }); if (!n) return; if (S.dirty) await save(); location.href = NexaKinds.url(n); } }]);
+      "-", { label: "새 문서", act: async () => { const n = await NexaNewDoc.open({ api, kind: "page" }); if (!n) return; if (S.dirty) await save(); location.href = NexaKinds.url(n); } }]);
   }
   /** 내보내기 - 저장한 뒤 서버가 out/<id>.docx(·pdf)를 만들고 내려받는다. PDF 는 Word 가 있을 때만(없으면 [인쇄] 안내) */
   async function doExport(pdf) {
