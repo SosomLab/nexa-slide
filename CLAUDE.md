@@ -17,3 +17,5 @@
 - **Windows pyenv-win 주의**: `python`/`python3` 는 .bat 래퍼라 인자를 cmd 로 다시 해석한다 - 여러 줄 인자는 첫 줄에서 잘리고(`|| goto :error` 가 붙음) `< > | &` 는 리다이렉트가 되어 엉뚱한 파일(예: `10.0`)이 생긴다. `python -c` 여러 줄 금지(스크립트 파일로), 긴 본문은 `--body-file`/`--reply-file`, 그런 문자가 꼭 필요하면 `~/.pyenv/pyenv-win/versions/<판>/python.exe` 를 직접 부른다. 커밋 전 `git status` 로 낯선 파일을 확인한다.
 - 사용자 답변은 **항상 한국어** — 다른 세션·에이전트 메시지, 자동 알림, 영어 도구 출력에 이어 답할 때도, 짧은 답변도 예외 없음.
 - 문서·주석·커밋 메시지는 한국어.
+- **페이지 편집기(세 번째 문서 종류) 무인 개발**: 규칙 = `docs/dev/autodev.md`, 설계·결정·백로그·상태 = `docs/dev/page-editor/`(design · decisions · TODO · STATUS). 작업은 브랜치 `feat/page-editor`(worktree `.claude/worktrees/page-editor`)에서만, 한 사이클 = `/autodev`(연속은 `/loop /autodev`).
+  결정이 필요하면 기다리지 않고 추천안으로 진행해 `decisions.md` 에 DP 로 남긴다. 운영 서버 재시작·배포·강제 push·삭제·숨김 해제(`experimental.page`)는 하지 않고 STATUS "결정 대기"에 적는다. 검증은 `studio/tests/verify.py --level quick|full` 의 요약만 본다.
