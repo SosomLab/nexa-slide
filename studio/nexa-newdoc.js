@@ -59,7 +59,7 @@
           else if (!t.rec && group !== t.group) { group = t.group; html += `<div class="nd-group">${esc(t.groupLabel || t.group)}</div>`; }
           html += `<button class="nd-tpl ${t.name === tpl ? "on" : ""}" data-tpl="${esc(t.name)}" title="${esc(t.desc)}"><b>${esc(t.label)}</b><small>${esc(t.desc)}</small>${t.used ? `<span class="rec">${t.used}회</span>` : ""}</button>`;
         }
-        box.innerHTML = html + "</div>";
+        box.innerHTML = html + `</div><p style="margin:8px 0 0"><button type="button" class="nd-tpl" id="ndImport" style="min-height:0;display:inline-block">Word 문서(.docx)에서 가져오기</button><input type="file" id="ndFile" accept=".docx" hidden></p>`;
       }
       async function create() {
         const t = title.value.trim();
@@ -76,8 +76,20 @@
         const k = e.target.closest("[data-kind]"), tp = e.target.closest("[data-tpl]");
         if (k) { kind = k.dataset.kind; drawKinds(); drawExtra(); title.focus(); }
         else if (tp) { tpl = tp.dataset.tpl; back.querySelectorAll(".nd-tpl").forEach((x) => x.classList.toggle("on", x === tp)); }
+        else if (e.target.id === "ndImport") q("#ndFile").click();
         else if (e.target.id === "ndCancel") end(null);
         else if (e.target.id === "ndOk") create();
+      });
+      // Word 문서 가져오기 - 파일을 고르면 바로 올려 페이지 문서를 만든다(제목 칸이 비어 있으면 문서의 제목·파일 이름)
+      back.addEventListener("change", async (e) => {
+        if (e.target.id !== "ndFile") return;
+        const f = e.target.files[0]; if (!f) return;
+        if (!/\.docx$/i.test(f.name)) { q("#ndErr").textContent = "Word 문서(.docx)만 가져올 수 있습니다"; return; }
+        q("#ndErr").textContent = "가져오는 중…"; q("#ndOk").disabled = true;
+        const data = await new Promise((res, rej) => { const fr = new FileReader(); fr.onload = () => res(String(fr.result).split(",")[1] || ""); fr.onerror = rej; fr.readAsDataURL(f); });
+        const r = await api("POST", "/api/decks", { action: "import", name: f.name, title: title.value.trim(), data });
+        if (!r.ok || !r.data || !r.data.id) { q("#ndErr").textContent = "가져오지 못했습니다: " + ((r.data && r.data.error) || r.status); q("#ndOk").disabled = false; return; }
+        end({ id: r.data.id, kind: "page", title: r.data.title, decks: r.data.decks, warnings: r.data.warnings || [] });
       });
       drawKinds(); drawExtra(); title.focus();
     });
