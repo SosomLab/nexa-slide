@@ -130,6 +130,8 @@ def main():
         tail = [l for l in marks[:-12] if l.startswith("FAIL")][:12] + tail  # 끝 12줄 밖의 FAIL 줄도 보인다 - 실패 뒤에 OK 가 길게 이어지면 "실패 2" 만 남고 어느 단계인지 안 보였다
         print("\n".join("   " + l for l in tail) if tail else out[-600:])
         rc = r.returncode
+        if rc and tail and not any(l.startswith(("FAIL", "실패")) for l in tail):  # 판정 줄 없이 끝났다(예외·강제 종료) - 마지막 출력을 보인다
+            print("   -- 판정 줄 없이 끝남(rc %s) · 마지막 출력:\n%s" % (rc, "\n".join("      " + l for l in out.strip().splitlines()[-12:])))
         leaked = leak_check(before)
         if leaked:  # 누수 시험 - 시험이 Temp 에 남긴 것(docs/dev/temp-files-design.md). 지우고 실패로
             print(f"   FAIL 임시 파일 누수 {len(leaked)}개: {', '.join(leaked[:5])}{' …' if len(leaked) > 5 else ''} - studio/tmpfiles.py 로 만들고 지운다")
