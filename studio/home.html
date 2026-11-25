@@ -646,11 +646,27 @@
   const PAGES = ["start", "tutorial", "demo", "templates", "samples"];
   const H = { home: null, tpl: "lecture", kind: "deck", sheetTheme: "engine:basic", att: [], attBusy: 0 };  // kind = 첫 문서 종류(deck 슬라이드 · sheet 시트, docs/sheets.md) · att = 참고 자료 첨부
   function setKind(k) {
-    H.kind = k === "sheet" ? "sheet" : "deck";
+    H.kind = k === "sheet" ? "sheet" : k === "page" && pageOn() ? "page" : "deck";
+    renderPageOpts();
     $$("#fKind [data-kind]").forEach((b) => b.classList.toggle("on", b.dataset.kind === H.kind));
-    $("#deckOpts").style.display = H.kind === "sheet" ? "none" : "";  // 시트는 슬라이드 템플릿·시작용 내용 대신 시트 테마
+    $("#deckOpts").style.display = H.kind === "deck" ? "" : "none";  // 시트는 슬라이드 템플릿·시작용 내용 대신 시트 테마, 페이지는 페이지 템플릿
     $("#sheetOpts").style.display = H.kind === "sheet" ? "" : "none";
-    $("#fHead").textContent = I18N.t(H.kind === "sheet" ? "새 시트 만들기" : "새 슬라이드 만들기");
+    $("#fHead").textContent = I18N.t(H.kind === "sheet" ? "새 시트 만들기" : H.kind === "page" ? "새 페이지 만들기" : "새 슬라이드 만들기");
+  }
+  // 페이지(Word 형 문서) - 실험 기능. 허브가 켜져 있을 때만(/api/home 의 experimental) 종류 단추와 템플릿 고르기가 보인다
+  const pageOn = () => !!(H.home && (H.home.experimental || []).includes("page"));
+  const pgEsc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+  function renderPageOpts() {
+    let b = $('#fKind [data-kind="page"]');
+    if (pageOn() && !b) { b = document.createElement("button"); b.type = "button"; b.className = "chip sm"; b.dataset.kind = "page"; b.title = "Word 같은 글 문서 - docx·PDF 로 내보냅니다(실험 기능)"; b.textContent = "페이지(워드)"; $("#fKind").appendChild(b); }
+    let box = $("#pageOpts");
+    if (!box) { box = document.createElement("div"); box.id = "pageOpts"; $("#sheetOpts").after(box); }
+    box.style.display = H.kind === "page" ? "" : "none";
+    if (H.kind !== "page") return;
+    const ts = (H.home && H.home.pageTemplates) || [];
+    if (!H.pageTpl || !ts.some((t) => t.name === H.pageTpl)) H.pageTpl = (ts[0] || {}).name || "blank";
+    box.innerHTML = `<label class="f" style="margin:8px 0 4px">페이지 템플릿</label><div class="row pv-decks" style="flex-wrap:wrap;gap:6px">${ts.map((t) => `<button type="button" class="chip sm ${t.name === H.pageTpl ? "on" : ""}" data-ptpl="${pgEsc(t.name)}" title="${pgEsc(t.desc)}">${pgEsc(t.label)}</button>`).join("")}</div>`;
+    box.onclick = (e) => { const x = e.target.closest("[data-ptpl]"); if (!x) return; H.pageTpl = x.dataset.ptpl; renderPageOpts(); schedulePlan(); };
   }
   const color = (s) => { let h = 0; for (const c of s) h = (h * 31 + c.charCodeAt(0)) >>> 0; return `hsl(${h % 360} 45% 45%)`; };
   const sep = () => (H.home && H.home.projectsRoot.includes("\\") ? "\\" : "/");
@@ -859,7 +875,7 @@
   let shell = (() => { try { return localStorage.getItem("nx-shell"); } catch (e) { return null; } })();
   function formBody() {
     const custom = loc() === "custom";
-    const b = { title: $("#fTitle").value.trim(), template: H.tpl, starter: H.kind === "sheet" ? null : $("#fStarter").value || null, kind: H.kind, sheetTheme: H.kind === "sheet" ? sheetThemeBody() : null, sheetFrom: H.kind === "sheet" ? H.sheetFrom || null : null, deckFrom: H.kind === "sheet" ? null : H.deckFrom || null, port: $("#fPort").value.trim(),
+    const b = { title: $("#fTitle").value.trim(), template: H.tpl, starter: H.kind === "sheet" ? null : $("#fStarter").value || null, kind: H.kind, pageTemplate: H.kind === "page" ? H.pageTpl || null : null, sheetTheme: H.kind === "sheet" ? sheetThemeBody() : null, sheetFrom: H.kind === "sheet" ? H.sheetFrom || null : null, deckFrom: H.kind === "sheet" ? null : H.deckFrom || null, port: $("#fPort").value.trim(),
       purpose: $("#fPurpose").value, audience: $("#fAudience").value, direction: $("#fDirection").value, materials: $("#fMaterials").value,
       askDraft: $("#fAsk").checked, loc: loc(), slidesDir: wsName(), defaultTitle: I18N.t("제목"), lang: I18N.effective() };  // 제목이 비었을 때 명령·경로에 쓰는 자리 글(표시 언어대로) · lang = 시작용 내용 언어
     if (custom) { b.folder = $("#fFolder").value.trim(); b.sub = $("#fSub").value.trim(); }

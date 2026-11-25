@@ -55,6 +55,19 @@ def _read_json(p, default=None):
         return default
 
 
+def experimental(name):
+    """허브에서 실험 기능이 켜져 있는가 - 환경 변수 NEXA_SLIDE_EXPERIMENTAL=<이름>[,…]. 켜면 시작 페이지에 그 선택지(페이지 문서)가 보인다."""
+    return name in [x.strip() for x in (os.environ.get("NEXA_SLIDE_EXPERIMENTAL") or "").split(",")]
+
+
+def page_templates_info():
+    try:
+        import page_templates
+        return page_templates.info()
+    except Exception:  # noqa: BLE001
+        return []
+
+
 def slug(title):
     """폴더 이름 - 한글은 그대로, 파일 이름에 못 쓰는 글자·공백은 '-'."""
     s = re.sub(r'[<>:"/\\|?*\x00-\x1f]+', "-", title.strip())
@@ -555,6 +568,7 @@ def home(current=None, refused=None):
             "current": cur, "refused": str(refused) if refused else None, "proxy": proxy_on(),
             "sessionGlobal": {k: s.get(k) for k in SESSION_KEYS if s.get(k) is not None},
             "recent": recent, "templates": template_rec(templates(current), recent), "starters": starters() if _supports_starter() else [], "sheetThemes": sheet_themes(rows),
+            "experimental": [n for n in ("page",) if experimental(n)], "pageTemplates": page_templates_info() if experimental("page") else [],
             "samples": s.get("samples", []), "demo": str(projects_root() / DEMO_DIR)}
 
 
@@ -761,11 +775,19 @@ def plan(b):
     else:
         port = free_port(skip=ws)
     sheet = b.get("kind") == "sheet"  # 첫 문서를 시트로(docs/sheets.md) - 시작용 내용은 쓰지 않는다
+    page = b.get("kind") == "page"   # 첫 문서를 페이지로(Word 형, 실험 기능) - 시작용 내용 대신 페이지 템플릿
+    if page and not experimental("page"):
+        raise ValueError("페이지 문서는 아직 실험 기능이다(NEXA_SLIDE_EXPERIMENTAL=page)")
     deck = re.sub(r"[^A-Za-z0-9_-]", "", str(b.get("deck") or "")) or "intro"
     args = [STUDIO / "init_workspace.py", target or "<폴더>", "--title", name, "--template", template]
     if deck != "intro":
         args += ["--deck", deck]
-    if sheet:
+    if page:
+        args += ["--kind", "page"]
+        starter = None
+        if re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_-]{0,39}", str(b.get("pageTemplate") or "")):
+            args += ["--page-template", b["pageTemplate"]]
+    elif sheet:
         args += ["--kind", "sheet"]
         starter = None
         sf = b.get("sheetFrom") if isinstance(b.get("sheetFrom"), dict) else {}
