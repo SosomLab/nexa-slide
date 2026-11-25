@@ -452,6 +452,7 @@
     $("#selLine").value = b && b.line ? String(b.line) : "";
     const lk = $("[data-act=link]"); if (lk) lk.classList.toggle("on", !!st.marks.link);
     const rb = $("[data-act=ruby]"); if (rb) rb.classList.toggle("on", !!st.marks.ruby);
+    const sh = $("[data-act=shade]"); if (sh) sh.classList.toggle("on", !!(b && b.fill));
     $("[data-act=undo]").disabled = !S.undo.length; $("[data-act=redo]").disabled = !S.redo.length;
   }
   function bindTools() {
@@ -479,6 +480,7 @@
       else if (b.dataset.list) setList(b.dataset.list);
       else ({ undo, redo, indent: () => shiftLevel(1), outdent: () => shiftLevel(-1), break: insertBreak, setup: pageSetup,
         color: () => now.toggle("c", $("#inColor").value), hl: () => now.toggle("hl", $("#inHl").value), table: insertTable, image: () => $("#inImage").click(), link: setLink, ruby: setRuby, find: openFind,
+        shade: () => { const e0 = cur || ed, st0 = e0.state(), b0 = st0.sel && e0 === ed ? blockAt(st0.sel.f.id) : null; e0.blockAttrs({ fill: b0 && b0.fill ? null : "#e6e6e6" }); },
         clear: () => { const s = ed.selection(); if (s) { snapshot("format"); let bs = blocks(); for (const x of T.spans(bs, s.a, s.f)) bs = bs.map((y, k) => (k === x.i ? { ...y, runs: T.clearMarks(y.runs, x.from, x.to, ["link"]) } : y)); S.deck.blocks = bs; ed.refresh(s); afterChange(); } },
       })[b.dataset.act]?.();
       updTools();
