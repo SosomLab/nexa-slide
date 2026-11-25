@@ -18,6 +18,7 @@
   .chip { display: inline-block; padding: 2px 8px; border-radius: 999px; background: #eee; font-size: 11px; white-space: nowrap; }
   .chip.saved { background: #e3f1e6; color: #24693a; } .chip.dirty { background: #fff0d6; color: #8a5a00; } .chip.error, .chip.conflict { background: #fde2dd; color: #a3301c; }
   .sp { flex: 1; }
+  header select { font: inherit; padding: 3px 4px; border: 1px solid var(--line); border-radius: 6px; background: #fff; }
   .btn { border: 1px solid var(--line); background: #fff; border-radius: 6px; padding: 4px 9px; font: inherit; cursor: pointer; }
   .btn:hover { background: #f6f4f0; } .btn.on { background: #ffe9e3; border-color: var(--accent); color: #8f2f1c; } .btn:disabled { opacity: .4; cursor: default; }
   #tools { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; padding: 5px 12px; background: #fbfaf8; border-bottom: 1px solid var(--line); }
@@ -59,7 +60,7 @@
   .menu { position: fixed; z-index: 60; background: #fff; border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,.14); padding: 4px; min-width: 160px; }
   .menu button { display: flex; gap: 8px; width: 100%; border: 0; background: transparent; padding: 6px 10px; font: inherit; text-align: left; border-radius: 6px; cursor: pointer; }
   .menu button:hover { background: #f4f2ee; } .menu hr { border: 0; border-top: 1px solid var(--line); margin: 4px 0; } .menu .h { padding: 4px 10px; color: var(--muted); font-size: 11px; } .menu .k { margin-left: auto; color: var(--muted); }
-  @media print { header, #tools, #banner, #toast, #pagelines, .pg-hf, .dlg-back, #findBar { display: none !important; } #paper { padding: 0 !important; width: auto !important; min-height: 0 !important; } #ed .pg-table.pg-noborder td, #ed .pg-table.pg-noborder th { border-color: transparent; } #ed .pg-table.pg-innerv td + td { border-left: .5pt solid #8a8a8a; } #scroll { padding: 0; overflow: visible; } #paper { box-shadow: none; } body { background: #fff; } }
+  @media print { header, #tools, #banner, #toast, #pagelines, .pg-hf, .dlg-back, #findBar { display: none !important; } #paper { padding: 0 !important; width: auto !important; min-height: 0 !important; zoom: 1 !important; } #ed .pg-table.pg-noborder td, #ed .pg-table.pg-noborder th { border-color: transparent; } #ed .pg-table.pg-innerv td + td { border-left: .5pt solid #8a8a8a; } #scroll { padding: 0; overflow: visible; } #paper { box-shadow: none; } body { background: #fff; } }
 </style>
 </head>
 <body>
@@ -70,6 +71,7 @@
   <span class="chip" title="실험 기능 - 아직 개발 중입니다">실험</span>
   <span class="sp"></span>
   <span class="chip" id="pageInfo"></span>
+  <select id="selZoom" title="확대 · 축소(화면에서만 - 인쇄·내보내기에는 영향 없음)"><option value="fit">폭 맞춤</option><option value="0.5">50%</option><option value="0.75">75%</option><option value="1" selected>100%</option><option value="1.25">125%</option><option value="1.5">150%</option><option value="2">200%</option></select>
   <button class="btn" id="btnExport" title="Word(.docx) · PDF 로 내보내기">내보내기 ▾</button>
   <button class="btn" id="btnPrint" title="인쇄 · PDF 로 저장(브라우저 인쇄)">인쇄</button>
 </header>

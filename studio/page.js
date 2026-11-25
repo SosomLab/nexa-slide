@@ -158,12 +158,23 @@
     };
     q("#psSize").focus();
   }
+  /** 확대 - 종이를 화면에서만 키우고 줄인다(CSS zoom). "fit" 은 창 너비에 종이를 맞춘다. 고른 값은 이 브라우저에 기억한다 */
+  function applyZoom(v) {
+    const paper = $("#paper"), box = S.box; if (!box) return;
+    let z = Number(v);
+    if (v === "fit" || !z) { paper.style.zoom = 1; const w = paper.getBoundingClientRect().width || 1; z = Math.max(0.3, Math.min(3, ($("#scroll").clientWidth - 32) / w)); }
+    paper.style.zoom = z; S.zoom = v;
+    try { localStorage.setItem("nexaPageZoom", String(v)); } catch (e) { /* 저장 못 해도 그대로 */ }
+    pageLines();
+  }
   function pageLines() {
     const box = S.box, host = $("#ed"), wrap = $("#pagelines"); if (!box) return;
-    const mm = host.getBoundingClientRect().width / box.cw || 3.78, n = Math.max(1, Math.ceil(host.scrollHeight / (box.ch * mm) - 0.001));
+    const mm = host.offsetWidth / box.cw || 3.78,  /* 배치 기준 px(확대와 무관 - scrollHeight 와 같은 기준) */ n = Math.max(1, Math.ceil(host.scrollHeight / (box.ch * mm) - 0.001));
     wrap.replaceChildren();
     for (let k = 1; k < n; k++) { const i = document.createElement("i"); i.style.top = (box.t + box.ch * k) * mm + "px"; i.dataset.n = `${k + 1}쪽`; wrap.appendChild(i); }
-    $("#pageInfo").textContent = `${n}쪽 · ${typeof S.deck.page.size === "string" ? S.deck.page.size : "사용자 크기"}`;
+    const chars = blocks().reduce((a, b) => a + (T.isText(b) ? T.length(b.runs) : 0), 0);
+    $("#pageInfo").textContent = `${n}쪽 · ${typeof S.deck.page.size === "string" ? S.deck.page.size : "사용자 크기"} · ${chars.toLocaleString()}자`;
+    $("#pageInfo").title = "쪽 수는 근사값(정확한 쪽은 내보낸 문서에서) · 글자 수는 본문 문단 기준(표 칸 제외)";
   }
   /** 목록 머리 기호는 다른 문단이 바뀌어도 달라진다(번호) - 저장할 때마다 전부 다시 단다 */
   function decorateAll() {
@@ -607,7 +618,9 @@
     $("#bnMine").onclick = () => save(true);
     $("#bnTheirs").onclick = async () => { if (await loadDeck()) { banner(false); cur = ed; S.pick = null; layout(); ed.refresh(); decorateAll(); setStatus("saved", "저장됨"); } };
     document.addEventListener("mousedown", (e) => { if (!e.target.closest(".menu")) closeMenu(); });
-    window.addEventListener("resize", pageLines);
+    window.addEventListener("resize", () => { if (S.zoom === "fit") applyZoom("fit"); else pageLines(); });
+    $("#selZoom").onchange = (e) => applyZoom(e.target.value);
+    { let z = "1"; try { z = localStorage.getItem("nexaPageZoom") || "1"; } catch (e) { /* 기본값 */ } if ([...$("#selZoom").options].some((o) => o.value === z)) { $("#selZoom").value = z; applyZoom(z); } }
     window.addEventListener("beforeunload", (e) => { if (S.dirty) { e.preventDefault(); e.returnValue = ""; } });
     setStatus("saved", "저장됨");
     if (new URLSearchParams(location.search).get("print") === "1") { document.body.classList.add("printing"); return; }  // 서버의 Chrome 인쇄(PDF) - 커서·초점 없이 그대로 찍힌다
