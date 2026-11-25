@@ -385,6 +385,49 @@ def study_steps():
     ]
 
 
+POLL_DOC = {"id": "pgpoll", "title": "밖의 변경", "kind": "page", "slides": [], "blocks": [
+    {"id": "q1", "type": "p", "runs": [{"t": "하나"}]},
+    {"id": "q2", "type": "p", "runs": [{"t": "둘"}]},
+    {"id": "qt", "type": "table", "cols": [50, 50], "rows": [{"id": "qr1", "cells": [{"id": "qc1", "blocks": [{"id": "qp1", "type": "p", "runs": [{"t": "칸"}]}]},
+                                                                               {"id": "qc2", "blocks": [{"id": "qp2", "type": "p", "runs": [{"t": "칸2"}]}]}]}]},
+    {"id": "q3", "type": "p", "runs": [{"t": "셋"}]}]}
+POLL_DEL = {"id": "pgpdel", "title": "지울 문서", "kind": "page", "slides": [], "blocks": [{"id": "d1", "type": "p", "runs": [{"t": "곧 지움"}]}]}
+
+
+def poll_steps():
+    """밖의 변경 따라가기(page.js poll - 3초마다 /api/version) - 다른 창·AI 저장"""
+    X = ("const ext=async(id,f)=>{const r=await fetch('/api/deck/'+id,{cache:'no-store'});const v=r.headers.get('X-Deck-Version');const d=await r.json();f(d);"
+         "const p=await fetch('/api/deck/'+id+'?base='+v+'&merge=1',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(d)});return p.status;};"
+         "const setT=(d,id,t)=>{const b=d.blocks.find(x=>x.id===id);b.runs=[{t}];};const toastT=()=>(document.querySelector('#toast')||{}).textContent||'';")
+    return [
+        step("밖의 변경 ① 깨끗한 화면 - 밖에서 q2 를 고쳐 저장 → 4초 안에 화면에 그 글 · 토스트 '밖에서 바뀐 내용을 불러왔습니다' · 선택(q1) 유지",
+             H + X + "await idle();E.ed.focus();E.ed.select({id:'q1',off:1});const st=await ext('pgpoll',(d)=>setT(d,'q2','밖 고침'));let seen='';"
+                     "const ok=await until(async()=>{const t=toastT();if(/밖에서 바뀐/.test(t))seen=t;return el('q2')&&el('q2').textContent==='밖 고침';},5000);await new Promise(r=>setTimeout(r,100));if(!seen)seen=toastT();"
+                     "const sel=E.ed.selection();return st===200&&ok&&/밖에서 바뀐 내용을 불러왔습니다/.test(seen)&&sel&&sel.f.id==='q1' || JSON.stringify({st,ok,q2:el('q2')&&el('q2').textContent,toast:seen,sel:sel&&sel.f});"),
+        step("밖의 변경 ② 고치는 중(저장 전) - 밖에서 q3 을 고친 뒤 poll → 저장하며 병합 · 내 q1 글과 밖의 q3 글이 둘 다 서버·화면에",
+             H + X + "await E.poll();await idle();const f=await srv('pgpoll');const t=(id)=>tx(f.blocks.find(b=>b.id===id));"
+                     "return window.__extSt===200&&t('q1').includes('내글')&&t('q3')==='밖 셋'&&el('q3').textContent==='밖 셋'&&tx(S.deck.blocks.find(b=>b.id==='q1')).includes('내글') || JSON.stringify({st:window.__extSt,q1:t('q1'),q3:t('q3'),scr:el('q3')&&el('q3').textContent,status:document.querySelector('#status').textContent});",
+             pre=X + "await idle();E.ed.focus();E.ed.select({id:'q1',off:2});window.__extSt=await ext('pgpoll',(d)=>setT(d,'q3','밖 셋'));", cdp=INS("내글"), wait=50),
+        step("밖의 변경 ④ 표 칸을 편집 중(초점만) - 밖에서 q2 를 고침 → 다시 그려져도 오류 없음 · 칸 글 그대로 · 초점이 칸에 남는지 보고",
+             H + X + "await idle();const c=[...document.querySelectorAll('#ed .pg-cell')][0];c.focus();const st=await ext('pgpoll',(d)=>setT(d,'q2','밖 둘째'));window.__errs=[];window.addEventListener('error',(e)=>window.__errs.push(String(e.message)));"
+                     "const ok=await until(async()=>el('q2')&&el('q2').textContent==='밖 둘째',5000);await new Promise(r=>setTimeout(r,200));const a=document.activeElement;const inCell=!!(a&&a.closest&&a.closest('.pg-cell'));"
+                     "window.__pollNote='표 칸 편집 중 밖 변경: 초점 '+(inCell?'칸에 남음':'잃음('+(a&&a.tagName)+')');const cellTxt=(document.querySelector('#ed .pg-cell')||{}).textContent;"
+                     "return st===200&&ok&&!window.__errs.length&&cellTxt==='칸' || JSON.stringify({st,ok,errs:window.__errs,cellTxt,inCell});"),
+        # ④ 초점: 2026-11-26 실행에서 '초점 잃음(BODY)' - 개발 세션이 허용(다시 그리면 칸 요소가 새로 만들어진다). 판정하지 않고 값이 남는지만 본다
+        step("밖의 변경 ④ 보고 - 초점 상태가 기록됨(칸에 남음/잃음 - 판정 아님)", "return /초점 (칸에 남음|잃음)/.test(window.__pollNote||'') || 'no note';"),
+    ]
+
+
+def poll_del_steps():
+    return [
+        step("밖의 변경 ③ 문서를 API 로 지움 → 상태 칩 '지워진 문서' · 그 뒤 6.5초 동안 이 문서로 나가는 요청 0(폴링 멈춤)",
+             H + "await idle();let n=0,after=false;const of=window.fetch;window.fetch=function(u,o){if(after&&/pgpdel|\\/api\\/version/.test(String(u)))n++;return of.apply(this,arguments);};"
+                 "const r=await of('/api/decks',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'delete',id:'pgpdel'})});"
+                 "const ok=await until(async()=>document.querySelector('#status').textContent==='지워진 문서',6000);after=true;await new Promise(r=>setTimeout(r,6500));window.fetch=of;"
+                 "return r.status===200&&ok&&n===0 || JSON.stringify({del:r.status,ok,status:document.querySelector('#status').textContent,after:n});"),
+    ]
+
+
 IMPORT_DOCX = [b""]  # 가져오기 시험용 .docx(우리 내보내기로 만든 것 - Word 가 만든 문서는 page_word_import_test)
 
 
@@ -525,10 +568,12 @@ def main():
             {"url": "/studio/page.html?deck=pgfmt", "wait": 2500, "steps": fmt_steps() + ruby_steps()},
             {"url": "/studio/page.html?deck=pgmrg", "wait": 2500, "steps": merge_steps()},
             {"url": "/studio/page.html?deck=pgsgid", "wait": 2500, "steps": study_steps()},
+            {"url": "/studio/page.html?deck=pgpoll", "wait": 2500, "steps": poll_steps()},
+            {"url": "/studio/page.html?deck=pgpdel", "wait": 2500, "steps": poll_del_steps()},
             {"url": "/studio/index.html#pgslide", "wait": 2500, "steps": newdoc_on_steps()},
         ]
         import page_doc
-        for doc_ in (FMT_DOC, MRG_DOC):  # 쪽 설정·스타일은 새 문서 기본값에 블록만 바꿔 넣는다
+        for doc_ in (FMT_DOC, MRG_DOC, POLL_DOC, POLL_DEL):  # 쪽 설정·스타일은 새 문서 기본값에 블록만 바꿔 넣는다
             full = page_doc.new_page(doc_["id"], doc_["title"]); full["blocks"] = doc_["blocks"]
             st_, r_, _ = call("PUT", f"/api/deck/{doc_['id']}", full)
             check(f"서식·합치기 시험 문서 {doc_['id']} 만들기 200", st_ == 200, (st_, r_))
