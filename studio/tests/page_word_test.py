@@ -119,6 +119,13 @@ def main():
         check("배치용 표 none - Word 에서 칸마다 선이 하나도 없음(위·왼쪽·아래·오른쪽 LineStyle 0)", bool(cells_of(nb)) and all(v == (0, 0, 0, 0) for v in cells_of(nb).values()), json.dumps(nb, ensure_ascii=False)[:400])
         check("배치용 표 inner-v - Word 에서 칸 사이 세로선만(바깥·가로 선 없음)", inner_v(iv), json.dumps(iv, ensure_ascii=False)[:400])
         check("study-guide 의 2단 표 - Word 에서 칸 사이 세로선만", inner_v(sgb), json.dumps(sgb, ensure_ascii=False)[:400])
+        # 빈 칸의 문단 = 1개(빈 칸 내용이 <w:p/> 인데 하나를 더 붙이던 결함 - bb88ff0)
+        import re as _re2, zipfile as _zf, io as _io  # noqa: E401
+        nd = next(x for x in docs if x[0] == "배치용 표 none")[1]
+        dx = _zf.ZipFile(_io.BytesIO(export_docx.build(nd))).read("word/document.xml").decode("utf-8")
+        tcs = _re2.findall(r"<w:tc>(.*?)</w:tc>", dx)
+        np_ = [len(_re2.findall(r"<w:p[ />]", tc)) for tc in tcs]
+        check("빈 칸의 문단 수 = 1(document.xml 의 tc 마다 w:p 1개 · 2,2 칸은 빈 칸)", len(tcs) == 4 and all(n == 1 for n in np_), json.dumps(np_))
         sg = next((r for r in ROWS if r["문서"] == "study-guide"), None)
         check("study-guide(해설지 2단) - Word 에서 1쪽 · 머리말에 날짜(YYYY-MM-DD)와 제목 · 자리 글 없음", sg and sg["쪽"] == 1 and __import__("re").search(r"\d{4}-\d{2}-\d{2}", sg["머리말"] or "") and "study-guide 시험" in (sg["머리말"] or "") and "{" not in (sg["머리말"] or ""),
               json.dumps(sg, ensure_ascii=False))

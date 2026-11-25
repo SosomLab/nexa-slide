@@ -638,8 +638,8 @@ def main():
         check("4 합친 표 DOCX - gridSpan 2 · vMerge(restart + 이어짐)", 'w:gridSpan w:val="2"' in mdx and 'w:vMerge w:val="restart"' in mdx and "<w:vMerge/>" in mdx,
               json.dumps({"gridSpan": 'w:gridSpan w:val="2"' in mdx, "restart": 'w:vMerge w:val="restart"' in mdx, "cont": "<w:vMerge/>" in mdx}, ensure_ascii=False))
         tb_ = (_re.search(r"<w:tblBorders>(.*?)</w:tblBorders>", mdx) or [None, ""])[1] if mdx else ""
-        check("4 배치용 표(inner-v) DOCX - tblBorders 에 insideV 만 single · 나머지 nil · 머리 행 회색 칠 없음",
-              'w:insideV w:val="single"' in tb_ and all(f'<w:{x} w:val="nil"/>' in tb_ for x in ("top", "left", "bottom", "right", "insideH")) and 'w:fill="F0F0F0"' not in mdx, tb_[:400])
+        check("4 배치용 표(inner-v) DOCX - tblBorders 에 insideV 만 single · 나머지 none(Word 가 nil 을 정의 안 됨으로 읽음) · 머리 행 회색 칠 없음",
+              'w:insideV w:val="single"' in tb_ and all(f'<w:{x} w:val="none"' in tb_ for x in ("top", "left", "bottom", "right", "insideH")) and 'w:fill="F0F0F0"' not in mdx, tb_[:400])
         pw_ = __import__("shutil").which("pwsh") or __import__("shutil").which("powershell")
         if pw_ and mx[:2] == b"PK":
             with tmpfiles.temp_dir("nx-pgmrg-") as d:
@@ -663,7 +663,7 @@ def main():
                     nx = rr.read()
             ndx = zipfile.ZipFile(io.BytesIO(nx)).read("word/document.xml").decode("utf-8") if nx[:2] == b"PK" else ""
             tn = (_re.search(r"<w:tblBorders>(.*?)</w:tblBorders>", ndx) or [None, ""])[1]
-            check("4 배치용 표(none) DOCX - tblBorders 여섯 개 모두 nil", st_ == 200 and tn.count('w:val="nil"') == 6 and "single" not in tn, tn[:400])
+            check("4 배치용 표(none) DOCX - tblBorders 여섯 개 모두 none", st_ == 200 and tn.count('w:val="none"') == 6 and "single" not in tn, tn[:400])
             with tmpfiles.temp_dir("nx-pgnob-") as d:
                 f = Path(d) / "n.docx"; f.write_bytes(nx)
                 w = subprocess.run([pw_, "-NoProfile", "-File", str(HERE / "docx_open_check.ps1"), "-Docx", str(f)], capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=180)
