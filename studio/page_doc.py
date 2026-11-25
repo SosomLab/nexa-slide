@@ -15,7 +15,8 @@ import re
 
 MARKS = ("b", "i", "u", "s", "c", "hl", "sup", "sub", "font", "size", "link", "ruby")
 BOOL = {"b", "i", "s", "sup", "sub"}
-BLOCK_TYPES = ("p", "list", "table", "image", "break")
+BLOCK_TYPES = ("p", "table", "image", "break")
+LIST_KINDS = ("bullet", "number", "check")
 SIZES = {"A4": (210, 297), "A5": (148, 210), "B5": (182, 257), "Letter": (215.9, 279.4), "Legal": (215.9, 355.6)}  # mm(세로 방향 기준)
 ALIGN = ("left", "center", "right", "justify")
 ID_RE = re.compile(r"^[A-Za-z0-9_-]{1,40}$")
@@ -72,18 +73,14 @@ def _new_id(seen, prefix="b"):
 
 
 def walk(doc):
-    """id 를 갖는 것 전부를 문서 순서로 - (경로, 객체). 블록 · 목록 항목 · 표의 행 · 셀 · 셀 안 블록 · 머리말·꼬리말 블록."""
+    """id 를 갖는 것 전부를 문서 순서로 - (경로, 객체). 블록 · 표의 행 · 셀 · 셀 안 블록 · 머리말·꼬리말 블록."""
     def blocks(bs, path):
         for b in bs or []:
             if not isinstance(b, dict):
                 continue
             p = path + (b.get("id"),)
             yield p, b
-            if b.get("type") == "list":
-                for it in b.get("items") or []:
-                    if isinstance(it, dict):
-                        yield p + (it.get("id"),), it
-            elif b.get("type") == "table":
+            if b.get("type") == "table":
                 for row in b.get("rows") or []:
                     if not isinstance(row, dict):
                         continue
@@ -99,7 +96,7 @@ def walk(doc):
 
 
 def text_blocks(doc):
-    """글(runs)이 든 것만 - 문단 · 목록 항목 · 셀 안 문단."""
+    """글(runs)이 든 것만 - 문단(목록 문단 포함) · 셀 안 문단."""
     for p, b in walk(doc):
         if isinstance(b.get("runs"), list):
             yield p, b
@@ -174,19 +171,12 @@ def _check_blocks(bs, where, styles, depth=0):
             e = _check_runs(b.get("runs"), w)
             if e:
                 return e
-        elif t == "list":
-            if b.get("kind") not in ("bullet", "number", "check"):
-                return f"{w}: 목록 kind = bullet | number | check"
-            if not isinstance(b.get("items"), list):
-                return f"{w}: items 는 목록"
-            for it in b["items"]:
-                if not isinstance(it, dict):
-                    return f"{w}: 목록 항목은 객체"
-                if not isinstance(it.get("level", 0), int) or not 0 <= it.get("level", 0) <= 8:
-                    return f"{w}: 항목 level 은 0~8"
-                e = _check_runs(it.get("runs"), f"{w} {it.get('id')}")
-                if e:
-                    return e
+            if "list" in b:  # 목록은 문단의 속성이다(Word 의 번호 매기기와 같다) - 이어진 목록 문단이 한 목록
+                ls = b["list"]
+                if not isinstance(ls, dict) or ls.get("kind") not in LIST_KINDS:
+                    return f"{w}: 목록 kind = {' | '.join(LIST_KINDS)}"
+                if not isinstance(ls.get("level", 0), int) or isinstance(ls.get("level", 0), bool) or not 0 <= ls.get("level", 0) <= 8:
+                    return f"{w}: 목록 level 은 0~8"
         elif t == "table":
             if depth:
                 return f"{w}: 표 안의 표는 지원하지 않는다"
@@ -268,6 +258,49 @@ def validate(doc):
     if dup:
         return f"id 중복: {sorted(dup)[0]}"
     return None
+
+
+def list_markers(blocks):
+    """목록 문단의 머리 기호 {id: 글} - 번호는 이어진 목록 문단 안에서 단계별로 센다(목록이 끊기거나 restart 면 1부터).
+    화면 page-render.js markers 와 같은 규칙. 글머리 = • ◦ ▪ 를 단계마다 돌려 쓰고, 번호 = 1. → a. → i. 차례."""
+    out, counts, prev = {}, {}, None
+    for b in blocks or []:
+        ls = b.get("list") if isinstance(b, dict) and b.get("type") == "p" else None
+        if not ls:
+            counts, prev = {}, None
+            continue
+        lv = ls.get("level", 0)
+        if prev is None or ls.get("restart"):
+            counts = {}
+        for k in [k for k in counts if k > lv]:  # 더 깊은 단계의 번호는 얕은 단계로 돌아오면 다시 센다
+            del counts[k]
+        if ls["kind"] == "number":
+            counts[lv] = counts.get(lv, 0) + 1
+            out[b["id"]] = _number(counts[lv], lv)
+        elif ls["kind"] == "check":
+            out[b["id"]] = "☑" if ls.get("done") else "☐"
+        else:
+            out[b["id"]] = "•◦▪"[lv % 3]
+        prev = ls
+    return out
+
+
+def _number(n, level):
+    kind = level % 3
+    if kind == 0:
+        return f"{n}."
+    if kind == 1:
+        s = ""
+        while n > 0:
+            n, r = divmod(n - 1, 26)
+            s = chr(97 + r) + s
+        return s + "."
+    out = ""
+    for v, t in ((1000, "m"), (900, "cm"), (500, "d"), (400, "cd"), (100, "c"), (90, "xc"), (50, "l"), (40, "xl"), (10, "x"), (9, "ix"), (5, "v"), (4, "iv"), (1, "i")):
+        while n >= v:
+            out += t
+            n -= v
+    return out + "."
 
 
 def resolve_style(doc, name):
