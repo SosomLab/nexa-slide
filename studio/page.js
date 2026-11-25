@@ -10,7 +10,8 @@
   const { api, toast, setStatus, banner, openMenu, closeMenu } = NexaShell.create({ base: BASE, tab: TAB, cache: "no-store", toastMs: 2400 });
   const T = NexaText, P = NexaPage;
   const S = { id: new URLSearchParams(location.search).get("deck") || "", deck: null, version: null, savedJson: null, dirty: false, saving: false, conflict: false, undo: [], redo: [], lastWhy: "", lastAt: 0 };
-  let ed = null;
+  let ed = null;   // 본문 편집기
+  let cur = null;  // 지금 글을 치고 있는 편집기 - 본문이거나 표 칸(칸마다 따로 붙는다). 서식 막대는 이것에 건다
   // 색·글꼴 토큰 → CSS 값. 작업 공간 토큰(tokens.json)을 읽어 오는 것은 서식 막대 작업(PG-043)에서 - 그 전에는 기본값
   const COLORS = { accent: "#c8553d", muted: "#7a756d", ink: "#1f1f1f" };
   const FONTS = { body: '"Pretendard", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif', title: '"Pretendard", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif', mono: 'Consolas, "D2Coding", monospace' };
@@ -173,6 +174,78 @@
       return { ...b, list: { ...b.list, level: Math.max(0, Math.min(8, (b.list.level || 0) + d)) } };
     });
   }
+  // ---------------------------------------------------------------- 표 - 칸마다 편집기를 붙인다(칸 안에는 문단들)
+  const rid = (p) => p + Date.now().toString(36).slice(-4) + (idSeq++).toString(36) + Math.random().toString(36).slice(2, 4);
+  const newPara = () => ({ id: rid("p"), type: "p", runs: [] });
+  const newCell = () => ({ id: rid("c"), blocks: [newPara()] });
+  const newTable = (rows, cols) => ({ id: rid("t"), type: "table", cols: Array.from({ length: cols }, () => Math.round(100 / cols)),
+    rows: Array.from({ length: rows }, (_, r) => ({ id: rid("r"), ...(r === 0 ? { head: true } : {}), cells: Array.from({ length: cols }, newCell) })) });
+  /** 표 블록 → 요소. 칸의 글을 고치면 칸 객체를 **그 자리에서** 고친다(표 블록 객체가 그대로라 바깥 편집기가 표를 다시 그리지 않고, 칸 편집기의 초점이 남는다) */
+  function tableEl(b) {
+    const t = document.createElement("table"); t.className = "pg-table";
+    const total = b.cols.reduce((a, c) => a + c, 0) || 1, cg = document.createElement("colgroup");
+    for (const c of b.cols) { const col = document.createElement("col"); col.style.width = (c / total * 100).toFixed(3) + "%"; cg.appendChild(col); }
+    t.appendChild(cg);
+    const body = document.createElement("tbody");
+    for (const row of b.rows) {
+      const tr = document.createElement("tr"); tr.dataset.id = row.id; if (row.head) tr.className = "head";
+      for (const c of row.cells) {
+        const td = document.createElement(row.head ? "th" : "td"); td.dataset.id = c.id;
+        if (c.colspan > 1) td.colSpan = c.colspan; if (c.rowspan > 1) td.rowSpan = c.rowspan;
+        if (c.fill) td.style.backgroundColor = ctx.color(c.fill);
+        if (!Array.isArray(c.blocks) || !c.blocks.length) c.blocks = [newPara()];
+        const host = document.createElement("div"); host.className = "pg-cell"; td.appendChild(host);
+        const ce = T.mount(host, {
+          get: () => c.blocks, set: (bs, why) => { snapshot(why); c.blocks = bs.length ? bs : [newPara()]; afterChange(); }, newId: () => rid("p"),
+          decorate: (el, x) => P.decorate(el, x, S.deck, ctx, P.markers(c.blocks)[x.id]), renderBlock: (x) => P.blockEl(S.deck, x, ctx),
+          color: ctx.color, font: ctx.font, onSelect: () => { cur = ce; updTools(); }, undo, redo,
+        });
+        host.addEventListener("focus", () => { cur = ce; });
+        tr.appendChild(td);
+      }
+      body.appendChild(tr);
+    }
+    t.appendChild(body);
+    t.addEventListener("contextmenu", (e) => { const td = e.target.closest("td,th"); if (!td) return; e.preventDefault(); tableMenu(b.id, td.dataset.id, { x: e.clientX, y: e.clientY }); });
+    return t;
+  }
+  /** 표를 바꾼다 - fn(표 사본) 이 고친 표로 블록을 갈아 끼운다(새 객체라 표가 다시 그려진다). null 을 돌려주면 표를 지운다 */
+  function changeTable(tid, fn) {
+    const i = blocks().findIndex((b) => b.id === tid); if (i < 0) return;
+    snapshot("format");
+    const next = fn(JSON.parse(JSON.stringify(blocks()[i])));
+    S.deck.blocks = next ? blocks().map((b, k) => (k === i ? next : b)) : blocks().filter((_, k) => k !== i);
+    if (!S.deck.blocks.some(T.isText)) S.deck.blocks.push(newPara());
+    cur = ed; ed.refresh(); afterChange();
+  }
+  function tableMenu(tid, cid, at) {
+    const t = blockAt(tid); if (!t) return;
+    const ri = t.rows.findIndex((r) => r.cells.some((c) => c.id === cid)), ci = ri < 0 ? -1 : t.rows[ri].cells.findIndex((c) => c.id === cid); if (ri < 0) return;
+    const plain = t.rows.every((r) => r.cells.every((c) => !(c.colspan > 1) && !(c.rowspan > 1)));  // 합친 칸이 있으면 열 작업은 막는다(칸 위치 계산이 달라진다)
+    const addRow = (d) => changeTable(tid, (x) => { x.rows.splice(ri + d, 0, { id: rid("r"), cells: Array.from({ length: x.cols.length }, newCell) }); return x; });
+    const addCol = (d) => changeTable(tid, (x) => { x.cols.splice(ci + d, 0, x.cols[ci]); for (const r of x.rows) r.cells.splice(ci + d, 0, newCell()); return x; });
+    openMenu(at, [
+      { label: "위에 행 넣기", act: () => addRow(0) }, { label: "아래에 행 넣기", act: () => addRow(1) },
+      { label: "왼쪽에 열 넣기", disabled: !plain, act: () => addCol(0) }, { label: "오른쪽에 열 넣기", disabled: !plain, act: () => addCol(1) }, "-",
+      { label: "행 지우기", disabled: t.rows.length < 2, act: () => changeTable(tid, (x) => { x.rows.splice(ri, 1); return x; }) },
+      { label: "열 지우기", disabled: !plain || t.cols.length < 2, act: () => changeTable(tid, (x) => { x.cols.splice(ci, 1); for (const r of x.rows) r.cells.splice(ci, 1); return x; }) }, "-",
+      { label: "머리글 행", on: !!t.rows[ri].head, act: () => changeTable(tid, (x) => { if (x.rows[ri].head) delete x.rows[ri].head; else x.rows[ri].head = true; return x; }) },
+      { label: "칸 채우기(회색)", on: !!t.rows[ri].cells[ci].fill, act: () => changeTable(tid, (x) => { const c = x.rows[ri].cells[ci]; if (c.fill) delete c.fill; else c.fill = "#eeeeee"; return x; }) }, "-",
+      { label: "표 지우기", act: () => changeTable(tid, () => null) },
+    ]);
+  }
+  function insertTable() {
+    const s = ed.selection(), ans = prompt("표 크기 - 행×열", "3×3"); if (!ans) return;
+    const m = ans.match(/(\d+)\D+(\d+)/); if (!m) { toast("행×열 꼴로 적어 주세요(예: 3×4)"); return; }
+    const rows = Math.max(1, Math.min(50, +m[1])), cols = Math.max(1, Math.min(12, +m[2]));
+    const i = s ? blocks().findIndex((b) => b.id === s.f.id) : blocks().length - 1;
+    snapshot("format");
+    const tb = newTable(rows, cols), after = newPara();
+    S.deck.blocks = [...blocks().slice(0, i + 1), tb, ...(blocks()[i + 1] && T.isText(blocks()[i + 1]) ? [] : [after]), ...blocks().slice(i + 1)];
+    ed.refresh(); afterChange();
+    const first = document.querySelector(`[data-id="${tb.id}"] .pg-cell`); if (first) first.focus();
+  }
+
   function insertBreak() {
     const s = ed.selection(); if (!s) return;
     const i = blocks().findIndex((b) => b.id === s.f.id); if (i < 0) return;
@@ -185,7 +258,7 @@
   // ---------------------------------------------------------------- 서식 막대
   function updTools() {
     if (!ed) return;
-    const st = ed.state(), b = st.sel ? blockAt(st.sel.f.id) : null;
+    const e0 = cur || ed, st = e0.state(), inCell = e0 !== ed, b = st.sel ? (inCell ? null : blockAt(st.sel.f.id)) : null;
     for (const el of $$("#tools [data-mark]")) el.classList.toggle("on", !!st.marks[el.dataset.mark]);
     const align = b && (b.align || P.styleOf(S.deck, b.style).align || "left");
     for (const el of $$("#tools [data-align]")) el.classList.toggle("on", !!b && el.dataset.align === align);
@@ -197,16 +270,18 @@
   function bindTools() {
     const sel = $("#selStyle");
     sel.replaceChildren(...Object.entries(S.deck.styles).map(([k, v]) => { const o = document.createElement("option"); o.value = k; o.textContent = v.name || k; return o; }));
-    sel.onchange = () => { ed.blockAttrs({ style: sel.value === "body" ? null : sel.value }); ed.focus(); };
-    $("#selSize").onchange = (e) => { ed.setMark("size", e.target.value ? +e.target.value : null); ed.focus(); };
+    sel.onchange = () => { (cur || ed).blockAttrs({ style: sel.value === "body" ? null : sel.value }); };
+    $("#selSize").onchange = (e) => { (cur || ed).setMark("size", e.target.value ? +e.target.value : null); };
     $("#tools").addEventListener("mousedown", (e) => { if (e.target.closest("button")) e.preventDefault(); });  // 누를 때 본문 선택을 잃지 않게
     $("#tools").addEventListener("click", (e) => {
       const b = e.target.closest("button"); if (!b || b.disabled) return;
-      if (b.dataset.mark) ed.toggle(b.dataset.mark);
-      else if (b.dataset.align) ed.blockAttrs({ align: b.dataset.align === "left" ? null : b.dataset.align });
+      const now = cur || ed, body = now === ed;  // 표 칸 안에서는 글자 서식·정렬만(목록·들여쓰기·쪽 나누기는 본문에서)
+      if (b.dataset.mark) now.toggle(b.dataset.mark);
+      else if (b.dataset.align) now.blockAttrs({ align: b.dataset.align === "left" ? null : b.dataset.align });
+      else if (!body && (b.dataset.list || ["indent", "outdent", "break", "clear", "table"].includes(b.dataset.act))) toast("표 칸 안에서는 아직 쓸 수 없습니다");
       else if (b.dataset.list) setList(b.dataset.list);
       else ({ undo, redo, indent: () => shiftLevel(1), outdent: () => shiftLevel(-1), break: insertBreak, setup: pageSetup,
-        color: () => ed.toggle("c", $("#inColor").value), hl: () => ed.toggle("hl", $("#inHl").value),
+        color: () => now.toggle("c", $("#inColor").value), hl: () => now.toggle("hl", $("#inHl").value), table: insertTable,
         clear: () => { const s = ed.selection(); if (s) { snapshot("format"); let bs = blocks(); for (const x of T.spans(bs, s.a, s.f)) bs = bs.map((y, k) => (k === x.i ? { ...y, runs: T.clearMarks(y.runs, x.from, x.to, ["link"]) } : y)); S.deck.blocks = bs; ed.refresh(s); afterChange(); } },
       })[b.dataset.act]?.();
       updTools();
@@ -215,6 +290,15 @@
   /** 본문 키 - 편집 엔진보다 먼저 본다(목록 단계 · 빈 목록 문단에서 Enter/Backspace 는 목록 풀기 · Ctrl+Enter 쪽 나누기 · Ctrl+S) */
   function onKey(e) {
     if (e.isComposing) return;
+    if (e.target.closest && e.target.closest(".pg-cell")) {  // 표 칸 안 - Tab 은 다음 칸으로, 그 밖의 본문 전용 키는 건드리지 않는다
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") { e.preventDefault(); save(); }
+      else if (e.key === "Tab") {
+        e.preventDefault();
+        const cells = [...e.target.closest("table").querySelectorAll(".pg-cell")], k = cells.indexOf(e.target.closest(".pg-cell")) + (e.shiftKey ? -1 : 1);
+        if (cells[k]) { cells[k].focus(); const r = document.createRange(); r.selectNodeContents(cells[k]); r.collapse(false); const sl = getSelection(); sl.removeAllRanges(); sl.addRange(r); }
+      }
+      return;
+    }
     const s = ed.selection(), b = s && blockAt(s.f.id), mod = e.ctrlKey || e.metaKey;
     if (mod && e.key.toLowerCase() === "s") { e.preventDefault(); save(); return; }
     if (mod && e.key === "Enter") { e.preventDefault(); e.stopPropagation(); insertBreak(); return; }
@@ -264,9 +348,10 @@
       get: blocks, set: (b, why) => { snapshot(why); S.deck.blocks = b; afterChange(); }, newId,
       nextStyle: (b) => { const n = P.styleOf(S.deck, b.style).next; return n === undefined ? undefined : n === "body" ? null : n; },
       decorate: (el, b) => P.decorate(el, b, S.deck, ctx, P.markers(blocks())[b.id]),
-      renderBlock: (b) => P.blockEl(S.deck, b, ctx),
-      color: ctx.color, font: ctx.font, onSelect: updTools, undo, redo,
+      renderBlock: (b) => (b.type === "table" ? tableEl(b) : P.blockEl(S.deck, b, ctx)),
+      color: ctx.color, font: ctx.font, onSelect: () => { cur = ed; updTools(); }, undo, redo,
     });
+    cur = ed;
     $("#ed").addEventListener("keydown", onKey, true);
     bindTools(); decorateAll(); updTools();
     $("#btnDecks").onclick = (e) => deckListMenu(e.currentTarget);

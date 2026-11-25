@@ -312,8 +312,10 @@
       while ((n = w.nextNode())) { if (left <= n.data.length) return [n, left]; left -= n.data.length; last = n; }
       return last ? [last, last.data.length] : [el, 0];
     }
+    /** 이 편집기의 것인가 - 안에 다른 편집기(표 칸)가 들어 있을 수 있다. 가장 가까운 편집기 호스트가 이 호스트일 때만 */
+    const mine = (node) => { const el = node && (node.nodeType === 1 ? node : node.parentElement); return !!el && el.closest(".nt-host") === host; };
     function selection() {
-      const s = doc.getSelection(); if (!s || !s.rangeCount || !host.contains(s.anchorNode)) return null;
+      const s = doc.getSelection(); if (!s || !s.rangeCount || !host.contains(s.anchorNode) || !mine(s.anchorNode) || !mine(s.focusNode)) return null;
       const a = pointFrom(s.anchorNode, s.anchorOffset), f = pointFrom(s.focusNode, s.focusOffset);
       return a && f ? { a, f } : null;
     }
@@ -415,6 +417,7 @@
 
     const FMT = { formatBold: "b", formatItalic: "i", formatUnderline: "u", formatStrikeThrough: "s", formatSuperscript: "sup", formatSubscript: "sub" };
     function onBeforeInput(e) {
+      if (!mine(e.target)) return;
       const t = e.inputType || "";
       if (composing || e.isComposing || t === "insertCompositionText" || t === "deleteCompositionText") return;  // 조합 중 - 브라우저에 맡긴다
       e.preventDefault();
@@ -428,18 +431,20 @@
       else if (t === "historyRedo") { if (opts.redo) opts.redo(); }
       // 그 밖(insertOrderedList 등)은 막기만 한다 - 목록·표는 문단 속성으로 다룬다
     }
-    function onCompStart() {
+    function onCompStart(e) {
+      if (e && !mine(e.target)) return;
       const s = selection();
       if (s && !collapsed(s.a, s.f)) replaceSel(null, "delete");  // 고른 글 위에서 조합을 시작하면 먼저 모델에서 지운다(DOM 이 여러 문단을 합치기 전에)
       const s2 = selection(); compId = s2 ? s2.f.id : null; composing = true;
     }
     function onCompEnd() { composing = false; const id = compId; compId = null; if (id) syncBlock(id, "ime"); }
-    function onInput(e) {  // 우리가 막지 못한 DOM 변경(조합은 compositionend 가 처리) - 선택이 있는 문단을 읽어 들인다
+    function onInput(e) {  // 우리가 막지 못한 DOM 변경
+      if (e && !mine(e.target)) return;  // 안쪽 편집기(표 칸)의 일(조합은 compositionend 가 처리) - 선택이 있는 문단을 읽어 들인다
       if (composing || (e && e.isComposing)) return;
       const s = selection(); if (s) syncBlock(s.f.id, "type");
     }
     function onKeyDown(e) {
-      if (composing || e.isComposing) return;
+      if (!mine(e.target) || composing || e.isComposing) return;
       const mod = e.ctrlKey || e.metaKey; if (!mod || e.altKey) return;
       const k = e.key.toLowerCase();
       if (k === "b" || k === "i" || k === "u") { e.preventDefault(); toggle(k); }
