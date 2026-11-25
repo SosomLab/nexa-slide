@@ -33,7 +33,7 @@
 | PG-060 | C1 | `export_docx.py`(문단 · 글자 · 스타일 · 목록 · 표 · 그림 · 구역 · 머리말) | L | PG-040 | 개 | ✅ 끝 2026-11-26 · 구조 시험 45사례(Word 로 여는 검증은 PG-062) |
 | PG-061 | C1 | PDF: `render_docx.ps1`(Word COM, 매크로·이벤트 끔) · Chrome 인쇄 · 내보내기 API·메뉴 | M | PG-060 PG-054 | 개 | ⬜ 열림 |
 | PG-062 | C1 | 동일성 시험(화면 렌더 ↔ DOCX 구조) + Word 로 여는 검증 | M | PG-060 | 협 | ⬜ 열림 |
-| PG-070 | C2 | 템플릿 형식 + 11종 + 미리 보기 | L | PG-041 | 개 | ⬜ 열림 |
+| PG-070 | C2 | 템플릿 형식 + 11종 + 미리 보기 | L | PG-041 | 개 | ✅ 끝 2026-11-26 · 11종(page_templates.py) 시험 89사례 - 미리 보기 그림은 PG-071 |
 | PG-071 | C2 | 추천(`hub.template_rec` 종류별) · 홈·새 문서에서 고르기 | M | PG-070 PG-022 | 개 | ⬜ 열림 |
 | PG-080 | C3 | 병합(deckmerge · nexa-merge) · 작업(deckops) · diff(deckdiff) 의 blocks 지원 + 사례 파일 | L | PG-040 | 개 | ⬜ 열림 |
 | PG-081 | C3 | 원장 · 변경 탭 · 제안(proposals) · AI 요청(세션 규약 문단 · save_deck 검사) | L | PG-080 | 개 | ⬜ 열림 |

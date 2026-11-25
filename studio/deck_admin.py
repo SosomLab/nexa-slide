@@ -109,13 +109,19 @@ def create(i=None, title=None, layout="cover", part="day1", kind="deck", theme=N
     p = DECKS / f"{i}.json"
     if p.exists():
         raise ValueError(f"이미 있는 덱: {i}")
-    if kind == "page":  # 페이지 문서(Word·Pages 형) - 형식은 docs/dev/page-editor/design.md 3절. theme = 페이지 템플릿 이름(뒤에 - PG-070)
+    if kind == "page":  # 페이지 문서(Word·Pages 형) - 형식은 docs/dev/page-editor/design.md 3절. theme = 페이지 템플릿 이름(page_templates.py)
         import page_doc
         title = " ".join(str(title or "").split())[:200] or "새 문서"
         DECKS.mkdir(parents=True, exist_ok=True)
-        doc = page_doc.new_page(i, title)
+        tpl = None
+        if theme:  # 페이지 템플릿(page_templates.py - 보고서·회의록·해설지 …)
+            import page_templates
+            tpl = page_templates.load(str(theme), title)
+            if not tpl:
+                raise ValueError(f"없는 페이지 템플릿: {theme}")
+        doc = page_doc.new_page(i, title, tpl)
         atomic_write(p, _dumps(doc))
-        return {"id": i, "title": title, "kind": "page", "slides": 0, "path": str(p)}
+        return {"id": i, "title": title, "kind": "page", "slides": 0, "path": str(p), "theme": doc.get("template")}
     if kind == "sheet":
         title = " ".join(str(title or "").split())[:200] or "새 시트"
         DECKS.mkdir(parents=True, exist_ok=True)
