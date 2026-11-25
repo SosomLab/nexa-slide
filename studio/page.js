@@ -341,6 +341,18 @@
     if (u && !/^(https?:|mailto:)/i.test(u)) { toast("http(s):// 또는 mailto: 로 시작하는 주소만 걸 수 있습니다", 4000); return; }
     e0.setMark("link", u || null);
   }
+  /** 윗주 - 고른 글 위에 작은 글을 단다(비우면 뗀다). 줄 간격이 좁으면 윗줄과 겹치므로 그 문단의 줄 간격이 2 보다 작으면 2 로 넓힌다 */
+  function setRuby() {
+    const e0 = cur || ed, st = e0.state(); if (!st.sel) return;
+    if (st.sel.a.id === st.sel.f.id && st.sel.a.off === st.sel.f.off) { toast("윗주를 달 글을 먼저 고르세요"); return; }
+    const t = prompt("윗주(비우면 뗍니다)", st.marks.ruby || ""); if (t === null) return;
+    const v = t.trim().slice(0, 60);
+    e0.setMark("ruby", v || null);
+    if (v && e0 === ed) {
+      const b = blockAt(st.sel.f.id), line = b && (b.line !== undefined ? b.line : P.styleOf(S.deck, b.style).line || 1.6);
+      if (b && line < 2) { ed.select(st.sel.a, st.sel.f); ed.blockAttrs({ line: 2 }); }
+    }
+  }
   /** 본문 문단에서 글을 찾는다(대소문자 무시) → [{id, from, to}]. 표 칸 안은 [모두 바꾸기]만 다룬다 */
   function findAll(q) {
     const out = []; if (!q) return out;
@@ -437,6 +449,7 @@
     $("#selFont").value = ["body", "title", "mono"].includes(st.marks.font) ? st.marks.font : "";
     $("#selLine").value = b && b.line ? String(b.line) : "";
     const lk = $("[data-act=link]"); if (lk) lk.classList.toggle("on", !!st.marks.link);
+    const rb = $("[data-act=ruby]"); if (rb) rb.classList.toggle("on", !!st.marks.ruby);
     $("[data-act=undo]").disabled = !S.undo.length; $("[data-act=redo]").disabled = !S.redo.length;
   }
   function bindTools() {
@@ -463,7 +476,7 @@
       else if (!body && (b.dataset.list || ["indent", "outdent", "break", "clear", "table", "image"].includes(b.dataset.act))) toast("표 칸 안에서는 아직 쓸 수 없습니다");
       else if (b.dataset.list) setList(b.dataset.list);
       else ({ undo, redo, indent: () => shiftLevel(1), outdent: () => shiftLevel(-1), break: insertBreak, setup: pageSetup,
-        color: () => now.toggle("c", $("#inColor").value), hl: () => now.toggle("hl", $("#inHl").value), table: insertTable, image: () => $("#inImage").click(), link: setLink, find: openFind,
+        color: () => now.toggle("c", $("#inColor").value), hl: () => now.toggle("hl", $("#inHl").value), table: insertTable, image: () => $("#inImage").click(), link: setLink, ruby: setRuby, find: openFind,
         clear: () => { const s = ed.selection(); if (s) { snapshot("format"); let bs = blocks(); for (const x of T.spans(bs, s.a, s.f)) bs = bs.map((y, k) => (k === x.i ? { ...y, runs: T.clearMarks(y.runs, x.from, x.to, ["link"]) } : y)); S.deck.blocks = bs; ed.refresh(s); afterChange(); } },
       })[b.dataset.act]?.();
       updTools();
