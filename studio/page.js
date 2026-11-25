@@ -41,10 +41,16 @@
     S.undo.push({ json: deckJson(), sel: ed && ed.selection() }); if (S.undo.length > 200) S.undo.shift();
     S.redo = [];
   }
+  /** 남의 변경을 받기 직전 - 실행 취소 기록마다 "그 편집 뒤의 문서"를 붙여 둔다(now = 받기 직전의 내 문서). 그러면 되돌릴 때
+   *  문서를 통째로 옛 모습으로 바꾸지 않고 내 편집만 거꾸로 얹는다 - Ctrl+Z 가 남의 변경을 지우지 않는다(슬라이드·시트의 NexaMerge.seal 과 같은 뜻). 다시 실행 기록은 비운다 */
+  function sealUndo(now) {
+    for (let k = 0; k < S.undo.length; k++) if (!S.undo[k].after) S.undo[k].after = k + 1 < S.undo.length ? S.undo[k + 1].json : now;
+    S.redo = []; S.lastWhy = "";
+  }
   function restore(from, to) {
     const e = from.pop(); if (!e) return;
     to.push({ json: deckJson(), sel: ed.selection() });
-    S.deck = JSON.parse(e.json); S.lastWhy = "";
+    S.deck = e.after ? NexaMerge.merge3(JSON.parse(e.after), JSON.parse(e.json), JSON.parse(deckJson()), "ours").merged : JSON.parse(e.json); S.lastWhy = "";
     cur = ed; S.pick = null; layout(); ed.refresh(e.sel); afterChange(true);
   }
   const undo = () => restore(S.undo, S.redo), redo = () => restore(S.redo, S.undo);
@@ -68,6 +74,7 @@
       S.version = r.data.version; S.conflict = false; banner(false);
       if (r.data.merged && r.data.deck) {  // 그 사이 다른 저장과 합쳐졌다 - 결과(+ 저장하는 사이 더 고친 것)를 화면에
         const now = deckJson(), sel = ed.selection();
+        sealUndo(now);
         S.savedJson = JSON.stringify(r.data.deck); S.deck = NexaMerge.afterSave(body, now, r.data.deck);
         cur = ed; layout(); ed.refresh(sel); toast(NexaMerge.notice(r.data.conflicts).text, 3500);
       } else {
@@ -539,8 +546,15 @@
       const deck = await d.json(), ver = d.headers.get("X-Deck-Version");
       if (S.dirty || S.saving || deck.kind !== "page") return;  // 읽는 사이 내가 고쳤으면 다음 번에
       const sel = cur === ed ? ed.selection() : null;
-      S.deck = deck; S.version = ver; S.savedJson = deckJson(); S.undo = []; S.redo = []; S.lastWhy = "";
+      const cell = document.activeElement && document.activeElement.closest ? document.activeElement.closest("#ed td, #ed th") : null, cellId = cell && cell.dataset.id;  // 표 칸에서 치던 중이면 그 칸으로 돌아간다
+      sealUndo(deckJson());  // 실행 취소 기록은 남긴다 - 되돌리면 내 편집만 거꾸로
+      S.deck = deck; S.version = ver; S.savedJson = deckJson();
       cur = ed; S.pick = null; layout(); ed.refresh(sel && blockAt(sel.f.id) ? sel : null); decorateAll(); updTools();
+      if (cellId) {  // 표가 다시 그려져 칸의 초점이 빠졌다 - 같은 칸(id)이 남아 있으면 글 끝에 커서를 둔다
+        const host = [...document.querySelectorAll("#ed td, #ed th")].find((x) => x.dataset.id === cellId);
+        const box = host && host.querySelector(".pg-cell");
+        if (box) { box.focus(); const rg = document.createRange(); rg.selectNodeContents(box); rg.collapse(false); const sl = getSelection(); sl.removeAllRanges(); sl.addRange(rg); }
+      }
       $("#docTitle").value = S.deck.title || "";
       toast("밖에서 바뀐 내용을 불러왔습니다", 2500);
     } catch (e) { /* 서버가 잠깐 끊김 - 다음 번에 */ } finally { polling = false; }
