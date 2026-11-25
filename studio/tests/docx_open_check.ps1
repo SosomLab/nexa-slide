@@ -48,6 +48,13 @@ try {
     $st = [string]$p.Style.NameLocal
     if ($heads.Count -lt 20 -and ($st -match '^(Heading|제목|Title)' -or $p.OutlineLevel -lt 10)) { $heads += [ordered]@{ n = $k; style = $st; size = $p.Range.Font.Size; t = $t.Substring(0, [Math]::Min(20, $t.Length)) } }
   }
+  # 음영(배경색)이 있는 문단 - 앞에서 20개까지 · c = RGB 16진(Word 는 BGR 정수 · -16777216 = 자동)
+  $shades = @()
+  for ($k = 1; $k -le $n -and $shades.Count -lt 20; $k++) {
+    $p = $d.Paragraphs.Item($k); $bgc = [int]$p.Shading.BackgroundPatternColor
+    if ($bgc -ne -16777216 -and $bgc -ne 16777215) { $t = ([string]$p.Range.Text).Trim(); $shades += [ordered]@{ n = $k; c = ("{0:X2}{1:X2}{2:X2}" -f ($bgc -band 255), (($bgc -shr 8) -band 255), (($bgc -shr 16) -band 255)); t = $t.Substring(0, [Math]::Min(20, $t.Length)) } }
+  }
+  $res.shades = $shades
   $res.lists = $lists; $res.heads = $heads
   $res.ok = $true
   $d.Close(0)  # wdDoNotSaveChanges

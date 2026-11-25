@@ -27,6 +27,7 @@ FAILS, ROWS = [], []
 PWSH = shutil.which("pwsh") or shutil.which("powershell")
 
 
+SHADES = {}  # 문서 이름 → Word 에서 음영이 있는 문단 [{n, c, t}]
 BORDERS = {}  # 문서 이름 → Word 표마다 테두리 선 종류(docx_open_check.ps1)
 
 
@@ -100,6 +101,7 @@ def main():
                    "목록": " ".join(x["s"] for x in j.get("lists") or [])[:80], "제목": " ".join(f"{h['style']}={h['size']}" for h in (j.get("heads") or [])[:3]), "오류": j.get("error") or ""}
             ROWS.append(row)
             BORDERS[name] = j.get("borders")
+            SHADES[name] = j.get("shades") or []
             check(f"{name} - Word 가 연다(읽을 수 없는 내용 없음)", rc == 0 and j.get("ok"), json.dumps(j, ensure_ascii=False))
             check(f"{name} - 표 {want_tables}개 · 머리말 '{want_head[:20]}'", j.get("tables") == want_tables and (j.get("header") or "").strip() == want_head, json.dumps({k: j.get(k) for k in ("tables", "header")}, ensure_ascii=False))
         BD = {name: j_ for name, j_ in BORDERS.items()}
@@ -126,6 +128,11 @@ def main():
         tcs = _re2.findall(r"<w:tc>(.*?)</w:tc>", dx)
         np_ = [len(_re2.findall(r"<w:p[ />]", tc)) for tc in tcs]
         check("빈 칸의 문단 수 = 1(document.xml 의 tc 마다 w:p 1개 · 2,2 칸은 빈 칸)", len(tcs) == 4 and all(n == 1 for n in np_), json.dumps(np_))
+        sh = SHADES.get("study-guide") or []
+        print("  study-guide 음영 문단:", json.dumps(sh, ensure_ascii=False)[:300])
+        check("study-guide - Word 에서 회색 상자 문단(흐름 설명·어휘) 음영이 있음(BackgroundPatternColor 회색 계열)", len(sh) >= 2 and all(len(set((x["c"][0:2], x["c"][2:4], x["c"][4:6]))) == 1 and x["c"] != "FFFFFF" for x in sh), json.dumps(sh, ensure_ascii=False)[:300])
+        cs_ = SHADES.get("종합(page_docx_test)") or []
+        print("  종합 문서 음영 문단:", json.dumps(cs_, ensure_ascii=False)[:200])
         sg = next((r for r in ROWS if r["문서"] == "study-guide"), None)
         check("study-guide(해설지 2단) - Word 에서 1쪽 · 머리말에 날짜(YYYY-MM-DD)와 제목 · 자리 글 없음", sg and sg["쪽"] == 1 and __import__("re").search(r"\d{4}-\d{2}-\d{2}", sg["머리말"] or "") and "study-guide 시험" in (sg["머리말"] or "") and "{" not in (sg["머리말"] or ""),
               json.dumps(sg, ensure_ascii=False))
