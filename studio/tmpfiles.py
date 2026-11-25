@@ -45,7 +45,7 @@ def remove(p, tries=10, delay=0.2):
             return True
         except OSError:
             if i + 1 < tries:
-                time.sleep(delay)
+                time.sleep(delay * (i + 1))  # 점점 길게(0.2 → 1.8초, 모두 약 9초) - 부하가 걸리면 Excel·Chrome 이 파일을 2초 넘게 쥐고 있어 누수 시험에 걸렸다
     return not p.exists()
 
 
