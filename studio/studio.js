@@ -242,9 +242,9 @@
   const chgOf = (sid) => (S.chgMark[S.id] || {})[sid];
   function redrawMarks() { rebuildMarks(); renderChanges(); renderThumbs(); renderOutline(); if (!S.editing) renderCanvas(); }
   async function loadChanges(more) {
-    if (!S.id) return;
-    const before = more && S.changes.length ? `&before=${S.changes[S.changes.length - 1].seq}` : "";
-    const r = await api("GET", `/api/changes/${S.id}?group=1&recent=1&limit=40${before}`); if (!r.ok) return;
+    if (!S.id || S.id === S.goneId) return;  // 방금 지운 덱 - 다른 덱으로 넘어가기 전에 예약돼 있던 갱신이 지운 id 로 나가 404 를 냈다(smoke 가 간헐적으로 실패)
+    const id = S.id, before = more && S.changes.length ? `&before=${S.changes[S.changes.length - 1].seq}` : "";
+    const r = await api("GET", `/api/changes/${id}?group=1&recent=1&limit=40${before}`); if (!r.ok || id !== S.id) return;  // 그 사이 덱을 바꿨으면 버린다
     const gs = r.data.groups || [];
     S.changes = more ? S.changes.concat(gs) : gs;
     if (!more) { S.chgRecent = r.data.recent || []; S.chgLatest = r.data.latest || 0; S.chgVersion = r.data.ver; S.chgKeep = r.data.keep; }

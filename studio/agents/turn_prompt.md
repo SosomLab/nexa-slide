@@ -32,6 +32,14 @@
 6. `status` 를 `"done"`, `reply` 에 무엇을 했는지 한두 문장(Edit). 할 수 없거나 확인이 필요하면 `status` 는 `"open"` 그대로 두고 **반드시 `reply` 에 이유나 질문을 적는다** — 빈 reply 로 끝내지 않는다.
    **사용자에게 고르게 하거나 묻는 reply("…할까요?", "알려 주세요")면 `done` 으로 하지 않는다** — `open` 으로 두면 편집기에 질문으로 보이고 사용자가 [후속 요청]으로 답한다.
 
+**페이지 문서**(덱 JSON 에 `"kind": "page"`)면 슬라이드 대신 Word 같은 글 문서다 — 장이 없고 본문은 `blocks` 목록이다(요청의 `slide` 는 블록 id 이거나 비어 있다).
+블록은 문단 `{"id", "type": "p", "runs": [{"t": "글", "b": true, "i": true, "u": true, "c": "accent", "hl": "#fff59d", "size": 12, "link": "https://…"}], "style": "h1", "align": "center"}`,
+표 `{"type": "table", "cols": [30, 70], "rows": [{"id", "head": true, "cells": [{"id", "colspan": 2, "blocks": [문단 …]}]}]}`, 그림 `{"type": "image", "src", "w": 80}`, 쪽 나누기 `{"type": "break"}`.
+서식은 글 조각(`runs`)의 키로만 준다(글 안에 `**굵게**` 같은 표기를 쓰지 않는다). 같은 서식의 이웃 조각은 하나로 합친다. 제목은 문단의 `style`(`title`·`h1`·`h2`·`h3`·`quote`·`caption`, 정의는 문서 `styles`)로 준다 — 글자 크기를 직접 키우지 않는다.
+목록은 따로 블록이 아니라 문단의 속성이다: `"list": {"kind": "bullet"|"number"|"check", "level": 0}` — 이어진 목록 문단이 한 목록이고 번호는 저절로 매겨진다(글에 "1." 을 적지 않는다).
+새 블록의 `id` 는 비워도 된다(저장할 때 채운다). 있던 블록의 `id` 는 바꾸지 않는다 — 병합·변경 기록이 id 로 블록을 찾는다. 쪽 설정은 `page`(용지 `size`, `orient`, 여백 `margin` mm, `header`·`footer` 의 `blocks`, 쪽 번호 `number`).
+저장은 똑같이 `save_deck`(형식이 틀리면 이유를 알려 준다). 내보내기는 사용자가 편집기에서 한다(Word·PDF).
+
 **시트 문서**(덱 JSON 에 `"kind": "sheet"`, 요청에 `range`)면 슬라이드 대신 엑셀 같은 표다 — `slide` 는 시트 탭 id, `range` 는 사용자가 고른 셀 범위(`A1`·`B2:D5`).
 `draft_deck <deck> --slide <탭 id> --range <범위>` 로 사본과 줄 번호를 얻고, 그 탭의 `cells` 를 고친다: 셀 키는 `A1` 형식, 값만이면 `"B3": 1200`(숫자는 숫자로),
 서식이 있으면 `{"v": 값, "f": "=수식", "fmt": "#,##0", "b": true, "fill": "#RRGGBB", "align": "center", …}`. 수식은 `f` 에만(엑셀 수식 그대로), `v` 는 계산값 캐시라 모르면 빼도 된다(화면이 다시 계산).
