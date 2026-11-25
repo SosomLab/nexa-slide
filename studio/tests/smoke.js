@@ -123,7 +123,17 @@ async function runScenario(file, bsend, handlers, at = {}) {
       for (const s of p.steps || []) {
         let v, err = null;
         at.where = `${p.url} · ${s.name.trim()}`;
-        try { v = await evalJs(s.js, Number(s.timeout) || STEP_MS); } catch (e) { err = e.message; }
+        // 실제 입력이 필요한 단계(한글 조합·키) - {pre: "<JS>", cdp: [{method, params, wait}]} 를 js 앞에 순서대로. 예: Input.imeSetComposition · Input.insertText · Input.dispatchKeyEvent
+        try {
+          if (s.pre) await evalJs(s.pre, Number(s.timeout) || STEP_MS);
+          for (const c of s.cdp || []) {
+            const r = await within(send(c.method, c.params || {}), Number(s.timeout) || STEP_MS);
+            if (r === TIMEOUT) throw new Error(`CDP ${c.method} 응답 없음`);
+            if (r.error) throw new Error(`CDP ${c.method}: ${r.error.message}`);
+            if (c.wait) await sleep(c.wait);
+          }
+          v = await evalJs(s.js, Number(s.timeout) || STEP_MS);
+        } catch (e) { err = e.message; }
         if (s.wait) await sleep(s.wait);
         if (s.shot) {  // 단계 뒤 화면을 PNG 로 남긴다(사람이 보는 점검용) - {shot: "<파일 경로>"}
           try { const r = await send("Page.captureScreenshot", { format: "png" }); fs.writeFileSync(s.shot, Buffer.from(r.result.data, "base64")); console.log(`     화면 → ${s.shot}`); } catch (e) { console.log(`     화면 저장 실패: ${e.message}`); }

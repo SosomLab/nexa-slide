@@ -1,0 +1,41 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>nexa-text 입력 시험</title>
+<style>
+  body { font: 14px/1.6 sans-serif; margin: 24px; }
+  #ed { width: 520px; min-height: 200px; border: 1px solid #ccc; padding: 12px; outline: none; white-space: pre-wrap; }
+  .nt-p { margin: 0 0 6px; min-height: 1.6em; }
+</style>
+<div id="ed"></div>
+<script src="../nexa-text.js"></script>
+<script>
+  // 시험용 문서 - nexa_text_ui_test.py 가 smoke.js 로 이 쪽을 열고 단계마다 reset() 뒤 입력을 흉내 낸다
+  const T = NexaText;
+  let seq = 0;
+  const fresh = () => [
+    { id: "b1", type: "p", runs: [{ t: "가나다라" }] },
+    { id: "b2", type: "p", style: "h1", runs: [{ t: "Hello " }, { t: "big", b: true }, { t: " world" }] },
+    { id: "b3", type: "p", runs: [] },
+    { id: "b4", type: "image", src: "x.png" },
+    { id: "b5", type: "p", runs: [{ t: "끝 문단" }] },
+  ];
+  window.DOC = { blocks: fresh() };
+  window.LOG = [];
+  const host = document.querySelector("#ed");
+  window.ED = T.mount(host, {
+    get: () => DOC.blocks,
+    set: (b, why) => { DOC.blocks = b; LOG.push(why); },
+    newId: () => "n" + (++seq),
+    nextStyle: (b) => (b.style === "h1" ? null : undefined),
+    renderBlock: (b) => { const d = document.createElement("div"); d.textContent = "[" + b.type + "]"; return d; },
+  });
+  window.reset = () => { DOC.blocks = fresh(); LOG.length = 0; seq = 0; ED.refresh(); host.focus(); };
+  window.sel = (id, a, id2, b) => ED.select({ id, off: a }, { id: id2 || id, off: b === undefined ? a : b });
+  window.bi = (inputType, data, dt) => host.dispatchEvent(new InputEvent("beforeinput", { inputType, data, dataTransfer: dt, bubbles: true, cancelable: true }));
+  window.blk = (id) => DOC.blocks.find((x) => x.id === id);
+  window.txt = (id) => T.text(blk(id).runs);
+  window.dom = (id) => host.querySelector(`[data-id="${id}"]`).textContent;
+  window.caret = () => { const s = ED.selection(); return s ? s.f.id + ":" + s.f.off : null; };
+  window.ids = () => DOC.blocks.map((x) => x.id).join(",");
+  host.focus();
+</script>
