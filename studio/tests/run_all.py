@@ -56,6 +56,7 @@ TESTS = [  # (이름, 실행, 설명, claude 필요)
     ("pagemergejs", ["node", "pagemerge_check.js"], "페이지 문서 병합 화면판(nexa-merge.js) - pagemerge 와 같은 사례", False),
     ("pagediff", [sys.executable, "pagediff_test.py"], "페이지 문서 변경 비교 deckdiff.diff_page - 페이지 편집기 C3", False),
     ("pageword", [sys.executable, "page_word_test.py"], "페이지 DOCX 를 Word 로 열기(템플릿 11종·종합 문서·PDF) - Word 가 없거나 사용자 Word 가 떠 있으면 SKIP", False),
+    ("hubpage", [sys.executable, "hub_page_test.py"], "첫 문서로 페이지 - init_workspace --kind page · 허브(실험 꺼짐/켬) 계획·만들기 · 시작 페이지 종류 단추(격리 허브 5799)", False),
     ("pageui", [sys.executable, "page_ui_test.py"], "페이지 문서 화면(헤드리스 Chrome) - 숨김 스위치·만들기·저장 검사·종류별 이동·page.html 편집·두 창 관찰", False),
     ("textui", [sys.executable, "nexa_text_ui_test.py"], "글 편집 엔진 nexa-text 입력(헤드리스 Chrome · contenteditable 호스트 · 파일로 연다) - 페이지 편집기 B1", False),
     ("textime", [sys.executable, "nexa_text_ime_test.py"], "글 편집 엔진 nexa-text 한글 조합(CDP Input.imeSetComposition·insertText·dispatchKeyEvent 로 실제 조합 이벤트) - 페이지 편집기 PG-032", False),

@@ -168,6 +168,14 @@ def page_steps(pid):
 PS = "const q=(s)=>document.querySelector(s);const setv=(id,v)=>{const e=q(id);e.value=v;e.dispatchEvent(new Event('change',{bubbles:true}));};"
 
 
+def token_steps():
+    """템플릿 토큰(tokens.json)의 글꼴·색 - 제목 1(h1 = font title → 토큰 heading)의 글꼴 · 글자색 단추가 아닌 accent 토큰 값"""
+    return [step("토큰 - 제목 1 문단의 글꼴 = tokens.json fonts.heading.css 의 첫 글꼴 · 토큰 accent 는 primary 값(기본 #c8553d 아님)",
+                 H + "const t=await (await fetch('tokens.json',{cache:'no-store'})).json();const h=S.deck.blocks.find(b=>b.style==='h1');if(!h)return 'h1 없음';"
+                     "const ff=getComputedStyle(el(h.id)).fontFamily;const want=((t.fonts||{}).heading||{}).css||'';const first=want.split(',')[0].replace(/[\"']/g,'').trim();"
+                     "const prim=(t.colors||{}).primary||'';return !!first&&ff.replace(/[\"']/g,'').includes(first)&&prim&&prim.toLowerCase()!=='#c8553d' || JSON.stringify({ff,want,prim});")]
+
+
 def setup_steps(pid):
     """쪽 설정 대화 상자 - A4 가로 · 여백 30/30/20/20 · 머리말 오른쪽 · 쪽 번호 아래 가운데"""
     return [
@@ -232,6 +240,36 @@ def export_steps(pid):
         step("내보내기 ▾ - 'PDF (Word 로 변환)' → 200(Word 있음, method word) 또는 501(needPrint)",
              W + "window.__reqs.length=0;document.querySelector('#btnExport').click();await until(async()=>document.querySelector('.menu'),2000);[...document.querySelectorAll('.menu button')].find(b=>/PDF/.test(b.textContent)).click();"
                  "await until(async()=>window.__reqs.length,120000);const r=window.__reqs[0];return r&&((r.st===200&&r.j&&r.j.ok&&/\\.pdf(\\?|$)/.test(r.j.url))||r.st===501) || JSON.stringify(window.__reqs);", timeout=150000),
+    ]
+
+
+IMG = ("const imgs=()=>S.deck.blocks.filter(b=>b.type==='image');"
+       "const put=async(name,type,w,h)=>{let blob;if(type.startsWith('image/')){const c=document.createElement('canvas');c.width=w;c.height=h;const g=c.getContext('2d');g.fillStyle='#c8553d';g.fillRect(0,0,w,h);"
+       "blob=await new Promise(r=>c.toBlob(r,type));}else blob=new Blob(['글'],{type});const dt=new DataTransfer();dt.items.add(new File([blob],name,{type}));const inp=document.querySelector('#inImage');inp.files=dt.files;"
+       "inp.dispatchEvent(new Event('change',{bubbles:true}));};")
+
+
+def image_steps(pid):
+    """그림 - 넣기(png) · 고르기(.sel)·Delete · 오른쪽 클릭 메뉴(크게·왼쪽·설명) · png·jpg·gif 아닌 형식 거절"""
+    return [
+        step("그림 - 파일 넣기(png 800×400) → image 블록(src · w ≤ 본문 너비) · 서버 파일",
+             H + IMG + "const n0=imgs().length;E.ed.select({id:bid(1),off:0});await put('그림.png','image/png',800,400);await until(async()=>imgs().length>n0,8000);await idle();"
+                       "const b=imgs()[imgs().length-1];const f=await srv('" + pid + "');const fb=f.blocks.find(x=>x.id===(b&&b.id));"
+                       "return b&&b.src&&b.w>0&&b.w<=S.box.cw+0.5&&fb&&fb.src===b.src || JSON.stringify({b,cw:S.box.cw,srv:fb});"),
+        step("그림 - 누르면 .sel · Delete 로 지움",
+             H + IMG + "const b=imgs()[imgs().length-1];const ie=document.querySelector('#ed > [data-id='+JSON.stringify(b.id)+']');ie.dispatchEvent(new MouseEvent('mousedown',{bubbles:true}));await new Promise(r=>setTimeout(r,80));"
+                       "const sel=ie.classList.contains('sel');document.querySelector('#ed').dispatchEvent(new KeyboardEvent('keydown',{key:'Delete',bubbles:true,cancelable:true}));"
+                       "document.dispatchEvent(new KeyboardEvent('keydown',{key:'Delete',bubbles:true,cancelable:true}));await new Promise(r=>setTimeout(r,150));"
+                       "return sel&&!S.deck.blocks.some(x=>x.id===b.id) || JSON.stringify({sel,still:S.deck.blocks.some(x=>x.id===b.id)});"),
+        step("그림 - 오른쪽 클릭 메뉴: 크게(+25%) · 왼쪽 · 설명(캡션)",
+             H + IMG + "await put('둘.png','image/png',200,100);await until(async()=>imgs().length,8000);const b=imgs()[imgs().length-1];const w0=b.w;"
+                       "const ctx=async(label)=>{const ie=document.querySelector('#ed > [data-id='+JSON.stringify(b.id)+']');ie.dispatchEvent(new MouseEvent('contextmenu',{bubbles:true,cancelable:true,clientX:300,clientY:300}));"
+                       "await until(async()=>document.querySelector('.menu'),2000);const mb=[...document.querySelectorAll('.menu button')].find(x=>x.textContent.includes(label));if(!mb)return false;mb.click();await new Promise(r=>setTimeout(r,150));return true;};"
+                       "window.prompt=()=>'그림 설명 시험';const a=await ctx('크게'),c=await ctx('왼쪽'),d=await ctx('설명');await idle();const x=S.deck.blocks.find(y=>y.id===b.id);"
+                       "return a&&c&&d&&x.w>w0&&x.align==='left'&&x.caption==='그림 설명 시험' || JSON.stringify({a,c,d,w0,x});"),
+        step("그림 - png·jpg·gif 아닌 형식(svg·글)은 거절 토스트 · 블록이 늘지 않음",
+             H + IMG + "await new Promise(r=>setTimeout(r,800));const n0=imgs().length;await put('a.txt','text/plain');await new Promise(r=>setTimeout(r,600));const t1=document.querySelector('#toast').textContent;"
+                       "return imgs().length===n0&&t1.length>0 || JSON.stringify({n0,n:imgs().length,toast:t1});"),
     ]
 
 
@@ -346,7 +384,7 @@ def main():
                          "&&!!document.querySelector('#ed .pg-li[data-marker=\"1.\"]') || D();")]},
             {"url": "/studio/page.html?deck=pglong", "wait": 3000, "steps": [
                 step("긴 문서(문단 80개) - 쪽 경계선 수 = #pageInfo 의 n쪽 - 1 · 2쪽 이상", "const n=document.querySelectorAll('#pagelines i').length;const t=document.querySelector('#pageInfo').textContent;const k=parseInt(t);return k>=2&&n===k-1 || JSON.stringify({lines:n,info:t});")]},
-            {"url": f"/studio/page.html?deck={pid}", "wait": 2500, "steps": setup_steps(pid) + export_steps(pid)},
+            {"url": f"/studio/page.html?deck={pid}", "wait": 2500, "steps": token_steps() + setup_steps(pid) + export_steps(pid) + image_steps(pid)},
             {"url": "/studio/page.html?deck=pgtbl", "wait": 2500, "steps": table_steps("pgtbl")},
             {"url": "/studio/index.html#pgslide", "wait": 2500, "steps": newdoc_on_steps()},
         ]
@@ -378,6 +416,38 @@ def main():
         st, r, _ = call("POST", f"/api/export/{pid}?pdf=1")
         check("4 내보내기 API ?pdf=1 - Word 있으면 200 method word · 없으면 501 needPrint", (st == 200 and r.get("method") == "word" and str(r.get("url", "")).split("?")[0].endswith(".pdf")) or (st == 501 and r.get("needPrint")), json.dumps({"st": st, "r": r}, ensure_ascii=False)[:300])
         NOTES.append(f"PDF 내보내기 응답 {st} · {json.dumps(r, ensure_ascii=False)[:160]}")
+        # 토큰 글꼴이 DOCX styles.xml 에 - 제목(heading → title) 의 rFonts latin·ea
+        try:
+            with urllib.request.urlopen(B + "/studio/tokens.json", timeout=10) as rr:
+                tok = json.loads(rr.read())
+        except Exception:  # noqa: BLE001
+            tok = {}
+        hd = (tok.get("fonts") or {}).get("heading") or {}
+        styles = zipfile.ZipFile(io.BytesIO(data)).read("word/styles.xml").decode("utf-8") if data[:2] == b"PK" else ""
+        lat, ea = hd.get("latin") or hd.get("ea"), hd.get("ea") or hd.get("latin")
+        check("4 DOCX styles.xml 의 글꼴 = 작업 공간 토큰 heading 의 latin·ea", bool(lat) and f'w:ascii="{lat}"' in styles and f'w:eastAsia="{ea}"' in styles,
+              json.dumps({"heading": hd, "has_ascii": bool(lat) and f'w:ascii="{lat}"' in styles, "has_ea": bool(ea) and f'w:eastAsia="{ea}"' in styles}, ensure_ascii=False)[:300])
+        # Chrome 인쇄 PDF(?via=chrome) - method chrome · PDF 파일 · 남는 Chrome 없음(시험 전에 있던 것은 그대로)
+        def chromes():
+            if os.name != "nt":
+                return set()
+            out = subprocess.run(["tasklist", "/FI", "IMAGENAME eq chrome.exe", "/FO", "CSV", "/NH"], capture_output=True, text=True, encoding="utf-8", errors="replace").stdout
+            return {l.split(",")[1].strip('"') for l in out.splitlines() if l.startswith('"chrome')}
+        before = chromes()
+        st, r, _ = call("POST", f"/api/export/{pid}?pdf=1&via=chrome")
+        pdfb = b""
+        if st == 200 and r.get("url"):
+            with urllib.request.urlopen(B + r["url"], timeout=60) as rr:
+                pdfb = rr.read()
+        time.sleep(1.5)
+        left = chromes() - before
+        pages = pdfb.count(b"/Type /Page") - pdfb.count(b"/Type /Pages") if pdfb else 0
+        check("4 내보내기 API ?pdf=1&via=chrome - 200 method chrome · PDF 파일 · 남는 Chrome 없음",
+              st == 200 and r.get("method") == "chrome" and pdfb[:5] == b"%PDF-" and not left, json.dumps({"st": st, "r": r, "bytes": len(pdfb), "left": sorted(left)}, ensure_ascii=False)[:400])
+        NOTES.append(f"Chrome PDF: {len(pdfb)} 바이트 · 쪽 표시 {pages}개 · 응답 pages={r.get('pages')}")
+        st, r, _ = call("POST", f"/api/export/{pid}?pdf=1")
+        check("4 내보내기 API ?pdf=1(via 없음) - Word 가 있으면 그대로 method word", st == 200 and r.get("method") in ("word", "chrome"), json.dumps({"st": st, "r": r}, ensure_ascii=False)[:300])
+        NOTES.append(f"via 없는 PDF 방법 = {r.get('method')}")
         st, r, _ = call("POST", "/api/export/pgsheet")
         check("4 시트 내보내기는 그대로(xlsx)", st == 200 and str(r.get("url", "")).split("?")[0].endswith(".xlsx"), json.dumps({"st": st, "r": r}, ensure_ascii=False)[:300])
         # 표 문서를 Word 로 열어 표 수·행·열(Word 가 없거나 사용자가 띄워 두었으면 관찰만)
@@ -396,6 +466,22 @@ def main():
                     else:
                         tb = next((b for b in deck_file(ws_on, tbl_id)["blocks"] if b.get("type") == "table"), {})
                         check(f"4 표 문서 DOCX 를 Word 로 열면 표 {1 if tb else 0}개", w.returncode == 0 and j.get("tables") == (1 if tb else 0), json.dumps(j, ensure_ascii=False)[:300])
+        # 그림이 든 문서를 Word 로 - InlineShapes
+        st, r, _ = call("POST", f"/api/export/{pid}")
+        if st == 200 and r.get("url"):
+            with tmpfiles.temp_dir("nx-pgimg-") as d:
+                f = Path(d) / "img.docx"
+                with urllib.request.urlopen(B + r["url"], timeout=30) as rr:
+                    f.write_bytes(rr.read())
+                pw = __import__("shutil").which("pwsh") or __import__("shutil").which("powershell")
+                if pw:
+                    w = subprocess.run([pw, "-NoProfile", "-File", str(HERE / "docx_open_check.ps1"), "-Docx", str(f)], capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=180)
+                    j = json.loads((w.stdout.strip().splitlines() or ["{}"])[-1] or "{}")
+                    nimg = sum(1 for b in deck_file(ws_on, pid)["blocks"] if b.get("type") == "image")
+                    if w.returncode == 99:
+                        NOTES.append(f"그림 문서 Word 열기 - 판정 불가: {j.get('skip')}")
+                    else:
+                        check(f"4 그림 {nimg}개 든 문서 DOCX 를 Word 로 열면 InlineShapes {nimg}", w.returncode == 0 and j.get("inlineShapes") == nimg, json.dumps(j, ensure_ascii=False)[:300])
         # 5. 두 창 - 관찰
         f0, v0 = deck_file(ws_on, pid), call("GET", f"/api/deck/{pid}")[2]
         a = json.loads(json.dumps(f0)); a["blocks"][0]["runs"] = [{"t": "창 A 가 고친 제목"}]

@@ -15,6 +15,17 @@
   // 색·글꼴 토큰 → CSS 값. 작업 공간 토큰(tokens.json)을 읽어 오는 것은 서식 막대 작업(PG-043)에서 - 그 전에는 기본값
   const COLORS = { accent: "#c8553d", muted: "#7a756d", ink: "#1f1f1f" };
   const FONTS = { body: '"Pretendard", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif', title: '"Pretendard", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif', mono: 'Consolas, "D2Coding", monospace' };
+  // 템플릿 토큰(tokens.json - 슬라이드와 같은 것)을 읽으면 그 글꼴·색을 쓴다. 페이지 스타일의 이름 → 토큰 이름은 export_docx.py 의 별칭과 같다
+  const TOKEN_ALIAS = { color: { accent: "primary", muted: "on-surface-variant", ink: "on-surface" }, font: { title: "heading" } };
+  async function loadTokens() {
+    try {
+      const t = await (await fetch("tokens.json", { cache: "no-store" })).json();
+      for (const [k, v] of Object.entries(t.colors || {})) if (typeof v === "string") COLORS[k] = v;
+      for (const [a, n] of Object.entries(TOKEN_ALIAS.color)) if (t.colors && t.colors[n]) COLORS[a] = t.colors[n];
+      for (const [k, v] of Object.entries(t.fonts || {})) if (v && v.css) FONTS[k] = v.css;
+      for (const [a, n] of Object.entries(TOKEN_ALIAS.font)) if (t.fonts && t.fonts[n] && t.fonts[n].css) FONTS[a] = t.fonts[n].css;
+    } catch (e) { /* 토큰을 못 읽으면 기본값 */ }
+  }
   const ctx = { color: (c) => COLORS[c] || c, font: (f) => FONTS[f] || f, asset: (src) => (/^(https?:|data:|\/)/.test(src) ? src : `${BASE}/${src}`) };
   const deckJson = () => JSON.stringify(S.deck);
   const blocks = () => S.deck.blocks;
@@ -369,17 +380,18 @@
       "-", { label: "새 문서", act: async () => { const n = await NexaNewDoc.open({ api, kind: "page" }); if (!n) return; if (S.dirty) await save(); location.href = NexaKinds.url(n); } }]);
   }
   /** 내보내기 - 저장한 뒤 서버가 out/<id>.docx(·pdf)를 만들고 내려받는다. PDF 는 Word 가 있을 때만(없으면 [인쇄] 안내) */
-  async function doExport(pdf) {
+  async function doExport(pdf, via) {
     if (S.dirty) await save();
     if (S.dirty || S.conflict) { toast("저장되지 않은 변경이 있어 내보내지 못했습니다", 5000); return; }
-    toast(pdf ? "PDF 를 만드는 중…(Word 변환)" : "Word 문서를 만드는 중…", 60000);
-    const r = await api("POST", `/api/export/${encodeURIComponent(S.id)}${pdf ? "?pdf=1" : ""}`);
+    toast(pdf ? "PDF 를 만드는 중…" : "Word 문서를 만드는 중…", 60000);
+    const r = await api("POST", `/api/export/${encodeURIComponent(S.id)}${pdf ? "?pdf=1" + (via ? "&via=" + via : "") : ""}`);
     if (!r.ok || !r.data || !r.data.ok) { toast((r.data && r.data.error) || `내보내기 실패(${r.status})`, 8000); return; }
     const a = document.createElement("a"); a.href = BASE + r.data.url; a.download = r.data.name || ""; document.body.appendChild(a); a.click(); a.remove();
     toast(`내보냈습니다: ${r.data.name || r.data.url}${r.data.pages ? ` (${r.data.pages}쪽)` : ""}`, 5000);
   }
   async function init() {
     P.injectCss();
+    await loadTokens();
     if (!(await loadDeck())) return;
     document.title = `${S.deck.title || S.id} - 페이지`;
     $("#docTitle").value = S.deck.title || "";
@@ -406,13 +418,14 @@
     }, true);
     $("#btnDecks").onclick = (e) => deckListMenu(e.currentTarget);
     $("#btnPrint").onclick = () => window.print();
-    $("#btnExport").onclick = (e) => openMenu(e.currentTarget, [{ label: "Word 문서 (.docx)", act: () => doExport(false) }, { label: "PDF (Word 로 변환)", act: () => doExport(true) }], { right: true });
+    $("#btnExport").onclick = (e) => openMenu(e.currentTarget, [{ label: "Word 문서 (.docx)", act: () => doExport(false) }, { label: "PDF (Word 로 변환)", act: () => doExport(true) }, { label: "PDF (화면 그대로)", act: () => doExport(true, "chrome") }], { right: true });
     $("#bnMine").onclick = () => save(true);
     $("#bnTheirs").onclick = async () => { if (await loadDeck()) { banner(false); cur = ed; S.pick = null; layout(); ed.refresh(); decorateAll(); setStatus("saved", "저장됨"); } };
     document.addEventListener("mousedown", (e) => { if (!e.target.closest(".menu")) closeMenu(); });
     window.addEventListener("resize", pageLines);
     window.addEventListener("beforeunload", (e) => { if (S.dirty) { e.preventDefault(); e.returnValue = ""; } });
     setStatus("saved", "저장됨");
+    if (new URLSearchParams(location.search).get("print") === "1") { document.body.classList.add("printing"); return; }  // 서버의 Chrome 인쇄(PDF) - 커서·초점 없이 그대로 찍힌다
     const first = blocks().find(T.isText); if (first) { ed.focus(); ed.select({ id: first.id, off: T.length(first.runs) }); }
     window.NexaPageEditor = { S, ed, save, undo, redo };  // 시험·디버깅용
   }
