@@ -1,0 +1,51 @@
+{
+ "base": "http://127.0.0.1:5667",
+ "pages": [
+  {
+   "url": "/studio/#grptest/1",
+   "wait": 2500,
+   "steps": [
+    {
+     "name": "(a) 슬라이드 - 오른쪽 클릭 메뉴는 id 'menu' · 화면 아래쪽에서 열면 위로 뒤집힘(메뉴 아래 끝 = 누른 자리 - 4)",
+     "js": "document.querySelectorAll('.menu').forEach(x=>x.remove());const el=document.querySelector('#host .rs-el[data-id=\"e01\"]');const y=innerHeight-8;el.dispatchEvent(new MouseEvent('contextmenu',{bubbles:true,cancelable:true,clientX:300,clientY:y}));const m=document.querySelector('.menu');if(!m)return '메뉴 없음';const r=m.getBoundingClientRect();const ok=m.id==='menu'&&Math.abs(r.bottom-(y-4))<=1.5&&r.top>=6;const d=JSON.stringify({id:m.id,top:r.top,bottom:r.bottom,y,h:innerHeight});document.querySelectorAll('.menu').forEach(x=>x.remove());return ok||d;"
+    },
+    {
+     "name": "(a) 슬라이드 - 화면 위쪽에서 열면 누른 자리 그대로(왼쪽 위 = 누른 자리)",
+     "js": "document.querySelectorAll('.menu').forEach(x=>x.remove());const el=document.querySelector('#host .rs-el[data-id=\"e01\"]');el.dispatchEvent(new MouseEvent('contextmenu',{bubbles:true,cancelable:true,clientX:300,clientY:120}));const m=document.querySelector('.menu');if(!m)return '메뉴 없음';const r=m.getBoundingClientRect();const ok=m.id==='menu'&&Math.abs(r.top-120)<=1.5&&Math.abs(r.left-300)<=1.5;const d=JSON.stringify({id:m.id,top:r.top,left:r.left});document.querySelectorAll('.menu').forEach(x=>x.remove());return ok||d;"
+    },
+    {
+     "name": "(c) 슬라이드 - 토스트는 2200ms 뒤 사라짐(1800ms 에는 보임 · 2700ms 에는 없음)",
+     "js": "const rep=async(a,b)=>{document.dispatchEvent(new KeyboardEvent('keydown',{key:'h',ctrlKey:true,bubbles:true}));await until(async()=>(document.querySelector('#findDlg .fq')),3000);const q=document.querySelector('#findDlg .fq');q.value=a;q.dispatchEvent(new Event('input',{bubbles:true}));await new Promise(r=>setTimeout(r,300));document.querySelector('#findDlg .fw').value=b;document.querySelector('#findDlg [data-fa=\"all\"]').click();const c=document.querySelector('#findDlg [data-fa=\"close\"]');if(c)c.click();};const t=document.querySelector('#toast');const on=()=>t.classList.contains('show');await until(async()=>!on(),5000);await rep('','x');const t0=Date.now();await until(async()=>on(),2000);await new Promise(r=>setTimeout(r,1800-(Date.now()-t0)));const a=on();await new Promise(r=>setTimeout(r,2700-(Date.now()-t0)));const b=on();return a&&!b&&/찾을 글을 적으세요/.test(t.textContent)||JSON.stringify({at1800:a,at2700:b,text:t.textContent});"
+    },
+    {
+     "name": "(c) 슬라이드 - '보낼 요청' 바가 떠 있으면 토스트가 그 바 위에(겹치지 않음)",
+     "js": "const rep=async(a,b)=>{document.dispatchEvent(new KeyboardEvent('keydown',{key:'h',ctrlKey:true,bubbles:true}));await until(async()=>(document.querySelector('#findDlg .fq')),3000);const q=document.querySelector('#findDlg .fq');q.value=a;q.dispatchEvent(new Event('input',{bubbles:true}));await new Promise(r=>setTimeout(r,300));document.querySelector('#findDlg .fw').value=b;document.querySelector('#findDlg [data-fa=\"all\"]').click();const c=document.querySelector('#findDlg [data-fa=\"close\"]');if(c)c.click();};const t=document.querySelector('#toast');const on=()=>t.classList.contains('show');await until(async()=>!on(),5000);const mb=document.querySelector('#markbar');mb.classList.add('show');await new Promise(r=>setTimeout(r,100));await rep('','x');await until(async()=>on(),2000);await new Promise(r=>setTimeout(r,400));const tr=t.getBoundingClientRect(),mr=mb.getBoundingClientRect();const ok=t.style.bottom!==''&&tr.bottom<=mr.top+0.5;const d=JSON.stringify({bottom:t.style.bottom,toast:[tr.top,tr.bottom],bar:[mr.top,mr.bottom]});mb.classList.remove('show');await until(async()=>!on(),5000);await rep('','x');await until(async()=>on(),2000);const back=t.style.bottom;return ok&&back===''||d+' 바 없을 때 bottom='+back;"
+    }
+   ]
+  },
+  {
+   "url": "/studio/sheet.html?deck=zsheetx",
+   "wait": 2500,
+   "steps": [
+    {
+     "name": "(b) 시트 - 메뉴(확대 %)를 눌러도 격자 입력칸 초점 유지(mousedown 기본 동작 막음) · 메뉴 id 없음(예전 그대로)",
+     "js": "document.querySelectorAll('.menu').forEach(x=>x.remove());const X=window.NexaSheet.x;X.ED().focus();const a=document.activeElement;document.querySelector('#zoomPct').click();const m=document.querySelector('.menu');if(!m)return '메뉴 없음';const b=m.querySelector('button');const ev=new MouseEvent('mousedown',{bubbles:true,cancelable:true});b.dispatchEvent(ev);const ok=ev.defaultPrevented&&document.activeElement===a&&a===X.ED()&&m.id==='';const d=JSON.stringify({prevented:ev.defaultPrevented,same:document.activeElement===a,isED:a===X.ED(),id:m.id});document.querySelectorAll('.menu').forEach(x=>x.remove());return ok||d;"
+    },
+    {
+     "name": "(c) 시트 - 토스트는 2400ms 뒤 사라짐(2000ms 에는 보임 · 2900ms 에는 없음)",
+     "js": "const t=document.querySelector('#toast');const on=()=>t.classList.contains('show');await until(async()=>!on(),5000);window.NexaSheet.x.toast('시험 토스트');const t0=Date.now();await new Promise(r=>setTimeout(r,2000));const a=on();await new Promise(r=>setTimeout(r,2900-(Date.now()-t0)));const b=on();return a&&!b||JSON.stringify({at2000:a,at2900:b});"
+    }
+   ]
+  },
+  {
+   "url": "/studio/sheet.html?preview=engine%3Abasic&title=%EC%85%B8%20%EC%8B%9C%ED%97%98",
+   "wait": 2500,
+   "steps": [
+    {
+     "name": "(b) 시트 미리 보기 - 칸을 고쳐도 저장·요청이 나가지 않음(guard)",
+     "js": "if(!window.__of){window.__of=window.fetch.bind(window);window.__reqs=[];window.fetch=async(u,o={})=>{const m=String(o.method||'GET').toUpperCase();if(m!=='GET')window.__reqs.push(m+' '+String(u));return window.__of(u,o);};}const X=window.NexaSheet.x;window.__reqs.length=0;X.mutate(()=>{X.sheet().cells.Z9='미리 보기에서 고침';});await new Promise(r=>setTimeout(r,2500));return window.__reqs.length===0||JSON.stringify(window.__reqs);"
+    }
+   ]
+  }
+ ]
+}
