@@ -350,14 +350,20 @@ class Reader:
         ncol = len(grid) or max((sum(c.get("colspan", 1) for c in r["cells"]) for r in rows), default=1)
         total = sum(grid) or ncol
         cols = [round(g / total * 100, 1) for g in grid] if grid and total else [round(100 / ncol, 1)] * ncol
-        if rows and rows[0].get("head"):  # 머리글 칸의 굵게는 내보낼 때 다시 붙는다 - 문서에는 남기지 않는다
+        if rows and rows[0].get("head"):  # (테두리 있는 표) 머리글 칸의 굵게는 내보낼 때 다시 붙는다 - 문서에는 남기지 않는다
             for c in rows[0]["cells"]:
                 for b in c["blocks"]:
                     for r in b.get("runs", []):
                         r.pop("b", None)
                     if "runs" in b:
                         b["runs"] = page_doc.norm_runs(b["runs"])
-        return {"id": self.new_id("t"), "type": "table", "cols": cols, "rows": rows} if rows else None
+        out = {"id": self.new_id("t"), "type": "table", "cols": cols, "rows": rows}
+        tb = tbl.find(f"{W}tblPr/{W}tblBorders")
+        if tb is not None:  # 테두리 - 바깥이 없으면 배치용 표(none), 칸 사이 세로선만 있으면 inner-v
+            has = lambda s: tb.find(W + s) is not None and v(tb.find(W + s), "val", "nil") not in ("nil", "none")  # noqa: E731
+            if not any(has(s) for s in ("top", "left", "bottom", "right", "insideH")):
+                out["border"] = "inner-v" if has("insideV") else "none"
+        return out if rows else None
 
     def _blocks(self, parent, nested=False):
         out, page_field, after_table = [], False, False

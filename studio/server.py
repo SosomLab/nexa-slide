@@ -1328,6 +1328,9 @@ class H(BaseHTTPRequestHandler):
             _, now = _load(p)
             if now is None:
                 return self.send_json({"ok": False, "error": "conflict", "version": cur}, 409)
+            if now.get("kind") == "page":
+                # 작업(op)은 아직 본문 블록을 모른다 - blocks 전체가 값 하나로 나가 그 사이 남이 고친 문단을 덮는다. 거절하면 화면이 통째 병합 저장(PUT ?merge=1)으로 보낸다
+                return self.err(400, "페이지 문서는 작업 저장을 쓰지 않는다 - 통째 저장으로")
             if base and base != cur and now.get("kind") == "sheet" and _structs_since(i, base):
                 # 기준판 뒤에 남이 행·열을 넣거나 지웠다 - 셀 작업의 칸 이름(B5)이 옛 위치다. 거절하면 화면이 PUT ?merge=1 로 다시 보내고 거기서 옮겨 합친다
                 return self.err(400, "그 사이 행·열이 바뀌었다 - 통째 저장으로")

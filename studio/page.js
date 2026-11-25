@@ -193,7 +193,7 @@
     rows: Array.from({ length: rows }, (_, r) => ({ id: rid("r"), ...(r === 0 ? { head: true } : {}), cells: Array.from({ length: cols }, newCell) })) });
   /** 표 블록 → 요소. 칸의 글을 고치면 칸 객체를 **그 자리에서** 고친다(표 블록 객체가 그대로라 바깥 편집기가 표를 다시 그리지 않고, 칸 편집기의 초점이 남는다) */
   function tableEl(b) {
-    const t = document.createElement("table"); t.className = "pg-table";
+    const t = document.createElement("table"); t.className = "pg-table" + P.tableClass(b);
     const total = b.cols.reduce((a, c) => a + c, 0) || 1, cg = document.createElement("colgroup");
     for (const c of b.cols) { const col = document.createElement("col"); col.style.width = (c / total * 100).toFixed(3) + "%"; cg.appendChild(col); }
     t.appendChild(cg);
@@ -276,6 +276,8 @@
       { label: "칸 나누기", disabled: !(t.rows[ri].cells[ci].colspan > 1 || t.rows[ri].cells[ci].rowspan > 1), act: () => splitCell(tid, ri, ci) }, "-",
       { label: "머리글 행", on: !!t.rows[ri].head, act: () => changeTable(tid, (x) => { if (x.rows[ri].head) delete x.rows[ri].head; else x.rows[ri].head = true; return x; }) },
       { label: "칸 채우기(회색)", on: !!t.rows[ri].cells[ci].fill, act: () => changeTable(tid, (x) => { const c = x.rows[ri].cells[ci]; if (c.fill) delete c.fill; else c.fill = "#eeeeee"; return x; }) }, "-",
+      { label: "테두리 없음(배치용 표)", on: t.border === "none", act: () => changeTable(tid, (x) => { if (x.border === "none") delete x.border; else x.border = "none"; return x; }) },
+      { label: "칸 사이 세로선만", on: t.border === "inner-v", act: () => changeTable(tid, (x) => { if (x.border === "inner-v") delete x.border; else x.border = "inner-v"; return x; }) }, "-",
       { label: "표 지우기", act: () => changeTable(tid, () => null) },
     ]);
   }

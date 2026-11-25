@@ -300,6 +300,7 @@
     if (!saved) return { mode: "put", bytes, why: "저장본 없음" };
     if (saved === now) return { mode: "none", bytes, why: "같음" };
     if (opt.struct && opt.struct.length) return { mode: "put", bytes, why: "구조 작업" };
+    if (/"kind"\s*:\s*"page"/.test((now || "").slice(0, 400))) return { mode: "put", bytes, why: "페이지 문서" };  // 작업이 본문 블록을 모른다 - 병합 저장으로
     if (bytes < (opt.minBytes ?? 200000)) return { mode: "put", bytes, why: "작은 문서" };
     let a, b;
     try { a = JSON.parse(saved); b = JSON.parse(now); } catch (e) { return { mode: "put", bytes, why: "읽기 실패" }; }

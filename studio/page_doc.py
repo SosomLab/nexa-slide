@@ -185,6 +185,8 @@ def _check_blocks(bs, where, styles, depth=0):
                 return f"{w}: cols 는 양수 너비 목록"
             if not isinstance(rows, list) or not rows:
                 return f"{w}: rows 는 비지 않은 목록"
+            if b.get("border", "all") not in ("all", "none", "inner-v"):
+                return f"{w}: 표 border = all | none | inner-v"
             for row in rows:
                 if not isinstance(row, dict) or not isinstance(row.get("cells"), list):
                     return f"{w}: 행은 {{id, cells}}"
