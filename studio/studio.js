@@ -40,21 +40,12 @@
   };
 
   // ---------------------------------------------------------------- 공통
-  async function api(method, url, body) {
-    const headers = { "X-Nexa-Tab": TAB }; if (body !== undefined) headers["Content-Type"] = "application/json";
-    const r = await fetch(BASE + url, { method, headers, body: body !== undefined ? JSON.stringify(body) : undefined });
-    let data = null;
-    try { data = await r.json(); } catch (e) { /* 빈 응답 */ }
-    NexaMenu.auth401(r, data);  // 허브 로그인이 끊겼으면 로그인 페이지로(허브 중계로 열었을 때)
-    return { ok: r.ok, status: r.status, data, headers: r.headers };
-  }
-  let toastT = 0;
-  function toast(msg, ms = 2200) {
-    const t = $("#toast"); t.textContent = msg; t.classList.add("show");
-    const mb = $("#markbar");  // "보낼 요청" 바가 떠 있으면 그 바로 위에(겹치지 않게), 아니면 기본 자리
-    t.style.bottom = mb && mb.classList.contains("show") ? `${Math.max(70, window.innerHeight - mb.getBoundingClientRect().top + 10)}px` : "";
-    clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove("show"), ms);
-  }
+  // api · toast · setStatus · banner · openMenu · closeMenu = 공용 뼈대(nexa-shell.js) - 시트·페이지와 같은 것
+  const { api, toast, setStatus, banner, closeMenu, openMenu } = NexaShell.create({
+    base: BASE, tab: TAB, esc, toastMs: 2200, menuId: "menu", menuFlipGap: 4,
+    // "보낼 요청" 바가 떠 있으면 토스트를 그 바로 위에(겹치지 않게), 아니면 기본 자리
+    toastBottom: () => { const mb = $("#markbar"); return mb && mb.classList.contains("show") ? `${Math.max(70, window.innerHeight - mb.getBoundingClientRect().top + 10)}px` : ""; },
+  });
   const slide = () => (S.deck && S.deck.slides[S.cur]) || null;
   const elById = (id, s = slide()) => (s ? s.elements.find((e) => e.id === id) : null);
   const selEl = () => (S.sel ? elById(S.sel) : null);
@@ -67,30 +58,6 @@
   const clone = (o) => JSON.parse(JSON.stringify(o));
   const deckJson = () => JSON.stringify(S.deck);
 
-  function setStatus(kind, text) { const s = $("#status"); s.className = "chip sm " + kind; s.textContent = text; }
-
-  // ---------------------------------------------------------------- 공통 팝업 메뉴
-  function closeMenu() { $$(".menu").forEach((m) => m.remove()); }
-  /** items: [{label, key, act, disabled, on}] | "-" | {h:"제목"} | {html, bind(m)} - anchor 요소 아래(또는 x,y) */
-  function openMenu(anchor, items, opts = {}) {
-    closeMenu();
-    const m = document.createElement("div"); m.className = "menu"; m.id = opts.id || "menu";
-    m.innerHTML = items.map((it, i) => it === "-" ? "<hr>" : it.h ? `<div class="h">${esc(it.h)}</div>` : it.html ? `<div data-i="${i}">${it.html}</div>`
-      : `<button data-i="${i}" ${it.disabled ? "disabled" : ""}>${it.on ? "✓ " : ""}${it.icon ? `<span>${it.icon}</span>` : ""}<span>${esc(it.label)}</span>${it.key ? `<span class="k">${esc(it.key)}</span>` : ""}</button>`).join("");
-    document.body.appendChild(m);
-    let x, y;
-    if (anchor && anchor.getBoundingClientRect) { const r = anchor.getBoundingClientRect(); x = opts.right ? r.right - m.offsetWidth : r.left; y = r.bottom + 4; }
-    else { x = anchor.x; y = anchor.y; }
-    x = Math.max(6, Math.min(x, innerWidth - m.offsetWidth - 6));
-    if (y + m.offsetHeight > innerHeight - 6) y = Math.max(6, (anchor.getBoundingClientRect ? anchor.getBoundingClientRect().top : y) - m.offsetHeight - 4);
-    m.style.left = x + "px"; m.style.top = y + "px";
-    m.addEventListener("click", (e) => {
-      const b = e.target.closest("button[data-i]"); if (!b || b.disabled) return;
-      const it = items[+b.dataset.i]; if (!it.keep) closeMenu(); it.act && it.act();
-    });
-    items.forEach((it, i) => it.bind && it.bind(m.querySelector(`[data-i="${i}"]`), m));
-    return m;
-  }
 
   // ---------------------------------------------------------------- 기록(실행 취소)·저장
   function snapshot() { aiBusyWarn(); S.undo.push(deckJson()); if (S.undo.length > 150) S.undo.shift(); S.redo = []; updUndo(); }
@@ -168,7 +135,6 @@
       banner(true, "저장하려는 사이 덱 파일이 밖에서(Claude 등) 바뀌었고, 자동으로 합칠 수 없습니다(서버가 다시 시작됨 등). 어느 쪽을 남길까요?");
     } else { setStatus("error", "저장 실패"); toast("저장 실패: " + (r.data && r.data.error || r.status)); }
   }
-  function banner(on, msg) { $("#banner").classList.toggle("show", !!on); if (msg) $("#bannerMsg").textContent = msg; }
 
   // ---------------------------------------------------------------- 불러오기·외부 변경 감지
   async function loadDeck(id, keep) {
