@@ -416,8 +416,10 @@
     const r = await NexaNewDoc.open({ api, kind }); if (!r) return;
     if (S.dirty) await save();
     if (r.kind && r.kind !== "deck") { location.href = NexaKinds.url(r); return; }
-    const l = await api("GET", "/api/decks");
-    if (l.ok && Array.isArray(l.data)) { S.decks = l.data.map((d) => ({ id: d.id, title: d.title, slides: d.slides, start: !!d.start, kind: d.kind })); renderDeckTabs(); }
+    // 덱 목록은 만들기 응답의 것을 바로 쓴다(예전 deckAdmin 과 같다) - 목록을 다시 받아 오는 사이 폴링이 새 덱을 "밖에서 생긴 덱"으로 알리지 않게
+    let list = r.decks;
+    if (!Array.isArray(list)) { const l = await api("GET", "/api/decks"); list = l.ok && Array.isArray(l.data) ? l.data : null; }
+    if (list) { S.decks = list.map((d) => ({ id: d.id, title: d.title, slides: d.slides, start: !!d.start, kind: d.kind })); renderDeckTabs(); }
     await loadDeck(r.id); toast(`만들었습니다: ${r.title || r.id}`, 4000);
   }
   async function deckCreate(kind) {

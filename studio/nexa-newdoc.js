@@ -69,7 +69,7 @@
         const body = { action: "create", title: t }; if (kind !== "deck") body.kind = kind; if (kind === "page" && tpl) body.theme = tpl;
         const r = await api("POST", "/api/decks", body);
         if (!r.ok || !r.data || !r.data.id) { q("#ndErr").textContent = "만들지 못했습니다: " + ((r.data && r.data.error) || r.status); q("#ndOk").disabled = false; return; }
-        end({ id: r.data.id, kind, title: t });
+        end({ id: r.data.id, kind, title: t, decks: r.data.decks });  // decks = 만든 뒤의 덱 목록(서버 응답) - 부른 화면이 바로 목록을 갱신하게
       }
       back.addEventListener("mousedown", (e) => { if (e.target === back) end(null); });
       back.addEventListener("click", (e) => {
