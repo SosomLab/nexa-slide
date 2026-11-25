@@ -291,6 +291,11 @@ B_ = "const blk=(id)=>S.deck.blocks.find(b=>b.id===id);const chg=(id,v)=>{const 
 
 def fmt_steps():
     return [
+        step("문단 음영 [▨] → block.fill #e6e6e6 · 화면 배경 rgb(230, 230, 230) · 다시 누르면 꺼짐 · 한 번 더 눌러 켜 둠(DOCX 확인용)",
+             H + B_ + "const sh=document.querySelector('[data-act=shade]');if(!sh)return 'no shade button';E.ed.select({id:'f3',off:1});sh.click();await new Promise(r=>setTimeout(r,150));"
+                      "const on=blk('f3').fill,bg=getComputedStyle(el('f3')).backgroundColor,cls=sh.classList.contains('on');E.ed.select({id:'f3',off:1});sh.click();await new Promise(r=>setTimeout(r,150));"
+                      "const off=blk('f3').fill,bg2=getComputedStyle(el('f3')).backgroundColor;E.ed.select({id:'f3',off:1});sh.click();await new Promise(r=>setTimeout(r,150));await idle();"
+                      "return on==='#e6e6e6'&&bg==='rgb(230, 230, 230)'&&cls&&!off&&/rgba\\(0, 0, 0, 0\\)|transparent/.test(bg2)&&blk('f3').fill==='#e6e6e6' || JSON.stringify({on,bg,cls,off,bg2,last:blk('f3').fill});"),
         step("줄 간격 2 → block.line 2 · 화면 line-height = 글자 크기의 2배",
              H + B_ + "E.ed.select({id:'f1',off:1});chg('#selLine','2');await new Promise(r=>setTimeout(r,120));const e=el('f1'),cs=getComputedStyle(e);const lh=parseFloat(cs.lineHeight),fs=parseFloat(cs.fontSize);"
                       "return blk('f1').line===2&&Math.abs(lh-2*fs)<1.5 || JSON.stringify({line:blk('f1').line,lh,fs});"),
@@ -621,6 +626,8 @@ def main():
         order = _re.findall(r"<w:(pStyle|numPr|spacing|ind|jc)\b", ppr)
         sp_ok = 'w:line="480"' in ppr and order.index("spacing") > max([order.index(x) for x in ("pStyle", "numPr") if x in order] or [-1]) and order.index("spacing") < min([order.index(x) for x in ("ind", "jc") if x in order] or [99])
         check("4 DOCX 줄 간격 2 - 그 문단 pPr 에 spacing line=480(pStyle·numPr 뒤, ind·jc 앞)", st == 200 and sp_ok, json.dumps({"st": st, "pPr": ppr[:300], "order": order}, ensure_ascii=False))
+        shp = next((m.group(0) for m in _re.finditer(r"<w:p>(?:(?!</w:p>).)*?셋째 문단(?:(?!</w:p>).)*?</w:p>", dx)), "")
+        check("4 DOCX 문단 음영 - '셋째 문단' pPr 에 w:shd fill E6E6E6", 'w:fill="E6E6E6"' in shp and "<w:shd" in shp.split("</w:pPr>")[0], shp[:300])
         check("4 DOCX 윗주 - document.xml 에 w:ruby 1개(본문 '끝' 위 'S')", dx.count("<w:ruby>") == 1, f"w:ruby {dx.count('<w:ruby>')}개")
         if pw_ := (__import__("shutil").which("pwsh") or __import__("shutil").which("powershell")):
             with tmpfiles.temp_dir("nx-pgfmt-") as d:
