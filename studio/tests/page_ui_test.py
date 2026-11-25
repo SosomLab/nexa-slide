@@ -408,13 +408,20 @@ def poll_steps():
              H + X + "await E.poll();await idle();const f=await srv('pgpoll');const t=(id)=>tx(f.blocks.find(b=>b.id===id));"
                      "return window.__extSt===200&&t('q1').includes('내글')&&t('q3')==='밖 셋'&&el('q3').textContent==='밖 셋'&&tx(S.deck.blocks.find(b=>b.id==='q1')).includes('내글') || JSON.stringify({st:window.__extSt,q1:t('q1'),q3:t('q3'),scr:el('q3')&&el('q3').textContent,status:document.querySelector('#status').textContent});",
              pre=X + "await idle();E.ed.focus();E.ed.select({id:'q1',off:2});window.__extSt=await ext('pgpoll',(d)=>setT(d,'q3','밖 셋'));", cdp=INS("내글"), wait=50),
-        step("밖의 변경 ④ 표 칸을 편집 중(초점만) - 밖에서 q2 를 고침 → 다시 그려져도 오류 없음 · 칸 글 그대로 · 초점이 칸에 남는지 보고",
+        step("밖의 변경 ④ 표 칸을 편집 중(초점만) - 밖에서 q2 를 고침 → 다시 그려져도 오류 없음 · 칸 글 그대로 · 초점이 그 칸(.pg-cell)으로 돌아옴",
              H + X + "await idle();const c=[...document.querySelectorAll('#ed .pg-cell')][0];c.focus();const st=await ext('pgpoll',(d)=>setT(d,'q2','밖 둘째'));window.__errs=[];window.addEventListener('error',(e)=>window.__errs.push(String(e.message)));"
                      "const ok=await until(async()=>el('q2')&&el('q2').textContent==='밖 둘째',5000);await new Promise(r=>setTimeout(r,200));const a=document.activeElement;const inCell=!!(a&&a.closest&&a.closest('.pg-cell'));"
                      "window.__pollNote='표 칸 편집 중 밖 변경: 초점 '+(inCell?'칸에 남음':'잃음('+(a&&a.tagName)+')');const cellTxt=(document.querySelector('#ed .pg-cell')||{}).textContent;"
-                     "return st===200&&ok&&!window.__errs.length&&cellTxt==='칸' || JSON.stringify({st,ok,errs:window.__errs,cellTxt,inCell});"),
-        # ④ 초점: 2026-11-26 실행에서 '초점 잃음(BODY)' - 개발 세션이 허용(다시 그리면 칸 요소가 새로 만들어진다). 판정하지 않고 값이 남는지만 본다
-        step("밖의 변경 ④ 보고 - 초점 상태가 기록됨(칸에 남음/잃음 - 판정 아님)", "return /초점 (칸에 남음|잃음)/.test(window.__pollNote||'') || 'no note';"),
+                     "return st===200&&ok&&!window.__errs.length&&cellTxt==='칸'&&inCell&&a.classList.contains('pg-cell') || JSON.stringify({st,ok,errs:window.__errs,cellTxt,inCell,active:a&&a.className});"),
+        step("밖의 변경 ④ 이어 친 글이 그 칸(첫 칸)에 들어감",
+             H + "await new Promise(r=>setTimeout(r,150));await idle();const c=document.querySelector('#ed .pg-cell');const t=S.deck.blocks.find(b=>b.id==='qt');const ct=(t.rows[0].cells[0].blocks||[]).map(tx).join('');"
+                 "return c.textContent==='칸이어'&&ct==='칸이어' || JSON.stringify({scr:c.textContent,doc:ct,q1:tx(S.deck.blocks.find(b=>b.id==='q1'))});", cdp=INS("이어"), wait=100),
+        step("밖의 변경 ⑥ 실행 취소 - 내 글을 치고 저장 → 밖에서 q2 고침이 반영된 뒤 실행 취소 단추가 켜져 있음 · 실행 취소(E.undo) → 내 글만 사라지고 밖의 글은 남음(서버도)",
+             H + X + "await idle();const st=await ext('pgpoll',(d)=>setT(d,'q2','밖 여섯'));const ok=await until(async()=>el('q2')&&el('q2').textContent==='밖 여섯',5000);"
+                     "const ub=document.querySelector('[data-act=undo]');const en=ub&&!ub.disabled;const before=tx(S.deck.blocks.find(b=>b.id==='q3'));E.ed.focus();E.undo();await new Promise(r=>setTimeout(r,150));await idle();"
+                     "const f=await srv('pgpoll');const t=(d,id)=>tx(d.blocks.find(b=>b.id===id));"
+                     "return st===200&&ok&&en&&before.includes('끝말')&&!t(S.deck,'q3').includes('끝말')&&t(S.deck,'q2')==='밖 여섯'&&!t(f,'q3').includes('끝말')&&t(f,'q2')==='밖 여섯' || JSON.stringify({st,ok,en,before,q3:t(S.deck,'q3'),q2:t(S.deck,'q2'),srv:[t(f,'q2'),t(f,'q3')]});",
+             pre="await idle();E.ed.focus();const b=S.deck.blocks.find(x=>x.id==='q3');E.ed.select({id:'q3',off:tx(b).length});", cdp=INS("끝말"), wait=100),
     ]
 
 
