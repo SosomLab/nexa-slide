@@ -61,7 +61,7 @@ def workspace(name, experimental):
     (ws / "nexa-slide.json").write_text(json.dumps(cfg, ensure_ascii=False, indent=2), encoding="utf-8")
     d = ws / "decks"
     d.mkdir(parents=True, exist_ok=True)
-    for f in d.glob("pg*.json"):
+    for f in d.glob("*.json"):  # 시험 전용 작업 공간 - 지난 실행의 문서(추천 횟수 등)가 남지 않게
         f.unlink()
     return ws
 
@@ -165,6 +165,116 @@ def page_steps(pid):
     ]
 
 
+PS = "const q=(s)=>document.querySelector(s);const setv=(id,v)=>{const e=q(id);e.value=v;e.dispatchEvent(new Event('change',{bubbles:true}));};"
+
+
+def setup_steps(pid):
+    """쪽 설정 대화 상자 - A4 가로 · 여백 30/30/20/20 · 머리말 오른쪽 · 쪽 번호 아래 가운데"""
+    return [
+        step("쪽 설정 - A4 가로·여백 30/30/20/20·머리말 '문서 머리'(오른쪽)·쪽 번호 아래 가운데 → #paper 297mm · 서버 page · #pgHeader",
+             H + PS + "q('[data-act=setup]').click();await until(async()=>q('#psOk'),3000);setv('#psSize','A4');setv('#psOrient','landscape');setv('#psMt',30);setv('#psMb',30);setv('#psMl',20);setv('#psMr',20);"
+                      "q('#psHeader').value='문서 머리';setv('#psHeaderAlign','right');setv('#psNum','footer-center');q('#psOk').click();await idle();"
+                      "const w=q('#paper').getBoundingClientRect().width/(96/25.4);const f=await srv('" + pid + "');const pg=f.page;"
+                      "return !q('#psOk')&&Math.abs(w-297)<3&&pg.orient==='landscape'&&pg.margin.t===30&&pg.margin.b===30&&pg.margin.l===20&&pg.margin.r===20&&pg.header.blocks[0].align==='right'"
+                      "&&pg.number.show===true&&pg.number.pos==='footer-center'&&/문서 머리/.test(q('#pgHeader').textContent) || JSON.stringify({w,page:pg,head:q('#pgHeader').textContent,open:!!q('#psOk')});"),
+        step("쪽 설정 - 여백이 지나치게 크면(왼쪽·오른쪽 100) 오류 글이 뜨고 닫히지 않음 · Esc 로 닫힘",
+             H + PS + "q('[data-act=setup]').click();await until(async()=>q('#psOk'),3000);setv('#psMl',100);setv('#psMr',100);setv('#psOrient','portrait');q('#psOk').click();await new Promise(r=>setTimeout(r,150));"
+                      "const err=q('#psErr').textContent,open=!!q('#psOk');document.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}));await new Promise(r=>setTimeout(r,150));"
+                      "return /여백/.test(err)&&open&&!q('#psOk')&&S.deck.page.orient==='landscape' || JSON.stringify({err,open,after:!!q('#psOk'),orient:S.deck.page.orient});"),
+        step("쪽 설정 - 실행 취소로 되돌아감(세로) · 다시 실행(가로)",
+             H + "E.undo();await new Promise(r=>setTimeout(r,120));const a=S.deck.page.orient;E.redo();await new Promise(r=>setTimeout(r,120));const b=S.deck.page.orient;await idle();"
+                 "return a!=='landscape'&&b==='landscape' || JSON.stringify({a,b});"),
+    ]
+
+
+def table_steps(pid):
+    """표 - 넣기(prompt 2×3) · 칸 안 편집 · Tab · 칸 안 서식 · 칸 안 목록 막음 · 오른쪽 클릭 메뉴 · 실행 취소 · 칸 안 한글 조합"""
+    T = "const tb=()=>S.deck.blocks.find(b=>b.type==='table');const cells=()=>[...document.querySelectorAll('#ed .pg-cell')];const ctext=(c)=>((c.blocks||[])[0]&&(c.blocks[0].runs||[]).map(r=>r.t).join(''))||'';"
+    menu = lambda label: ("{const td=document.querySelector('#ed table td,#ed table th');td.dispatchEvent(new MouseEvent('contextmenu',{bubbles:true,cancelable:true,clientX:200,clientY:200}));"  # noqa: E731
+                          "await until(async()=>document.querySelector('.menu'),2000);const mb=[...document.querySelectorAll('.menu button')].find(b=>b.textContent.includes('" + label + "'));if(!mb)return 'no menu item " + label + "';mb.click();await new Promise(r=>setTimeout(r,150));}")
+    return [
+        step("표 - [표] → '2×3' → table 블록(행 2·열 3·첫 행 머리글)",
+             H + T + "window.prompt=()=>'2×3';E.ed.select({id:bid(1),off:0});document.querySelector('[data-act=table]').click();await new Promise(r=>setTimeout(r,200));const t=tb();"
+                     "return t&&t.rows.length===2&&t.cols.length===3&&t.rows.every(r=>r.cells.length===3)&&t.rows[0].head===true || D();"),
+        step("표 - 첫 칸에 글 치기 → 그 칸 runs · 표 요소가 다시 만들어지지 않음 · 본문 문단은 그대로 · 실행 취소 기록 1개만 늘어남",
+             H + T + "await idle();const t=tb();const c=t.rows[0].cells[0];return window.__tblEl===document.querySelector('#ed table')&&ctext(c)==='칸글'&&tx(S.deck.blocks[1])===window.__b1&&S.undo.length-window.__u<=1 "
+                     "|| JSON.stringify({same:window.__tblEl===document.querySelector('#ed table'),cell:ctext(c),b1:[tx(S.deck.blocks[1]),window.__b1],undo:[window.__u,S.undo.length]});",
+             pre=T + "window.__tblEl=document.querySelector('#ed table');window.__b1=tx(S.deck.blocks[1]);window.__u=S.undo.length;cells()[0].focus();", cdp=INS("칸") + INS("글"), wait=200),
+        step("표 - Tab → 다음 칸으로 초점",
+             H + T + "await new Promise(r=>setTimeout(r,120));return document.activeElement===cells()[1] || JSON.stringify({active:document.activeElement&&document.activeElement.className,idx:cells().indexOf(document.activeElement)});",
+             pre=T + "cells()[0].focus();", cdp=KEY("Tab", "Tab", 9)),
+        step("표 - 칸 안에서 굵게 단추 → 그 칸 runs 의 b",
+             H + T + "await idle();const c=tb().rows[0].cells[1];return (c.blocks[0].runs||[]).some(r=>r.b&&r.t==='굵게') || JSON.stringify(c.blocks);",
+             pre=T + "cells()[1].focus();", cdp=INS("굵게") + [{"method": "Runtime.evaluate", "params": {"expression": "(()=>{const h=[...document.querySelectorAll('#ed .pg-cell')][1];const sel=getSelection();sel.selectAllChildren(h.querySelector('[data-id]')||h);document.dispatchEvent(new Event('selectionchange'));})()"}, "wait": 120},
+                                                              {"method": "Runtime.evaluate", "params": {"expression": "document.querySelector('[data-mark=b]').click()"}, "wait": 150}]),
+        step("표 - 칸 안에서 목록 단추 → '표 칸 안에서는 아직' 토스트 · 목록 안 생김",
+             H + T + "await new Promise(r=>setTimeout(r,150));const t=document.querySelector('#toast').textContent;return /표 칸 안에서는 아직/.test(t)&&!S.deck.blocks.some(b=>b.list&&b.type==='table') || t;",
+             pre=T + "cells()[1].focus();", cdp=[{"method": "Runtime.evaluate", "params": {"expression": "document.querySelector('[data-list=bullet]').click()"}, "wait": 120}]),
+        step("표 - 오른쪽 클릭 메뉴: 아래에 행 넣기(행 3) · 오른쪽에 열 넣기(열 4, 모든 행 4칸) · 행 지우기(행 2) · 머리글 행 끄기",
+             H + T + menu("아래에 행 넣기") + "const r3=tb().rows.length;" + menu("오른쪽에 열 넣기") + "const c4=tb().cols.length,all4=tb().rows.every(r=>r.cells.length===4);" + menu("행 지우기") + "const r2=tb().rows.length;"
+                     + menu("머리글 행") + "const head=!!tb().rows[0].head;return r3===3&&c4===4&&all4&&r2===2&&!head || JSON.stringify({r3,c4,all4,r2,head});"),
+        step("표 - 칸 안 한글 조합 '한' 이 한 번만",
+             H + T + "await idle();const c=tb().rows[1].cells[0];const t=ctext(c);return t==='한' || JSON.stringify(c.blocks);",
+             pre=T + "document.querySelector('#ed table tr:nth-child(2) .pg-cell').focus();", cdp=[{"method": "Input.imeSetComposition", "params": {"text": x, "selectionStart": len(x), "selectionEnd": len(x)}, "wait": 30} for x in ("ㅎ", "하", "한")] + INS("한"), wait=200),
+        step("표 - 표 지우기 → blocks 에서 사라지고 문단이 남음 · 실행 취소로 되돌아옴",
+             H + T + menu("표 지우기") + "const gone=!tb(),paras=S.deck.blocks.filter(b=>b.type==='p').length;E.undo();await new Promise(r=>setTimeout(r,150));const back=!!tb();await idle();"
+                     "return gone&&paras>=1&&back || JSON.stringify({gone,paras,back});"),
+    ]
+
+
+def export_steps(pid):
+    W = ("if(!window.__of){window.__of=window.fetch.bind(window);window.__reqs=[];window.fetch=async(u,o={})=>{const r=await window.__of(u,o);if(String(u).includes('/api/export/')){const c=r.clone();"
+         "window.__reqs.push({u:String(u),st:r.status,j:await c.json().catch(()=>null)});}return r;};}")
+    return [
+        step("내보내기 ▾ - 'Word 문서 (.docx)' → POST /api/export 200 · url .docx · 내려받기 링크",
+             W + "window.__reqs.length=0;document.querySelector('#btnExport').click();await until(async()=>document.querySelector('.menu'),2000);[...document.querySelectorAll('.menu button')].find(b=>/docx/.test(b.textContent)).click();"
+                 "await until(async()=>window.__reqs.length,15000);const r=window.__reqs[0];return r&&r.st===200&&r.j&&r.j.ok&&/\\.docx(\\?|$)/.test(r.j.url) || JSON.stringify(window.__reqs);"),
+        step("내보내기 ▾ - 'PDF (Word 로 변환)' → 200(Word 있음, method word) 또는 501(needPrint)",
+             W + "window.__reqs.length=0;document.querySelector('#btnExport').click();await until(async()=>document.querySelector('.menu'),2000);[...document.querySelectorAll('.menu button')].find(b=>/PDF/.test(b.textContent)).click();"
+                 "await until(async()=>window.__reqs.length,120000);const r=window.__reqs[0];return r&&((r.st===200&&r.j&&r.j.ok&&/\\.pdf(\\?|$)/.test(r.j.url))||r.st===501) || JSON.stringify(window.__reqs);", timeout=150000),
+    ]
+
+
+ND = ("const nd=()=>document.querySelector('.nd-back');const open=async()=>{document.querySelector('#deckTabs [data-deckadd]').click();await until(async()=>nd()&&nd().querySelector('#ndTitle'),5000);};"
+      "const kinds=()=>[...nd().querySelectorAll('[data-kind]')].map(b=>b.dataset.kind);")
+
+
+def newdoc_off_steps():
+    return [step("새 문서 대화 상자(꺼진 작업 공간) - 슬라이드 [＋] → 종류 둘(슬라이드·시트) · Esc 로 닫힘 · 바깥 누르기로 닫힘",
+                 ND + "await open();const k=kinds();document.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}));await new Promise(r=>setTimeout(r,150));const e1=!nd();"
+                      "await open();nd().dispatchEvent(new MouseEvent('mousedown',{bubbles:true}));await new Promise(r=>setTimeout(r,150));const e2=!nd();"
+                      "return k.join()==='deck,sheet'&&e1&&e2 || JSON.stringify({k,e1,e2});")]
+
+
+def newdoc_on_steps():
+    return [
+        step("새 문서 대화 상자(켠 작업 공간) - 종류 셋 · 제목이 비면 오류 글 · 페이지 → 템플릿 카드 11개(일반 문서·학습 자료)",
+             ND + "await open();const k=kinds();nd().querySelector('#ndTitle').value='';nd().querySelector('#ndOk').click();await new Promise(r=>setTimeout(r,150));const err=nd().querySelector('#ndErr').textContent;"
+                  "nd().querySelector('[data-kind=page]').click();await until(async()=>nd().querySelectorAll('.nd-tpl').length,5000);const n=nd().querySelectorAll('.nd-tpl').length,g=[...nd().querySelectorAll('.nd-group')].map(x=>x.textContent);"
+                  "document.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}));return k.join()==='deck,sheet,page'&&/제목/.test(err)&&n===11&&g.some(x=>/일반/.test(x))&&g.some(x=>/학습/.test(x)) || JSON.stringify({k,err,n,g});"),
+        step("새 문서 대화 상자 - 슬라이드로 만들면 그 덱이 열리고 덱 탭에 생김",
+             ND + "await open();nd().querySelector('[data-kind=deck]').click();nd().querySelector('#ndTitle').value='대화 상자 덱';nd().querySelector('#ndOk').click();"
+                  "await until(async()=>{const o=document.querySelector('#deckTabs button.on');return o&&o.textContent.trim()==='대화 상자 덱'&&!nd();},8000);const o=document.querySelector('#deckTabs button.on');"
+                  "return !!o&&o.textContent.trim()==='대화 상자 덱' || JSON.stringify({on:o&&o.textContent,dlg:!!nd()});"),
+        step("새 문서 대화 상자 - 시트를 고르고 [만들기] → 시트 테마 창(.nx-sn)으로 넘어감",
+             ND + "await open();nd().querySelector('[data-kind=sheet]').click();await new Promise(r=>setTimeout(r,150));nd().querySelector('#ndOk').click();await until(async()=>document.querySelector('.nx-sn'),5000);"
+                  "const ok=!!document.querySelector('.nx-sn')&&!nd();const sn=document.querySelector('.nx-sn');if(sn)sn.remove();return ok || JSON.stringify({sn:!!document.querySelector('.nx-sn'),dlg:!!nd()});"),
+        step("새 문서 대화 상자 - 페이지 + 템플릿 '보고서'(report) 로 만들면 page.html 로 가고 문서 template = report",
+             ND + "await open();nd().querySelector('[data-kind=page]').click();await until(async()=>nd().querySelector('[data-tpl=report]'),5000);nd().querySelector('[data-tpl=report]').click();"
+                  "nd().querySelector('#ndTitle').value='대화 상자 보고서';setTimeout(()=>nd().querySelector('#ndOk').click(),50);return true;", wait=2500),
+    ]
+
+
+def newdoc_rec_steps():
+    return [step("새 문서 대화 상자 - (앞 단계) 페이지 + 템플릿 '보고서' 로 만든 뒤 page.html 로 갔고 문서 template = report",
+                 "const id=new URLSearchParams(location.search).get('deck');const f=await (await fetch('/api/decks',{cache:'no-store'})).json();const d=(Array.isArray(f)?f:[]).find(x=>x.title==='대화 상자 보고서');"
+                 "const doc=d&&await (await fetch('/api/deck/'+d.id,{cache:'no-store'})).json();return !!d&&d.kind==='page'&&doc.template==='report' || JSON.stringify({d,tpl:doc&&doc.template});"),
+            step("새 문서 대화 상자 - 같은 템플릿(report)으로 두 번 만든 뒤 다시 열면 '자주 쓰는 템플릿' 맨 앞에 '2회'",
+                 ND + "await open();nd().querySelector('[data-kind=page]').click();await until(async()=>nd().querySelectorAll('.nd-tpl').length,5000);const g=nd().querySelector('.nd-group').textContent,first=nd().querySelector('.nd-tpl');"
+                      "const r={g,tpl:first.dataset.tpl,rec:(first.querySelector('.rec')||{}).textContent};document.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}));"
+                      "return /자주/.test(g)&&r.tpl==='report'&&/2회/.test(r.rec||'') || JSON.stringify(r);")]
+
+
 def main():
     ws_off = workspace("page끔시험", False)
     ws_on = workspace("page시험", True)
@@ -178,6 +288,11 @@ def main():
         st1, r1, _ = call("PUT", "/api/deck/pgslide", {"id": "pgslide", "title": "슬라이드", "slides": [{"id": "s1", "elements": [{"id": "e1", "type": "text", "x": 10, "y": 10, "w": 100, "h": 40, "text": "글"}]}]})
         st2, r2, _ = call("PUT", "/api/deck/pgsheet", {"id": "pgsheet", "title": "시트", "kind": "sheet", "slides": [], "sheets": [{"id": "t01", "name": "S", "cells": {"A1": 1}}]})
         check("2 기존 슬라이드·시트 PUT 은 그대로 200", st1 == 200 and st2 == 200, (st1, r1, st2, r2))
+        lines, _ = scenario([{"url": "/studio/index.html#pgslide", "wait": 2500, "steps": newdoc_off_steps()}])
+        for l in lines:
+            print("  ", l[:700])
+            if l.startswith("FAIL"):
+                FAILS.append("화면(꺼짐): " + l[5:80])
     finally:
         srv.stop()
     # 1. 켠 작업 공간
@@ -231,12 +346,56 @@ def main():
                          "&&!!document.querySelector('#ed .pg-li[data-marker=\"1.\"]') || D();")]},
             {"url": "/studio/page.html?deck=pglong", "wait": 3000, "steps": [
                 step("긴 문서(문단 80개) - 쪽 경계선 수 = #pageInfo 의 n쪽 - 1 · 2쪽 이상", "const n=document.querySelectorAll('#pagelines i').length;const t=document.querySelector('#pageInfo').textContent;const k=parseInt(t);return k>=2&&n===k-1 || JSON.stringify({lines:n,info:t});")]},
+            {"url": f"/studio/page.html?deck={pid}", "wait": 2500, "steps": setup_steps(pid) + export_steps(pid)},
+            {"url": "/studio/page.html?deck=pgtbl", "wait": 2500, "steps": table_steps("pgtbl")},
+            {"url": "/studio/index.html#pgslide", "wait": 2500, "steps": newdoc_on_steps()},
         ]
+        st, r, _ = call("POST", "/api/decks", {"action": "create", "kind": "page", "title": "표 시험"})
+        tbl_id = (r or {}).get("id") or "pgtbl"
+        pages = [dict(x, url=x["url"].replace("pgtbl", tbl_id)) for x in pages]
+        pages = [dict(x, steps=[dict(y, js=y["js"].replace("'pgtbl'", f"'{tbl_id}'")) for y in x["steps"]]) for x in pages]
         lines, rc = scenario(pages)
+        # 같은 템플릿으로 한 번 더 만들어(대화 상자에서 1번 + 여기서 1번 = 2회) 추천 묶음 확인
+        call("POST", "/api/decks", {"action": "create", "kind": "page", "title": "보고서 둘", "theme": "report"})
+        l2, _ = scenario([{"url": "/studio/index.html#pgslide", "wait": 2500, "steps": newdoc_rec_steps()}])  # 대화 상자로 1번 + API 로 1번 = report 2회
+        lines += l2
         for l in lines:
             print("  ", l[:700])
             if l.startswith("FAIL"):
                 FAILS.append("화면: " + l[5:80])
+        # 4. 내보내기 API - DOCX 내려받기 · 이름 · 가로·머리말 구조 · PDF · 슬라이드 내보내기 그대로
+        import zipfile, io  # noqa: E401
+        st, r, _ = call("POST", f"/api/export/{pid}")
+        data = b""
+        if st == 200 and r.get("url"):
+            with urllib.request.urlopen(B + r["url"], timeout=30) as rr:
+                data = rr.read()
+        title = deck_file(ws_on, pid).get("title")
+        xml = zipfile.ZipFile(io.BytesIO(data)).read("word/document.xml").decode("utf-8") if data[:2] == b"PK" else ""
+        check("4 내보내기 API - POST /api/export/<페이지> 200 · /out/ 내려받기 · 이름 = 제목.docx · document.xml 에 가로(orient)·headerReference",
+              st == 200 and data[:2] == b"PK" and r.get("name") == f"{title}.docx" and 'w:orient="landscape"' in xml and "headerReference" in xml,
+              json.dumps({"st": st, "r": r, "bytes": len(data), "orient": 'w:orient="landscape"' in xml, "head": "headerReference" in xml}, ensure_ascii=False)[:400])
+        st, r, _ = call("POST", f"/api/export/{pid}?pdf=1")
+        check("4 내보내기 API ?pdf=1 - Word 있으면 200 method word · 없으면 501 needPrint", (st == 200 and r.get("method") == "word" and str(r.get("url", "")).split("?")[0].endswith(".pdf")) or (st == 501 and r.get("needPrint")), json.dumps({"st": st, "r": r}, ensure_ascii=False)[:300])
+        NOTES.append(f"PDF 내보내기 응답 {st} · {json.dumps(r, ensure_ascii=False)[:160]}")
+        st, r, _ = call("POST", "/api/export/pgsheet")
+        check("4 시트 내보내기는 그대로(xlsx)", st == 200 and str(r.get("url", "")).split("?")[0].endswith(".xlsx"), json.dumps({"st": st, "r": r}, ensure_ascii=False)[:300])
+        # 표 문서를 Word 로 열어 표 수·행·열(Word 가 없거나 사용자가 띄워 두었으면 관찰만)
+        st, r, _ = call("POST", f"/api/export/{tbl_id}")
+        if st == 200 and r.get("url"):
+            with tmpfiles.temp_dir("nx-pgtbl-") as d:
+                f = Path(d) / "t.docx"
+                with urllib.request.urlopen(B + r["url"], timeout=30) as rr:
+                    f.write_bytes(rr.read())
+                pw = __import__("shutil").which("pwsh") or __import__("shutil").which("powershell")
+                if pw:
+                    w = subprocess.run([pw, "-NoProfile", "-File", str(HERE / "docx_open_check.ps1"), "-Docx", str(f)], capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=180)
+                    j = json.loads((w.stdout.strip().splitlines() or ["{}"])[-1] or "{}")
+                    if w.returncode == 99:
+                        NOTES.append(f"표 문서 Word 열기 - 판정 불가: {j.get('skip')}")
+                    else:
+                        tb = next((b for b in deck_file(ws_on, tbl_id)["blocks"] if b.get("type") == "table"), {})
+                        check(f"4 표 문서 DOCX 를 Word 로 열면 표 {1 if tb else 0}개", w.returncode == 0 and j.get("tables") == (1 if tb else 0), json.dumps(j, ensure_ascii=False)[:300])
         # 5. 두 창 - 관찰
         f0, v0 = deck_file(ws_on, pid), call("GET", f"/api/deck/{pid}")[2]
         a = json.loads(json.dumps(f0)); a["blocks"][0]["runs"] = [{"t": "창 A 가 고친 제목"}]
