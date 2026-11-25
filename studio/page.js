@@ -521,6 +521,30 @@
     S.deck = deck; S.version = r.headers.get("X-Deck-Version"); S.savedJson = deckJson(); S.undo = []; S.redo = []; S.dirty = false; S.conflict = false;
     return true;
   }
+  // ---------------------------------------------------------------- 밖의 변경 받기 - 다른 창·AI(save_deck)가 저장하면 따라간다
+  //   3초마다 판(/api/version)을 본다. 내가 고치는 중이면 바로 저장해 서버에서 합치고(문단 단위 병합), 아니면 문서를 다시 읽는다.
+  //   실시간 연결(SSE)·함께 보는 사람 표시는 공용 뼈대로 옮길 때(PG-109) 슬라이드·시트와 같이 쓴다
+  let pollT = 0, polling = false;
+  async function poll() {
+    if (polling || !S.deck || S.saving || S.conflict || document.hidden) return;
+    polling = true;
+    try {
+      const r = await api("GET", `/api/version/${encodeURIComponent(S.id)}`);
+      if (!r.ok || !r.data) return;
+      if (Array.isArray(r.data.deckIds) && !r.data.deckIds.includes(S.id)) { clearInterval(pollT); setStatus("error", "지워진 문서"); toast("이 문서가 지워졌습니다", 8000); return; }
+      if (r.data.deck === S.version || S.saving) return;
+      if (S.dirty) { clearTimeout(saveT); await save(); return; }  // 내 변경이 있으면 저장하면서 합친다
+      const d = await fetch(`${BASE}/api/deck/${encodeURIComponent(S.id)}`, { cache: "no-store" });
+      if (!d.ok) return;
+      const deck = await d.json(), ver = d.headers.get("X-Deck-Version");
+      if (S.dirty || S.saving || deck.kind !== "page") return;  // 읽는 사이 내가 고쳤으면 다음 번에
+      const sel = cur === ed ? ed.selection() : null;
+      S.deck = deck; S.version = ver; S.savedJson = deckJson(); S.undo = []; S.redo = []; S.lastWhy = "";
+      cur = ed; S.pick = null; layout(); ed.refresh(sel && blockAt(sel.f.id) ? sel : null); decorateAll(); updTools();
+      $("#docTitle").value = S.deck.title || "";
+      toast("밖에서 바뀐 내용을 불러왔습니다", 2500);
+    } catch (e) { /* 서버가 잠깐 끊김 - 다음 번에 */ } finally { polling = false; }
+  }
   async function deckListMenu(btn) {
     const r = await api("GET", "/api/decks"), list = r.ok && Array.isArray(r.data) ? r.data : [];
     openMenu(btn, [{ h: `문서 ${list.length}개` }, ...list.map((d) => ({ label: `${NexaKinds.of(d).icon} ${d.title || d.id}`, on: d.id === S.id, act: async () => { if (d.id === S.id) return; if (S.dirty) await save(); location.href = NexaKinds.url(d); } })),
@@ -573,8 +597,9 @@
     window.addEventListener("beforeunload", (e) => { if (S.dirty) { e.preventDefault(); e.returnValue = ""; } });
     setStatus("saved", "저장됨");
     if (new URLSearchParams(location.search).get("print") === "1") { document.body.classList.add("printing"); return; }  // 서버의 Chrome 인쇄(PDF) - 커서·초점 없이 그대로 찍힌다
+    pollT = setInterval(poll, 3000);  // 밖의 변경(다른 창·AI 저장) 따라가기
     const first = blocks().find(T.isText); if (first) { ed.focus(); ed.select({ id: first.id, off: T.length(first.runs) }); }
-    window.NexaPageEditor = { S, ed, save, undo, redo };  // 시험·디버깅용
+    window.NexaPageEditor = { S, ed, save, undo, redo, poll };  // 시험·디버깅용
   }
   init();
 })();
