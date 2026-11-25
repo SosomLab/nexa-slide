@@ -29,8 +29,11 @@ def p(text="", style=None, **kw):
     return b
 
 
-def li(text, kind="bullet", level=0, **kw):
-    return {"type": "p", "list": {"kind": kind, "level": level, **kw}, "runs": [{"t": text}] if text else []}
+def li(text, kind="bullet", level=0, style=None, **kw):
+    b = {"type": "p", "list": {"kind": kind, "level": level, **kw}, "runs": ([{"t": text}] if text else []) if isinstance(text, str) else (text or [])}
+    if style:
+        b["style"] = style
+    return b
 
 
 def table(cols, head, rows):
@@ -117,21 +120,36 @@ T["paper"] = {"label": "논문 · 리포트", "desc": "초록 · 서론 · 본�
                          p("3. 결론", "h1"), p("찾은 것과 한계, 다음 연구를 적습니다."),
                          p("참고 문헌", "h1"), li("지은이(연도). 제목. 펴낸 곳.", "number", first=0), li("지은이(연도). 제목. 펴낸 곳.", "number", first=0)]}
 
-T["study-guide"] = {"label": "해설지(지문 분석)", "desc": "지문 · 해석 · 어휘 · 요약 - 지문 하나에 한 쪽", "group": "study",
-                    "page": {"margin": {"t": 20, "r": 17, "b": 15, "l": 17}},
-                    "styles": {"body": {"name": "본문", "font": "body", "size": 9, "line": 1.7, "after": 3},
-                               "h1": {"name": "제목 1", "based": "body", "font": "title", "size": 12, "bold": True, "color": "accent", "before": 8, "after": 4, "next": "body"},
-                               "title": {"name": "문서 제목", "based": "h1", "size": 14, "color": "ink", "align": "center", "after": 6},
-                               "passage": {"name": "지문", "based": "body", "size": 10, "line": 2.6, "align": "justify"},
-                               "note": {"name": "설명", "based": "body", "size": 8, "color": "muted"}},
-                    "blocks": [p("1강 01  {title}", "title"), p("글의 흐름을 화살표로 한 줄에 적습니다 → 원인 → 결과", "note", align="center"),
-                               p("지문", "h1"),
-                               li("First sentence of the passage goes here.", "number", style="passage"), li("Second sentence of the passage goes here.", "number", style="passage"),
-                               li("Third sentence of the passage goes here.", "number", style="passage"),
-                               p("해석", "h1"), li("첫째 문장의 해석을 적습니다.", "number"), li("둘째 문장의 해석을 적습니다.", "number"), li("셋째 문장의 해석을 적습니다.", "number"),
-                               p("주제문", "h1"), p([{"t": "Topic sentence", "hl": "#fff59d"}, {"t": " 를 옮겨 적고 핵심어에 표시합니다."}]),
-                               p("핵심 요약", "h1"), p("글 전체를 두세 문장으로 요약합니다."),
-                               p("Words & Phrases", "h1"), table([34, 66], ["낱말 · 표현", "뜻"], [["", ""], ["", ""], ["", ""], ["", ""]])]}
+def layout(cols, cells, border="inner-v"):
+    """배치용 표 - 칸을 단처럼 쓴다(너비가 다른 2단). cells = 칸마다 블록 목록. Word 로는 테두리 없는 표로 나간다."""
+    return {"type": "table", "cols": cols, "border": border, "rows": [{"cells": [{"blocks": bs} for bs in cells]}]}
+
+
+R = lambda t, top: {"t": t, "ruby": top}  # noqa: E731 - 윗주(글 위의 문법 표시)
+
+T["study-guide"] = {"label": "해설지(지문 분석)", "desc": "왼쪽 지문(윗주로 문법 표시) · 오른쪽 해석·어휘 - 지문 하나에 한 쪽", "group": "study",
+                    "page": {"margin": {"t": 21, "r": 17, "b": 15, "l": 17},
+                             "header": {"blocks": [{"type": "p", "runs": [{"t": "{date}", "c": "muted"}, {"t": "  {title}", "b": True}]}]}},
+                    "styles": {"body": {"name": "본문", "font": "body", "size": 8, "line": 1.6, "after": 3},
+                               "h1": {"name": "제목 1", "based": "body", "font": "title", "size": 10, "bold": True, "color": "accent", "before": 6, "after": 3, "next": "body"},
+                               "title": {"name": "문서 제목", "based": "h1", "size": 12, "color": "ink", "align": "center", "before": 0, "after": 4},
+                               "passage": {"name": "지문", "based": "body", "size": 9, "line": 2.6, "align": "justify"},
+                               "note": {"name": "설명", "based": "body", "size": 7, "color": "muted"},
+                               "word": {"name": "어휘", "based": "body", "size": 7, "line": 1.4, "after": 1}},
+                    "blocks": [
+                        p([{"t": "1강 01  ", "c": "accent", "b": True}, {"t": "지문의 주제를 한 줄로 적습니다"}], "title"),
+                        p("글의 흐름을 화살표로 적습니다: 원인 → 과정 → 결과(∴ 글쓴이의 주장)", "note", align="center"),
+                        layout([67, 33], [
+                            [li([R("Professor Kim", "S"), {"t": " "}, R("observed", "V"), {"t": " "}, R("that", "접속사"), {"t": " the first sentence of the passage goes here."}], "number", style="passage"),
+                             li([{"t": "The second sentence goes here, and "}, {"t": "the key phrase", "hl": "#fff59d"}, {"t": " is highlighted."}], "number", style="passage"),
+                             li([{"t": "The third sentence of the passage goes here."}], "number", style="passage"),
+                             p("주제문", "h1"), p([{"t": "The key phrase", "c": "accent", "u": True}, {"t": " 를 옮겨 적습니다."}]),
+                             p("핵심 요약", "h1"), p("글 전체를 두세 문장으로 요약합니다.")],
+                            [p([{"t": "observe", "b": True}, {"t": " 관찰하다 · 준수하다"}], "word"), p([{"t": "regardless of", "b": True}, {"t": " ~과 상관없이"}], "word"), p(),
+                             li("첫째 문장의 해석을 적습니다.", "number"), li("둘째 문장의 해석을 적습니다.", "number"), li("셋째 문장의 해석을 적습니다.", "number"),
+                             p("Words & Phrases", "h1"), li("observe 관찰하다", "check", style="word"), li("opportunity 기회", "check", style="word"), li("disaster 재해", "check", style="word")],
+                        ]),
+                        table([25, 25, 25, 25], ["어원 · 파생어", "", "", ""], [["", "", "", ""]])]}
 
 T["worksheet"] = {"label": "문제지", "desc": "이름 칸 · 문항 · 보기 · 서술형 · 정답", "group": "study",
                   "page": {"margin": {"t": 20, "r": 18, "b": 18, "l": 18}, "number": {"show": True, "pos": "footer-center"}},
@@ -198,7 +216,10 @@ def load(name, title=None, date=None):
         return None
     t = {"name": name, **copy.deepcopy(src)}
     if title is not None:
-        t["blocks"] = _fill(t["blocks"], {"title": title, "date": date or dt.date.today().isoformat()})
+        vals = {"title": title, "date": date or dt.date.today().isoformat()}
+        t["blocks"] = _fill(t["blocks"], vals)
+        if t.get("page"):
+            t["page"] = _fill(t["page"], vals)  # 머리말·꼬리말 글의 자리도
     return t
 
 

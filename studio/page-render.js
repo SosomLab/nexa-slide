@@ -77,8 +77,10 @@
     if (block.list) { el.classList.add("pg-li"); el.dataset.marker = marker || ""; el.dataset.list = block.list.kind; if (block.list.done) el.classList.add("done"); }
   }
 
+  /** 표 테두리 종류의 클래스 - border: none(배치용, 테두리 없음) · inner-v(칸 사이 세로선만) */
+  const tableClass = (b) => (b.border === "none" ? " pg-noborder" : b.border === "inner-v" ? " pg-noborder pg-innerv" : "");
   function tableEl(doc, b, ctx) {
-    const d = (ctx && ctx.document) || document, t = d.createElement("table"); t.className = "pg-table";
+    const d = (ctx && ctx.document) || document, t = d.createElement("table"); t.className = "pg-table" + tableClass(b);
     const total = b.cols.reduce((a, c) => a + c, 0) || 1, cg = d.createElement("colgroup");
     for (const c of b.cols) { const col = d.createElement("col"); col.style.width = (c / total * 100).toFixed(3) + "%"; cg.appendChild(col); }
     t.appendChild(cg);
@@ -151,6 +153,11 @@
 .pg-table td, .pg-table th { border: .5pt solid #8a8a8a; padding: 3pt 5pt; vertical-align: top; text-align: left; font-weight: 400; }
 .pg-table tr.head th { background: #f0f0f0; font-weight: 700; }
 .pg-table .pg-p { margin: 0 !important; }
+.pg-table.pg-noborder td, .pg-table.pg-noborder th { border-color: transparent; padding: 0 6pt; }
+.pg-table.pg-noborder tr.head th { background: transparent; }
+.pg-table.pg-innerv td + td, .pg-table.pg-innerv th + th { border-left-color: #8a8a8a; }
+.pg-table.pg-noborder td:first-child, .pg-table.pg-noborder th:first-child { padding-left: 0; } .pg-table.pg-noborder td:last-child, .pg-table.pg-noborder th:last-child { padding-right: 0; }
+.pg-table.pg-noborder .pg-p { margin-bottom: 3pt !important; }
 .pg-image { margin: 6pt 0; }
 .pg-image img { max-width: 100%; }
 .pg-break { border-top: 1px dashed #b5b5b5; margin: 8pt 0; height: 0; position: relative; break-after: page; }
@@ -162,5 +169,5 @@
 `;
   function injectCss(d) { d = d || document; if (d.getElementById("pg-css")) return; const s = d.createElement("style"); s.id = "pg-css"; s.textContent = CSS; d.head.appendChild(s); }
 
-  root.NexaPage = { SIZES, LIST_INDENT, pageBox, styleOf, numberLabel, markers, blockCss, decorate, tableGrid, blockEl, renderInto, CSS, injectCss };
+  root.NexaPage = { SIZES, LIST_INDENT, pageBox, styleOf, numberLabel, markers, blockCss, decorate, tableGrid, tableClass, blockEl, renderInto, CSS, injectCss };
 })(typeof window !== "undefined" ? window : globalThis);

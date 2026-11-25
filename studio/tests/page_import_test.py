@@ -114,6 +114,17 @@ check("글 상자 - 글을 문단으로 꺼낸다(한 번만 · 순서)", texts 
 check("글 상자 - 안의 서식 유지", tb["blocks"][2]["runs"] == [{"t": "둘째 줄", "b": True}], tb["blocks"][2])
 check("글 상자·떠 있는 도형 - 경고", any("글 상자" in w for w in tw) and any("떠 있는" in w for w in tw), tw)
 
+# 배치용 표(테두리 없음 · 칸 사이 세로선만) 왕복
+for kind in ("none", "inner-v"):
+    lay = P.normalize({"id": "l", "title": "t", "kind": "page", "blocks": [{"id": "t", "type": "table", "cols": [67, 33], "border": kind, "rows": [{"id": "r", "cells": [
+        {"id": "a", "blocks": [{"id": "pa", "type": "p", "runs": [{"t": "왼쪽", "ruby": "S"}]}]}, {"id": "b", "blocks": [{"id": "pb", "type": "p", "list": {"kind": "number", "level": 0}, "runs": [{"t": "오른쪽"}]}]}]}]}]})
+    xml = zipfile.ZipFile(io.BytesIO(X.build(lay))).read("word/document.xml").decode("utf-8")
+    back, _, _ = I.read(X.build(lay), doc_id="lb")
+    tb2 = back["blocks"][0]
+    check(f"배치용 표 {kind} - DOCX 테두리·왕복", ('<w:top w:val="nil"/>' in xml) and (('<w:insideV w:val="single"' in xml) == (kind == "inner-v")) and tb2.get("border") == kind
+          and tb2["rows"][0]["cells"][0]["blocks"][0]["runs"] == [{"t": "왼쪽", "ruby": "S"}] and tb2["rows"][0]["cells"][1]["blocks"][0].get("list", {}).get("kind") == "number" and [round(c) for c in tb2["cols"]] == [67, 33], tb2)
+check("표 border 값 검사", "border" in (P.validate({**P.normalize({"kind": "page", "blocks": []}), "blocks": [{"id": "t", "type": "table", "cols": [1], "border": "dotted", "rows": [{"id": "r", "cells": [{"id": "c", "blocks": []}]}]}]}) or ""))
+
 # 거절
 for bad_name, payload in (("zip 이 아님", b"not a zip"), ("docx 가 아닌 zip", (lambda: (lambda bio: (zipfile.ZipFile(bio, "w").writestr("a.txt", "x"), bio.getvalue())[1])(io.BytesIO()))())):
     try:
