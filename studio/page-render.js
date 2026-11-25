@@ -98,6 +98,23 @@
     t.appendChild(body);
     return t;
   }
+  /** 표의 칸이 놓인 격자 열 번호 - 행마다 [{c: 칸, col: 시작 열}]. 위에서 내려온 세로 병합(rowspan)이 차지한 열은 건너뛴다(export_docx.py 의 표 배치와 같은 규칙) */
+  function tableGrid(t) {
+    const busy = {}, out = [];  // busy[열] = 그 열이 위의 칸에 잡혀 있는 남은 행 수
+    for (const row of t.rows || []) {
+      const line = []; let col = 0;
+      for (const c of row.cells || []) {
+        while (busy[col] > 0) col++;
+        line.push({ c, col });
+        const span = c.colspan > 1 ? c.colspan : 1;
+        if (c.rowspan > 1) for (let k = 0; k < span; k++) busy[col + k] = c.rowspan;  // 이 행 것까지 센다(아래에서 1 뺀다)
+        col += span;
+      }
+      for (const k of Object.keys(busy)) if (busy[k] > 0) busy[k]--;
+      out.push(line);
+    }
+    return out;
+  }
   /** 글이 아닌 블록의 요소 - 표 · 그림 · 나누기 */
   function blockEl(doc, b, ctx = {}) {
     const d = ctx.document || document; let el;
@@ -143,5 +160,5 @@
 `;
   function injectCss(d) { d = d || document; if (d.getElementById("pg-css")) return; const s = d.createElement("style"); s.id = "pg-css"; s.textContent = CSS; d.head.appendChild(s); }
 
-  root.NexaPage = { SIZES, LIST_INDENT, pageBox, styleOf, numberLabel, markers, blockCss, decorate, blockEl, renderInto, CSS, injectCss };
+  root.NexaPage = { SIZES, LIST_INDENT, pageBox, styleOf, numberLabel, markers, blockCss, decorate, tableGrid, blockEl, renderInto, CSS, injectCss };
 })(typeof window !== "undefined" ? window : globalThis);

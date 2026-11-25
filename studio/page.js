@@ -229,6 +229,37 @@
     if (!S.deck.blocks.some(T.isText)) S.deck.blocks.push(newPara());
     cur = ed; ed.refresh(); afterChange();
   }
+  const tableGrid = (t) => P.tableGrid(t);  // 칸이 놓인 격자 열 번호(page-render.js)
+  const spanOf = (c) => [c.colspan > 1 ? c.colspan : 1, c.rowspan > 1 ? c.rowspan : 1];
+  /** 합칠 수 있는 이웃 - 오른쪽(같은 행의 다음 칸, 세로 크기가 같고 맞닿음) · 아래(바로 아래 행에서 같은 열·같은 너비로 시작하는 칸) */
+  function mergeTargets(t, ri, ci) {
+    const g = tableGrid(t), me = g[ri][ci], [cs, rs] = spanOf(me.c);
+    const right = g[ri][ci + 1] && g[ri][ci + 1].col === me.col + cs && spanOf(g[ri][ci + 1].c)[1] === rs ? ci + 1 : -1;
+    const below = g[ri + rs] ? g[ri + rs].findIndex((x) => x.col === me.col && spanOf(x.c)[0] === cs) : -1;
+    return { right, below, belowRow: ri + rs, cs, rs };
+  }
+  function mergeCell(tid, ri, ci, dir) {
+    changeTable(tid, (x) => {
+      const m = mergeTargets(x, ri, ci), c = x.rows[ri].cells[ci];
+      const take = (o) => { const add = (o.blocks || []).filter((b) => !(T.isText(b) && !b.runs.length)); c.blocks = [...(c.blocks || []).filter((b, k, a) => a.length === 1 || !(T.isText(b) && !b.runs.length) || add.length === 0), ...add]; if (!c.blocks.length) c.blocks = [newPara()]; };
+      if (dir === "right" && m.right >= 0) { const o = x.rows[ri].cells[m.right]; c.colspan = m.cs + spanOf(o)[0]; take(o); x.rows[ri].cells.splice(m.right, 1); }
+      else if (dir === "below" && m.below >= 0) { const o = x.rows[m.belowRow].cells[m.below]; c.rowspan = m.rs + spanOf(o)[1]; take(o); x.rows[m.belowRow].cells.splice(m.below, 1); }
+      return x;
+    });
+  }
+  /** 합친 칸을 다시 나눈다 - 가로는 그 행에, 세로는 아래 행들의 제 열 자리에 빈 칸을 넣는다 */
+  function splitCell(tid, ri, ci) {
+    changeTable(tid, (x) => {
+      const g = tableGrid(x), me = g[ri][ci], [cs, rs] = spanOf(me.c), c = x.rows[ri].cells[ci];
+      delete c.colspan; delete c.rowspan;
+      x.rows[ri].cells.splice(ci + 1, 0, ...Array.from({ length: cs - 1 }, newCell));
+      for (let r = 1; r < rs; r++) {
+        const line = g[ri + r] || [], at = line.filter((y) => y.col < me.col).length;  // 그 행에서 이 열보다 앞에 있는 칸 수 = 끼워 넣을 자리
+        x.rows[ri + r].cells.splice(at, 0, ...Array.from({ length: cs }, newCell));
+      }
+      return x;
+    });
+  }
   function tableMenu(tid, cid, at) {
     const t = blockAt(tid); if (!t) return;
     const ri = t.rows.findIndex((r) => r.cells.some((c) => c.id === cid)), ci = ri < 0 ? -1 : t.rows[ri].cells.findIndex((c) => c.id === cid); if (ri < 0) return;
@@ -240,6 +271,9 @@
       { label: "왼쪽에 열 넣기", disabled: !plain, act: () => addCol(0) }, { label: "오른쪽에 열 넣기", disabled: !plain, act: () => addCol(1) }, "-",
       { label: "행 지우기", disabled: t.rows.length < 2, act: () => changeTable(tid, (x) => { x.rows.splice(ri, 1); return x; }) },
       { label: "열 지우기", disabled: !plain || t.cols.length < 2, act: () => changeTable(tid, (x) => { x.cols.splice(ci, 1); for (const r of x.rows) r.cells.splice(ci, 1); return x; }) }, "-",
+      { label: "오른쪽 칸과 합치기", disabled: mergeTargets(t, ri, ci).right < 0, act: () => mergeCell(tid, ri, ci, "right") },
+      { label: "아래 칸과 합치기", disabled: mergeTargets(t, ri, ci).below < 0, act: () => mergeCell(tid, ri, ci, "below") },
+      { label: "칸 나누기", disabled: !(t.rows[ri].cells[ci].colspan > 1 || t.rows[ri].cells[ci].rowspan > 1), act: () => splitCell(tid, ri, ci) }, "-",
       { label: "머리글 행", on: !!t.rows[ri].head, act: () => changeTable(tid, (x) => { if (x.rows[ri].head) delete x.rows[ri].head; else x.rows[ri].head = true; return x; }) },
       { label: "칸 채우기(회색)", on: !!t.rows[ri].cells[ci].fill, act: () => changeTable(tid, (x) => { const c = x.rows[ri].cells[ci]; if (c.fill) delete c.fill; else c.fill = "#eeeeee"; return x; }) }, "-",
       { label: "표 지우기", act: () => changeTable(tid, () => null) },
