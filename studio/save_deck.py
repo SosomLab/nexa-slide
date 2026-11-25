@@ -43,6 +43,12 @@ def load_new(src):
     if deck.get("kind") == "sheet" and not (isinstance(deck.get("sheets"), list) and deck["sheets"]
                                             and all(isinstance(t, dict) and t.get("id") and isinstance(t.get("cells", {}), dict) for t in deck["sheets"])):
         sys.exit("시트 형식이 아니다(sheets 목록, 탭마다 id·cells 필요 - docs/sheets.md)")
+    if deck.get("kind") == "page":  # 페이지 문서 - 서버와 같은 검사(블록 종류 · id 중복 · 스타일 · 쪽 설정)
+        import page_doc
+        e = page_doc.validate(page_doc.normalize(deck))
+        if e:
+            sys.exit("페이지 형식이 아니다 - " + e)
+        deck = page_doc.normalize(deck)  # 빠진 id 를 채우고 글 조각을 합친다(새로 넣은 문단에 id 를 안 줘도 된다)
     return deck
 
 
