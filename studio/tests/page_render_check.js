@@ -30,5 +30,13 @@ const ctx = { font: (f) => "F:" + f, color: (c) => "C:" + c };
 eq("문단 CSS - 제목(상속·굵게·간격)", P.blockCss(doc, { style: "h2", align: "center" }, ctx), { fontFamily: "F:body", fontSize: "15pt", fontWeight: "700", lineHeight: "1.6", marginTop: "12pt", marginBottom: "6pt", textAlign: "center" });
 eq("문단 CSS - 목록 들여쓰기(단계마다)", [P.blockCss(doc, L("q", "bullet", 0)).paddingLeft, P.blockCss(doc, L("q", "bullet", 2)).paddingLeft, P.blockCss(doc, { indent: 10, list: { kind: "number", level: 1 } }).paddingLeft], ["6mm", "18mm", "22mm"]);
 eq("문단 CSS - 본문 기본", P.blockCss(doc, {}), { fontFamily: "body", fontSize: "10.5pt", lineHeight: "1.6", marginTop: "0pt", marginBottom: "6pt" });
+// 표 격자 - 가로·세로 병합이 있을 때 칸의 시작 열
+const C = (id, colspan, rowspan) => ({ id, ...(colspan ? { colspan } : {}), ...(rowspan ? { rowspan } : {}) });
+const cols = (t) => P.tableGrid(t).map((row) => row.map((x) => `${x.c.id}@${x.col}`).join(" "));
+eq("표 격자 - 병합 없음", cols({ rows: [{ cells: [C("a"), C("b"), C("c")] }, { cells: [C("d"), C("e"), C("f")] }] }), ["a@0 b@1 c@2", "d@0 e@1 f@2"]);
+eq("표 격자 - 가로 병합", cols({ rows: [{ cells: [C("a", 2), C("b")] }, { cells: [C("c"), C("d"), C("e")] }] }), ["a@0 b@2", "c@0 d@1 e@2"]);
+eq("표 격자 - 세로 병합(맨 앞 열)", cols({ rows: [{ cells: [C("a", 0, 2), C("b"), C("c")] }, { cells: [C("d"), C("e")] }, { cells: [C("f"), C("g"), C("h")] }] }), ["a@0 b@1 c@2", "d@1 e@2", "f@0 g@1 h@2"]);
+eq("표 격자 - 세로 병합(가운데 열 · 3행)", cols({ rows: [{ cells: [C("a"), C("b", 0, 3), C("c")] }, { cells: [C("d"), C("e")] }, { cells: [C("f"), C("g")] }, { cells: [C("h"), C("i"), C("j")] }] }), ["a@0 b@1 c@2", "d@0 e@2", "f@0 g@2", "h@0 i@1 j@2"]);
+eq("표 격자 - 가로·세로 함께(2×2 칸)", cols({ rows: [{ cells: [C("a", 2, 2), C("b")] }, { cells: [C("c")] }, { cells: [C("d"), C("e"), C("f")] }] }), ["a@0 b@2", "c@2", "d@0 e@1 f@2"]);
 console.log(fails ? `\n실패 ${fails}` : `\n전부 통과 (${n}사례)`);
 process.exit(fails ? 1 : 0);

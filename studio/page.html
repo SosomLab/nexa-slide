@@ -42,6 +42,8 @@
   .pg-table td, .pg-table th { cursor: text; } .pg-cell { outline: none; min-height: 1.4em; }
   .pg-table td:focus-within, .pg-table th:focus-within { box-shadow: inset 0 0 0 1.5px var(--accent); }
   .pg-image img { cursor: pointer; } .pg-image.sel img { outline: 2px solid var(--accent); outline-offset: 2px; }
+  #findBar { position: fixed; top: 92px; right: 24px; z-index: 40; background: #fff; border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 8px 24px rgba(0,0,0,.14); padding: 8px; display: flex; gap: 6px; align-items: center; }
+  #findBar input { font: inherit; padding: 4px 8px; border: 1px solid var(--line); border-radius: 6px; width: 150px; }
   .dlg-back { position: fixed; inset: 0; background: rgba(0,0,0,.35); z-index: 80; display: flex; align-items: center; justify-content: center; }
   .dlg { background: #fff; border-radius: 12px; box-shadow: 0 18px 60px rgba(0,0,0,.3); width: min(520px, calc(100vw - 32px)); padding: 16px 20px; }
   .dlg h3 { margin: 0 0 10px; font-size: 16px; }
@@ -55,7 +57,7 @@
   .menu { position: fixed; z-index: 60; background: #fff; border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,.14); padding: 4px; min-width: 160px; }
   .menu button { display: flex; gap: 8px; width: 100%; border: 0; background: transparent; padding: 6px 10px; font: inherit; text-align: left; border-radius: 6px; cursor: pointer; }
   .menu button:hover { background: #f4f2ee; } .menu hr { border: 0; border-top: 1px solid var(--line); margin: 4px 0; } .menu .h { padding: 4px 10px; color: var(--muted); font-size: 11px; } .menu .k { margin-left: auto; color: var(--muted); }
-  @media print { header, #tools, #banner, #toast, #pagelines, .pg-hf, .dlg-back { display: none !important; } #paper { padding: 0 !important; width: auto !important; min-height: 0 !important; } #scroll { padding: 0; overflow: visible; } #paper { box-shadow: none; } body { background: #fff; } }
+  @media print { header, #tools, #banner, #toast, #pagelines, .pg-hf, .dlg-back, #findBar { display: none !important; } #paper { padding: 0 !important; width: auto !important; min-height: 0 !important; } #scroll { padding: 0; overflow: visible; } #paper { box-shadow: none; } body { background: #fff; } }
 </style>
 </head>
 <body>
@@ -74,6 +76,7 @@
   <button class="btn" data-act="redo" title="다시 실행 (Ctrl+Y)">↷</button>
   <span class="sep"></span>
   <select id="selStyle" title="문단 스타일"></select>
+  <select id="selFont" title="글꼴"><option value="">글꼴</option><option value="body">본문 글꼴</option><option value="title">제목 글꼴</option><option value="mono">고정폭</option></select>
   <select id="selSize" title="글자 크기"><option value="">크기</option><option>8</option><option>9</option><option>10</option><option>10.5</option><option>11</option><option>12</option><option>14</option><option>16</option><option>18</option><option>20</option><option>24</option><option>28</option><option>36</option></select>
   <span class="sep"></span>
   <button class="btn" data-mark="b" title="굵게 (Ctrl+B)"><b>가</b></button>
@@ -84,12 +87,15 @@
   <button class="btn" data-mark="sub" title="아래 첨자">x₂</button>
   <input type="color" id="inColor" value="#c8553d" title="글자색"><button class="btn" data-act="color" title="글자색 적용">가</button>
   <input type="color" id="inHl" value="#fff59d" title="형광펜 색"><button class="btn" data-act="hl" title="형광펜">▍</button>
+  <button class="btn" data-act="link" title="링크 걸기·풀기 (Ctrl+K)">🔗</button>
+  <button class="btn" data-act="ruby" title="윗주 - 고른 글 위에 작은 글(읽는 법·뜻·문법 표시). Word 의 윗주로 나갑니다">윗주</button>
   <button class="btn" data-act="clear" title="서식 지우기">⌫</button>
   <span class="sep"></span>
   <button class="btn" data-align="left" title="왼쪽 맞춤">⇤</button>
   <button class="btn" data-align="center" title="가운데 맞춤">↔</button>
   <button class="btn" data-align="right" title="오른쪽 맞춤">⇥</button>
   <button class="btn" data-align="justify" title="양쪽 맞춤">☰</button>
+  <select id="selLine" title="줄 간격"><option value="">줄 간격</option><option>1</option><option>1.15</option><option>1.5</option><option>1.6</option><option>1.8</option><option>2</option><option>2.5</option><option>3</option></select>
   <span class="sep"></span>
   <button class="btn" data-list="bullet" title="글머리 기호">•</button>
   <button class="btn" data-list="number" title="번호 매기기">1.</button>
@@ -102,9 +108,15 @@
   <input type="file" id="inImage" accept="image/png,image/jpeg,image/gif" hidden>
   <button class="btn" data-act="break" title="쪽 나누기 (Ctrl+Enter)">쪽 나누기</button>
   <button class="btn" data-act="setup" title="용지 · 여백 · 방향 · 머리말 · 꼬리말 · 쪽 번호">쪽 설정</button>
+  <button class="btn" data-act="find" title="찾기 · 바꾸기 (Ctrl+F)">찾기</button>
 </div>
 <div id="banner"><span id="bannerMsg"></span><button class="btn" id="bnMine">내 것으로 덮어쓰기</button><button class="btn" id="bnTheirs">밖의 것 다시 읽기</button></div>
 <div id="scroll"><div id="paper"><div id="pagelines"></div><div id="pgHeader" class="pg-hf"></div><div id="ed"></div><div id="pgFooter" class="pg-hf"></div></div></div>
+<div id="findBar" style="display:none">
+  <input type="text" id="fdFind" placeholder="찾을 글" spellcheck="false"><input type="text" id="fdRepl" placeholder="바꿀 글" spellcheck="false">
+  <span id="fdInfo" class="chip"></span>
+  <button class="btn" id="fdNext" title="다음 (Enter)">다음</button><button class="btn" id="fdOne">바꾸기</button><button class="btn" id="fdAll">모두 바꾸기</button><button class="btn" id="fdClose" title="닫기 (Esc)">✕</button>
+</div>
 <div id="toast"></div>
 <script src="nexa-kinds.js"></script>
 <script src="nexa-newdoc.js"></script>
