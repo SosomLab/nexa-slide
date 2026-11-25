@@ -155,6 +155,25 @@ def new_sheet(ws, cfg, deck, title, theme=None):
     return [deck]
 
 
+def new_page(ws, cfg, deck, title, template=None):
+    """첫 문서를 페이지로(--kind page) - deck_admin 으로 decks/<deck>.json 페이지 문서(템플릿이면 그 본문)를 만들고 시작 덱으로 정한다.
+    페이지는 아직 실험 기능이라 이 작업 공간의 nexa-slide.json 에 experimental.page 를 켠다(docs/dev/page-editor/decisions.md DR-P11)."""
+    cp = ws / "nexa-slide.json"
+    c = json.loads(cp.read_text(encoding="utf-8"))
+    c["experimental"] = {**(c.get("experimental") or {}), "page": True}
+    if not c.get("startDeck"):
+        c["startDeck"] = deck
+    cp.write_text(json.dumps(c, ensure_ascii=False, indent=2) + "\n", encoding="utf-8", newline="\n")
+    p = ws / cfg.get("decks", "decks") / f"{deck}.json"
+    if not p.exists():
+        env = {**os.environ, "NEXA_SLIDE_WORKSPACE": str(ws), "PYTHONIOENCODING": "utf-8"}
+        r = subprocess.run([sys.executable, str(ENGINE / "studio" / "deck_admin.py"), "create", deck, "--kind", "page", "--title", title] + (["--theme", template] if template else []),
+                           cwd=str(ws), env=env, capture_output=True)
+        if r.returncode:
+            sys.exit(f"페이지 문서를 만들지 못했다: {(r.stderr or r.stdout).decode('utf-8', 'replace').strip()[-300:]}")
+    return [deck]
+
+
 def ask_draft(ws, cfg, deck):
     """세션에 보낼 첫 요청 - 브리프로 초안 쓰기(대기 상태라 세션이 연결되면 전달된다)."""
     d = ws / cfg.get("decks", "decks")
@@ -761,7 +780,8 @@ def main():
     ap.add_argument("--port", help="포트 번호 또는 auto(기본 — 빈 포트를 고른다)")
     ap.add_argument("--template", help="디자인 템플릿(기본: 시작용 교안이 정한 것, 없으면 lecture)")
     ap.add_argument("--deck", default="intro")
-    ap.add_argument("--kind", choices=("deck", "sheet"), default="deck", help="첫 문서 종류 - sheet 면 시작용 내용 없이 빈 시트(docs/sheets.md)")
+    ap.add_argument("--kind", choices=("deck", "sheet", "page"), default="deck", help="첫 문서 종류 - sheet 면 시작용 내용 없이 빈 시트(docs/sheets.md), page 면 페이지 문서(Word 형, 실험 기능)")
+    ap.add_argument("--page-template", help="페이지 템플릿(studio/page_templates.py - report·minutes·study-guide …), 없으면 빈 문서")
     ap.add_argument("--sheet-theme", help="시트 테마 - 첫 시트를 이 테마의 페이지로(엔진 studio/sheet_themes 또는 --sheet-theme-from 작업 공간의 테마를 복사)")
     ap.add_argument("--sheet-import", help="첫 시트를 이 엑셀 파일(.xlsx·.xlsm)에서 - 값·수식·서식·그림·매크로까지(sheet_import.py)")
     ap.add_argument("--pptx-import", help="첫 덱을 이 PowerPoint 파일(.pptx)에서 - 글·글머리·표·그림·차트·도형(import_pptx.py --deck). 시작용 내용 대신")
@@ -794,8 +814,13 @@ def main():
             sys.exit("--kind sheet 에는 시작용 교안(--starter)을 쓸 수 없다")
         if a.deck == "intro":
             a.deck = "sheet"
+    if a.kind == "page":
+        if a.starter:
+            sys.exit("--kind page 에는 시작용 교안(--starter)을 쓸 수 없다")
+        if a.deck == "intro":
+            a.deck = "doc"
     if a.pptx_import:
-        if a.kind == "sheet" or a.starter:
+        if a.kind in ("sheet", "page") or a.starter:
             sys.exit("--pptx-import 는 슬라이드 덱에만, 시작용 교안(--starter) 없이 쓴다")
         if not Path(a.pptx_import).is_file():
             sys.exit(f"없는 파일: {a.pptx_import}")
@@ -872,7 +897,7 @@ def main():
                     else:
                         shutil.copy2(src, dst)
                     made.append(rel(dst, top))
-    elif a.kind != "sheet" and not a.pptx_import:  # 시트는 content 원본 없이 decks/ 에 바로 만든다(아래 new_sheet) · PPT 로 시작하면 가져온 덱이 첫 덱
+    elif a.kind not in ("sheet", "page") and not a.pptx_import:  # 시트는 content 원본 없이 decks/ 에 바로 만든다(아래 new_sheet) · PPT 로 시작하면 가져온 덱이 첫 덱
         write(ws / "content" / f"{a.deck}.json", json.dumps(starter(a.deck, cfg.get("title", ws.name)), ensure_ascii=False, indent=1) + "\n")
     write(ws / "fonts" / "README.md", FONTS_README)
     write(ws / ".gitignore", GITIGNORE)
@@ -918,7 +943,7 @@ def main():
         shutil.rmtree(tmp.parent, ignore_errors=True)
         out = (r.stdout or b"").decode("utf-8", "replace").strip() or (r.stderr or b"").decode("utf-8", "replace").strip()[-300:]
         print(("  " if r.returncode == 0 else "  PPT 가져오기 실패: ") + out.splitlines()[-1] if out else "")
-    built = new_sheet(ws, cfg, a.deck, cfg.get("title", ws.name), a.sheet_theme) if a.kind == "sheet" else build_decks(ws, cfg) if a.build or a.ask_draft else []
+    built = new_page(ws, cfg, a.deck, cfg.get("title", ws.name), a.page_template) if a.kind == "page" else new_sheet(ws, cfg, a.deck, cfg.get("title", ws.name), a.sheet_theme) if a.kind == "sheet" else build_decks(ws, cfg) if a.build or a.ask_draft else []
     if a.pptx_import and (ws / cfg.get("decks", "decks") / f"{a.deck}.json").is_file() and a.deck not in built:
         built.insert(0, a.deck)
     if a.ask_draft and built:

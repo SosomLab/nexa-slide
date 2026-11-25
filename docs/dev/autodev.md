@@ -56,6 +56,28 @@
 - **한 화면 보기** `python studio/devstatus.py [--watch]`: 작업판 + nexa-slide 프로세스(PID · 시작 · 트리) + worktree 별 브랜치·앞/뒤·미커밋 + 시험 잠금 + 마지막 검증 요약.
 - 상태를 묻는 대화(폴링)는 쓰지 않는다. 예외 = 이 PC 밖의 작업자(원격·클라우드) - 맡긴 세션이 10분마다 진행 증거를 확인해 적는다.
 
+## 6-1. 권한 창에 걸리지 않는다 (사용자 지시 2026-11-26 - "스크립트 실행이 자동화되도록, 협업이 정체되면 안 된다")
+
+무인 진행 중 세션이 **권한 승인 창**에서 멈추면 아무도 눌러 주지 않는다(2026-11-26 01시: 협업 세션이 20분 넘게 `waiting` 으로 멈춰 main 병합·화면 시험이 모두 밀렸다). 그래서:
+
+1. **허용된 꼴의 명령만 쓴다.** 허용·금지 목록 = 저장소 main 트리의 `.claude/settings.json`(git 에는 없다 - 새 PC 에서는 아래 "설치"대로 만든다).
+   허용: `git`(읽기·add·commit·merge·pull·push origin·worktree) · `python`/`node`/`pwsh` 로 스크립트 실행 · 읽기 명령(ls·grep·sed·head·tail·cat·diff·find) · `mkdir`·`cp`·`mv`·`rm -f <파일>` · PowerShell 의 Get-*·Test-Path·Select-String.
+   금지(창이 뜨지 않고 **바로 거절**된다 - 멈추지 않는다): 강제 push · `reset --hard` · `git clean` · `branch -D` · `rm -r` · `Remove-Item` · `Stop-Process` · 운영 서버 재시작·중지 · `engine_deploy`.
+2. **일은 진입점 스크립트로 한다.** 검증 = `python studio/tests/verify.py --level …` · 작업판 = `python studio/devboard.py …` · 상태 = `python studio/devstatus.py`. 여러 단계를 셸에서 이어 붙이지 않는다 -
+   새 종류의 일을 두 번째 만나면 스크립트(파이썬)로 만들어 진입점에 넣는다. 파일·폴더 지우기, 프로세스 끝내기, 임시 폴더는 **파이썬 안에서**(`tmpfiles.py` · `procutil.py`) 한다 - 셸의 `rm -r`·`taskkill`·`Stop-Process` 를 쓰지 않는다.
+3. **명령은 단순한 꼴로.** 긴 여기 문서(heredoc)·여러 줄 `python -c`·`$(…)` 가 섞인 한 줄은 안전 검사가 해석하지 못해 창을 띄우거나 거절한다 - 스크립트는 파일로 쓰고(Write) `python <파일>` 로 부른다.
+   환경 변수는 스크립트 인자나 `NEXA_…=값 python …` 꼴로만. 목록에 없는 도구(`curl` 로 바깥 주소 · `npm install` · `pip install` 등)가 필요하면 4번으로.
+4. **창이 뜰 일은 하지 않고 넘긴다.** 허용 목록 밖의 명령이 꼭 필요하면 실행하지 말고 STATUS "결정 대기"에 `무엇을 · 왜 · 대신 한 것` 을 적은 뒤 다음 일로 간다. 같은 종류가 두 번 나오면 개발 세션이 허용 목록이나 스크립트를 고친다.
+5. **세션 권한 방식.** 무인으로 돌 세션은 편집 자동 승인 방식(`acceptEdits`, settings 의 `defaultMode`)으로 띄운다. 이미 떠 있는 세션은 사용자가 그 창에서 방식을 바꿔 줘야 한다(다른 세션이 대신 바꿀 수 없다).
+
+**정체 감지와 대체**(마스터 = 개발 세션의 몫):
+- 일을 맡긴 뒤 **10분마다** 작업판(`out/status/now.md`)의 그 줄을 본다 - 단계가 넘어갔는지 · 산출물(커밋·요약 파일)이 늘었는지. `ListAgents` 의 상태가 `waiting` 이면 승인 창에 걸린 것이다.
+- **두 번 연속(20분) 진행이 없으면** 기다리지 않는다: ① 사용자에게 한 줄로 알리고 ② 같은 일을 **Opus 서브에이전트**에게 새 worktree 에서 맡긴다(브라우저 시험은 `tests/testlock.py` 가 겹치지 않게 막는다) ③ 작업판에 `alert` 로 남긴다.
+  멈춘 세션의 worktree 와 미커밋 파일은 건드리지 않는다(읽기만) - 돌아오면 그쪽이 이어서 한다.
+- 맡기는 메시지에는 늘 "허용된 꼴의 명령만 · 창이 뜰 일은 건너뛰고 사유를 보고" 를 넣는다.
+
+**설치(새 PC · 새 worktree 에서 세션을 띄울 때)**: main 트리 `.claude/settings.json` 을 세션을 띄우는 폴더의 `.claude/` 에 복사한다(없으면 이 절의 허용·금지 목록대로 만든다 - `.gitignore` 대상이라 저장소에는 없다).
+
 ## 7. 병합 (nexa-slide 방식)
 
 1. 작업 브랜치에서 커밋 - 메시지에 `<ID>`, 자기 파일만 경로를 지정(`git commit -- <파일>…`), 커밋 전 `git status --short` 로 낯선 파일 확인.
