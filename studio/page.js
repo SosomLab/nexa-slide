@@ -246,6 +246,47 @@
     const first = document.querySelector(`[data-id="${tb.id}"] .pg-cell`); if (first) first.focus();
   }
 
+  // ---------------------------------------------------------------- 그림 - 글자처럼 놓인 블록(가운데·왼쪽·오른쪽). Word 로 나갈 수 있는 png·jpg·gif 만
+  /** 블록 뒤에 넣는다 - 선택이 있는 문단 뒤(없으면 맨 끝). 그림·표 뒤에 칠 자리가 없으면 빈 문단을 붙인다 */
+  function insertAfterSel(block) {
+    const s = ed.selection(), i = s ? blocks().findIndex((b) => b.id === s.f.id) : blocks().length - 1;
+    snapshot("format");
+    const tailP = blocks()[i + 1] && T.isText(blocks()[i + 1]) ? [] : [newPara()];
+    S.deck.blocks = [...blocks().slice(0, i + 1), block, ...tailP, ...blocks().slice(i + 1)];
+    ed.refresh(); afterChange();
+  }
+  async function insertImage(file) {
+    if (!file) return;
+    if (!/^image\/(png|jpeg|gif)$/.test(file.type)) { toast("png · jpg · gif 그림만 넣을 수 있습니다"); return; }
+    const dataUrl = await new Promise((res, rej) => { const fr = new FileReader(); fr.onload = () => res(fr.result); fr.onerror = rej; fr.readAsDataURL(file); });
+    const size = await new Promise((res) => { const im = new Image(); im.onload = () => res([im.naturalWidth, im.naturalHeight]); im.onerror = () => res([0, 0]); im.src = dataUrl; });
+    const r = await api("POST", "/api/image", { name: file.name, type: file.type, data: String(dataUrl).split(",")[1] || "" });
+    if (!r.ok || !r.data || !r.data.src) { toast("그림을 올리지 못했습니다: " + ((r.data && r.data.error) || r.status), 6000); return; }
+    const w = Math.min(S.box.cw, Math.max(10, Math.round((size[0] || 400) * 25.4 / 96)));  // 원래 크기(96dpi 기준 mm), 본문 너비를 넘지 않게
+    insertAfterSel({ id: rid("i"), type: "image", src: r.data.src, w });
+  }
+  /** 그림·나누기 같은 블록을 바꾼다 - fn(블록 사본) → 새 블록(null 이면 지운다) */
+  function changeBlock(id, fn) {
+    const i = blocks().findIndex((b) => b.id === id); if (i < 0) return;
+    snapshot("format");
+    const next = fn({ ...blocks()[i] });
+    S.deck.blocks = next ? blocks().map((b, k) => (k === i ? next : b)) : blocks().filter((_, k) => k !== i);
+    if (!S.deck.blocks.some(T.isText)) S.deck.blocks.push(newPara());
+    S.pick = next ? id : null; ed.refresh(); afterChange(); markPick();
+  }
+  function markPick() { for (const el of $$("#ed > .nt-obj")) el.classList.toggle("sel", el.dataset.id === S.pick); }
+  function imageMenu(id, at) {
+    const b = blockAt(id); if (!b) return;
+    const width = (f) => changeBlock(id, (x) => ({ ...x, w: Math.max(10, Math.min(S.box.cw, Math.round(f(x.w || 60)))) }));
+    const align = (a) => changeBlock(id, (x) => { const y = { ...x }; if (a === "center") delete y.align; else y.align = a; return y; });
+    openMenu(at, [{ h: `그림 · 너비 ${Math.round(b.w || 0)}mm` },
+      { label: "작게 (-20%)", act: () => width((w) => w * 0.8) }, { label: "크게 (+25%)", act: () => width((w) => w * 1.25) },
+      { label: "본문 너비에 맞춤", act: () => width(() => S.box.cw) }, { label: "본문 너비의 절반", act: () => width(() => S.box.cw / 2) }, "-",
+      { label: "왼쪽", on: b.align === "left", act: () => align("left") }, { label: "가운데", on: !b.align || b.align === "center", act: () => align("center") }, { label: "오른쪽", on: b.align === "right", act: () => align("right") }, "-",
+      { label: "설명(캡션)…", act: () => { const t = prompt("그림 설명", b.caption || ""); if (t === null) return; changeBlock(id, (x) => { const y = { ...x }; if (t.trim()) y.caption = t.trim(); else delete y.caption; return y; }); } },
+      { label: "그림 지우기", key: "Del", act: () => changeBlock(id, () => null) }]);
+  }
+
   function insertBreak() {
     const s = ed.selection(); if (!s) return;
     const i = blocks().findIndex((b) => b.id === s.f.id); if (i < 0) return;
@@ -278,10 +319,10 @@
       const now = cur || ed, body = now === ed;  // 표 칸 안에서는 글자 서식·정렬만(목록·들여쓰기·쪽 나누기는 본문에서)
       if (b.dataset.mark) now.toggle(b.dataset.mark);
       else if (b.dataset.align) now.blockAttrs({ align: b.dataset.align === "left" ? null : b.dataset.align });
-      else if (!body && (b.dataset.list || ["indent", "outdent", "break", "clear", "table"].includes(b.dataset.act))) toast("표 칸 안에서는 아직 쓸 수 없습니다");
+      else if (!body && (b.dataset.list || ["indent", "outdent", "break", "clear", "table", "image"].includes(b.dataset.act))) toast("표 칸 안에서는 아직 쓸 수 없습니다");
       else if (b.dataset.list) setList(b.dataset.list);
       else ({ undo, redo, indent: () => shiftLevel(1), outdent: () => shiftLevel(-1), break: insertBreak, setup: pageSetup,
-        color: () => now.toggle("c", $("#inColor").value), hl: () => now.toggle("hl", $("#inHl").value), table: insertTable,
+        color: () => now.toggle("c", $("#inColor").value), hl: () => now.toggle("hl", $("#inHl").value), table: insertTable, image: () => $("#inImage").click(),
         clear: () => { const s = ed.selection(); if (s) { snapshot("format"); let bs = blocks(); for (const x of T.spans(bs, s.a, s.f)) bs = bs.map((y, k) => (k === x.i ? { ...y, runs: T.clearMarks(y.runs, x.from, x.to, ["link"]) } : y)); S.deck.blocks = bs; ed.refresh(s); afterChange(); } },
       })[b.dataset.act]?.();
       updTools();
@@ -354,6 +395,15 @@
     cur = ed;
     $("#ed").addEventListener("keydown", onKey, true);
     bindTools(); decorateAll(); updTools();
+    $("#inImage").onchange = async (e) => { const f = e.target.files[0]; e.target.value = ""; await insertImage(f); };
+    // 그림·쪽 나누기 고르기 - 누르면 고르고(Del·Backspace 로 지움), 그림은 오른쪽 클릭으로 크기·정렬
+    $("#ed").addEventListener("mousedown", (e) => { const o = e.target.closest("#ed > .nt-obj"); S.pick = o && !o.classList.contains("pg-table") ? o.dataset.id : null; markPick(); });
+    $("#ed").addEventListener("contextmenu", (e) => { const o = e.target.closest("#ed > .pg-image"); if (!o) return; e.preventDefault(); S.pick = o.dataset.id; markPick(); imageMenu(o.dataset.id, { x: e.clientX, y: e.clientY }); });
+    document.addEventListener("keydown", (e) => {
+      if (!S.pick || e.isComposing || (e.key !== "Delete" && e.key !== "Backspace")) return;
+      if (e.target.closest && e.target.closest("input, select, textarea, .dlg, .nd-box")) return;
+      e.preventDefault(); changeBlock(S.pick, () => null);
+    }, true);
     $("#btnDecks").onclick = (e) => deckListMenu(e.currentTarget);
     $("#btnPrint").onclick = () => window.print();
     $("#btnExport").onclick = (e) => openMenu(e.currentTarget, [{ label: "Word 문서 (.docx)", act: () => doExport(false) }, { label: "PDF (Word 로 변환)", act: () => doExport(true) }], { right: true });
