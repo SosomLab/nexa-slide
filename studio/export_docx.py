@@ -195,8 +195,10 @@ def _table(b, ctx, width_mm, style_ids):
     cols = b["cols"]
     total = sum(cols) or 1
     widths = [max(1, int(tw(width_mm) * c / total)) for c in cols]
+    border = b.get("border", "all")  # all | none(배치용 표) | inner-v(칸 사이 세로선만 - 단 구분선)
+    line = lambda s: ('<w:%s w:val="single" w:sz="4" w:space="0" w:color="8A8A8A"/>' if border == "all" or (border == "inner-v" and s == "insideV") else '<w:%s w:val="none" w:sz="0" w:space="0" w:color="auto"/>') % s  # noqa: E731
     x = ['<w:tbl><w:tblPr><w:tblW w:w="5000" w:type="pct"/><w:tblBorders>'
-         + "".join(f'<w:{s} w:val="single" w:sz="4" w:space="0" w:color="8A8A8A"/>' for s in ("top", "left", "bottom", "right", "insideH", "insideV"))
+         + "".join(line(s) for s in ("top", "left", "bottom", "right", "insideH", "insideV"))
          + '</w:tblBorders><w:tblLayout w:type="fixed"/><w:tblCellMar><w:left w:w="100" w:type="dxa"/><w:right w:w="100" w:type="dxa"/></w:tblCellMar></w:tblPr><w:tblGrid>'
          + "".join(f'<w:gridCol w:w="{w}"/>' for w in widths) + "</w:tblGrid>"]
     carry = {}  # 열 번호 → [남은 행 수, 칸 수] - 위에서 내려온 세로 병합
@@ -228,13 +230,13 @@ def _table(b, ctx, width_mm, style_ids):
             if rs > 1:
                 pr.append('<w:vMerge w:val="restart"/>')
                 carry[col] = [rs - 1, span]
-            fill = ctx.color(c.get("fill")) or ("F0F0F0" if row.get("head") else None)
+            fill = ctx.color(c.get("fill")) or ("F0F0F0" if row.get("head") and border == "all" else None)
             if fill:
                 pr.append(f'<w:shd w:val="clear" w:color="auto" w:fill="{fill}"/>')
             if c.get("valign") in ("middle", "bottom"):
                 pr.append(f'<w:vAlign w:val="{"center" if c["valign"] == "middle" else "bottom"}"/>')
-            body = _blocks(c.get("blocks") or [], ctx, w / TW - 4, style_ids, head=bool(row.get("head"))) or "<w:p/>"
-            if not body.rstrip().endswith("</w:p>"):
+            body = _blocks(c.get("blocks") or [], ctx, w / TW - 4, style_ids, head=bool(row.get("head")) and border == "all") or "<w:p/>"
+            if not body.rstrip().endswith(("</w:p>", "<w:p/>")):
                 body += "<w:p/>"  # 칸은 문단으로 끝나야 한다
             x.append("<w:tc><w:tcPr>" + "".join(pr) + "</w:tcPr>" + body + "</w:tc>")
             col += span

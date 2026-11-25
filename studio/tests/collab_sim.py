@@ -79,7 +79,10 @@ class Win:
         if self.doc == self.saved:
             return
         sent = clone(self.doc)
-        if self.struct:  # 행·열 작업이 있으면 PUT(__struct) - 화면 planSave 와 같다
+        if self.deck == "simpage":  # 페이지 문서 - 화면(page.js)처럼 PUT 병합만(작업 저장은 아직 blocks 를 다루지 않는다)
+            st, r, _ = call("PUT", f"/api/deck/{self.deck}?base={self.version}&merge=1", sent)
+            how = "put"
+        elif self.struct:  # 행·열 작업이 있으면 PUT(__struct) - 화면 planSave 와 같다
             st, r, _ = call("PUT", f"/api/deck/{self.deck}?base={self.version}&merge=1", {**sent, "__struct": self.struct})
             how = f"put struct {len(self.struct)}"
             if st == 409 and r.get("reason") == "struct-both":  # 다른 창도 행을 넣었다 - 다시 읽는다(내 것 버림)
@@ -108,6 +111,10 @@ class Win:
             print("  ", log[-1])
             return
         log.append(f"w{self.k} {how} v{self.version[:6]}→{r['version'][:6]}" + (" 병합" if r.get("merged") else "") + (f" 버림{len(r['dropped'])}" if r.get("dropped") else ""))
+        if self.deck == "simpage":  # 저장마다 - 병합 결과의 내 블록(글·순서) = 보낸 것
+            got = r.get("deck") if r.get("deck") is not None else None
+            if got is not None and mine_page(got, self.k) != mine_page(sent, self.k):
+                LOST.append(f"w{self.k} {how} 저장 결과의 내 블록: 보냄 {json.dumps(mine_page(sent, self.k), ensure_ascii=False)[:160]} ≠ 결과 {json.dumps(mine_page(got, self.k), ensure_ascii=False)[:160]}")
         if self.deck == "simsheet":  # 저장마다 - 서버가 돌려준(또는 그대로 저장한) 문서의 내 열 = 보낸 문서의 내 열(남은 내 열을 건드리지 않는다 - 행이 들어가도 순서는 같다)
             got = r.get("deck") if r.get("deck") is not None else None
             if got is not None and col_values(got, COLS[self.k]) != col_values(sent, COLS[self.k]):
@@ -129,6 +136,27 @@ def col_values(d, col):
     keys = sorted((k for k in cells if re.fullmatch(col + r"\d+", k)), key=lambda k: int(k[len(col):]))
     norm = lambda v: {**v, "f": re.sub(r"\d+", "#", v["f"])} if isinstance(v, dict) and v.get("f") else v  # noqa: E731
     return [norm(cells[k]) for k in keys]
+
+
+def mine_page(d, k):
+    """페이지 문서에서 창 k 가 만든 블록 - [(id, 글)] 순서대로"""
+    return [(b["id"], "".join(r.get("t", "") for r in b.get("runs") or [])) for b in d.get("blocks") or [] if str(b.get("id", "")).startswith(f"w{k}n")]
+
+
+def edit_page(w, rnd):
+    bl = w.doc.setdefault("blocks", [])
+    mine = [b for b in bl if str(b.get("id", "")).startswith(f"w{w.k}n")]
+    r = rnd.random()
+    if r < 0.35 or not mine:  # 문단 넣기 - 무작위 자리
+        bl.insert(rnd.randint(0, len(bl)), {"id": w.uid(), "type": "p", "runs": [{"t": f"w{w.k}-{w.n}"}]})
+    elif r < 0.65:  # 내 문단 글
+        rnd.choice(mine)["runs"] = [{"t": f"w{w.k}-글{rnd.randint(0, 9999)}"}]
+    elif r < 0.75:  # 내 문단 지우기
+        bl.remove(rnd.choice(mine))
+    else:  # 공용 문단(누가 이겨도 된다). 자리 바꾸기는 넣지 않는다 - deckmerge 규칙상 양쪽이 순서를 바꾸면 theirs(설계대로, 슬라이드 시뮬도 같다)
+        c = next((b for b in bl if b.get("id") == "c1"), None)
+        if c:
+            c["runs"] = [{"t": f"공용 w{w.k}-{rnd.randint(0, 99)}"}]
 
 
 def mine_slides(d, k):
@@ -204,7 +232,7 @@ def run(seed, steps):
     rnd = random.Random(seed)
     print(f"씨앗 {seed} · 걸음 {steps}")
     log = []
-    for deck, edit, mine in (("sim", edit_slides, None), ("simsheet", edit_sheet, None)):
+    for deck, edit, mine in (("sim", edit_slides, None), ("simsheet", edit_sheet, None), ("simpage", edit_page, None)):
         wins = [Win(k, deck) for k in range(3)]
         for step in range(steps):
             w = rnd.choice(wins)
@@ -227,11 +255,18 @@ def run(seed, steps):
                     lost.append(f"w{w.k} 요소 {miss[:5]}")
                 if wo != go:
                     lost.append(f"w{w.k} 순서 {json.dumps(wo)[:120]} ≠ {json.dumps(go)[:120]}")
+            elif deck == "simpage":
+                want, got = mine_page(w.doc, w.k), mine_page(final, w.k)
+                if want != got:
+                    lost.append(f"w{w.k} 블록 {json.dumps(want, ensure_ascii=False)[:160]} ≠ {json.dumps(got, ensure_ascii=False)[:160]}")
             else:
                 col = COLS[w.k]
                 want, got = col_values(w.doc, col), col_values(final, col)
                 if want != got:
                     lost.append(f"w{w.k} 열 {col} 값 순서 {json.dumps(want, ensure_ascii=False)[:200]} ≠ {json.dumps(got, ensure_ascii=False)[:200]}")
+        if deck == "simpage":
+            check("simpage - 저장마다 병합 결과의 내 블록(글·순서)이 보낸 것과 같음", not LOST, f"씨앗 {seed}: {len(LOST)}건 · " + " | ".join(LOST[:3]))
+            LOST.clear()
         if deck == "simsheet":
             check("simsheet - 저장마다 병합 결과의 내 열이 보낸 것과 같음(행이 들어간 뒤 옛 판 저장 포함)", not LOST, f"씨앗 {seed}: {len(LOST)}건 · " + " | ".join(LOST[:3]))
             print(f"   simsheet 구조 작업: 행 넣기 저장 {STATS['struct']} · 양쪽 행 넣기 409 {STATS['struct-both']} · 작업 저장 400 → PUT {STATS['ops400']}")
@@ -267,10 +302,13 @@ def main():
         subprocess.run([sys.executable, str(STUDIO / "init_workspace.py"), str(WS.parent), "--title", "sim시험", "--port", str(PORT)], env=ENV, capture_output=True, text=True, encoding="utf-8")
     decks = WS / "decks"; decks.mkdir(parents=True, exist_ok=True)
     import shutil
-    for d in ("sim", "simsheet"):  # 지난 실행의 원장·백업 - 이번 실행만 재생해 본다
+    for d in ("sim", "simsheet", "simpage"):  # 지난 실행의 원장·백업 - 이번 실행만 재생해 본다
         shutil.rmtree(decks / ".history" / d, ignore_errors=True)
     slides =[{"id": f"s{k}", "elements": [{"id": "c1", "type": "text", "x": 10, "y": 10, "w": 300, "h": 40, "text": "공용"}] if k == 1 else []} for k in range(1, 4)]
     (decks / "sim.json").write_text(json.dumps({"id": "sim", "title": "시뮬", "slides": slides}, ensure_ascii=False), encoding="utf-8")
+    import page_doc
+    pg = page_doc.new_page("simpage", "시뮬 페이지"); pg["blocks"] = [{"id": "c1", "type": "p", "runs": [{"t": "공용"}]}]
+    (decks / "simpage.json").write_text(json.dumps(pg, ensure_ascii=False), encoding="utf-8")
     (decks / "simsheet.json").write_text(json.dumps({"id": "simsheet", "title": "시뮬 시트", "kind": "sheet", "slides": [], "sheets": [{"id": "t01", "name": "S", "cells": {"D1": 1}}]}, ensure_ascii=False), encoding="utf-8")
     srv = subprocess.Popen([sys.executable, str(STUDIO / "server.py"), "--workspace", str(WS), "--port", str(PORT)], env=ENV, cwd=str(WS), stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     try:

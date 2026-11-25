@@ -40,6 +40,8 @@
   .pg-hf { position: absolute; left: 0; right: 0; color: #8a857d; font-size: 9pt; pointer-events: none; }
   .pg-hf .pg-p { margin: 0 !important; }
   .pg-table td, .pg-table th { cursor: text; } .pg-cell { outline: none; min-height: 1.4em; }
+  #ed .pg-table.pg-noborder td, #ed .pg-table.pg-noborder th { border: .5pt dashed #dcd8d0; }  /* 편집 중에는 배치용 표의 칸 경계를 흐린 점선으로(인쇄·내보내기에는 없다) */
+  #ed .pg-table.pg-innerv td + td, #ed .pg-table.pg-innerv th + th { border-left: .5pt solid #8a8a8a; }
   .pg-table td:focus-within, .pg-table th:focus-within { box-shadow: inset 0 0 0 1.5px var(--accent); }
   .pg-image img { cursor: pointer; } .pg-image.sel img { outline: 2px solid var(--accent); outline-offset: 2px; }
   #findBar { position: fixed; top: 92px; right: 24px; z-index: 40; background: #fff; border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 8px 24px rgba(0,0,0,.14); padding: 8px; display: flex; gap: 6px; align-items: center; }
@@ -57,7 +59,7 @@
   .menu { position: fixed; z-index: 60; background: #fff; border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,.14); padding: 4px; min-width: 160px; }
   .menu button { display: flex; gap: 8px; width: 100%; border: 0; background: transparent; padding: 6px 10px; font: inherit; text-align: left; border-radius: 6px; cursor: pointer; }
   .menu button:hover { background: #f4f2ee; } .menu hr { border: 0; border-top: 1px solid var(--line); margin: 4px 0; } .menu .h { padding: 4px 10px; color: var(--muted); font-size: 11px; } .menu .k { margin-left: auto; color: var(--muted); }
-  @media print { header, #tools, #banner, #toast, #pagelines, .pg-hf, .dlg-back, #findBar { display: none !important; } #paper { padding: 0 !important; width: auto !important; min-height: 0 !important; } #scroll { padding: 0; overflow: visible; } #paper { box-shadow: none; } body { background: #fff; } }
+  @media print { header, #tools, #banner, #toast, #pagelines, .pg-hf, .dlg-back, #findBar { display: none !important; } #paper { padding: 0 !important; width: auto !important; min-height: 0 !important; } #ed .pg-table.pg-noborder td, #ed .pg-table.pg-noborder th { border-color: transparent; } #ed .pg-table.pg-innerv td + td { border-left: .5pt solid #8a8a8a; } #scroll { padding: 0; overflow: visible; } #paper { box-shadow: none; } body { background: #fff; } }
 </style>
 </head>
 <body>
