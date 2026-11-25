@@ -109,6 +109,19 @@ def create(i=None, title=None, layout="cover", part="day1", kind="deck", theme=N
     p = DECKS / f"{i}.json"
     if p.exists():
         raise ValueError(f"이미 있는 덱: {i}")
+    if kind == "page":  # 페이지 문서(Word·Pages 형) - 형식은 docs/dev/page-editor/design.md 3절. theme = 페이지 템플릿 이름(page_templates.py)
+        import page_doc
+        title = " ".join(str(title or "").split())[:200] or "새 문서"
+        DECKS.mkdir(parents=True, exist_ok=True)
+        tpl = None
+        if theme:  # 페이지 템플릿(page_templates.py - 보고서·회의록·해설지 …)
+            import page_templates
+            tpl = page_templates.load(str(theme), title)
+            if not tpl:
+                raise ValueError(f"없는 페이지 템플릿: {theme}")
+        doc = page_doc.new_page(i, title, tpl)
+        atomic_write(p, _dumps(doc))
+        return {"id": i, "title": title, "kind": "page", "slides": 0, "path": str(p), "theme": doc.get("template")}
     if kind == "sheet":
         title = " ".join(str(title or "").split())[:200] or "새 시트"
         DECKS.mkdir(parents=True, exist_ok=True)
@@ -254,7 +267,7 @@ def main():
     ap = argparse.ArgumentParser(description="덱 관리")
     sub = ap.add_subparsers(dest="cmd", required=True)
     sub.add_parser("list")
-    c = sub.add_parser("create"); c.add_argument("id", nargs="?", default=""); c.add_argument("--title"); c.add_argument("--layout", default="cover"); c.add_argument("--part", default="day1"); c.add_argument("--kind", choices=("deck", "sheet"), default="deck"); c.add_argument("--theme", help="시트 테마(sheet_theme list)"); c.add_argument("--pages", help="테마 페이지 kind 쉼표 목록(cover,history,overview,summary,list)"); c.add_argument("--vars", help='테마 {{자리}} 값 JSON(예 {"project": "…", "author": "…"})')
+    c = sub.add_parser("create"); c.add_argument("id", nargs="?", default=""); c.add_argument("--title"); c.add_argument("--layout", default="cover"); c.add_argument("--part", default="day1"); c.add_argument("--kind", choices=("deck", "sheet", "page"), default="deck"); c.add_argument("--theme", help="시트 테마(sheet_theme list)"); c.add_argument("--pages", help="테마 페이지 kind 쉼표 목록(cover,history,overview,summary,list)"); c.add_argument("--vars", help='테마 {{자리}} 값 JSON(예 {"project": "…", "author": "…"})')
     cp = sub.add_parser("copy"); cp.add_argument("id"); cp.add_argument("--title")
     st = sub.add_parser("start"); st.add_argument("id", nargs="?", default="", help="비우면 해제")
     r = sub.add_parser("rename"); r.add_argument("id"); r.add_argument("new")

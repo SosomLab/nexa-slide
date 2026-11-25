@@ -106,7 +106,56 @@ def _label(e):
     return short(e.get("text") or e.get("src") or e.get("type"))
 
 
+def _block_text(b):
+    """블록의 글 한 줄 - 문단은 글, 표는 칸의 글을 이어, 그림은 주소."""
+    if not isinstance(b, dict):
+        return ""
+    if isinstance(b.get("runs"), list):
+        return "".join(str(r.get("t", "")) for r in b["runs"] if isinstance(r, dict))
+    if b.get("type") == "table":
+        return " | ".join(_block_text(x) for row in b.get("rows") or [] for c in row.get("cells") or [] for x in c.get("blocks") or [])
+    if b.get("type") == "image":
+        return f"[그림 {b.get('src', '')}]"
+    return {"page": "[쪽 나누기]", "column": "[단 나누기]", "section": "[구역 나누기]"}.get(b.get("kind", "page"), "[나누기]") if b.get("type") == "break" else ""
+
+
+PAGE_KEYS = {"runs": "글", "style": "스타일", "align": "정렬", "list": "목록", "indent": "들여쓰기", "first": "첫 줄", "rows": "표 내용", "cols": "열 너비", "src": "그림", "w": "크기", "h": "크기", "caption": "캡션", "kind": "종류"}
+
+
+def diff_page(old, new):
+    """페이지 문서(kind page) 비교 - 항목 = 본문 블록(문단·표·그림). 꼴은 diff_deck 과 같다:
+    [{sid: 블록 id, idx, kind: 추가|수정|이동|삭제, moved, title: 그 블록의 글, els: [{id, kinds, before, after}], extra: [바뀐 속성 이름]}]
+    쪽 설정·스타일·머리말은 덱 수준 키(deck_fields 의 page·styles)로 잡힌다."""
+    ob, nb = [b for b in old.get("blocks") or [] if isinstance(b, dict)], [b for b in new.get("blocks") or [] if isinstance(b, dict)]
+    om, nm = {b.get("id"): (b, i) for i, b in enumerate(ob)}, {b.get("id"): (b, i) for i, b in enumerate(nb)}
+    oc = [b.get("id") for b in ob if b.get("id") in nm]
+    npos = {b.get("id"): i for i, b in enumerate([b for b in nb if b.get("id") in om])}
+    stable = {oc[i] for i in _lis_stable([npos[i] for i in oc])}
+    items = []
+    for i, b in enumerate(nb):
+        bid = b.get("id")
+        title = short(_block_text(b)) or f"({b.get('type')})"
+        if bid not in om:
+            items.append({"sid": bid, "idx": i, "kind": "추가", "moved": None, "title": title, "els": [], "extra": []})
+            continue
+        o, oi = om[bid]
+        keys = [k for k in list(o) + [k for k in b if k not in o] if k != "id" and canon(o.get(k, _MISSING)) != canon(b.get(k, _MISSING))]
+        els = []
+        if "runs" in keys or "rows" in keys or "src" in keys:
+            els.append({"id": bid, "kinds": ["수정"], "before": short(_block_text(o)), "after": short(_block_text(b))})
+        extra = list(dict.fromkeys(PAGE_KEYS.get(k, k) for k in keys if k not in ("runs",)))
+        moved = bid not in stable
+        if keys or moved:
+            items.append({"sid": bid, "idx": i, "kind": "수정" if keys else "이동", "moved": [oi + 1, i + 1] if moved else None, "title": title, "els": els, "extra": extra})
+    for i, b in enumerate(ob):
+        if b.get("id") not in nm:
+            items.append({"sid": b.get("id"), "idx": i, "kind": "삭제", "moved": None, "title": short(_block_text(b)) or f"({b.get('type')})", "els": [], "extra": [], "gone": True})
+    return items
+
+
 def diff_deck(old, new):
+    if (new or {}).get("kind") == "page" or (old or {}).get("kind") == "page":
+        return diff_page(old or {}, new or {})
     if (new or {}).get("kind") == "sheet" or (old or {}).get("kind") == "sheet":
         return diff_sheet(old or {}, new or {})
     os_, ns = old.get("slides") or [], new.get("slides") or []
@@ -160,7 +209,7 @@ def diff_deck(old, new):
 
 def deck_fields(old, new):
     """장 밖(덱 수준)에서 바뀐 키 - title·part·version·fontPreset 등. slides·updated 는 뺀다."""
-    skip = {"slides", "sheets", "updated"}
+    skip = {"slides", "sheets", "blocks", "updated"}
     keys = [k for k in old.keys() if k not in skip] + [k for k in new.keys() if k not in skip and k not in old]
     return [k for k in keys if canon(old.get(k, _MISSING)) != canon(new.get(k, _MISSING))]
 

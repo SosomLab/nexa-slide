@@ -161,9 +161,36 @@ class _M:
         one = lambda p, *x: self.keys(p, *(v if v is not MISSING else {} for v in x))  # noqa: E731 - 열 너비·행 높이는 열·행마다
         return self.keys(path, b, o, t, special={"cells": self.cells, "cols": one, "rows": one})
 
+    # ---- 페이지 문서(kind page) - 블록(문단·표·그림)마다, 표는 행·칸·칸 안 블록까지 id 로 합친다
+    #   문단의 글(runs)은 값 하나다 - 두 쪽이 같은 문단의 글을 고치면 충돌(prefer), 글과 문단 속성(정렬·스타일·목록)은 따로 합쳐진다
+    def _lst(self, item):
+        return lambda p, *x: self.ilist(p, *(v if v is not MISSING else [] for v in x), item)
+
+    def pblock(self, path, b, o, t):
+        return self.keys(path, b, o, t, special={"rows": self._lst(self.prow)})
+
+    def prow(self, path, b, o, t):
+        return self.keys(path, b, o, t, special={"cells": self._lst(self.pcell)})
+
+    def pcell(self, path, b, o, t):
+        return self.keys(path, b, o, t, special={"blocks": self._lst(self.pblock)})
+
+    def ppage(self, path, b, o, t):
+        part = lambda p, *x: self.keys(p, *(v if v is not MISSING else {} for v in x), special={"blocks": self._lst(self.pblock)})  # noqa: E731
+        return self.keys(path, *(v if v is not MISSING else {} for v in (b, o, t)), special={"header": part, "footer": part})
+
     def deck(self, b, o, t):
         b, o, t = (x if isinstance(x, dict) else {} for x in (b, o, t))
         lst = lambda item: (lambda p, *x: self.ilist(p, *(v if v is not MISSING else [] for v in x), item))  # noqa: E731
+        if "page" in (b.get("kind"), o.get("kind"), t.get("kind")):
+            one = lambda p, *x: self.keys(p, *(v if v is not MISSING else {} for v in x))  # noqa: E731 - 스타일은 이름마다
+            res = self.keys("", {k: v for k, v in b.items() if k not in SKIP_TOP}, {k: v for k, v in o.items() if k not in SKIP_TOP},
+                            {k: v for k, v in t.items() if k not in SKIP_TOP},
+                            special={"blocks": lst(self.pblock), "objects": lst(self.element), "page": self.ppage, "styles": one})
+            for k in SKIP_TOP:
+                if k in o:
+                    res[k] = o[k]
+            return res
         res = self.keys("", {k: v for k, v in b.items() if k not in SKIP_TOP}, {k: v for k, v in o.items() if k not in SKIP_TOP},
                         {k: v for k, v in t.items() if k not in SKIP_TOP}, special={"slides": lst(self.slide), "sheets": lst(self.tab)})
         for k in SKIP_TOP:

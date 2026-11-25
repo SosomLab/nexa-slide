@@ -223,6 +223,32 @@
     return { blocks: [...blocks.slice(0, i), ...made, ...blocks.slice(i + 1)], pos: { id: lastB.id, off: length(paras[paras.length - 1]) } };
   }
 
+  // ---------------------------------------------------------------- 그리기(DOM)
+  function paintRun(span, r, opts) {
+    opts = opts || {};
+    const st = span.style;
+    if (r.b) st.fontWeight = "700";
+    if (r.i) st.fontStyle = "italic";
+    const deco = [r.u ? "underline" : "", r.s ? "line-through" : ""].filter(Boolean).join(" ");
+    if (deco) st.textDecoration = deco;
+    if (r.u && r.u !== true) st.textDecorationStyle = { double: "double", dot: "dotted", dash: "dashed", wave: "wavy" }[r.u] || "";
+    if (r.c) st.color = opts.color ? opts.color(r.c) : r.c;
+    if (r.hl) st.backgroundColor = opts.color ? opts.color(r.hl) : r.hl;
+    if (r.sup || r.sub) { st.verticalAlign = r.sup ? "super" : "sub"; st.fontSize = "0.7em"; }
+    if (r.font) st.fontFamily = opts.font ? opts.font(r.font) : r.font;
+    if (r.size) st.fontSize = r.size + "pt";
+    if (r.link) { span.dataset.link = r.link; span.classList.add("nt-link"); }
+    if (r.ruby) span.dataset.ruby = r.ruby;
+  }
+  /** 문단 요소에 글 조각을 그린다 - 편집기(mount)와 인쇄·미리 보기(page-render.js)가 같이 쓴다. opts: color(c) · font(f) 토큰 → CSS 값 */
+  function fillRuns(el, runs, opts) {
+    const doc = el.ownerDocument;
+    el.replaceChildren();
+    for (const r of runs || []) { const sp = doc.createElement("span"); sp.textContent = r.t; paintRun(sp, r, opts); el.appendChild(sp); }
+    // 빈 문단, 또는 줄바꿈으로 끝나는 문단은 마지막 줄이 높이를 갖게 <br> 을 둔다(글 길이에는 세지 않는다)
+    if (!runs || !runs.length || /\n$/.test(runs[runs.length - 1].t)) el.appendChild(doc.createElement("br"));
+  }
+
   // ---------------------------------------------------------------- 입력(DOM) - contenteditable 호스트에 붙인다(PG-031)
   //   mount(host, opts) → 편집기. **모델이 진실**이다: 입력(beforeinput)을 가로채 모델을 고치고 바뀐 블록만 다시 그린 뒤 선택을 되돌린다.
   //   한글 조합(IME) 중에는 브라우저가 DOM 을 고치게 두고 조합이 끝나면 그 문단의 글을 모델과 비교해(앞뒤 같은 부분을 빼고) 읽어 들인다.
@@ -238,27 +264,7 @@
     const blocks = () => opts.get() || [];
     const esc = (s) => (win.CSS && win.CSS.escape ? win.CSS.escape(s) : String(s).replace(/"/g, '\\"'));
 
-    function paint(span, r) {
-      const st = span.style;
-      if (r.b) st.fontWeight = "700";
-      if (r.i) st.fontStyle = "italic";
-      const deco = [r.u ? "underline" : "", r.s ? "line-through" : ""].filter(Boolean).join(" ");
-      if (deco) st.textDecoration = deco;
-      if (r.u && r.u !== true) st.textDecorationStyle = { double: "double", dot: "dotted", dash: "dashed", wave: "wavy" }[r.u] || "";
-      if (r.c) st.color = opts.color ? opts.color(r.c) : r.c;
-      if (r.hl) st.backgroundColor = opts.color ? opts.color(r.hl) : r.hl;
-      if (r.sup || r.sub) { st.verticalAlign = r.sup ? "super" : "sub"; st.fontSize = "0.7em"; }
-      if (r.font) st.fontFamily = opts.font ? opts.font(r.font) : r.font;
-      if (r.size) st.fontSize = r.size + "pt";
-      if (r.link) { span.dataset.link = r.link; span.classList.add("nt-link"); }
-      if (r.ruby) span.dataset.ruby = r.ruby;
-    }
-    function fill(el, runs) {
-      el.replaceChildren();
-      for (const r of runs || []) { const sp = doc.createElement("span"); sp.textContent = r.t; paint(sp, r); el.appendChild(sp); }
-      // 빈 문단, 또는 줄바꿈으로 끝나는 문단은 마지막 줄이 높이를 갖게 <br> 을 둔다(글 길이에는 세지 않는다)
-      if (!runs || !runs.length || /\n$/.test(runs[runs.length - 1].t)) el.appendChild(doc.createElement("br"));
-    }
+    const fill = (el, runs) => fillRuns(el, runs, opts);
     function blockEl(b) {
       let el;
       if (isText(b)) { el = doc.createElement("div"); el.className = "nt-p"; fill(el, b.runs); if (opts.decorate) opts.decorate(el, b); }
@@ -306,8 +312,10 @@
       while ((n = w.nextNode())) { if (left <= n.data.length) return [n, left]; left -= n.data.length; last = n; }
       return last ? [last, last.data.length] : [el, 0];
     }
+    /** 이 편집기의 것인가 - 안에 다른 편집기(표 칸)가 들어 있을 수 있다. 가장 가까운 편집기 호스트가 이 호스트일 때만 */
+    const mine = (node) => { const el = node && (node.nodeType === 1 ? node : node.parentElement); return !!el && el.closest(".nt-host") === host; };
     function selection() {
-      const s = doc.getSelection(); if (!s || !s.rangeCount || !host.contains(s.anchorNode)) return null;
+      const s = doc.getSelection(); if (!s || !s.rangeCount || !host.contains(s.anchorNode) || !mine(s.anchorNode) || !mine(s.focusNode)) return null;
       const a = pointFrom(s.anchorNode, s.anchorOffset), f = pointFrom(s.focusNode, s.focusOffset);
       return a && f ? { a, f } : null;
     }
@@ -409,6 +417,7 @@
 
     const FMT = { formatBold: "b", formatItalic: "i", formatUnderline: "u", formatStrikeThrough: "s", formatSuperscript: "sup", formatSubscript: "sub" };
     function onBeforeInput(e) {
+      if (!mine(e.target)) return;
       const t = e.inputType || "";
       if (composing || e.isComposing || t === "insertCompositionText" || t === "deleteCompositionText") return;  // 조합 중 - 브라우저에 맡긴다
       e.preventDefault();
@@ -422,18 +431,20 @@
       else if (t === "historyRedo") { if (opts.redo) opts.redo(); }
       // 그 밖(insertOrderedList 등)은 막기만 한다 - 목록·표는 문단 속성으로 다룬다
     }
-    function onCompStart() {
+    function onCompStart(e) {
+      if (e && !mine(e.target)) return;
       const s = selection();
       if (s && !collapsed(s.a, s.f)) replaceSel(null, "delete");  // 고른 글 위에서 조합을 시작하면 먼저 모델에서 지운다(DOM 이 여러 문단을 합치기 전에)
       const s2 = selection(); compId = s2 ? s2.f.id : null; composing = true;
     }
     function onCompEnd() { composing = false; const id = compId; compId = null; if (id) syncBlock(id, "ime"); }
-    function onInput(e) {  // 우리가 막지 못한 DOM 변경(조합은 compositionend 가 처리) - 선택이 있는 문단을 읽어 들인다
+    function onInput(e) {  // 우리가 막지 못한 DOM 변경
+      if (e && !mine(e.target)) return;  // 안쪽 편집기(표 칸)의 일(조합은 compositionend 가 처리) - 선택이 있는 문단을 읽어 들인다
       if (composing || (e && e.isComposing)) return;
       const s = selection(); if (s) syncBlock(s.f.id, "type");
     }
     function onKeyDown(e) {
-      if (composing || e.isComposing) return;
+      if (!mine(e.target) || composing || e.isComposing) return;
       const mod = e.ctrlKey || e.metaKey; if (!mod || e.altKey) return;
       const k = e.key.toLowerCase();
       if (k === "b" || k === "i" || k === "u") { e.preventDefault(); toggle(k); }
@@ -468,5 +479,5 @@
 
   root.NexaText = { MARKS, marksOf, sameMarks, normalize, length, text, fromPlain, slice, split, join, marksAt, commonMarks,
     insertRuns, insertText, remove, replaceText, setMark, toggleMark, clearMarks, splitBlock, joinBlocks, plainToParagraphs,
-    isText, ordered, deleteRange, insertAt, splitAt, joinBackward, joinForward, spans, markRange, marksInRange, setBlockAttrs, insertParas, mount };
+    isText, ordered, deleteRange, insertAt, splitAt, joinBackward, joinForward, spans, markRange, marksInRange, setBlockAttrs, insertParas, paintRun, fillRuns, mount };
 })(typeof window !== "undefined" ? window : globalThis);

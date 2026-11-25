@@ -123,10 +123,22 @@
     }
     const one = (p, ...x) => keys(p, ...x.map((v) => (v === MISSING ? {} : v)));
     const tab = (p, b, o, t) => keys(p, b, o, t, { cells, cols: one, rows: one });
+    // 페이지 문서(kind page) - 블록마다, 표는 행·칸·칸 안 블록까지 id 로 합친다. 문단의 글(runs)은 값 하나(같은 문단의 글을 둘 다 고치면 충돌)
+    const plst = (item) => (p, ...x) => ilist(p, ...x.map((v) => (v === MISSING ? [] : v)), item);
+    const pblock = (p, b, o, t) => keys(p, b, o, t, { rows: plst(prow) });
+    function prow(p, b, o, t) { return keys(p, b, o, t, { cells: plst(pcell) }); }
+    function pcell(p, b, o, t) { return keys(p, b, o, t, { blocks: plst(pblock) }); }
+    const ppart = (p, ...x) => keys(p, ...x.map((v) => (v === MISSING ? {} : v)), { blocks: plst(pblock) });
+    const ppage = (p, ...x) => keys(p, ...x.map((v) => (v === MISSING ? {} : v)), { header: ppart, footer: ppart });
     function deck(b, o, t) {
       [b, o, t] = [b, o, t].map((x) => (isObj(x) ? x : {}));
       const strip = (d) => { const r = {}; for (const [k, v] of Object.entries(d)) if (!SKIP_TOP.includes(k)) r[k] = v; return r; };
       const lst = (item) => (p, ...x) => ilist(p, ...x.map((v) => (v === MISSING ? [] : v)), item);
+      if ([b.kind, o.kind, t.kind].includes("page")) {
+        const res = keys("", strip(b), strip(o), strip(t), { blocks: lst(pblock), objects: lst(element), page: ppage, styles: one });
+        for (const k of SKIP_TOP) if (k in o) res[k] = o[k];
+        return res;
+      }
       const res = keys("", strip(b), strip(o), strip(t), { slides: lst(slide), sheets: lst(tab) });
       for (const k of SKIP_TOP) if (k in o) res[k] = o[k];
       return res;

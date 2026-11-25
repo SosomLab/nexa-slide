@@ -10,32 +10,32 @@
 | PG-002 | A0 | 검증 진입점 `studio/tests/verify.py --level quick\|full`(run_all · check_parity · regress 를 감쌈, summary.md · history.tsv, 결과 넷) | M | - | 협 | ✅ 끝 2026-11-25 · quick 약 55초 |
 | PG-003 | A0 | 작업판 `studio/devboard.py` + 한 화면 보기 `studio/devstatus.py` | M | - | 협 | ✅ 끝 2026-11-25 · out/status/now.md |
 | PG-004 | A0 | `.claude/settings.json` 허용 목록 · `/autodev` 명령 · CLAUDE.md 한 단락 | S | - | 개 | ✅ 끝 2026-11-25 |
-| PG-010 | A1 | 공용 뼈대 1: `nexa-shell.js`(api · toast · setStatus · banner · openMenu) - studio.js · sheet.js 가 쓰게 | M | PG-002 | 개 | ⬜ 열림 |
+| PG-010 | A1 | 공용 뼈대 1: `nexa-shell.js`(api · toast · setStatus · banner · openMenu) - studio.js · sheet.js 가 쓰게 | M | PG-002 | 개 | 🚧 진행 · 구현 끝(46dbe3d), 회귀 시험 대기(협업) |
 | PG-011 | A1 | 공용 뼈대 2: 실행 취소 · save/scheduleSave · loadDeck/poll/applyVersion 뼈대(종류별 훅) | L | PG-010 | 개 | ⬜ 열림 |
 | PG-012 | A1 | 공용 스타일 `nexa-shell.css`(머리 막대 · 상태 칩 · 배너 · 토스트 · 메뉴 · 대화 상자 · 옆 패널) | L | PG-010 | 개 | ⬜ 열림 |
 | PG-013 | A1 | 공용 확대 · 그림 넣기 · 내보내기 메뉴(`nexa-export.js`) | M | PG-011 | 개 | ⬜ 열림 |
 | PG-020 | A2 | 종류 등록부 `kinds.py` + 서버·허브·init·deck_admin 의 2분기를 조회로(동작 같음) | L | PG-002 | 개 | ⬜ 열림 |
-| PG-021 | A2 | 화면 쪽 종류 등록(`nexa-kinds.js`): 편집기 주소 · 이름 · 아이콘 · redirect | S | PG-020 | 개 | ⬜ 열림 |
-| PG-022 | A2 | 공용 "새 문서" 대화 상자 `nexa-newdoc.js`(홈 · 슬라이드 · 시트) - 어느 화면에서든 슬라이드·시트 추가 | M | PG-021 | 개 | ⬜ 열림 |
-| PG-023 | A2 | 숨김 스위치(experimental.page) + page kind 최소 등록(만들기 · 목록 · 빈 편집기) | M | PG-022 | 개 | ⬜ 열림 |
+| PG-021 | A2 | 화면 쪽 종류 등록(`nexa-kinds.js`): 편집기 주소 · 이름 · 아이콘 · redirect | S | PG-020 | 개 | ✅ 끝 2026-11-26 · nexa-kinds.js (시험은 협업) |
+| PG-022 | A2 | 공용 "새 문서" 대화 상자 `nexa-newdoc.js`(홈 · 슬라이드 · 시트) - 어느 화면에서든 슬라이드·시트 추가 | M | PG-021 | 개 | 🚧 진행 · 구현 끝(편집기 3곳), 남음: 홈(작업 공간 만들기) · 화면 시험(협업) |
+| PG-023 | A2 | 숨김 스위치(experimental.page) + page kind 최소 등록(만들기 · 목록 · 빈 편집기) | M | PG-022 | 개 | 🚧 진행 · 서버 만들기·숨김·검증·이동 끝, 남음: 빈 편집기(page.html) · 새 문서 대화 상자 연결 |
 | PG-030 | B1 | nexa-text 모델 연산(runs 정규화 · 넣기 · 지우기 · 쪼개기 · 합치기 · 서식 켜고 끄기) + node 단위 시험 | M | - | 개 | ✅ 끝 2026-11-25 · 시험 39사례 |
 | PG-031 | B1 | nexa-text 입력(beforeinput · 선택 ↔ 모델 좌표 · 다시 그리기 · 키 이동) | L | PG-030 | 개 | ✅ 끝 2026-11-26 · 화면 시험 25단계(조합은 흉내 - 실제 IME 는 PG-032) |
 | PG-032 | B1 | 한글 조합(IME) · 붙여넣기(HTML → runs) · 입력 묶음 실행 취소 + 헤드리스 시나리오 | L | PG-031 | 개 · 협(실제 IME 시험 - CDP imeSetComposition) | 🚧 진행 · IME 시험 협업 |
-| PG-040 | B2 | `page_doc.py`(새 문서 · 검증 · 정규화) + 서버 PUT 검증 | M | PG-023 | 개 | ⬜ 열림 |
-| PG-041 | B2 | `page-render.js`(블록 → DOM, 스타일 상속 풀기) | M | PG-040 | 개 | ⬜ 열림 |
-| PG-042 | B2 | `page.html` · `page.js` - 공용 뼈대 위에 본문 편집 · 저장 · 다시 열기 | L | PG-011 PG-031 PG-041 | 개 | ⬜ 열림 |
+| PG-040 | B2 | `page_doc.py`(새 문서 · 검증 · 정규화) + 서버 PUT 검증 | M | PG-023 | 개 | ✅ 끝 2026-11-26 · page_doc 39사례 + 서버 PUT 검증 |
+| PG-041 | B2 | `page-render.js`(블록 → DOM, 스타일 상속 풀기) | M | PG-040 | 개 | ✅ 끝 2026-11-26 · 규칙 맞춤 11사례 |
+| PG-042 | B2 | `page.html` · `page.js` - 공용 뼈대 위에 본문 편집 · 저장 · 다시 열기 | L | PG-011 PG-031 PG-041 | 개 | 🚧 진행 · 구현 끝(0f2a62b), 화면 시험 대기(협업) |
 | PG-043 | B2 | 서식 막대 `nexa-format.js`(글자 · 문단 · 스타일 · 글꼴/색) | L | PG-042 | 개 | ⬜ 열림 |
 | PG-050 | B3 | 목록(글머리 · 번호 · 단계) | M | PG-042 | 개 | ⬜ 열림 |
-| PG-051 | B3 | 표(넣기 · 행/열 · 병합 · 머리글 행 · 셀 안 편집) | L | PG-042 | 개 | ⬜ 열림 |
+| PG-051 | B3 | 표(넣기 · 행/열 · 병합 · 머리글 행 · 셀 안 편집) | L | PG-042 | 개 | 🚧 진행 · 넣기·칸 안 편집·행/열·머리글 구현 끝, 남음: 칸 병합 UI · 화면 시험(협업) |
 | PG-052 | B3 | 그림(넣기 · 크기 · 정렬) · 쪽 나누기 | M | PG-042 | 개 | ⬜ 열림 |
-| PG-053 | B3 | 쪽 설정(용지 · 여백 · 방향) · 머리말/꼬리말/쪽 번호 · 쪽 경계선 | L | PG-042 | 개 | ⬜ 열림 |
+| PG-053 | B3 | 쪽 설정(용지 · 여백 · 방향) · 머리말/꼬리말/쪽 번호 · 쪽 경계선 | L | PG-042 | 개 | 🚧 진행 · 구현 끝(bbd335d), 화면 시험 대기(협업) |
 | PG-054 | B3 | 인쇄 미리 보기 `page-print.html`(쪽 상자에 흘리기) | L | PG-053 | 개 | ⬜ 열림 |
-| PG-060 | C1 | `export_docx.py`(문단 · 글자 · 스타일 · 목록 · 표 · 그림 · 구역 · 머리말) | L | PG-040 | 개 | ⬜ 열림 |
-| PG-061 | C1 | PDF: `render_docx.ps1`(Word COM, 매크로·이벤트 끔) · Chrome 인쇄 · 내보내기 API·메뉴 | M | PG-060 PG-054 | 개 | ⬜ 열림 |
+| PG-060 | C1 | `export_docx.py`(문단 · 글자 · 스타일 · 목록 · 표 · 그림 · 구역 · 머리말) | L | PG-040 | 개 | ✅ 끝 2026-11-26 · 구조 시험 45사례(Word 로 여는 검증은 PG-062) |
+| PG-061 | C1 | PDF: `render_docx.ps1`(Word COM, 매크로·이벤트 끔) · Chrome 인쇄 · 내보내기 API·메뉴 | M | PG-060 PG-054 | 개 | 🚧 진행 · 구현 끝(87cb2a0), Word 검증 대기(협업) · Chrome 인쇄 경로는 PG-054 뒤 |
 | PG-062 | C1 | 동일성 시험(화면 렌더 ↔ DOCX 구조) + Word 로 여는 검증 | M | PG-060 | 협 | ⬜ 열림 |
-| PG-070 | C2 | 템플릿 형식 + 11종 + 미리 보기 | L | PG-041 | 개 | ⬜ 열림 |
-| PG-071 | C2 | 추천(`hub.template_rec` 종류별) · 홈·새 문서에서 고르기 | M | PG-070 PG-022 | 개 | ⬜ 열림 |
-| PG-080 | C3 | 병합(deckmerge · nexa-merge) · 작업(deckops) · diff(deckdiff) 의 blocks 지원 + 사례 파일 | L | PG-040 | 개 | ⬜ 열림 |
+| PG-070 | C2 | 템플릿 형식 + 11종 + 미리 보기 | L | PG-041 | 개 | ✅ 끝 2026-11-26 · 11종(page_templates.py) 시험 89사례 - 미리 보기 그림은 PG-071 |
+| PG-071 | C2 | 추천(`hub.template_rec` 종류별) · 홈·새 문서에서 고르기 | M | PG-070 PG-022 | 개 | 🚧 진행 · 작업 공간 안 추천(쓴 횟수) 끝, 남음: 홈·허브 추천(hub.template_rec) |
+| PG-080 | C3 | 병합(deckmerge · nexa-merge) · 작업(deckops) · diff(deckdiff) 의 blocks 지원 + 사례 파일 | L | PG-040 | 개 | 🚧 진행 · 병합 끝(서버·화면 19사례 같음), 남음: 작업(deckops)·diff(deckdiff) |
 | PG-081 | C3 | 원장 · 변경 탭 · 제안(proposals) · AI 요청(세션 규약 문단 · save_deck 검사) | L | PG-080 | 개 | ⬜ 열림 |
 | PG-082 | C3 | 두 창 시나리오 · collab_sim 페이지 덱 | M | PG-080 | 협 | ⬜ 열림 |
 | PG-090 | D | 1단계 마감 보고 · 사용 설명(`docs/pages.md`) · 숨김 해제 질문 | S | 위 전부 | 협 | ⬜ 열림 |

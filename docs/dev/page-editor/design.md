@@ -28,7 +28,7 @@
  "blocks": [
    {"id": "b01", "type": "p", "style": "h1", "runs": [{"t": "제목"}]},
    {"id": "b02", "type": "p", "align": "justify", "runs": [{"t": "본문 "}, {"t": "굵게", "b": 1}, {"t": " 색", "c": "accent"}]},
-   {"id": "b03", "type": "list", "kind": "bullet", "items": [{"id": "i1", "level": 0, "runs": [{"t": "항목"}]}]},
+   {"id": "b03", "type": "p", "list": {"kind": "bullet", "level": 0}, "runs": [{"t": "항목"}]},
    {"id": "b04", "type": "table", "cols": [40, 60], "rows": [{"id": "r1", "head": true, "cells": [{"id": "c1", "blocks": []}]}]},
    {"id": "b05", "type": "image", "src": "assets/…", "w": 80, "align": "center"},
    {"id": "b06", "type": "break", "kind": "page"}
@@ -38,7 +38,8 @@
 
 - `slides: []` 는 서버 검증 호환용으로 둔다(시트와 같은 이유) - 종류 등록부가 자리 잡으면 뺀다.
 - 길이 단위 = mm, 글자 크기 = pt. 색·글꼴은 토큰 이름(`accent`, `body`) 또는 값 - 슬라이드와 같은 `tokens.json`·`fontPresets` 를 쓴다.
-- **블록마다 id** - 병합·diff·작업(op)·AI 제안의 단위. 표는 행·셀 id, 목록은 항목 id.
+- **블록마다 id** - 병합·diff·작업(op)·AI 제안의 단위. 표는 행·셀 id.
+- **목록은 문단의 속성**(`list: {kind: bullet|number|check, level, restart?, done?}`) - Word 의 번호 매기기와 같다. 이어진 목록 문단이 한 목록이고 번호는 그릴 때 센다(DP-P06).
 - `runs` = [{t, b, i, u, s, c, hl, sup, sub, font, size, link, ruby}] - 인접한 같은 서식은 합쳐 저장한다(정규화).
 - `objects`(2단계) = 글 상자·도형·그림: `{id, anchor: "block:<id>" | "page:<n>", x, y, w, h, wrap, …}`. 모양·선·채움은 슬라이드 요소와 같은 표현을 쓴다(공용 렌더).
 
