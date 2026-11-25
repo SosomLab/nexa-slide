@@ -34,7 +34,7 @@
     const e = from.pop(); if (!e) return;
     to.push({ json: deckJson(), sel: ed.selection() });
     S.deck = JSON.parse(e.json); S.lastWhy = "";
-    layout(); ed.refresh(e.sel); afterChange(true);
+    cur = ed; S.pick = null; layout(); ed.refresh(e.sel); afterChange(true);
   }
   const undo = () => restore(S.undo, S.redo), redo = () => restore(S.redo, S.undo);
   function afterChange(noMark) {
@@ -58,7 +58,7 @@
       if (r.data.merged && r.data.deck) {  // 그 사이 다른 저장과 합쳐졌다 - 결과(+ 저장하는 사이 더 고친 것)를 화면에
         const now = deckJson(), sel = ed.selection();
         S.savedJson = JSON.stringify(r.data.deck); S.deck = NexaMerge.afterSave(body, now, r.data.deck);
-        layout(); ed.refresh(sel); toast(NexaMerge.notice(r.data.conflicts).text, 3500);
+        cur = ed; layout(); ed.refresh(sel); toast(NexaMerge.notice(r.data.conflicts).text, 3500);
       } else {
         const same = deckJson() === body;
         if (r.data.updated) S.deck.updated = r.data.updated;
@@ -283,7 +283,7 @@
       { label: "작게 (-20%)", act: () => width((w) => w * 0.8) }, { label: "크게 (+25%)", act: () => width((w) => w * 1.25) },
       { label: "본문 너비에 맞춤", act: () => width(() => S.box.cw) }, { label: "본문 너비의 절반", act: () => width(() => S.box.cw / 2) }, "-",
       { label: "왼쪽", on: b.align === "left", act: () => align("left") }, { label: "가운데", on: !b.align || b.align === "center", act: () => align("center") }, { label: "오른쪽", on: b.align === "right", act: () => align("right") }, "-",
-      { label: "설명(캡션)…", act: () => { const t = prompt("그림 설명", b.caption || ""); if (t === null) return; changeBlock(id, (x) => { const y = { ...x }; if (t.trim()) y.caption = t.trim(); else delete y.caption; return y; }); } },
+      { label: "설명(캡션)", act: () => { const t = prompt("그림 설명", b.caption || ""); if (t === null) return; changeBlock(id, (x) => { const y = { ...x }; if (t.trim()) y.caption = t.trim(); else delete y.caption; return y; }); } },
       { label: "그림 지우기", key: "Del", act: () => changeBlock(id, () => null) }]);
   }
 
@@ -366,7 +366,7 @@
   async function deckListMenu(btn) {
     const r = await api("GET", "/api/decks"), list = r.ok && Array.isArray(r.data) ? r.data : [];
     openMenu(btn, [{ h: `문서 ${list.length}개` }, ...list.map((d) => ({ label: `${NexaKinds.of(d).icon} ${d.title || d.id}`, on: d.id === S.id, act: async () => { if (d.id === S.id) return; if (S.dirty) await save(); location.href = NexaKinds.url(d); } })),
-      "-", { label: "새 문서…", act: async () => { const n = await NexaNewDoc.open({ api, kind: "page" }); if (!n) return; if (S.dirty) await save(); location.href = NexaKinds.url(n); } }]);
+      "-", { label: "새 문서", act: async () => { const n = await NexaNewDoc.open({ api, kind: "page" }); if (!n) return; if (S.dirty) await save(); location.href = NexaKinds.url(n); } }]);
   }
   /** 내보내기 - 저장한 뒤 서버가 out/<id>.docx(·pdf)를 만들고 내려받는다. PDF 는 Word 가 있을 때만(없으면 [인쇄] 안내) */
   async function doExport(pdf) {
@@ -408,7 +408,7 @@
     $("#btnPrint").onclick = () => window.print();
     $("#btnExport").onclick = (e) => openMenu(e.currentTarget, [{ label: "Word 문서 (.docx)", act: () => doExport(false) }, { label: "PDF (Word 로 변환)", act: () => doExport(true) }], { right: true });
     $("#bnMine").onclick = () => save(true);
-    $("#bnTheirs").onclick = async () => { if (await loadDeck()) { banner(false); layout(); ed.refresh(); decorateAll(); setStatus("saved", "저장됨"); } };
+    $("#bnTheirs").onclick = async () => { if (await loadDeck()) { banner(false); cur = ed; S.pick = null; layout(); ed.refresh(); decorateAll(); setStatus("saved", "저장됨"); } };
     document.addEventListener("mousedown", (e) => { if (!e.target.closest(".menu")) closeMenu(); });
     window.addEventListener("resize", pageLines);
     window.addEventListener("beforeunload", (e) => { if (S.dirty) { e.preventDefault(); e.returnValue = ""; } });

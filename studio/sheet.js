@@ -2013,7 +2013,7 @@
     const go = (d) => { location.href = NexaKinds.url(d); };
     openMenu(btn, [{ h: `덱·시트 ${S.decks.length}개` },
       ...S.decks.map((d) => ({ label: `${d.kind === "sheet" ? "▦ " : d.start ? "★ " : ""}${d.title || d.id}${d.kind === "sheet" ? "" : ` (${d.slides}장)`}`, on: d.id === S.id, act: () => { if (d.id !== S.id) leave(() => go(d)); } })),
-      "-", { label: "새 문서…", act: async () => { const r = await NexaNewDoc.open({ api, kind: "sheet" }); if (r) leave(() => { location.href = NexaKinds.url(r); }); } }, { label: "새 시트", act: newSheet }]);
+      "-", { label: "새 문서", act: async () => { const r = await NexaNewDoc.open({ api, kind: "sheet" }); if (r) leave(() => { location.href = NexaKinds.url(r); }); } }, { label: "새 시트", act: newSheet }]);
   }
   async function newSheet() {
     if (window.NexaSheetNew) { const id = await NexaSheetNew.open(); if (id) leave(() => { location.href = `sheet.html?deck=${encodeURIComponent(id)}`; }); return; }
