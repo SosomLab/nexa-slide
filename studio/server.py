@@ -2487,15 +2487,30 @@ class H(BaseHTTPRequestHandler):
                 return self.send_json({"ok": False, "error": "DOCX 내보내기 실패", "log": log}, 500)
             if (q.get("pdf") or ["0"])[0] != "1":
                 return self.send_json({"ok": True, "path": str(f), "url": f"/out/{f.name}?v={ver(f)}", "log": log, "name": export_name(i, ".docx")})
+            # PDF - Word 우선(Word 에서 연 것과 같다), 없거나 실패하면 Chrome 인쇄(편집 화면과 같다). ?via=chrome 이면 Chrome 만(DR-P06)
             import shutil
-            pdf, pwsh = OUT / f"{i}.pdf", shutil.which("pwsh") or shutil.which("powershell")
-            if not pwsh:  # Word 가 없는 환경 - 화면의 [인쇄] 로 PDF 를 만든다(Chrome 인쇄 경로는 인쇄 미리 보기 PG-054 뒤에 서버에서도)
-                return self.send_json({"ok": False, "error": "이 PC 에는 Word 변환기가 없습니다 - 편집기의 [인쇄] 에서 'PDF 로 저장'을 쓰세요", "needPrint": True}, 501)
-            code, log2 = run([pwsh, "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(STUDIO / "render_docx.ps1"), "-Docx", str(f), "-Pdf", str(pdf)], 300)
-            if code != 0 or not pdf.exists():
-                return self.send_json({"ok": False, "error": "PDF 변환 실패(Word) - 편집기의 [인쇄] 에서 'PDF 로 저장'을 쓰세요", "needPrint": True, "log": log2[-600:]}, 501)
-            m = re.search(r"^pages (\d+)$", log2, re.M)
-            return self.send_json({"ok": True, "path": str(pdf), "url": f"/out/{pdf.name}?v={ver(pdf)}", "name": export_name(i, ".pdf"), "method": "word", "pages": int(m.group(1)) if m else None})
+            pdf, err = OUT / f"{i}.pdf", []
+            pdf.unlink(missing_ok=True)
+            pwsh = shutil.which("pwsh") or shutil.which("powershell")
+            if os.name == "nt" and pwsh and (q.get("via") or [""])[0] != "chrome":
+                code, log2 = run([pwsh, "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(STUDIO / "render_docx.ps1"), "-Docx", str(f), "-Pdf", str(pdf)], 300)
+                if code == 0 and pdf.exists():
+                    m = re.search(r"^pages (\d+)$", log2, re.M)
+                    return self.send_json({"ok": True, "path": str(pdf), "url": f"/out/{pdf.name}?v={ver(pdf)}", "name": export_name(i, ".pdf"), "method": "word", "pages": int(m.group(1)) if m else None})
+                err.append("Word: " + (log2.strip().splitlines() or ["?"])[-1][:200])
+            browsers = [r"C:\Program Files\Google\Chrome\Application\chrome.exe", r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe",
+                        r"C:\Program Files\Microsoft\Edge\Application\msedge.exe", "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"]
+            br = next((b for b in browsers if Path(b).exists()), None) or shutil.which("chrome") or shutil.which("google-chrome") or shutil.which("msedge") or shutil.which("chromium")
+            if br:
+                url = f"http://127.0.0.1:{self.server.server_port}/studio/page.html?deck={i}&print=1"
+                code, log3 = run([br, "--headless=new", "--disable-gpu", "--no-sandbox", f"--user-data-dir={OUT / '.chrome-profile-pdf'}", "--no-pdf-header-footer",
+                                  "--virtual-time-budget=10000", f"--print-to-pdf={pdf}", url], 180)
+                if pdf.exists():
+                    return self.send_json({"ok": True, "path": str(pdf), "url": f"/out/{pdf.name}?v={ver(pdf)}", "name": export_name(i, ".pdf"), "method": "chrome", "pages": None})
+                err.append("Chrome: " + (log3.strip().splitlines() or ["?"])[-1][:200])
+            else:
+                err.append("Chrome/Edge 없음")
+            return self.send_json({"ok": False, "error": "PDF 를 만들지 못했습니다 - 편집기의 [인쇄] 에서 'PDF 로 저장'을 쓰세요", "needPrint": True, "log": " / ".join(err)}, 501)
         if deck_kind(i) == "sheet":  # 시트 문서 → out/<id>.xlsx, 매크로(VBA)가 있으면 .xlsm (export_xlsx.py)
             no_macros = (q.get("macros") or ["1"])[0] == "0"  # 매크로를 빼고 .xlsx(위험 코드 확인창에서 고른 것)
             code, log = run([sys.executable, str(STUDIO / "export_xlsx.py"), i] + (["--no-macros"] if no_macros else []), 120)
