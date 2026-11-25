@@ -354,6 +354,23 @@ def merge_steps():
     ]
 
 
+IMPORT_DOCX = [b""]  # 가져오기 시험용 .docx(우리 내보내기로 만든 것 - Word 가 만든 문서는 page_word_import_test)
+
+
+def import_ui_steps(b64):
+    return [step("새 문서 → 페이지 → [Word 문서(.docx)에서 가져오기] 에 파일 → page.html 로 이동 · 본문에 글",
+                 ND + "await open();nd().querySelector('[data-kind=page]').click();await until(async()=>nd().querySelector('#ndFile'),5000);const bin=Uint8Array.from(atob('" + b64 + "'),c=>c.charCodeAt(0));"
+                      "const dt=new DataTransfer();dt.items.add(new File([bin],'가져오기 화면.docx',{type:'application/vnd.openxmlformats-officedocument.wordprocessingml.document'}));const inp=nd().querySelector('#ndFile');inp.files=dt.files;"
+                      "setTimeout(()=>inp.dispatchEvent(new Event('change',{bubbles:true})),50);return true;", wait=3000),
+            ]
+
+
+def import_ui_check_steps():
+    return [step("(앞 단계) 가져온 문서가 page.html 로 열리고 본문에 '가져온 글'",
+                 "await until(async()=>location.pathname.endsWith('page.html')&&window.NexaPageEditor,8000);const S=window.NexaPageEditor&&NexaPageEditor.S;"
+                 "return location.pathname.endsWith('page.html')&&S&&S.deck.blocks.some(b=>(b.runs||[]).map(r=>r.t).join('').includes('가져온 글')) || JSON.stringify({href:location.href,blocks:S&&S.deck.blocks.length});")]
+
+
 ND = ("const nd=()=>document.querySelector('.nd-back');const open=async()=>{document.querySelector('#deckTabs [data-deckadd]').click();await until(async()=>nd()&&nd().querySelector('#ndTitle'),5000);};"
       "const kinds=()=>[...nd().querySelectorAll('[data-kind]')].map(b=>b.dataset.kind);")
 
@@ -369,7 +386,7 @@ def newdoc_on_steps():
     return [
         step("새 문서 대화 상자(켠 작업 공간) - 종류 셋 · 제목이 비면 오류 글 · 페이지 → 템플릿 카드 11개(일반 문서·학습 자료)",
              ND + "await open();const k=kinds();nd().querySelector('#ndTitle').value='';nd().querySelector('#ndOk').click();await new Promise(r=>setTimeout(r,150));const err=nd().querySelector('#ndErr').textContent;"
-                  "nd().querySelector('[data-kind=page]').click();await until(async()=>nd().querySelectorAll('.nd-tpl').length,5000);const n=nd().querySelectorAll('.nd-tpl').length,g=[...nd().querySelectorAll('.nd-group')].map(x=>x.textContent);"
+                  "nd().querySelector('[data-kind=page]').click();await until(async()=>nd().querySelectorAll('.nd-tpl[data-tpl]').length,5000);const n=nd().querySelectorAll('.nd-tpl[data-tpl]').length,g=[...nd().querySelectorAll('.nd-group')].map(x=>x.textContent);"
                   "document.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}));return k.join()==='deck,sheet,page'&&/제목/.test(err)&&n===11&&g.some(x=>/일반/.test(x))&&g.some(x=>/학습/.test(x)) || JSON.stringify({k,err,n,g});"),
         step("새 문서 대화 상자 - 슬라이드로 만들면 그 덱이 열리고 덱 탭에 생김",
              ND + "await open();nd().querySelector('[data-kind=deck]').click();nd().querySelector('#ndTitle').value='대화 상자 덱';nd().querySelector('#ndOk').click();"
@@ -389,7 +406,7 @@ def newdoc_rec_steps():
                  "const id=new URLSearchParams(location.search).get('deck');const f=await (await fetch('/api/decks',{cache:'no-store'})).json();const d=(Array.isArray(f)?f:[]).find(x=>x.title==='대화 상자 보고서');"
                  "const doc=d&&await (await fetch('/api/deck/'+d.id,{cache:'no-store'})).json();return !!d&&d.kind==='page'&&doc.template==='report' || JSON.stringify({d,tpl:doc&&doc.template});"),
             step("새 문서 대화 상자 - 같은 템플릿(report)으로 두 번 만든 뒤 다시 열면 '자주 쓰는 템플릿' 맨 앞에 '2회'",
-                 ND + "await open();nd().querySelector('[data-kind=page]').click();await until(async()=>nd().querySelectorAll('.nd-tpl').length,5000);const g=nd().querySelector('.nd-group').textContent,first=nd().querySelector('.nd-tpl');"
+                 ND + "await open();nd().querySelector('[data-kind=page]').click();await until(async()=>nd().querySelectorAll('.nd-tpl[data-tpl]').length,5000);const g=nd().querySelector('.nd-group').textContent,first=nd().querySelector('.nd-tpl[data-tpl]');"
                       "const r={g,tpl:first.dataset.tpl,rec:(first.querySelector('.rec')||{}).textContent};document.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}));"
                       "return /자주/.test(g)&&r.tpl==='report'&&/2회/.test(r.rec||'') || JSON.stringify(r);")]
 
@@ -407,6 +424,13 @@ def main():
         st1, r1, _ = call("PUT", "/api/deck/pgslide", {"id": "pgslide", "title": "슬라이드", "slides": [{"id": "s1", "elements": [{"id": "e1", "type": "text", "x": 10, "y": 10, "w": 100, "h": 40, "text": "글"}]}]})
         st2, r2, _ = call("PUT", "/api/deck/pgsheet", {"id": "pgsheet", "title": "시트", "kind": "sheet", "slides": [], "sheets": [{"id": "t01", "name": "S", "cells": {"A1": 1}}]})
         check("2 기존 슬라이드·시트 PUT 은 그대로 200", st1 == 200 and st2 == 200, (st1, r1, st2, r2))
+        import base64 as _b64
+        import export_docx as _xd
+        import page_doc as _pd
+        _doc = _pd.new_page("imp", "가져오기 원본"); _doc["blocks"] = [{"id": "i1", "type": "p", "runs": [{"t": "가져온 글"}]}]
+        IMPORT_DOCX[0] = _xd.build(_doc)
+        st_, r_, _ = call("POST", "/api/decks", {"action": "import", "name": "x.docx", "data": _b64.b64encode(IMPORT_DOCX[0]).decode()})
+        check("가져오기 - 꺼진 작업 공간에서 .docx 가져오기 400", st_ == 400, (st_, r_))
         lines, _ = scenario([{"url": "/studio/index.html#pgslide", "wait": 2500, "steps": newdoc_off_steps()}])
         for l in lines:
             print("  ", l[:700])
@@ -592,6 +616,50 @@ def main():
                     NOTES.append(f"합친 표 Word 열기 - 판정 불가: {j.get('skip')}")
                 else:
                     check("4 합친 표 DOCX 를 Word 로 - 경고 없이 열림 · 표 1", w.returncode == 0 and j.get("ok") and j.get("tables") == 1, json.dumps(j, ensure_ascii=False)[:300])
+        # 가져오기 API(켠 작업 공간) - 그림 든 문서(앞에서 내보낸 pid)를 다시 가져와 그림이 assets/images/<id>-import-*.png 로
+        st, r, _ = call("POST", f"/api/export/{pid}")
+        src = b""
+        if st == 200 and r.get("url"):
+            with urllib.request.urlopen(B + r["url"], timeout=30) as rr:
+                src = rr.read()
+        import base64 as _b64
+        st, r, _ = call("POST", "/api/decks", {"action": "import", "name": "그림 문서.docx", "data": _b64.b64encode(src).decode()})
+        iid = (r or {}).get("id") or ""
+        imgs = sorted(p_.name for p_ in (ws_on / "assets" / "images").glob(f"{iid}-import-*")) if iid else []
+        f_ = deck_file(ws_on, iid) if iid and (ws_on / "decks" / f"{iid}.json").is_file() else {}
+        check("가져오기 API - 켠 작업 공간 200 · kind page · blocks · warnings 키 · 그림이 assets/images/<id>-import-* 로",
+              st == 200 and f_.get("kind") == "page" and f_.get("blocks") and "warnings" in (r or {}) and imgs and all(b.get("src", "").startswith("assets/images/") for b in f_["blocks"] if b.get("type") == "image"),
+              json.dumps({"st": st, "r": {k: (r or {}).get(k) for k in ("id", "kind", "warnings", "error")}, "imgs": imgs}, ensure_ascii=False)[:400])
+        if iid:
+            l3, _ = scenario([{"url": f"/studio/page.html?deck={iid}", "wait": 3000, "steps": [step("가져온 문서 - page.html 에서 그림이 보임(naturalWidth > 0)",
+                "await until(async()=>[...document.querySelectorAll('#ed img')].every(i=>i.complete),5000);const im=[...document.querySelectorAll('#ed img')];return im.length>0&&im.every(i=>i.naturalWidth>0) || JSON.stringify(im.map(i=>[i.src,i.naturalWidth]));")]}])
+            for l in l3:
+                print("  ", l[:600])
+                if l.startswith("FAIL"):
+                    FAILS.append("화면: " + l[5:80])
+        st, r, _ = call("POST", "/api/export/pgsheet")
+        xb = b""
+        if st == 200 and r.get("url"):
+            with urllib.request.urlopen(B + r["url"], timeout=30) as rr:
+                xb = rr.read()
+        st, r, _ = call("POST", "/api/decks", {"action": "import", "name": "시트.xlsx", "data": _b64.b64encode(xb).decode()})
+        xid = (r or {}).get("id") or ""
+        check("가져오기 API - .xlsx 는 그대로 시트 문서", st == 200 and xid and deck_file(ws_on, xid).get("kind") == "sheet", json.dumps({"st": st, "r": r}, ensure_ascii=False)[:300])
+        import io as _io, zipfile as _zf  # noqa: E401
+        fake = _io.BytesIO()
+        with _zf.ZipFile(fake, "w") as z_:
+            z_.writestr("hello.txt", "docx 아님")
+        st, r, _ = call("POST", "/api/decks", {"action": "import", "name": "가짜.docx", "data": _b64.b64encode(fake.getvalue()).decode()})
+        check("가져오기 API - docx 가 아닌 zip 을 .docx 이름으로 올리면 400", st == 400, json.dumps({"st": st, "r": r}, ensure_ascii=False)[:300])
+        l4, _ = scenario([{"url": "/studio/index.html#pgslide", "wait": 2500, "steps": import_ui_steps(_b64.b64encode(IMPORT_DOCX[0]).decode())}])
+        for l in l4:
+            print("  ", l[:600])
+            if l.startswith("FAIL"):
+                FAILS.append("화면: " + l[5:80])
+        _, dl, _ = call("GET", "/api/decks")
+        got = [x for x in (dl if isinstance(dl, list) else []) if x.get("kind") == "page" and "가져오기" in str(x.get("title", "")) and x.get("id") != iid]
+        txt_ok = any("가져온 글" in json.dumps(deck_file(ws_on, x["id"]).get("blocks"), ensure_ascii=False) for x in got)
+        check("화면 가져오기 - 새 문서 대화 상자로 올린 .docx 가 페이지 문서로 만들어지고 본문에 '가져온 글'", bool(got) and txt_ok, json.dumps([(x.get("id"), x.get("title")) for x in got], ensure_ascii=False)[:300])
         # 그림이 든 문서를 Word 로 - InlineShapes
         st, r, _ = call("POST", f"/api/export/{pid}")
         if st == 200 and r.get("url"):
