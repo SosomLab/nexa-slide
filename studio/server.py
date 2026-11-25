@@ -417,7 +417,7 @@ def activity():
     return {"watcher": w, "othersBusy": sum(1 for x in out if x is not w and x["state"] == "busy"), "sessions": len(out)}
 
 
-ENGINE_UI = ("index.html", "studio.js", "sheet.html", "sheet.js", "sheetnew.js", "sheetcalc.js", "sheetx.js", "sheetside.js", "vba.js", "vbaworker.js", "wsession.js", "nexa-requests.js", "nexa-requests.css", "nexa-merge.js", "nexa-live.js", "nexa-shell.js", "nexa-text.js", "nexa-kinds.js", "page.html", "page.js", "page-render.js", "render.js", "menu.js", "fonts.css", "i18n.js", "i18n/en.js", "i18n/en.pages.js", "i18n/en.review.js")
+ENGINE_UI = ("index.html", "studio.js", "sheet.html", "sheet.js", "sheetnew.js", "sheetcalc.js", "sheetx.js", "sheetside.js", "vba.js", "vbaworker.js", "wsession.js", "nexa-requests.js", "nexa-requests.css", "nexa-merge.js", "nexa-live.js", "nexa-shell.js", "nexa-text.js", "nexa-kinds.js", "nexa-newdoc.js", "page_templates.py", "page.html", "page.js", "page-render.js", "render.js", "menu.js", "fonts.css", "i18n.js", "i18n/en.js", "i18n/en.pages.js", "i18n/en.review.js")
 
 
 def hub_ui_stamp():
@@ -1044,6 +1044,29 @@ class H(BaseHTTPRequestHandler):
             return self.err(404, "없는 테마")
         t["brandLogo"] = ("/" + BRAND["logo"]) if BRAND.get("logo") else ""
         self.send_json(t)
+
+    def api_get_page_templates(self, name, q):
+        """페이지 템플릿 - 이름 없으면 목록(자주 쓴 것이 앞: 이 작업 공간의 페이지 문서가 쓴 횟수, 그다음 기본 순서), 있으면 그 템플릿."""
+        if HUB:
+            return self.err(404, "작업 공간 서버에서")
+        import page_templates
+        if name:
+            t = page_templates.load(name)
+            return self.send_json(t) if t else self.err(404, "없는 템플릿")
+        used = {}
+        for f in DECKS.glob("*.json") if DECKS.is_dir() else []:
+            if f.name.endswith(".requests.json"):
+                continue
+            try:
+                d = json.loads(f.read_text(encoding="utf-8"))
+            except (OSError, ValueError):
+                continue
+            if d.get("kind") == "page" and d.get("template"):
+                used[d["template"]] = used.get(d["template"], 0) + 1
+        items = [{**t, "used": used.get(t["name"], 0)} for t in page_templates.info()]
+        top = sorted((t for t in items if t["used"]), key=lambda t: -t["used"])[:4]  # 자주 쓴 것 넷까지 맨 앞에(파이썬 정렬은 안정적 - 같은 횟수면 기본 순서)
+        names = {t["name"] for t in top}
+        self.send_json([{**t, "rec": True} for t in top] + [{**t, "rec": False} for t in items if t["name"] not in names])
 
     def api_get_decks(self, _, q):
         out = []
