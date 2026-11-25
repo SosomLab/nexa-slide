@@ -24,6 +24,10 @@ const check = (name, ok, info) => { if (!ok) { bad++; console.log("FAIL", name, 
   check("planSave - 작은 문서 → put", M.planSave(JSON.stringify({ slides: [] }), JSON.stringify({ slides: [{ id: "a", elements: [] }] })).mode === "put");
   check("planSave - 구조 작업 → put", M.planSave(S, JSON.stringify(n1), { struct: [{ op: "insertRows" }] }).mode === "put");
   const many = JSON.parse(S); for (let k = 0; k < 250; k++) many.slides.push({ id: "n" + k, elements: [] });
+  { const pg = { id: "p", title: "t", kind: "page", slides: [], blocks: [{ id: "a", type: "p", runs: [{ t: "x".repeat(300000) }] }, { id: "b", type: "p", runs: [{ t: "둘" }] }] };
+    const P = JSON.stringify(pg), q = JSON.parse(P); q.blocks[1].runs = [{ t: "고침" }];
+    const r = M.planSave(P, JSON.stringify(q));
+    check("planSave - 페이지 문서(300KB) → put", r.mode === "put", r); }
   check("planSave - 작업 200개 넘음 → put", M.planSave(S, JSON.stringify(many)).mode === "put");
   const dup = JSON.parse(S); dup.slides[0].elements.push({ id: "e1", text: "같은 id" });
   check("planSave - 작업으로 같아지지 않음(같은 id 둘) → put", M.planSave(S, JSON.stringify(dup)).mode === "put", M.planSave(S, JSON.stringify(dup)).why);

@@ -28,6 +28,15 @@ try {
   $res.tables = $d.Tables.Count
   $res.sections = $d.Sections.Count
   $res.inlineShapes = $d.InlineShapes.Count
+  # 표마다 테두리 선 종류(0 = 없음) - 위·왼쪽·아래·오른쪽·가로 안쪽·세로 안쪽, 앞에서 5개까지
+  $bds = @()
+  for ($k = 1; $k -le [Math]::Min(5, $d.Tables.Count); $k++) {
+    $tb = $d.Tables.Item($k).Borders
+    # 칸마다 위·왼쪽·아래·오른쪽 선 종류 "행,열:T L B R" - 표 전체 값은 칸마다 다르면 9999999(정의 안 됨)라 눈에 보이는 선은 칸 값으로 본다
+    $cl = @(); foreach ($c in $d.Tables.Item($k).Range.Cells) { if ($cl.Count -lt 40) { $cb = $c.Borders; $cl += ("{0},{1}:{2} {3} {4} {5}" -f $c.RowIndex, $c.ColumnIndex, $cb.Item(-1).LineStyle, $cb.Item(-2).LineStyle, $cb.Item(-3).LineStyle, $cb.Item(-4).LineStyle) } }
+    $bds += [ordered]@{ top = $tb.Item(-1).LineStyle; left = $tb.Item(-2).LineStyle; bottom = $tb.Item(-3).LineStyle; right = $tb.Item(-4).LineStyle; h = $tb.Item(-5).LineStyle; v = $tb.Item(-6).LineStyle; cells = $cl }
+  }
+  $res.borders = $bds
   $res.header = ([string]$d.Sections.Item(1).Headers.Item(1).Range.Text).Trim()
   $res.footer = ([string]$d.Sections.Item(1).Footers.Item(1).Range.Text).Trim()
   # 번호 목록의 실제 번호 글(1. 2. a. …)과 제목 문단의 스타일·글자 크기 - 앞에서 40개까지

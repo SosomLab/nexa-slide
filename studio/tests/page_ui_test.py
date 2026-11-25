@@ -349,8 +349,34 @@ def merge_steps():
              H + M + "const a=await menu(1,0,'아래 칸과 합치기');const r1=t().rows[1],r2=t().rows[2];const ok1=a==='ok'&&r1.cells[0].rowspan===2&&r2.cells.length===2;"
                      "const b=await menu(1,0,'칸 나누기');const n=[t().rows[1].cells.length,t().rows[2].cells.length];const c=await menu(1,0,'아래 칸과 합치기');"
                      "return ok1&&b==='ok'&&n.join()==='3,3'&&c==='ok'&&t().rows[1].cells[0].rowspan===2 || JSON.stringify({a,ok1,b,n,c,rows:t().rows.map(r=>r.cells.map(x=>[x.id,x.colspan,x.rowspan]))});"),
+        step("배치용 표 - 표 메뉴 '테두리 없음' → border none · 표 클래스 pg-noborder · 편집기에서는 칸 경계가 흐린 점선",
+             H + M + "const a=await menu(0,0,'테두리 없음');const tb=document.querySelector('#ed [data-id=mt] table')||document.querySelector('#ed table[data-id=mt]');const cs=getComputedStyle(td(0,0));"
+                     "return a==='ok'&&t().border==='none'&&tb&&tb.classList.contains('pg-noborder')&&cs.borderTopStyle==='dashed' || JSON.stringify({a,border:t().border,cls:tb&&tb.className,style:cs.borderTopStyle,color:cs.borderTopColor});"),
+        step("배치용 표 - 인쇄용 규칙(page-render CSS)으로는 테두리 색이 투명",
+             H + M + "const d=document.implementation.createHTMLDocument('x');window.NexaPage.injectCss(d);const tb=d.createElement('table');tb.className='pg-table pg-noborder';tb.innerHTML='<tr><td>a</td><td>b</td></tr>';d.body.appendChild(tb);"
+                     "const f=document.createElement('iframe');f.style.cssText='position:fixed;left:-9999px;width:300px;height:100px';document.body.appendChild(f);f.contentDocument.open();f.contentDocument.write('<!doctype html><html><head></head><body></body></html>');f.contentDocument.close();"
+                     "window.NexaPage.injectCss(f.contentDocument);f.contentDocument.body.innerHTML=tb.outerHTML;const c=f.contentWindow.getComputedStyle(f.contentDocument.querySelector('td'));const col=c.borderTopColor;f.remove();"
+                     "return /rgba\\(0, 0, 0, 0\\)|transparent/.test(col) || col;"),
+        step("배치용 표 - '칸 사이 세로선만' → border inner-v · 클래스 pg-innerv · 둘째 칸 왼쪽 선 실선",
+             H + M + "const a=await menu(0,0,'칸 사이 세로선만');const tb=document.querySelector('#ed [data-id=mt] table')||document.querySelector('#ed table[data-id=mt]');const c2=[...tb.querySelectorAll('tr')].find(r=>r.children.length>1).children[1];const cs=getComputedStyle(c2);"
+                     "return a==='ok'&&t().border==='inner-v'&&tb.classList.contains('pg-innerv')&&cs.borderLeftStyle==='solid' || JSON.stringify({a,border:t().border,cls:tb&&tb.className,left:cs.borderLeftStyle});"),
         step("합친 표 저장 - 서버 파일에 colspan·rowspan",
-             H + M + "await idle();const f=await srv('pgmrg');const tt=f.blocks.find(b=>b.id==='mt');return tt.rows[0].cells[0].colspan===2&&tt.rows[1].cells[0].rowspan===2 || JSON.stringify(tt.rows.map(r=>r.cells.map(x=>[x.colspan,x.rowspan])));"),
+             H + M + "await idle();const f=await srv('pgmrg');const tt=f.blocks.find(b=>b.id==='mt');return tt.rows[0].cells[0].colspan===2&&tt.rows[1].cells[0].rowspan===2&&tt.border==='inner-v' || JSON.stringify({border:tt.border,rows:tt.rows.map(r=>r.cells.map(x=>[x.colspan,x.rowspan]))});"),
+    ]
+
+
+def study_steps():
+    return [
+        step("해설지(study-guide) - 2단: 배치용 표 1개 · 칸 2개 · 왼쪽 칸 너비 ≈ 67%(±3)",
+             H + "const t=S.deck.blocks.find(b=>b.type==='table'&&b.border);const tb=t&&(document.querySelector('#ed [data-id='+t.id+'] table')||document.querySelector('#ed table[data-id='+t.id+']'));"
+                 "const cells=tb?[...tb.querySelector('tr').children]:[];const r=cells.length===2?cells[0].getBoundingClientRect().width/tb.getBoundingClientRect().width:0;"
+                 "return !!t&&t.rows.length===1&&t.rows[0].cells.length===2&&cells.length===2&&Math.abs(r-0.67)<=0.03 || JSON.stringify({border:t&&t.border,cells:cells.length,ratio:r});"),
+        step("해설지 - 윗주 3개(S·V·접속사) · ::before 내용이 각각 그 글",
+             H + "const sp=[...document.querySelectorAll('#ed [data-ruby]')];const b=sp.map(x=>getComputedStyle(x,'::before').content);"
+                 "return sp.length===3&&sp.every((x,i)=>b[i].includes(x.dataset.ruby))&&sp.map(x=>x.dataset.ruby).join()==='S,V,접속사' || JSON.stringify({n:sp.length,r:sp.map(x=>x.dataset.ruby),b});"),
+        step("해설지 - 머리말에 날짜와 제목 · 자리 글({title}·{date})이 남지 않음",
+             H + "const h=document.querySelector('#pgHeader').textContent;const all=JSON.stringify(S.deck);"
+                 "return /\\d{4}-\\d{2}-\\d{2}/.test(h)&&h.includes(S.deck.title)&&!/\\{(title|date)\\}/.test(all) || JSON.stringify({h,left:(all.match(/\\{(title|date)\\}/g)||[])});"),
     ]
 
 
@@ -493,6 +519,7 @@ def main():
             {"url": "/studio/page.html?deck=pgtbl", "wait": 2500, "steps": table_steps("pgtbl")},
             {"url": "/studio/page.html?deck=pgfmt", "wait": 2500, "steps": fmt_steps() + ruby_steps()},
             {"url": "/studio/page.html?deck=pgmrg", "wait": 2500, "steps": merge_steps()},
+            {"url": "/studio/page.html?deck=pgsgid", "wait": 2500, "steps": study_steps()},
             {"url": "/studio/index.html#pgslide", "wait": 2500, "steps": newdoc_on_steps()},
         ]
         import page_doc
@@ -500,6 +527,10 @@ def main():
             full = page_doc.new_page(doc_["id"], doc_["title"]); full["blocks"] = doc_["blocks"]
             st_, r_, _ = call("PUT", f"/api/deck/{doc_['id']}", full)
             check(f"서식·합치기 시험 문서 {doc_['id']} 만들기 200", st_ == 200, (st_, r_))
+        st, r, _ = call("POST", "/api/decks", {"action": "create", "kind": "page", "title": "해설지 시험", "theme": "study-guide"})
+        sg_id = (r or {}).get("id") or "pgsgid"
+        check("해설지 템플릿으로 만들기 200 · template = study-guide", st == 200 and deck_file(ws_on, sg_id).get("template") == "study-guide", (st, r))
+        pages = [dict(x, url=x["url"].replace("pgsgid", sg_id)) for x in pages]
         st, r, _ = call("POST", "/api/decks", {"action": "create", "kind": "page", "title": "표 시험"})
         tbl_id = (r or {}).get("id") or "pgtbl"
         pages = [dict(x, url=x["url"].replace("pgtbl", tbl_id)) for x in pages]
@@ -606,6 +637,9 @@ def main():
         mdx = zipfile.ZipFile(io.BytesIO(mx)).read("word/document.xml").decode("utf-8") if mx[:2] == b"PK" else ""
         check("4 합친 표 DOCX - gridSpan 2 · vMerge(restart + 이어짐)", 'w:gridSpan w:val="2"' in mdx and 'w:vMerge w:val="restart"' in mdx and "<w:vMerge/>" in mdx,
               json.dumps({"gridSpan": 'w:gridSpan w:val="2"' in mdx, "restart": 'w:vMerge w:val="restart"' in mdx, "cont": "<w:vMerge/>" in mdx}, ensure_ascii=False))
+        tb_ = (_re.search(r"<w:tblBorders>(.*?)</w:tblBorders>", mdx) or [None, ""])[1] if mdx else ""
+        check("4 배치용 표(inner-v) DOCX - tblBorders 에 insideV 만 single · 나머지 none(Word 가 nil 을 정의 안 됨으로 읽음) · 머리 행 회색 칠 없음",
+              'w:insideV w:val="single"' in tb_ and all(f'<w:{x} w:val="none"' in tb_ for x in ("top", "left", "bottom", "right", "insideH")) and 'w:fill="F0F0F0"' not in mdx, tb_[:400])
         pw_ = __import__("shutil").which("pwsh") or __import__("shutil").which("powershell")
         if pw_ and mx[:2] == b"PK":
             with tmpfiles.temp_dir("nx-pgmrg-") as d:
@@ -616,6 +650,28 @@ def main():
                     NOTES.append(f"합친 표 Word 열기 - 판정 불가: {j.get('skip')}")
                 else:
                     check("4 합친 표 DOCX 를 Word 로 - 경고 없이 열림 · 표 1", w.returncode == 0 and j.get("ok") and j.get("tables") == 1, json.dumps(j, ensure_ascii=False)[:300])
+            # 테두리 없음(none)으로 바꿔 다시 내보내 Word 에서 선이 하나도 없는지
+            dm = deck_file(ws_on, "pgmrg"); vm = None
+            for b_ in dm.get("blocks") or []:
+                if b_.get("id") == "mt":
+                    b_["border"] = "none"
+            st_, r_, _ = call("PUT", "/api/deck/pgmrg", dm)
+            st, r, _ = call("POST", "/api/export/pgmrg")
+            nx = b""
+            if st == 200 and r.get("url"):
+                with urllib.request.urlopen(B + r["url"], timeout=30) as rr:
+                    nx = rr.read()
+            ndx = zipfile.ZipFile(io.BytesIO(nx)).read("word/document.xml").decode("utf-8") if nx[:2] == b"PK" else ""
+            tn = (_re.search(r"<w:tblBorders>(.*?)</w:tblBorders>", ndx) or [None, ""])[1]
+            check("4 배치용 표(none) DOCX - tblBorders 여섯 개 모두 none", st_ == 200 and tn.count('w:val="none"') == 6 and "single" not in tn, tn[:400])
+            with tmpfiles.temp_dir("nx-pgnob-") as d:
+                f = Path(d) / "n.docx"; f.write_bytes(nx)
+                w = subprocess.run([pw_, "-NoProfile", "-File", str(HERE / "docx_open_check.ps1"), "-Docx", str(f)], capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=180)
+                j = json.loads((w.stdout.strip().splitlines() or ["{}"])[-1] or "{}")
+                if w.returncode == 99:
+                    NOTES.append(f"배치용 표 Word 열기 - 판정 불가: {j.get('skip')}")
+                else:
+                    check("4 배치용 표(none)·합친 칸 DOCX 를 Word 로 - 경고 없이 열림(선 종류 판정은 합치지 않은 표로 pageword 에서)", w.returncode == 0 and j.get("ok"), json.dumps(j, ensure_ascii=False)[:300])
         # 가져오기 API(켠 작업 공간) - 그림 든 문서(앞에서 내보낸 pid)를 다시 가져와 그림이 assets/images/<id>-import-*.png 로
         st, r, _ = call("POST", f"/api/export/{pid}")
         src = b""

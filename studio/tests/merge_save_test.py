@@ -315,6 +315,25 @@ def main():
             if rr.returncode:
                 bad.append((i, rr.stdout[-300:]))
         check("10 원장 - 구조 작업 뒤 옛 판 저장들의 ledger verify rc 0(7개 덱)", not bad, json.dumps(bad, ensure_ascii=False)[:600])
+        # 11. 페이지 문서 - 작업 저장(POST /api/ops) 차단 · PUT ?merge=1 이면 남이 고친 문단도 남는다(협업 세션 재현: 블록 a·b)
+        sys.path.insert(0, str(STUDIO))
+        import page_doc
+        pg = page_doc.new_page("zpg1", "페이지 작업 저장")
+        pg["blocks"] = [{"id": "a", "type": "p", "runs": [{"t": "하나"}]}, {"id": "b", "type": "p", "runs": [{"t": "둘"}]}]
+        st, _ = put("zpg1", pg)
+        d0, v0 = get("zpg1")
+        before = get("zpg1")
+        so_, ro_ = post_ops("zpg1", {"base": v0, "ops": [{"op": "set", "path": ["blocks"], "value": d0["blocks"]}]})
+        after = get("zpg1")
+        check("11 페이지 문서에 POST /api/ops - 400(통째 저장으로) · 파일 그대로", st == 200 and so_ == 400 and before[0] == after[0] and before[1] == after[1], json.dumps({"put": st, "ops": [so_, ro_]}, ensure_ascii=False)[:300])
+        mine = json.loads(json.dumps(d0)); mine["blocks"][0]["runs"] = [{"t": "내가 고침"}]
+        other = json.loads(json.dumps(d0)); other["blocks"][1]["runs"] = [{"t": "남이 고침"}]
+        s1, _ = put("zpg1", other, base=v0, merge=1)
+        s2, r2 = put("zpg1", mine, base=v0, merge=1)
+        txt = [page_doc.runs_text(x.get("runs") or []) for x in get("zpg1")[0]["blocks"]]
+        check("11 페이지 - 같은 판에서 a·b 를 나눠 고쳐 PUT ?merge=1 → 둘 다 남는다", s1 == 200 and s2 == 200 and txt == ["내가 고침", "남이 고침"] and not (r2.get("conflicts") or []), json.dumps({"st": [s1, s2], "txt": txt}, ensure_ascii=False))
+        rr = subprocess.run([sys.executable, str(STUDIO / "ledger.py"), "verify", "zpg1", "--json"], env=ENV, cwd=str(WS), capture_output=True, text=True, encoding="utf-8", errors="replace")
+        check("11 페이지 - ledger verify rc 0", rr.returncode == 0, rr.stdout[-300:])
         # 서버 재시작 뒤(기준본 없음) - 예전과 같은 409 no-base
         d0, v0 = sdeck("zst9")
         struct_put("zst9", d0, v0, INS(1))
