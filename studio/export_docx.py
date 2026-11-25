@@ -152,6 +152,9 @@ def _ppr(b, ctx, num=None, style_ids=None):
         ind.append(f'w:firstLine="{tw(b["first"])}"' if b["first"] >= 0 else f'w:hanging="{tw(-b["first"])}"')
     if ind:
         x.append("<w:ind " + " ".join(ind) + "/>")
+    if isinstance(b.get("line"), (int, float)) and not isinstance(b.get("line"), bool) and b["line"] > 0:  # 문단이 직접 정한 줄 간격(배수)
+        at = sum(1 for e in x if e.startswith(("<w:pStyle", "<w:numPr")))  # pPr 안의 순서: pStyle → numPr → spacing → ind → jc
+        x.insert(at, f'<w:spacing w:line="{int(round(b["line"] * 240))}" w:lineRule="auto"/>')
     if b.get("align") in JC:
         x.append(f'<w:jc w:val="{JC[b["align"]]}"/>')
     return "<w:pPr>" + "".join(x) + "</w:pPr>" if x else ""
