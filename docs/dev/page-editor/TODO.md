@@ -10,19 +10,19 @@
 | PG-002 | A0 | 검증 진입점 `studio/tests/verify.py --level quick\|full`(run_all · check_parity · regress 를 감쌈, summary.md · history.tsv, 결과 넷) | M | - | 협 | ⬜ 열림 |
 | PG-003 | A0 | 작업판 `studio/devboard.py` + 한 화면 보기 `studio/devstatus.py` | M | - | 협 | ⬜ 열림 |
 | PG-004 | A0 | `.claude/settings.json` 허용 목록 · `/autodev` 명령 · CLAUDE.md 한 단락 | S | - | 개 | ✅ 끝 2026-11-25 |
-| PG-010 | A1 | 공용 뼈대 1: `nexa-shell.js`(api · toast · setStatus · banner · openMenu) - studio.js · sheet.js 가 쓰게 | M | PG-002 | 개 | ⬜ 열림 |
+| PG-010 | A1 | 공용 뼈대 1: `nexa-shell.js`(api · toast · setStatus · banner · openMenu) - studio.js · sheet.js 가 쓰게 | M | PG-002 | 개 | 🚧 진행 · 구현 끝(46dbe3d), 회귀 시험 대기(협업) |
 | PG-011 | A1 | 공용 뼈대 2: 실행 취소 · save/scheduleSave · loadDeck/poll/applyVersion 뼈대(종류별 훅) | L | PG-010 | 개 | ⬜ 열림 |
 | PG-012 | A1 | 공용 스타일 `nexa-shell.css`(머리 막대 · 상태 칩 · 배너 · 토스트 · 메뉴 · 대화 상자 · 옆 패널) | L | PG-010 | 개 | ⬜ 열림 |
 | PG-013 | A1 | 공용 확대 · 그림 넣기 · 내보내기 메뉴(`nexa-export.js`) | M | PG-011 | 개 | ⬜ 열림 |
 | PG-020 | A2 | 종류 등록부 `kinds.py` + 서버·허브·init·deck_admin 의 2분기를 조회로(동작 같음) | L | PG-002 | 개 | ⬜ 열림 |
-| PG-021 | A2 | 화면 쪽 종류 등록(`nexa-kinds.js`): 편집기 주소 · 이름 · 아이콘 · redirect | S | PG-020 | 개 | ⬜ 열림 |
+| PG-021 | A2 | 화면 쪽 종류 등록(`nexa-kinds.js`): 편집기 주소 · 이름 · 아이콘 · redirect | S | PG-020 | 개 | ✅ 끝 2026-11-26 · nexa-kinds.js (시험은 협업) |
 | PG-022 | A2 | 공용 "새 문서" 대화 상자 `nexa-newdoc.js`(홈 · 슬라이드 · 시트) - 어느 화면에서든 슬라이드·시트 추가 | M | PG-021 | 개 | ⬜ 열림 |
-| PG-023 | A2 | 숨김 스위치(experimental.page) + page kind 최소 등록(만들기 · 목록 · 빈 편집기) | M | PG-022 | 개 | ⬜ 열림 |
+| PG-023 | A2 | 숨김 스위치(experimental.page) + page kind 최소 등록(만들기 · 목록 · 빈 편집기) | M | PG-022 | 개 | 🚧 진행 · 서버 만들기·숨김·검증·이동 끝, 남음: 빈 편집기(page.html) · 새 문서 대화 상자 연결 |
 | PG-030 | B1 | nexa-text 모델 연산(runs 정규화 · 넣기 · 지우기 · 쪼개기 · 합치기 · 서식 켜고 끄기) + node 단위 시험 | M | - | 개 | ✅ 끝 2026-11-25 · 시험 39사례 |
 | PG-031 | B1 | nexa-text 입력(beforeinput · 선택 ↔ 모델 좌표 · 다시 그리기 · 키 이동) | L | PG-030 | 개 | ✅ 끝 2026-11-26 · 화면 시험 25단계(조합은 흉내 - 실제 IME 는 PG-032) |
 | PG-032 | B1 | 한글 조합(IME) · 붙여넣기(HTML → runs) · 입력 묶음 실행 취소 + 헤드리스 시나리오 | L | PG-031 | 개 | ⬜ 열림 |
-| PG-040 | B2 | `page_doc.py`(새 문서 · 검증 · 정규화) + 서버 PUT 검증 | M | PG-023 | 개 | ⬜ 열림 |
-| PG-041 | B2 | `page-render.js`(블록 → DOM, 스타일 상속 풀기) | M | PG-040 | 개 | ⬜ 열림 |
+| PG-040 | B2 | `page_doc.py`(새 문서 · 검증 · 정규화) + 서버 PUT 검증 | M | PG-023 | 개 | ✅ 끝 2026-11-26 · page_doc 39사례 + 서버 PUT 검증 |
+| PG-041 | B2 | `page-render.js`(블록 → DOM, 스타일 상속 풀기) | M | PG-040 | 개 | ✅ 끝 2026-11-26 · 규칙 맞춤 11사례 |
 | PG-042 | B2 | `page.html` · `page.js` - 공용 뼈대 위에 본문 편집 · 저장 · 다시 열기 | L | PG-011 PG-031 PG-041 | 개 | ⬜ 열림 |
 | PG-043 | B2 | 서식 막대 `nexa-format.js`(글자 · 문단 · 스타일 · 글꼴/색) | L | PG-042 | 개 | ⬜ 열림 |
 | PG-050 | B3 | 목록(글머리 · 번호 · 단계) | M | PG-042 | 개 | ⬜ 열림 |

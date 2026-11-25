@@ -483,7 +483,7 @@
     if (r.status === 401) { if (window.NexaMenu) NexaMenu.auth401(r, await r.json().catch(() => null)); return false; }
     if (!r.ok) { setStatus("error", "읽기 실패"); toast("시트를 불러오지 못했습니다 (" + r.status + ")", 6000); return false; }
     const deck = await r.json();
-    if (deck.kind !== "sheet") { location.replace(`index.html#${encodeURIComponent(S.id)}`); return false; }  // 슬라이드 덱이면 편집기로
+    if (deck.kind !== "sheet") { location.replace(NexaKinds.url({ id: S.id, kind: deck.kind })); return false; }  // 슬라이드 덱이면 편집기로
     if (!keepView) S.struct = [];
     if (keepView && S.deck) NexaMerge.seal(S.undo, S.redo, deckJson());  // 밖의 변경을 받는다 - 내 실행 취소에 넣지 않고, 이전 기록은 내 편집만 되돌리게 봉인
     else { S.undo = []; S.redo = []; }
@@ -2010,7 +2010,7 @@
   }
   async function deckListMenu(btn) {
     const r = await api("GET", "/api/decks"); S.decks = r.ok && Array.isArray(r.data) ? r.data : [];
-    const go = (d) => { location.href = d.kind === "sheet" ? `sheet.html?deck=${encodeURIComponent(d.id)}` : `index.html#${encodeURIComponent(d.id)}`; };
+    const go = (d) => { location.href = NexaKinds.url(d); };
     openMenu(btn, [{ h: `덱·시트 ${S.decks.length}개` },
       ...S.decks.map((d) => ({ label: `${d.kind === "sheet" ? "▦ " : d.start ? "★ " : ""}${d.title || d.id}${d.kind === "sheet" ? "" : ` (${d.slides}장)`}`, on: d.id === S.id, act: () => { if (d.id !== S.id) leave(() => go(d)); } })),
       "-", { label: "새 시트", act: newSheet }]);
