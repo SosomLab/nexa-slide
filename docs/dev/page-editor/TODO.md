@@ -35,7 +35,7 @@
 | PG-062 | C1 | 동일성 시험(화면 렌더 ↔ DOCX 구조) + Word 로 여는 검증 | M | PG-060 | 협 | ⬜ 열림 |
 | PG-070 | C2 | 템플릿 형식 + 11종 + 미리 보기 | L | PG-041 | 개 | ✅ 끝 2026-11-26 · 11종(page_templates.py) 시험 89사례 - 미리 보기 그림은 PG-071 |
 | PG-071 | C2 | 추천(`hub.template_rec` 종류별) · 홈·새 문서에서 고르기 | M | PG-070 PG-022 | 개 | 🚧 진행 · 작업 공간 안 추천(쓴 횟수) 끝, 남음: 홈·허브 추천(hub.template_rec) |
-| PG-080 | C3 | 병합(deckmerge · nexa-merge) · 작업(deckops) · diff(deckdiff) 의 blocks 지원 + 사례 파일 | L | PG-040 | 개 | ⬜ 열림 |
+| PG-080 | C3 | 병합(deckmerge · nexa-merge) · 작업(deckops) · diff(deckdiff) 의 blocks 지원 + 사례 파일 | L | PG-040 | 개 | 🚧 진행 · 병합 끝(서버·화면 19사례 같음), 남음: 작업(deckops)·diff(deckdiff) |
 | PG-081 | C3 | 원장 · 변경 탭 · 제안(proposals) · AI 요청(세션 규약 문단 · save_deck 검사) | L | PG-080 | 개 | ⬜ 열림 |
 | PG-082 | C3 | 두 창 시나리오 · collab_sim 페이지 덱 | M | PG-080 | 협 | ⬜ 열림 |
 | PG-090 | D | 1단계 마감 보고 · 사용 설명(`docs/pages.md`) · 숨김 해제 질문 | S | 위 전부 | 협 | ⬜ 열림 |
