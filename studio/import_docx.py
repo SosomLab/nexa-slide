@@ -246,6 +246,9 @@ class Reader:
                 first = mm(v(ind, "firstLine"))
                 if first:
                     b["first"] = first
+            pf = v(ppr.find(W + "shd"), "fill")
+            if pf and re.fullmatch(r"[0-9A-Fa-f]{6}", pf) and pf.lower() != "ffffff":
+                b["fill"] = "#" + pf.lower()
             sp = ppr.find(W + "spacing")
             if sp is not None and v(sp, "line") and v(sp, "lineRule", "auto") == "auto":
                 b["line"] = round(int(v(sp, "line")) / 240, 2)

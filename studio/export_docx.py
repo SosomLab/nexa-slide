@@ -152,8 +152,11 @@ def _ppr(b, ctx, num=None, style_ids=None):
         ind.append(f'w:firstLine="{tw(b["first"])}"' if b["first"] >= 0 else f'w:hanging="{tw(-b["first"])}"')
     if ind:
         x.append("<w:ind " + " ".join(ind) + "/>")
+    fill = ctx.color(b.get("fill"))
+    if fill:  # 문단 음영 - pPr 안의 순서: pStyle → numPr → shd → spacing → ind → jc
+        x.insert(sum(1 for e in x if e.startswith(("<w:pStyle", "<w:numPr"))), f'<w:shd w:val="clear" w:color="auto" w:fill="{fill}"/>')
     if isinstance(b.get("line"), (int, float)) and not isinstance(b.get("line"), bool) and b["line"] > 0:  # 문단이 직접 정한 줄 간격(배수)
-        at = sum(1 for e in x if e.startswith(("<w:pStyle", "<w:numPr")))  # pPr 안의 순서: pStyle → numPr → spacing → ind → jc
+        at = sum(1 for e in x if e.startswith(("<w:pStyle", "<w:numPr", "<w:shd")))  # pPr 안의 순서: pStyle → numPr → shd → spacing → ind → jc
         x.insert(at, f'<w:spacing w:line="{int(round(b["line"] * 240))}" w:lineRule="auto"/>')
     if b.get("align") in JC:
         x.append(f'<w:jc w:val="{JC[b["align"]]}"/>')
@@ -293,6 +296,9 @@ def _styles(doc, ctx):
             ppr_next = f'<w:next w:val="{"Normal" if st["next"] == "body" else escape(st["next"])}"/>'
         else:
             ppr_next = ""
+        sfill = ctx.color(own.get("fill"))
+        if sfill:
+            ppr.append(f'<w:shd w:val="clear" w:color="auto" w:fill="{sfill}"/>')
         before, after, line = own.get("before"), own.get("after"), own.get("line")
         if before is not None or after is not None or line is not None:
             sp = []

@@ -125,6 +125,15 @@ for kind in ("none", "inner-v"):
           and tb2["rows"][0]["cells"][0]["blocks"][0]["runs"] == [{"t": "왼쪽", "ruby": "S"}] and tb2["rows"][0]["cells"][1]["blocks"][0].get("list", {}).get("kind") == "number" and [round(c) for c in tb2["cols"]] == [67, 33], tb2)
 check("표 border 값 검사", "border" in (P.validate({**P.normalize({"kind": "page", "blocks": []}), "blocks": [{"id": "t", "type": "table", "cols": [1], "border": "dotted", "rows": [{"id": "r", "cells": [{"id": "c", "blocks": []}]}]}]}) or ""))
 
+# 문단 음영(회색 상자) 왕복 - 줄 간격·정렬과 같이 있을 때 pPr 순서
+sh = P.normalize({"id": "s", "title": "t", "kind": "page", "blocks": [{"id": "a", "type": "p", "style": "h2", "fill": "#e6e6e6", "line": 2, "align": "center", "indent": 5, "runs": [{"t": "상자"}]},
+                                                                  {"id": "b", "type": "p", "list": {"kind": "bullet", "level": 0}, "fill": "#ffeecc", "runs": [{"t": "목록 음영"}]}]})
+sx = zipfile.ZipFile(io.BytesIO(X.build(sh))).read("word/document.xml").decode("utf-8")
+order = [sx.index(k) for k in ("<w:pStyle", '<w:shd w:val="clear" w:color="auto" w:fill="E6E6E6"', "<w:spacing", "<w:ind", "<w:jc")]
+sb, _, _ = I.read(X.build(sh), doc_id="sb")
+check("문단 음영 - pPr 순서(pStyle·shd·spacing·ind·jc)", order == sorted(order), order)
+check("문단 음영 - 왕복", sb["blocks"][0].get("fill") == "#e6e6e6" and sb["blocks"][0].get("line") == 2 and sb["blocks"][1].get("fill") == "#ffeecc" and sb["blocks"][1]["list"]["kind"] == "bullet", sb["blocks"])
+
 # 거절
 for bad_name, payload in (("zip 이 아님", b"not a zip"), ("docx 가 아닌 zip", (lambda: (lambda bio: (zipfile.ZipFile(bio, "w").writestr("a.txt", "x"), bio.getvalue())[1])(io.BytesIO()))())):
     try:

@@ -67,6 +67,8 @@
     const lv = block.list ? (block.list.level || 0) + 1 : 0;
     const indent = (block.indent !== undefined ? block.indent : st.indent || 0) + lv * LIST_INDENT;
     if (indent) css.paddingLeft = indent + "mm";
+    const fill = block.fill !== undefined ? block.fill : st.fill;  // 문단 음영 - 배경색(상자처럼 보이게 안쪽 여백을 조금 둔다)
+    if (fill) { css.backgroundColor = ctx.color ? ctx.color(fill) : fill; css.paddingRight = "2mm"; css.paddingLeft = (indent + 2) + "mm"; css.paddingTop = "1mm"; css.paddingBottom = "1mm"; }
     if (block.first !== undefined || st.first) css.textIndent = (block.first !== undefined ? block.first : st.first) + "mm";
     return css;
   }

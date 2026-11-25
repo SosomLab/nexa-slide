@@ -135,10 +135,11 @@ T["study-guide"] = {"label": "해설지(지문 분석)", "desc": "왼쪽 지문(
                                "title": {"name": "문서 제목", "based": "h1", "size": 12, "color": "ink", "align": "center", "before": 0, "after": 4},
                                "passage": {"name": "지문", "based": "body", "size": 9, "line": 2.6, "align": "justify"},
                                "note": {"name": "설명", "based": "body", "size": 7, "color": "muted"},
-                               "word": {"name": "어휘", "based": "body", "size": 7, "line": 1.4, "after": 1}},
+                               "word": {"name": "어휘", "based": "body", "size": 7, "line": 1.4, "after": 1, "fill": "#e6e6e6"},
+                               "box": {"name": "해설 상자", "based": "body", "size": 7, "line": 1.4, "color": "accent", "align": "center", "fill": "#e6e6e6", "after": 4}},
                     "blocks": [
                         p([{"t": "1강 01  ", "c": "accent", "b": True}, {"t": "지문의 주제를 한 줄로 적습니다"}], "title"),
-                        p("글의 흐름을 화살표로 적습니다: 원인 → 과정 → 결과(∴ 글쓴이의 주장)", "note", align="center"),
+                        p("글의 흐름을 화살표로 적습니다: 원인 → 과정 → 결과(∴ 글쓴이의 주장)", "box"),
                         layout([67, 33], [
                             [li([R("Professor Kim", "S"), {"t": " "}, R("observed", "V"), {"t": " "}, R("that", "접속사"), {"t": " the first sentence of the passage goes here."}], "number", style="passage"),
                              li([{"t": "The second sentence goes here, and "}, {"t": "the key phrase", "hl": "#fff59d"}, {"t": " is highlighted."}], "number", style="passage"),
