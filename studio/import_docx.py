@@ -25,6 +25,7 @@ R = "{http://schemas.openxmlformats.org/officeDocument/2006/relationships}"
 A = "{http://schemas.openxmlformats.org/drawingml/2006/main}"
 WP = "{http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing}"
 PR = "{http://schemas.openxmlformats.org/package/2006/relationships}"
+MC = "{http://schemas.openxmlformats.org/markup-compatibility/2006}"
 TW = 1440 / 25.4
 HIGHLIGHT = {"yellow": "#ffff00", "green": "#00ff00", "cyan": "#00ffff", "magenta": "#ff00ff", "blue": "#0000ff", "red": "#ff0000", "darkBlue": "#000080",
              "darkCyan": "#008080", "darkGreen": "#008000", "darkMagenta": "#800080", "darkRed": "#800000", "darkYellow": "#808000", "darkGray": "#808080", "lightGray": "#c0c0c0"}
@@ -153,8 +154,19 @@ class Reader:
             elif tag == W + "br":
                 kind = ch.get(W + "type")
                 out.append({"__break": "column" if kind == "column" else "page"} if kind in ("page", "column") else {"t": "\n", **m})
-            elif tag == W + "drawing":
+            elif tag == W + "drawing" and ch.find(WP + "inline") is not None:
                 out.append({"__image": ch})
+            elif tag in (W + "drawing", W + "pict", MC + "AlternateContent"):
+                # 떠 있는 개체 - 글 상자면 그 안의 글을 문단으로 꺼내고(위치·모양은 옮기지 않는다), 그 밖(도형·떠 있는 그림)은 경고만
+                # AlternateContent 는 같은 개체를 새 형식(Choice)과 옛 형식(Fallback)으로 두 번 담는다 - 한쪽만 본다
+                scope = ch.find(MC + "Choice") if tag == MC + "AlternateContent" and ch.find(MC + "Choice") is not None else ch
+                boxes = list(scope.iter(W + "txbxContent")) or (list(ch.iter(W + "txbxContent"))[:1] if scope is not ch else [])
+                if boxes:
+                    self._warn("글 상자는 글만 문단으로 옮겼다(위치·모양은 옮기지 않음)")
+                    out += [{"__textbox": b} for b in boxes]
+                else:
+                    self._warn("떠 있는 그림·도형은 옮기지 않았다(글자처럼 놓인 그림만)")
+                    out.append({"__dropped": True})
             elif tag in (W + "footnoteReference", W + "endnoteReference"):
                 self._warn("각주·미주는 옮기지 않았다")
             elif tag == W + "fldChar" or tag == W + "instrText":
@@ -237,7 +249,7 @@ class Reader:
             sp = ppr.find(W + "spacing")
             if sp is not None and v(sp, "line") and v(sp, "lineRule", "auto") == "auto":
                 b["line"] = round(int(v(sp, "line")) / 240, 2)
-        runs, out, field, has_page = [], [], None, False
+        runs, out, field, has_page, boxed, dropped = [], [], None, False, [], False
         style_size = st.get("size")
 
         def flush():
@@ -277,7 +289,11 @@ class Reader:
                     continue
                 if field is not None:
                     continue  # 필드 안의 글(명령·결과)은 옮기지 않는다
-                if "__break" in it:
+                if "__dropped" in it:
+                    dropped = True
+                elif "__textbox" in it:  # 글 상자의 글 - 이 문단 뒤에 문단들로
+                    boxed += [x for q in it["__textbox"].findall(W + "p") for x in self._para(q)[0] if x["type"] == "p" and x["runs"]]
+                elif "__break" in it:
                     if runs:
                         flush()
                     out.append({"id": self.new_id("k"), "type": "break", "kind": it["__break"]})
@@ -293,7 +309,9 @@ class Reader:
                     runs.append(it)
         if runs or not out:
             out.append({**b, "runs": page_doc.norm_runs(runs)})
-        return out, has_page
+        if (boxed or dropped) and len(out) == 1 and out[0]["type"] == "p" and not out[0]["runs"]:
+            out = []  # 글 상자·떠 있는 개체만 붙어 있던 빈 문단은 남기지 않는다
+        return out + boxed, has_page
 
     def _table(self, tbl):
         grid = [int(g.get(W + "w", "0") or 0) for g in tbl.findall(f"{W}tblGrid/{W}gridCol")]
