@@ -435,6 +435,64 @@ def poll_del_steps():
     ]
 
 
+ZOOM = ("const chg=(id,v)=>{const e=document.querySelector(id);e.value=v;e.dispatchEvent(new Event('change',{bubbles:true}));};const pw=()=>document.querySelector('#paper').getBoundingClientRect().width;"
+        "const lines=()=>document.querySelectorAll('#pagelines i').length;const info=()=>document.querySelector('#pageInfo').textContent;const pages=()=>parseInt(info());const tick=(ms)=>new Promise(r=>setTimeout(r,ms||200));")
+
+
+def zoom_steps():
+    """확대·축소(d17e657) - 긴 문서(pglong)"""
+    return [
+        step("확대 ① 150% → 종이 너비 = 100% 의 1.5배(±2%) · 쪽 경계선 수와 'n쪽' 은 100% 때와 같음",
+             H + ZOOM + "chg('#selZoom','1');await tick();const w1=pw(),l1=lines(),k1=pages();chg('#selZoom','1.5');await tick();const w2=pw(),l2=lines(),k2=pages();"
+                        "return Math.abs(w2/w1-1.5)<=0.03&&l1===l2&&k1===k2&&k1>=2&&getComputedStyle(document.querySelector('#paper')).zoom==='1.5' || JSON.stringify({w1,w2,r:w2/w1,l1,l2,k1,k2});"),
+        step("확대 ③ 150% 에서 글자 화면 좌표로 찾은 자리(caretRangeFromPoint = 클릭이 쓰는 것)가 그 글자",
+             H + ZOOM + "const w=document.createTreeWalker(document.querySelector('#ed'),NodeFilter.SHOW_TEXT,{acceptNode:(t)=>t.textContent.length>3?NodeFilter.FILTER_ACCEPT:NodeFilter.FILTER_SKIP});const n=w.nextNode();if(!n)return 'no text node';const r=document.createRange();r.setStart(n,2);r.setEnd(n,3);"
+                        "const q=r.getBoundingClientRect();const c=document.caretRangeFromPoint(q.left+q.width*0.25,q.top+q.height/2);return c&&c.startContainer===n&&c.startOffset===2 || JSON.stringify({rect:[q.left,q.top,q.width,q.height],got:c&&[c.startContainer.textContent.slice(0,8),c.startOffset]});"),
+        step("확대 ④ #pageInfo 글자 수 = 본문 문단 글 길이의 합(표 칸 제외)",
+             H + ZOOM + "const n=S.deck.blocks.filter(b=>Array.isArray(b.runs)).reduce((a,b)=>a+[...tx(b)].length,0);const m=info().match(/([\\d,]+)자/);const got=m?Number(m[1].replace(/,/g,'')):-1;"
+                        "return got===n&&n>0 || JSON.stringify({info:info(),want:n,got});"),
+    ]
+
+
+def zoom_reload_steps():
+    return [
+        step("확대 ① 새로 고침 뒤 150% 유지(#selZoom · 종이 zoom)",
+             H + ZOOM + "return document.querySelector('#selZoom').value==='1.5'&&getComputedStyle(document.querySelector('#paper')).zoom==='1.5' || JSON.stringify({sel:document.querySelector('#selZoom').value,z:getComputedStyle(document.querySelector('#paper')).zoom});"),
+        step("확대 ② 폭 맞춤 → 종이 너비 ≈ #scroll 안쪽 너비 - 32px(±2%)",
+             H + ZOOM + "chg('#selZoom','fit');await tick(300);const want=document.querySelector('#scroll').clientWidth-32,w=pw();window.__fit1=w;return Math.abs(w/want-1)<=0.02 || JSON.stringify({w,want});"),
+        step("확대 ② 창 너비를 900px 로 바꾸면 폭 맞춤이 따라감",
+             H + ZOOM + "await tick(400);const want=document.querySelector('#scroll').clientWidth-32,w=pw();return Math.abs(w/want-1)<=0.02&&Math.abs(w-window.__fit1)>20 || JSON.stringify({w,want,before:window.__fit1,inner:innerWidth});",
+             cdp=[{"method": "Emulation.setDeviceMetricsOverride", "params": {"width": 900, "height": 900, "deviceScaleFactor": 1, "mobile": False}, "wait": 300}]),
+        step("확대 ⑤ 인쇄 매체(@media print)에서는 zoom 1 - 150% 상태에서도 종이 크기가 확대와 무관",
+             H + ZOOM + "const z=getComputedStyle(document.querySelector('#paper')).zoom;window.__pz=z;return z==='1' || JSON.stringify({printZoom:z,sel:document.querySelector('#selZoom').value});",
+             pre=ZOOM + "chg('#selZoom','1.5');await tick();",
+             cdp=[{"method": "Emulation.clearDeviceMetricsOverride", "params": {}, "wait": 100}, {"method": "Emulation.setEmulatedMedia", "params": {"media": "print"}, "wait": 200}]),
+        step("확대 ⑤ 화면 매체로 돌리면 다시 1.5",
+             H + "const z=getComputedStyle(document.querySelector('#paper')).zoom;return z==='1.5' || z;",
+             cdp=[{"method": "Emulation.setEmulatedMedia", "params": {"media": ""}, "wait": 200}]),
+    ]
+
+
+def zoom_edit_steps():
+    """확대 ③ - 150% 에서 글 치기 · 글자 위치로 찾기(누른 자리 = 그 글자) · 표 칸 편집 · 칸 메뉴 자리"""
+    M = ("const td=(r,c)=>document.querySelector('#ed [data-id=mt] td[data-id=mc'+r+c+'],#ed [data-id=mt] th[data-id=mc'+r+c+']');")
+    return [
+        step("확대 ③ 150% 에서 본문 끝에 글 치기 → 그 문단 끝에 들어가고 저장됨",
+             H + ZOOM + "await idle();const b=S.deck.blocks.find(x=>Array.isArray(x.runs)&&tx(x).length);return tx(b).endsWith('줌글') || JSON.stringify({t:tx(b)});",
+             pre=ZOOM + "chg('#selZoom','1.5');await tick();E.ed.focus();const b=S.deck.blocks.find(x=>Array.isArray(x.runs)&&tx(x).length);E.ed.select({id:b.id,off:tx(b).length});",
+             cdp=INS("줌글"), wait=200),
+        step("확대 ③ 150% 에서 칸 오른쪽 클릭 → 메뉴가 누른 자리 근처(가로: 왼쪽/오른쪽 모서리 ±40px · 세로: 누른 높이가 메뉴 안 - 화면 아래가 모자라면 위로 밀림)",
+             H + ZOOM + M + "const x=td(1,1)||document.querySelector('#ed [data-id=mt] td');const q=x.getBoundingClientRect();const cx=q.left+q.width/2,cy=q.top+q.height/2;x.dispatchEvent(new MouseEvent('contextmenu',{bubbles:true,cancelable:true,clientX:cx,clientY:cy}));"
+                             "await until(async()=>document.querySelector('.menu'),2000);const m=document.querySelector('.menu');const mr=m&&m.getBoundingClientRect();document.querySelectorAll('.menu').forEach(z=>z.remove());"
+                             "return !!m&&(Math.abs(mr.left-cx)<=40||Math.abs(mr.right-cx)<=40)&&(Math.abs(mr.top-cy)<=40||(mr.top-4<=cy&&cy<=mr.bottom+4)) || JSON.stringify({click:[cx,cy],menu:mr&&[mr.left,mr.top,mr.right,mr.bottom]});"),
+        step("확대 ③ 150% 에서 표 칸에 글 치기 → 그 칸의 문서에 들어감",
+             H + "await idle();const t=S.deck.blocks.find(b=>b.id==='mt');const all=JSON.stringify(t);return all.includes('칸줌') || all.slice(0,300);",
+             pre="const c=[...document.querySelectorAll('#ed .pg-cell')].pop();c.focus();const sel=getSelection();sel.selectAllChildren(c);sel.collapseToEnd();", cdp=INS("칸줌"), wait=200),
+        step("확대 되돌림 - 100% · 기억한 값 지움(다음 시험에 남기지 않음)",
+             H + ZOOM + "chg('#selZoom','1');await tick();try{localStorage.removeItem('nexaPageZoom');}catch(e){}return getComputedStyle(document.querySelector('#paper')).zoom==='1' || 'zoom not reset';"),
+    ]
+
+
 IMPORT_DOCX = [b""]  # 가져오기 시험용 .docx(우리 내보내기로 만든 것 - Word 가 만든 문서는 page_word_import_test)
 
 
@@ -577,6 +635,9 @@ def main():
             {"url": "/studio/page.html?deck=pgsgid", "wait": 2500, "steps": study_steps()},
             {"url": "/studio/page.html?deck=pgpoll", "wait": 2500, "steps": poll_steps()},
             {"url": "/studio/page.html?deck=pgpdel", "wait": 2500, "steps": poll_del_steps()},
+            {"url": "/studio/page.html?deck=pglong", "wait": 3000, "steps": zoom_steps()},
+            {"url": "/studio/page.html?deck=pglong", "wait": 3000, "steps": zoom_reload_steps()},
+            {"url": "/studio/page.html?deck=pgmrg", "wait": 2500, "steps": zoom_edit_steps()},
             {"url": "/studio/index.html#pgslide", "wait": 2500, "steps": newdoc_on_steps()},
         ]
         import page_doc
