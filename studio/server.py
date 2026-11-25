@@ -132,6 +132,7 @@ mimetypes.add_type("application/javascript", ".js")
 mimetypes.add_type("application/vnd.openxmlformats-officedocument.presentationml.presentation", ".pptx")
 mimetypes.add_type("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", ".xlsx")
 mimetypes.add_type("application/vnd.ms-excel.sheet.macroEnabled.12", ".xlsm")
+mimetypes.add_type("application/vnd.openxmlformats-officedocument.wordprocessingml.document", ".docx")
 
 
 def ver(p: Path):
@@ -416,7 +417,7 @@ def activity():
     return {"watcher": w, "othersBusy": sum(1 for x in out if x is not w and x["state"] == "busy"), "sessions": len(out)}
 
 
-ENGINE_UI = ("index.html", "studio.js", "sheet.html", "sheet.js", "sheetnew.js", "sheetcalc.js", "sheetx.js", "sheetside.js", "vba.js", "vbaworker.js", "wsession.js", "nexa-requests.js", "nexa-requests.css", "nexa-merge.js", "nexa-live.js", "nexa-shell.js", "nexa-text.js", "nexa-kinds.js", "page.html", "page.js", "page-render.js", "render.js", "menu.js", "fonts.css", "i18n.js", "i18n/en.js", "i18n/en.pages.js", "i18n/en.review.js")
+ENGINE_UI = ("index.html", "studio.js", "sheet.html", "sheet.js", "sheetnew.js", "sheetcalc.js", "sheetx.js", "sheetside.js", "vba.js", "vbaworker.js", "wsession.js", "nexa-requests.js", "nexa-requests.css", "nexa-merge.js", "nexa-live.js", "nexa-shell.js", "nexa-text.js", "nexa-kinds.js", "nexa-newdoc.js", "page_templates.py", "page.html", "page.js", "page-render.js", "render.js", "menu.js", "fonts.css", "i18n.js", "i18n/en.js", "i18n/en.pages.js", "i18n/en.review.js")
 
 
 def hub_ui_stamp():
@@ -921,7 +922,7 @@ class H(BaseHTTPRequestHandler):
             self.send_header("Cache-Control", "private, max-age=0, must-revalidate")
         else:
             self.send_header("Cache-Control", "no-store")
-        if parts and parts[0] == "out" and p.parent == root and p.suffix.lower() in (".pptx", ".pdf", ".xlsx", ".xlsm"):  # 내보내기 결과는 덱 제목으로 받게
+        if parts and parts[0] == "out" and p.parent == root and p.suffix.lower() in (".pptx", ".pdf", ".xlsx", ".xlsm", ".docx"):  # 내보내기 결과는 덱 제목으로 받게
             from urllib.parse import quote as _q
             nm = export_name(p.stem, p.suffix.lower())
             self.send_header("Content-Disposition", f"attachment; filename=\"{p.name}\"; filename*=UTF-8''{_q(nm)}")
@@ -1043,6 +1044,29 @@ class H(BaseHTTPRequestHandler):
             return self.err(404, "없는 테마")
         t["brandLogo"] = ("/" + BRAND["logo"]) if BRAND.get("logo") else ""
         self.send_json(t)
+
+    def api_get_page_templates(self, name, q):
+        """페이지 템플릿 - 이름 없으면 목록(자주 쓴 것이 앞: 이 작업 공간의 페이지 문서가 쓴 횟수, 그다음 기본 순서), 있으면 그 템플릿."""
+        if HUB:
+            return self.err(404, "작업 공간 서버에서")
+        import page_templates
+        if name:
+            t = page_templates.load(name)
+            return self.send_json(t) if t else self.err(404, "없는 템플릿")
+        used = {}
+        for f in DECKS.glob("*.json") if DECKS.is_dir() else []:
+            if f.name.endswith(".requests.json"):
+                continue
+            try:
+                d = json.loads(f.read_text(encoding="utf-8"))
+            except (OSError, ValueError):
+                continue
+            if d.get("kind") == "page" and d.get("template"):
+                used[d["template"]] = used.get(d["template"], 0) + 1
+        items = [{**t, "used": used.get(t["name"], 0)} for t in page_templates.info()]
+        top = sorted((t for t in items if t["used"]), key=lambda t: -t["used"])[:4]  # 자주 쓴 것 넷까지 맨 앞에(파이썬 정렬은 안정적 - 같은 횟수면 기본 순서)
+        names = {t["name"] for t in top}
+        self.send_json([{**t, "rec": True} for t in top] + [{**t, "rec": False} for t in items if t["name"] not in names])
 
     def api_get_decks(self, _, q):
         out = []
@@ -2456,6 +2480,22 @@ class H(BaseHTTPRequestHandler):
     def api_post_export(self, i, q):
         if not deck_path(i).exists():
             return self.err(404, "덱 없음")
+        if deck_kind(i) == "page":  # 페이지 문서 → out/<id>.docx (export_docx.py), ?pdf=1 이면 Word 로 PDF(render_docx.ps1)
+            code, log = run([sys.executable, str(STUDIO / "export_docx.py"), i], 120)
+            f = OUT / f"{i}.docx"
+            if code != 0 or not f.exists():
+                return self.send_json({"ok": False, "error": "DOCX 내보내기 실패", "log": log}, 500)
+            if (q.get("pdf") or ["0"])[0] != "1":
+                return self.send_json({"ok": True, "path": str(f), "url": f"/out/{f.name}?v={ver(f)}", "log": log, "name": export_name(i, ".docx")})
+            import shutil
+            pdf, pwsh = OUT / f"{i}.pdf", shutil.which("pwsh") or shutil.which("powershell")
+            if not pwsh:  # Word 가 없는 환경 - 화면의 [인쇄] 로 PDF 를 만든다(Chrome 인쇄 경로는 인쇄 미리 보기 PG-054 뒤에 서버에서도)
+                return self.send_json({"ok": False, "error": "이 PC 에는 Word 변환기가 없습니다 - 편집기의 [인쇄] 에서 'PDF 로 저장'을 쓰세요", "needPrint": True}, 501)
+            code, log2 = run([pwsh, "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(STUDIO / "render_docx.ps1"), "-Docx", str(f), "-Pdf", str(pdf)], 300)
+            if code != 0 or not pdf.exists():
+                return self.send_json({"ok": False, "error": "PDF 변환 실패(Word) - 편집기의 [인쇄] 에서 'PDF 로 저장'을 쓰세요", "needPrint": True, "log": log2[-600:]}, 501)
+            m = re.search(r"^pages (\d+)$", log2, re.M)
+            return self.send_json({"ok": True, "path": str(pdf), "url": f"/out/{pdf.name}?v={ver(pdf)}", "name": export_name(i, ".pdf"), "method": "word", "pages": int(m.group(1)) if m else None})
         if deck_kind(i) == "sheet":  # 시트 문서 → out/<id>.xlsx, 매크로(VBA)가 있으면 .xlsm (export_xlsx.py)
             no_macros = (q.get("macros") or ["1"])[0] == "0"  # 매크로를 빼고 .xlsx(위험 코드 확인창에서 고른 것)
             code, log = run([sys.executable, str(STUDIO / "export_xlsx.py"), i] + (["--no-macros"] if no_macros else []), 120)

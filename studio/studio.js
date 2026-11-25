@@ -411,6 +411,15 @@
     if (okMsg) toast(okMsg, 4000);
     return r.data;
   }
+  /** 새 문서 - 공용 대화 상자(nexa-newdoc.js)에서 슬라이드·시트·페이지 중 골라 만든다. 만든 뒤 그 문서의 편집기로 간다 */
+  async function deckNew(kind) {
+    const r = await NexaNewDoc.open({ api, kind }); if (!r) return;
+    if (S.dirty) await save();
+    if (r.kind && r.kind !== "deck") { location.href = NexaKinds.url(r); return; }
+    const l = await api("GET", "/api/decks");
+    if (l.ok && Array.isArray(l.data)) { S.decks = l.data.map((d) => ({ id: d.id, title: d.title, slides: d.slides, start: !!d.start, kind: d.kind })); renderDeckTabs(); }
+    await loadDeck(r.id); toast(`만들었습니다: ${r.title || r.id}`, 4000);
+  }
   async function deckCreate(kind) {
     const sheet = kind === "sheet";
     if (sheet && window.NexaSheetNew) {  // 시트 - 제목·테마·페이지·문서 정보 대화 상자(sheetnew.js)
@@ -430,7 +439,7 @@
       { label: "복제", act: async () => { const t = (prompt("복제한 덱의 제목", `${d.title} (복사)`) || "").trim(); if (!t) return; if (S.dirty && S.id === id) await save(); const r = await deckAdmin({ action: "copy", id, title: t }, `복제했습니다: ${t}`); if (r) await loadDeck(r.id); } },
       { label: d.start ? "시작 덱 해제" : "시작 덱으로", on: !!d.start, act: async () => { await deckAdmin({ action: "start", id: d.start ? "" : id }, d.start ? "시작 덱을 해제했습니다" : `시작 덱: ${d.title}`); } }, "-",
       { label: "덱 삭제(휴지통)", act: async () => { if (!confirm(`덱 "${d.title}" 을 지울까요? decks/.trash/ 로 옮겨지며 요청·기록·첨부·content 도 같이 갑니다.`)) return; S.goneId = id; const r = await deckAdmin({ action: "delete", id }, `휴지통으로 옮겼습니다: ${d.title}`); if (!r) S.goneId = null; if (r && S.id === id) { const next = S.decks[0]; if (next) await loadDeck(next.id); else location.href = BASE + "/studio/home.html"; } } },
-      "-", { label: "새 덱", act: () => deckCreate() }, { label: "새 시트(엑셀)", act: () => deckCreate("sheet") },
+      "-", { label: "새 문서…", act: () => deckNew() }, { label: "새 덱", act: () => deckCreate() }, { label: "새 시트(엑셀)", act: () => deckCreate("sheet") },
     ]);
   }
   const reqsOf = (sid, st) => {  // 썸네일 배지 - 후속 요청은 thread 단위로 하나만 센다
@@ -3101,7 +3110,7 @@ ${names}
     });
 
     // 머리줄
-    $("#deckTabs").addEventListener("click", (e) => { if (deckDrag.moved) { deckDrag.moved = false; return; } if (e.target.closest("[data-deckadd]")) { deckCreate(); return; } const b = e.target.closest("[data-deck]"); if (b) switchDeck(b.dataset.deck); });
+    $("#deckTabs").addEventListener("click", (e) => { if (deckDrag.moved) { deckDrag.moved = false; return; } if (e.target.closest("[data-deckadd]")) { deckNew(); return; } const b = e.target.closest("[data-deck]"); if (b) switchDeck(b.dataset.deck); });
     $("#deckTabs").addEventListener("contextmenu", (e) => { const b = e.target.closest("[data-deck]"); if (b) deckMenu(e, b.dataset.deck); });
     {  // 덱 탭 - 끌어서 좌우 이동(스크롤바 없음) · ‹ › 화살표 · 휠 · ☰ 목록
       const T = $("#deckTabs");

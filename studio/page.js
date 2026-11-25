@@ -180,7 +180,18 @@
   }
   async function deckListMenu(btn) {
     const r = await api("GET", "/api/decks"), list = r.ok && Array.isArray(r.data) ? r.data : [];
-    openMenu(btn, [{ h: `문서 ${list.length}개` }, ...list.map((d) => ({ label: `${NexaKinds.of(d).icon} ${d.title || d.id}`, on: d.id === S.id, act: async () => { if (d.id === S.id) return; if (S.dirty) await save(); location.href = NexaKinds.url(d); } }))]);
+    openMenu(btn, [{ h: `문서 ${list.length}개` }, ...list.map((d) => ({ label: `${NexaKinds.of(d).icon} ${d.title || d.id}`, on: d.id === S.id, act: async () => { if (d.id === S.id) return; if (S.dirty) await save(); location.href = NexaKinds.url(d); } })),
+      "-", { label: "새 문서…", act: async () => { const n = await NexaNewDoc.open({ api, kind: "page" }); if (!n) return; if (S.dirty) await save(); location.href = NexaKinds.url(n); } }]);
+  }
+  /** 내보내기 - 저장한 뒤 서버가 out/<id>.docx(·pdf)를 만들고 내려받는다. PDF 는 Word 가 있을 때만(없으면 [인쇄] 안내) */
+  async function doExport(pdf) {
+    if (S.dirty) await save();
+    if (S.dirty || S.conflict) { toast("저장되지 않은 변경이 있어 내보내지 못했습니다", 5000); return; }
+    toast(pdf ? "PDF 를 만드는 중…(Word 변환)" : "Word 문서를 만드는 중…", 60000);
+    const r = await api("POST", `/api/export/${encodeURIComponent(S.id)}${pdf ? "?pdf=1" : ""}`);
+    if (!r.ok || !r.data || !r.data.ok) { toast((r.data && r.data.error) || `내보내기 실패(${r.status})`, 8000); return; }
+    const a = document.createElement("a"); a.href = BASE + r.data.url; a.download = r.data.name || ""; document.body.appendChild(a); a.click(); a.remove();
+    toast(`내보냈습니다: ${r.data.name || r.data.url}${r.data.pages ? ` (${r.data.pages}쪽)` : ""}`, 5000);
   }
   async function init() {
     P.injectCss();
@@ -200,6 +211,7 @@
     bindTools(); decorateAll(); updTools();
     $("#btnDecks").onclick = (e) => deckListMenu(e.currentTarget);
     $("#btnPrint").onclick = () => window.print();
+    $("#btnExport").onclick = (e) => openMenu(e.currentTarget, [{ label: "Word 문서 (.docx)", act: () => doExport(false) }, { label: "PDF (Word 로 변환)", act: () => doExport(true) }], { right: true });
     $("#bnMine").onclick = () => save(true);
     $("#bnTheirs").onclick = async () => { if (await loadDeck()) { banner(false); layout(); ed.refresh(); decorateAll(); setStatus("saved", "저장됨"); } };
     document.addEventListener("mousedown", (e) => { if (!e.target.closest(".menu")) closeMenu(); });
