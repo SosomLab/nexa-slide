@@ -298,6 +298,89 @@
       { label: "그림 지우기", key: "Del", act: () => changeBlock(id, () => null) }]);
   }
 
+  // ---------------------------------------------------------------- 링크 · 찾기/바꾸기
+  function setLink() {
+    const e0 = cur || ed, st = e0.state(); if (!st.sel) return;
+    if (st.sel.a.id === st.sel.f.id && st.sel.a.off === st.sel.f.off) { toast("링크를 걸 글을 먼저 고르세요"); return; }
+    const url = prompt("링크 주소(비우면 링크를 풉니다)", st.marks.link || "https://"); if (url === null) return;
+    const u = url.trim();
+    if (u && !/^(https?:|mailto:)/i.test(u)) { toast("http(s):// 또는 mailto: 로 시작하는 주소만 걸 수 있습니다", 4000); return; }
+    e0.setMark("link", u || null);
+  }
+  /** 본문 문단에서 글을 찾는다(대소문자 무시) → [{id, from, to}]. 표 칸 안은 [모두 바꾸기]만 다룬다 */
+  function findAll(q) {
+    const out = []; if (!q) return out;
+    const low = q.toLowerCase();
+    for (const b of blocks()) {
+      if (!T.isText(b)) continue;
+      const t = T.text(b.runs).toLowerCase();
+      for (let i = t.indexOf(low); i >= 0; i = t.indexOf(low, i + Math.max(1, low.length))) out.push({ id: b.id, from: i, to: i + q.length });
+    }
+    return out;
+  }
+  const FD = { hits: [], at: -1 };
+  function findNext(step = 1) {
+    FD.hits = findAll($("#fdFind").value);
+    if (!FD.hits.length) { $("#fdInfo").textContent = "없음"; return null; }
+    const s = ed.selection();
+    if (FD.at < 0 && s) {  // 처음에는 커서 뒤의 첫 것부터
+      const order = blocks().map((b) => b.id), k = FD.hits.findIndex((h) => order.indexOf(h.id) > order.indexOf(s.f.id) || (h.id === s.f.id && h.from >= s.f.off));
+      FD.at = (k < 0 ? 0 : k) - step;
+    }
+    FD.at = (FD.at + step + FD.hits.length) % FD.hits.length;
+    const h = FD.hits[FD.at];
+    cur = ed; ed.select({ id: h.id, off: h.from }, { id: h.id, off: h.to });
+    const el = document.querySelector(`#ed > [data-id="${h.id}"]`); if (el) el.scrollIntoView({ block: "center" });
+    $("#fdInfo").textContent = `${FD.at + 1} / ${FD.hits.length}`;
+    return h;
+  }
+  /** 글을 바꾼다 - 그 자리의 서식을 잇는다. 뒤에서부터 바꿔 앞의 위치가 밀리지 않게 */
+  function replaceHits(hits, repl) {
+    if (!hits.length) return 0;
+    snapshot("format");
+    let bs = blocks();
+    for (const h of hits.slice().reverse()) bs = bs.map((b) => (b.id === h.id ? { ...b, runs: T.replaceText(b.runs, h.from, h.to, repl) } : b));
+    S.deck.blocks = bs;
+    return hits.length;
+  }
+  function replaceAll() {
+    const q = $("#fdFind").value, repl = $("#fdRepl").value; if (!q) return;
+    let n = replaceHits(findAll(q), repl);
+    // 표 칸 안의 문단도 - 표 블록을 새로 만들어 갈아 끼운다
+    const low = q.toLowerCase();
+    S.deck.blocks = blocks().map((b) => {
+      if (b.type !== "table") return b;
+      let hit = 0;
+      const rows = b.rows.map((r) => ({ ...r, cells: r.cells.map((c) => ({ ...c, blocks: (c.blocks || []).map((x) => {
+        if (!T.isText(x)) return x;
+        let runs = x.runs; const t = T.text(runs).toLowerCase(), at = [];
+        for (let i = t.indexOf(low); i >= 0; i = t.indexOf(low, i + Math.max(1, low.length))) at.push(i);
+        for (const i of at.reverse()) { runs = T.replaceText(runs, i, i + q.length, repl); hit++; }
+        return at.length ? { ...x, runs } : x;
+      }) })) }));
+      if (!hit) return b;
+      if (!n) snapshot("format");
+      n += hit; return { ...b, rows };
+    });
+    if (n) { cur = ed; ed.refresh(); afterChange(); }
+    FD.at = -1; $("#fdInfo").textContent = n ? `${n}곳 바꿈` : "없음";
+  }
+  function replaceOne() {
+    const q = $("#fdFind").value; if (!q) return;
+    const s = ed.selection(), h = FD.hits[FD.at];
+    if (h && s && s.a.id === h.id && Math.min(s.a.off, s.f.off) === h.from && Math.max(s.a.off, s.f.off) === h.to) {
+      replaceHits([h], $("#fdRepl").value); cur = ed; ed.refresh(); afterChange(); FD.at -= 1;
+    }
+    findNext(1);
+  }
+  function openFind() {
+    const bar = $("#findBar"); bar.style.display = "flex"; FD.at = -1; $("#fdInfo").textContent = "";
+    const st = ed.state();
+    if (st.sel && st.sel.a.id === st.sel.f.id && st.sel.a.off !== st.sel.f.off) { const b = blockAt(st.sel.a.id); if (b) $("#fdFind").value = T.text(b.runs).slice(Math.min(st.sel.a.off, st.sel.f.off), Math.max(st.sel.a.off, st.sel.f.off)); }
+    $("#fdFind").focus(); $("#fdFind").select();
+  }
+  function closeFind() { $("#findBar").style.display = "none"; ed.focus(); }
+
   function insertBreak() {
     const s = ed.selection(); if (!s) return;
     const i = blocks().findIndex((b) => b.id === s.f.id); if (i < 0) return;
@@ -317,6 +400,9 @@
     for (const el of $$("#tools [data-list]")) el.classList.toggle("on", !!(b && b.list && b.list.kind === el.dataset.list));
     $("#selStyle").value = (b && T.isText(b) && (b.style || "body")) || "body";
     $("#selSize").value = st.marks.size ? String(st.marks.size) : "";
+    $("#selFont").value = ["body", "title", "mono"].includes(st.marks.font) ? st.marks.font : "";
+    $("#selLine").value = b && b.line ? String(b.line) : "";
+    const lk = $("[data-act=link]"); if (lk) lk.classList.toggle("on", !!st.marks.link);
     $("[data-act=undo]").disabled = !S.undo.length; $("[data-act=redo]").disabled = !S.redo.length;
   }
   function bindTools() {
@@ -324,6 +410,16 @@
     sel.replaceChildren(...Object.entries(S.deck.styles).map(([k, v]) => { const o = document.createElement("option"); o.value = k; o.textContent = v.name || k; return o; }));
     sel.onchange = () => { (cur || ed).blockAttrs({ style: sel.value === "body" ? null : sel.value }); };
     $("#selSize").onchange = (e) => { (cur || ed).setMark("size", e.target.value ? +e.target.value : null); };
+    $("#selFont").onchange = (e) => { (cur || ed).setMark("font", e.target.value || null); };
+    $("#selLine").onchange = (e) => { (cur || ed).blockAttrs({ line: e.target.value ? +e.target.value : null }); };
+    $("#fdNext").onclick = () => findNext(1); $("#fdOne").onclick = replaceOne; $("#fdAll").onclick = replaceAll; $("#fdClose").onclick = closeFind;
+    $("#fdFind").oninput = () => { FD.at = -1; $("#fdInfo").textContent = ""; };
+    $("#findBar").addEventListener("keydown", (e) => { if (e.key === "Escape") { e.preventDefault(); closeFind(); } else if (e.key === "Enter") { e.preventDefault(); if (e.target.id === "fdRepl") replaceOne(); else findNext(e.shiftKey ? -1 : 1); } });
+    document.addEventListener("keydown", (e) => {
+      if (!(e.ctrlKey || e.metaKey) || e.altKey) return;
+      const k = e.key.toLowerCase();
+      if (k === "f" || k === "h") { e.preventDefault(); openFind(); } else if (k === "k") { e.preventDefault(); setLink(); }
+    });
     $("#tools").addEventListener("mousedown", (e) => { if (e.target.closest("button")) e.preventDefault(); });  // 누를 때 본문 선택을 잃지 않게
     $("#tools").addEventListener("click", (e) => {
       const b = e.target.closest("button"); if (!b || b.disabled) return;
@@ -333,7 +429,7 @@
       else if (!body && (b.dataset.list || ["indent", "outdent", "break", "clear", "table", "image"].includes(b.dataset.act))) toast("표 칸 안에서는 아직 쓸 수 없습니다");
       else if (b.dataset.list) setList(b.dataset.list);
       else ({ undo, redo, indent: () => shiftLevel(1), outdent: () => shiftLevel(-1), break: insertBreak, setup: pageSetup,
-        color: () => now.toggle("c", $("#inColor").value), hl: () => now.toggle("hl", $("#inHl").value), table: insertTable, image: () => $("#inImage").click(),
+        color: () => now.toggle("c", $("#inColor").value), hl: () => now.toggle("hl", $("#inHl").value), table: insertTable, image: () => $("#inImage").click(), link: setLink, find: openFind,
         clear: () => { const s = ed.selection(); if (s) { snapshot("format"); let bs = blocks(); for (const x of T.spans(bs, s.a, s.f)) bs = bs.map((y, k) => (k === x.i ? { ...y, runs: T.clearMarks(y.runs, x.from, x.to, ["link"]) } : y)); S.deck.blocks = bs; ed.refresh(s); afterChange(); } },
       })[b.dataset.act]?.();
       updTools();

@@ -60,7 +60,8 @@
     if (st.bold) css.fontWeight = "700";
     if (st.italic) css.fontStyle = "italic";
     if (st.color) css.color = ctx.color ? ctx.color(st.color) : st.color;
-    if (st.line) css.lineHeight = String(st.line);
+    const line = block.line !== undefined ? block.line : st.line;  // 문단이 직접 정한 줄 간격이 스타일보다 먼저
+    if (line) css.lineHeight = String(line);
     css.marginTop = (st.before || 0) + "pt"; css.marginBottom = (st.after || 0) + "pt";
     const align = block.align || st.align; if (align) css.textAlign = align;
     const lv = block.list ? (block.list.level || 0) + 1 : 0;
