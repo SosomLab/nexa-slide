@@ -132,6 +132,7 @@ mimetypes.add_type("application/javascript", ".js")
 mimetypes.add_type("application/vnd.openxmlformats-officedocument.presentationml.presentation", ".pptx")
 mimetypes.add_type("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", ".xlsx")
 mimetypes.add_type("application/vnd.ms-excel.sheet.macroEnabled.12", ".xlsm")
+mimetypes.add_type("application/vnd.openxmlformats-officedocument.wordprocessingml.document", ".docx")
 
 
 def ver(p: Path):
@@ -921,7 +922,7 @@ class H(BaseHTTPRequestHandler):
             self.send_header("Cache-Control", "private, max-age=0, must-revalidate")
         else:
             self.send_header("Cache-Control", "no-store")
-        if parts and parts[0] == "out" and p.parent == root and p.suffix.lower() in (".pptx", ".pdf", ".xlsx", ".xlsm"):  # 내보내기 결과는 덱 제목으로 받게
+        if parts and parts[0] == "out" and p.parent == root and p.suffix.lower() in (".pptx", ".pdf", ".xlsx", ".xlsm", ".docx"):  # 내보내기 결과는 덱 제목으로 받게
             from urllib.parse import quote as _q
             nm = export_name(p.stem, p.suffix.lower())
             self.send_header("Content-Disposition", f"attachment; filename=\"{p.name}\"; filename*=UTF-8''{_q(nm)}")
@@ -2456,6 +2457,22 @@ class H(BaseHTTPRequestHandler):
     def api_post_export(self, i, q):
         if not deck_path(i).exists():
             return self.err(404, "덱 없음")
+        if deck_kind(i) == "page":  # 페이지 문서 → out/<id>.docx (export_docx.py), ?pdf=1 이면 Word 로 PDF(render_docx.ps1)
+            code, log = run([sys.executable, str(STUDIO / "export_docx.py"), i], 120)
+            f = OUT / f"{i}.docx"
+            if code != 0 or not f.exists():
+                return self.send_json({"ok": False, "error": "DOCX 내보내기 실패", "log": log}, 500)
+            if (q.get("pdf") or ["0"])[0] != "1":
+                return self.send_json({"ok": True, "path": str(f), "url": f"/out/{f.name}?v={ver(f)}", "log": log, "name": export_name(i, ".docx")})
+            import shutil
+            pdf, pwsh = OUT / f"{i}.pdf", shutil.which("pwsh") or shutil.which("powershell")
+            if not pwsh:  # Word 가 없는 환경 - 화면의 [인쇄] 로 PDF 를 만든다(Chrome 인쇄 경로는 인쇄 미리 보기 PG-054 뒤에 서버에서도)
+                return self.send_json({"ok": False, "error": "이 PC 에는 Word 변환기가 없습니다 - 편집기의 [인쇄] 에서 'PDF 로 저장'을 쓰세요", "needPrint": True}, 501)
+            code, log2 = run([pwsh, "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(STUDIO / "render_docx.ps1"), "-Docx", str(f), "-Pdf", str(pdf)], 300)
+            if code != 0 or not pdf.exists():
+                return self.send_json({"ok": False, "error": "PDF 변환 실패(Word) - 편집기의 [인쇄] 에서 'PDF 로 저장'을 쓰세요", "needPrint": True, "log": log2[-600:]}, 501)
+            m = re.search(r"^pages (\d+)$", log2, re.M)
+            return self.send_json({"ok": True, "path": str(pdf), "url": f"/out/{pdf.name}?v={ver(pdf)}", "name": export_name(i, ".pdf"), "method": "word", "pages": int(m.group(1)) if m else None})
         if deck_kind(i) == "sheet":  # 시트 문서 → out/<id>.xlsx, 매크로(VBA)가 있으면 .xlsm (export_xlsx.py)
             no_macros = (q.get("macros") or ["1"])[0] == "0"  # 매크로를 빼고 .xlsx(위험 코드 확인창에서 고른 것)
             code, log = run([sys.executable, str(STUDIO / "export_xlsx.py"), i] + (["--no-macros"] if no_macros else []), 120)
