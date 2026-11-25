@@ -948,7 +948,7 @@ class H(BaseHTTPRequestHandler):
                     out = deck_admin.create(i, b.get("title"), b.get("layout") or "cover", b.get("part") or "day1", kind,
                                             theme=b.get("theme"), pages=b.get("pages"), vars_=b.get("vars"))
                 elif act == "import":  # 엑셀 파일 → 시트 문서 {name, data(base64), title?} (sheet_import.py)
-                    out = self._import_xlsx(b)
+                    out = self._import_docx(b) if str(b.get("name") or "").lower().endswith(".docx") else self._import_xlsx(b)
                 elif act == "copy":
                     out = deck_admin.copy(i, b.get("title"))
                 elif act == "start":
@@ -971,6 +971,28 @@ class H(BaseHTTPRequestHandler):
             return self.err(400, str(e))
         self._event = f"deck.{act}:{i}" + (f"→{out.get('id')}" if act in ("rename", "copy") else "")
         self.send_json({"ok": True, **out, "decks": deck_admin.list_decks()})
+
+    def _import_docx(self, b):
+        """Word 문서(.docx) → 페이지 문서(import_docx.py). 실험 기능(page)이 켜져 있을 때만."""
+        import base64
+        import deck_admin
+        import import_docx
+        if not experimental("page"):
+            raise ValueError("페이지 문서는 아직 실험 기능이다(nexa-slide.json 의 experimental.page)")
+        name = str(b.get("name") or "문서.docx")[:120]
+        try:
+            data = base64.b64decode(str(b.get("data") or ""), validate=True)
+        except (ValueError, TypeError):
+            raise ValueError("data 는 base64")
+        if not data or len(data) > 30 * 1024 * 1024:
+            raise ValueError("내용 없음" if not data else "30MB 보다 크다")
+        i = deck_admin.new_id()
+        doc, images, warnings = import_docx.read(data, doc_id=i, title=" ".join(str(b.get("title") or "").split())[:200] or None)
+        if doc.get("title") == i:
+            doc["title"] = Path(name).stem[:200] or i
+        import_docx.save_images(doc, images, ASSET_ROOT, i)
+        atomic_write(DECKS / f"{i}.json", dumps(doc))
+        return {"id": i, "title": doc["title"], "kind": "page", "slides": 0, "blocks": len(doc["blocks"]), "warnings": warnings}
 
     def _import_xlsx(self, b):
         import base64
