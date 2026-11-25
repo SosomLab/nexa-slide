@@ -27,6 +27,9 @@ FAILS, ROWS = [], []
 PWSH = shutil.which("pwsh") or shutil.which("powershell")
 
 
+BORDERS = {}  # 문서 이름 → Word 표마다 테두리 선 종류(docx_open_check.ps1)
+
+
 def check(name, cond, extra=""):
     print(("OK  " if cond else "FAIL"), name, "" if cond else str(extra)[:700])
     if not cond:
@@ -80,6 +83,11 @@ def main():
     except SystemExit:
         pass
     docs.append(("종합(page_docx_test)", g["doc"], {"assets/a.png": (g["png"](4, 2), 400, 200)}))
+    for bd in ("none", "inner-v"):  # 배치용 표(합치지 않은 1×2) - Word 의 표 테두리 선 종류를 본다
+        d_ = page_doc.new_page(f"wbd{bd.replace('-', '')}", f"배치용 표 {bd}")
+        d_["blocks"] = [{"id": "t", "type": "table", "cols": [67, 33], "border": bd, "rows": [{"head": True, "cells": [{"blocks": [{"type": "p", "runs": [{"t": "왼쪽"}]}]}, {"blocks": [{"type": "p", "runs": [{"t": "오른쪽"}]}]}]},
+                                                                                         {"cells": [{"blocks": [{"type": "p", "runs": [{"t": "아래"}]}]}, {"blocks": []}]}]}]
+        docs.append((f"배치용 표 {bd}", d_, None))
     with tmpfiles.temp_dir("nx-word-") as d:
         for name, doc, images in docs:
             f = Path(d) / f"{name.split('(')[0]}.docx"
@@ -91,8 +99,29 @@ def main():
             row = {"문서": name, "열림": j.get("ok"), "쪽": j.get("pages"), "문단": j.get("paragraphs"), "표": j.get("tables"), "머리말": j.get("header"), "꼬리말": j.get("footer"),
                    "목록": " ".join(x["s"] for x in j.get("lists") or [])[:80], "제목": " ".join(f"{h['style']}={h['size']}" for h in (j.get("heads") or [])[:3]), "오류": j.get("error") or ""}
             ROWS.append(row)
+            BORDERS[name] = j.get("borders")
             check(f"{name} - Word 가 연다(읽을 수 없는 내용 없음)", rc == 0 and j.get("ok"), json.dumps(j, ensure_ascii=False))
             check(f"{name} - 표 {want_tables}개 · 머리말 '{want_head[:20]}'", j.get("tables") == want_tables and (j.get("header") or "").strip() == want_head, json.dumps({k: j.get(k) for k in ("tables", "header")}, ensure_ascii=False))
+        BD = {name: j_ for name, j_ in BORDERS.items()}
+        nb, iv, sgb = ((BD.get(k) or [{}])[0] for k in ("배치용 표 none", "배치용 표 inner-v", "study-guide"))
+        def cells_of(b):  # "행,열:T L B R" → {(행, 열): (T, L, B, R)}
+            out = {}
+            for x in (b or {}).get("cells") or []:
+                rc, v = x.split(":"); r_, c_ = map(int, rc.split(",")); out[(r_, c_)] = tuple(int(n) for n in v.split())
+            return out
+
+        def inner_v(b):  # 칸 위·아래 선 없음 · 첫 칸 왼쪽·끝 칸 오른쪽 없음 · 칸 사이(왼쪽 칸의 오른쪽 또는 오른쪽 칸의 왼쪽)에 선
+            cs = cells_of(b)
+            if not cs:
+                return False
+            last = max(c for _, c in cs)
+            return all(t == 0 and bt == 0 and (c > 1 or l == 0) and (c < last or rt == 0) and (c == 1 or l != 0 or cs.get((r, c - 1), (0, 0, 0, 0))[3] != 0) for (r, c), (t, l, bt, rt) in cs.items())
+        check("배치용 표 none - Word 에서 칸마다 선이 하나도 없음(위·왼쪽·아래·오른쪽 LineStyle 0)", bool(cells_of(nb)) and all(v == (0, 0, 0, 0) for v in cells_of(nb).values()), json.dumps(nb, ensure_ascii=False)[:400])
+        check("배치용 표 inner-v - Word 에서 칸 사이 세로선만(바깥·가로 선 없음)", inner_v(iv), json.dumps(iv, ensure_ascii=False)[:400])
+        check("study-guide 의 2단 표 - Word 에서 칸 사이 세로선만", inner_v(sgb), json.dumps(sgb, ensure_ascii=False)[:400])
+        sg = next((r for r in ROWS if r["문서"] == "study-guide"), None)
+        check("study-guide(해설지 2단) - Word 에서 1쪽 · 머리말에 날짜(YYYY-MM-DD)와 제목 · 자리 글 없음", sg and sg["쪽"] == 1 and __import__("re").search(r"\d{4}-\d{2}-\d{2}", sg["머리말"] or "") and "study-guide 시험" in (sg["머리말"] or "") and "{" not in (sg["머리말"] or ""),
+              json.dumps(sg, ensure_ascii=False))
         # 종합 문서의 번호 목록 - 1. 2. (a.) · 사이 문단 뒤 이어 가는지 / 다시 시작하는지는 보고만
         comp = next(r for r in ROWS if r["문서"].startswith("종합"))
         print("  종합 문서 목록 번호 글:", comp["목록"])
