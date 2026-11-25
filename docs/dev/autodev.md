@@ -46,6 +46,7 @@
 - `verify.py` 결과 넷: **PASS** · **FAIL** · **SKIP**(판정 불가 - 통과가 아니다, 메모에 이유) · **TIMEOUT**(상한 = 이력 중앙값 × 3, 시험 잠금 대기는 뺀다). 종료 코드 = 실패 단계 수. 실패해도 끝까지 간다(`--fail-fast` 는 선택).
 - quick = 바뀐 `.py` 컴파일(경고도 실패) · 바뀐 `.js` `node --check` · `check_parity -W example` · run_all 의 브라우저 없는 빠른 묶음. full = 앞의 셋 + run_all 기본 묶음 전체 + `engine_regress`.
 - 회귀의 뜻: 기능 추가가 아니면 run_all 통과 · 슬라이드·시트 동작 같음 · PPTX 슬라이드 XML 같음. 공용화(A1)는 동작을 바꾸지 않는다.
+- **브라우저(헤드리스 Chrome)를 띄우는 시험은 협업 세션만 돌린다** - 같은 PC 에서 Chrome 묶음이 동시에 돌면 임시 폴더 누수 검사·고정 포트가 서로를 실패로 만든다(2026-11-25 밤 full 실패 2건). 개발 세션은 node·python 단위 시험만. 새 Chrome 시험은 `testlock` 을 잡는다.
 - 화면·동작 판정은 눈으로 보지 않고 **상태 덤프 + 기대 문자열**(헤드리스 시나리오 `studio/tests/scenarios/*.json` · `smoke.js`)로, 재실행 가능한 파일로 쌓는다.
 
 ## 6. 모니터링

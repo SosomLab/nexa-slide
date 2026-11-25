@@ -141,7 +141,8 @@ def render():
     now = time.time()
     items = fold(rows)
     run = [x for x in reversed(items) if x["state"] == "running"]
-    fin = [x for x in sorted(items, key=lambda x: x["end"], reverse=True) if x["state"] != "running"][:8]
+    fin = [x for x in sorted(items, key=lambda x: x["end"], reverse=True) if x["state"] != "running"][:5]
+    # 모양·문구는 nexa-sql scripts/lib/board.sh 와 같다(머리 · 맨 위 경고 · 진행 중 8칸 + nexa-slide 의 어디서·PID · 최근 끝난 일 6칸)
     top = []
     for x in run:
         if x["alert"]:
@@ -151,31 +152,36 @@ def render():
         if x["by"]:
             last = x["chk"] or x["start"]
             if x["stall"] >= 2:
-                top.append(f"> ✗ {x['who']} 진행 없음({int((now - x['evt']) // 60)}분): **{x['title']}** - 증거 \"{x['evid']}\" 가 {x['stall']}번 연속 같음")
+                top.append(f"> ✗ {x['who']} 진행 없음({int((now - x['evt']) // 60)}분): **{x['title']}** — 증거 \"{x['evid']}\"가 {x['stall']}번 연속 같음 → 사용자 고지 + 재지시·회수·다른 작업자")
             if not x["ack"]:
-                top.append(f"> ⚠ 응답 미확인: **{x['title']}** ({x['who']}) - 위임 {_ago(x['start'], now)}")
+                top.append(f"> ⚠ 응답 미확인: **{x['title']}** ({x['who']}) — 위임 {_ago(x['start'], now)}")
             if now - last > CHECK:
-                top.append(f"> ⏰ 확인할 때: **{x['title']}** ({x['who']} · 대리 {x['by']}) - 마지막 확인 {_ago(last, now)}")
+                top.append(f"> ⏰ 확인할 때: **{x['title']}** ({x['who']} · 대리 {x['by']}) — 마지막 확인 {_ago(last, now)}")
             elif late3:
                 top.append(f"> ⚠ 예상의 3배: **{x['title']}** ({x['who']})")
             continue
-        sig = x["upd"] or x["start"]
-        if now - sig > STALL:
-            top.append(f"> ⚠ 멈춤 의심: **{x['title']}** - 신호가 {int((now - sig) // 60)}분째 없음")
+        if x["upd"] > 0 and now - x["upd"] > STALL:
+            top.append(f"> ⚠ 멈춤 의심: **{x['title']}** — 신호가 {int((now - x['upd']) // 60)}분째 없음")
         elif late3:
-            top.append(f"> ⚠ 멈춤 의심: **{x['title']}** - 예상의 3배를 넘김")
-    out = [f"# 작업판 - 갱신 {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(now))}", ""]
-    if top:
-        out += [*top, ""]
-    out += ["## 진행 중", "", "| 무엇 | 누가 | 어디서 | 시작 | 경과 | 진행 | 지금 단계 | 예상 종료 | PID |", "|---|---|---|---|---|---|---|---|---|"]
+            top.append(f"> ⚠ 멈춤 의심: **{x['title']}** — 예상의 3배를 넘김")
+    out = [f"# 작업판 — 갱신 {_hm(now)}", ""]
+    for t in top:
+        out += [t, ""]
+    out += ["## 진행 중", "", "| 제목 | 작업자 | 적은 이 | 시작 | 경과 | 진행 | 지금 단계 | 예상 종료 | 어디서 | PID |", "|---|---|---|---|---|---|---|---|---|---|"]
     for x in run:
         eta = x["eta"] or (x["start"] + x["est"] * 60 if x["est"] > 0 else 0)
-        who = x["who"] + ("" if not x["by"] else f" (대리:{x['by']}" + (f" · 확인 {_ago(x['chk'], now)}" if x["chk"] else " · 확인 없음") + ")")
-        out.append(f"| {x['title']} | {who} | {x['where'] or '-'} | {_hm(x['start'])} | {_dur(now - x['start'])} | {x['prog'] or '-'} | {x['note'] or '-'} | "
-                   f"{(_hm(eta) + (' ⚠ 늦음' if now > eta else '')) if eta else '예상 없음'} | {x['pid'] or '-'} |")
+        who = "자기"
+        if x["by"]:
+            who = f"대리:{x['by']}" + (f" · 응답 {_hm(x['ack'])}" if x["ack"] else " · 응답 미확인") + (f" · 확인 {_ago(x['chk'], now)}" if x["chk"] else " · 확인 없음")
+            if x["chk"] and now - x["chk"] > CHECK:
+                who += " ⏰"
+            if x["evid"]:
+                who += f" · 증거 {x['evid']}" + (" (정체 1회)" if x["stall"] == 1 else f" (정체 {x['stall']}회)" if x["stall"] >= 2 else "")
+        out.append(f"| {x['title']} | {x['who']} | {who} | {_hm(x['start'])} | {_dur(now - x['start'])} | {x['prog'] or '-'} | {x['note'] or '-'} | "
+                   f"{(_hm(eta) + (' ⚠ 늦음' if now > eta else '')) if eta else '예상 없음'} | {x['where'] or '-'} | {x['pid'] or '-'} |")
     if not run:
-        out.append("| (없음) | | | | | | | | |")
-    out += ["", "## 최근 끝난 일", "", "| 무엇 | 누가 | 결과 | 소요 | 끝 | 한 줄 |", "|---|---|---|---|---|---|"]
+        out.append("| (없음) | | | | | | | | | |")
+    out += ["", "## 최근 끝난 일", "", "| 제목 | 작업자 | 결과 | 소요 | 끝 | 한 줄 |", "|---|---|---|---|---|---|"]
     for x in fin:
         out.append(f"| {x['title']} | {x['who']} | {x['state']} | {_dur(x['end'] - x['start'])} | {_hm(x['end'])} | {x['res'] or '-'} |")
     if not fin:

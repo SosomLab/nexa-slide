@@ -161,7 +161,9 @@ def first_errors(log, n=5):
         lines = [l for l in log.read_text(encoding="utf-8", errors="replace").splitlines() if l.strip()]
     except OSError:
         return []
-    hit = [l for l in lines if ERR.search(l) and not l.lstrip().startswith(("OK", "-- 통과", "통과"))]
+    quiet = re.compile(r"(실패: 없음|실패 0|ERROR 0|오류 없음|FAIL 0|fail(ed)? 0)", re.I)
+    top = [l for l in lines if re.match(r"\s*(FAIL|-- 실패|Traceback|\S+Error)", l)]  # 판정 줄을 먼저
+    hit = top or [l for l in lines if ERR.search(l) and not quiet.search(l) and not l.lstrip().startswith(("OK", "-- 통과", "통과"))]
     pick = hit[:n] if hit else lines[-n:]
     return ["    " + l.strip()[:200] for l in pick]
 
@@ -176,6 +178,19 @@ def memo_of(name, log, rc):
         ok = len(re.findall(r"^-- 통과 ", text, re.M))
         bad = re.findall(r"^-- 실패 (\S+)", text, re.M)
         return f"묶음 {ok}/{ok + len(bad)} 통과" + (f" · 실패 {', '.join(bad)}" if bad else "")
+    if name == "regress":
+        try:
+            import json
+            j = json.loads(text)
+            ws = j.get("workspaces") or []
+            decks = [d for w in ws for d in (w.get("decks") or [])]
+            cnt = {}
+            for d in decks:
+                cnt[d.get("status")] = cnt.get(d.get("status"), 0) + 1
+            head = f"작업 공간 {len(ws)} · 덱 {len(decks)} · " + " · ".join(f"{k} {v}" for k, v in sorted(cnt.items()))
+            return ("SKIP 판정 불가 - " if rc == 2 else "") + head + f" (기준 {j.get('baseCommit', '?')})"
+        except ValueError:
+            pass
     if rc == RC_SKIP or name == "regress" and rc == 2:
         return "SKIP 판정 불가 - " + (lines[-1][:160] if lines else "이유 없음")
     return lines[-1][:160] if lines else ""
