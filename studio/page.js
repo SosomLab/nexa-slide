@@ -77,7 +77,67 @@
   function layout() {
     const box = P.pageBox(S.deck), paper = $("#paper");
     paper.style.width = box.w + "mm"; paper.style.padding = `${box.t}mm ${box.r}mm ${box.b}mm ${box.l}mm`; paper.style.minHeight = box.h + "mm";
-    S.box = box; pageLines();
+    S.box = box; pageLines(); drawHeaderFooter();
+    // 브라우저 인쇄(PDF 로 저장)도 같은 용지·여백으로 - 종이의 안쪽 여백은 인쇄 때 빼고 @page 여백이 대신한다
+    let st = document.getElementById("pg-print"); if (!st) { st = document.createElement("style"); st.id = "pg-print"; document.head.appendChild(st); }
+    st.textContent = `@page { size: ${box.w}mm ${box.h}mm; margin: ${box.t}mm ${box.r}mm ${box.b}mm ${box.l}mm; }`;
+  }
+  /** 머리말·꼬리말·쪽 번호를 종이의 위·아래 여백에 흐리게 보인다(첫 쪽 자리) */
+  function drawHeaderFooter() {
+    const page = S.deck.page || {}, box = S.box, num = page.number || {};
+    for (const [part, el] of [["header", $("#pgHeader")], ["footer", $("#pgFooter")]]) {
+      el.replaceChildren();
+      el.style.padding = `0 ${box.r}mm 0 ${box.l}mm`;
+      if (part === "header") { el.style.top = Math.max(2, box.t / 2 - 2) + "mm"; el.style.bottom = ""; } else { el.style.bottom = Math.max(2, box.b / 2 - 2) + "mm"; el.style.top = ""; }
+      P.renderInto(el, S.deck, (page[part] || {}).blocks || [], ctx);
+      if (num.show && String(num.pos || "footer-center").startsWith(part)) {
+        const d = document.createElement("div"); d.className = "pg-p"; d.style.textAlign = String(num.pos || "footer-center").split("-")[1] || "center"; d.textContent = "1"; d.title = "쪽 번호"; el.appendChild(d);
+      }
+    }
+  }
+  const hfText = (part) => (((S.deck.page || {})[part] || {}).blocks || []).map((b) => T.text(b.runs || [])).join(" ");
+  const hfAlign = (part) => ((((S.deck.page || {})[part] || {}).blocks || [])[0] || {}).align || "left";
+  /** 쪽 설정 대화 상자 - 용지·방향·여백(mm)·머리말·꼬리말(한 줄 글 + 정렬)·쪽 번호 */
+  function pageSetup() {
+    const page = S.deck.page || {}, m = { t: 25, r: 20, b: 25, l: 20, ...(page.margin || {}) }, num = page.number || {};
+    const size = typeof page.size === "string" ? page.size : "A4";
+    const opt = (list, cur) => list.map(([v, t]) => `<option value="${v}" ${v === cur ? "selected" : ""}>${t}</option>`).join("");
+    const aligns = [["left", "왼쪽"], ["center", "가운데"], ["right", "오른쪽"]];
+    const back = document.createElement("div"); back.className = "dlg-back";
+    back.innerHTML = `<div class="dlg" role="dialog" aria-label="쪽 설정"><h3>쪽 설정</h3><div class="grid">
+      <label>용지</label><select id="psSize">${opt(Object.keys(P.SIZES).map((k) => [k, `${k} (${P.SIZES[k][0]} × ${P.SIZES[k][1]} mm)`]), size)}</select>
+      <label>방향</label><select id="psOrient">${opt([["portrait", "세로"], ["landscape", "가로"]], page.orient || "portrait")}</select>
+      <label>여백 (mm)</label><div class="margins">${[["t", "위"], ["b", "아래"], ["l", "왼쪽"], ["r", "오른쪽"]].map(([k, t]) => `<div><label>${t}</label><input type="number" id="psM${k}" min="0" max="150" step="1" value="${m[k]}"></div>`).join("")}</div>
+      <label>머리말</label><div style="display:flex;gap:6px"><input type="text" id="psHeader" maxlength="200"><select id="psHeaderAlign" style="width:96px">${opt(aligns, hfAlign("header"))}</select></div>
+      <label>꼬리말</label><div style="display:flex;gap:6px"><input type="text" id="psFooter" maxlength="200"><select id="psFooterAlign" style="width:96px">${opt(aligns, hfAlign("footer"))}</select></div>
+      <label>쪽 번호</label><select id="psNum">${opt([["", "없음"], ["footer-center", "아래 가운데"], ["footer-right", "아래 오른쪽"], ["footer-left", "아래 왼쪽"], ["header-right", "위 오른쪽"], ["header-center", "위 가운데"]], num.show ? num.pos || "footer-center" : "")}</select>
+      </div><div class="err" id="psErr"></div><div class="foot"><button class="btn" id="psCancel">취소</button><button class="btn primary" id="psOk">적용</button></div></div>`;
+    document.body.appendChild(back);
+    const q = (s) => back.querySelector(s);
+    q("#psHeader").value = hfText("header"); q("#psFooter").value = hfText("footer");
+    const close = () => { back.remove(); document.removeEventListener("keydown", onEsc, true); ed.focus(); };
+    function onEsc(e) { if (e.key === "Escape") { e.stopPropagation(); close(); } }
+    document.addEventListener("keydown", onEsc, true);
+    back.addEventListener("mousedown", (e) => { if (e.target === back) close(); });
+    q("#psCancel").onclick = close;
+    q("#psOk").onclick = () => {
+      const mg = {}; for (const k of "tblr") { const v = Number(q("#psM" + k).value); if (!Number.isFinite(v) || v < 0 || v > 150) { q("#psErr").textContent = "여백은 0~150 mm 로 적어 주세요"; return; } mg[k] = v; }
+      const sz = P.SIZES[q("#psSize").value], land = q("#psOrient").value === "landscape", w = land ? sz[1] : sz[0], h = land ? sz[0] : sz[1];
+      if (w - mg.l - mg.r < 30 || h - mg.t - mg.b < 30) { q("#psErr").textContent = "여백이 너무 커서 본문 자리가 없습니다"; return; }
+      const part = (name, old) => {  // 한 줄 글 - 글이 그대로면 있던 블록(서식 포함)을 두고 정렬만 바꾼다
+        const text = q(name === "header" ? "#psHeader" : "#psFooter").value.trim(), align = q(name === "header" ? "#psHeaderAlign" : "#psFooterAlign").value;
+        if (!text) return { blocks: [] };
+        const keep = (old.blocks || [])[0], same = keep && hfText(name) === text;
+        const b = same ? { ...keep } : { id: (keep && keep.id) || `${name}-1`, type: "p", runs: [{ t: text }] };
+        if (align === "left") delete b.align; else b.align = align;
+        return { blocks: [b] };
+      };
+      const next = { ...page, size: q("#psSize").value, orient: q("#psOrient").value, margin: mg, header: part("header", page.header || {}), footer: part("footer", page.footer || {}),
+        number: q("#psNum").value ? { show: true, pos: q("#psNum").value } : { show: false, pos: num.pos || "footer-center" } };
+      if (JSON.stringify(next) !== JSON.stringify(page)) { snapshot("format"); S.deck.page = next; layout(); afterChange(true); }
+      close();
+    };
+    q("#psSize").focus();
   }
   function pageLines() {
     const box = S.box, host = $("#ed"), wrap = $("#pagelines"); if (!box) return;
@@ -145,7 +205,7 @@
       if (b.dataset.mark) ed.toggle(b.dataset.mark);
       else if (b.dataset.align) ed.blockAttrs({ align: b.dataset.align === "left" ? null : b.dataset.align });
       else if (b.dataset.list) setList(b.dataset.list);
-      else ({ undo, redo, indent: () => shiftLevel(1), outdent: () => shiftLevel(-1), break: insertBreak,
+      else ({ undo, redo, indent: () => shiftLevel(1), outdent: () => shiftLevel(-1), break: insertBreak, setup: pageSetup,
         color: () => ed.toggle("c", $("#inColor").value), hl: () => ed.toggle("hl", $("#inHl").value),
         clear: () => { const s = ed.selection(); if (s) { snapshot("format"); let bs = blocks(); for (const x of T.spans(bs, s.a, s.f)) bs = bs.map((y, k) => (k === x.i ? { ...y, runs: T.clearMarks(y.runs, x.from, x.to, ["link"]) } : y)); S.deck.blocks = bs; ed.refresh(s); afterChange(); } },
       })[b.dataset.act]?.();
