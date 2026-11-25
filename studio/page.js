@@ -34,7 +34,7 @@
     const e = from.pop(); if (!e) return;
     to.push({ json: deckJson(), sel: ed.selection() });
     S.deck = JSON.parse(e.json); S.lastWhy = "";
-    layout(); ed.refresh(e.sel); afterChange(true);
+    cur = ed; S.pick = null; layout(); ed.refresh(e.sel); afterChange(true);
   }
   const undo = () => restore(S.undo, S.redo), redo = () => restore(S.redo, S.undo);
   function afterChange(noMark) {
@@ -58,7 +58,7 @@
       if (r.data.merged && r.data.deck) {  // 그 사이 다른 저장과 합쳐졌다 - 결과(+ 저장하는 사이 더 고친 것)를 화면에
         const now = deckJson(), sel = ed.selection();
         S.savedJson = JSON.stringify(r.data.deck); S.deck = NexaMerge.afterSave(body, now, r.data.deck);
-        layout(); ed.refresh(sel); toast(NexaMerge.notice(r.data.conflicts).text, 3500);
+        cur = ed; layout(); ed.refresh(sel); toast(NexaMerge.notice(r.data.conflicts).text, 3500);
       } else {
         const same = deckJson() === body;
         if (r.data.updated) S.deck.updated = r.data.updated;
@@ -408,7 +408,7 @@
     $("#btnPrint").onclick = () => window.print();
     $("#btnExport").onclick = (e) => openMenu(e.currentTarget, [{ label: "Word 문서 (.docx)", act: () => doExport(false) }, { label: "PDF (Word 로 변환)", act: () => doExport(true) }], { right: true });
     $("#bnMine").onclick = () => save(true);
-    $("#bnTheirs").onclick = async () => { if (await loadDeck()) { banner(false); layout(); ed.refresh(); decorateAll(); setStatus("saved", "저장됨"); } };
+    $("#bnTheirs").onclick = async () => { if (await loadDeck()) { banner(false); cur = ed; S.pick = null; layout(); ed.refresh(); decorateAll(); setStatus("saved", "저장됨"); } };
     document.addEventListener("mousedown", (e) => { if (!e.target.closest(".menu")) closeMenu(); });
     window.addEventListener("resize", pageLines);
     window.addEventListener("beforeunload", (e) => { if (S.dirty) { e.preventDefault(); e.returnValue = ""; } });
