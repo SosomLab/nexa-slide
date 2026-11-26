@@ -53,6 +53,11 @@ const brief = (r) => r.breaks.map((b) => `${b.id}:${b.type}${b.line !== undefine
 { // 나눈 뒤의 블록들 - 밀림이 쌓인다: 800 + 문단 500(4줄 뒤 나눔 → 뒤 6줄 300 이 1200~1500) + 800 → 1500+800 = 2300 > 2200 → 다음 쪽
   const items = stack([800, { h: 500, kind: "p" }, 800]); const r = F.plan(items, H, G, (it) => lines(it, 10, 50));
   check("18 나눈 문단 뒤의 블록 - 쌓인 밀림으로 다시 계산", brief(r) === "b1:split@4:200 b2:push:900" && r.pages === 3, brief(r) + " p" + r.pages); }
+{ // 머리글 행 되풀이: 머리글 30 + 행 100짜리 표 - 다음 쪽은 머리글 자리(30)만큼 덜 들어간다
+  const items = stack([700, { h: 1330, kind: "table", headH: 30 }]); const t = items[1];
+  t.rows = [{ top: t.top, bottom: t.top + 30, ok: true }, ...Array.from({ length: 13 }, (_, i) => ({ top: t.top + 30 + i * 100, bottom: t.top + 130 + i * 100, ok: i > 0 }))];
+  const r = F.plan(items, H, G);  // 첫 쪽: 머리글 + 2행(700+30+200=930) → 3번째 행(색인 3) 앞에서. 둘째 쪽: 머리글 30 + 9행(900) = 930 → 색인 12 앞에서
+  check("19 머리글 행 되풀이 - 다음 쪽은 머리글만큼 덜 들어가고 빈 행에 head 를 싣는다", brief(r) === "b1:row@3:270 b1:row@12:270" && r.breaks.every((b) => b.head === 30) && r.pages === 3, brief(r) + " " + J(r.breaks.map((b) => b.head)) + " p" + r.pages); }
 
 console.log(`RESULT ${fail ? "FAIL" : "PASS"} ${n - fail}/${n}`);
 process.exit(fail ? 1 : 0);

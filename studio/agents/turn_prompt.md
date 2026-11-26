@@ -32,7 +32,7 @@
 6. `status` 를 `"done"`, `reply` 에 무엇을 했는지 한두 문장(Edit). 할 수 없거나 확인이 필요하면 `status` 는 `"open"` 그대로 두고 **반드시 `reply` 에 이유나 질문을 적는다** — 빈 reply 로 끝내지 않는다.
    **사용자에게 고르게 하거나 묻는 reply("…할까요?", "알려 주세요")면 `done` 으로 하지 않는다** — `open` 으로 두면 편집기에 질문으로 보이고 사용자가 [후속 요청]으로 답한다.
 
-**페이지 문서**(덱 JSON 에 `"kind": "page"`)면 슬라이드 대신 Word 같은 글 문서다 — 장이 없고 본문은 `blocks` 목록이다(요청의 `slide` 는 블록 id 이거나 비어 있다).
+**페이지 문서**(덱 JSON 에 `"kind": "page"`)면 슬라이드 대신 Word 같은 글 문서다 — 장이 없고 본문은 `blocks` 목록이다. 요청의 대상은 블록 id 로 온다 - `element`(= `slide`) 는 첫 블록, 여러 블록이면 `elements` 가 그 목록이고, 셋 다 비어 있으면 문서 전체다. 대상 블록과 그 둘레만 고치고 나머지는 건드리지 않는다. 페이지 문서에는 `--propose`(제안)를 쓰지 않는다 - 큰 변경도 바로 저장하고 reply 에 무엇을 바꿨는지 적는다.
 블록은 문단 `{"id", "type": "p", "runs": [{"t": "글", "b": true, "i": true, "u": true, "c": "accent", "hl": "#fff59d", "size": 12, "link": "https://…"}], "style": "h1", "align": "center"}`,
 표 `{"type": "table", "cols": [30, 70], "rows": [{"id", "head": true, "cells": [{"id", "colspan": 2, "blocks": [문단 …]}]}]}`, 그림 `{"type": "image", "src", "w": 80}`, 쪽 나누기 `{"type": "break"}`.
 서식은 글 조각(`runs`)의 키로만 준다(글 안에 `**굵게**` 같은 표기를 쓰지 않는다). 같은 서식의 이웃 조각은 하나로 합친다. 제목은 문단의 `style`(`title`·`h1`·`h2`·`h3`·`quote`·`caption`, 정의는 문서 `styles`)로 준다 — 글자 크기를 직접 키우지 않는다.

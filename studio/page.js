@@ -513,6 +513,76 @@
     }, true);
   }
 
+  // ---------------------------------------------------------------- AI 요청(공용 패널 nexa-requests.js · 세션 표시 wsession.js) - 슬라이드·시트 편집기와 같은 흐름(PG-081)
+  //   요청의 대상 = 본문에서 고른 맨 위 단계 블록들. 요청에는 slide·element = 첫 블록 id, 여러 개면 elements = 블록 id 목록(문서 전체면 비운다) - agents/turn_prompt.md
+  const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  let SESS = null, RQ = null; S.reqs = []; S.reqSel = [];
+  const topOf = (node) => { let el = node && (node.nodeType === 1 ? node : node.parentElement); const host = $("#ed"); while (el && el.parentElement !== host) el = el.parentElement; return el && el.dataset.id ? el.dataset.id : null; };
+  /** 본문의 선택이 걸친 맨 위 단계 블록 id 들(표 칸 안이면 그 표) - 요청 칸으로 초점이 가도 남게 기억해 둔다 */
+  function trackReqSel() {
+    const s = document.getSelection(); if (!s || !s.rangeCount || !$("#ed").contains(s.anchorNode)) return;
+    const a = topOf(s.anchorNode), f = topOf(s.focusNode), ids = blocks().map((b) => b.id), ia = ids.indexOf(a), ib = ids.indexOf(f); if (ia < 0 || ib < 0) return;
+    S.reqSel = ids.slice(Math.min(ia, ib), Math.max(ia, ib) + 1); renderReqTarget();
+  }
+  const reqBlocks = () => ($("#reqWhole").checked ? [] : S.reqSel.filter((id) => blockAt(id)));
+  const blockBrief = (b) => { if (!b) return "?"; if (b.type === "table") return "표"; if (b.type === "image") return "그림"; if (b.type === "break") return "쪽 나누기"; const t = T.text(b.runs || []).trim(); return t ? `"${t.length > 14 ? t.slice(0, 14) + "…" : t}"` : "빈 문단"; };
+  function renderReqTarget() {
+    const ids = reqBlocks(), on = document.activeElement && document.activeElement.closest && !!document.activeElement.closest("#side .compose");
+    $("#reqTarget").textContent = !ids.length ? "문서 전체" : ids.length === 1 ? blockBrief(blockAt(ids[0])) : `${blockBrief(blockAt(ids[0]))} 부터 블록 ${ids.length}개`;
+    for (const el of $("#ed").children) el.classList.toggle("req-on", on && ids.includes(el.dataset.id));
+  }
+  const reqIds = (r) => (Array.isArray(r.elements) && r.elements.length ? r.elements : r.element ? [r.element] : r.slide ? [r.slide] : []);
+  function gotoReq(r) {
+    const ids = reqIds(r).filter((id) => blockAt(id)); if (!ids.length) return;
+    const el = blockElOf(ids[0]); if (el) el.scrollIntoView({ block: "center", behavior: "smooth" });
+    const a = blockAt(ids[0]), z = blockAt(ids[ids.length - 1]);
+    if (T.isText(a) && T.isText(z)) { ed.focus(); ed.select({ id: a.id, off: 0 }, { id: z.id, off: T.length(z.runs) }); }
+  }
+  const PAGE_TARGET = { key: () => S.id, current: () => S.id, num: () => 1, scope: "문서", goto: gotoReq,
+    label: (r) => { const ids = reqIds(r); return !ids.length ? "문서 전체" : ids.length === 1 ? blockBrief(blockAt(ids[0])) : `${blockBrief(blockAt(ids[0]))} 부터 ${ids.length}개`; } };
+  function renderReqs() {
+    if (!S.deck || !RQ) return;
+    const recent = S.reqs.filter(RQ.recent), older = S.reqs.length - recent.length, open = S.reqs.filter((q) => q.status === "open" || q.status === "working").length;
+    $("#reqFilter").innerHTML = `<span class="hint">최근 요청 ${recent.length}건</span><span style="flex:1"></span><button class="chip sm" id="reqMore" title="이전 요청까지 모두 찾아보기">더보기${older ? ` · 이전 ${older}` : ""}</button>`;
+    $("#reqList").innerHTML = recent.length ? RQ.threadsHtml(recent) : `<div class="hint" style="padding:18px;text-align:center">최근 요청이 없습니다<br>문단을 고르고 위에 적어 보내세요.</div>`;
+    $("#reqHint").innerHTML = RQ.sessionHint();
+    $("#sideBtn").textContent = open ? `AI 요청 · ${open}` : "AI 요청";
+    RQ.afterRender();
+  }
+  async function sendReq() {
+    const text = $("#reqText").value.trim(); if (!text && !RQ.att.slot("tab").length) { $("#reqText").focus(); return; }
+    clearTimeout(saveT); if (S.dirty) await save();  // 세션이 지금 화면 내용을 보고 고치게 먼저 저장
+    const ids = reqBlocks(), body = { action: "add", status: "open", slide: ids[0] || null, text: text || "(첨부 참고)" };
+    if (ids.length) { body.element = ids[0]; if (ids.length > 1) body.elements = ids.slice(0, 50); }
+    const r = await RQ.add(body, "tab", { flush: true }); if (!r) return;
+    $("#reqText").value = "";
+    toast(RQ.connected() ? "요청을 세션에 보냈습니다" : "요청을 남겼습니다 - 세션이 연결되면 전달됩니다");
+  }
+  function showSide(on) {
+    document.body.classList.toggle("noside", !on);
+    try { localStorage.setItem("nexaPageSide", on ? "1" : "0"); } catch (e) { /* 기억 못 해도 그대로 */ }
+    if (S.zoom === "fit") applyZoom("fit");
+  }
+  async function bindRequests() {
+    if (!window.NexaRequests) return;
+    if (window.NexaSession) SESS = NexaSession.create({ api, toast, openMenu, esc, base: BASE, deckId: () => S.id, onChange: (st, changed) => { S.session = st; if (changed) renderReqs(); } });
+    $("#sessChip").onclick = (e) => (SESS ? SESS.menu(e.currentTarget) : null);
+    RQ = NexaRequests.create({ api, toast, esc, base: BASE, deckId: () => S.id, session: SESS, getReqs: () => S.reqs, setReqs: (l) => { S.reqs = l; }, onChange: renderReqs,
+      target: PAGE_TARGET, att: { boxes: { tab: "#reqAtt", fu: "#fuAtt" } }, onDeckChanged: () => poll() });
+    $("#sideBtn").onclick = () => { const on = document.body.classList.contains("noside"); showSide(on); if (on) $("#reqText").focus(); };
+    $("#reqSend").onclick = sendReq;
+    $("#reqText").addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.shiftKey && !e.isComposing) { e.preventDefault(); sendReq(); } });
+    $("#reqWhole").addEventListener("change", renderReqTarget);
+    $("#side .compose").addEventListener("focusin", renderReqTarget); $("#side .compose").addEventListener("focusout", () => setTimeout(renderReqTarget, 0));
+    $("#reqList").addEventListener("click", async (e) => { if (await RQ.click(e)) return; const c = e.target.closest(".req[data-rid]"); const r = c && S.reqs.find((q) => q.id === c.dataset.rid); if (r && !e.target.closest("button, a, textarea, input")) gotoReq(r); });
+    $("#reqList").addEventListener("keydown", (e) => RQ.keydown(e));
+    RQ.att.wire($("#side .compose"), "tab");
+    $("#side .compose").addEventListener("click", (e) => RQ.click(e));
+    $("#reqFilter").addEventListener("click", (e) => { const b = e.target.closest("button"); if (b && b.id === "reqMore") RQ.openHist(); });
+    document.addEventListener("selectionchange", trackReqSel);
+    await RQ.load(); renderReqs(); renderReqTarget();
+  }
+
   // ---------------------------------------------------------------- 링크 · 찾기/바꾸기
   function setLink() {
     const e0 = cur || ed, st = e0.state(); if (!st.sel) return;
@@ -711,6 +781,8 @@
       const r = await api("GET", `/api/version/${encodeURIComponent(S.id)}`);
       if (!r.ok || !r.data) return;
       if (Array.isArray(r.data.deckIds) && !r.data.deckIds.includes(S.id)) { clearInterval(pollT); setStatus("error", "지워진 문서"); toast("이 문서가 지워졌습니다", 8000); return; }
+      if (r.data.session && SESS) SESS.render(r.data.session, r.data.activity);  // 세션 연결 표시
+      if (RQ) await RQ.sync(r.data);                                              // 요청 파일이 바뀌었으면 다시 읽기(슬라이드·시트와 같다)
       if (r.data.deck === S.version || S.saving) return;
       if (S.dirty) { clearTimeout(saveT); await save(); return; }  // 내 변경이 있으면 저장하면서 합친다
       const d = await fetch(`${BASE}/api/deck/${encodeURIComponent(S.id)}`, { cache: "no-store" });
@@ -747,6 +819,7 @@
     toast(`내보냈습니다: ${r.data.name || r.data.url}${r.data.pages ? ` (${r.data.pages}쪽)` : ""}`, 5000);
   }
   async function init() {
+    { let on = "0"; try { on = localStorage.getItem("nexaPageSide") || "0"; } catch (e) { /* 기본값 */ } document.body.classList.toggle("noside", on !== "1"); }
     P.injectCss();
     await loadTokens();
     if (!(await loadDeck())) return;
@@ -794,6 +867,7 @@
     window.addEventListener("beforeunload", (e) => { if (S.dirty) { e.preventDefault(); e.returnValue = ""; } });
     setStatus("saved", "저장됨");
     if (new URLSearchParams(location.search).get("print") === "1") { document.body.classList.add("printing"); return; }  // 서버의 Chrome 인쇄(PDF) - 커서·초점 없이 그대로 찍힌다
+    await bindRequests(); poll();
     pollT = setInterval(poll, 3000);  // 밖의 변경(다른 창·AI 저장) 따라가기
     const first = blocks().find(T.isText); if (first) { ed.focus(); ed.select({ id: first.id, off: T.length(first.runs) }); }
     window.NexaPageEditor = { S, ed, save, undo, redo, poll, flow };  // 시험·디버깅용

@@ -36,9 +36,18 @@ STEPS = [
     ("개체(그림) - 안 들어가면 통째 다음 쪽",
      "const L = load([para('a', 10), {id: 'o', type: 'image', h: 150}, para('b', 2)]); return L.n === 2 && pushed().join() === 'o' && pageOf('o') === 1 && topIn('o') === 0 && audit().length === 0 " + D),
     ("표 - 행 사이에 빈 행 · 걸친 행 없음 · 행 수는 그대로",
-     "const L = load([para('a', 3), table('t', 30)]); const rows = [...el('t').rows].filter((r) => !r.classList.contains('pg-gaprow')).length; return L.n >= 3 && gapRows() === L.n - 1 && rows === 30 && audit().length === 0 " + D),
+     "const L = load([para('a', 3), table('t', 30)]); const rows = [...el('t').rows].filter((r) => !r.classList.contains('pg-gaprow') && !r.classList.contains('pg-headrep')).length; return L.n >= 3 && gapRows() === L.n - 1 && rows === 30 && audit().length === 0 " + D),
+    ("표 - 머리글 행을 다음 쪽 머리에 되풀이(사본은 id·편집 없음) · 걷으면 사라진다",
+     "const L = load([para('a', 3), table('t', 30)]); const reps = [...document.querySelectorAll('tr.pg-headrep')]; const top0 = host.getBoundingClientRect().top; "
+     "const atTop = reps.every((r) => { const y = r.getBoundingClientRect().top - top0; return Math.abs(y - Math.floor((y + 1) / 364) * 364) < 1.5; }); const txt0 = reps.map((r) => r.textContent).join(); "
+     "FLOW.clear(); return L.n >= 3 && reps.length === L.n - 1 && atTop && reps.every((r) => r.textContent === 'r0c0r0c1' && !r.dataset.id && r.contentEditable === 'false') && document.querySelectorAll('tr.pg-headrep').length === 0 "
+     "|| JSON.stringify([L.n, reps.length, atTop, txt0])"),
+    ("표 - 테두리 겹침·border-box 에서도 빈 행 뒤의 첫 행이 쪽 머리에 정확히(±0.6px)",
+     "const st = document.createElement('style'); st.textContent = '* { box-sizing: border-box } td, th { border: .5pt solid #888 !important; padding: 2pt 4pt; height: auto } tr.head th { height: auto }'; document.head.appendChild(st); "
+     "const L = load([para('a', 3), table('t', 40)]); const top0 = host.getBoundingClientRect().top; const firsts = [...document.querySelectorAll('.pg-gaprow')].map((g) => { let n = g.nextElementSibling; "
+     "const y = n.getBoundingClientRect().top - top0; return +(y - Math.round(y / 364) * 364).toFixed(2); }); const bad = audit(); st.remove(); return L.n >= 3 && firsts.length === L.n - 1 && firsts.every((d) => Math.abs(d) <= 0.6) && bad.length === 0 || JSON.stringify([L.n, firsts, bad.slice(0, 4)])"),
     ("표 - 합친 칸이 걸친 행 사이에서는 나누지 않는다",
-     "const L = load([{id: 'o', type: 'image', h: 150}, table('t', 12, [2, 6])]); const real = [...el('t').rows].filter((r) => !r.classList.contains('pg-gaprow')); const at = [...document.querySelectorAll('.pg-gaprow')].map((g) => real.indexOf(g.nextElementSibling)); "
+     "const L = load([{id: 'o', type: 'image', h: 150}, table('t', 12, [2, 6])]); const real = [...el('t').rows].filter((r) => !r.classList.contains('pg-gaprow') && !r.classList.contains('pg-headrep')); const at = [...document.querySelectorAll('.pg-gaprow')].map((g) => { let x = g.nextElementSibling; while (x && x.classList.contains('pg-headrep')) x = x.nextElementSibling; return real.indexOf(x); }); "
      "return L.n >= 2 && at.length === L.n - 1 && at.every((k) => k <= 2 || k >= 8) && audit().length === 0 || JSON.stringify([L.n, at, audit().slice(0, 4)])"),
     ("글이 줄면 빈 자리를 걷는다",
      "load([para('a', 60)]); DOC.blocks = [para('a', 3)]; ED.refresh(); const L = run(); return L.n === 1 && gaps() === 0 && audit().length === 0 " + D),
