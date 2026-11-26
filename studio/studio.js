@@ -2162,14 +2162,15 @@ ${names}
     Object.assign(ed.style, { left: bx + "px", top: by + "px", width: bw + "px", minHeight: bh + "px", fontSize: sz + "px", lineHeight: lh + "px", padding: `${pt}px ${pad[1]}px ${pad[2]}px ${pad[3]}px`, display: "block", textAlign: cell.align || "left", fontFamily: mono ? "Consolas, 'Malgun Gothic', monospace" : "'Malgun Gothic', sans-serif" });
     ed.textContent = raw; ed.spellcheck = true;
     $("#stage").appendChild(ed);
-    S.editing = { el, ed, before: deckJson(), cell: rc };
+    const rich = window.NexaText ? richEdit(ed, raw) : null;  // 표 칸의 글도 보이는 서식으로 고친다(글 요소와 같은 편집기 - PG-108)
+    S.editing = { el, ed, before: deckJson(), cell: rc, rich };
     drawSel(); renderFtb(); ed.focus();
     const rg = document.createRange(); rg.selectNodeContents(ed); const sel = getSelection(); sel.removeAllRanges(); sel.addRange(rg);
     ed.addEventListener("keydown", (e) => {
       e.stopPropagation();
       if (e.key === "Escape" || (e.key === "Enter" && (e.ctrlKey || e.metaKey))) { e.preventDefault(); endEdit(true); }
       else if (e.key === "Tab") { e.preventDefault(); const cur = S.editing && S.editing.el; endEdit(true); const el2 = elById(el.id); if (el2) { const next = moveCellCursor(el2, 0, e.shiftKey ? -1 : 1); startCellEdit(el2, next); } }
-      else if (e.key === "Enter" && ed.contentEditable === "true") { e.preventDefault(); document.execCommand("insertText", false, "\n"); }
+      else if (e.key === "Enter" && ed.contentEditable === "true" && !rich) { e.preventDefault(); document.execCommand("insertText", false, "\n"); }
     });
     ed.addEventListener("blur", () => endEdit(true));
   }
@@ -2238,7 +2239,7 @@ ${names}
   function endEdit(commit) {
     const E = S.editing; if (!E) return;
     S.editing = null; $$("#stage .ovwarn").forEach((x) => x.remove());
-    const R0 = E.rich && !E.cell ? E.rich.text() : null;
+    const R0 = E.rich ? E.rich.text() : null;
     if (E.rich) E.rich.ed.destroy();
     const t = R0 ? R0.text : E.ed.innerText.replace(/\r/g, "").replace(/\n$/, "");
     if (R0 && R0.lossy && commit) toast("일부 서식은 슬라이드 글에서 적을 수 없어 빠졌습니다(굵게와 기울임만 겹친 글 · 낱말 가운데의 기울임 등)", 5000);
