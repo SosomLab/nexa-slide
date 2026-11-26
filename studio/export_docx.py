@@ -449,7 +449,17 @@ def export(doc, out, fonts=None, colors=None, root=None):
     out.parent.mkdir(parents=True, exist_ok=True)
     tmp = out.with_suffix(out.suffix + ".tmp")
     tmp.write_bytes(data)
-    tmp.replace(out)
+    # Windows 에서는 방금 내려받는 중이거나(서버가 읽는 중) Word·백신이 쥐고 있는 파일을 바꿔치기 못 한다 - 점점 길게 다시 시도(모두 약 9초)
+    import time
+    for k in range(10):
+        try:
+            tmp.replace(out)
+            break
+        except PermissionError:
+            if k == 9:
+                tmp.unlink(missing_ok=True)
+                raise
+            time.sleep(0.2 * (k + 1))
     return out
 
 
