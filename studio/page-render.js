@@ -133,6 +133,49 @@
     el.dataset.id = b.id;
     return el;
   }
+  // ---------------------------------------------------------------- 개체(도형·글 상자) - export_docx.py 의 _object 와 같은 모양·기본값
+  const OBJ_CLOSED = ["rect", "round", "ellipse"], OBJ_LINES = ["line", "arrow"], PT = 0.3528;  // 1pt = 0.3528mm
+  const safeColor = (c, ctx, dflt) => { const v = c && ctx.color ? ctx.color(c) : c; return typeof v === "string" && /^(#[0-9a-fA-F]{3,8}|[a-zA-Z]+|var\(--[\w-]+\))$/.test(v) ? v : dflt; };
+  const f2 = (v) => Math.round(v * 100) / 100;
+  /** 개체의 모양 → SVG 글(단위 mm). 선 = 기본 1pt #333(line: null 이면 없음) · 채움은 닫힌 도형만 */
+  function objectSvg(o, ctx = {}) {
+    const w = Math.max(o.w || 0, 0.01), h = Math.max(o.h || 0, 0.01), ln = o.line === null ? null : o.line || {};
+    const sw = ln ? (ln.w === undefined ? 1 : ln.w) * PT : 0, stroke = ln && sw > 0 ? safeColor(ln.c, ctx, "#333333") : "none";
+    const dash = !ln || !sw ? "" : ln.dash === "dash" ? ` stroke-dasharray="${f2(sw * 4)} ${f2(sw * 3)}"` : ln.dash === "dot" ? ` stroke-dasharray="${f2(sw)} ${f2(sw * 2)}"` : "";
+    const fill = OBJ_CLOSED.includes(o.shape) && o.fill ? safeColor(o.fill, ctx, "none") : "none";
+    const at = `fill="${fill}" stroke="${stroke}" stroke-width="${f2(sw)}"${dash} stroke-linecap="round" stroke-linejoin="round"`, i = sw / 2;
+    let body;
+    if (o.shape === "rect" || o.shape === "round") { const r = o.shape === "round" ? Math.min(w, h) / 6 : 0; body = `<rect x="${f2(i)}" y="${f2(i)}" width="${f2(Math.max(0, w - sw))}" height="${f2(Math.max(0, h - sw))}" rx="${f2(r)}" ${at}/>`; }
+    else if (o.shape === "ellipse") body = `<ellipse cx="${f2(w / 2)}" cy="${f2(h / 2)}" rx="${f2(Math.max(0, (w - sw) / 2))}" ry="${f2(Math.max(0, (h - sw) / 2))}" ${at}/>`;
+    else if (OBJ_LINES.includes(o.shape)) {
+      const W = o.w || 0, Hh = o.h || 0, y1 = o.flip ? Hh : 0, y2 = o.flip ? 0 : Hh;
+      body = `<line x1="0" y1="${f2(y1)}" x2="${f2(W)}" y2="${f2(y2)}" ${at}/>`;
+      if (o.shape === "arrow") {
+        const a = Math.atan2(y2 - y1, W), len = Math.max(2, sw * 5), wd = len * 0.4, bx = W - len * Math.cos(a), by = y2 - len * Math.sin(a);
+        body += `<polygon points="${f2(W)},${f2(y2)} ${f2(bx - wd * Math.sin(a))},${f2(by + wd * Math.cos(a))} ${f2(bx + wd * Math.sin(a))},${f2(by - wd * Math.cos(a))}" fill="${stroke}" stroke="none"/>`;
+      }
+    } else {
+      const brace = o.shape.startsWith("brace"), r = Math.min(brace ? w / 2 : w, h / (brace ? 4 : 2)), m = w / 2;
+      const d = brace ? `M ${f2(w)},0 Q ${f2(m)},0 ${f2(m)},${f2(r)} L ${f2(m)},${f2(h / 2 - r)} Q ${f2(m)},${f2(h / 2)} 0,${f2(h / 2)} Q ${f2(m)},${f2(h / 2)} ${f2(m)},${f2(h / 2 + r)} L ${f2(m)},${f2(h - r)} Q ${f2(m)},${f2(h)} ${f2(w)},${f2(h)}`
+        : `M ${f2(w)},0 Q 0,0 0,${f2(r)} L 0,${f2(h - r)} Q 0,${f2(h)} ${f2(w)},${f2(h)}`;
+      body = `<path d="${d}" ${at}/>`;
+      if (o.shape.endsWith("-r")) body = `<g transform="translate(${f2(w)},0) scale(-1,1)">${body}</g>`;
+    }
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${f2(w)} ${f2(h)}" width="${f2(w)}mm" height="${f2(h)}mm" aria-hidden="true">${body}</svg>`;
+  }
+  /** 개체의 요소(자리는 부르는 쪽이 잡는다) - 모양(SVG) + 안의 글(.pg-obj-text > .pg-obj-body). ctx.noText 면 글은 그리지 않는다(편집기가 붙인다) */
+  function objectEl(doc, o, ctx = {}) {
+    const d = ctx.document || document, el = d.createElement("div");
+    el.className = "pg-obj " + o.shape; el.dataset.id = o.id; el.style.width = (o.w || 0) + "mm"; el.style.height = (o.h || 0) + "mm";
+    el.innerHTML = objectSvg(o, ctx);
+    if (Array.isArray(o.blocks) && !OBJ_LINES.includes(o.shape)) {
+      const t = d.createElement("div"); t.className = "pg-obj-text"; t.style.padding = (o.pad === undefined ? 1.5 : o.pad) + "mm";
+      t.style.justifyContent = { middle: "center", bottom: "flex-end" }[o.valign] || "flex-start";
+      const inner = d.createElement("div"); inner.className = "pg-obj-body"; if (!ctx.noText) renderInto(inner, doc, o.blocks, ctx);
+      t.appendChild(inner); el.appendChild(t);
+    }
+    return el;
+  }
   /** 블록들을 host 에 통째로 그린다(편집 없음 - 미리 보기·인쇄·표 셀) */
   function renderInto(host, doc, blocks, ctx = {}) {
     const d = ctx.document || document, mk = markers(blocks), T = root.NexaText;
@@ -167,9 +210,13 @@
 .nt-link { color: #1a5fb4; text-decoration: underline; }
 [data-ruby] { position: relative; }
 [data-ruby]::before { content: attr(data-ruby); position: absolute; left: 50%; bottom: 100%; transform: translateX(-50%); font-size: .55em; line-height: 1.1; white-space: nowrap; font-weight: 400; font-style: normal; text-decoration: none; pointer-events: none; }
+.pg-obj { position: absolute; box-sizing: border-box; pointer-events: auto; }
+.pg-obj > svg { position: absolute; left: 0; top: 0; overflow: visible; }
+.pg-obj-text { position: absolute; inset: 0; display: flex; flex-direction: column; overflow: hidden; }
+.pg-obj-body { outline: none; min-height: 1.2em; }
 @media print { .pg-break { border: 0; margin: 0; } .pg-break::after { content: none; } }
 `;
   function injectCss(d) { d = d || document; if (d.getElementById("pg-css")) return; const s = d.createElement("style"); s.id = "pg-css"; s.textContent = CSS; d.head.appendChild(s); }
 
-  root.NexaPage = { SIZES, LIST_INDENT, pageBox, styleOf, numberLabel, markers, blockCss, decorate, tableGrid, tableClass, blockEl, renderInto, CSS, injectCss };
+  root.NexaPage = { SIZES, LIST_INDENT, pageBox, styleOf, numberLabel, markers, blockCss, decorate, tableGrid, tableClass, blockEl, objectSvg, objectEl, renderInto, CSS, injectCss };
 })(typeof window !== "undefined" ? window : globalThis);
