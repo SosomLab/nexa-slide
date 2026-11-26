@@ -952,7 +952,7 @@ class H(BaseHTTPRequestHandler):
                 if act == "create":
                     kind = b.get("kind") if b.get("kind") in ("sheet", "page") else "deck"
                     if kind == "page" and not experimental("page"):
-                        return self.err(400, "페이지 문서는 아직 실험 기능이다(nexa-slide.json 의 experimental.page)")
+                        return self.err(400, "페이지 문서가 꺼져 있다(nexa-slide.json 의 experimental.page 가 false - 지우면 켜진다)")
                     out = deck_admin.create(i, b.get("title"), b.get("layout") or "cover", b.get("part") or "day1", kind,
                                             theme=b.get("theme"), pages=b.get("pages"), vars_=b.get("vars"))
                 elif act == "import":  # 엑셀 파일 → 시트 문서 {name, data(base64), title?} (sheet_import.py)
@@ -981,12 +981,12 @@ class H(BaseHTTPRequestHandler):
         self.send_json({"ok": True, **out, "decks": deck_admin.list_decks()})
 
     def _import_docx(self, b):
-        """Word 문서(.docx) → 페이지 문서(import_docx.py). 실험 기능(page)이 켜져 있을 때만."""
+        """Word 문서(.docx) → 페이지 문서(import_docx.py). 페이지 문서를 꺼 두지 않았을 때만."""
         import base64
         import deck_admin
         import import_docx
         if not experimental("page"):
-            raise ValueError("페이지 문서는 아직 실험 기능이다(nexa-slide.json 의 experimental.page)")
+            raise ValueError("페이지 문서가 꺼져 있다(nexa-slide.json 의 experimental.page 가 false - 지우면 켜진다)")
         name = str(b.get("name") or "문서.docx")[:120]
         try:
             data = base64.b64decode(str(b.get("data") or ""), validate=True)
@@ -1684,7 +1684,7 @@ class H(BaseHTTPRequestHandler):
         self.send_json({"mode": "workspace", "workspace": WORKSPACE.name, "path": str(WORKSPACE), "port": self.server.server_port,
                         "template": {"name": TEMPLATE["name"], "label": TEMPLATE.get("label", TEMPLATE["name"])},
                         "title": CONFIG.get("title", WORKSPACE.name), "user": self.me(),
-                        "experimental": [n for n in ("page",) if experimental(n)],  # 켜진 실험 기능 - 화면이 "페이지" 선택지를 보일지
+                        "experimental": [n for n in ("page",) if experimental(n)],  # 켜진 기능(끌 수 있는 것) - 화면이 "페이지" 선택지를 보일지
                         "brand": {**BRAND, "logo": LOGO, "wordmark": WORDMARK, "logoRatio": LOGO_RATIO}})
 
     # ---------- 인증(허브) - auth.py ----------
