@@ -223,6 +223,45 @@
     return { blocks: [...blocks.slice(0, i), ...made, ...blocks.slice(i + 1)], pos: { id: lastB.id, off: length(paras[paras.length - 1]) } };
   }
 
+  // ---------------------------------------------------------------- 슬라이드 글 표기(**굵게** 등) ↔ runs (PG-108)
+  //   슬라이드 편집기는 덱에 글을 표기 문자열로 둔다(render.js runs / common.py runs 가 푼다). 글을 고칠 때만 이 엔진을 쓰고, 끝나면 다시 표기로 적는다.
+  const MARKUP_KEYS = ["b", "i", "u", "s", "sup", "sub", "c", "hl", "link"];
+  /** render.js runs() 의 결과 [[글, {bold, italic, underline, strike, sup, sub, color, bg, link}]] → runs */
+  function fromPairs(pairs) {
+    return normalize((pairs || []).map((p) => {
+      const st = p[1] || {}, r = { t: p[0] };
+      if (st.bold) r.b = true; if (st.italic) r.i = true; if (st.underline) r.u = true; if (st.strike) r.s = true;
+      if (st.sup) r.sup = true; if (st.sub) r.sub = true; if (st.color) r.c = st.color; if (st.bg) r.hl = st.bg; if (st.link) r.link = st.link;
+      return r;
+    }));
+  }
+  /** 표기로 적을 수 있는 서식만 남긴다(글꼴·크기·윗주·각주는 슬라이드 글 표기에 없다 · 밑줄 종류는 한 가지) */
+  function markupRuns(runs) { return normalize((runs || []).map((r) => { const o = { t: r.t }; for (const k of MARKUP_KEYS) if (r[k]) o[k] = k === "u" ? true : r[k]; return o; })); }
+  /** runs → 표기 글. 안쪽부터 첨자 · 취소선 · 기울임 · 밑줄 · 형광 · 색 · 굵게 · 링크 순으로 감싼다(굵게 + primary 색 = ==강조==).
+   *  표기로 못 적는 조합(굵게와 기울임만 겹침 · 낱말 가운데 기울임 등)은 다시 풀어 보면 달라진다 - 부르는 쪽이 fromPairs(파서(결과))와 견줘 알아낸다 */
+  function toMarkup(runs) {
+    return markupRuns(runs).map((r) => {
+      let s = r.t;
+      if (r.sup) s = "^{" + s + "}"; else if (r.sub) s = "_{" + s + "}";
+      if (r.s) s = "~~" + s + "~~";
+      if (r.i) s = "*" + s + "*";
+      if (r.u) s = "__" + s + "__";
+      // [[…|…]] 꼴(형광 · 색 · 링크)은 서로 겹쳐 적을 수 없다(안쪽의 ]] 에서 끊긴다) - 하나만 적는다: 링크 > 색 > 형광. 빠진 것은 부르는 쪽이 알아낸다
+      const strong = r.b && r.c === "primary" && !r.link;
+      if (r.hl && !r.link && (!r.c || strong)) s = "[[bg:" + r.hl + "|" + s + "]]";
+      if (r.c && !strong && !r.link) s = "[[" + r.c + "|" + s + "]]";
+      if (strong) s = "==" + s + "=="; else if (r.b) s = "**" + s + "**";
+      if (r.link) s = "[[link:" + r.link + "|" + s + "]]";
+      return s;
+    }).join("");
+  }
+  /** runs 를 줄바꿈에서 나눈다 - 슬라이드 글은 한 줄이 한 문단이라 문단 안 줄바꿈도 줄 나눔이 된다 */
+  function splitLines(runs) {
+    const out = [[]];
+    for (const r of runs || []) { const parts = String(r.t).split("\n"); parts.forEach((t, k) => { if (k) out.push([]); if (t) out[out.length - 1].push({ ...r, t }); }); }
+    return out;
+  }
+
   // ---------------------------------------------------------------- 그리기(DOM)
   function paintRun(span, r, opts) {
     opts = opts || {};
@@ -480,5 +519,6 @@
 
   root.NexaText = { MARKS, marksOf, sameMarks, normalize, length, text, fromPlain, slice, split, join, marksAt, commonMarks,
     insertRuns, insertText, remove, replaceText, setMark, toggleMark, clearMarks, splitBlock, joinBlocks, plainToParagraphs,
-    isText, ordered, deleteRange, insertAt, splitAt, joinBackward, joinForward, spans, markRange, marksInRange, setBlockAttrs, insertParas, paintRun, fillRuns, mount };
+    isText, ordered, deleteRange, insertAt, splitAt, joinBackward, joinForward, spans, markRange, marksInRange, setBlockAttrs, insertParas, paintRun, fillRuns, mount,
+    fromPairs, markupRuns, toMarkup, splitLines };
 })(typeof window !== "undefined" ? window : globalThis);
