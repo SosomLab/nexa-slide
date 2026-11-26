@@ -89,6 +89,13 @@ def main():
         d_["blocks"] = [{"id": "t", "type": "table", "cols": [67, 33], "border": bd, "rows": [{"head": True, "cells": [{"blocks": [{"type": "p", "runs": [{"t": "왼쪽"}]}]}, {"blocks": [{"type": "p", "runs": [{"t": "오른쪽"}]}]}]},
                                                                                          {"cells": [{"blocks": [{"type": "p", "runs": [{"t": "아래"}]}]}, {"blocks": []}]}]}]
         docs.append((f"배치용 표 {bd}", d_, None))
+    d_ = page_doc.new_page("wobj", "도형 문서")  # 개체(PG-103) - 글 상자 · 타원(글 뒤) · 화살표 · 중괄호, 둘째 문단은 문단 기준
+    d_["blocks"] = [{"id": "p1", "type": "p", "runs": [{"t": "도형이 매인 문단"}]}, {"id": "p2", "type": "p", "runs": [{"t": "둘째 문단"}]}]
+    d_["objects"] = [{"id": "o1", "type": "shape", "shape": "rect", "anchor": "p1", "rel": "page", "x": 30, "y": 40, "w": 60, "h": 25, "blocks": [{"id": "ob1", "type": "p", "runs": [{"t": "상자 글"}]}]},
+                     {"id": "o2", "type": "shape", "shape": "ellipse", "anchor": "p1", "rel": "page", "x": 100, "y": 40, "w": 40, "h": 25, "fill": "#eeeeee", "z": "behind"},
+                     {"id": "o3", "type": "shape", "shape": "arrow", "anchor": "p2", "rel": "para", "x": 10, "y": 5, "w": 50, "h": 0},
+                     {"id": "o4", "type": "shape", "shape": "brace-l", "anchor": "p2", "rel": "para", "x": 70, "y": 0, "w": 6, "h": 20}]
+    docs.append(("도형 문서", d_, None))
     with tmpfiles.temp_dir("nx-word-") as d:
         for name, doc, images in docs:
             f = Path(d) / f"{name.split('(')[0]}.docx"
@@ -100,6 +107,8 @@ def main():
             row = {"문서": name, "열림": j.get("ok"), "쪽": j.get("pages"), "문단": j.get("paragraphs"), "표": j.get("tables"), "머리말": j.get("header"), "꼬리말": j.get("footer"),
                    "목록": " ".join(x["s"] for x in j.get("lists") or [])[:80], "제목": " ".join(f"{h['style']}={h['size']}" for h in (j.get("heads") or [])[:3]), "오류": j.get("error") or ""}
             ROWS.append(row)
+            if doc.get("objects"):
+                check(f"{name} - Word 의 떠 있는 도형(Shapes) 수 = 개체 수 {len(doc['objects'])}", j.get("shapes") == len(doc["objects"]), json.dumps({k: j.get(k) for k in ("shapes", "inlineShapes")}, ensure_ascii=False))
             BORDERS[name] = j.get("borders")
             SHADES[name] = j.get("shades") or []
             check(f"{name} - Word 가 연다(읽을 수 없는 내용 없음)", rc == 0 and j.get("ok"), json.dumps(j, ensure_ascii=False))
