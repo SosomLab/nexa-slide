@@ -11,6 +11,7 @@
 """
 import argparse
 import io
+import json
 import re
 import sys
 import zipfile
@@ -501,11 +502,23 @@ def main():
     ap.add_argument("docx")
     ap.add_argument("--id")
     ap.add_argument("--title")
+    ap.add_argument("--blocks", action="store_true", help="문서를 만들지 않고 블록(JSON)만 꺼낸다 → out/import/<이름>/page.json - 요청 첨부(Word)의 내용을 있는 페이지 문서에 서식째 넣을 때")
     a = ap.parse_args()
     import deck_admin
     src = Path(a.docx)
     i = a.id or deck_admin.new_id()
     safe_id(i)
+    if a.blocks:  # 첨부 분석용 - 덱을 만들지 않는다. 그림은 assets 에 꺼내 두어 블록의 src 가 그대로 쓰인다
+        from common import OUT
+        doc, images, warn = read(src.read_bytes(), doc_id=i, title=a.title or src.stem)
+        save_images(doc, images, ASSET_ROOT, i)
+        d = OUT / "import" / (re.sub(r"[^0-9A-Za-z가-힣._-]+", "_", src.stem)[:60] or "docx")
+        d.mkdir(parents=True, exist_ok=True)
+        (d / "page.json").write_text(json.dumps({"title": doc.get("title"), "page": doc.get("page"), "styles": doc.get("styles"), "blocks": doc.get("blocks")}, ensure_ascii=False, indent=1), encoding="utf-8", newline="\n")
+        print(f"꺼냄: {d / 'page.json'} · 블록 {len(doc['blocks'])}개 · 그림 {len(images)}개 (문서는 만들지 않았다)")
+        for w in warn:
+            print("  주의: " + w)
+        return
     out = DECKS / f"{i}.json"
     if out.exists():
         sys.exit(f"이미 있는 덱: {i}")

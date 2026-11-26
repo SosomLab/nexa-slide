@@ -39,6 +39,7 @@
 목록은 따로 블록이 아니라 문단의 속성이다: `"list": {"kind": "bullet"|"number"|"check", "level": 0}` — 이어진 목록 문단이 한 목록이고 번호는 저절로 매겨진다(글에 "1." 을 적지 않는다).
 새 블록의 `id` 는 비워도 된다(저장할 때 채운다). 있던 블록의 `id` 는 바꾸지 않는다 — 병합·변경 기록이 id 로 블록을 찾는다. 쪽 설정은 `page`(용지 `size`, `orient`, 여백 `margin` mm, `header`·`footer` 의 `blocks`, 쪽 번호 `number`).
 저장은 똑같이 `save_deck`(형식이 틀리면 이유를 알려 준다). 내보내기는 사용자가 편집기에서 한다(Word·PDF).
+Word(.docx) 첨부를 **분석만** 할 때는 위의 `import_doc`(content.md)로 읽는다. 첨부의 내용을 이 페이지 문서에 **서식째 넣어야** 하면 `python3 nexa.py import_docx <파일> --blocks` 로 같은 형식의 블록을 `out/import/<이름>/page.json` 에 꺼내(문서는 만들지 않는다 · 그림은 `assets/` 에 꺼내 두어 `src` 가 그대로 쓰인다) 필요한 블록만 사본의 `blocks` 에 넣는다 - 넣는 블록의 `id` 는 지워서 새로 매기게 하고, 그 문서에 없는 `style` 이름은 있는 것으로 바꾼다.
 
 **시트 문서**(덱 JSON 에 `"kind": "sheet"`, 요청에 `range`)면 슬라이드 대신 엑셀 같은 표다 — `slide` 는 시트 탭 id, `range` 는 사용자가 고른 셀 범위(`A1`·`B2:D5`).
 `draft_deck <deck> --slide <탭 id> --range <범위>` 로 사본과 줄 번호를 얻고, 그 탭의 `cells` 를 고친다: 셀 키는 `A1` 형식, 값만이면 `"B3": 1200`(숫자는 숫자로),
