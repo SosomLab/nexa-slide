@@ -436,7 +436,7 @@ def poll_del_steps():
 
 
 ZOOM = ("const chg=(id,v)=>{const e=document.querySelector(id);e.value=v;e.dispatchEvent(new Event('change',{bubbles:true}));};const pw=()=>document.querySelector('#paper').getBoundingClientRect().width;"
-        "const lines=()=>document.querySelectorAll('#pagelines i').length;const info=()=>document.querySelector('#pageInfo').textContent;const pages=()=>parseInt(info());const tick=(ms)=>new Promise(r=>setTimeout(r,ms||200));")
+        "const lines=()=>(document.querySelectorAll('#sheets .pg-sheet').length-1);const info=()=>document.querySelector('#pageInfo').textContent;const pages=()=>parseInt(info());const tick=(ms)=>new Promise(r=>setTimeout(r,ms||200));")
 
 
 def zoom_steps():
@@ -627,7 +627,7 @@ def main():
                      H + "const b=S.deck.blocks;const has=(f)=>b.some(f);return b[1].style==='h1'&&b[1].align==='center'&&b[1].runs.some(r=>r.b)&&has(x=>x.list&&x.list.kind==='number')&&has(x=>x.type==='break')"
                          "&&!!document.querySelector('#ed .pg-li[data-marker=\"1.\"]') || D();")]},
             {"url": "/studio/page.html?deck=pglong", "wait": 3000, "steps": [
-                step("긴 문서(문단 80개) - 쪽 경계선 수 = #pageInfo 의 n쪽 - 1 · 2쪽 이상", "const n=document.querySelectorAll('#pagelines i').length;const t=document.querySelector('#pageInfo').textContent;const k=parseInt(t);return k>=2&&n===k-1 || JSON.stringify({lines:n,info:t});")]},
+                step("긴 문서(문단 80개) - 쪽 경계선 수 = #pageInfo 의 n쪽 - 1 · 2쪽 이상", "const n=(document.querySelectorAll('#sheets .pg-sheet').length-1);const t=document.querySelector('#pageInfo').textContent;const k=parseInt(t);return k>=2&&n===k-1 || JSON.stringify({lines:n,info:t});")]},
             {"url": f"/studio/page.html?deck={pid}", "wait": 2500, "steps": token_steps() + setup_steps(pid) + export_steps(pid) + image_steps(pid)},
             {"url": "/studio/page.html?deck=pgtbl", "wait": 2500, "steps": table_steps("pgtbl")},
             {"url": "/studio/page.html?deck=pgfmt", "wait": 2500, "steps": fmt_steps() + ruby_steps()},

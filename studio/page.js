@@ -11,6 +11,7 @@
   const T = NexaText, P = NexaPage;
   const S = { id: new URLSearchParams(location.search).get("deck") || "", deck: null, version: null, savedJson: null, dirty: false, saving: false, conflict: false, undo: [], redo: [], lastWhy: "", lastAt: 0 };
   let ed = null;   // 본문 편집기
+  let flow = null; // 실시간 쪽 나눔(page-flow.js)
   let cur = null;  // 지금 글을 치고 있는 편집기 - 본문이거나 표 칸(칸마다 따로 붙는다). 서식 막대는 이것에 건다
   // 색·글꼴 토큰 → CSS 값. 작업 공간 토큰(tokens.json)을 읽어 오는 것은 서식 막대 작업(PG-043)에서 - 그 전에는 기본값
   const COLORS = { accent: "#c8553d", muted: "#7a756d", ink: "#1f1f1f" };
@@ -92,26 +93,40 @@
   }
 
   // ---------------------------------------------------------------- 그리기
-  /** 종이 치수(mm)와 쪽 경계선 - 본문 높이(ch)마다 점선. 블록이 쪽에 걸리는 것은 재지 않는 근사다(정확한 쪽 모양은 인쇄 미리 보기) */
+  /** 종이 치수(mm) - 쪽 나눔(어느 블록·줄·행이 어느 쪽인가)은 page-flow.js 가 그린 것을 재서 정하고, 정해지면 drawSheets 가 종이 장을 그린다 */
   function layout() {
     const box = P.pageBox(S.deck), paper = $("#paper");
-    paper.style.width = box.w + "mm"; paper.style.padding = `${box.t}mm ${box.r}mm ${box.b}mm ${box.l}mm`; paper.style.minHeight = box.h + "mm";
-    S.box = box; pageLines(); drawHeaderFooter();
+    paper.style.width = box.w + "mm"; paper.style.padding = `${box.t}mm ${box.r}mm ${box.b}mm ${box.l}mm`;
+    S.box = box; S.sheetKey = ""; drawSheets(S.pages || 1); pageLines();
     // 브라우저 인쇄(PDF 로 저장)도 같은 용지·여백으로 - 종이의 안쪽 여백은 인쇄 때 빼고 @page 여백이 대신한다
     let st = document.getElementById("pg-print"); if (!st) { st = document.createElement("style"); st.id = "pg-print"; document.head.appendChild(st); }
     st.textContent = `@page { size: ${box.w}mm ${box.h}mm; margin: ${box.t}mm ${box.r}mm ${box.b}mm ${box.l}mm; }`;
   }
-  /** 머리말·꼬리말·쪽 번호를 종이의 위·아래 여백에 흐리게 보인다(첫 쪽 자리) */
-  function drawHeaderFooter() {
-    const page = S.deck.page || {}, box = S.box, num = page.number || {};
-    for (const [part, el] of [["header", $("#pgHeader")], ["footer", $("#pgFooter")]]) {
-      el.replaceChildren();
-      el.style.padding = `0 ${box.r}mm 0 ${box.l}mm`;
-      if (part === "header") { el.style.top = Math.max(2, box.t / 2 - 2) + "mm"; el.style.bottom = ""; } else { el.style.bottom = Math.max(2, box.b / 2 - 2) + "mm"; el.style.top = ""; }
-      P.renderInto(el, S.deck, (page[part] || {}).blocks || [], ctx);
-      if (num.show && String(num.pos || "footer-center").startsWith(part)) {
-        const d = document.createElement("div"); d.className = "pg-p"; d.style.textAlign = String(num.pos || "footer-center").split("-")[1] || "center"; d.textContent = "1"; d.title = "쪽 번호"; el.appendChild(d);
+  /** 종이 장 n 개와 덮개(여백 가림 · 쪽 틈 · 머리말·꼬리말·쪽 번호)를 그린다 - 쪽 수·쪽 설정이 같으면 다시 그리지 않는다.
+   *  첫 쪽의 머리말·꼬리말은 id pgHeader · pgFooter(쪽 설정 확인용) */
+  function drawSheets(n) {
+    const box = S.box, page = S.deck.page || {}, num = page.number || {}, gap = flow ? flow.gap : 24;
+    const key = JSON.stringify([n, box, page.header, page.footer, num, gap]);
+    S.pages = n; $("#paper").style.minHeight = `calc(${n * box.h}mm + ${(n - 1) * gap}px)`;
+    if (key === S.sheetKey) return; S.sheetKey = key;
+    const sheets = $("#sheets"), covers = $("#covers"); sheets.replaceChildren(); covers.replaceChildren();
+    for (let k = 0; k < n; k++) {
+      const top = `calc(${k * box.h}mm + ${k * gap}px)`;
+      const sh = document.createElement("div"); sh.className = "pg-sheet"; sh.style.top = top; sh.style.height = box.h + "mm"; sh.dataset.n = k + 1; sheets.appendChild(sh);
+      const pb = document.createElement("div"); pb.className = "pg-pagebox"; pb.style.top = top; pb.style.height = box.h + "mm";
+      for (const [cls, h] of [["t", box.t], ["b", box.b]]) { const m = document.createElement("div"); m.className = "pg-mask " + cls; m.style.height = h + "mm"; m.style[cls === "t" ? "top" : "bottom"] = "0"; pb.appendChild(m); }
+      if (k < n - 1) { const bt = document.createElement("div"); bt.className = "pg-between"; bt.style.height = gap + "px"; pb.appendChild(bt); }
+      for (const part of ["header", "footer"]) {
+        const el = document.createElement("div"); el.className = "pg-hf"; if (k === 0) el.id = part === "header" ? "pgHeader" : "pgFooter";
+        el.style.padding = `0 ${box.r}mm 0 ${box.l}mm`;
+        if (part === "header") el.style.top = Math.max(2, box.t / 2 - 2) + "mm"; else el.style.bottom = Math.max(2, box.b / 2 - 2) + "mm";
+        P.renderInto(el, S.deck, (page[part] || {}).blocks || [], ctx);
+        if (num.show && String(num.pos || "footer-center").startsWith(part)) {
+          const d = document.createElement("div"); d.className = "pg-p pg-num"; d.style.textAlign = String(num.pos || "footer-center").split("-")[1] || "center"; d.textContent = String(k + 1); d.title = "쪽 번호"; el.appendChild(d);
+        }
+        pb.appendChild(el);
       }
+      covers.appendChild(pb);
     }
   }
   const hfText = (part) => (((S.deck.page || {})[part] || {}).blocks || []).map((b) => T.text(b.runs || [])).join(" ");
@@ -167,14 +182,12 @@
     try { localStorage.setItem("nexaPageZoom", String(v)); } catch (e) { /* 저장 못 해도 그대로 */ }
     pageLines();
   }
-  function pageLines() {
-    const box = S.box, host = $("#ed"), wrap = $("#pagelines"); if (!box) return;
-    const mm = host.offsetWidth / box.cw || 3.78,  /* 배치 기준 px(확대와 무관 - scrollHeight 와 같은 기준) */ n = Math.max(1, Math.ceil(host.scrollHeight / (box.ch * mm) - 0.001));
-    wrap.replaceChildren();
-    for (let k = 1; k < n; k++) { const i = document.createElement("i"); i.style.top = (box.t + box.ch * k) * mm + "px"; i.dataset.n = `${k + 1}쪽`; wrap.appendChild(i); }
+  /** 쪽 나눔을 다시 잡는다(글·서식·확대가 바뀔 때마다 - 실제 계산은 한 박자 뒤에 한 번) */
+  function pageLines() { if (flow) flow.schedule(); pageInfo(); }
+  function pageInfo() {
     const chars = blocks().reduce((a, b) => a + (T.isText(b) ? T.length(b.runs) : 0), 0);
-    $("#pageInfo").textContent = `${n}쪽 · ${typeof S.deck.page.size === "string" ? S.deck.page.size : "사용자 크기"} · ${chars.toLocaleString()}자`;
-    $("#pageInfo").title = "쪽 수는 근사값(정확한 쪽은 내보낸 문서에서) · 글자 수는 본문 문단 기준(표 칸 제외)";
+    $("#pageInfo").textContent = `${S.pages || 1}쪽 · ${typeof S.deck.page.size === "string" ? S.deck.page.size : "사용자 크기"} · ${chars.toLocaleString()}자`;
+    $("#pageInfo").title = "쪽 수는 이 화면의 쪽 나눔 기준(Word 로 내보내면 글꼴·줄 나눔 차이로 달라질 수 있다) · 글자 수는 본문 문단 기준(표 칸 제외)";
   }
   /** 목록 머리 기호는 다른 문단이 바뀌어도 달라진다(번호) - 저장할 때마다 전부 다시 단다 */
   function decorateAll() {
@@ -601,6 +614,15 @@
       color: ctx.color, font: ctx.font, onSelect: () => { cur = ed; updTools(); }, undo, redo,
     });
     cur = ed;
+    // 실시간 쪽 나눔 - 쪽 경계에 빈 자리를 끼운다. 인쇄(브라우저·서버 Chrome)는 브라우저가 쪽을 나누므로 쉰다
+    flow = NexaPageFlow.create({
+      host: $("#ed"), box: () => S.box, off: () => S.printing || document.body.classList.contains("printing"),
+      saveSel: () => (document.activeElement === $("#ed") ? ed.selection() : null), restoreSel: (s) => ed.select(s.a, s.f),
+      onPages: (n) => { drawSheets(n); pageInfo(); },
+    });
+    window.addEventListener("beforeprint", () => { S.printing = true; flow.clear(); });
+    window.addEventListener("afterprint", () => { S.printing = false; flow.schedule(); });
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => flow.schedule());
     $("#ed").addEventListener("keydown", onKey, true);
     bindTools(); decorateAll(); updTools();
     $("#inImage").onchange = async (e) => { const f = e.target.files[0]; e.target.value = ""; await insertImage(f); };
@@ -626,7 +648,7 @@
     if (new URLSearchParams(location.search).get("print") === "1") { document.body.classList.add("printing"); return; }  // 서버의 Chrome 인쇄(PDF) - 커서·초점 없이 그대로 찍힌다
     pollT = setInterval(poll, 3000);  // 밖의 변경(다른 창·AI 저장) 따라가기
     const first = blocks().find(T.isText); if (first) { ed.focus(); ed.select({ id: first.id, off: T.length(first.runs) }); }
-    window.NexaPageEditor = { S, ed, save, undo, redo, poll };  // 시험·디버깅용
+    window.NexaPageEditor = { S, ed, save, undo, redo, poll, flow };  // 시험·디버깅용
   }
   init();
 })();

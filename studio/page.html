@@ -29,16 +29,22 @@
   #banner { display: none; padding: 8px 12px; background: #fde2dd; color: #7d2414; gap: 10px; align-items: center; }
   #banner.show { display: flex; }
   #scroll { flex: 1; overflow: auto; padding: 24px 0 60px; }
-  /* 종이 - 너비·여백은 page.js 가 mm 로 넣는다. 쪽 경계는 본문 높이마다 점선(근사 - 정확한 쪽 모양은 인쇄 미리 보기) */
-  #paper { position: relative; margin: 0 auto; background: var(--paper); box-shadow: 0 1px 3px rgba(0,0,0,.12), 0 8px 28px rgba(0,0,0,.08); }
-  #ed { outline: none; min-height: 60mm; }
+  /* 종이 - 너비·여백은 page.js 가 mm 로 넣는다. 쪽은 종이 장(#sheets .pg-sheet)으로 나뉘어 보이고, 본문(#ed)은 한 줄기로 흐르되
+     쪽 경계마다 빈 자리가 끼워진다(page-flow.js). 덮개(#covers)는 여백·쪽 틈으로 넘친 것을 가리고 머리말·꼬리말을 쪽마다 보인다 */
+  #paper { position: relative; margin: 0 auto; }
+  #sheets, #covers { position: absolute; left: 0; right: 0; top: 0; pointer-events: none; }
+  #covers { z-index: 2; }
+  .pg-sheet { position: absolute; left: 0; right: 0; background: var(--paper); box-shadow: 0 1px 3px rgba(0,0,0,.12), 0 8px 28px rgba(0,0,0,.08); }
+  .pg-pagebox { position: absolute; left: 0; right: 0; }
+  .pg-pagebox .pg-mask { position: absolute; left: 0; right: 0; background: var(--paper); }
+  .pg-pagebox .pg-between { position: absolute; left: -40px; right: -40px; top: 100%; background: var(--bg); }
+  #ed { outline: none; min-height: 60mm; position: relative; z-index: 1; }
   #ed:empty::before { content: "여기에 입력"; color: #bbb; }
-  #pagelines { position: absolute; left: 0; right: 0; top: 0; pointer-events: none; }
-  #pagelines i { position: absolute; left: 0; right: 0; border-top: 1px dashed #c9c5bd; }
-  #pagelines i::after { content: attr(data-n); position: absolute; right: 4px; top: 2px; font: 10px sans-serif; color: #aaa; }
+  .pg-gap { display: inline-block; width: 100%; vertical-align: top; pointer-events: none; user-select: none; }  /* 쪽 경계의 빈 줄(글이 없다) */
+  .pg-gaprow > td { border: 0 !important; padding: 0 !important; background: none !important; box-shadow: none !important; }
   .nt-obj { cursor: default; } .nt-obj.sel { outline: 2px solid var(--accent); }
-  /* 머리말·꼬리말 - 여백 안에 흐리게(첫 쪽 자리에만 보인다 - 쪽마다 되풀이되는 모양은 내보낸 문서에서). 고치는 곳은 [쪽 설정] */
-  .pg-hf { position: absolute; left: 0; right: 0; color: #8a857d; font-size: 9pt; pointer-events: none; }
+  /* 머리말·꼬리말 - 쪽마다 여백 안에 흐리게. 고치는 곳은 [쪽 설정] */
+  .pg-hf { position: absolute; left: 0; right: 0; color: #8a857d; font-size: 9pt; pointer-events: none; z-index: 1; }
   .pg-hf .pg-p { margin: 0 !important; }
   .pg-table td, .pg-table th { cursor: text; } .pg-cell { outline: none; min-height: 1.4em; }
   #ed .pg-table.pg-noborder td, #ed .pg-table.pg-noborder th { border: .5pt dashed #dcd8d0; }  /* 편집 중에는 배치용 표의 칸 경계를 흐린 점선으로(인쇄·내보내기에는 없다) */
@@ -60,7 +66,7 @@
   .menu { position: fixed; z-index: 60; background: #fff; border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,.14); padding: 4px; min-width: 160px; }
   .menu button { display: flex; gap: 8px; width: 100%; border: 0; background: transparent; padding: 6px 10px; font: inherit; text-align: left; border-radius: 6px; cursor: pointer; }
   .menu button:hover { background: #f4f2ee; } .menu hr { border: 0; border-top: 1px solid var(--line); margin: 4px 0; } .menu .h { padding: 4px 10px; color: var(--muted); font-size: 11px; } .menu .k { margin-left: auto; color: var(--muted); }
-  @media print { header, #tools, #banner, #toast, #pagelines, .pg-hf, .dlg-back, #findBar { display: none !important; } #paper { padding: 0 !important; width: auto !important; min-height: 0 !important; zoom: 1 !important; } #ed .pg-table.pg-noborder td, #ed .pg-table.pg-noborder th { border-color: transparent; } #ed .pg-table.pg-innerv td + td { border-left: .5pt solid #8a8a8a; } #scroll { padding: 0; overflow: visible; } #paper { box-shadow: none; } body { background: #fff; } }
+  @media print { header, #tools, #banner, #toast, #sheets, #covers, .pg-gap, .pg-gaprow, .pg-hf, .dlg-back, #findBar { display: none !important; } #paper { padding: 0 !important; width: auto !important; min-height: 0 !important; zoom: 1 !important; } #ed .pg-table.pg-noborder td, #ed .pg-table.pg-noborder th { border-color: transparent; } #ed .pg-table.pg-innerv td + td { border-left: .5pt solid #8a8a8a; } #scroll { padding: 0; overflow: visible; } #paper { box-shadow: none; } body { background: #fff; } }
 </style>
 </head>
 <body>
@@ -116,7 +122,7 @@
   <button class="btn" data-act="find" title="찾기 · 바꾸기 (Ctrl+F)">찾기</button>
 </div>
 <div id="banner"><span id="bannerMsg"></span><button class="btn" id="bnMine">내 것으로 덮어쓰기</button><button class="btn" id="bnTheirs">밖의 것 다시 읽기</button></div>
-<div id="scroll"><div id="paper"><div id="pagelines"></div><div id="pgHeader" class="pg-hf"></div><div id="ed"></div><div id="pgFooter" class="pg-hf"></div></div></div>
+<div id="scroll"><div id="paper"><div id="sheets"></div><div id="ed"></div><div id="covers"></div></div></div>
 <div id="findBar" style="display:none">
   <input type="text" id="fdFind" placeholder="찾을 글" spellcheck="false"><input type="text" id="fdRepl" placeholder="바꿀 글" spellcheck="false">
   <span id="fdInfo" class="chip"></span>
@@ -130,6 +136,7 @@
 <script src="nexa-merge.js"></script>
 <script src="nexa-text.js"></script>
 <script src="page-render.js"></script>
+<script src="page-flow.js"></script>
 <script src="page.js"></script>
 </body>
 </html>
