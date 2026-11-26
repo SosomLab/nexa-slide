@@ -2,7 +2,7 @@
 //   모델(평평한 blocks)과 DOM 구조(#ed 의 자식 = 블록)는 그대로 두고, 쪽 경계에 **빈 자리**만 끼워 넣는다:
 //     · 블록째 다음 쪽으로  = 그 블록의 위 여백을 늘린다(push)
 //     · 문단 가운데(줄 사이) = 그 줄 앞에 글이 없는 줄(span.pg-gap - 너비 100% inline-block)을 끼운다(split)
-//     · 표의 행 사이        = 빈 행(tr.pg-gaprow)을 끼운다(row)
+//     · 표의 행 사이        = 빈 행(tr.pg-gaprow)을 끼우고, 머리글 행이 있으면 그 사본(tr.pg-headrep)을 다음 쪽 머리에 되풀이한다(row)
 //   빈 자리에는 글이 없어 nexa-text 의 위치 계산(글자 수)·한글 조합·선택이 그대로 돈다.
 //   NexaPageFlow.plan(items, H, G, linesOf) → {breaks, pages}  순수 계산(시험: tests/page_flow_check.js)
 //   NexaPageFlow.create(opts) → {schedule(), run(), clear(), pages()}  화면에 붙이기
@@ -50,8 +50,8 @@
           k = from + 1; while (k < R.length && !R[k].ok) k++;
           if (k >= R.length) return;
         }
-        page++; const h = start(page) - (R[k].top + shift);
-        if (h > EPS) { out.push({ id: it.id, type: "row", row: k, h }); shift += h; } else settle(R[k].top + shift);
+        page++; const h = start(page) - (R[k].top + shift), hh = it.headH > 0 && it.headH < H / 2 ? it.headH : 0;  // 다음 쪽 머리에 머리글 행을 되풀이할 자리
+        if (h > EPS) { out.push({ id: it.id, type: "row", row: k, h, head: hh }); shift += h + hh; } else settle(R[k].top + shift);
         from = k;
       }
     }
@@ -97,7 +97,7 @@
         if (it.kind === "table") {
           it.rows = []; let gapRow = null, prevRaw = null; const blocked = new Set();
           for (const tr of el.rows) {
-            if (tr.classList.contains("pg-gaprow")) { gapRow = tr; continue; }
+            if (tr.classList.contains("pg-gaprow") || tr.classList.contains("pg-headrep")) { gapRow = gapRow || tr; continue; }
             const rr = tr.getBoundingClientRect(), i = it.rows.length;
             if (gapRow && prevRaw !== null) { inner += Math.max(0, y(rr.top) - prevRaw); applied.push({ id, type: "row", at: i, h: gapRow._h }); }
             gapRow = null; prevRaw = y(rr.bottom);
@@ -106,6 +106,8 @@
             it.rows.push({ top: y(rr.top) - it.base - inner, bottom: y(rr.bottom) - it.base - inner, head: tr.classList.contains("head"), tr });
           }
           it.rows.forEach((row, i) => { row.ok = !blocked.has(i); });
+          let hn = 0; while (hn < it.rows.length && it.rows[hn].head) hn++;  // 맨 위에 이어진 머리글 행만 되풀이한다(Word 의 머리글 행 반복과 같다)
+          it.headN = hn < it.rows.length ? hn : 0; it.headH = it.headN ? it.rows[it.headN - 1].bottom - it.rows[0].top : 0;
         } else if (it.kind === "p") {
           for (const g of gapsOf(el)) { inner += g.getBoundingClientRect().height / z; applied.push({ id, type: "split", at: g._off, h: g._h }); }
         }
@@ -157,7 +159,7 @@
 
     function clearEl(el) {
       if (el._pgPush) { el.style.marginTop = el._pgPush.mt; el._pgPush = null; }
-      if (el.tagName === "TABLE") { for (const tr of [...el.rows]) if (tr.classList.contains("pg-gaprow")) tr.remove(); return; }
+      if (el.tagName === "TABLE") { for (const tr of [...el.rows]) if (tr.classList.contains("pg-gaprow") || tr.classList.contains("pg-headrep")) tr.remove(); return; }
       for (const g of gapsOf(el)) {
         const pv = g.previousSibling, nx = g.nextSibling; g.remove();
         if (pv && nx && nx.dataset && nx.dataset.pgSplit) { pv.append(...nx.childNodes); nx.remove(); pv.normalize(); }  // 나눠 둔 글 조각을 다시 하나로
@@ -171,7 +173,16 @@
         const tr = doc.createElement("tr"), td = doc.createElement("td"); tr.className = "pg-gaprow"; tr.contentEditable = "false"; tr._h = b.h;
         td.colSpan = [...row.tr.parentNode.rows].reduce((m, r) => Math.max(m, [...r.cells].reduce((a, c) => a + (c.colSpan || 1), 0)), 1);
         const bw = parseFloat(doc.defaultView.getComputedStyle(row.tr.cells[0] || row.tr).borderTopWidth) || 0;
-        td.style.height = Math.max(0, b.h - bw) + "px"; tr.appendChild(td); row.tr.before(tr); return;
+        td.style.height = Math.max(0, b.h - bw) + "px"; tr.appendChild(td); row.tr.before(tr);
+        if (b.head) for (let k = 0; k < it.headN; k++) {  // 머리글 행의 사본 - 보이기만 한다(고칠 수 없고 id 가 없다). 머리글을 고치면 다음에 다시 끼울 때 따라온다
+          const c = it.rows[k].tr.cloneNode(true); c.classList.add("pg-headrep"); c.removeAttribute("data-id"); c.contentEditable = "false";
+          for (const x of c.querySelectorAll("[data-id], [contenteditable]")) { x.removeAttribute("data-id"); x.removeAttribute("contenteditable"); x.classList.remove("nt-host"); }
+          row.tr.before(c);
+        }
+        // 실제로 벌어진 만큼을 재서 맞춘다 - 테두리 겹침(border-collapse)·box-sizing 에 따라 빈 행이 차지하는 높이가 준 값과 조금 다르다
+        let prev = tr.previousElementSibling; while (prev && (prev.classList.contains("pg-gaprow") || prev.classList.contains("pg-headrep"))) prev = prev.previousElementSibling;
+        if (prev) { const diff = b.h + (b.head || 0) - (row.tr.getBoundingClientRect().top - prev.getBoundingClientRect().bottom) / it.z; if (Math.abs(diff) > 0.05) td.style.height = Math.max(0, parseFloat(td.style.height) + diff) + "px"; }
+        return;
       }
       // split - 글자 위치 b.off 앞에 빈 줄을 끼운다. 글 조각 가운데면 조각을 둘로 나눈다(윗주는 앞 조각에만 남긴다)
       const g = doc.createElement("span"); g.className = "pg-gap"; g.contentEditable = "false"; g.style.height = b.h + "px"; g._off = b.off; g._h = b.h;
