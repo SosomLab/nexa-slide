@@ -187,5 +187,27 @@ _c2 = _P2.new_page("c2", "두 단"); _c2["page"]["columns"] = {"count": 2, "gap"
 _c2r, _, _ = I.read(_X2.build(_c2), doc_id="g2", title="두 단")
 check("다단 왕복 - 문서 전체 2단은 page.columns 로", _c2r["page"].get("columns") == {"count": 2, "gap": 6} and not any(b["type"] == "break" for b in _c2r["blocks"]), _c2r["page"].get("columns"))
 
+# 개체(도형·글 상자) 왕복 - 내보낸 떠 있는 도형이 개체로 돌아온다(자리·크기·모양·선·채움·안의 글·글 뒤)
+_od = _P2.new_page("o", "개체")
+_od["blocks"] = [{"id": "p1", "type": "p", "runs": [{"t": "첫 문단"}]}, {"id": "p2", "type": "p", "runs": [{"t": "둘째 문단"}]}]
+_od["objects"] = [
+    {"id": "o1", "type": "shape", "shape": "ellipse", "anchor": "p2", "rel": "page", "x": 30, "y": 40, "w": 50, "h": 20, "line": {"c": "#C8553D", "w": 1.5, "dash": "dash"}},
+    {"id": "o2", "type": "shape", "shape": "rect", "anchor": "p2", "rel": "para", "x": 5, "y": -3, "w": 60, "h": 25, "fill": "#EEEEEE", "line": None, "z": "behind", "valign": "middle",
+     "blocks": [{"id": "ot", "type": "p", "runs": [{"t": "상자 글", "b": True}]}]},
+    {"id": "o3", "type": "shape", "shape": "arrow", "anchor": "p1", "x": 20, "y": 60, "w": 40, "h": 10, "flip": True},
+    {"id": "o4", "type": "shape", "shape": "brace-l", "anchor": "p1", "x": 10, "y": 80, "w": 4, "h": 30}]
+_or, _, _ow = I.read(_X2.build(_od), doc_id="g", title="개체")
+_ob = {o["shape"]: o for o in _or.get("objects") or []}
+_pid = {"".join(r["t"] for r in b.get("runs") or []): b["id"] for b in _or["blocks"] if b["type"] == "p"}
+check("개체 왕복 - 4개 · 모양 · 매인 문단 · 형식 검사 통과 · 글 상자 글이 본문으로 새지 않는다",
+      set(_ob) == {"ellipse", "rect", "arrow", "brace-l"} and _ob["ellipse"]["anchor"] == _pid["둘째 문단"] and _ob["arrow"]["anchor"] == _pid["첫 문단"]
+      and _P2.validate(_P2.normalize(_or)) is None and [b for b in _or["blocks"] if b["type"] == "p" and "상자 글" in "".join(r["t"] for r in b["runs"])] == [], (_or.get("objects"), _pid, _ow))
+check("개체 왕복 - 쪽 기준 자리·크기 · 선 색·굵기·점선", (_ob["ellipse"]["rel"], _ob["ellipse"]["x"], _ob["ellipse"]["y"], _ob["ellipse"]["w"], _ob["ellipse"]["h"]) == ("page", 30, 40, 50, 20)
+      and _ob["ellipse"]["line"] == {"c": "#C8553D", "w": 1.5, "dash": "dash"}, _ob["ellipse"])
+check("개체 왕복 - 문단 기준(음수) · 채움 · 선 없음 · 글 뒤 · 안의 글(굵게) · 세로 가운데", _ob["rect"]["rel"] == "para" and _ob["rect"]["y"] == -3 and _ob["rect"]["fill"] == "#EEEEEE" and _ob["rect"]["line"] is None
+      and _ob["rect"].get("z") == "behind" and _ob["rect"].get("valign") == "middle" and _ob["rect"]["blocks"][0]["runs"] == [{"t": "상자 글", "b": True}], _ob["rect"])
+check("개체 왕복 - 화살표(끝 화살촉)·위로 뒤집기 · 중괄호", _ob["arrow"].get("flip") is True and "blocks" not in _ob["arrow"] and (_ob["brace-l"]["w"], _ob["brace-l"]["h"]) == (4, 30), (_ob["arrow"], _ob["brace-l"]))
+check("개체 왕복 - 옮긴 도형에는 '옮기지 않았다' 경고가 없다", not any("옮기지" in w or "글만" in w for w in _ow), _ow)
+
 print(f"\n실패 {len(fails)}" if fails else f"\n전부 통과 ({n}사례)")
 sys.exit(1 if fails else 0)

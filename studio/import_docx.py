@@ -27,6 +27,9 @@ A = "{http://schemas.openxmlformats.org/drawingml/2006/main}"
 WP = "{http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing}"
 PR = "{http://schemas.openxmlformats.org/package/2006/relationships}"
 MC = "{http://schemas.openxmlformats.org/markup-compatibility/2006}"
+WPS = "{http://schemas.microsoft.com/office/word/2010/wordprocessingShape}"
+PRST_SHAPE = {"rect": "rect", "roundRect": "round", "ellipse": "ellipse", "line": "line", "straightConnector1": "line",
+              "leftBracket": "bracket-l", "rightBracket": "bracket-r", "leftBrace": "brace-l", "rightBrace": "brace-r"}  # Word 기본 도형 → 개체 모양(export_docx.PRST 의 거꾸로)
 TW = 1440 / 25.4
 HIGHLIGHT = {"yellow": "#ffff00", "green": "#00ff00", "cyan": "#00ffff", "magenta": "#ff00ff", "blue": "#0000ff", "red": "#ff0000", "darkBlue": "#000080",
              "darkCyan": "#008080", "darkGreen": "#008000", "darkMagenta": "#800080", "darkRed": "#800000", "darkYellow": "#808000", "darkGray": "#808080", "lightGray": "#c0c0c0"}
@@ -57,6 +60,7 @@ class Reader:
         self.warn, self.images, self.n = [], {}, 0
         self._notes = None
         self._sect_ends = []           # 본문 안에서 끝난 구역들 [(그때까지의 블록 수, sectPr)]
+        self.objects = []              # 떠 있는 도형·글 상자 → 개체(매인 문단 id 는 _para 가 채운다)
         self.rels = self._rels("word/_rels/document.xml.rels")
         self.styles = self._styles()
         self.nums = self._numbering()
@@ -163,6 +167,10 @@ class Reader:
                 # 떠 있는 개체 - 글 상자면 그 안의 글을 문단으로 꺼내고(위치·모양은 옮기지 않는다), 그 밖(도형·떠 있는 그림)은 경고만
                 # AlternateContent 는 같은 개체를 새 형식(Choice)과 옛 형식(Fallback)으로 두 번 담는다 - 한쪽만 본다
                 scope = ch.find(MC + "Choice") if tag == MC + "AlternateContent" and ch.find(MC + "Choice") is not None else ch
+                obj = self._shape(scope)
+                if obj:  # 아는 모양의 떠 있는 도형·글 상자 - 자리·크기·선·채움·안의 글까지 개체로 옮긴다
+                    out.append({"__obj": obj})
+                    continue
                 boxes = list(scope.iter(W + "txbxContent")) or (list(ch.iter(W + "txbxContent"))[:1] if scope is not ch else [])
                 if boxes:
                     self._warn("글 상자는 글만 문단으로 옮겼다(위치·모양은 옮기지 않음)")
@@ -179,6 +187,82 @@ class Reader:
             elif tag == W + "fldChar" or tag == W + "instrText":
                 out.append({"__field": (ch.text or "") if tag == W + "instrText" else v(ch, "fldCharType")})
         return out
+
+    def _shape(self, scope):
+        """떠 있는 도형(wp:anchor 안의 wps:wsp · 기본 도형) → 개체 dict(anchor 는 비워 둔다). 모르는 모양·묶음·그림이면 None."""
+        an = next(iter(scope.iter(WP + "anchor")), None)
+        wsps = list(an.iter(WPS + "wsp")) if an is not None else []
+        if len(wsps) != 1:
+            return None
+        sp = wsps[0].find(WPS + "spPr")
+        geom = sp.find(A + "prstGeom") if sp is not None else None
+        shape = PRST_SHAPE.get(geom.get("prst") if geom is not None else "")
+        ext = an.find(WP + "extent")
+        if not shape or ext is None:
+            return None
+
+        def off(tag):
+            el = an.find(f"{WP}{tag}/{WP}posOffset")
+            try:
+                return round(int(el.text) / 36000, 1) if el is not None and el.text else 0.0
+            except ValueError:
+                return 0.0
+        try:
+            w, h = round(int(ext.get("cx", "0")) / 36000, 1), round(int(ext.get("cy", "0")) / 36000, 1)
+        except ValueError:
+            return None
+        if w <= 0 and h <= 0:
+            return None
+        ph, pv = an.find(WP + "positionH"), an.find(WP + "positionV")
+        para = (pv.get("relativeFrom") if pv is not None else "") in ("paragraph", "line")
+        o = {"id": self.new_id("o"), "type": "shape", "shape": shape, "rel": "para" if para else "page",
+             "x": max(-1000, min(2000, off("positionH"))), "y": max(-1000, min(2000, off("positionV"))), "w": min(2000, max(0, w)), "h": min(2000, max(0, h))}
+        if ph is not None and ph.get("relativeFrom") in ("margin", "column") and not para:
+            self._warn("일부 도형은 여백 기준 자리라 조금 어긋날 수 있다")
+        ln = sp.find(A + "ln")
+        if ln is not None and ln.find(A + "noFill") is not None:
+            o["line"] = None
+        elif ln is not None:
+            line = {}
+            c = ln.find(f"{A}solidFill/{A}srgbClr")
+            if c is not None and re.fullmatch(r"[0-9A-Fa-f]{6}", c.get("val", "")):
+                line["c"] = "#" + c.get("val").upper()
+            try:
+                if ln.get("w"):
+                    line["w"] = max(0, min(20, round(int(ln.get("w")) / 12700, 2)))
+            except ValueError:
+                pass
+            d = ln.find(A + "prstDash")
+            if d is not None and d.get("val") in ("dash", "lgDash", "sysDash"):
+                line["dash"] = "dash"
+            elif d is not None and d.get("val") in ("dot", "sysDot"):
+                line["dash"] = "dot"
+            if line:
+                o["line"] = line
+            if shape == "line" and (ln.find(A + "tailEnd") is not None or ln.find(A + "headEnd") is not None):
+                o["shape"] = "arrow"
+        if o["shape"] in ("line", "arrow"):
+            xf = sp.find(A + "xfrm")
+            if xf is not None and xf.get("flipV") in ("1", "true"):
+                o["flip"] = True
+        else:
+            f = sp.find(f"{A}solidFill/{A}srgbClr")
+            if f is not None and re.fullmatch(r"[0-9A-Fa-f]{6}", f.get("val", "")):
+                o["fill"] = "#" + f.get("val").upper()
+            tx = wsps[0].find(f"{WPS}txbx/{W}txbxContent")
+            if tx is not None:
+                bs = [x for q in tx.findall(W + "p") for x in self._para(q)[0] if x["type"] == "p"]
+                while bs and not bs[-1]["runs"]:
+                    bs.pop()
+                if bs:
+                    o["blocks"] = bs
+                    bp = wsps[0].find(WPS + "bodyPr")
+                    va = {"ctr": "middle", "b": "bottom"}.get(bp.get("anchor") if bp is not None else "")
+                    if va:
+                        o["valign"] = va
+        if an.get("behindDoc") in ("1", "true"):
+            o["z"] = "behind"
+        return o
 
     def _note(self, i):
         """각주 id → 글(여러 문단은 줄바꿈으로 잇는다). 구분선(separator)은 없다."""
@@ -270,7 +354,7 @@ class Reader:
             sp = ppr.find(W + "spacing")
             if sp is not None and v(sp, "line") and v(sp, "lineRule", "auto") == "auto":
                 b["line"] = round(int(v(sp, "line")) / 240, 2)
-        runs, out, field, has_page, boxed, dropped = [], [], None, False, [], False
+        runs, out, field, has_page, boxed, dropped, objs = [], [], None, False, [], False, []
         style_size = st.get("size")
 
         def flush():
@@ -314,6 +398,8 @@ class Reader:
                     dropped = True
                 elif "__textbox" in it:  # 글 상자의 글 - 이 문단 뒤에 문단들로
                     boxed += [x for q in it["__textbox"].findall(W + "p") for x in self._para(q)[0] if x["type"] == "p" and x["runs"]]
+                elif "__obj" in it:
+                    objs.append(it["__obj"])
                 elif "__fn" in it:  # 각주 - 바로 앞 글자에 단다(앞에 글이 없으면 표시 글자 ※ 를 둔다)
                     last = runs[-1] if runs and "t" in runs[-1] and runs[-1]["t"] and not runs[-1].get("fn") else None
                     if last is None:
@@ -339,8 +425,16 @@ class Reader:
                     runs.append(it)
         if runs or not out:
             out.append({**b, "runs": page_doc.norm_runs(runs)})
-        if (boxed or dropped) and len(out) == 1 and out[0]["type"] == "p" and not out[0]["runs"]:
+        if (boxed or dropped) and not objs and len(out) == 1 and out[0]["type"] == "p" and not out[0]["runs"]:
             out = []  # 글 상자·떠 있는 개체만 붙어 있던 빈 문단은 남기지 않는다
+        if objs:  # 개체는 이 문단에 맨다(도형만 붙어 있던 빈 문단도 매일 자리라 남긴다)
+            host = next((x for x in out if x["type"] == "p"), None)
+            if host is None:
+                host = {"id": self.new_id(), "type": "p", "runs": []}
+                out.insert(0, host)
+            for o in objs:
+                o["anchor"] = host["id"]
+                self.objects.append(o)
         return out + boxed, has_page
 
     def _table(self, tbl):
@@ -510,7 +604,12 @@ class Reader:
                 number = number or pos
             if number:
                 page["number"] = {"show": True, "pos": number}
-        return {"page": page, "blocks": blocks}
+        # 개체는 본문 맨 위 단계의 문단에만 맬 수 있다 - 표 칸·머리말·글 상자 안에 있던 도형은 옮기지 못한다
+        top = {b["id"] for b in blocks if b.get("type") == "p"}
+        objects = [o for o in self.objects if o.get("anchor") in top]
+        if len(objects) != len(self.objects):
+            self._warn("표 칸·머리말 안의 도형은 옮기지 않았다")
+        return {"page": page, "blocks": blocks, "objects": objects}
 
 
 def read(data, images=True, doc_id="imported", title=None):
@@ -530,6 +629,8 @@ def read(data, images=True, doc_id="imported", title=None):
         first = next((b for b in got["blocks"] if b["type"] == "p" and b["runs"]), None)
         t = page_doc.runs_text(first["runs"])[:80] if first else doc_id
     doc = page_doc.new_page(doc_id, t, {"page": got["page"], "blocks": got["blocks"] or None})
+    if got.get("objects"):
+        doc["objects"] = got["objects"]
     e = page_doc.validate(doc)
     if e:
         raise ValueError("가져온 문서가 형식에 맞지 않는다 - " + e)
