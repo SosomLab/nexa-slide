@@ -104,7 +104,7 @@ from urllib.parse import parse_qs, quote, unquote, urlparse
 
 STUDIO = Path(__file__).resolve().parent
 sys.path.insert(0, str(STUDIO))
-from common import ASSET_ROOT, BRAND, CONFIG, DECKS, DEFAULT_PORT, HUB, OUT, REFUSED, SERVER_INFO, STATE, TEMPLATE, WORKSPACE, fonts_dir, list_templates, read_config, resolve_tokens, running_server, safe_id  # noqa: E402
+from common import ASSET_ROOT, BRAND, CONFIG, CONTENT, DECKS, DEFAULT_PORT, HUB, OUT, REFUSED, SERVER_INFO, STATE, TEMPLATE, WORKSPACE, fonts_dir, list_templates, read_config, resolve_tokens, running_server, safe_id  # noqa: E402
 from watch_requests import session_status  # noqa: E402
 import auth  # noqa: E402
 import collab  # noqa: E402
@@ -953,10 +953,14 @@ class H(BaseHTTPRequestHandler):
                     kind = b.get("kind") if b.get("kind") in ("sheet", "page") else "deck"
                     if kind == "page" and not experimental("page"):
                         return self.err(400, "페이지 문서가 꺼져 있다(nexa-slide.json 의 experimental.page 가 false - 지우면 켜진다)")
-                    out = deck_admin.create(i, b.get("title"), b.get("layout") or "cover", b.get("part") or "day1", kind,
-                                            theme=b.get("theme"), pages=b.get("pages"), vars_=b.get("vars"))
-                elif act == "import":  # 엑셀 파일 → 시트 문서 {name, data(base64), title?} (sheet_import.py)
-                    out = self._import_docx(b) if str(b.get("name") or "").lower().endswith(".docx") else self._import_xlsx(b)
+                    if kind == "deck" and b.get("starter"):  # 시작용 내용(엔진 starters/)으로 새 덱 - 새 문서 창의 슬라이드 템플릿
+                        out = self._create_from_starter(b)
+                    else:
+                        out = deck_admin.create(i, b.get("title"), b.get("layout") or "cover", b.get("part") or "day1", kind,
+                                                theme=b.get("theme"), pages=b.get("pages"), vars_=b.get("vars"))
+                elif act == "import":  # 파일 → 문서 {name, data(base64), title?}: .docx → 페이지 · .pptx → 슬라이드 덱 · .xlsx/.xlsm → 시트
+                    low = str(b.get("name") or "").lower()
+                    out = self._import_docx(b) if low.endswith(".docx") else self._import_pptx(b) if low.endswith(".pptx") else self._import_xlsx(b)
                 elif act == "copy":
                     out = deck_admin.copy(i, b.get("title"))
                 elif act == "start":
@@ -979,6 +983,85 @@ class H(BaseHTTPRequestHandler):
             return self.err(400, str(e))
         self._event = f"deck.{act}:{i}" + (f"→{out.get('id')}" if act in ("rename", "copy") else "")
         self.send_json({"ok": True, **out, "decks": deck_admin.list_decks()})
+
+    def api_get_starters(self, name, q):
+        """슬라이드 시작용 내용 목록(엔진 starters/) - 새 문서 창이 슬라이드 템플릿으로 보인다 [{name, label, description, slides}]."""
+        if HUB:
+            return self.err(404, "작업 공간 서버에서")
+        out = []
+        for s in hub.starters():
+            st = hub._read_json(hub.STARTERS / s["name"] / "starter.json") or {}
+            src = hub.STARTERS / s["name"] / "content" / f"{(st.get('decks') or [''])[0]}.json"
+            if not src.is_file():
+                continue  # 덱 내용 원본이 없는 시작용 내용(설정만 있는 것)은 고를 수 없다
+            try:
+                n = len(json.loads(src.read_text(encoding="utf-8")).get("slides") or [])
+            except (OSError, ValueError):
+                n = 0
+            out.append({"name": s["name"], "label": s.get("label") or s["name"], "description": s.get("description") or "", "slides": n, "i18n": s.get("i18n") or {}})
+        self.send_json(out)
+
+    def _create_from_starter(self, b):
+        """시작용 내용으로 새 덱 - 그 내용 원본(content/<덱>.json)을 새 id 로 복사해 빌드한다(build_deck). 디자인 템플릿은 이 작업 공간 것 그대로.
+        시작용 내용이 가져온 그림(copy 의 assets 등)은 없는 파일만 복사한다."""
+        import deck_admin
+        import shutil
+        name = str(b.get("starter") or "")
+        sdir = hub.STARTERS / name
+        st = hub._read_json(sdir / "starter.json") if re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_-]{0,39}", name) else None
+        src = sdir / "content" / f"{((st or {}).get('decks') or [''])[0]}.json"
+        if not st or not src.is_file():
+            raise ValueError(f"없는 시작용 내용: {name}")
+        i = deck_admin.new_id()
+        title = " ".join(str(b.get("title") or "").split())[:200] or str(st.get("label") or name)
+        doc = json.loads(src.read_text(encoding="utf-8"))
+        doc["id"], doc["title"] = i, title
+        cpath = CONTENT / f"{i}.json"
+        cpath.parent.mkdir(parents=True, exist_ok=True)
+        atomic_write(cpath, json.dumps(doc, ensure_ascii=False, indent=1) + "\n")
+        for sub in st.get("copy", ["content"]):
+            if sub == "content" or not re.fullmatch(r"[A-Za-z0-9_-]{1,40}", str(sub)) or not (sdir / sub).is_dir():
+                continue
+            for f in sorted((sdir / sub).rglob("*")):
+                dst = ASSET_ROOT / f.relative_to(sdir)
+                if f.is_file() and not dst.exists():
+                    dst.parent.mkdir(parents=True, exist_ok=True)
+                    shutil.copy2(f, dst)
+        code, log = run([sys.executable, str(STUDIO / "build_deck.py"), i, "--force"], 120)
+        p = DECKS / f"{i}.json"
+        if code != 0 or not p.exists():
+            cpath.unlink(missing_ok=True)
+            raise ValueError("시작용 내용으로 만들지 못했다: " + ((log or "").strip().splitlines() or ["?"])[-1][:200])
+        return {"id": i, "title": title, "kind": "deck", "slides": len(json.loads(p.read_text(encoding="utf-8")).get("slides") or []), "starter": name}
+
+    def _import_pptx(self, b):
+        """PowerPoint(.pptx) → 슬라이드 덱(import_pptx.py --deck) - 글·글머리·표·그림·차트·도형을 요소로 옮긴다."""
+        import base64
+        import deck_admin
+        name = str(b.get("name") or "발표.pptx")[:120]
+        try:
+            data = base64.b64decode(str(b.get("data") or ""), validate=True)
+        except (ValueError, TypeError):
+            raise ValueError("data 는 base64")
+        if not data or len(data) > 60 * 1024 * 1024:
+            raise ValueError("내용 없음" if not data else "60MB 보다 크다")
+        if data[:2] != b"PK":
+            raise ValueError("PowerPoint 파일이 아니다(zip 형식 아님)")
+        i = deck_admin.new_id()
+        stem = re.sub(r"[^0-9A-Za-z가-힣._-]+", "_", Path(name).stem)[:60] or "pptx"
+        tmp = OUT / "attach" / "_import" / f"{i}.pptx"  # import_pptx 는 작업 공간 안의 파일만 연다
+        tmp.parent.mkdir(parents=True, exist_ok=True)
+        tmp.write_bytes(data)
+        title = " ".join(str(b.get("title") or "").split())[:200] or Path(name).stem
+        try:
+            code, log = run([sys.executable, str(STUDIO / "import_pptx.py"), str(tmp), "--deck", i, "--title", title, "--out", str(OUT / "import" / f"{stem}-{i}")], 300)
+        finally:
+            tmp.unlink(missing_ok=True)
+        p = DECKS / f"{i}.json"
+        if code != 0 or not p.exists():
+            raise ValueError("PowerPoint 를 가져오지 못했다: " + ((log or "").strip().splitlines() or ["?"])[-1][:200])
+        doc = json.loads(p.read_text(encoding="utf-8"))
+        return {"id": i, "title": doc.get("title") or title, "kind": "deck", "slides": len(doc.get("slides") or [])}
 
     def _import_docx(self, b):
         """Word 문서(.docx) → 페이지 문서(import_docx.py). 페이지 문서를 꺼 두지 않았을 때만."""
