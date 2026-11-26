@@ -174,5 +174,18 @@ check("각주 왕복 - 앞 글자에 fn · 나머지 글은 그대로 · 경고 
       "".join(r["t"] for r in _r1) == "첫 문장 끝 뒤 글" and [r.get("fn") for r in _r1 if r.get("fn")] == ["첫째 각주"] and next(r for r in _r1 if r.get("fn"))["t"].endswith("끝")
       and _rd["blocks"][1]["runs"][0].get("fn") == "둘째" and not any("각주" in w for w in _rw) and _P2.validate(_P2.normalize(_rd)) is None, (_r1, _rd["blocks"][1], _rw))
 
+# 다단 왕복 - 구역마다의 단이 구역 나누기(columns)로 돌아온다
+_cd = _P2.new_page("c", "다단")
+_cd["blocks"] = [{"id": "p1", "type": "p", "runs": [{"t": "한 단 머리글"}]}, {"id": "s1", "type": "break", "kind": "section", "columns": {"count": 2, "gap": 10}},
+                 {"id": "p2", "type": "p", "runs": [{"t": "두 단 본문"}]}, {"id": "s2", "type": "break", "kind": "section", "columns": {"count": 1}}, {"id": "p4", "type": "p", "runs": [{"t": "다시 한 단"}]}]
+_cr, _, _cw = I.read(_X2.build(_cd), doc_id="g", title="다단")
+_shape = [(b["type"], b.get("kind"), (b.get("columns") or {}).get("count"), "".join(r["t"] for r in b.get("runs") or [])) for b in _cr["blocks"]]
+check("다단 왕복 - 문단 · 구역 나누기(2단, 간격 10) · 문단 · 구역 나누기(1단) · 문단 · 쪽 나누기는 생기지 않는다",
+      _shape == [("p", None, None, "한 단 머리글"), ("break", "section", 2, ""), ("p", None, None, "두 단 본문"), ("break", "section", 1, ""), ("p", None, None, "다시 한 단")]
+      and _cr["blocks"][1]["columns"].get("gap") == 10 and "columns" not in _cr["page"] and not any("단" in w for w in _cw) and _P2.validate(_P2.normalize(_cr)) is None, (_shape, _cr["page"].get("columns"), _cw))
+_c2 = _P2.new_page("c2", "두 단"); _c2["page"]["columns"] = {"count": 2, "gap": 6}
+_c2r, _, _ = I.read(_X2.build(_c2), doc_id="g2", title="두 단")
+check("다단 왕복 - 문서 전체 2단은 page.columns 로", _c2r["page"].get("columns") == {"count": 2, "gap": 6} and not any(b["type"] == "break" for b in _c2r["blocks"]), _c2r["page"].get("columns"))
+
 print(f"\n실패 {len(fails)}" if fails else f"\n전부 통과 ({n}사례)")
 sys.exit(1 if fails else 0)

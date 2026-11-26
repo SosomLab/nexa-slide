@@ -43,12 +43,16 @@
   }
   window.ED = T.mount(host, {
     get: () => DOC.blocks, set: (b) => { DOC.blocks = b; }, newId: () => "n" + (++seq),
-    renderBlock: (b) => { if (b.type === "table") return tableEl(b); const d = document.createElement("div"); d.className = b.type === "break" ? "pg-break page" : "obj"; if (b.h) d.style.height = b.h + "px"; return d; },
+    renderBlock: (b) => { if (b.type === "table") return tableEl(b); const d = document.createElement("div"); d.className = b.type === "break" ? "pg-break " + (b.kind || "page") : "obj"; if (b.h) d.style.height = b.h + "px"; if (b.kind === "section") { d.dataset.cols = (b.columns || {}).count || 1; if ((b.columns || {}).gap !== undefined) d.dataset.gap = b.columns.gap; } return d; },
   });
   window.FLOW = NexaPageFlow.create({
-    host, gap: 24, box: () => ({ cw: 400, ch: H, t: 20, b: 20 }),
+    host, gap: 24, box: () => ({ cw: 400, ch: H, t: 20, b: 20 }), columns: () => window.COLS || null,
     saveSel: () => ED.selection(), restoreSel: (s) => ED.select(s.a, s.f), onPages: (n, info) => { LAST = { n, ...info }; },
   });
+  /** 블록들의 놓인 자리 [{id, x(본문 왼쪽 기준), y(쪽 안), page, w}] 와 서로 겹친 쌍 */
+  window.spots = () => { const hr = host.getBoundingClientRect(); return [...host.children].filter((e) => !e.classList.contains("pg-break")).map((e) => { const r = e.getBoundingClientRect(), y = r.top - hr.top, k = Math.floor((y + 1) / (H + G));
+    return { id: e.dataset.id, x: Math.round(r.left - hr.left), y: Math.round(y - k * (H + G)), page: k, w: Math.round(r.width), r }; }); };
+  window.clash = () => { const s = spots(), out = []; for (let i = 0; i < s.length; i++) for (let j = i + 1; j < s.length; j++) { const a = s[i].r, b = s[j].r; if (a.left < b.right - 1 && b.left < a.right - 1 && a.top < b.bottom - 1 && b.top < a.bottom - 1) out.push(s[i].id + "×" + s[j].id); } return out; };
   window.load = (blocks) => { DOC.blocks = blocks; seq = 0; ED.refresh(); host.focus(); FLOW.run(); return LAST; };
   window.run = () => { FLOW.run(); return LAST; };
   window.sel = (id, a, id2, b) => ED.select({ id, off: a }, { id: id2 || id, off: b === undefined ? a : b });

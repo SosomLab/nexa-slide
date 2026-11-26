@@ -115,7 +115,7 @@ T["paper"] = {"label": "논문 · 리포트", "desc": "초록 · 서론 · 본�
                          "title": {"name": "문서 제목", "based": "h1", "size": 20, "align": "center", "after": 10}},
               "blocks": [p("{title}", "title"), p([M("이름 · 소속 · {date}")], align="center", first=0),
                          p("초록", "h1"), p("연구의 목적 · 방법 · 결과 · 의의를 한 문단으로 적습니다.", "quote"),
-                         p("1. 서론", "h1"), p("문제의식과 연구 질문을 적습니다."),
+                         p("1. 서론", "h1"), p([{"t": "문제의식과 연구 질문을 적습니다"}, {"t": ".", "fn": "각주 - 출처나 덧붙이는 말을 여기에 적습니다([각주] 단추)."}]),
                          p("2. 본론", "h1"), p("2.1 소제목", "h2"), p("근거와 분석을 적습니다."), p("2.2 소제목", "h2"), p("근거와 분석을 적습니다."),
                          p("3. 결론", "h1"), p("찾은 것과 한계, 다음 연구를 적습니다."),
                          p("참고 문헌", "h1"), li("지은이(연도). 제목. 펴낸 곳.", "number", first=0), li("지은이(연도). 제목. 펴낸 곳.", "number", first=0)]}
@@ -142,7 +142,7 @@ T["study-guide"] = {"label": "해설지(지문 분석)", "desc": "왼쪽 지문(
                         p("글의 흐름을 화살표로 적습니다: 원인 → 과정 → 결과(∴ 글쓴이의 주장)", "box"),
                         layout([67, 33], [
                             [li([R("Professor Kim", "S"), {"t": " "}, R("observed", "V"), {"t": " "}, R("that", "접속사"), {"t": " the first sentence of the passage goes here."}], "number", style="passage"),
-                             li([{"t": "The second sentence goes here, and "}, {"t": "the key phrase", "hl": "#fff59d"}, {"t": " is highlighted."}], "number", style="passage"),
+                             li([{"t": "The second sentence goes here, and "}, {"t": "the key phrase", "hl": "#fff59d", "fn": "핵심 어구의 풀이를 각주로 적습니다."}, {"t": " is highlighted."}], "number", style="passage"),
                              li([{"t": "The third sentence of the passage goes here."}], "number", style="passage"),
                              p("주제문", "h1"), p([{"t": "The key phrase", "c": "accent", "u": True}, {"t": " 를 옮겨 적습니다."}]),
                              p("핵심 요약", "h1"), p("글 전체를 두세 문장으로 요약합니다.")],

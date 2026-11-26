@@ -77,5 +77,27 @@ const brief = (r) => r.breaks.map((b) => `${b.id}:${b.type}${b.line !== undefine
   check("24 표 - 행의 각주 자리만큼 행이 덜 들어간다(2행 뒤)", brief(r) === "b1:row@2:300" && r.notes[0] === 100, brief(r) + " " + J(r.notes)); }
 { const r = F.plan(stack([300, 300, 300]), H, G, null, { sep: 20 }); check("25 각주가 없으면 전과 같다 · notes 비어 있음", r.breaks.length === 0 && Object.keys(r.notes).length === 0, J(r)); }
 
+{ // 다단: 2단 구역에 400짜리 블록 5개(단 높이 1000) - 단마다 2개: [0,1] 1단 · [2,3] 2단(위로 끌어올림 -800) · [4] 다음 쪽 1단
+  const items = stack([400, 400, 400, 400, 400]).map((x) => ({ ...x, cols: 2 })); const r = F.plan(items, H, G);
+  check("26 2단 - 넘치는 블록은 다음 단 머리로(음수 밀기) · 마지막 단이 차면 다음 쪽 첫 단", brief(r) === "b2:push:-800 b4:push:400" && J(r.place) === J({ b0: 0, b1: 0, b2: 1, b3: 1, b4: 0 }) && r.pages === 2, brief(r) + " " + J(r.place) + " p" + r.pages); }
+{ // 1단 머리(200) 뒤에 2단 본문: 2단 구역은 머리 아래(200)에서 시작 - 단 높이 800
+  const items = stack([200, { h: 500, cols: 2 }, { h: 500, cols: 2 }, { h: 500, cols: 2 }]); const r = F.plan(items, H, G);
+  // b1 200~700(1단) · b2 700~1200 넘침 → 2단 머리 200 으로(-500) · b3 자연 1200 → 2단에서 700~1200 넘침 → 다음 쪽 1단 머리(1200)
+  check("27 1단 → 2단 - 새 구역은 앞 구역 끝에서 시작하고 다음 쪽부터는 쪽 머리에서", brief(r) === "b2:push:-500 b3:push:500" && J(r.place) === J({ b1: 0, b2: 1, b3: 0 }) && r.pages === 2, brief(r) + " " + J(r.place) + " p" + r.pages); }
+{ // 2단 → 1단: 1단 구역은 가장 아래까지 내려간 단의 끝에서 시작
+  const items = stack([{ h: 600, cols: 2 }, { h: 600, cols: 2 }, { h: 300, cols: 2 }, 100]); const r = F.plan(items, H, G);
+  // b0 0~600(1단) · b1 → 2단 0~600 · b2 → 2단 600~900 · b3(1단 구역) 는 max(600, 900) = 900 에서 시작: 자연 1500 + (-600) = 900 → 밀기 없음
+  check("28 2단 → 1단 - 가장 긴 단의 끝에서 이어진다", brief(r) === "b1:push:-600" && J(r.place) === J({ b0: 0, b1: 1, b2: 1 }) && r.pages === 1, brief(r) + " " + J(r.place)); }
+{ // 2단 → 1단인데 뒤 단이 더 짧다: 1단 구역은 앞 단의 끝(800)으로 내려가야 한다
+  const items = stack([{ h: 800, cols: 2 }, { h: 300, cols: 2 }, 100]); const r = F.plan(items, H, G);
+  check("29 2단 → 1단 - 뒤 단이 짧으면 앞 단 끝까지 내린다", brief(r) === "b1:push:-800 b2:push:500" && r.pages === 1, brief(r)); }
+{ // 단 나누기
+  const items = stack([{ h: 100, cols: 2 }, { h: 0, kind: "colbreak", cols: 2 }, { h: 100, cols: 2 }, { h: 0, kind: "colbreak", cols: 2 }, { h: 100, cols: 2 }]); const r = F.plan(items, H, G);
+  check("30 단 나누기 - 다음 블록이 다음 단 머리(마지막 단이면 다음 쪽)", brief(r) === "b2:push:-100 b4:push:1100" && r.place.b2 === 1 && r.place.b4 === 0 && r.pages === 2, brief(r) + " " + J(r.place) + " p" + r.pages); }
+{ // 다단 구역 안의 쪽 나누기 - 다음 쪽 첫 단
+  const items = stack([{ h: 100, cols: 2 }, { h: 0, kind: "break", cols: 2 }, { h: 100, cols: 2 }]); const r = F.plan(items, H, G);
+  check("31 다단 구역의 쪽 나누기 - 다음 쪽 첫 단 머리", brief(r) === "b2:push:1100" && r.place.b2 === 0 && r.pages === 2, brief(r) + " " + J(r.place)); }
+{ const r = F.plan(stack([600, 600, 300]), H, G); check("32 1단 문서는 전과 같다 · place 비어 있음", brief(r) === "b1:push:600" && Object.keys(r.place).length === 0, brief(r) + J(r.place)); }
+
 console.log(`RESULT ${fail ? "FAIL" : "PASS"} ${n - fail}/${n}`);
 process.exit(fail ? 1 : 0);

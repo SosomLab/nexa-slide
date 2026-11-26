@@ -56,6 +56,7 @@ class Reader:
         self.z, self.want_images = z, images
         self.warn, self.images, self.n = [], {}, 0
         self._notes = None
+        self._sect_ends = []           # 본문 안에서 끝난 구역들 [(그때까지의 블록 수, sectPr)]
         self.rels = self._rels("word/_rels/document.xml.rels")
         self.styles = self._styles()
         self.nums = self._numbering()
@@ -404,6 +405,14 @@ class Reader:
                     after_table = False
                     continue
                 after_table = False
+                sp = None if nested else ch.find(f"{W}pPr/{W}sectPr")
+                if sp is not None:  # 구역의 끝 - 이 문단까지가 한 구역(빈 문단이면 구역을 닫으려고 둔 것이라 버린다)
+                    if len(bs) == 1 and bs[0]["type"] == "p" and not bs[0]["runs"]:
+                        bs = []
+                    out += bs
+                    self._sect_ends.append((len(out), sp))
+                    page_field = page_field or hp
+                    continue
                 out += bs
                 page_field = page_field or hp
             elif ch.tag == W + "tbl":
@@ -451,9 +460,35 @@ class Reader:
         blocks = self._blocks(body)
         sects = [s for s in body.iter(W + "sectPr")]
         sect = body.find(W + "sectPr") if body.find(W + "sectPr") is not None else (sects[-1] if sects else None)
-        if len(sects) > 1:
-            self._warn("구역이 여럿이다 - 쪽 설정은 마지막 구역 것만 옮겼다")
+
+        def cols_of(s):
+            c = s.find(W + "cols") if s is not None else None
+            try:
+                n = int(v(c, "num", "1") or 1) if c is not None else 1
+            except ValueError:
+                n = 1
+            if n <= 1:
+                return None
+            gap = mm(v(c, "space"))
+            return {"count": min(4, n), "gap": max(0, min(50, round(gap))) if gap else 8}
+        # 구역 - 구역마다 단이 다를 수 있다. 구역 i 의 설정은 그 구역을 닫는 sectPr 에 있다(마지막 구역 = 본문 끝의 sectPr). 용지·여백은 마지막 구역 것만 옮긴다
+        ends = self._sect_ends
+        order = [sp for _, sp in ends] + [sect]
+        if len({(s.find(W + "pgSz").get(W + "w"), s.find(W + "pgSz").get(W + "h")) for s in order if s is not None and s.find(W + "pgSz") is not None}) > 1:
+            self._warn("구역마다 용지가 다르다 - 쪽 설정은 마지막 구역 것만 옮겼다")
+        for k in range(len(ends) - 1, -1, -1):  # 뒤에서부터 끼운다(앞의 색인이 그대로)
+            at, _ = ends[k]
+            nxt, cur = order[k + 1], order[k]
+            ins = []
+            typ = nxt.find(W + "type") if nxt is not None else None
+            if (typ.get(W + "val") if typ is not None else "nextPage") != "continuous":
+                ins.append({"id": self.new_id("k"), "type": "break", "kind": "page"})
+            if cols_of(nxt) != cols_of(cur):
+                ins.append({"id": self.new_id("k"), "type": "break", "kind": "section", "columns": cols_of(nxt) or {"count": 1}})
+            blocks[at:at] = ins
         page = {}
+        if order and cols_of(order[0]):
+            page["columns"] = cols_of(order[0])
         if sect is not None:
             sz, mar = sect.find(W + "pgSz"), sect.find(W + "pgMar")
             if sz is not None:
@@ -468,9 +503,6 @@ class Reader:
                 m = {k: mm(v(mar, n)) for k, n in (("t", "top"), ("r", "right"), ("b", "bottom"), ("l", "left"))}
                 if all(x is not None for x in m.values()):
                     page["margin"] = {k: max(0, min(150, round(abs(x)))) for k, x in m.items()}
-            cols = sect.find(W + "cols")
-            if cols is not None and int(v(cols, "num", "1") or 1) > 1:
-                self._warn("다단은 한 단으로 옮겼다")
             number = None
             for kind in ("header", "footer"):
                 bs, pos = self._hf(sect, kind)
