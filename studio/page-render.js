@@ -208,6 +208,7 @@
 .pg-break { border-top: 1px dashed #b5b5b5; margin: 8pt 0; height: 0; position: relative; break-after: page; }
 .pg-break::after { content: attr(data-label); position: absolute; top: -.7em; left: 50%; transform: translateX(-50%); background: #fff; padding: 0 8px; font-size: 8pt; color: #999; }
 .nt-link { color: #1a5fb4; text-decoration: underline; }
+[data-fn]::after { content: attr(data-fnn); vertical-align: super; font-size: .62em; line-height: 1; font-weight: 400; font-style: normal; text-decoration: none; color: var(--accent, #c8553d); margin-left: .5px; }
 [data-ruby] { position: relative; }
 [data-ruby]::before { content: attr(data-ruby); position: absolute; left: 50%; bottom: 100%; transform: translateX(-50%); font-size: .55em; line-height: 1.1; white-space: nowrap; font-weight: 400; font-style: normal; text-decoration: none; pointer-events: none; }
 .pg-obj { position: absolute; box-sizing: border-box; pointer-events: auto; }

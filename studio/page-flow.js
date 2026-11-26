@@ -12,25 +12,34 @@
 
   /** 쪽 나눔 계산. items = 문서 순서의 블록 [{id, kind: "p"|"table"|"break"|"obj", top, bottom, rows?: [{top, bottom, ok}]}] -
    *  좌표는 **빈 자리를 뺀 자연 위치**(px, 본문 맨 위 = 0). H = 쪽 본문 높이, G = 쪽 본문 사이 거리(아래 여백 + 쪽 틈 + 위 여백).
-   *  linesOf(item) → [{top, bottom}] 그 문단의 줄(넘칠 때만 부른다). 돌려주는 breaks = [{id, type: "push"|"split"|"row", h, gap?, line?, row?}] */
-  function plan(items, H, G, linesOf) {
+   *  linesOf(item) → [{top, bottom, fn?}] 그 문단의 줄(넘칠 때만 부른다). 각주: 블록·줄·행의 fn = 달린 각주들의 높이 합, opt.sep = 구분선 높이 -
+   *  각주는 그 참조가 놓인 쪽의 아래에 자리를 잡고 본문은 그만큼 덜 들어간다(돌려주는 notes = {쪽: 내준 높이}). 돌려주는 breaks = [{id, type: "push"|"split"|"row", h, gap?, line?, row?}] */
+  function plan(items, H, G, linesOf, opt) {
     const out = []; let shift = 0, page = 0, force = false, prevBottom = 0;
+    // 각주 - 쪽마다 아래쪽에 각주 자리를 내준다. res[쪽] = 그 쪽에 내준 높이(구분선 SEP 포함). 줄·행·블록의 fn = 거기 달린 각주들의 높이 합
+    const res = {}, SEP = (opt && opt.sep) || 0;
     const start = (p) => p * (H + G), end = () => page * (H + G) + H;
+    const need = (fn) => (fn > 0 ? fn + (res[page] ? 0 : SEP) : 0);        // 이 쪽에 각주 fn 을 더 놓는 데 드는 높이
+    const room = (fn) => end() - (res[page] || 0) - need(fn);                // 그 각주까지 놓고 본문이 쓸 수 있는 아래 끝
+    const take = (fn) => { if (fn > 0) res[page] = (res[page] || 0) + need(fn); };
+    const untake = (fn) => { if (fn > 0 && res[page]) { res[page] -= fn; if (res[page] <= SEP + EPS) delete res[page]; } };
     const push = (it) => { const top = it.top + shift; page++; const h = start(page) - top; out.push({ id: it.id, type: "push", h, gap: Math.max(0, it.top - prevBottom) }); shift += h; };
     const settle = (y) => { while (y >= start(page + 1) - EPS) page++; };  // 나눌 수 없는 것이 쪽을 넘겨 버렸을 때 - 놓인 자리의 쪽으로 맞춘다
 
     function para(it) {
       const L = (linesOf && linesOf(it)) || [], n = L.length; let from = 0;
-      if (!n) { if (it.top + shift > start(page) + EPS) push(it); return; }
+      if (!n) { if (it.top + shift > start(page) + EPS) push(it); take(it.fn || 0); return; }
       for (let guard = 0; guard < 5000; guard++) {
-        let k = from; while (k < n && L[k].bottom + shift <= end() + EPS) k++;
+        let k = from; while (k < n && L[k].bottom + shift <= room(L[k].fn || 0) + EPS) { take(L[k].fn || 0); k++; }
         if (k >= n) return;
+        const back = (to) => { while (k > to) { k--; untake(L[k].fn || 0); } };
         if (from === 0 && k < 2) {  // 첫 줄만 남는다(외톨이 줄) - 문단째 다음 쪽으로. 이미 쪽 머리면 한 줄은 둔다
-          if (it.top + shift > start(page) + EPS) { push(it); continue; }
-          k = 1; if (k >= n) return;
+          if (it.top + shift > start(page) + EPS) { back(0); push(it); continue; }
+          if (k < 1) { take(L[0].fn || 0); k = 1; }
+          if (k >= n) return;
         } else {
-          if (n - k < 2 && k - from >= 3) k = n - 2;  // 끝 줄만 넘어간다 - 한 줄 더 데려간다
-          if (k === from) { k = from + 1; if (k >= n) return; }  // 쪽 머리인데 한 줄도 안 들어간다(줄이 쪽보다 크다) - 한 줄은 둔다
+          if (n - k < 2 && k - from >= 3) back(n - 2);  // 끝 줄만 넘어간다 - 한 줄 더 데려간다
+          if (k === from) { take(L[k].fn || 0); k = from + 1; if (k >= n) return; }  // 쪽 머리인데 한 줄도 안 들어간다(줄·각주가 쪽보다 크다) - 한 줄은 둔다
         }
         const boxTop = (L[k - 1].bottom + L[k].top) / 2;
         page++; const h = start(page) - (boxTop + shift);
@@ -40,14 +49,14 @@
     }
     function table(it) {
       const R = it.rows || []; let from = 0;
-      if (!R.length) { if (it.top + shift > start(page) + EPS) push(it); return; }
+      if (!R.length) { if (it.top + shift > start(page) + EPS) push(it); take(it.fn || 0); return; }
       for (let guard = 0; guard < 5000; guard++) {
-        let k = from; while (k < R.length && R[k].bottom + shift <= end() + EPS) k++;
+        let k = from; while (k < R.length && R[k].bottom + shift <= room(R[k].fn || 0) + EPS) { take(R[k].fn || 0); k++; }
         if (k >= R.length) return;
-        while (k > from && !R[k].ok) k--;  // 합친 칸이 걸친 행 · 머리글 바로 아래는 나누지 않는다
+        while (k > from && !R[k].ok) { k--; untake(R[k].fn || 0); }  // 합친 칸이 걸친 행 · 머리글 바로 아래는 나누지 않는다
         if (k === from) {
           if (from === 0 && it.top + shift > start(page) + EPS) { push(it); continue; }
-          k = from + 1; while (k < R.length && !R[k].ok) k++;
+          do { take(R[k].fn || 0); k++; } while (k < R.length && !R[k].ok);
           if (k >= R.length) return;
         }
         page++; const h = start(page) - (R[k].top + shift), hh = it.headH > 0 && it.headH < H / 2 ? it.headH : 0;  // 다음 쪽 머리에 머리글 행을 되풀이할 자리
@@ -60,15 +69,16 @@
       settle(it.top + shift);
       if (force) { push(it); force = false; }
       if (it.kind === "break") { force = true; prevBottom = it.bottom; continue; }
-      if (it.bottom + shift > end() + EPS) {
+      const fn = it.fn || 0;
+      if (it.bottom + shift > room(fn) + EPS) {
         if (it.kind === "p") para(it);
         else if (it.kind === "table") table(it);
-        else if (it.top + shift > start(page) + EPS) push(it);
-      }
+        else { if (it.top + shift > start(page) + EPS) push(it); take(fn); }
+      } else take(fn);
       prevBottom = it.bottom;
     }
     if (items.length) { const y = items[items.length - 1].bottom + shift; while (y > start(page + 1) + EPS) page++; }
-    return { breaks: out, pages: page + 1 };
+    return { breaks: out, pages: page + 1, notes: res };
   }
 
   /** 화면에 붙인다. opts: host(#ed) · box() → NexaPage.pageBox · gap 쪽 사이 틈(px) · off() → true 면 쉰다(인쇄)
@@ -88,11 +98,14 @@
     function measure() {
       const hr = host.getBoundingClientRect(), z = hr.width / host.offsetWidth || 1, y = (v) => (v - hr.top) / z;
       let A = 0; const items = [], applied = [];
+      const noteH = opts.noteH && host.querySelector("[data-fn]") ? opts.noteH : null;  // 각주가 하나도 없으면 찾지 않는다
+      const refsOf = (el) => (noteH ? [...el.querySelectorAll("[data-fn]")].filter((x) => !x.closest(".pg-headrep")).map((span) => ({ span, h: noteH(span) })) : []);
       for (const el of host.children) {
         const id = el.dataset.id; if (!id) continue;
         const r = el.getBoundingClientRect(), own = el._pgPush ? el._pgPush.h : 0;
         if (own) applied.push({ id, type: "push", h: own });
         const it = { id, el, kind: kindOf(el), top: y(r.top) - A - own, base: A + own, z, y };
+        it.refs = refsOf(el); it.fn = it.refs.reduce((a, x) => a + x.h, 0);
         let inner = 0;
         if (it.kind === "table") {
           it.rows = []; let gapRow = null, prevRaw = null; const blocked = new Set();
@@ -103,7 +116,7 @@
             gapRow = null; prevRaw = y(rr.bottom);
             for (const c of tr.cells) for (let s = 1; s < (c.rowSpan || 1); s++) blocked.add(i + s);
             if (i > 0 && it.rows[i - 1].head) blocked.add(i);
-            it.rows.push({ top: y(rr.top) - it.base - inner, bottom: y(rr.bottom) - it.base - inner, head: tr.classList.contains("head"), tr });
+            it.rows.push({ top: y(rr.top) - it.base - inner, bottom: y(rr.bottom) - it.base - inner, head: tr.classList.contains("head"), tr, fn: it.refs.reduce((a, x) => a + (tr.contains(x.span) ? x.h : 0), 0) });
           }
           it.rows.forEach((row, i) => { row.ok = !blocked.has(i); });
           let hn = 0; while (hn < it.rows.length && it.rows[hn].head) hn++;  // 맨 위에 이어진 머리글 행만 되풀이한다(Word 의 머리글 행 반복과 같다)
@@ -136,6 +149,12 @@
           cur.bottom = Math.max(cur.bottom, r.bottom); cur.rawTop = Math.min(cur.rawTop, r.rawTop); cur.rawBottom = Math.max(cur.rawBottom, r.rawBottom);
         } else { cur = { ...r }; lines.push(cur); }
       }
+      for (const ref of it.refs || []) {  // 각주 참조가 놓인 줄 - 번호는 그 글 조각의 끝에 붙는다
+        const rs = ref.span.getClientRects(), r = rs[rs.length - 1]; if (!r || !lines.length) continue;
+        const mid = (r.top + r.bottom) / 2; let best = lines[0];
+        for (const ln of lines) if (Math.abs((ln.rawTop + ln.rawBottom) / 2 - mid) < Math.abs((best.rawTop + best.rawBottom) / 2 - mid)) best = ln;
+        best.fn = (best.fn || 0) + ref.h;
+      }
       return (it.lines = lines);
     }
     /** k 번째 줄의 첫 글자 위치(문단 안의 글자 수) - 글자의 세로 가운데가 줄 경계 아래인 첫 글자를 이분 탐색으로 */
@@ -158,16 +177,16 @@
     }
 
     function clearEl(el) {
-      if (el._pgPush) { el.style.marginTop = el._pgPush.mt; el._pgPush = null; }
+      if (el._pgPush) { el.style.marginTop = el._pgPush.mt; el._pgPush = null; el.classList.remove("pg-pushed"); }
       if (el.tagName === "TABLE") { for (const tr of [...el.rows]) if (tr.classList.contains("pg-gaprow") || tr.classList.contains("pg-headrep")) tr.remove(); return; }
       for (const g of gapsOf(el)) {
         const pv = g.previousSibling, nx = g.nextSibling; g.remove();
-        if (pv && nx && nx.dataset && nx.dataset.pgSplit) { pv.append(...nx.childNodes); nx.remove(); pv.normalize(); }  // 나눠 둔 글 조각을 다시 하나로
+        if (pv && nx && nx.dataset && nx.dataset.pgSplit) { pv.append(...nx.childNodes); nx.remove(); pv.normalize(); if (pv.dataset.fnHold !== undefined) { pv.dataset.fn = pv.dataset.fnHold; delete pv.dataset.fnHold; } }  // 나눠 둔 글 조각을 다시 하나로
       }
     }
     function put(it, b) {
       const el = it.el;
-      if (b.type === "push") { el._pgPush = { h: b.h, mt: el.style.marginTop }; el.style.marginTop = (b.gap + b.h) + "px"; return; }
+      if (b.type === "push") { el._pgPush = { h: b.h, mt: el.style.marginTop }; el.style.marginTop = (b.gap + b.h) + "px"; el.classList.add("pg-pushed"); return; }
       if (b.type === "row") {
         const row = it.rows[b.row]; if (!row || !row.tr.isConnected) return;
         const tr = doc.createElement("tr"), td = doc.createElement("td"); tr.className = "pg-gaprow"; tr.contentEditable = "false"; tr._h = b.h;
@@ -194,6 +213,7 @@
       const tail = left === 0 ? n : n.splitText(left);
       if (span === n) { el.insertBefore(g, tail); return; }
       const s2 = span.cloneNode(false); s2.dataset.pgSplit = "1"; s2.removeAttribute("data-ruby");
+      if (span.dataset.fn !== undefined) { span.dataset.fnHold = span.dataset.fn; span.removeAttribute("data-fn"); }  // 각주 번호는 뒤쪽 조각에만
       while (tail.nextSibling) s2.appendChild(tail.nextSibling);
       s2.insertBefore(tail, s2.firstChild); span.after(s2); el.insertBefore(g, s2);
     }
@@ -205,13 +225,14 @@
       if (composing) return;
       if (opts.off && opts.off()) return;
       const box = opts.box(); if (!box || !host.offsetWidth) return;
+      if (!pass && opts.prepare) opts.prepare();
       // 본문 너비가 바뀌었으면(쪽 설정) 줄 나눔이 달라진다 - 예전 줄 머리에 끼워 둔 빈 줄이 줄 가운데에 남아 그 뒤의 줄을 흩뜨리므로 먼저 걷고 잰다
       if (host.offsetWidth !== lastW || stale) {
         if (lastW || stale) { const sel = opts.saveSel ? opts.saveSel() : null; for (const el of host.children) clearEl(el); if (sel && opts.restoreSel) opts.restoreSel(sel); }
         lastW = host.offsetWidth; stale = false;
       }
       const mm = host.offsetWidth / box.cw, H = box.ch * mm, G = (box.b + box.t) * mm + GAP;
-      const m = measure(), p = plan(m.items, H, G, linesOf), byId = new Map(m.items.map((it) => [it.id, it]));
+      const m = measure(), p = plan(m.items, H, G, linesOf, { sep: opts.noteSep ? opts.noteSep() : 0 }), byId = new Map(m.items.map((it) => [it.id, it]));
       for (const b of p.breaks) { if (b.type === "split") b.at = b.off = offsetOfLine(byId.get(b.id), b.line); else if (b.type === "row") b.at = b.row; }
       // 블록마다 - 끼워 둔 것과 끼울 것이 다를 때만 고친다(글을 치는 동안 쓸데없이 DOM 을 건드리지 않게)
       const ids = new Set([...m.applied, ...p.breaks].map((b) => b.id)), todo = [];
@@ -227,13 +248,15 @@
         if ((pass || 0) < 3) return run((pass || 0) + 1);  // 끼운 뒤 다시 재서 확인한다 - 어긋난 데가 없으면 고칠 것이 없어 여기서 끝난다
       }
       pages = p.pages;
-      if (opts.onPages) opts.onPages(pages, { mm, H, G, gap: GAP, changed: todo.length, passes: (pass || 0) + 1 });
+      if (opts.onPages) opts.onPages(pages, { mm, H, G, gap: GAP, changed: todo.length, passes: (pass || 0) + 1, notes: p.notes });
     }
     /** 끼워 둔 빈 자리를 모두 걷는다(인쇄 전 - 인쇄는 브라우저가 쪽을 나눈다) */
     function clear() { clearTimeout(timer); timer = 0; for (const el of host.children) clearEl(el); }
     /** 글꼴이 늦게 뜨는 등 줄 나눔이 통째로 달라졌을 때 - 걷고 처음부터 */
     function reflow() { stale = true; schedule(); }
-    return { schedule, run: () => run(0), reflow, clear, pages: () => pages, gap: GAP };
+    /** 지금 바로 걷고 처음부터 다시(인쇄 직전 - 확대를 풀어 줄 나눔이 달라졌을 수 있다) */
+    function rerun() { clearTimeout(timer); stale = true; run(0); }
+    return { schedule, run: () => run(0), reflow, rerun, clear, pages: () => pages, gap: GAP };
   }
 
   root.NexaPageFlow = { plan, create };
