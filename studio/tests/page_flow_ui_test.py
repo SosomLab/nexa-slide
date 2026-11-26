@@ -49,6 +49,22 @@ STEPS = [
     ("표 - 합친 칸이 걸친 행 사이에서는 나누지 않는다",
      "const L = load([{id: 'o', type: 'image', h: 150}, table('t', 12, [2, 6])]); const real = [...el('t').rows].filter((r) => !r.classList.contains('pg-gaprow') && !r.classList.contains('pg-headrep')); const at = [...document.querySelectorAll('.pg-gaprow')].map((g) => { let x = g.nextElementSibling; while (x && x.classList.contains('pg-headrep')) x = x.nextElementSibling; return real.indexOf(x); }); "
      "return L.n >= 2 && at.length === L.n - 1 && at.every((k) => k <= 2 || k >= 8) && audit().length === 0 || JSON.stringify([L.n, at, audit().slice(0, 4)])"),
+    ("2단 - 블록이 단 너비(195)로 좁아지고 1단 → 2단 → 다음 쪽 1단 차례로 · 겹침 없음 · 쪽 밖으로 안 나감",
+     "window.COLS = {count: 2, gap: 10}; const L = load(Array.from({length: 7}, (_, i) => ({id: 'o' + i, type: 'image', h: 110}))); const s = spots(); window.COLS = null; "
+     "const want = [[0,0,0],[0,0,120],[205,0,0],[205,0,120],[0,1,0],[0,1,120],[205,1,0]]; return L.n === 2 && s.every((o, i) => o.w === 195 && o.x === want[i][0] && o.page === want[i][1] && Math.abs(o.y - want[i][2]) <= 1) && clash().length === 0 "
+     "|| JSON.stringify([L.n, s.map((o) => [o.x, o.page, o.y, o.w]), clash()])"),
+    ("2단 - 문단은 나누지 않고 통째로 다음 단으로 · 글·커서 위치는 그대로",
+     "window.COLS = {count: 2, gap: 10}; const L = load([para('a', 6), para('b', 6), para('c', 6)]); const s = spots(), g = gaps(); sel('c', 5); const c = caret(); bi('insertText', 'X'); run(); const t = txt('c').slice(0, 8); window.COLS = null; "
+     "return g === 0 && s[0].x === 0 && s.some((o) => o.x === 205) && clash().length === 0 && c === 'c:5' && t[5] === 'X' && el('c').textContent === txt('c') || JSON.stringify([g, s.map((o) => [o.id, o.x, o.page, o.y]), clash(), c, t])"),
+    ("구역 - 1단 머리 뒤 '여기서부터 2단': 2단 구역은 머리 아래에서 시작 · 다시 1단은 가장 긴 단 아래에서",
+     "const L = load([para('h', 2), {id: 's1', type: 'break', kind: 'section', columns: {count: 2, gap: 10}}, {id: 'o1', type: 'image', h: 100}, {id: 'k', type: 'break', kind: 'column'}, {id: 'o2', type: 'image', h: 50}, {id: 'o3', type: 'image', h: 30}, "
+     "{id: 's2', type: 'break', kind: 'section', columns: {count: 1}}, para('t', 2)]); const s = Object.fromEntries(spots().map((o) => [o.id, o])); "
+     "return s.h.w === 400 && s.o1.w === 195 && s.o1.x === 0 && s.o2.x === 205 && Math.abs(s.o2.y - s.o1.y) <= 1 && s.o3.x === 205 && s.t.w === 400 && s.t.x === 0 && s.t.y >= s.o1.y + 100 && s.t.y >= s.o3.y + 30 && s.t.y <= s.o1.y + 100 + 30 && s.o1.y > s.h.y && clash().length === 0 && L.n === 1 "
+     "|| JSON.stringify([L.n, Object.values(s).map((o) => [o.id, o.x, o.y, o.w]), clash()])"),
+    ("단 나누기 - 다음 블록이 다음 단 머리 · 단 설정을 끄면(1단) 너비가 되돌아오고 단 나누기는 다음 쪽으로 넘긴다",
+     "window.COLS = {count: 2, gap: 10}; load([{id: 'o1', type: 'image', h: 50}, {id: 'k', type: 'break', kind: 'column'}, {id: 'o2', type: 'image', h: 50}]); const a = Object.fromEntries(spots().map((o) => [o.id, o])); "
+     "window.COLS = null; run(); const b = Object.fromEntries(spots().map((o) => [o.id, o])); "
+     "return a.o2.x === 205 && Math.abs(a.o2.y - a.o1.y) <= 1 && b.o2.x === 0 && b.o2.w === 400 && b.o2.page === 1 && b.o1.page === 0 && el('o2').style.left === '' && el('o2').style.width === '' || JSON.stringify([a.o1, a.o2, b.o1, b.o2].map((o) => [o.x, o.page, o.y, o.w]))"),
     ("글이 줄면 빈 자리를 걷는다",
      "load([para('a', 60)]); DOC.blocks = [para('a', 3)]; ED.refresh(); const L = run(); return L.n === 1 && gaps() === 0 && audit().length === 0 " + D),
     ("밀린 블록 앞이 줄면 밀기를 풀고 위 여백을 되돌린다",

@@ -152,6 +152,7 @@
       <label>여백 (mm)</label><div class="margins">${[["t", "위"], ["b", "아래"], ["l", "왼쪽"], ["r", "오른쪽"]].map(([k, t]) => `<div><label>${t}</label><input type="number" id="psM${k}" min="0" max="150" step="1" value="${m[k]}"></div>`).join("")}</div>
       <label>머리말</label><div style="display:flex;gap:6px"><input type="text" id="psHeader" maxlength="200"><select id="psHeaderAlign" style="width:96px">${opt(aligns, hfAlign("header"))}</select></div>
       <label>꼬리말</label><div style="display:flex;gap:6px"><input type="text" id="psFooter" maxlength="200"><select id="psFooterAlign" style="width:96px">${opt(aligns, hfAlign("footer"))}</select></div>
+      <label>단</label><select id="psCols">${opt([["1", "1단"], ["2", "2단"], ["3", "3단"]], String((page.columns || {}).count || 1))}</select>
       <label>쪽 번호</label><select id="psNum">${opt([["", "없음"], ["footer-center", "아래 가운데"], ["footer-right", "아래 오른쪽"], ["footer-left", "아래 왼쪽"], ["header-right", "위 오른쪽"], ["header-center", "위 가운데"]], num.show ? num.pos || "footer-center" : "")}</select>
       </div><div class="err" id="psErr"></div><div class="foot"><button class="btn" id="psCancel">취소</button><button class="btn primary" id="psOk">적용</button></div></div>`;
     document.body.appendChild(back);
@@ -176,6 +177,7 @@
       };
       const next = { ...page, size: q("#psSize").value, orient: q("#psOrient").value, margin: mg, header: part("header", page.header || {}), footer: part("footer", page.footer || {}),
         number: q("#psNum").value ? { show: true, pos: q("#psNum").value } : { show: false, pos: num.pos || "footer-center" } };
+      if (+q("#psCols").value > 1) next.columns = { count: +q("#psCols").value, gap: (page.columns || {}).gap === undefined ? 8 : page.columns.gap }; else delete next.columns;
       if (JSON.stringify(next) !== JSON.stringify(page)) { snapshot("format"); S.deck.page = next; layout(); afterChange(true); }
       close();
     };
@@ -488,6 +490,14 @@
     };
     window.addEventListener("pointermove", move); window.addEventListener("pointerup", up);
   }
+  /** [단] 메뉴 - 지금 커서가 있는 구역의 단 수를 보이고, 여기서부터 단 수 바꾸기(구역 나누기)·단 나누기를 넣는다. 문서 전체의 단 수는 [쪽 설정] */
+  function colsMenu(at) {
+    const s = ed.selection(), i = s ? blocks().findIndex((b) => b.id === s.f.id) : -1;
+    let now = ((S.deck.page || {}).columns || {}).count || 1;
+    for (let k = 0; k <= i; k++) { const b = blocks()[k]; if (b.type === "break" && b.kind === "section") now = (b.columns || {}).count || 1; }
+    openMenu(at, [{ h: `지금 구역 · ${now}단` }, ...[1, 2, 3].map((n) => ({ label: `여기서부터 ${n}단`, on: n === now, disabled: n === now || i < 0, act: () => insertBreak("section", { count: n, gap: 8 }) })), "-",
+      { label: "단 나누기(다음 단으로)", disabled: now < 2 || i < 0, act: () => insertBreak("column") }, { label: "문서 전체의 단 수…(쪽 설정)", act: pageSetup }]);
+  }
   const SHAPES = [["rect", "사각형"], ["round", "둥근 사각형"], ["ellipse", "타원"], ["line", "선"], ["arrow", "화살표"], ["bracket-l", "대괄호 ["], ["bracket-r", "대괄호 ]"], ["brace-l", "중괄호 {"], ["brace-r", "중괄호 }"]];
   function insertObj(shape, text) {
     if (!geo) return;
@@ -759,11 +769,12 @@
   }
   function closeFind() { $("#findBar").style.display = "none"; ed.focus(); }
 
-  function insertBreak() {
+  /** 나누기 넣기 - 쪽(기본) · 단("column" - 다음 단으로) · 구역("section" + columns - 여기서부터 단 수를 바꾼다) */
+  function insertBreak(kind, columns) {
     const s = ed.selection(); if (!s) return;
     const i = blocks().findIndex((b) => b.id === s.f.id); if (i < 0) return;
     snapshot("enter");
-    const br = { id: newId(), type: "break", kind: "page" }, p = { id: newId(), type: "p", runs: [] };
+    const br = { id: newId(), type: "break", kind: typeof kind === "string" ? kind : "page", ...(columns ? { columns } : {}) }, p = { id: newId(), type: "p", runs: [] };
     S.deck.blocks = [...blocks().slice(0, i + 1), br, p, ...blocks().slice(i + 1)];
     ed.refresh({ a: { id: p.id, off: 0 }, f: { id: p.id, off: 0 } }); afterChange();
   }
@@ -810,7 +821,7 @@
       else if (!body && (b.dataset.list || ["indent", "outdent", "break", "clear", "table", "image"].includes(b.dataset.act))) toast("표 칸 안에서는 아직 쓸 수 없습니다");
       else if (b.dataset.list) setList(b.dataset.list);
       else ({ undo, redo, indent: () => shiftLevel(1), outdent: () => shiftLevel(-1), break: insertBreak, setup: pageSetup,
-        color: () => now.toggle("c", $("#inColor").value), hl: () => now.toggle("hl", $("#inHl").value), table: insertTable, shape: () => shapeMenu(b), image: () => $("#inImage").click(), link: setLink, ruby: setRuby, fn: setFn, find: openFind,
+        color: () => now.toggle("c", $("#inColor").value), hl: () => now.toggle("hl", $("#inHl").value), table: insertTable, cols: () => colsMenu(b), shape: () => shapeMenu(b), image: () => $("#inImage").click(), link: setLink, ruby: setRuby, fn: setFn, find: openFind,
         shade: () => { const e0 = cur || ed, st0 = e0.state(), b0 = st0.sel && e0 === ed ? blockAt(st0.sel.f.id) : null; e0.blockAttrs({ fill: b0 && b0.fill ? null : "#e6e6e6" }); },
         clear: () => { const s = ed.selection(); if (s) { snapshot("format"); let bs = blocks(); for (const x of T.spans(bs, s.a, s.f)) bs = bs.map((y, k) => (k === x.i ? { ...y, runs: T.clearMarks(y.runs, x.from, x.to, ["link"]) } : y)); S.deck.blocks = bs; ed.refresh(s); afterChange(); } },
       })[b.dataset.act]?.();
@@ -921,7 +932,7 @@
     flow = NexaPageFlow.create({
       host: $("#ed"), box: () => S.box, off: () => !!S.printing,
       saveSel: () => (document.activeElement === $("#ed") ? ed.selection() : null), restoreSel: (s) => ed.select(s.a, s.f),
-      noteH, noteSep, prepare: numberNotes,
+      noteH, noteSep, prepare: numberNotes, columns: () => (S.deck.page || {}).columns,
       onPages: (n, info) => { geo = info; drawSheets(n); pageInfo(); drawObjects(); drawNotes(); },
     });
     window.addEventListener("beforeprint", enterPrint);

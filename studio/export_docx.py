@@ -55,6 +55,7 @@ class Ctx:
         self.pic = 0
         self.notes = []                # 각주 글(문서 순서) - 번호 = 색인 + 1(Word 의 각주 id 는 2 부터: 0·1 은 구분선)
         self.no_notes = 0              # 0 보다 크면 각주를 받지 않는 자리(머리말·꼬리말·글 상자 안) - 글 뒤에 [주: …] 로 푼다
+        self.sect = None               # 본문을 내보내는 동안의 구역 정보 {inner: 용지·여백, refs: 머리말·꼬리말 참조(첫 구역에만), cols: 지금 구역의 단, n: 낸 구역 수}
         self.objs = {}                 # 문단 id → 그 문단에 매인 개체들
         self.style_ids = set()
 
@@ -328,8 +329,25 @@ def _blocks(blocks, ctx, width_mm, style_ids, head=False):
             out.append(_image(b, ctx, width_mm))
         elif t == "break":
             kind = b.get("kind", "page")
+            if kind == "section":  # 구역 나누기 - 여기까지의 구역을 닫는 빈 문단(그 구역의 단 설정을 갖는다), 다음 구역은 이어서(continuous) 시작한다
+                if ctx.sect is not None and not ctx.no_notes:
+                    out.append('<w:p><w:pPr><w:spacing w:before="0" w:after="0" w:line="20" w:lineRule="exact"/><w:rPr><w:sz w:val="2"/></w:rPr>' + _sect(ctx) + "</w:pPr></w:p>")
+                    c = b.get("columns") or {}
+                    ctx.sect["cols"] = {"count": c.get("count", 1), "gap": c.get("gap", 8)}
+                continue
             out.append(f'<w:p><w:r><w:br w:type="{"column" if kind == "column" else "page"}"/></w:r></w:p>')
     return "".join(out)
+
+
+def _sect(ctx):
+    """지금 구역의 w:sectPr - 용지·여백은 문서 것, 단은 구역 것. 머리말·꼬리말 참조는 첫 구역에만(뒤 구역은 물려받는다), 둘째 구역부터는 이어서 시작."""
+    s = ctx.sect
+    c = s["cols"] or {}
+    cols = f'<w:cols w:num="{c["count"]}" w:space="{tw(c.get("gap", 8))}"/>' if c.get("count", 1) > 1 else ""
+    x = f'<w:sectPr>{s["refs"]}{"<w:type w:val=" + chr(34) + "continuous" + chr(34) + "/>" if s["n"] else ""}{s["inner"]}{cols}</w:sectPr>'
+    s["refs"] = ""
+    s["n"] += 1
+    return x
 
 
 def _styles(doc, ctx):
@@ -417,7 +435,6 @@ def build(doc, fonts=None, colors=None, images=None):
     style_ids = ctx.style_ids = set(doc["styles"])
     for o in doc.get("objects") or []:
         ctx.objs.setdefault(o["anchor"], []).append(o)
-    body = _blocks(doc["blocks"], ctx, box["cw"], style_ids)
     number = page.get("number") or {}
     parts, refs = {}, []
     for part, tag in (("header", "hdr"), ("footer", "ftr")):
@@ -432,8 +449,12 @@ def build(doc, fonts=None, colors=None, images=None):
             parts[f"word/{part}1.xml"] = XML + f"<w:{tag} {NS}>{inner}</w:{tag}>"
             refs.append(f'<w:{part}Reference w:type="default" r:id="{rid}"/>')
     orient = ' w:orient="landscape"' if page.get("orient") == "landscape" else ""
-    sect = (f'<w:sectPr>{"".join(refs)}<w:pgSz w:w="{tw(box["w"])}" w:h="{tw(box["h"])}"{orient}/>'
-            f'<w:pgMar w:top="{tw(box["t"])}" w:right="{tw(box["r"])}" w:bottom="{tw(box["b"])}" w:left="{tw(box["l"])}" w:header="{tw(min(12.5, box["t"] / 2))}" w:footer="{tw(min(12.5, box["b"] / 2))}" w:gutter="0"/></w:sectPr>')
+    pc = page.get("columns") or {}
+    ctx.sect = {"refs": "".join(refs), "n": 0, "cols": {"count": pc.get("count", 1), "gap": pc.get("gap", 8)},
+                "inner": (f'<w:pgSz w:w="{tw(box["w"])}" w:h="{tw(box["h"])}"{orient}/>'
+                          f'<w:pgMar w:top="{tw(box["t"])}" w:right="{tw(box["r"])}" w:bottom="{tw(box["b"])}" w:left="{tw(box["l"])}" w:header="{tw(min(12.5, box["t"] / 2))}" w:footer="{tw(min(12.5, box["b"] / 2))}" w:gutter="0"/>')}
+    body = _blocks(doc["blocks"], ctx, box["cw"], style_ids)  # 구역 나누기를 만나면 그때까지의 구역을 닫는다(_sect) - 머리말·꼬리말을 먼저 만들어야 첫 구역이 참조를 갖는다
+    sect = _sect(ctx)
     document = XML + f"<w:document {NS}><w:body>{body}{sect}</w:body></w:document>"
     if ctx.notes:  # 각주 부분 - id 0·1 은 본문과 각주 사이 구분선(Word 가 요구한다), 2 부터가 각주
         fref = '<w:r><w:rPr><w:rStyle w:val="FootnoteReference"/></w:rPr><w:footnoteRef/></w:r><w:r><w:t xml:space="preserve"> </w:t></w:r>'
