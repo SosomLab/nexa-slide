@@ -778,6 +778,50 @@ def fn_steps():
     return out
 
 
+# 새 문서 창(716e328) - 개발 세션 탐침(newdoc_probe.py) 도우미·단계 그대로
+ND_J = ("const tick=(ms)=>new Promise(r=>setTimeout(r,ms||200));const q=(s)=>document.querySelector(s);const qa=(s)=>[...document.querySelectorAll(s)];"
+     "const openNew=async()=>{window.__p=NexaNewDoc.open({api:async(m,u,b)=>{const x=await fetch(u,{method:m,headers:{'Content-Type':'application/json'},body:b?JSON.stringify(b):undefined});return {ok:x.ok,status:x.status,data:await x.json().catch(()=>null)};}});await until(()=>q('.nd-box'),3000);await tick(400);};"
+     "const kind=async(k)=>{q('.nd-kinds [data-kind='+k+']').click();await tick(500);};")
+ND_PROBE = [
+    ("슬라이드 - 템플릿 칸: '빈 덱' + 시작용 내용들 · PowerPoint 가져오기 단추",
+     "await openNew(); await kind('deck'); const cards=qa('.nd-tpl[data-tpl]').map(x=>x.dataset.tpl); const imp=q('#ndImport'), f=q('#ndFile');"
+     "return cards[0]===''&&cards.includes('consulting')&&cards.length>=5&&/PowerPoint/.test(imp.textContent)&&f.accept==='.pptx'||JSON.stringify([cards,imp&&imp.textContent,f&&f.accept])"),
+    ("시트 - 테마 칸: '빈 시트' + 테마들 · Excel 가져오기 · [자세히] 는 예전 창이 있을 때만",
+     "await kind('sheet'); const cards=qa('.nd-tpl[data-tpl]').map(x=>x.dataset.tpl); const imp=q('#ndImport'), f=q('#ndFile');"
+     "return cards[0]===''&&cards.length>=2&&/Excel/.test(imp.textContent)&&f.accept==='.xlsx,.xlsm'&&(!!q('#ndMore')===!!window.NexaSheetNew)||JSON.stringify([cards,imp&&imp.textContent,f&&f.accept,!!q('#ndMore')])"),
+    ("페이지 - 전과 같이 템플릿 11종 · Word 가져오기",
+     "await kind('page'); const cards=qa('.nd-tpl[data-tpl]').map(x=>x.dataset.tpl); return cards.length===11&&cards.includes('report')&&q('#ndFile').accept==='.docx'&&q('.nd-tpl.on').dataset.tpl==='blank'||JSON.stringify(cards)"),
+    ("슬라이드 + 시작용 내용 '컨설팅' 으로 만들기 → 여러 장짜리 덱",
+     "await kind('deck'); qa('.nd-tpl[data-tpl]').find(x=>x.dataset.tpl==='consulting').click(); q('#ndTitle').value='컨설팅 시험'; q('#ndOk').click(); const r=await window.__p; const d=await (await fetch('/api/deck/'+r.id)).json();"
+     "return r.kind==='deck'&&d.title==='컨설팅 시험'&&d.slides.length>=10&&!d.kind||JSON.stringify([r,d.slides&&d.slides.length,d.kind])"),
+    ("시트 + 테마로 만들기 → 그 테마의 시트 문서",
+     "await openNew(); await kind('sheet'); const t=qa('.nd-tpl[data-tpl]').find(x=>x.dataset.tpl); const name=t.dataset.tpl; t.click(); q('#ndTitle').value='테마 시트'; q('#ndOk').click(); const r=await window.__p; const d=await (await fetch('/api/deck/'+r.id)).json();"
+     "return r.kind==='sheet'&&d.kind==='sheet'&&d.title==='테마 시트'&&d.sheets.length>=1&&(d.theme===name||(d.theme&&d.theme.name===name))||JSON.stringify([r,name,d.theme,d.sheets&&d.sheets.length])"),
+]
+
+
+def newdoc_all_steps():
+    """새 문서 창 - 세 종류 모두 템플릿 + 파일 가져오기(716e328 · 47ab604). 앞 5단계는 개발 세션 탐침(newdoc_probe.py) 그대로"""
+    J = H + ND_J
+    pick = ("const pickFile=async(url,name,type)=>{const b=await (await fetch(url,{cache:'no-store'})).blob();const dt=new DataTransfer();dt.items.add(new File([b],name,{type}));const f=q('#ndFile');f.files=dt.files;f.dispatchEvent(new Event('change',{bubbles:true}));};"
+            "const exportOf=async(id)=>(await (await fetch('/api/export/'+id,{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'})).json());")
+    return [step(n, J + js) for n, js in ND_PROBE] + [
+        step("새 문서 ⑥ 파일 고르기로 PowerPoint(.pptx) 가져오기 - 내보낸 덱을 [PowerPoint 가져오기] 로 → 새 슬라이드 덱 · 장 수 같음",
+             J + pick + "const src=(await (await fetch('/api/decks')).json()).find(d=>d.title==='컨설팅 시험');const ex=await exportOf(src.id);await openNew();await kind('deck');"
+                        "await pickFile(ex.url,'가져온 컨설팅.pptx','application/vnd.openxmlformats-officedocument.presentationml.presentation');const r=await Promise.race([window.__p,new Promise(z=>setTimeout(()=>z('timeout'),120000))]);"
+                        "const d=r&&r.id&&await (await fetch('/api/deck/'+r.id)).json();const s0=(await (await fetch('/api/deck/'+src.id)).json()).slides.length;"
+                        "return !!d&&!d.kind&&d.slides.length===s0 || JSON.stringify({r,s0,n:d&&d.slides&&d.slides.length,kind:d&&d.kind});", timeout=150000),
+        step("새 문서 ⑦ 파일 고르기로 Excel(.xlsx) 가져오기 - 내보낸 시트를 시트 종류의 [Excel 가져오기] 로 → 새 시트 문서 · 탭 수 같음",
+             J + pick + "const src=(await (await fetch('/api/decks')).json()).find(d=>d.title==='테마 시트');const ex=await exportOf(src.id);await openNew();await kind('sheet');"
+                        "await pickFile(ex.url,'가져온 시트.xlsx','application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');const r=await Promise.race([window.__p,new Promise(z=>setTimeout(()=>z('timeout'),120000))]);"
+                        "const d=r&&r.id&&await (await fetch('/api/deck/'+r.id)).json();const t0=(await (await fetch('/api/deck/'+src.id)).json()).sheets.length;"
+                        "return !!d&&d.kind==='sheet'&&d.sheets.length===t0 || JSON.stringify({r,t0,n:d&&d.sheets&&d.sheets.length,kind:d&&d.kind});", timeout=150000),
+        step("새 문서 ⑧ 시트 [자세히…] - 예전 시트 창(.nx-sn)이 있으면 그 창으로(없으면 단추 없음)",
+             J + "await openNew();await kind('sheet');const m=q('#ndMore');if(!m)return !window.NexaSheetNew || 'NexaSheetNew 있는데 단추 없음';m.click();await until(()=>q('.nx-sn'),4000);const ok=!!q('.nx-sn');"
+                 "document.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}));await tick(300);document.querySelectorAll('.nx-sn,.nd-back,.nd-box').forEach(e=>e.remove());return ok || 'no .nx-sn';"),
+    ]
+
+
 POLL_DEL = {"id": "pgpdel", "title": "지울 문서", "kind": "page", "slides": [], "blocks": [{"id": "d1", "type": "p", "runs": [{"t": "곧 지움"}]}]}
 
 
@@ -918,9 +962,11 @@ def newdoc_on_steps():
              ND + "await open();nd().querySelector('[data-kind=deck]').click();nd().querySelector('#ndTitle').value='대화 상자 덱';nd().querySelector('#ndOk').click();"
                   "await until(async()=>{const o=document.querySelector('#deckTabs button.on');return o&&o.textContent.trim()==='대화 상자 덱'&&!nd();},8000);const o=document.querySelector('#deckTabs button.on');"
                   "return !!o&&o.textContent.trim()==='대화 상자 덱' || JSON.stringify({on:o&&o.textContent,dlg:!!nd()});"),
-        step("새 문서 대화 상자 - 시트를 고르고 [만들기] → 시트 테마 창(.nx-sn)으로 넘어감",
-             ND + "await open();nd().querySelector('[data-kind=sheet]').click();await new Promise(r=>setTimeout(r,150));nd().querySelector('#ndOk').click();await until(async()=>document.querySelector('.nx-sn'),5000);"
-                  "const ok=!!document.querySelector('.nx-sn')&&!nd();const sn=document.querySelector('.nx-sn');if(sn)sn.remove();return ok || JSON.stringify({sn:!!document.querySelector('.nx-sn'),dlg:!!nd()});"),
+        # 716e328 부터 시트도 [만들기] 가 바로 만든다(테마 칸) - 예전 시트 창(.nx-sn)은 [자세히…](#ndMore). 바로 만들기는 newdoc_all_steps ⑤ 에서
+        step("새 문서 대화 상자 - 시트를 고르면 테마 칸 · [자세히…] → 예전 시트 창(.nx-sn)으로 넘어감",
+             ND + "await open();nd().querySelector('[data-kind=sheet]').click();await new Promise(r=>setTimeout(r,300));const cards=nd().querySelectorAll('.nd-tpl[data-tpl]').length,m=nd().querySelector('#ndMore');if(!m)return JSON.stringify({cards,more:false});"
+                  "m.click();await until(async()=>document.querySelector('.nx-sn'),5000);"
+                  "const ok=cards>=2&&!!document.querySelector('.nx-sn')&&!nd();const sn=document.querySelector('.nx-sn');if(sn)sn.remove();return ok || JSON.stringify({cards,sn:!!document.querySelector('.nx-sn'),dlg:!!nd()});"),
         step("새 문서 대화 상자 - 페이지 + 템플릿 '보고서'(report) 로 만들면 page.html 로 가고 문서 template = report",
              ND + "await open();nd().querySelector('[data-kind=page]').click();await until(async()=>nd().querySelector('[data-tpl=report]'),5000);nd().querySelector('[data-tpl=report]').click();"
                   "nd().querySelector('#ndTitle').value='대화 상자 보고서';setTimeout(()=>nd().querySelector('#ndOk').click(),50);return true;", wait=2500),
@@ -1034,6 +1080,7 @@ def main():
             {"url": "/studio/page.html?deck=pgcolid", "wait": 2500, "steps": cols_steps()},
             {"url": "/studio/page.html?deck=pgcolid", "wait": 2500, "steps": cols_reload_steps()},
             {"url": "/studio/page.html?deck=pgfnid", "wait": 2500, "steps": fn_steps()},
+            {"url": "/studio/page.html?deck=pgflow", "wait": 2500, "steps": newdoc_all_steps()},
             {"url": "/studio/index.html#pgslide", "wait": 2500, "steps": newdoc_on_steps()},
         ]
         import page_doc
@@ -1256,6 +1303,35 @@ def main():
             z_.writestr("hello.txt", "docx 아님")
         st, r, _ = call("POST", "/api/decks", {"action": "import", "name": "가짜.docx", "data": _b64.b64encode(fake.getvalue()).decode()})
         check("가져오기 API - docx 가 아닌 zip 을 .docx 이름으로 올리면 400", st == 400, json.dumps({"st": st, "r": r}, ensure_ascii=False)[:300])
+        # 시작용 내용 · PowerPoint 가져오기(47ab604)
+        st, lst, _ = call("GET", "/api/starters")
+        names = [x.get("name") for x in lst] if isinstance(lst, list) else []
+        check("시작용 내용 API - GET /api/starters 목록(name·label·slides) · consulting 있음", st == 200 and "consulting" in names and all({"name", "label", "slides"} <= set(x) for x in lst),
+              json.dumps({"st": st, "names": names}, ensure_ascii=False)[:300])
+        st, r, _ = call("POST", "/api/decks", {"action": "create", "title": "시작용 API", "starter": "consulting"})
+        sid = (r or {}).get("id")
+        sd = deck_file(ws_on, sid) if st == 200 and sid else {}
+        want = next((x.get("slides") for x in lst if x.get("name") == "consulting"), None) if names else None
+        check("시작용 내용으로 만들기 - 여러 장 덱(목록의 장 수와 같음) · content/<id>.json 원본 생김", st == 200 and len(sd.get("slides") or []) >= 2 and len(sd.get("slides") or []) == want and (ws_on / "content" / f"{sid}.json").is_file(),
+              json.dumps({"st": st, "id": sid, "slides": len(sd.get("slides") or []), "want": want, "content": (ws_on / "content" / f"{sid}.json").is_file() if sid else None}, ensure_ascii=False))
+        st, r, _ = call("POST", "/api/decks", {"action": "create", "title": "없는 것", "starter": "없는시작용"})
+        check("시작용 내용 - 없는 이름은 400", st == 400, json.dumps({"st": st, "r": r}, ensure_ascii=False)[:200])
+        if sid:
+            def _post(url, body, t=300):
+                rq_ = urllib.request.Request(B + url, data=json.dumps(body, ensure_ascii=False).encode(), method="POST", headers={"Content-Type": "application/json"})
+                try:
+                    with urllib.request.urlopen(rq_, timeout=t) as rr_:
+                        return rr_.status, json.loads(rr_.read() or b"{}")
+                except urllib.error.HTTPError as e_:
+                    return e_.code, json.loads(e_.read() or b"{}")
+            s1, ex = _post(f"/api/export/{sid}", {})
+            pdata = Path(ex["path"]).read_bytes() if s1 == 200 and ex.get("path") else b""
+            s2, im = _post("/api/decks", {"action": "import", "name": "가져온 발표.pptx", "data": _b64.b64encode(pdata).decode()}) if pdata else (0, {})
+            idd = deck_file(ws_on, im["id"]) if s2 == 200 and im.get("id") else {}
+            check("PowerPoint 가져오기 API - 내보낸 .pptx 를 가져오면 새 슬라이드 덱 · 장 수 같음", s2 == 200 and not idd.get("kind") and len(idd.get("slides") or []) == len(sd.get("slides") or []),
+                  json.dumps({"export": s1, "import": s2, "r": {k: im.get(k) for k in ("id", "title", "kind", "error")}, "n": len(idd.get("slides") or []), "want": len(sd.get("slides") or [])}, ensure_ascii=False)[:400])
+        st, r, _ = call("POST", "/api/decks", {"action": "import", "name": "x.pptx", "data": _b64.b64encode(b"not a zip").decode()})
+        check("PowerPoint 가져오기 - zip 이 아니면 400", st == 400, json.dumps({"st": st, "r": r}, ensure_ascii=False)[:200])
         l4, _ = scenario([{"url": "/studio/index.html#pgslide", "wait": 2500, "steps": import_ui_steps(_b64.b64encode(IMPORT_DOCX[0]).decode())}])
         for l in l4:
             print("  ", l[:600])

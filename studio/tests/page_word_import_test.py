@@ -99,11 +99,18 @@ def main():
     row("머리말 글", "머리말 글", hd, "머리말 글" in hd, next(iter(hdrs.values()), "")[:600])
     row("쪽 번호(머리말 필드)", "number.show 또는 경고", json.dumps(num, ensure_ascii=False), bool(num.get("show")) or any("쪽 번호" in w for w in warns), next(iter(hdrs.values()), "")[:600])
     wtxt = " | ".join(warns)
-    box = [text(b.get("runs")) for b in paras if "글 상자 글" in text(b.get("runs"))]
-    row("글 상자의 글 - 문단으로 옮겨짐(한 번만)", "1개", len(box), len(box) == 1, xml_around(dx, "상자 글", 300))
+    # b3d6d8e 부터 떠 있는 글 상자(기본 도형)는 개체로 들어온다 - 본문 문단에는 없고, 개체 하나(사각형 · 안의 글 · 자리·크기 > 0 · 매인 문단이 본문에 있음)
+    objs = doc.get("objects") or []
+    tbx = [o for o in objs if "글 상자 글" in " ".join(text(b.get("runs")) for b in (o.get("blocks") or []))]
+    inbody = [text(b.get("runs")) for b in paras if "글 상자 글" in text(b.get("runs"))]
+    ids = {b.get("id") for b in bl}
+    o0 = tbx[0] if tbx else {}
+    row("글 상자 - 개체 1개(안의 글 '글 상자 글' · 자리·크기 > 0 · 매인 문단 있음) · 본문 문단에는 없음", "개체 1 · 본문 0",
+        json.dumps({"objs": len(objs), "tbx": [{k: o.get(k) for k in ("shape", "x", "y", "w", "h", "anchor", "rel")} for o in tbx], "inbody": len(inbody)}, ensure_ascii=False),
+        len(tbx) == 1 and len(objs) == 1 and not inbody and o0.get("w", 0) > 0 and o0.get("h", 0) > 0 and (o0.get("x", 0) > 0 or o0.get("y", 0) > 0) and o0.get("anchor") in ids, xml_around(dx, "상자 글", 300))
     fns = [r.get("fn") for b in paras for r in (b.get("runs") or []) if r.get("fn")]  # 12196f5 부터 각주는 경고가 아니라 글 조각 fn 으로 들어온다
     row("각주 - 글 조각 fn '각주 글' 1개(경고 아님)", "fn 1개", fns, len(fns) == 1 and "각주 글" in fns[0] and not re.search("각주", wtxt), xml_around(dx, "footnoteReference", 300))
-    row("경고 - 글 상자·떠 있는 개체", "경고에 글 상자/떠 있는", wtxt[:200], bool(re.search("글 상자|떠 있는|도형|개체", wtxt)))
+    row("경고 - 글 상자·떠 있는 개체 경고 없음(개체로 옮겨짐)", "경고 없음", wtxt[:200], not re.search("글 상자|떠 있는|도형|개체", wtxt))
     row("문단 글 보존(각주 붙는 문단·둘째 쪽)", "둘 다", [text(b.get("runs")) for b in paras if "각주" in text(b.get("runs")) or "둘째 쪽" in text(b.get("runs"))],
         any("각주가 붙는 문단" in text(b.get("runs")) for b in paras) and any("둘째 쪽 문단" == text(b.get("runs")) for b in paras))
     print("\n블록 종류:", " ".join(kinds))

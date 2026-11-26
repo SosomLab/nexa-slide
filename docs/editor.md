@@ -30,7 +30,7 @@ Genspark AI Slides 작업 화면의 조작 방식(모드 3분할 · 그 자리 �
 
 덱 탭에는 덱 **제목**(덱 안의 `title`)이 보이고, 덱 **id**(파일 `decks/<id>.json`)는 엔진이 만드는 짧은 해시(8자, 예 `d3f9a1c2`)다 - 사용자가 짓지 않고 탭 툴팁과 오른쪽 클릭 메뉴 머리에 표시만 한다(옛 덱의 손으로 지은 id 는 그대로 쓴다). 시작 덱(★)은 주소에 덱이 없을 때 편집기가 처음 여는 덱이다(작업 공간 설정 `nexa-slide.json` 의 `startDeck`).
 
-- **＋**(덱 탭 끝): 새 덱 — 제목만 물어 표지 1장짜리 덱을 만들고 연다(id 는 저절로).
+- **＋**(덱 탭 끝): 새 문서 창 — 종류(슬라이드 · 시트 · 페이지)와 제목을 고르고 만들면 연다(id 는 저절로). **새 문서 창**(덱 탭의 [＋] · ☰ 메뉴 · 페이지 화면의 문서 목록 → 새 문서)은 세 종류 모두 한 창에서 **템플릿을 고르거나 파일을 가져온다**: 슬라이드 = 시작용 내용(`GET /api/starters`, 만들면 여러 장 덱 + `content/<id>.json`) 또는 [PowerPoint 가져오기](.pptx) · 시트 = 테마(`GET /api/sheet-themes`) 또는 [Excel 가져오기](.xlsx·.xlsm) · [자세히…] 는 예전 시트 창 · 페이지 = 템플릿 11종 또는 [Word 가져오기](.docx). API = `POST /api/decks {action: "create", starter | theme, …}` · `{action: "import", name, data}`.
 - 탭 **오른쪽 클릭**(맨 끝에 **새 덱**): **제목 바꾸기**(덱과 `content/<id>.json` 의 `title` — 다음 build 가 되돌리지 않게) · **복제**(새 id 로 덱 JSON 과 `content/<id>.json` 복사, 제목은 "… (복사)" 기본 - 요청·기록·첨부는 복사하지 않음) · **시작 덱으로 / 시작 덱 해제** · **덱 삭제(휴지통)**(덱·요청 `<id>.requests.json`·기록 `decks/.history/<id>/`·첨부 `out/attach/<id>/`·`content/<id>.json` 을 `decks/.trash/<id>-<시각>/` 로 — 웹 세션 턴이 도는 중에는 거절).
 - 같은 일을 터미널에서: `python3 nexa.py deck list | create [<id>] [--title …] [--layout cover] | copy <id> [--title …] | start [<id>] | rename <id> <새 id> | retitle <id> "제목" | delete <id>`(`list` 의 ★ = 시작 덱, `rename` 은 CLI 에만 남긴다). API `POST /api/decks {action: create|copy|start|rename|retitle|delete, id, …}`, `GET /api/decks` 의 `start`.
 - 덱 id 규칙: 영문·숫자·`-`·`_`(64자). `book` 은 통합본(`build_deck book`)용. PPTX 파일 이름(`out/<id>.pptx`)도 id 를 따른다.
