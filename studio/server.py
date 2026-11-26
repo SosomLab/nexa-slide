@@ -369,15 +369,23 @@ def export(i):
     return run([sys.executable, str(STUDIO / "export_pptx.py"), i], 120)
 
 
+RELEASED = ("page",)  # 숨김을 푼 기능 - 따로 끄지 않으면 켜져 있다(페이지 문서: 사용자 결정 2026-11-26)
+
+
 def experimental(name):
-    """실험 기능이 켜져 있는가 - 작업 공간 nexa-slide.json 의 "experimental": {"<이름>": true} 또는 환경 변수 NEXA_SLIDE_EXPERIMENTAL=<이름>[,…].
-    완성 전인 기능(페이지 문서 = "page")을 운영 사용자에게 숨긴다(docs/dev/page-editor/decisions.md DR-P11)."""
-    if name in [x.strip() for x in (os.environ.get("NEXA_SLIDE_EXPERIMENTAL") or "").split(",")]:
+    """이 기능이 켜져 있는가 - 환경 변수 NEXA_SLIDE_EXPERIMENTAL=<이름>[,…](끄기는 -<이름>) → 작업 공간 nexa-slide.json 의
+    "experimental": {"<이름>": true|false} → 둘 다 없으면 RELEASED 에 있는가. 완성 전인 기능은 RELEASED 에 넣지 않아 숨기고,
+    숨김을 푼 기능(페이지 문서 = "page")은 기본이 켬이며 작업 공간에서 false 로 끌 수 있다(docs/dev/page-editor/decisions.md DR-P11)."""
+    env = [x.strip() for x in (os.environ.get("NEXA_SLIDE_EXPERIMENTAL") or "").split(",")]
+    if "-" + name in env:
+        return False
+    if name in env:
         return True
     try:
-        return bool(((read_config() or {}).get("experimental") or {}).get(name))
+        v = ((read_config() or {}).get("experimental") or {}).get(name)
     except Exception:  # noqa: BLE001
-        return False
+        v = None
+    return bool(v) if v is not None else name in RELEASED
 
 
 def deck_kind(i):

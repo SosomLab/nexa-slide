@@ -45,7 +45,7 @@
       function onKey(e) { if (e.key === "Escape") { e.stopPropagation(); end(null); } else if (e.key === "Enter" && e.target === title) { e.preventDefault(); create(); } }
       doc.addEventListener("keydown", onKey, true);
       function drawKinds() {
-        q(".nd-kinds").innerHTML = kinds.map((k) => `<button data-kind="${k.kind}" class="${k.kind === kind ? "on" : ""}"><b>${k.icon} ${esc(k.label)}</b><small>${esc(DESC[k.kind] || "")}${k.experimental ? " · 실험" : ""}</small></button>`).join("");
+        q(".nd-kinds").innerHTML = kinds.map((k) => `<button data-kind="${k.kind}" class="${k.kind === kind ? "on" : ""}"><b>${k.icon} ${esc(k.label)}</b><small>${esc(DESC[k.kind] || "")}</small></button>`).join("");
       }
       async function drawExtra() {
         const box = q("#ndExtra"); box.innerHTML = "";

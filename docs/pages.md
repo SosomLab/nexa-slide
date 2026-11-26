@@ -1,6 +1,6 @@
 # 페이지(워드) — AI 와 함께 쓰는 글 문서
 
-> 세 번째 문서 종류(PG-090 · 실험 기능). 슬라이드·시트와 같은 방식(편집기에서 보고 고치고, 요청 → 세션이 파일을 고침 → done + reply)으로
+> 세 번째 문서 종류(PG-090 · 2026-11-26 숨김 해제 - 기본으로 보인다). 슬라이드·시트와 같은 방식(편집기에서 보고 고치고, 요청 → 세션이 파일을 고침 → done + reply)으로
 > Word · Pages 같은 글 문서를 함께 만든다. 편집 원본은 nexa-slide 안의 JSON 이고, Word(.docx)·PDF 는 산출물(내보내기)이다.
 > 설계 = [dev/page-editor/design.md](dev/page-editor/design.md) · 결정 = [dev/page-editor/decisions.md](dev/page-editor/decisions.md) · 지금 상태 = [dev/page-editor/STATUS.md](dev/page-editor/STATUS.md)
 
@@ -16,15 +16,18 @@
 본문은 장이 없는 블록 목록이다 - 문단(글 조각 `runs`)·표·그림·쪽 나누기. 쪽은 용지·여백으로 나뉘어 보이고(쪽 경계선),
 인쇄·PDF·Word 에서 실제 쪽이 된다. 저장·버전·충돌 배너·백업·변경 원장(`.history/<id>/`)·요청은 슬라이드와 같다.
 
-## 2. 켜는 법(실험 기능)
+## 2. 기본 켬 · 끄는 법
 
-완성 전이라 기본은 **숨김**이다. 숨겨진 동안에는 새 문서 대화 상자·홈에 "페이지" 가 없고, 만들기 API 는 400 을 돌려준다.
+2026-11-26 숨김을 풀어(사용자 결정 · decisions.md DR-P13) **따로 끄지 않으면 켜져 있다** - 새 문서 대화 상자·홈에 "페이지" 가 보이고 만들기 API 가 받는다.
+끄면 예전 숨김 상태와 같다(새 문서 대화 상자·홈에 "페이지" 가 없고 만들기 API 는 400). 이미 있는 페이지 문서 파일은 그대로 남는다.
 
-| 어디서 | 켜는 법 |
-|---|---|
-| 작업 공간 서버 | 작업 공간 `nexa-slide.json` 에 `"experimental": {"page": true}` |
-| 허브(홈 · 첫 문서 고르기) | 환경 변수 `NEXA_SLIDE_EXPERIMENTAL=page`(쉼표로 여러 개) |
-| CLI | `deck_admin create --kind page` · 첫 문서 `init_workspace --kind page`(켠 작업 공간에서) |
+| 어디서 | 끄는 법 | 다시 켜기 |
+|---|---|---|
+| 작업 공간 서버 | 작업 공간 `nexa-slide.json` 에 `"experimental": {"page": false}` | 그 줄을 지우거나 `true` |
+| 허브(홈 · 첫 문서 고르기) · 작업 공간 서버 | 환경 변수 `NEXA_SLIDE_EXPERIMENTAL=-page`(쉼표로 여러 개, 작업 공간 설정보다 먼저 본다) | 변수를 지우거나 `page` |
+
+판단 순서: 환경 변수(`-page` = 끔 · `page` = 켬) → 작업 공간 `experimental.page` → 둘 다 없으면 숨김을 푼 기능 목록(`RELEASED`)에 있으니 켬.
+CLI 는 `deck_admin create --kind page` · 첫 문서 `init_workspace --kind page`.
 
 편집 화면은 `page.html?deck=<id>` 이고, 슬라이드 · 시트 편집기에서 페이지 id 를 열면 `page.html` 로 넘어간다(반대도 같다).
 

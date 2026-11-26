@@ -55,9 +55,16 @@ def _read_json(p, default=None):
         return default
 
 
+RELEASED = ("page",)  # 숨김을 푼 기능 - 따로 끄지 않으면 켜져 있다(server.py 의 RELEASED 와 같게 둔다)
+
+
 def experimental(name):
-    """허브에서 실험 기능이 켜져 있는가 - 환경 변수 NEXA_SLIDE_EXPERIMENTAL=<이름>[,…]. 켜면 시작 페이지에 그 선택지(페이지 문서)가 보인다."""
-    return name in [x.strip() for x in (os.environ.get("NEXA_SLIDE_EXPERIMENTAL") or "").split(",")]
+    """허브에서 이 기능이 켜져 있는가 - 환경 변수 NEXA_SLIDE_EXPERIMENTAL=<이름>[,…](끄기는 -<이름>), 없으면 RELEASED 에 있는가.
+    켜져 있으면 시작 페이지에 그 선택지(페이지 문서)가 보인다."""
+    env = [x.strip() for x in (os.environ.get("NEXA_SLIDE_EXPERIMENTAL") or "").split(",")]
+    if "-" + name in env:
+        return False
+    return name in env or name in RELEASED
 
 
 def page_templates_info():
