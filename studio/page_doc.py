@@ -13,7 +13,7 @@ import copy
 import datetime as dt
 import re
 
-MARKS = ("b", "i", "u", "s", "c", "hl", "sup", "sub", "font", "size", "link", "ruby")
+MARKS = ("b", "i", "u", "s", "c", "hl", "sup", "sub", "font", "size", "link", "ruby", "fn")
 BOOL = {"b", "i", "s", "sup", "sub"}
 BLOCK_TYPES = ("p", "table", "image", "break")
 LIST_KINDS = ("bullet", "number", "check")
@@ -111,6 +111,18 @@ def anchors(doc):
     return [b["id"] for b in doc.get("blocks") or [] if isinstance(b, dict) and b.get("type") == "p" and isinstance(b.get("id"), str)]
 
 
+def footnotes(doc):
+    """각주를 문서 순서로 - [(번호(1부터), 각주 글)]. 본문(표 칸 포함)의 글 조각 fn 만 센다(머리말·꼬리말·개체 안은 Word 가 각주를 받지 않는다)."""
+    out = []
+    for path, b in walk(doc):
+        if path and path[0] in ("header", "footer", "objects"):
+            continue
+        for r in b.get("runs") or [] if isinstance(b.get("runs"), list) else []:
+            if isinstance(r, dict) and r.get("fn"):
+                out.append((len(out) + 1, r["fn"]))
+    return out
+
+
 def text_blocks(doc):
     """글(runs)이 든 것만 - 문단(목록 문단 포함) · 셀 안 문단."""
     for p, b in walk(doc):
@@ -172,6 +184,8 @@ def _check_runs(runs, where):
         for k in r:
             if k != "t" and k not in MARKS:
                 return f"{where}: 모르는 서식 {k}"
+        if "fn" in r and (not isinstance(r["fn"], str) or not r["fn"].strip() or len(r["fn"]) > 2000):
+            return f"{where}: 각주(fn)는 글(1~2000자)"
     return None
 
 

@@ -163,5 +163,16 @@ with _tmp.temp_dir("nx-impblk-") as _d:
           _r.returncode == 0 and len(_bs) == 2 and _bs[0].get("style") == "h1" and _bs[1]["runs"][0] == {"t": "굵은 ", "b": True} and not list((_ws / "decks").glob("*.json")) and "styles" in _j,
           (_r.returncode, _r.stdout[-300:], _r.stderr[-300:], _bs))
 
+# 각주 왕복 - 내보낸 각주가 바로 앞 글자의 fn 으로 돌아온다
+import export_docx as _X2  # noqa: E402
+import page_doc as _P2  # noqa: E402
+_fd = _P2.new_page("f", "각주")
+_fd["blocks"] = [{"id": "p1", "type": "p", "runs": [{"t": "첫 문장 끝", "fn": "첫째 각주"}, {"t": " 뒤 글"}]}, {"id": "p2", "type": "p", "runs": [{"t": "둘", "fn": "둘째"}]}]
+_rd, _, _rw = I.read(_X2.build(_fd), doc_id="g", title="각주")
+_r1 = _rd["blocks"][0]["runs"]
+check("각주 왕복 - 앞 글자에 fn · 나머지 글은 그대로 · 경고 없음",
+      "".join(r["t"] for r in _r1) == "첫 문장 끝 뒤 글" and [r.get("fn") for r in _r1 if r.get("fn")] == ["첫째 각주"] and next(r for r in _r1 if r.get("fn"))["t"].endswith("끝")
+      and _rd["blocks"][1]["runs"][0].get("fn") == "둘째" and not any("각주" in w for w in _rw) and _P2.validate(_P2.normalize(_rd)) is None, (_r1, _rd["blocks"][1], _rw))
+
 print(f"\n실패 {len(fails)}" if fails else f"\n전부 통과 ({n}사례)")
 sys.exit(1 if fails else 0)
