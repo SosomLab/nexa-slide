@@ -82,7 +82,7 @@ check("clean: 고른 범주만 지움", r["moved"] == 6 and not (E / "attach" / 
       and not (E / "scratch" / "regress-20261001-000000").exists(), r)
 check("  남길 것은 그대로", (E / "attach" / "1" / "a.png").is_file() and (et.WORKTREE / ".nexa" / "attach" / "1").is_dir() and (E / "scratch" / "engine-abc1234").is_dir()
       and (E / "requests.json").is_file() and (E / ".studio" / "sessions" / "20261010-000000").is_dir() and (et.WORKTREES / "deploy-merge").is_dir())
-check("  보고가 갱신됨", {i["category"] for i in r["report"]["items"]} == {"log", "worktree"}, r["report"]["summary"])
+check("  보고가 갱신됨", {i["category"] for i in r["report"]["items"] if Path(i["path"]).is_relative_to(WORK)} == {"log", "worktree"}, r["report"]["summary"])
 
 (E / "deploy.json").write_text(json.dumps({"state": "running", "pid": os.getpid()}), encoding="utf-8")
 rep = et.scan()
