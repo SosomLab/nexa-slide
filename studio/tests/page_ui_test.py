@@ -57,7 +57,7 @@ def workspace(name, experimental):
     if experimental:
         cfg["experimental"] = {"page": True}
     else:
-        cfg.pop("experimental", None)
+        cfg["experimental"] = {"page": False}  # 기본이 켬이라(RELEASED) 끈 상태는 명시한다
     (ws / "nexa-slide.json").write_text(json.dumps(cfg, ensure_ascii=False, indent=2), encoding="utf-8")
     d = ws / "decks"
     d.mkdir(parents=True, exist_ok=True)

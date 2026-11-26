@@ -61,8 +61,7 @@ def cli():
 class Hub:
     def __init__(self, experimental):
         self.env = dict(BASE_ENV)
-        if experimental:
-            self.env["NEXA_SLIDE_EXPERIMENTAL"] = "page"
+        self.env["NEXA_SLIDE_EXPERIMENTAL"] = "page" if experimental else "-page"  # 기본이 켬이라(RELEASED) 끈 상태는 명시한다
         USER.mkdir(parents=True, exist_ok=True)
         PROJ.mkdir(parents=True, exist_ok=True)
         s = USER / "settings.json"
