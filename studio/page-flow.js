@@ -75,8 +75,8 @@
    *  saveSel() / restoreSel(sel) 빈 자리를 고칠 때 선택 지키기 · onPages(n, {mm, H, G, gap}) 쪽 수·치수가 정해질 때마다 */
   function create(opts) {
     const host = opts.host, doc = host.ownerDocument, GAP = opts.gap || 24;
-    let timer = 0, composing = false, pages = 1;
-    const schedule = () => { if (!timer) timer = setTimeout(run, 16); };
+    let timer = 0, composing = false, pages = 1, lastW = 0, stale = false;
+    const schedule = () => { if (!timer) timer = setTimeout(() => run(0), 16); };
     host.addEventListener("compositionstart", () => { composing = true; });
     host.addEventListener("compositionend", () => { composing = false; schedule(); });
     host.addEventListener("load", schedule, true);  // 그림이 늦게 뜨면 높이가 달라진다
@@ -189,11 +189,16 @@
     const key = (list, id) => list.filter((b) => b.id === id).map((b) => `${b.type}:${b.at === undefined ? "" : b.at}`).join(",");
     const near = (a, b) => a.length === b.length && a.every((x, i) => Math.abs(x.h - b[i].h) <= 1.5);
 
-    function run() {
+    function run(pass) {
       timer = 0;
       if (composing) return;
       if (opts.off && opts.off()) return;
       const box = opts.box(); if (!box || !host.offsetWidth) return;
+      // 본문 너비가 바뀌었으면(쪽 설정) 줄 나눔이 달라진다 - 예전 줄 머리에 끼워 둔 빈 줄이 줄 가운데에 남아 그 뒤의 줄을 흩뜨리므로 먼저 걷고 잰다
+      if (host.offsetWidth !== lastW || stale) {
+        if (lastW || stale) { const sel = opts.saveSel ? opts.saveSel() : null; for (const el of host.children) clearEl(el); if (sel && opts.restoreSel) opts.restoreSel(sel); }
+        lastW = host.offsetWidth; stale = false;
+      }
       const mm = host.offsetWidth / box.cw, H = box.ch * mm, G = (box.b + box.t) * mm + GAP;
       const m = measure(), p = plan(m.items, H, G, linesOf), byId = new Map(m.items.map((it) => [it.id, it]));
       for (const b of p.breaks) { if (b.type === "split") b.at = b.off = offsetOfLine(byId.get(b.id), b.line); else if (b.type === "row") b.at = b.row; }
@@ -208,13 +213,16 @@
         for (const [it] of todo) clearEl(it.el);
         for (const [it, d] of todo) for (const b of [...d].reverse()) put(it, b);  // 뒤에서부터 - 앞의 글자 위치·행이 그대로다
         if (sel && opts.restoreSel) opts.restoreSel(sel);
+        if ((pass || 0) < 3) return run((pass || 0) + 1);  // 끼운 뒤 다시 재서 확인한다 - 어긋난 데가 없으면 고칠 것이 없어 여기서 끝난다
       }
       pages = p.pages;
-      if (opts.onPages) opts.onPages(pages, { mm, H, G, gap: GAP, changed: todo.length });
+      if (opts.onPages) opts.onPages(pages, { mm, H, G, gap: GAP, changed: todo.length, passes: (pass || 0) + 1 });
     }
     /** 끼워 둔 빈 자리를 모두 걷는다(인쇄 전 - 인쇄는 브라우저가 쪽을 나눈다) */
     function clear() { clearTimeout(timer); timer = 0; for (const el of host.children) clearEl(el); }
-    return { schedule, run, clear, pages: () => pages, gap: GAP };
+    /** 글꼴이 늦게 뜨는 등 줄 나눔이 통째로 달라졌을 때 - 걷고 처음부터 */
+    function reflow() { stale = true; schedule(); }
+    return { schedule, run: () => run(0), reflow, clear, pages: () => pages, gap: GAP };
   }
 
   root.NexaPageFlow = { plan, create };
