@@ -59,5 +59,23 @@ const brief = (r) => r.breaks.map((b) => `${b.id}:${b.type}${b.line !== undefine
   const r = F.plan(items, H, G);  // 첫 쪽: 머리글 + 2행(700+30+200=930) → 3번째 행(색인 3) 앞에서. 둘째 쪽: 머리글 30 + 9행(900) = 930 → 색인 12 앞에서
   check("19 머리글 행 되풀이 - 다음 쪽은 머리글만큼 덜 들어가고 빈 행에 head 를 싣는다", brief(r) === "b1:row@3:270 b1:row@12:270" && r.breaks.every((b) => b.head === 30) && r.pages === 3, brief(r) + " " + J(r.breaks.map((b) => b.head)) + " p" + r.pages); }
 
+{ // 각주: 쪽 1000 중 블록 3개(300) - 둘째에 각주 100(구분선 20) → 본문이 쓸 수 있는 끝 = 880, 셋째(600~900)는 다음 쪽
+  const items = stack([300, { h: 300, fn: 100 }, 300]); const r = F.plan(items, H, G, null, { sep: 20 });
+  check("20 각주 자리만큼 본문이 덜 들어간다 - 셋째 블록이 다음 쪽 · 1쪽에 120 내줌", brief(r) === "b2:push:600" && r.pages === 2 && r.notes[0] === 120 && !r.notes[1], brief(r) + " " + J(r.notes)); }
+{ // 각주가 달린 블록 자신이 각주까지는 못 들어가면 블록째 다음 쪽(각주는 참조와 같은 쪽)
+  const items = stack([700, { h: 250, fn: 100 }]); const r = F.plan(items, H, G, null, { sep: 20 });
+  check("21 각주가 달린 블록 - 각주까지 안 들어가면 다음 쪽으로 · 각주는 그 쪽에", brief(r) === "b1:push:500" && r.notes[1] === 120 && !r.notes[0], brief(r) + " " + J(r.notes)); }
+{ // 문단 줄 단위: 800 뒤 줄 10개(50) 문단 - 2번째 줄에 각주 60(+20) → 쓸 수 있는 끝 920 → 2줄만(900), 3번째 줄부터 다음 쪽
+  const items = stack([800, { h: 500, kind: "p", fn: 60 }]); const r = F.plan(items, H, G, (it) => lines(it, 10, 50).map((l, i) => (i === 1 ? { ...l, fn: 60 } : l)), { sep: 20 });
+  check("22 문단 - 각주가 달린 줄까지 놓고 남는 자리만큼만 줄을 둔다(2줄 뒤)", brief(r) === "b1:split@2:300" && r.notes[0] === 80, brief(r) + " " + J(r.notes)); }
+{ // 각주 줄이 이 쪽에 못 들어가면 그 줄부터 다음 쪽 - 각주도 다음 쪽
+  const items = stack([800, { h: 500, kind: "p", fn: 150 }]); const r = F.plan(items, H, G, (it) => lines(it, 10, 50).map((l, i) => (i === 2 ? { ...l, fn: 150 } : l)), { sep: 20 });
+  check("23 문단 - 각주가 안 들어가는 줄은 다음 쪽으로(각주도 그 쪽)", brief(r) === "b1:split@2:300" && !r.notes[0] && r.notes[1] === 170, brief(r) + " " + J(r.notes)); }
+{ // 표 행의 각주
+  const items = stack([700, { h: 600, kind: "table", fn: 90 }]); const t = items[1]; t.rows = Array.from({ length: 6 }, (_, i) => ({ top: t.top + i * 100, bottom: t.top + (i + 1) * 100, ok: true, fn: i === 0 ? 90 : 0 }));
+  const r = F.plan(items, H, G, null, { sep: 10 });  // 1행(700~800)에 각주 100 → 끝 900 → 2행까지, 3번째 행 앞에서
+  check("24 표 - 행의 각주 자리만큼 행이 덜 들어간다(2행 뒤)", brief(r) === "b1:row@2:300" && r.notes[0] === 100, brief(r) + " " + J(r.notes)); }
+{ const r = F.plan(stack([300, 300, 300]), H, G, null, { sep: 20 }); check("25 각주가 없으면 전과 같다 · notes 비어 있음", r.breaks.length === 0 && Object.keys(r.notes).length === 0, J(r)); }
+
 console.log(`RESULT ${fail ? "FAIL" : "PASS"} ${n - fail}/${n}`);
 process.exit(fail ? 1 : 0);

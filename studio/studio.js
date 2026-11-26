@@ -95,7 +95,7 @@
   async function save(force, extra) {
     if (!S.deck || S.conflict && !force) return;
     if (S.saving) { scheduleSave(); return; }
-    const body = deckJson();
+    const body = deckJson(), sid = S.id;
     if (!force && body === S.savedJson) { S.dirty = false; setStatus("saved", "저장됨"); return; } // 바뀐 것이 없으면 저장하지 않는다
     S.saving = true; setStatus("dirty", "저장 중…");
     const qs = extra ? "&" + new URLSearchParams(extra).toString() : "";
@@ -104,6 +104,7 @@
     let r = force || extra ? null : await NexaMerge.trySaveOps(api, S.id, S.version, S.savedJson, body);
     if (!r) r = await api("PUT", `/api/deck/${S.id}?base=${encodeURIComponent(S.version || "")}${force ? "&force=1" : "&merge=1"}${qs}`, JSON.parse(body));
     S.saving = false;
+    if (S.id !== sid) return;  // 저장하는 사이 다른 덱으로 넘어갔다 - 이 응답(앞 덱의 판·저장본)을 지금 덱에 넣지 않는다(넣으면 다음 저장이 남의 판으로 나가 409 가 되고 앞 덱의 남은 편집을 잃는다)
     if (r.ok && r.data.merged && r.data.deck) {  // 합쳐졌다 - 병합 결과(+ 저장하는 사이 더 고친 것)를 화면에, 남의 변경은 내 실행 취소에 섞지 않는다
       const now = deckJson();
       NexaMerge.seal(S.undo, S.redo, now); updUndo();
@@ -3083,7 +3084,7 @@ ${names}
     if (S.brand.logo) { const l = $("#brandLogo"); l.src = BASE + "/" + S.brand.logo; l.alt = S.brand.name || ""; l.style.display = ""; l.onerror = () => (l.style.display = "none"); }
     if (S.brand.favicon) $("#favicon").href = BASE + "/" + S.brand.favicon;
   }
-  async function switchDeck(id) { if (id === S.id) return; if (S.dirty) await save(); { const d = S.decks.find((x) => x.id === id); if (d && d.kind === "page") { location.href = NexaKinds.url(d); return; } } if (isSheet(S.decks.find((d) => d.id === id))) { location.href = sheetUrl(id); return; } await loadDeck(id); if (LIVE) LIVE.reconnect(); }
+  async function switchDeck(id) { if (id === S.id) return; for (let k = 0; S.saving && k < 200; k++) await new Promise((r) => setTimeout(r, 50)); /* 가고 있는 저장이 끝난 뒤 남은 편집까지 저장하고 넘어간다 */ if (S.dirty) await save(); { const d = S.decks.find((x) => x.id === id); if (d && d.kind === "page") { location.href = NexaKinds.url(d); return; } } if (isSheet(S.decks.find((d) => d.id === id))) { location.href = sheetUrl(id); return; } await loadDeck(id); if (LIVE) LIVE.reconnect(); }
   async function init() {
     if (window.NexaMenu) NexaMenu.mount($("#menuBtn"));
     if ((await loadConfig()) === false) return;

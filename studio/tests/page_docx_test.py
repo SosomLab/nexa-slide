@@ -190,5 +190,25 @@ check("개체 - docPr id 가 겹치지 않는다", len(set(ids_)) == 4, ids_)
 order = [c.tag.split("}")[1] for c in e2.find(f".//{WPS}wsp")]
 check("개체 - wsp 자식 순서(cNvSpPr → spPr → txbx → bodyPr)", order == ["cNvSpPr", "spPr", "txbx", "bodyPr"], order)
 
+# 각주 - 글 조각의 fn → 본문의 w:footnoteReference + word/footnotes.xml
+fd = P.new_page("f", "각주")
+fd["blocks"] = [{"id": "p1", "type": "p", "runs": [{"t": "첫 문장"}, {"t": "끝", "fn": "첫째 각주 <글>"}, {"t": " 그리고 둘째", "fn": "둘째 각주"}]},
+                {"id": "t1", "type": "table", "cols": [100], "rows": [{"id": "r1", "cells": [{"id": "c1", "blocks": [{"id": "cp", "type": "p", "runs": [{"t": "칸", "fn": "칸 안 각주"}]}]}]}]}]
+fd["page"]["header"] = {"blocks": [{"id": "h1", "type": "p", "runs": [{"t": "머리", "fn": "머리말 각주"}]}]}
+fd["objects"] = [{"id": "o1", "type": "shape", "shape": "rect", "anchor": "p1", "x": 10, "y": 10, "w": 40, "h": 20, "blocks": [{"id": "ot", "type": "p", "runs": [{"t": "상자", "fn": "상자 각주"}]}]}]
+check("각주 - 형식 검사 통과 · 문서 순서 번호(본문·칸만)", P.validate(P.normalize(fd)) is None and P.footnotes(fd) == [(1, "첫째 각주 <글>"), (2, "둘째 각주"), (3, "칸 안 각주")], (P.validate(P.normalize(fd)), P.footnotes(fd)))
+fz = zipfile.ZipFile(io.BytesIO(X.build(fd)))
+fx, fn_xml = fz.read("word/document.xml").decode("utf-8"), fz.read("word/footnotes.xml").decode("utf-8")
+ft = ET.fromstring(fn_xml)
+refs = [e.get(W + "id") for e in ET.fromstring(fx).iter(W + "footnoteReference")]
+check("각주 - 본문 참조 id 2·3·4(0·1 은 구분선) · 글 상자 안에는 참조 없음", refs == ["2", "3", "4"], refs)
+notes = {f.get(W + "id"): "".join(t.text or "" for t in f.iter(W + "t")).strip() for f in ft.findall(W + "footnote")}
+check("각주 - footnotes.xml 에 구분선 둘 + 각주 글(특수 문자 그대로)", set(notes) == {"0", "1", "2", "3", "4"} and notes["2"] == "첫째 각주 <글>" and notes["4"] == "칸 안 각주"
+      and ft.find(f"{W}footnote[@{W}id='0']").get(W + "type") == "separator", notes)
+check("각주 - 관계·콘텐츠 형식 등록", "relationships/footnotes" in fz.read("word/_rels/document.xml.rels").decode("utf-8") and "wordprocessingml.footnotes+xml" in fz.read("[Content_Types].xml").decode("utf-8"))
+check("각주 - 머리말·글 상자 안은 글로 푼다([주: …])", "[주: 머리말 각주]" in fz.read("word/header1.xml").decode("utf-8") and "[주: 상자 각주]" in fx and "footnoteReference" not in fz.read("word/header1.xml").decode("utf-8"))
+check("각주 없는 문서 - footnotes.xml 을 만들지 않는다", "word/footnotes.xml" not in zipfile.ZipFile(io.BytesIO(X.build(P.new_page("e2", "")))).namelist())
+check("각주 거절 - 빈 글·글이 아닌 값", all(isinstance(P.validate({**P.normalize(fd), "blocks": [{"id": "x", "type": "p", "runs": [{"t": "가", "fn": v}]}], "objects": []}), str) for v in ("", "  ", 3)))
+
 print(f"\n실패 {len(fails)}" if fails else f"\n전부 통과 ({n}사례)")
 sys.exit(1 if fails else 0)

@@ -53,6 +53,8 @@ class Ctx:
         self.media = {}                # 파일 이름 → bytes
         self.nums = []                 # numbering 인스턴스 [(numId, abstractId)]
         self.pic = 0
+        self.notes = []                # 각주 글(문서 순서) - 번호 = 색인 + 1(Word 의 각주 id 는 2 부터: 0·1 은 구분선)
+        self.no_notes = 0              # 0 보다 크면 각주를 받지 않는 자리(머리말·꼬리말·글 상자 안) - 글 뒤에 [주: …] 로 푼다
         self.objs = {}                 # 문단 id → 그 문단에 매인 개체들
         self.style_ids = set()
 
@@ -133,6 +135,12 @@ def _runs(runs, ctx):
                  f'<w:rubyBase><w:r>{rpr}{_text(r["t"])}</w:r></w:rubyBase></w:ruby></w:r>')
         else:
             x = f'<w:r>{rpr}{_text(r["t"])}</w:r>'
+        if r.get("fn"):  # 각주 - 이 글 조각 바로 뒤에 번호. 각주를 받지 않는 자리에서는 글로 푼다
+            if ctx.no_notes:
+                x += f'<w:r><w:rPr><w:vertAlign w:val="superscript"/></w:rPr><w:t xml:space="preserve">[주: {escape(str(r["fn"]))}]</w:t></w:r>'
+            else:
+                ctx.notes.append(str(r["fn"]))
+                x += f'<w:r><w:rPr><w:rStyle w:val="FootnoteReference"/></w:rPr><w:footnoteReference w:id="{len(ctx.notes) + 1}"/></w:r>'
         if r.get("link"):
             rid = ctx.rel("http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink", str(r["link"]), True)
             x = f'<w:hyperlink r:id="{rid}" w:history="1">{x}</w:hyperlink>'
@@ -190,7 +198,9 @@ def _object(o, ctx):
         line = f'<a:ln w="{int(float(ln.get("w", 1)) * 12700)}"><a:solidFill><a:srgbClr val="{ctx.color(ln.get("c")) or "333333"}"/></a:solidFill>{dash}{tail}</a:ln>'
     text = ""
     if o.get("blocks") and not lined:
+        ctx.no_notes += 1
         text = f'<wps:txbx><w:txbxContent>{_blocks(o["blocks"], ctx, max(5, o["w"]), ctx.style_ids)}</w:txbxContent></wps:txbx>'
+        ctx.no_notes -= 1
     pad = int(float(o.get("pad", 1.5)) * EMU)
     anchor = {"middle": "ctr", "bottom": "b"}.get(o.get("valign"), "t")
     return (f'<w:r><w:drawing><wp:anchor distT="0" distB="0" distL="0" distR="0" simplePos="0" relativeHeight="{251658240 + ctx.pic}" behindDoc="{1 if o.get("z") == "behind" else 0}" locked="0" layoutInCell="1" allowOverlap="1">'
@@ -412,7 +422,9 @@ def build(doc, fonts=None, colors=None, images=None):
     parts, refs = {}, []
     for part, tag in (("header", "hdr"), ("footer", "ftr")):
         blocks = (page.get(part) or {}).get("blocks") or []
+        ctx.no_notes += 1
         inner = _blocks(blocks, ctx, box["cw"], style_ids)
+        ctx.no_notes -= 1
         if number.get("show") and str(number.get("pos") or "footer-center").startswith(part):
             inner += _page_number(str(number.get("pos") or "footer-center"))
         if inner:
@@ -423,6 +435,12 @@ def build(doc, fonts=None, colors=None, images=None):
     sect = (f'<w:sectPr>{"".join(refs)}<w:pgSz w:w="{tw(box["w"])}" w:h="{tw(box["h"])}"{orient}/>'
             f'<w:pgMar w:top="{tw(box["t"])}" w:right="{tw(box["r"])}" w:bottom="{tw(box["b"])}" w:left="{tw(box["l"])}" w:header="{tw(min(12.5, box["t"] / 2))}" w:footer="{tw(min(12.5, box["b"] / 2))}" w:gutter="0"/></w:sectPr>')
     document = XML + f"<w:document {NS}><w:body>{body}{sect}</w:body></w:document>"
+    if ctx.notes:  # 각주 부분 - id 0·1 은 본문과 각주 사이 구분선(Word 가 요구한다), 2 부터가 각주
+        fref = '<w:r><w:rPr><w:rStyle w:val="FootnoteReference"/></w:rPr><w:footnoteRef/></w:r><w:r><w:t xml:space="preserve"> </w:t></w:r>'
+        notes = "".join(f'<w:footnote w:id="{k + 2}"><w:p><w:pPr><w:pStyle w:val="FootnoteText"/></w:pPr>{fref}<w:r><w:t xml:space="preserve">{escape(t)}</w:t></w:r></w:p></w:footnote>' for k, t in enumerate(ctx.notes))
+        parts["word/footnotes.xml"] = XML + (f'<w:footnotes {NS}><w:footnote w:type="separator" w:id="0"><w:p><w:r><w:separator/></w:r></w:p></w:footnote>'
+                                             f'<w:footnote w:type="continuationSeparator" w:id="1"><w:p><w:r><w:continuationSeparator/></w:r></w:p></w:footnote>{notes}</w:footnotes>')
+        ctx.rel("http://schemas.openxmlformats.org/officeDocument/2006/relationships/footnotes", "footnotes.xml")
     rels = [("rId1", "http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles", "styles.xml", False),
             ("rId2", "http://schemas.openxmlformats.org/officeDocument/2006/relationships/numbering", "numbering.xml", False),
             ("rId3", "http://schemas.openxmlformats.org/officeDocument/2006/relationships/settings", "settings.xml", False)] + ctx.rels
@@ -435,7 +453,7 @@ def build(doc, fonts=None, colors=None, images=None):
              '<Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/>'
              '<Override PartName="/word/numbering.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.numbering+xml"/>'
              '<Override PartName="/word/settings.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.settings+xml"/>'
-             + "".join(f'<Override PartName="/{n}" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.{"header" if "header" in n else "footer"}+xml"/>' for n in parts)
+             + "".join(f'<Override PartName="/{n}" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.{"footnotes" if "footnotes" in n else "header" if "header" in n else "footer"}+xml"/>' for n in parts)
              + '<Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/></Types>')
     core = (XML + '<cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/">'
             f'<dc:title>{escape(str(doc.get("title") or ""))}</dc:title><dc:creator>nexa-slide</dc:creator></cp:coreProperties>')

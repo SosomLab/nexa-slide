@@ -100,7 +100,15 @@
     S.box = box; S.sheetKey = ""; drawSheets(S.pages || 1); pageLines();
     // 브라우저 인쇄(PDF 로 저장)도 같은 용지·여백으로 - 종이의 안쪽 여백은 인쇄 때 빼고 @page 여백이 대신한다
     let st = document.getElementById("pg-print"); if (!st) { st = document.createElement("style"); st.id = "pg-print"; document.head.appendChild(st); }
-    st.textContent = `@page { size: ${box.w}mm ${box.h}mm; margin: ${box.t}mm ${box.r}mm ${box.b}mm ${box.l}mm; }`;
+    // 머리말·꼬리말·쪽 번호는 @page 의 여백 상자로(Chrome 131+) - 한 줄 글과 정렬만 옮긴다. 아래 여백은 1mm 덜어 쪽 끝 줄이 반올림으로 넘치지 않게 한다
+    const page = S.deck.page || {}, num = page.number || {}, q = (t) => `"${String(t).replace(/[\\"]/g, "\\$&").replace(/\n/g, " ")}"`, boxes = [];
+    for (const part of ["header", "footer"]) for (const al of ["left", "center", "right"]) {
+      const c = [];
+      if (hfText(part) && hfAlign(part) === al) c.push(q(hfText(part)));
+      if (num.show && String(num.pos || "footer-center") === `${part}-${al}`) c.push("counter(page)");
+      if (c.length) boxes.push(`@${part === "header" ? "top" : "bottom"}-${al} { content: ${c.join(' " " ')}; font-size: 9pt; color: #8a857d; }`);
+    }
+    st.textContent = `@page { size: ${box.w}mm ${box.h}mm; margin: ${box.t}mm ${box.r}mm ${Math.max(0, box.b - 1)}mm ${box.l}mm; ${boxes.join(" ")} }`;
   }
   /** 종이 장 n 개와 덮개(여백 가림 · 쪽 틈 · 머리말·꼬리말·쪽 번호)를 그린다 - 쪽 수·쪽 설정이 같으면 다시 그리지 않는다.
    *  첫 쪽의 머리말·꼬리말은 id pgHeader · pgFooter(쪽 설정 확인용) */
@@ -193,6 +201,7 @@
   function decorateAll() {
     const mk = P.markers(blocks());
     for (const el of $$("#ed > .pg-li")) el.dataset.marker = mk[el.dataset.id] || "";
+    numberNotes();
     pageLines();
   }
   const blockAt = (id) => blocks().find((b) => b.id === id);
@@ -406,6 +415,32 @@
     }
     for (const [id, el] of [...objEls]) if (!keep.has(id)) { el.remove(); objEls.delete(id); }
   }
+  /** 인쇄 직전 - 확대를 풀고 쪽 나눔을 다시 잡은 뒤(끼운 빈 자리가 인쇄의 강제 쪽 나눔이 된다) 개체를 매인 문단 안으로 옮긴다.
+   *  인쇄에서는 쪽이 종이 장으로 나뉘어 화면의 자리(종이 기준 px)를 쓸 수 없다 - 문단 기준 자리로 바꿔 그 문단을 따라 찍히게 한다 */
+  function enterPrint() {
+    if (S.printing || !flow) return;
+    $("#paper").style.zoom = 1; flow.rerun();
+    if (geo) for (const o of objs()) {
+      const el = objEls.get(o.id), a = blockElOf(o.anchor); if (!el || !a) continue;
+      const pos = elPos(a), inPage = pos.y - pos.page * (geo.H + geo.G), box = S.box;
+      el.style.left = (o.rel === "para" ? o.x : o.x - box.l) * geo.mm - a.offsetLeft + "px";
+      el.style.top = (o.rel === "para" ? o.y * geo.mm : (o.y - box.t) * geo.mm - inPage) + "px";
+      el.style.zIndex = o.z === "behind" ? "-1" : "2"; el.classList.remove("sel"); a.appendChild(el);
+    }
+    const refs = $$("#ed [data-fn]").filter((sp) => !sp.closest(".pg-headrep"));
+    if (refs.length) {  // 브라우저 인쇄에서는 쪽 아래 각주를 놓을 수 없어 문서 끝에 모아 찍는다(쪽 아래 각주는 Word 로 내보낸 문서에서)
+      const d = document.createElement("div"); d.className = "pg-endnotes"; d.contentEditable = "false";
+      for (const sp of refs) { const n = document.createElement("div"); n.className = "pg-fnote"; const s = document.createElement("sup"); s.textContent = sp.dataset.fnn || ""; n.append(s, sp.dataset.fn); d.appendChild(n); }
+      $("#ed").appendChild(d);
+    }
+    S.printing = true;
+  }
+  function leavePrint() {
+    if (!S.printing) return; S.printing = false;
+    for (const [, el] of objEls) { el.style.zIndex = ""; el.remove(); }
+    for (const d of $$("#ed > .pg-endnotes")) d.remove();
+    applyZoom(S.zoom || "1"); flow.rerun();
+  }
   function pickObj(id) { S.obj = id || null; for (const [k, el] of objEls) el.classList.toggle("sel", k === S.obj); if (id) { S.pick = null; markPick(); } }
   function changeObj(id, fn, why) {
     snapshot(why || "format");
@@ -592,6 +627,52 @@
     if (u && !/^(https?:|mailto:)/i.test(u)) { toast("http(s):// 또는 mailto: 로 시작하는 주소만 걸 수 있습니다", 4000); return; }
     e0.setMark("link", u || null);
   }
+  // ---------------------------------------------------------------- 각주(PG-105) - 글 조각의 fn(각주 글). 번호는 문서 순서, 글은 그 참조가 놓인 쪽의 아래
+  const FN = { cache: new Map() };
+  /** 각주 한 줄의 높이(px) - 쪽 나눔이 자리를 내줄 때 쓴다. 본문 너비에 그려 재고 (글 + 자릿수)로 기억한다 */
+  function noteH(span) {
+    const key = (span.dataset.fnn || "0").length + "|" + S.box.cw + "|" + span.dataset.fn;
+    if (!FN.cache.has(key)) {
+      const m = $("#fnMeasure"); m.style.width = S.box.cw + "mm"; m.innerHTML = "";
+      const d = document.createElement("div"); d.className = "pg-fnote"; const s = document.createElement("sup"); s.textContent = span.dataset.fnn || "0"; d.append(s, span.dataset.fn); m.appendChild(d);
+      FN.cache.set(key, d.getBoundingClientRect().height / edScale()); if (FN.cache.size > 2000) FN.cache.clear();
+    }
+    return FN.cache.get(key);
+  }
+  const noteSep = () => (geo ? geo.mm : 3.78) * 2.5;  // 구분선 + 위아래 틈(mm 2.5)
+  /** 각주 번호를 문서 순서로 다시 매긴다(쪽 나눔 전에 - 번호 자릿수가 줄 나눔에 든다) */
+  function numberNotes() { let k = 0; for (const sp of $$("#ed [data-fn]")) { if (sp.closest(".pg-headrep")) continue; const v = String(++k); if (sp.dataset.fnn !== v) sp.dataset.fnn = v; } }
+  /** 쪽마다 그 쪽에 참조가 있는 각주를 본문 아래에 그린다(쪽 나눔이 끝날 때마다) */
+  function drawNotes() {
+    const layer = $("#fnotes"); layer.replaceChildren(); if (!geo) return;
+    const box = S.box, sheet = box.h * geo.mm + geo.gap, by = new Map(), top0 = $("#ed").getBoundingClientRect().top, z = edScale();
+    for (const sp of $$("#ed [data-fn]")) {
+      if (sp.closest(".pg-headrep")) continue;
+      const rs = sp.getClientRects(), r = rs[rs.length - 1]; if (!r) continue;
+      const k = Math.max(0, Math.floor(((r.top - top0) / z + 1) / (geo.H + geo.G)));
+      if (!by.has(k)) by.set(k, []); by.get(k).push(sp);
+    }
+    for (const [k, list] of by) {
+      const d = document.createElement("div"); d.className = "pg-fnotes"; d.dataset.page = k + 1;
+      d.style.left = box.l + "mm"; d.style.width = box.cw + "mm"; d.style.top = `calc(${k * sheet}px + ${box.h - box.b}mm)`;
+      for (const sp of list) { const n = document.createElement("div"); n.className = "pg-fnote"; const s = document.createElement("sup"); s.textContent = sp.dataset.fnn || ""; n.append(s, sp.dataset.fn); d.appendChild(n); }
+      layer.appendChild(d);
+    }
+  }
+  /** 각주 달기·고치기·떼기 - 고른 글 뒤(선택이 비었으면 커서 앞 글자 뒤)에 번호를 단다 */
+  function setFn() {
+    const e0 = cur || ed, st = e0.state(); if (!st.sel) return;
+    let { a, f } = st.sel;
+    if (a.id === f.id && a.off === f.off) {
+      if (a.off < 1) { toast("각주를 달 글자 뒤에 커서를 두거나 글을 고르세요"); return; }
+      a = { id: f.id, off: f.off - 1 }; e0.select(a, f);
+    }
+    const cur0 = e0.state().marks.fn || "";
+    const t = prompt(cur0 ? "각주 글(비우면 각주를 뗍니다)" : "각주 글", cur0); if (t === null) return;
+    e0.setMark("fn", t.trim().slice(0, 2000) || null);
+    e0.select(f, f);
+  }
+
   /** 윗주 - 고른 글 위에 작은 글을 단다(비우면 뗀다). 줄 간격이 좁으면 윗줄과 겹치므로 그 문단의 줄 간격이 2 보다 작으면 2 로 넓힌다 */
   function setRuby() {
     const e0 = cur || ed, st = e0.state(); if (!st.sel) return;
@@ -701,6 +782,7 @@
     $("#selLine").value = b && b.line ? String(b.line) : "";
     const lk = $("[data-act=link]"); if (lk) lk.classList.toggle("on", !!st.marks.link);
     const rb = $("[data-act=ruby]"); if (rb) rb.classList.toggle("on", !!st.marks.ruby);
+    const fb = $("[data-act=fn]"); if (fb) fb.classList.toggle("on", !!st.marks.fn);
     const sh = $("[data-act=shade]"); if (sh) sh.classList.toggle("on", !!(b && b.fill));
     $("[data-act=undo]").disabled = !S.undo.length; $("[data-act=redo]").disabled = !S.redo.length;
   }
@@ -728,7 +810,7 @@
       else if (!body && (b.dataset.list || ["indent", "outdent", "break", "clear", "table", "image"].includes(b.dataset.act))) toast("표 칸 안에서는 아직 쓸 수 없습니다");
       else if (b.dataset.list) setList(b.dataset.list);
       else ({ undo, redo, indent: () => shiftLevel(1), outdent: () => shiftLevel(-1), break: insertBreak, setup: pageSetup,
-        color: () => now.toggle("c", $("#inColor").value), hl: () => now.toggle("hl", $("#inHl").value), table: insertTable, shape: () => shapeMenu(b), image: () => $("#inImage").click(), link: setLink, ruby: setRuby, find: openFind,
+        color: () => now.toggle("c", $("#inColor").value), hl: () => now.toggle("hl", $("#inHl").value), table: insertTable, shape: () => shapeMenu(b), image: () => $("#inImage").click(), link: setLink, ruby: setRuby, fn: setFn, find: openFind,
         shade: () => { const e0 = cur || ed, st0 = e0.state(), b0 = st0.sel && e0 === ed ? blockAt(st0.sel.f.id) : null; e0.blockAttrs({ fill: b0 && b0.fill ? null : "#e6e6e6" }); },
         clear: () => { const s = ed.selection(); if (s) { snapshot("format"); let bs = blocks(); for (const x of T.spans(bs, s.a, s.f)) bs = bs.map((y, k) => (k === x.i ? { ...y, runs: T.clearMarks(y.runs, x.from, x.to, ["link"]) } : y)); S.deck.blocks = bs; ed.refresh(s); afterChange(); } },
       })[b.dataset.act]?.();
@@ -837,12 +919,13 @@
     cur = ed;
     // 실시간 쪽 나눔 - 쪽 경계에 빈 자리를 끼운다. 인쇄(브라우저·서버 Chrome)는 브라우저가 쪽을 나누므로 쉰다
     flow = NexaPageFlow.create({
-      host: $("#ed"), box: () => S.box, off: () => S.printing || document.body.classList.contains("printing"),
+      host: $("#ed"), box: () => S.box, off: () => !!S.printing,
       saveSel: () => (document.activeElement === $("#ed") ? ed.selection() : null), restoreSel: (s) => ed.select(s.a, s.f),
-      onPages: (n, info) => { geo = info; drawSheets(n); pageInfo(); drawObjects(); },
+      noteH, noteSep, prepare: numberNotes,
+      onPages: (n, info) => { geo = info; drawSheets(n); pageInfo(); drawObjects(); drawNotes(); },
     });
-    window.addEventListener("beforeprint", () => { S.printing = true; flow.clear(); });
-    window.addEventListener("afterprint", () => { S.printing = false; flow.schedule(); });
+    window.addEventListener("beforeprint", enterPrint);
+    window.addEventListener("afterprint", leavePrint);
     if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => flow.reflow());
     $("#ed").addEventListener("keydown", onKey, true);
     bindTools(); bindObjects(); decorateAll(); updTools();
@@ -866,7 +949,10 @@
     { let z = "1"; try { z = localStorage.getItem("nexaPageZoom") || "1"; } catch (e) { /* 기본값 */ } if ([...$("#selZoom").options].some((o) => o.value === z)) { $("#selZoom").value = z; applyZoom(z); } }
     window.addEventListener("beforeunload", (e) => { if (S.dirty) { e.preventDefault(); e.returnValue = ""; } });
     setStatus("saved", "저장됨");
-    if (new URLSearchParams(location.search).get("print") === "1") { document.body.classList.add("printing"); return; }  // 서버의 Chrome 인쇄(PDF) - 커서·초점 없이 그대로 찍힌다
+    if (new URLSearchParams(location.search).get("print") === "1") {
+      if (document.fonts && document.fonts.ready) await Promise.race([document.fonts.ready, new Promise((r) => setTimeout(r, 3000))]);  // 글꼴이 떠야 줄 나눔이 인쇄와 같다
+      enterPrint(); document.body.classList.add("printing"); return;
+    }  // 서버의 Chrome 인쇄(PDF) - 커서·초점 없이 그대로 찍힌다
     await bindRequests(); poll();
     pollT = setInterval(poll, 3000);  // 밖의 변경(다른 창·AI 저장) 따라가기
     const first = blocks().find(T.isText); if (first) { ed.focus(); ed.select({ id: first.id, off: T.length(first.runs) }); }

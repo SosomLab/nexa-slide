@@ -142,5 +142,37 @@ for bad_name, payload in (("zip 이 아님", b"not a zip"), ("docx 가 아닌 zi
     except ValueError:
         check(f"거절: {bad_name}", True)
 
+# CLI --blocks - 문서를 만들지 않고 블록(JSON)만 꺼낸다(요청 첨부를 있는 문서에 넣을 때). 임시 작업 공간에서
+import json as _json  # noqa: E402
+import subprocess as _sp  # noqa: E402
+import tmpfiles as _tmp  # noqa: E402
+import export_docx as _X  # noqa: E402
+import page_doc as _P  # noqa: E402
+with _tmp.temp_dir("nx-impblk-") as _d:
+    _ws = Path(_d) / "slides"
+    (_ws / "decks").mkdir(parents=True)
+    (_ws / "nexa-slide.json").write_text('{"title": "t"}', encoding="utf-8")
+    _src = _P.new_page("s", "첨부 문서")
+    _src["blocks"] = [{"id": "a", "type": "p", "style": "h1", "runs": [{"t": "첨부 제목"}]}, {"id": "b", "type": "p", "runs": [{"t": "굵은 ", "b": True}, {"t": "글"}]}]
+    (_ws / "첨부 파일.docx").write_bytes(_X.build(_src))
+    _r = _sp.run([sys.executable, str(Path(__file__).resolve().parents[1] / "import_docx.py"), "-W", str(_ws), str(_ws / "첨부 파일.docx"), "--blocks"], capture_output=True, text=True, encoding="utf-8", errors="replace")
+    _out = _ws / "out" / "import" / "첨부_파일" / "page.json"
+    _j = _json.loads(_out.read_text(encoding="utf-8")) if _out.is_file() else {}
+    _bs = _j.get("blocks") or []
+    check("CLI --blocks - out/import/<이름>/page.json 에 블록(서식 유지) · 덱은 만들지 않는다",
+          _r.returncode == 0 and len(_bs) == 2 and _bs[0].get("style") == "h1" and _bs[1]["runs"][0] == {"t": "굵은 ", "b": True} and not list((_ws / "decks").glob("*.json")) and "styles" in _j,
+          (_r.returncode, _r.stdout[-300:], _r.stderr[-300:], _bs))
+
+# 각주 왕복 - 내보낸 각주가 바로 앞 글자의 fn 으로 돌아온다
+import export_docx as _X2  # noqa: E402
+import page_doc as _P2  # noqa: E402
+_fd = _P2.new_page("f", "각주")
+_fd["blocks"] = [{"id": "p1", "type": "p", "runs": [{"t": "첫 문장 끝", "fn": "첫째 각주"}, {"t": " 뒤 글"}]}, {"id": "p2", "type": "p", "runs": [{"t": "둘", "fn": "둘째"}]}]
+_rd, _, _rw = I.read(_X2.build(_fd), doc_id="g", title="각주")
+_r1 = _rd["blocks"][0]["runs"]
+check("각주 왕복 - 앞 글자에 fn · 나머지 글은 그대로 · 경고 없음",
+      "".join(r["t"] for r in _r1) == "첫 문장 끝 뒤 글" and [r.get("fn") for r in _r1 if r.get("fn")] == ["첫째 각주"] and next(r for r in _r1 if r.get("fn"))["t"].endswith("끝")
+      and _rd["blocks"][1]["runs"][0].get("fn") == "둘째" and not any("각주" in w for w in _rw) and _P2.validate(_P2.normalize(_rd)) is None, (_r1, _rd["blocks"][1], _rw))
+
 print(f"\n실패 {len(fails)}" if fails else f"\n전부 통과 ({n}사례)")
 sys.exit(1 if fails else 0)

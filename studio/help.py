@@ -15,6 +15,7 @@ COMMANDS = [
     ("export_xlsx <시트 문서>", "시트 문서(kind sheet) xlsx 내보내기 → out/<id>.xlsx"),
     ("export_docx <페이지 문서> [--out 파일]", "페이지 문서(kind page) Word 문서 내보내기 → out/<id>.docx"),
     ("import_docx <파일.docx> [--title …]", "Word 문서 → 페이지 문서(문단·글자 서식·목록·표·그림·머리말) - decks/<새 id>.json"),
+    ("import_docx <파일.docx> --blocks", "Word 첨부 → 페이지 블록(JSON)만 꺼내기(문서는 만들지 않음) → out/import/<이름>/page.json - 있는 페이지 문서에 서식째 넣을 때"),
     ("sheet_import <파일.xlsx> [--title …]", "엑셀 파일 → 시트 문서(값·수식·서식·병합·틀 고정) - decks/<새 id>.json"),
     ("sheet_link <시트 문서> <탭> <범위> [--as chart]", "시트 범위 → 슬라이드 표·차트 데이터와 link(JSON) - 요소에 넣으면 원본이 바뀔 때 편집기가 따라 고친다"),
     ("sheet_calc <시트 문서> [--cell 탭!B3]", "시트 수식 계산 - 오류 셀(#DIV/0! 등)·순환 참조 찾기, 한 칸 값 보기(수식을 고친 뒤 확인)"),
