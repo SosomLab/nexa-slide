@@ -365,6 +365,154 @@
       { label: "그림 지우기", key: "Del", act: () => changeBlock(id, () => null) }]);
   }
 
+  // ---------------------------------------------------------------- 개체(도형·글 상자, PG-103) - 본문 문단에 매이고(anchor) 그 문단이 놓인 쪽(rel page) 또는 그 문단(rel para) 기준 자리에 뜬다
+  const objEls = new Map(); let geo = null;  // geo = 쪽 나눔이 정한 치수 {mm, H, G, gap}
+  const objs = () => (Array.isArray(S.deck.objects) ? S.deck.objects : (S.deck.objects = []));
+  const objAt = (id) => objs().find((o) => o.id === id);
+  const lined = (o) => o.shape === "line" || o.shape === "arrow";
+  const r1 = (v) => Math.round(v * 10) / 10;
+  const edScale = () => { const h = $("#ed"); return h.getBoundingClientRect().width / h.offsetWidth || 1; };
+  const blockElOf = (id) => [...$("#ed").children].find((e) => e.dataset.id === id);
+  /** 본문 블록 요소의 위(본문 맨 위 기준 px)와 놓인 쪽(0부터) */
+  function elPos(el) { const y = (el.getBoundingClientRect().top - $("#ed").getBoundingClientRect().top) / edScale(); return { y, page: Math.max(0, Math.floor((y + 1) / (geo.H + geo.G))) }; }
+  function objEl(o) {
+    const el = P.objectEl(S.deck, o, { ...ctx, noText: true }); el._obj = o;
+    const body = el.querySelector(".pg-obj-body");
+    if (body) {  // 안의 글 - 표 칸처럼 편집기를 붙이고 개체를 그 자리에서 고친다(개체 객체가 그대로라 다시 그리지 않아 초점이 남는다)
+      if (!o.blocks.length) o.blocks = [newPara()];
+      const ce = T.mount(body, {
+        get: () => o.blocks, set: (bs, why) => { snapshot(why); o.blocks = bs.length ? bs : [newPara()]; afterChange(); }, newId: () => rid("p"),
+        decorate: (x, b) => P.decorate(x, b, S.deck, ctx, P.markers(o.blocks)[b.id]), renderBlock: (b) => P.blockEl(S.deck, b, ctx),
+        color: ctx.color, font: ctx.font, onSelect: () => { cur = ce; updTools(); }, undo, redo,
+      });
+      body.addEventListener("focus", () => { cur = ce; });
+      body.addEventListener("keydown", (e) => { if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") { e.preventDefault(); save(); } });
+    }
+    const h = document.createElement("i"); h.className = "pg-obj-h"; h.title = "크기"; el.appendChild(h);
+    return el;
+  }
+  /** 개체를 제자리에 놓는다 - 쪽 나눔이 끝날 때마다(매인 문단이 다른 쪽으로 가면 따라간다). 개체 객체가 바뀐 것만 다시 만든다 */
+  function drawObjects() {
+    if (!geo) return;
+    const box = S.box, keep = new Set(), sheet = box.h * geo.mm + geo.gap;
+    for (const o of objs()) {
+      const a = blockElOf(o.anchor); if (!a) continue;
+      const pos = elPos(a); let el = objEls.get(o.id);
+      if (!el || el._obj !== o) { if (el) el.remove(); el = objEl(o); objEls.set(o.id, el); }
+      const layer = $(o.z === "behind" ? "#objsBack" : "#objs"); if (el.parentNode !== layer) layer.appendChild(el);
+      el.style.left = (o.rel === "para" ? box.l + o.x : o.x) * geo.mm + "px";
+      el.style.top = (o.rel === "para" ? box.t * geo.mm + pos.y + o.y * geo.mm : pos.page * sheet + o.y * geo.mm) + "px";
+      el._page = pos.page; el.classList.toggle("sel", S.obj === o.id); keep.add(o.id);
+    }
+    for (const [id, el] of [...objEls]) if (!keep.has(id)) { el.remove(); objEls.delete(id); }
+  }
+  function pickObj(id) { S.obj = id || null; for (const [k, el] of objEls) el.classList.toggle("sel", k === S.obj); if (id) { S.pick = null; markPick(); } }
+  function changeObj(id, fn, why) {
+    snapshot(why || "format");
+    S.deck.objects = objs().map((o) => (o.id === id ? fn({ ...o }) : o)).filter(Boolean);
+    if (!objAt(id)) S.obj = null;
+    drawObjects(); afterChange(true);
+  }
+  /** 문단이 지워지면(합치기·지우기) 거기 매인 개체를 그 자리의 문단(없으면 앞 문단)에 다시 맨다 */
+  function reanchor(old, next) {
+    const ok = new Set(next.filter((b) => b.type === "p").map((b) => b.id));
+    for (const o of objs()) {
+      if (ok.has(o.anchor)) continue;
+      let j = Math.max(0, Math.min(old.findIndex((b) => b.id === o.anchor), next.length - 1));
+      while (j >= 0 && !(next[j] && next[j].type === "p")) j--;
+      if (j < 0) j = next.findIndex((b) => b.type === "p");
+      if (j >= 0) o.anchor = next[j].id;
+    }
+  }
+  /** 끌어 옮긴 뒤 - 쪽 기준 개체가 다른 쪽으로 가면 그 쪽의 첫 문단에 다시 맨다 */
+  function moveObj(o, el, dx, dy) {
+    if (o.rel === "para") return changeObj(o.id, (x) => ({ ...x, x: r1(x.x + dx), y: r1(x.y + dy) }));
+    const sheet = S.box.h * geo.mm + geo.gap, top = parseFloat(el.style.top) + dy * geo.mm;
+    const k = Math.max(0, Math.min((S.pages || 1) - 1, Math.floor((top + 1) / sheet)));
+    let anchor = o.anchor, page = el._page;
+    if (k !== el._page) { const on = [...$("#ed").children].find((e) => e.classList.contains("nt-p") && elPos(e).page === k); if (on) { anchor = on.dataset.id; page = k; } }
+    changeObj(o.id, (x) => ({ ...x, anchor, x: r1(x.x + dx), y: r1((top - page * sheet) / geo.mm) }));
+  }
+  function onObjDown(e) {
+    const el = e.target.closest(".pg-obj"), o = el && objAt(el.dataset.id); if (!o) return;
+    pickObj(o.id);
+    const handle = e.target.closest(".pg-obj-h");
+    if (e.button !== 0 || (e.target.closest(".pg-obj-body") && !handle)) return;  // 글 안을 누르면 글 편집
+    e.preventDefault(); if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+    const px = geo.mm * edScale(), sx = e.clientX, sy = e.clientY; let dx = 0, dy = 0, moved = false;
+    const move = (ev) => {
+      dx = (ev.clientX - sx) / px; dy = (ev.clientY - sy) / px; if (!moved && Math.abs(dx) + Math.abs(dy) < 0.5) return; moved = true;
+      if (handle) { el.style.width = Math.max(lined(o) ? 0 : 2, o.w + dx) + "mm"; el.style.height = Math.max(lined(o) ? 0 : 2, o.h + dy) + "mm"; }
+      else el.style.transform = `translate(${dx * geo.mm}px, ${dy * geo.mm}px)`;
+    };
+    const up = () => {
+      window.removeEventListener("pointermove", move); window.removeEventListener("pointerup", up);
+      if (!moved) return; el.style.transform = "";
+      if (handle) { const min = lined(o) ? 0 : 2, w = r1(Math.max(min, o.w + dx)), h = r1(Math.max(min, o.h + dy)); changeObj(o.id, (x) => ({ ...x, w: w || (h ? 0 : 1), h })); }
+      else moveObj(o, el, dx, dy);
+    };
+    window.addEventListener("pointermove", move); window.addEventListener("pointerup", up);
+  }
+  const SHAPES = [["rect", "사각형"], ["round", "둥근 사각형"], ["ellipse", "타원"], ["line", "선"], ["arrow", "화살표"], ["bracket-l", "대괄호 ["], ["bracket-r", "대괄호 ]"], ["brace-l", "중괄호 {"], ["brace-r", "중괄호 }"]];
+  function insertObj(shape, text) {
+    if (!geo) return;
+    const paras = blocks().filter((b) => b.type === "p"), s = ed.selection(); if (!paras.length) { toast("문단이 하나는 있어야 도형을 넣을 수 있습니다"); return; }
+    let a = s && paras.find((b) => b.id === s.f.id);
+    if (!a) { const top = $("#scroll").getBoundingClientRect().top; a = paras.find((b) => { const e = blockElOf(b.id); return e && e.getBoundingClientRect().bottom > top; }) || paras[0]; }
+    const pos = elPos(blockElOf(a.id)), box = S.box;
+    const size = { line: [40, 0], arrow: [40, 0], "bracket-l": [4, 25], "bracket-r": [4, 25], "brace-l": [5, 25], "brace-r": [5, 25] }[shape] || (text ? [60, 20] : [40, 20]);
+    const o = { id: rid("o"), type: "shape", shape, anchor: a.id, rel: "page", x: r1(box.l + 10), y: r1(box.t + (pos.y - pos.page * (geo.H + geo.G)) / geo.mm + 2), w: size[0], h: size[1] };
+    if (text) { o.blocks = [newPara()]; o.fill = "#ffffff"; }
+    snapshot("format"); S.deck.objects = [...objs(), o]; drawObjects(); pickObj(o.id); afterChange(true);
+    if (text) { const b = objEls.get(o.id) && objEls.get(o.id).querySelector(".pg-obj-body"); if (b) b.focus(); }
+  }
+  function shapeMenu(at) {
+    openMenu(at, [{ label: "글 상자", act: () => insertObj("rect", true) }, "-", ...SHAPES.slice(0, 3).map(([k, t]) => ({ label: t, act: () => insertObj(k) })), "-",
+      ...SHAPES.slice(3, 5).map(([k, t]) => ({ label: t, act: () => insertObj(k) })), "-", ...SHAPES.slice(5).map(([k, t]) => ({ label: t, act: () => insertObj(k) }))]);
+  }
+  function objMenu(id, at) {
+    const o = objAt(id); if (!o) return;
+    const set = (patch) => changeObj(id, (x) => { const y = { ...x, ...patch }; for (const k of Object.keys(y)) if (y[k] === undefined) delete y[k]; return y; });
+    const ln = o.line === null ? null : o.line || {}, closed = ["rect", "round", "ellipse"].includes(o.shape), name = (SHAPES.find((x) => x[0] === o.shape) || [])[1] || o.shape;
+    const line = (patch) => set({ line: { ...(ln || {}), ...patch } });
+    const toRel = () => {  // 기준을 바꿔도 화면의 자리는 그대로 - 좌표만 다시 잰다
+      const el = objEls.get(id), a = blockElOf(o.anchor); if (!el || !a) return;
+      const pos = elPos(a), sheet = S.box.h * geo.mm + geo.gap, left = parseFloat(el.style.left) / geo.mm, top = parseFloat(el.style.top);
+      if (o.rel === "para") set({ rel: "page", x: r1(left), y: r1((top - pos.page * sheet) / geo.mm) });
+      else set({ rel: "para", x: r1(left - S.box.l), y: r1((top - S.box.t * geo.mm - pos.y) / geo.mm) });
+    };
+    const items = [{ h: `${Array.isArray(o.blocks) ? "글 상자 · " : ""}${name} · ${r1(o.w)} × ${r1(o.h)} mm` }];
+    if (closed) items.push({ label: "채움 없음", on: !o.fill, act: () => set({ fill: undefined }) }, { label: "채움 - 흰색", on: o.fill === "#ffffff", act: () => set({ fill: "#ffffff" }) },
+      { label: "채움 - 회색", on: o.fill === "#eeeeee", act: () => set({ fill: "#eeeeee" }) }, { label: "채움 - 노랑", on: o.fill === "#fff59d", act: () => set({ fill: "#fff59d" }) }, "-");
+    if (closed) items.push({ label: "선 없음", on: ln === null, act: () => set({ line: null }) });
+    items.push({ label: "실선", on: !!ln && (ln.dash || "solid") === "solid", act: () => line({ dash: "solid" }) }, { label: "긴 점선", on: !!ln && ln.dash === "dash", act: () => line({ dash: "dash" }) }, { label: "점선", on: !!ln && ln.dash === "dot", act: () => line({ dash: "dot" }) },
+      { label: "선 가늘게 (0.5pt)", on: !!ln && ln.w === 0.5, act: () => line({ w: 0.5 }) }, { label: "선 보통 (1pt)", on: !!ln && (ln.w === undefined || ln.w === 1), act: () => line({ w: 1 }) }, { label: "선 굵게 (2pt)", on: !!ln && ln.w === 2, act: () => line({ w: 2 }) },
+      { label: "선 색 - 검정", on: !!ln && !ln.c, act: () => line({ c: undefined }) }, { label: "선 색 - 강조", on: !!ln && ln.c === "accent", act: () => line({ c: "accent" }) }, { label: "선 색 - 회색", on: !!ln && ln.c === "#999999", act: () => line({ c: "#999999" }) }, "-");
+    if (lined(o)) items.push({ label: "기울기 뒤집기(↗ ↘)", on: !!o.flip, act: () => set({ flip: o.flip ? undefined : true }) });
+    else if (Array.isArray(o.blocks)) items.push({ label: "글 세로 - 위", on: !o.valign || o.valign === "top", act: () => set({ valign: undefined }) }, { label: "글 세로 - 가운데", on: o.valign === "middle", act: () => set({ valign: "middle" }) }, { label: "안의 글 지우기", act: () => set({ blocks: undefined, valign: undefined }) });
+    else items.push({ label: "글 넣기", act: () => { set({ blocks: [newPara()] }); const b = objEls.get(id) && objEls.get(id).querySelector(".pg-obj-body"); if (b) b.focus(); } });
+    items.push("-", { label: "글 뒤로", on: o.z === "behind", act: () => set({ z: o.z === "behind" ? undefined : "behind" }) }, { label: "문단을 따라 움직임(문단 기준)", on: o.rel === "para", act: toRel }, "-",
+      { label: "지우기", key: "Del", act: () => changeObj(id, () => null) });
+    openMenu(at, items);
+  }
+  /** 그 자리 아래의 개체(글 뒤로 보낸 것 포함) */
+  const objUnder = (e) => { const el = document.elementsFromPoint(e.clientX, e.clientY).find((x) => x.classList && x.classList.contains("pg-obj")); return el ? el.dataset.id : null; };
+  function bindObjects() {
+    for (const layer of [$("#objs"), $("#objsBack")]) {
+      layer.addEventListener("pointerdown", onObjDown);
+      layer.addEventListener("contextmenu", (e) => { const el = e.target.closest(".pg-obj"); if (!el || e.target.closest(".pg-obj-body")) return; e.preventDefault(); pickObj(el.dataset.id); objMenu(el.dataset.id, { x: e.clientX, y: e.clientY }); });
+    }
+    // 글 뒤로 보낸 개체는 본문에 가려 눌리지 않는다 - Alt+클릭으로 고르고 Alt+오른쪽 클릭으로 메뉴
+    $("#ed").addEventListener("mousedown", (e) => { if (!e.altKey) return; const id = objUnder(e); if (id) { e.preventDefault(); e.stopPropagation(); pickObj(id); if (document.activeElement && document.activeElement.blur) document.activeElement.blur(); } }, true);
+    $("#ed").addEventListener("contextmenu", (e) => { if (!e.altKey) return; const id = objUnder(e); if (id) { e.preventDefault(); e.stopPropagation(); pickObj(id); objMenu(id, { x: e.clientX, y: e.clientY }); } }, true);
+    document.addEventListener("mousedown", (e) => { if (S.obj && !e.altKey && !e.target.closest(".pg-obj, .menu")) pickObj(null); });
+    document.addEventListener("keydown", (e) => {
+      if (!S.obj || e.isComposing || (e.key !== "Delete" && e.key !== "Backspace")) return;
+      if (e.target.closest && e.target.closest("input, select, textarea, .dlg, .nd-box, [contenteditable=true]")) return;
+      e.preventDefault(); changeObj(S.obj, () => null);
+    }, true);
+  }
+
   // ---------------------------------------------------------------- 링크 · 찾기/바꾸기
   function setLink() {
     const e0 = cur || ed, st = e0.state(); if (!st.sel) return;
@@ -510,7 +658,7 @@
       else if (!body && (b.dataset.list || ["indent", "outdent", "break", "clear", "table", "image"].includes(b.dataset.act))) toast("표 칸 안에서는 아직 쓸 수 없습니다");
       else if (b.dataset.list) setList(b.dataset.list);
       else ({ undo, redo, indent: () => shiftLevel(1), outdent: () => shiftLevel(-1), break: insertBreak, setup: pageSetup,
-        color: () => now.toggle("c", $("#inColor").value), hl: () => now.toggle("hl", $("#inHl").value), table: insertTable, image: () => $("#inImage").click(), link: setLink, ruby: setRuby, find: openFind,
+        color: () => now.toggle("c", $("#inColor").value), hl: () => now.toggle("hl", $("#inHl").value), table: insertTable, shape: () => shapeMenu(b), image: () => $("#inImage").click(), link: setLink, ruby: setRuby, find: openFind,
         shade: () => { const e0 = cur || ed, st0 = e0.state(), b0 = st0.sel && e0 === ed ? blockAt(st0.sel.f.id) : null; e0.blockAttrs({ fill: b0 && b0.fill ? null : "#e6e6e6" }); },
         clear: () => { const s = ed.selection(); if (s) { snapshot("format"); let bs = blocks(); for (const x of T.spans(bs, s.a, s.f)) bs = bs.map((y, k) => (k === x.i ? { ...y, runs: T.clearMarks(y.runs, x.from, x.to, ["link"]) } : y)); S.deck.blocks = bs; ed.refresh(s); afterChange(); } },
       })[b.dataset.act]?.();
@@ -607,7 +755,7 @@
     $("#docTitle").onchange = (e) => { const t = e.target.value.trim(); if (!t || t === S.deck.title) { e.target.value = S.deck.title || ""; return; } snapshot("format"); S.deck.title = t; document.title = `${t} - 페이지`; afterChange(true); };
     layout();
     ed = T.mount($("#ed"), {
-      get: blocks, set: (b, why) => { snapshot(why); S.deck.blocks = b; afterChange(); }, newId,
+      get: blocks, set: (b, why) => { snapshot(why); reanchor(S.deck.blocks, b); S.deck.blocks = b; afterChange(); }, newId,
       nextStyle: (b) => { const n = P.styleOf(S.deck, b.style).next; return n === undefined ? undefined : n === "body" ? null : n; },
       decorate: (el, b) => P.decorate(el, b, S.deck, ctx, P.markers(blocks())[b.id]),
       renderBlock: (b) => (b.type === "table" ? tableEl(b) : P.blockEl(S.deck, b, ctx)),
@@ -618,13 +766,13 @@
     flow = NexaPageFlow.create({
       host: $("#ed"), box: () => S.box, off: () => S.printing || document.body.classList.contains("printing"),
       saveSel: () => (document.activeElement === $("#ed") ? ed.selection() : null), restoreSel: (s) => ed.select(s.a, s.f),
-      onPages: (n) => { drawSheets(n); pageInfo(); },
+      onPages: (n, info) => { geo = info; drawSheets(n); pageInfo(); drawObjects(); },
     });
     window.addEventListener("beforeprint", () => { S.printing = true; flow.clear(); });
     window.addEventListener("afterprint", () => { S.printing = false; flow.schedule(); });
-    if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => flow.schedule());
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => flow.reflow());
     $("#ed").addEventListener("keydown", onKey, true);
-    bindTools(); decorateAll(); updTools();
+    bindTools(); bindObjects(); decorateAll(); updTools();
     $("#inImage").onchange = async (e) => { const f = e.target.files[0]; e.target.value = ""; await insertImage(f); };
     // 그림·쪽 나누기 고르기 - 누르면 고르고(Del·Backspace 로 지움), 그림은 오른쪽 클릭으로 크기·정렬
     $("#ed").addEventListener("mousedown", (e) => { const o = e.target.closest("#ed > .nt-obj"); S.pick = o && !o.classList.contains("pg-table") ? o.dataset.id : null; markPick(); });

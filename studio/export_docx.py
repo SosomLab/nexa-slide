@@ -25,7 +25,10 @@ TW = 1440 / 25.4      # mm → twip(1/20 pt)
 EMU = 36000           # mm → EMU
 NS = ('xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" '
       'xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" '
-      'xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"')
+      'xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture" xmlns:wps="http://schemas.microsoft.com/office/word/2010/wordprocessingShape"')
+PRST = {"rect": "rect", "round": "roundRect", "ellipse": "ellipse", "line": "line", "arrow": "line",
+        "bracket-l": "leftBracket", "bracket-r": "rightBracket", "brace-l": "leftBrace", "brace-r": "rightBrace"}  # 개체 모양 → Word 기본 도형
+DASH = {"dash": "dash", "dot": "sysDot"}
 XML = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n'
 DEFAULT_FONTS = {"body": "맑은 고딕", "title": "맑은 고딕", "heading": "맑은 고딕", "mono": "Consolas"}
 DEFAULT_COLORS = {"accent": "C8553D", "muted": "7A756D", "ink": "1F1F1F"}
@@ -50,6 +53,8 @@ class Ctx:
         self.media = {}                # 파일 이름 → bytes
         self.nums = []                 # numbering 인스턴스 [(numId, abstractId)]
         self.pic = 0
+        self.objs = {}                 # 문단 id → 그 문단에 매인 개체들
+        self.style_ids = set()
 
     def font(self, f):
         return self.fonts.get(f, f)
@@ -164,7 +169,39 @@ def _ppr(b, ctx, num=None, style_ids=None):
 
 
 def _para(b, ctx, num=None, style_ids=None):
-    return f"<w:p>{_ppr(b, ctx, num, style_ids)}{_runs(b.get('runs'), ctx)}</w:p>"
+    objs = "".join(_object(o, ctx) for o in ctx.objs.pop(b.get("id"), []))  # 이 문단에 매인 개체(도형·글 상자)는 문단 맨 앞의 떠 있는 그림으로
+    return f"<w:p>{_ppr(b, ctx, num, style_ids)}{objs}{_runs(b.get('runs'), ctx)}</w:p>"
+
+
+def _object(o, ctx):
+    """개체 → 떠 있는 도형(wp:anchor + wps:wsp). 자리 = 쪽의 왼쪽 위(rel page) 또는 매인 문단의 왼쪽 위(rel para)에서 잰 mm."""
+    ctx.pic += 1
+    shape = o.get("shape")
+    lined = shape in page_doc.OBJ_LINES
+    cx, cy = int(o["w"] * EMU), int(o["h"] * EMU)
+    para = o.get("rel") == "para"
+    fill = ctx.color(o.get("fill")) if not lined else None
+    ln = o.get("line", {}) if "line" in o else {}
+    if ln is None:
+        line = "<a:ln><a:noFill/></a:ln>"
+    else:
+        dash = f'<a:prstDash val="{DASH[ln["dash"]]}"/>' if ln.get("dash") in DASH else ""
+        tail = '<a:tailEnd type="triangle"/>' if shape == "arrow" else ""
+        line = f'<a:ln w="{int(float(ln.get("w", 1)) * 12700)}"><a:solidFill><a:srgbClr val="{ctx.color(ln.get("c")) or "333333"}"/></a:solidFill>{dash}{tail}</a:ln>'
+    text = ""
+    if o.get("blocks") and not lined:
+        text = f'<wps:txbx><w:txbxContent>{_blocks(o["blocks"], ctx, max(5, o["w"]), ctx.style_ids)}</w:txbxContent></wps:txbx>'
+    pad = int(float(o.get("pad", 1.5)) * EMU)
+    anchor = {"middle": "ctr", "bottom": "b"}.get(o.get("valign"), "t")
+    return (f'<w:r><w:drawing><wp:anchor distT="0" distB="0" distL="0" distR="0" simplePos="0" relativeHeight="{251658240 + ctx.pic}" behindDoc="{1 if o.get("z") == "behind" else 0}" locked="0" layoutInCell="1" allowOverlap="1">'
+            f'<wp:simplePos x="0" y="0"/><wp:positionH relativeFrom="{"column" if para else "page"}"><wp:posOffset>{int(o["x"] * EMU)}</wp:posOffset></wp:positionH>'
+            f'<wp:positionV relativeFrom="{"paragraph" if para else "page"}"><wp:posOffset>{int(o["y"] * EMU)}</wp:posOffset></wp:positionV>'
+            f'<wp:extent cx="{cx}" cy="{cy}"/><wp:effectExtent l="0" t="0" r="0" b="0"/><wp:wrapNone/><wp:docPr id="{ctx.pic}" name="Shape {ctx.pic}"/><wp:cNvGraphicFramePr/>'
+            f'<a:graphic><a:graphicData uri="http://schemas.microsoft.com/office/word/2010/wordprocessingShape"><wps:wsp>{"<wps:cNvCnPr/>" if lined else "<wps:cNvSpPr/>"}'
+            f'<wps:spPr><a:xfrm{" flipV=" + chr(34) + "1" + chr(34) if lined and o.get("flip") else ""}><a:off x="0" y="0"/><a:ext cx="{cx}" cy="{cy}"/></a:xfrm><a:prstGeom prst="{PRST[shape]}"><a:avLst/></a:prstGeom>'
+            f'{f"<a:solidFill><a:srgbClr val={chr(34)}{fill}{chr(34)}/></a:solidFill>" if fill else "<a:noFill/>"}{line}</wps:spPr>{text}'
+            f'<wps:bodyPr rot="0" vert="horz" wrap="square" lIns="{pad}" tIns="{pad}" rIns="{pad}" bIns="{pad}" anchor="{anchor}"><a:noAutofit/></wps:bodyPr>'
+            f'</wps:wsp></a:graphicData></a:graphic></wp:anchor></w:drawing></w:r>')
 
 
 def _image(b, ctx, width_mm):
@@ -367,7 +404,9 @@ def build(doc, fonts=None, colors=None, images=None):
     ctx = Ctx(fonts, colors, images)
     box = page_doc.page_box(doc)
     page = doc["page"]
-    style_ids = set(doc["styles"])
+    style_ids = ctx.style_ids = set(doc["styles"])
+    for o in doc.get("objects") or []:
+        ctx.objs.setdefault(o["anchor"], []).append(o)
     body = _blocks(doc["blocks"], ctx, box["cw"], style_ids)
     number = page.get("number") or {}
     parts, refs = {}, []

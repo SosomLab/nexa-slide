@@ -49,6 +49,12 @@ STEPS = [
     ("한글 조합 중에는 고치지 않고, 끝나면 다시 계산한다",
      "load([para('a', 3)]); host.dispatchEvent(new CompositionEvent('compositionstart', {bubbles: true})); DOC.blocks = [blk('a'), para('b', 60)]; LAST = null; FLOW.run(); const mid = LAST; "
      "host.dispatchEvent(new CompositionEvent('compositionend', {bubbles: true, data: ''})); await new Promise((r) => setTimeout(r, 120)); ED.refresh(); const L = run(); return mid === null && L.n >= 3 && audit().length === 0 " + D),
+    ("본문 너비가 바뀌면(쪽 설정) 빈 줄을 걷고 다시 잡는다 - 걸친 줄 없음 · 빈 줄은 줄 머리에만",
+     "load([para('f', 1), para('a', 60), table('t', 30)]); host.style.width = '560px'; const L = run(); const mid = [...document.querySelectorAll('.pg-gap')].filter((g) => { const p = g.previousSibling, n = g.nextSibling; if (!p || !n) return false; "
+     "const a = document.createRange(); a.selectNodeContents(p); const b = document.createRange(); b.selectNodeContents(n); const ra = [...a.getClientRects()].pop(), rb = b.getClientRects()[0]; return ra && rb && Math.abs(ra.top - rb.top) < 2; }).length; "
+     "host.style.width = ''; const L2 = run(); const ok = L.n >= 2 && audit().length === 0 && mid === 0; return ok " + D),
+    ("끼운 뒤 다시 재서 확인한다 - 처음 끼울 때 2번 재고, 그대로면 1번",
+     "const L = load([para('a', 60)]); const first = L.passes; const L2 = run(); return first === 2 && L2.passes === 1 && L2.changed === 0 || JSON.stringify([first, L2.passes, L2.changed])"),
     ("여러 쪽에 걸친 선택으로 지우기 - 모델·화면이 맞고 쪽이 준다",
      "load([para('a', 30), para('b', 30)]); sel('a', 10, 'b', txt('b').length - 5); bi('deleteContentBackward'); const L = run(); return DOC.blocks.length === 1 && el('a').textContent === txt('a') && L.n === 1 && gaps() === 0 " + D),
 ]

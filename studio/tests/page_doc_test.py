@@ -92,5 +92,23 @@ land = copy.deepcopy(BASE); land["page"]["orient"] = "landscape"
 check("쪽 상자 - 가로", (P.page_box(land)["w"], P.page_box(land)["cw"]) == (297, 257), P.page_box(land))
 check("runs 규칙 - nexa-text 와 같은 결과", P.norm_runs([{"t": "가", "b": False}, {"t": ""}, {"t": "나"}, {"t": "다", "b": 1}, {"t": "라", "b": True, "i": None}]) == [{"t": "가나"}, {"t": "다라", "b": True}])
 
+# 개체(도형·글 상자) - 본문 문단에 매인다
+OB = copy.deepcopy(BASE)
+OB["blocks"] = [{"id": "p1", "type": "p", "runs": [{"t": "가"}]}, {"id": "t1", "type": "table", "cols": [100], "rows": [{"id": "r1", "cells": [{"id": "c1", "blocks": [{"id": "cp", "type": "p", "runs": []}]}]}]}]
+O = lambda **kw: {"id": "o1", "type": "shape", "shape": "rect", "anchor": "p1", "x": 10, "y": 20, "w": 30, "h": 10, **kw}  # noqa: E731
+def ob(*objs):  # noqa: E302
+    d = copy.deepcopy(OB); d["objects"] = list(objs); return d  # noqa: E702
+check("개체 - 기본 도형 통과", P.validate(ob(O())) is None, P.validate(ob(O())))
+check("개체 - 안의 글(문단) · 선·채움·뒤로 통과", P.validate(ob(O(fill="#eee", line={"c": "accent", "w": 2, "dash": "dot"}, z="behind", rel="para", valign="bottom", pad=2, blocks=[{"id": "ot", "type": "p", "runs": [{"t": "글"}]}]))) is None)
+for name, o, word in [("모르는 모양", O(shape="star"), "shape"), ("없는 문단에 매임", O(anchor="nope"), "anchor"), ("칸 안 문단에는 못 맴", O(anchor="cp"), "anchor"), ("표에는 못 맴", O(anchor="t1"), "anchor"),
+                      ("크기 없음", O(w=0, h=0), "w·h"), ("자리 글자", O(x="10"), "x·y"), ("선 굵기 범위", O(line={"w": 99}), "line"), ("선에 글", O(shape="line", blocks=[]), "선에는"),
+                      ("모르는 종류", O(type="image"), "개체 종류"), ("rel", O(rel="sheet"), "rel")]:
+    e = P.validate(ob(o))
+    check(f"개체 거절 - {name}", isinstance(e, str) and word in e, e)
+check("개체 - id 는 블록과 겹치면 안 된다", "중복" in str(P.validate(ob(O(id="p1")))), P.validate(ob(O(id="p1"))))
+nz = P.normalize(ob(O(anchor="gone"), {"type": "shape", "shape": "line", "anchor": "p1", "x": 0, "y": 0, "w": 10, "h": 0}))
+check("개체 정규화 - 매인 문단이 없어지면 첫 문단에 · 빠진 id 채움", nz["objects"][0]["anchor"] == "p1" and isinstance(nz["objects"][1].get("id"), str) and P.validate(nz) is None, nz["objects"])
+check("개체 - walk 가 개체와 그 안의 블록을 돈다", [p for p, _ in P.walk(ob(O(blocks=[{"id": "ot", "type": "p", "runs": []}])))][-2:] == [("objects", "o1"), ("objects", "o1", "ot")])
+
 print(f"\n실패 {len(fails)}" if fails else f"\n전부 통과 ({n}사례)")
 sys.exit(1 if fails else 0)
