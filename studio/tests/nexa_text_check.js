@@ -67,6 +67,23 @@ for (let k = 0; k < 400; k++) {
   else runs = T.setMark(runs, a, b, "c", [null, "red", "accent"][rnd(3)]);
   if (T.text(runs) !== model || J(T.normalize(runs)) !== J(runs)) { fails++; console.log(`FAIL 성질 시험 ${k}걸음: 글 또는 정규화가 어긋남`); break; }
 }
+// 슬라이드 글 표기 ↔ runs (PG-108) - 파서는 render.js 의 runs
+const RJ = require("../render.js"), RR = (globalThis.Render || RJ);
+const P2 = (m) => T.fromPairs(RR.runs(m));
+eq("표기 → runs - 굵게·색·겹침·링크·형광·첨자", P2("가 **굵게** [[s1|**색 굵게**]] __밑__ ~~취~~ x^{2} H_{2}O [[link:#3|이동]] [[bg:warn|형광]] ==강조=="),
+   [{ t: "가 " }, { t: "굵게", b: true }, { t: " " }, { t: "색 굵게", b: true, c: "s1" }, { t: " " }, { t: "밑", u: true }, { t: " " }, { t: "취", s: true }, { t: " x" }, { t: "2", sup: true }, { t: " H" }, { t: "2", sub: true },
+    { t: "O " }, { t: "이동", link: "#3" }, { t: " " }, { t: "형광", hl: "warn" }, { t: " " }, { t: "강조", b: true, c: "primary" }]);
+for (const m of ["보통 글", "**굵게** 뒤", "==강조==", "[[s1|색]] 글", "__밑줄__", "앞 *기울임* 뒤", "~~취소~~", "x^{2}", "H_{2}O", "[[link:https://a.b/c|링크]]", "[[bg:warn|형광]]", "**[[s1|굵은 색]]**", "**[[s1|*굵은 기울임 색*]]**", "{page} 쪽", ""]) {
+  eq("표기 → runs → 표기 그대로: " + m, T.toMarkup(P2(m)), m);
+}
+for (const [name, runs] of [["굵게 + 밑줄 + 형광", [{ t: "가", b: true, u: true, hl: "#fff59d" }]], ["취소선 + 기울임(색 안)", [{ t: "앞 " }, { t: "가", s: true, i: true, c: "s1" }]]]) {
+  eq("runs → 표기 → runs 그대로: " + name, P2(T.toMarkup(runs)), T.markupRuns(runs));
+}
+eq("표기로 못 적는 조합은 달라진다(굵게와 기울임만 겹침) - 부르는 쪽이 알아낸다", J(P2(T.toMarkup([{ t: "가", b: true, i: true }]))) !== J([{ t: "가", b: true, i: true }]), true);
+eq("대괄호 꼴은 하나만(링크 > 색 > 형광) - 깨진 글을 만들지 않고, 빠진 서식은 견줘서 알 수 있다", [T.toMarkup([{ t: "가", link: "#2", c: "s2", hl: "warn" }]), T.toMarkup([{ t: "가", c: "s2", hl: "warn" }]), J(P2(T.toMarkup([{ t: "가", link: "#2", c: "s2" }]))) !== J([{ t: "가", c: "s2", link: "#2" }])],
+   ["[[link:#2|가]]", "[[s2|가]]", true]);
+eq("표기에 없는 서식은 뺀다(글꼴·크기·윗주·각주 · 밑줄 종류)", T.markupRuns([{ t: "가", font: "mono", size: 12, ruby: "x", fn: "y", u: "double", b: true }]), [{ t: "가", b: true, u: true }]);
+eq("줄바꿈에서 줄을 나눈다(서식 유지 · 빈 줄)", T.splitLines([{ t: "가\n나", b: true }, { t: "다\n\n라" }]), [[{ t: "가", b: true }], [{ t: "나", b: true }, { t: "다" }], [], [{ t: "라" }]]);
 n++;
 console.log(fails ? `\n실패 ${fails}` : `\n전부 통과 (${n}사례)`);
 process.exit(fails ? 1 : 0);

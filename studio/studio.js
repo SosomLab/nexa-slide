@@ -2173,6 +2173,35 @@ ${names}
     });
     ed.addEventListener("blur", () => endEdit(true));
   }
+  /** 글 요소 편집을 공용 글 편집 엔진(nexa-text - 페이지 편집기와 같은 것)으로: 표기(**굵게** 등)를 보이는 서식으로 고치고 Ctrl+B·I·U 가 듣는다.
+   *  덱에는 전과 같은 표기 글로 적는다 - 손대지 않은 줄은 원래 표기 그대로(다시 적으며 표기가 달라져 헛저장이 나지 않게) (PG-108) */
+  function richEdit(ed, raw) {
+    const T = NexaText; let seq = 0;
+    const lines = String(raw).split("\n"), blank = () => ({ id: "l" + (++seq), type: "p", runs: [] });
+    const st = { undo: [], redo: [], blocks: lines.map((ln) => ({ id: "l" + (++seq), type: "p", runs: T.fromPairs(Render.runs(ln)) })) };
+    const orig = new Map(st.blocks.map((b, k) => [b.id, { line: lines[k], key: JSON.stringify(b.runs) }]));
+    ed.textContent = "";
+    st.ed = T.mount(ed, {
+      get: () => st.blocks, newId: () => "l" + (++seq), color: (c) => Render.color(c),
+      set: (bs) => { st.undo.push(st.blocks); st.redo = []; st.blocks = bs.length ? bs : [blank()]; setTimeout(() => ed.dispatchEvent(new Event("nt-change")), 0); },
+      undo: () => { if (st.undo.length) { st.redo.push(st.blocks); st.blocks = st.undo.pop(); st.ed.refresh(); } },
+      redo: () => { if (st.redo.length) { st.undo.push(st.blocks); st.blocks = st.redo.pop(); st.ed.refresh(); } },
+    });
+    /** 지금 글 → {text: 표기 글, lossy: 표기로 못 적어 빠진 서식이 있다} */
+    st.text = () => {
+      // 편집 상자의 DOM 이 모델과 어긋났으면(밖에서 글을 통째로 넣은 경우) 보이는 글을 그대로 쓴다 - 전의 방식
+      if ([...ed.children].map((c) => (c.dataset && c.dataset.id) || "").join() !== st.blocks.map((b) => b.id).join()) return { text: ed.innerText.replace(/\r/g, "").replace(/\n$/, ""), lossy: false };
+      const out = []; let lossy = false;
+      for (const b of st.blocks) {
+        const o = orig.get(b.id);
+        if (o && o.key === JSON.stringify(b.runs)) { out.push(o.line); continue; }
+        for (const part of T.splitLines(b.runs)) { const clean = T.markupRuns(part), m = T.toMarkup(clean); if (JSON.stringify(T.fromPairs(Render.runs(m))) !== JSON.stringify(clean)) lossy = true; out.push(m); }
+      }
+      if (out.length > 1 && out[out.length - 1] === "") out.pop();
+      return { text: out.join("\n"), lossy };
+    };
+    return st;
+  }
   function startEdit(el) {
     if (!el || el.locked || S.mode !== "edit") return;
     if (isTbl(el) && S.cell && S.cell.id === el.id && S.cell.anchor) return startCellEdit(el, S.cell.anchor);
@@ -2193,22 +2222,26 @@ ${names}
     if (TEXTY.has(el.type) && (el.wrap === undefined ? el.type === "text" || el.type === "rect" : el.wrap)) {  // 입력 중 넘침 예상(상자 높이 대비) - 차단하지 않고 알려만 준다
       const ov = document.createElement("div"); ov.className = "ovwarn"; ov.style.left = b.x + "px"; ov.style.top = (b.y + Math.max(24, b.h)) + "px"; $("#stage").appendChild(ov);
       const chk = () => { const over = ed.scrollHeight - 4 - Math.max(24, b.h); ov.textContent = over > 2 ? `넘침 예상 +${Math.round(over)}px - 상자를 늘리거나 글을 줄이세요` : ""; ov.style.display = over > 2 ? "" : "none"; };
-      ed.addEventListener("input", chk); chk();
+      ed.addEventListener("input", chk); ed.addEventListener("nt-change", chk); chk();
     }
-    S.editing = { el, ed, before: deckJson() };
+    const rich = window.NexaText && TEXTY.has(el.type) ? richEdit(ed, raw) : null;  // 글·도형의 글은 보이는 서식으로 고친다(코드·글머리·표 전체는 전처럼 원문)
+    S.editing = { el, ed, before: deckJson(), rich };
     drawSel(); renderFtb(); ed.focus();
     const rg = document.createRange(); rg.selectNodeContents(ed); const sel = getSelection(); sel.removeAllRanges(); sel.addRange(rg);
     ed.addEventListener("keydown", (e) => {
       e.stopPropagation();
       if (e.key === "Escape" || (e.key === "Enter" && (e.ctrlKey || e.metaKey))) { e.preventDefault(); endEdit(true); }
-      else if (e.key === "Enter" && ed.contentEditable === "true") { e.preventDefault(); document.execCommand("insertText", false, "\n"); }
+      else if (e.key === "Enter" && ed.contentEditable === "true" && !rich) { e.preventDefault(); document.execCommand("insertText", false, "\n"); }
     });
     ed.addEventListener("blur", () => endEdit(true));
   }
   function endEdit(commit) {
     const E = S.editing; if (!E) return;
     S.editing = null; $$("#stage .ovwarn").forEach((x) => x.remove());
-    const t = E.ed.innerText.replace(/\r/g, "").replace(/\n$/, "");
+    const R0 = E.rich && !E.cell ? E.rich.text() : null;
+    if (E.rich) E.rich.ed.destroy();
+    const t = R0 ? R0.text : E.ed.innerText.replace(/\r/g, "").replace(/\n$/, "");
+    if (R0 && R0.lossy && commit) toast("일부 서식은 슬라이드 글에서 적을 수 없어 빠졌습니다(굵게와 기울임만 겹친 글 · 낱말 가운데의 기울임 등)", 5000);
     E.ed.remove();
     const el = E.el;
     if (commit && E.cell) {  // 셀 하나
