@@ -5,12 +5,13 @@
 | 구성 | 필수 여부 | 쓰는 곳 |
 |---|---|---|
 | Python 3.10 이상 | 필수 | 서버·빌드·내보내기 전부 |
-| `python-pptx` | 필수 | PPTX 내보내기 |
+| `python-pptx` | 필수 | PPTX 내보내기 · 시트 XLSX 내보내기(함께 깔리는 `xlsxwriter`). 페이지 DOCX 내보내기·가져오기는 추가 설치 없음 |
 | `Pillow` | 권장 | 글자 폭 정밀 측정(칩·코드 폭 자동 맞춤), `compare.py` |
 | `pymupdf` | 선택 | PDF 첨부 내용 추출(`import_doc` - 글·표·그림). Word·Excel 추출은 추가 설치 없음 |
 | Node.js 18 이상 | 선택 | `check_parity.py`(render.js 를 Node 로 실행), `render_mermaid.py`(npx mermaid-cli) |
-| Chrome 또는 Edge | 선택 | `compare.py` 헤드리스 캡처 |
+| Chrome 또는 Edge | 선택 | `compare.py` 헤드리스 캡처 · PDF 내보내기(PowerPoint·Word 가 없을 때) |
 | PowerPoint + PowerShell (Windows) | 선택 | 편집기 "PPT 렌더 미리보기", `render_pptx.ps1` |
+| Word + PowerShell (Windows) | 선택 | 페이지 문서 PDF 를 Word 로 변환(`render_docx.ps1`) - 없으면 Chrome/Edge 로 인쇄([pages.md](pages.md)) |
 | Claude Code 또는 Codex CLI | 선택 | 편집기 요청을 AI 가 처리 — [claude-install.md](claude-install.md) · [openai-codex.md](openai-codex.md) |
 
 macOS·Linux 에서도 서버·편집기·빌드·PPTX 내보내기는 된다. PowerPoint 렌더 미리보기와 `compare.py` 의 PowerPoint 쪽 비교만 Windows 전용이다.

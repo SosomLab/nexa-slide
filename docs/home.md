@@ -99,7 +99,7 @@ python3 <작업 공간>/nexa.py start      # 작업 공간 서버 → 덱이 있
 
 | 탭 | 내용 |
 |---|---|
-| 시작 | **새 슬라이드 만들기**(① 제목·템플릿·시작용 내용 ② 목적·대상·작성 방향·참고 자료 ③ 저장 위치), **폴더·저장소 열기**, **서버 작업**(nexa-slide 엔진 개발 — 엔진 요청 큐·개발 세션, 아래), **최근 작업**(실행 상태·포트 · 서버 시작/중지 · 세션) |
+| 시작 | **새 슬라이드 만들기**(첫 문서 종류 **슬라이드 · 시트(엑셀) · 페이지(워드)** 를 고른다 - 아래 [문서 종류](#문서-종류--슬라이드시트페이지) · ① 제목·템플릿·시작용 내용 ② 목적·대상·작성 방향·참고 자료 ③ 저장 위치. 머리의 **＋ 새 시트** 는 시트를 고른 채로 연다), **폴더·저장소 열기**, **서버 작업**(nexa-slide 엔진 개발 — 엔진 요청 큐·개발 세션, 아래), **최근 작업**(실행 상태·포트 · 서버 시작/중지 · 세션) |
 | 튜토리얼 | 작업 공간 정하기 → 템플릿·방향 → Studio 편집 → Claude 세션 요청 → 발표·내보내기 → 최근 추가된 기능(요청 기록 창·덱 복제·그림 효과·정리·보관·표시 언어·PowerPoint 기능 보강 0.22.11~13) |
 | 데모 | 엔진 예제(`example/`)를 기준 폴더의 `nexa-slide-demo/` 로 처음 한 번 복사해 연다 |
 | 템플릿 | 맨 앞 **＋ 회사 템플릿 만들기**(마법사, 아래), 엔진 `studio/templates/` 목록(색 견본·설명·디자인 기준), 작업 공간 서버면 그 작업 공간의 회사 템플릿(`작업 공간` 배지), 시작용 내용(`starters/`, 있을 때), **시트 테마**(엔진·최근 작업 공간의 회사 테마 - [이 테마로 새 시트]). 카드마다 **미리 보기**(시트 테마는 시트 화면 그대로, [sheets.md](sheets.md) 5절) |
@@ -164,6 +164,19 @@ python3 <작업 공간>/nexa.py start      # 작업 공간 서버 → 덱이 있
 새 슬라이드 양식 ①의 **"또는 PPT 파일로 시작"** 에서 .pptx 를 고르면 시작용 내용 대신 그 파일이 첫 덱이 된다(시트의 "엑셀 파일로 시작"과 같은 흐름).
 - 파일은 `POST /api/project {action: attach}` 로 올려 두고, 만들 때 `deckFrom: {name, orig}` → `init_workspace.py --pptx-import <파일>` → `import_pptx.py --deck <첫 덱>`(글·글머리·표·그림·차트·도형). 원본은 작업 공간 `materials/` 에 남는다.
 - 덱 제목은 작업 공간 제목, 색·글꼴은 고른 템플릿 기본값. `content/<덱>.json`(빈 시작 원본)은 만들지 않는다. .ppt 는 PowerPoint 에서 .pptx 로 저장해 고른다.
+
+### 문서 종류 — 슬라이드·시트·페이지
+
+새로 만들기 양식 맨 위의 종류 단추로 작업 공간의 **첫 문서**를 고른다. 양식 제목이 "새 슬라이드 만들기" · "새 시트 만들기" · "새 페이지 만들기" 로 바뀐다.
+
+| 종류 | 고르는 것 | 만들 때(`init_workspace.py`) |
+|---|---|---|
+| 슬라이드(기본) | 템플릿 · 시작용 내용 · PPT 파일로 시작(위) | `--template` · `--starter` · `--pptx-import` |
+| 시트(엑셀) | 슬라이드 템플릿·시작용 내용 대신 **시트 테마**, 또는 "엑셀 파일로 시작"(.xlsx·.xlsm) — [sheets.md](sheets.md) 5절 | `--kind sheet` · `--sheet-theme` · `--sheet-import`(첫 문서 id 기본 `sheet`) |
+| 페이지(워드) | 슬라이드 템플릿·시작용 내용 대신 **페이지 템플릿** 칩(`/api/home` 의 `pageTemplates`, 맨 앞이 기본) — [pages.md](pages.md) | `--kind page` · `--page-template <이름>`(첫 문서 id 기본 `doc`) |
+
+- 페이지 단추와 템플릿 칩은 허브에서 페이지 문서가 켜져 있을 때만 보인다(`/api/home` 의 `experimental` 에 `page`). 기본이 켬이고, 허브를 `NEXA_SLIDE_EXPERIMENTAL=-page` 로 띄우면 숨고 `kind: page` 로 만들기를 거절한다([configuration.md](configuration.md#nexa-slidejson) `experimental`).
+- 시트·페이지는 시작용 내용(`--starter`)과 함께 쓸 수 없다(`init_workspace.py` 가 거절).
 
 ### 새로 만들 때 하는 일
 
@@ -247,8 +260,8 @@ Esc·바깥·닫기 단추로 닫는다. 주소에 `?menu=open` 을 붙이면 �
 
 | 메서드 · 경로 | 설명 |
 |---|---|
-| `GET /api/home` | `{mode, documents, projectsRoot, projectsRootDefault, current, refused, recent, templates, starters, samples, demo, user, proxy, sessionGlobal}`. `recent[].session` = `{kind: web\|manual\|none, connected, label, agent, model, user, started, lastSeen, open, working, last, defaults}`(파일만 읽음) |
-| `POST /api/project` | `{"action": "create", title, template, starter?, folder?, sub?, port?, purpose, audience, direction, materials, askDraft}` · `{"action": "plan", …create 와 같음}` → `{path, port, url, args, commands: {powershell, bash: {init, start}}, warnings}` · `{"action": "open", path}` · `{"action": "demo"}` · `{"action": "forget", path}` → `{ok, path, url, direct, id, hubUrl}` (`url` = `hubProxy` 가 켜져 있으면 `/w/<이름>/`, 아니면 `direct`). 실패하면 400 `{error, needInit?, existing?, log?}` |
+| `GET /api/home` | `{mode, documents, projectsRoot, projectsRootDefault, projectsRootFromEnv, engine, current, refused, recent, templates, starters, sheetThemes, experimental, pageTemplates, samples, demo, user, proxy, sessionGlobal}`. `experimental` = 허브에서 켜진 기능 이름 목록(지금은 `page` 뿐), `pageTemplates` = 페이지 템플릿 목록(꺼져 있으면 `[]`), `sheetThemes` = 시트 테마(엔진·최근 작업 공간). `recent[].session` = `{kind: web\|manual\|none, connected, label, agent, model, user, started, lastSeen, open, working, last, defaults}`(파일만 읽음) |
+| `POST /api/project` | `{"action": "create", title, template, starter?, kind?: deck\|sheet\|page, pageTemplate?, sheetTheme?: {name, from?}, sheetFrom?: {name, orig}, deckFrom?: {name, orig}, attachments?, wizard?, folder?, sub?, port?, purpose, audience, direction, materials, askDraft}`(`kind: page` 는 페이지 문서가 꺼져 있으면 거절) · `{"action": "plan", …create 와 같음}` → `{path, port, url, args, commands: {powershell, bash: {init, start}}, warnings}` · `{"action": "open", path}` · `{"action": "demo"}` · `{"action": "forget", path}` → `{ok, path, url, direct, id, hubUrl}` (`url` = `hubProxy` 가 켜져 있으면 `/w/<이름>/`, 아니면 `direct`). 실패하면 400 `{error, needInit?, existing?, log?}` |
 | `/w/<이름>/…` | 중계 — 그 작업 공간 서버의 `/…` 로 넘긴다(위 "한 주소로 중계"). 모르는 이름은 404, 서버를 띄우지 못하면 502 |
 | `/api/auth/…` · `/login` · `/setup` · `/account` | 로그인·계정 — [auth.md](auth.md). 위의 모든 API 는 로그인 뒤에 있다(미인증 401) |
 | `GET /api/preview?template=&starter=` | 미리 보기 - 템플릿 × 시작용 내용(없으면 레이아웃 견본)을 사용자 설정 폴더의 임시 작업 공간에 빌드 → `{template, starter, tokens, base, decks}`. 작업 공간 서버에서는 그 작업 공간의 회사 템플릿도 |

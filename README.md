@@ -1,7 +1,8 @@
 # nexa-slide
 
-**웹 편집기에서 고치고, PowerPoint 기본 도형으로 된 _편집 가능한_ PPTX 를 만드는 슬라이드 엔진.**
-덱 JSON 하나가 원본이고, 브라우저 렌더(`render.js`)와 PPTX 변환(`export_pptx.py`)이 같은 규칙으로 각각 그린다.
+**웹 편집기에서 고치고, Office 에서 계속 고칠 수 있는 파일을 만드는 문서 엔진 — 슬라이드(PPTX) · 시트(XLSX) · 페이지(DOCX·PDF).**
+문서 JSON 하나가 원본이다. 슬라이드는 브라우저 렌더(`render.js`)와 PPTX 변환(`export_pptx.py`)이 같은 규칙으로 각각 그리고,
+시트(`"kind": "sheet"`, [docs/sheets.md](docs/sheets.md))는 엑셀처럼 셀을 채워 `.xlsx` 로, 페이지(`"kind": "page"`, [docs/pages.md](docs/pages.md))는 Word 같은 글 문서를 `.docx`·PDF 로 내보낸다.
 Claude Code 세션과 연결하면 편집기에 남긴 요청 메모가 세션에 바로 전달되어 처리된다.
 
 - 서버는 Python 표준 라이브러리만 쓴다(외부 웹 프레임워크·CDN·npm 없음). PPTX 생성에 `python-pptx`.
@@ -24,6 +25,9 @@ python3 studio/service.py start      # 시작 페이지 → http://127.0.0.1:559
 python3 studio/init_workspace.py ../my-talk --title "신제품 소개"
 # 강의 교안이면 시작용 교안으로 → docs/lecture-starter.md
 python3 studio/init_workspace.py ../my-course --title "과정 이름" --starter lecture-course
+# 첫 문서를 시트로(docs/sheets.md) · 페이지로(docs/pages.md, --page-template 는 studio/page_templates.py 의 이름 - 없으면 빈 문서)
+python3 studio/init_workspace.py ../my-budget --title "예산" --kind sheet
+python3 studio/init_workspace.py ../my-report --title "주간 보고" --kind page --page-template report
 python3 ../my-talk/slides/nexa.py start   # 덱이 있으면 바로 Studio
 ```
 
@@ -113,7 +117,7 @@ D:\Projects\
 ```
 nexa-slide/
 ├─ studio/                 엔진 — 이 폴더만 있으면 어디서든 동작(작업 공간은 --workspace 로 지정)
-│   ├─ server.py           로컬 서버(정적 파일 + API + /w/<이름>/ 중계) ├─ index.html · studio.js   편집기
+│   ├─ server.py           로컬 서버(정적 파일 + API + /w/<이름>/ 중계) ├─ index.html · studio.js   슬라이드 편집기
 │   ├─ hub.py · paths.py   시작 페이지 동작 · 기준 폴더·사용자 설정 ├─ home.html · menu.js     시작 페이지 · 기본 메뉴(i18n.js 표시 언어 · lightbox.js 첨부 미리보기)
 │   ├─ common.py           작업 공간·설정 해석, 공용 규칙      ├─ render.js                요소 → HTML 렌더러
 │   ├─ layouts.py          레이아웃 빌더 21종                  ├─ slide.html               검증용 1:1 슬라이드
@@ -129,6 +133,10 @@ nexa-slide/
 │   ├─ ledger.py · deckdiff.py   변경 원장(decks/.history/<덱>/changes.jsonl) · 덱 비교(장·요소 diff) — docs/change-ledger.md
 │   ├─ save_deck.py · check_changes.py   Claude 세션용 저장(원장에 Claude 로) · 비교 규칙 golden 검사
 │   ├─ templates/          디자인 템플릿 17종 — lecture(기본) · lecture-large · 목적별 4(brief·notice·schedule·proposal) · 검토로 들인 시각 템플릿 11(keynote·archive·blueprint·swiss·editorial·ledger·signal·forest·graphite·casebook·electric). tokens.json · template.json · design/
+│   ├─ sheet.html · sheet.js · export_xlsx.py · sheet_import.py · sheet_theme.py · sheet_themes/   시트 화면 · XLSX 내보내기 · 엑셀 가져오기 · 시트 테마 — docs/sheets.md
+│   ├─ page.html · page.js · page-render.js · page_doc.py · page_templates.py   페이지 화면 · 그리기 · 형식 검사 · 페이지 템플릿 11종 — docs/pages.md
+│   ├─ export_docx.py · import_docx.py · render_docx.ps1   페이지 → DOCX · Word 문서 → 페이지 · Word 로 PDF(Windows)
+│   ├─ deckmerge.py        동시 편집 3-way 병합(장·요소 · 탭·셀 · 블록 단위) — docs/collab.md
 │   └─ set_fonts.py · gen_tokens_css.py · render_mermaid.py
 ├─ example/                예제(데모 원본) - 서버는 엔진 안에서 열지 않고 시작 페이지 "데모"가 기준 폴더로 복사해 연다
 ├─ starters/               시작용 내용 — 템플릿 유형 15종(정기 보고·결정 요청·IR·전략·리서치·피치·제안·사례·캠페인·컨설팅·강의·교육·수업·정책·강연, 기본 구성) + 직접 쓴 예시 6종(강의 교안·일정·회고·공지·RFP 발주/응답) (init_workspace.py --starter)
@@ -172,5 +180,8 @@ nexa-slide/
 | [docs/fonts.md](docs/fonts.md) | 글꼴 — 기본 세트(엔진)와 작업 공간 전용 글꼴(`fonts/` · `fontPresets`), 편집기 글꼴 창, `install_fonts` |
 | [docs/slide-types.md](docs/slide-types.md) | 슬라이드 유형 54개 — 목적·구성 기준, 고를 신호, 초안·요청 처리의 장 선별 기준, 편집기 "유형으로 추가" |
 | [docs/deck-format.md](docs/deck-format.md) | 덱 JSON·요소 모델, content 형식, 레이아웃, 인라인 강조, 각주 규칙 |
-| [docs/editor.md](docs/editor.md) | 편집기 조작, 화면↔PPT 일치 규칙, 알려진 한계 |
+| [docs/editor.md](docs/editor.md) | 슬라이드 편집기 조작, 화면↔PPT 일치 규칙, 알려진 한계 |
+| **[docs/sheets.md](docs/sheets.md)** | **시트 문서(`kind: sheet`) — 형식, 요청, API, 시트 테마, 시트 → 슬라이드 연결, XLSX 내보내기** |
+| **[docs/pages.md](docs/pages.md)** | **페이지 문서(`kind: page`) — 기본 켬·끄는 법, 만들기·템플릿, 편집·표, DOCX·PDF 내보내기, Word 가져오기, 동시 편집** |
+| [docs/collab.md](docs/collab.md) | 동시 편집 — 3-way 병합(`PUT ?merge=1`)·실시간 갱신·함께 보는 사람·AI 제안 부분 수락, 단계별 결과 |
 | [docs/research/](docs/research/genspark-ai-slides.md) | 참고 조사 — Genspark AI Slides 실측(진행 과정·저장 구조·편집 화면·레이아웃 검사 원문) |

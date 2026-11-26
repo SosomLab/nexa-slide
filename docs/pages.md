@@ -88,7 +88,7 @@ CLI 는 `deck_admin create --kind page` · 첫 문서 `init_workspace --kind pag
 | 내보내기 → PDF(화면 그대로) | 브라우저(Chrome) 인쇄 엔진으로 만든 PDF(`?via=chrome`) |
 | 인쇄 | 브라우저 인쇄(도구 막대 · 쪽 경계선은 빠진다) |
 
-API: `POST /api/export/<id>`(DOCX) · `?pdf=1`(Word, 없으면 501 `needPrint`) · `?pdf=1&via=chrome`.
+API: `POST /api/export/<id>`(DOCX) · `?pdf=1`(Word 우선, Word 가 없거나 실패하면 서버의 Chrome/Edge 인쇄 - 둘 다 안 되면 501 `needPrint`) · `?pdf=1&via=chrome`(Chrome 만).
 
 ## 7. 동시 편집
 
@@ -101,7 +101,8 @@ API: `POST /api/export/<id>`(DOCX) · `?pdf=1`(Word, 없으면 501 `needPrint`) 
 
 ## 8. AI 요청
 
-편집기의 요청은 슬라이드와 같다(`working` → 덱 수정 → `done` + `reply`, [claude-session.md](claude-session.md)). 요청의 `slide` 는 블록 id 이거나 비어 있다.
+요청 처리 규약은 슬라이드와 같다(`working` → 덱 수정 → `done` + `reply`, [claude-session.md](claude-session.md)). 요청의 `slide` 는 블록 id 이거나 비어 있다.
+다만 지금 페이지 편집 화면(`page.html`)에는 요청을 적는 입력이 아직 없다.
 세션이 알아야 할 형식(요약 - 원문은 `studio/agents/turn_prompt.md` 의 페이지 문단):
 
 - 문단 `{"id", "type": "p", "runs": [{"t": "글", "b", "i", "u", "c": "accent", "hl": "#fff59d", "size": 12, "link"}], "style": "h1", "align": "center"}`

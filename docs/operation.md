@@ -9,6 +9,9 @@ python3 studio/build_deck.py   -W <ws> ch00            # content/ch00.json → d
 python3 studio/build_deck.py   -W <ws> ch00 --force    # 덮어쓰기(기존 덱은 .history 백업)
 python3 studio/build_deck.py   -W <ws> book [--chapters ch00 ch18]   # 통합본
 python3 studio/export_pptx.py  -W <ws> ch00            # → out/ch00.pptx
+python3 studio/export_xlsx.py  -W <ws> <시트>          # 시트 문서(kind sheet) → out/<시트>.xlsx(매크로가 있으면 .xlsm, --no-macros 로 빼기) - docs/sheets.md
+python3 <ws>/nexa.py export_docx <페이지>             # 페이지 문서(kind page) → out/<페이지>.docx - docs/pages.md (이 도구는 -W 를 받지 않는다 - 실행기 또는 NEXA_SLIDE_WORKSPACE)
+python3 <ws>/nexa.py import_docx <파일.docx> [--id <id>] [--title <제목>]   # Word 문서 → decks/<id>.json 페이지 문서(-W 를 받지 않는다)
 python3 studio/render_mermaid.py -W <ws> ch18 [--all]  # content 의 mermaid → PNG (바뀐 것만)
 pwsh -File studio/render_pptx.ps1 -Pptx <ws>/out/ch00.pptx -OutDir <ws>/out/ch00   # PowerPoint 렌더 PNG
 python3 studio/compare.py      -W <ws> ch00 [--slides 1,5] [--port 5600]   # 브라우저 vs PowerPoint 픽셀 비교
