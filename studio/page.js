@@ -421,7 +421,7 @@
    *  인쇄에서는 쪽이 종이 장으로 나뉘어 화면의 자리(종이 기준 px)를 쓸 수 없다 - 문단 기준 자리로 바꿔 그 문단을 따라 찍히게 한다 */
   function enterPrint() {
     if (S.printing || !flow) return;
-    $("#paper").style.zoom = 1; flow.rerun();
+    $("#paper").style.zoom = 1; if (!(window.matchMedia && window.matchMedia("print").matches)) flow.rerun();  /* 이미 인쇄 배치면(종이 너비가 다르다) 다시 재지 않는다 */
     if (geo) for (const o of objs()) {
       const el = objEls.get(o.id), a = blockElOf(o.anchor); if (!el || !a) continue;
       const pos = elPos(a), inPage = pos.y - pos.page * (geo.H + geo.G), box = S.box;
