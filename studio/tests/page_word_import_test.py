@@ -101,7 +101,8 @@ def main():
     wtxt = " | ".join(warns)
     box = [text(b.get("runs")) for b in paras if "글 상자 글" in text(b.get("runs"))]
     row("글 상자의 글 - 문단으로 옮겨짐(한 번만)", "1개", len(box), len(box) == 1, xml_around(dx, "상자 글", 300))
-    row("경고 - 각주", "경고에 각주", wtxt[:200], "각주" in wtxt)
+    fns = [r.get("fn") for b in paras for r in (b.get("runs") or []) if r.get("fn")]  # 12196f5 부터 각주는 경고가 아니라 글 조각 fn 으로 들어온다
+    row("각주 - 글 조각 fn '각주 글' 1개(경고 아님)", "fn 1개", fns, len(fns) == 1 and "각주 글" in fns[0] and not re.search("각주", wtxt), xml_around(dx, "footnoteReference", 300))
     row("경고 - 글 상자·떠 있는 개체", "경고에 글 상자/떠 있는", wtxt[:200], bool(re.search("글 상자|떠 있는|도형|개체", wtxt)))
     row("문단 글 보존(각주 붙는 문단·둘째 쪽)", "둘 다", [text(b.get("runs")) for b in paras if "각주" in text(b.get("runs")) or "둘째 쪽" in text(b.get("runs"))],
         any("각주가 붙는 문단" in text(b.get("runs")) for b in paras) and any("둘째 쪽 문단" == text(b.get("runs")) for b in paras))
