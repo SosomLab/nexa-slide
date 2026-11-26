@@ -496,12 +496,12 @@ def save_images(doc, images, asset_root, prefix):
 
 def main():
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    from common import ASSET_ROOT, DECKS, safe_id  # -W <작업 공간> 을 읽고 인자에서 뺀다 - 인자를 읽기 전에
     ap = argparse.ArgumentParser(description="Word .docx → 페이지 문서")
     ap.add_argument("docx")
     ap.add_argument("--id")
     ap.add_argument("--title")
     a = ap.parse_args()
-    from common import ASSET_ROOT, DECKS, safe_id
     import deck_admin
     src = Path(a.docx)
     i = a.id or deck_admin.new_id()

@@ -498,11 +498,11 @@ def token_maps(t):
 
 def main():
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    from common import OUT, load_deck, safe_id  # -W <작업 공간> 을 읽고 인자에서 뺀다 - 인자를 읽기 전에
     ap = argparse.ArgumentParser(description="페이지 문서 → docx")
     ap.add_argument("id")
     ap.add_argument("--out")
     a = ap.parse_args()
-    from common import OUT, load_deck, safe_id
     safe_id(a.id)
     doc = load_deck(a.id)
     if doc.get("kind") != "page":

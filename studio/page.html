@@ -7,7 +7,7 @@
 <link rel="stylesheet" href="fonts.css">
 <script src="menu.js"></script>
 <style>
-  /* 페이지 편집기(실험) - 머리 막대·상태 칩·배너·토스트는 슬라이드·시트와 같은 id 를 쓴다(공용 스타일로 뽑는 것은 PG-012) */
+  /* 페이지 편집기 - 머리 막대·상태 칩·배너·토스트는 슬라이드·시트와 같은 id 를 쓴다(공용 스타일로 뽑는 것은 PG-012) */
   :root { --bg: #f3f2f0; --ink: #1f1f1f; --line: #d9d6d0; --accent: #c8553d; --muted: #7a756d; --paper: #fff; }
   * { box-sizing: border-box; }
   html, body { height: 100%; margin: 0; }
@@ -74,7 +74,6 @@
   <button class="btn" id="btnDecks" title="문서 목록">☰</button>
   <input class="title" id="docTitle" spellcheck="false" aria-label="문서 제목">
   <span class="chip sm" id="status">불러오는 중…</span>
-  <span class="chip" title="실험 기능 - 아직 개발 중입니다">실험</span>
   <span class="sp"></span>
   <span class="chip" id="pageInfo"></span>
   <select id="selZoom" title="확대 · 축소(화면에서만 - 인쇄·내보내기에는 영향 없음)"><option value="fit">폭 맞춤</option><option value="0.5">50%</option><option value="0.75">75%</option><option value="1" selected>100%</option><option value="1.25">125%</option><option value="1.5">150%</option><option value="2">200%</option></select>
