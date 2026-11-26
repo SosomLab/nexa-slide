@@ -129,7 +129,8 @@
       if (b.w) img.style.width = b.w + "mm"; if (b.h) img.style.height = b.h + "mm";
       el.appendChild(img);
       if (b.caption) { const c = d.createElement("div"); c.className = "pg-caption"; c.textContent = b.caption; Object.assign(c.style, blockCss(doc, { style: "caption" }, ctx)); el.appendChild(c); }
-    } else { el = d.createElement("div"); el.className = "pg-break " + (b.kind || "page"); el.dataset.label = { page: "쪽 나누기", column: "단 나누기", section: "구역 나누기" }[b.kind || "page"]; }
+    } else { el = d.createElement("div"); el.className = "pg-break " + (b.kind || "page"); el.dataset.label = { page: "쪽 나누기", column: "단 나누기", section: "구역 나누기" }[b.kind || "page"];
+      if (b.kind === "section") { const c = b.columns || {}, n = c.count > 1 ? c.count : 1; el.dataset.cols = n; if (c.gap !== undefined) el.dataset.gap = c.gap; el.dataset.label = `여기서부터 ${n}단`; } }
     el.dataset.id = b.id;
     return el;
   }

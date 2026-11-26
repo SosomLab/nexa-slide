@@ -189,6 +189,26 @@ def _check_runs(runs, where):
     return None
 
 
+def _check_columns(c, where):
+    """단 설정 {count 1~4, gap(mm 0~50)?, sep?} - 문서(page.columns)와 구역 나누기(break kind section 의 columns)가 같이 쓴다."""
+    if not isinstance(c, dict) or not isinstance(c.get("count"), int) or isinstance(c.get("count"), bool) or not 1 <= c["count"] <= 4:
+        return f"{where}: columns = {{count: 1~4, gap?: mm}}"
+    if "gap" in c and (not isinstance(c["gap"], (int, float)) or isinstance(c["gap"], bool) or not 0 <= c["gap"] <= 50):
+        return f"{where}: 단 간격 gap 은 mm(0~50)"
+    return None
+
+
+def columns_of(doc):
+    """구역별 단 설정 - [(시작 블록 색인, {count, gap})]. 첫 구역 = page.columns(없으면 1단), 구역 나누기 블록 뒤부터 그 블록의 columns."""
+    page = doc.get("page") or {}
+    norm = lambda c: {"count": c.get("count", 1) if isinstance(c, dict) else 1, "gap": c.get("gap", 8) if isinstance(c, dict) else 8}  # noqa: E731
+    out = [(0, norm(page.get("columns")))]
+    for k, b in enumerate(doc.get("blocks") or []):
+        if isinstance(b, dict) and b.get("type") == "break" and b.get("kind") == "section":
+            out.append((k + 1, norm(b.get("columns"))))
+    return out
+
+
 def _check_blocks(bs, where, styles, depth=0):
     if not isinstance(bs, list):
         return f"{where}: blocks 는 목록"
@@ -245,6 +265,10 @@ def _check_blocks(bs, where, styles, depth=0):
         elif t == "break":
             if b.get("kind", "page") not in ("page", "column", "section"):
                 return f"{w}: 나누기 kind = page | column | section"
+            if "columns" in b:
+                e = _check_columns(b["columns"], w)
+                if e or b.get("kind") != "section":
+                    return e or f"{w}: columns 는 구역 나누기(kind section)에만"
     return None
 
 
@@ -305,6 +329,10 @@ def validate(doc):
     m = page.get("margin")
     if not isinstance(m, dict) or any(not isinstance(m.get(k), (int, float)) or not 0 <= m[k] <= 150 for k in "trbl"):
         return "여백은 t·r·b·l(mm, 0~150)"
+    if page.get("columns") is not None:
+        e = _check_columns(page["columns"], "page")
+        if e:
+            return e
     styles = doc.get("styles")
     if not isinstance(styles, dict) or "body" not in styles:
         return "styles 에 body 필요"

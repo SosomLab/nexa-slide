@@ -140,6 +140,15 @@ python3 studio/auth.py role <아이디> admin        # 관리자 지정(웹 /acc
 복원 = 편집기 기록 탭·변경 탭 "직전으로"(원장에 `restore` 로 남는다), 또는 백업 파일을 `decks/<id>.json` 으로 복사(원장에는 "외부" 로 남는다). 편집기가 2초 안에 다시 불러온다(편집 중이면 충돌 선택).
 `.history` 와 `out/` 은 git 에서 제외한다 — 덱 JSON 자체는 작업 공간 저장소에서 git 으로 관리한다.
 
+## 엔진을 새 판으로 올린 뒤 - 떠 있는 작업 공간 서버도 재시작
+
+엔진을 main 에 병합(또는 배포)한 뒤에는 **허브뿐 아니라 떠 있는 작업 공간 서버도** 재시작해야 서버 쪽(파이썬) 변경이 반영된다 - 작업 공간 서버는 허브와 따로 도는 프로세스라 허브 재시작으로는 바뀌지 않는다(2026-11-26: 11-25 부터 떠 있던 작업 공간 서버가 옛 코드라 새 문서 창에 "페이지"가 보이지 않았다).
+
+```bash
+python3 studio/service.py restart          # 허브
+python3 nexa.py restart                    # 각 작업 공간 폴더에서 - 그 작업 공간 서버
+```
+
 ## 포트·프로세스 점검
 
 ```powershell
@@ -158,6 +167,7 @@ pgrep -fl watch_requests
 
 - 같은 작업 공간에 감시를 둘 이상 띄우지 않는다 — 같은 요청이 두 세션에 전달된다. 하트비트 파일(`out/.studio/session.json`)은 마지막에 쓴 감시의 것만 남는다.
 - Windows Git Bash 의 `kill` 은 래퍼만 끝내고 python 이 남을 수 있다 — `Stop-Process`/`taskkill /F` 를 쓴다.
+- 시험이 띄운 작업 공간 서버가 남았는지: `Get-CimInstance Win32_Process -Filter "Name like 'python%'" | ? CommandLine -like '*server.py --port auto*' | select ProcessId, CreationDate, CommandLine` - 남은 것은 그 작업 공간 폴더에서 `nexa.py stop`(그 작업 공간을 서비스하는 서버만 내린다). `run_all` 은 묶음마다 이 엔진 사본의 server.py 가 늘었는지 보고 늘었으면 "서버 프로세스 누수"로 실패한다.
 
 ## 문제 해결
 

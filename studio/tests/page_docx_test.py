@@ -210,5 +210,32 @@ check("각주 - 머리말·글 상자 안은 글로 푼다([주: …])", "[주: 
 check("각주 없는 문서 - footnotes.xml 을 만들지 않는다", "word/footnotes.xml" not in zipfile.ZipFile(io.BytesIO(X.build(P.new_page("e2", "")))).namelist())
 check("각주 거절 - 빈 글·글이 아닌 값", all(isinstance(P.validate({**P.normalize(fd), "blocks": [{"id": "x", "type": "p", "runs": [{"t": "가", "fn": v}]}], "objects": []}), str) for v in ("", "  ", 3)))
 
+# 다단(구역) - 문서의 단(page.columns) + 구역 나누기(break kind section 의 columns)
+cd = P.new_page("c", "다단")
+cd["page"]["header"] = {"blocks": [{"id": "h1", "type": "p", "runs": [{"t": "머리"}]}]}
+cd["blocks"] = [{"id": "p1", "type": "p", "runs": [{"t": "한 단 머리글"}]}, {"id": "s1", "type": "break", "kind": "section", "columns": {"count": 2, "gap": 10}},
+                {"id": "p2", "type": "p", "runs": [{"t": "두 단 본문"}]}, {"id": "k1", "type": "break", "kind": "column"}, {"id": "p3", "type": "p", "runs": [{"t": "둘째 단"}]},
+                {"id": "s2", "type": "break", "kind": "section", "columns": {"count": 1}}, {"id": "p4", "type": "p", "runs": [{"t": "다시 한 단"}]}]
+check("다단 - 형식 검사 통과 · 구역별 단", P.validate(P.normalize(cd)) is None and [(k, c["count"]) for k, c in P.columns_of(cd)] == [(0, 1), (2, 2), (6, 1)], (P.validate(P.normalize(cd)), P.columns_of(cd)))
+cx = ET.fromstring(zipfile.ZipFile(io.BytesIO(X.build(cd))).read("word/document.xml"))
+cb = cx.find(f"{W}body")
+sps = list(cb.iter(f"{W}sectPr"))
+colsn = [(s.find(f"{W}cols").get(W + "num") if s.find(f"{W}cols") is not None else "1") for s in sps]
+types = [(s.find(f"{W}type").get(W + "val") if s.find(f"{W}type") is not None else None) for s in sps]
+check("다단 - 구역 셋의 sectPr(단 1 · 2 · 1) · 둘째부터 continuous", colsn == ["1", "2", "1"] and types == [None, "continuous", "continuous"], (colsn, types))
+check("다단 - 단 간격(mm → twip) · 용지는 구역마다 같이", sps[1].find(f"{W}cols").get(W + "space") == str(X.tw(10)) and all(s.find(f"{W}pgSz") is not None and s.find(f"{W}pgMar") is not None for s in sps))
+check("다단 - 머리말 참조는 첫 구역에만 · 마지막 sectPr 은 본문 끝", [len(s.findall(f"{W}headerReference")) for s in sps] == [1, 0, 0] and list(cb)[-1] is sps[-1],
+      [len(s.findall(f"{W}headerReference")) for s in sps])
+check("다단 - 구역을 닫는 문단은 빈 문단(pPr 안의 sectPr) · 단 나누기는 w:br column", all(p.find(f"{W}pPr/{W}sectPr") is not None and not list(p.iter(f"{W}t")) for p in cb.findall(f"{W}p") if p.find(f"{W}pPr/{W}sectPr") is not None)
+      and [b.get(W + "type") for b in cb.iter(f"{W}br")] == ["column"])
+one = P.new_page("c1", "두 단 문서"); one["page"]["columns"] = {"count": 2}
+ox1 = ET.fromstring(zipfile.ZipFile(io.BytesIO(X.build(one))).read("word/document.xml"))
+check("다단 - 문서 전체 2단: sectPr 하나에 cols num 2(간격 기본 8mm)", [s.find(f"{W}cols").get(W + "num") for s in ox1.iter(f"{W}sectPr")] == ["2"] and next(ox1.iter(f"{W}cols")).get(W + "space") == str(X.tw(8)))
+for name, mut, word in [("단 수 범위", lambda d: d["page"].update(columns={"count": 9}), "columns"), ("간격 범위", lambda d: d["page"].update(columns={"count": 2, "gap": 99}), "gap"),
+                        ("쪽 나누기에 columns", lambda d: d["blocks"].append({"id": "zz", "type": "break", "kind": "page", "columns": {"count": 2}}), "구역 나누기")]:
+    bad_d = P.normalize(cd); mut(bad_d)
+    e = P.validate(bad_d)
+    check(f"다단 거절 - {name}", isinstance(e, str) and word in e, e)
+
 print(f"\n실패 {len(fails)}" if fails else f"\n전부 통과 ({n}사례)")
 sys.exit(1 if fails else 0)

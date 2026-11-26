@@ -96,6 +96,15 @@ def main():
                      {"id": "o3", "type": "shape", "shape": "arrow", "anchor": "p2", "rel": "para", "x": 10, "y": 5, "w": 50, "h": 0},
                      {"id": "o4", "type": "shape", "shape": "brace-l", "anchor": "p2", "rel": "para", "x": 70, "y": 0, "w": 6, "h": 20}]
     docs.append(("도형 문서", d_, None))
+    d_ = page_doc.new_page("wcols", "다단 문서")  # 다단(PG-101) - 2단 → 구역 나누기(1단)
+    d_["page"]["columns"] = {"count": 2, "gap": 8}
+    d_["blocks"] = [{"id": f"c{k}", "type": "p", "runs": [{"t": f"2단 문단 {k} " + "가나다라마바사 " * 8}]} for k in range(6)] + \
+        [{"id": "sb", "type": "break", "kind": "section", "columns": {"count": 1}}] + [{"id": f"d{k}", "type": "p", "runs": [{"t": f"1단 문단 {k}"}]} for k in range(3)]
+    docs.append(("다단 문서", d_, None))
+    d_ = page_doc.new_page("wfn", "각주 문서")  # 각주(PG-105) - 본문 2개 · 표 칸 1개
+    d_["blocks"] = [{"id": "f1", "type": "p", "runs": [{"t": "각주가 붙는 "}, {"t": "글", "fn": "첫 각주"}]}, {"id": "f2", "type": "p", "runs": [{"t": "둘째"}, {"t": "끝", "fn": "둘째 각주"}]},
+                    {"id": "ft", "type": "table", "cols": [50, 50], "rows": [{"cells": [{"blocks": [{"type": "p", "runs": [{"t": "칸"}, {"t": "글", "fn": "칸 각주"}]}]}, {"blocks": [{"type": "p", "runs": [{"t": "둘"}]}]}]}]}]
+    docs.append(("각주 문서", d_, None))
     with tmpfiles.temp_dir("nx-word-") as d:
         for name, doc, images in docs:
             f = Path(d) / f"{name.split('(')[0]}.docx"
@@ -107,6 +116,10 @@ def main():
             row = {"문서": name, "열림": j.get("ok"), "쪽": j.get("pages"), "문단": j.get("paragraphs"), "표": j.get("tables"), "머리말": j.get("header"), "꼬리말": j.get("footer"),
                    "목록": " ".join(x["s"] for x in j.get("lists") or [])[:80], "제목": " ".join(f"{h['style']}={h['size']}" for h in (j.get("heads") or [])[:3]), "오류": j.get("error") or ""}
             ROWS.append(row)
+            if name == "다단 문서":
+                check(f"{name} - Word 구역 2개 · 단 수 [2, 1]", j.get("sections") == 2 and list(j.get("cols") or []) == [2, 1], json.dumps({k: j.get(k) for k in ("sections", "cols")}, ensure_ascii=False))
+            if name == "각주 문서":
+                check(f"{name} - Word 각주(Footnotes) 수 = 3", j.get("footnotes") == 3, json.dumps({k: j.get(k) for k in ("footnotes",)}, ensure_ascii=False))
             if doc.get("objects"):
                 check(f"{name} - Word 의 떠 있는 도형(Shapes) 수 = 개체 수 {len(doc['objects'])}", j.get("shapes") == len(doc["objects"]), json.dumps({k: j.get(k) for k in ("shapes", "inlineShapes")}, ensure_ascii=False))
             BORDERS[name] = j.get("borders")

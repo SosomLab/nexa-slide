@@ -29,6 +29,8 @@ try {
   $res.sections = $d.Sections.Count
   $res.inlineShapes = $d.InlineShapes.Count
   $res.shapes = $d.Shapes.Count              # 떠 있는 도형·글 상자(본문 이야기)
+  $res.footnotes = $d.Footnotes.Count
+  $res.cols = @(for ($k = 1; $k -le $d.Sections.Count; $k++) { $d.Sections.Item($k).PageSetup.TextColumns.Count })  # 구역마다 단 수
   # 표마다 테두리 선 종류(0 = 없음) - 위·왼쪽·아래·오른쪽·가로 안쪽·세로 안쪽, 앞에서 5개까지
   $bds = @()
   for ($k = 1; $k -le [Math]::Min(5, $d.Tables.Count); $k++) {

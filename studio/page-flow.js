@@ -23,7 +23,7 @@
     const room = (fn) => end() - (res[page] || 0) - need(fn);                // 그 각주까지 놓고 본문이 쓸 수 있는 아래 끝
     const take = (fn) => { if (fn > 0) res[page] = (res[page] || 0) + need(fn); };
     const untake = (fn) => { if (fn > 0 && res[page]) { res[page] -= fn; if (res[page] <= SEP + EPS) delete res[page]; } };
-    const push = (it) => { const top = it.top + shift; page++; const h = start(page) - top; out.push({ id: it.id, type: "push", h, gap: Math.max(0, it.top - prevBottom) }); shift += h; };
+    const push = (it) => { const top = it.top + shift; page++; const h = start(page) - top; out.push({ id: it.id, type: "push", h, gap: Math.max(0, it.top - prevBottom), page: true }); shift += h; };
     const settle = (y) => { while (y >= start(page + 1) - EPS) page++; };  // 나눌 수 없는 것이 쪽을 넘겨 버렸을 때 - 놓인 자리의 쪽으로 맞춘다
 
     function para(it) {
@@ -65,20 +65,40 @@
       }
     }
 
+    // 다단(PG-101) - 블록의 cols = 그 블록이 놓인 구역의 단 수. 단이 여럿인 구역에서는 블록을 나누지 않고 통째로 다음 단(마지막 단이면 다음 쪽 첫 단)으로 넘긴다.
+    //   자연 위치는 "단 너비로 좁힌 한 줄기"로 잰 것이라, 다음 단으로 넘길 때의 밀기는 음수(위로 끌어올림)가 된다. place[id] = 놓인 단(0부터)
+    let n = 1, col = 0, regionTop = 0, regionPage = 0, colMax = 0, colMaxPage = 0, forceCol = false;
+    const place = {};
+    const slotTop = () => (page === regionPage ? regionTop : start(page));
+    const mark = (bottom) => { if (colMaxPage !== page) { colMaxPage = page; colMax = start(page); } if (bottom > colMax) colMax = bottom; };
+    const shiftTo = (it, y, paged) => { const h = y - (it.top + shift); if (Math.abs(h) > EPS) { out.push({ id: it.id, type: "push", h, gap: Math.max(0, it.top - prevBottom), page: !!paged }); shift += h; } };
+    const moveSlot = (it, toPage) => { let paged = false; if (!toPage && col < n - 1) col++; else { page++; col = 0; paged = true; } shiftTo(it, slotTop(), paged); };
+
     for (const it of items) {
-      settle(it.top + shift);
-      if (force) { push(it); force = false; }
-      if (it.kind === "break") { force = true; prevBottom = it.bottom; continue; }
+      const cn = it.cols > 1 ? it.cols : 1;
+      if (n === 1 && cn === 1) settle(it.top + shift);
+      if (cn !== n) {  // 단 수가 바뀐다 - 지금 쪽에서 가장 아래까지 내려간 단의 끝에서 새 구역이 시작한다
+        mark(-Infinity); n = cn; col = 0; regionPage = page; regionTop = colMax + Math.max(0, it.top - prevBottom);  /* 앞 구역 끝 + 블록 사이의 자연 간격 */
+        shiftTo(it, regionTop);
+      }
+      if (force) { if (n > 1) moveSlot(it, true); else push(it); force = false; forceCol = false; }
+      if (forceCol) { if (n > 1) moveSlot(it); else push(it); forceCol = false; }
+      if (it.kind === "break") { force = true; if (n > 1) place[it.id] = col; mark(it.bottom + shift); prevBottom = it.bottom; continue; }
+      if (it.kind === "colbreak") { forceCol = true; if (n > 1) place[it.id] = col; mark(it.bottom + shift); prevBottom = it.bottom; continue; }
       const fn = it.fn || 0;
-      if (it.bottom + shift > room(fn) + EPS) {
+      if (n > 1) {
+        if (it.bottom + shift > room(fn) + EPS && it.top + shift > slotTop() + EPS) moveSlot(it);
+        take(fn); place[it.id] = col;
+      } else if (it.bottom + shift > room(fn) + EPS) {
         if (it.kind === "p") para(it);
         else if (it.kind === "table") table(it);
         else { if (it.top + shift > start(page) + EPS) push(it); take(fn); }
       } else take(fn);
+      mark(it.bottom + shift);
       prevBottom = it.bottom;
     }
-    if (items.length) { const y = items[items.length - 1].bottom + shift; while (y > start(page + 1) + EPS) page++; }
-    return { breaks: out, pages: page + 1, notes: res };
+    if (items.length && n === 1) { const y = items[items.length - 1].bottom + shift; while (y > start(page + 1) + EPS) page++; }
+    return { breaks: out, pages: page + 1, notes: res, place };
   }
 
   /** 화면에 붙인다. opts: host(#ed) · box() → NexaPage.pageBox · gap 쪽 사이 틈(px) · off() → true 면 쉰다(인쇄)
@@ -91,7 +111,19 @@
     host.addEventListener("compositionend", () => { composing = false; schedule(); });
     host.addEventListener("load", schedule, true);  // 그림이 늦게 뜨면 높이가 달라진다
 
-    const kindOf = (el) => (el.classList.contains("nt-p") ? "p" : el.tagName === "TABLE" ? "table" : el.classList.contains("pg-break") ? (el.classList.contains("page") ? "break" : "obj") : "obj");
+    const kindOf = (el) => (el.classList.contains("nt-p") ? "p" : el.tagName === "TABLE" ? "table" : el.classList.contains("pg-break") ? (el.classList.contains("page") ? "break" : el.classList.contains("column") ? "colbreak" : "obj") : "obj");
+    /** 다단 - 블록마다 그 구역의 단 너비로 좁힌다(구역 = 문서의 단 설정 opts.columns(), 구역 나누기 블록 .pg-break.section[data-cols] 뒤부터는 그 설정).
+     *  좁힌 한 줄기로 잰 뒤 plan 이 단·쪽에 나눠 놓는다. 단 설정이 바뀐 블록은 끼워 둔 빈 자리를 걷는다 */
+    function widths(box, mm) {
+      let cur = (opts.columns && opts.columns()) || null;
+      for (const el of host.children) {
+        if (!el.dataset.id) continue;
+        const c = cur && cur.count > 1 ? cur : null, gap = c ? (c.gap === undefined || c.gap === null ? 8 : +c.gap) : 0;
+        const w = c ? Math.max(15, (box.cw - (c.count - 1) * gap) / c.count) : 0, k = c ? c.count + ":" + w.toFixed(2) : "";
+        if ((el._pgCols || "") !== k) { clearEl(el); el._pgCols = k; el._pgN = c ? c.count : 1; el._pgStep = c ? (w + gap) * mm : 0; el.style.width = c ? w * mm + "px" : ""; }
+        if (el.classList.contains("pg-break") && el.classList.contains("section")) cur = { count: +el.dataset.cols || 1, gap: el.dataset.gap === undefined ? undefined : +el.dataset.gap };
+      }
+    }
     const gapsOf = (el) => [...el.children].filter((c) => c.classList.contains("pg-gap"));
 
     /** 지금 화면을 잰다 - 끼워 둔 빈 자리를 빼서 자연 위치로 돌려준다. applied = 지금 끼워져 있는 빈 자리 */
@@ -104,8 +136,9 @@
         const id = el.dataset.id; if (!id) continue;
         const r = el.getBoundingClientRect(), own = el._pgPush ? el._pgPush.h : 0;
         if (own) applied.push({ id, type: "push", h: own });
+        if (el._pgCol) applied.push({ id, type: "col", at: el._pgCol, h: 0 });
         const it = { id, el, kind: kindOf(el), top: y(r.top) - A - own, base: A + own, z, y };
-        it.refs = refsOf(el); it.fn = it.refs.reduce((a, x) => a + x.h, 0);
+        it.refs = refsOf(el); it.fn = it.refs.reduce((a, x) => a + x.h, 0); it.cols = el._pgN || 1;
         let inner = 0;
         if (it.kind === "table") {
           it.rows = []; let gapRow = null, prevRaw = null; const blocked = new Set();
@@ -178,6 +211,7 @@
 
     function clearEl(el) {
       if (el._pgPush) { el.style.marginTop = el._pgPush.mt; el._pgPush = null; el.classList.remove("pg-pushed"); }
+      if (el._pgCol) { el.style.left = ""; if (el._pgPos !== undefined) el.style.position = el._pgPos; el._pgCol = 0; }
       if (el.tagName === "TABLE") { for (const tr of [...el.rows]) if (tr.classList.contains("pg-gaprow") || tr.classList.contains("pg-headrep")) tr.remove(); return; }
       for (const g of gapsOf(el)) {
         const pv = g.previousSibling, nx = g.nextSibling; g.remove();
@@ -186,7 +220,16 @@
     }
     function put(it, b) {
       const el = it.el;
-      if (b.type === "push") { el._pgPush = { h: b.h, mt: el.style.marginTop }; el.style.marginTop = (b.gap + b.h) + "px"; el.classList.add("pg-pushed"); return; }
+      if (b.type === "push") {
+        // 앞 블록과의 간격을 (자연 간격 + h)로 - 여백은 겹치므로(큰 쪽이 이긴다) 앞 블록의 아래 여백보다 작거나 음수면 그만큼 빼서 준다(다음 단으로 끌어올릴 때)
+        const D = b.gap + b.h, pv = el.previousElementSibling, mb = pv ? parseFloat(doc.defaultView.getComputedStyle(pv).marginBottom) || 0 : 0;
+        el._pgPush = { h: b.h, mt: el.style.marginTop }; el.style.marginTop = (D >= mb ? D : D - mb) + "px"; if (b.page) el.classList.add("pg-pushed");
+        return;
+      }
+      if (b.type === "col") {  // 놓인 단 - 왼쪽으로 단 너비 + 간격만큼씩(배치만 옮긴다 - 문단의 들여쓰기 여백은 그대로)
+        el._pgCol = b.at; el._pgPos = el.style.position; if (doc.defaultView.getComputedStyle(el).position === "static") el.style.position = "relative";
+        el.style.left = b.at * (el._pgStep || 0) + "px"; return;
+      }
       if (b.type === "row") {
         const row = it.rows[b.row]; if (!row || !row.tr.isConnected) return;
         const tr = doc.createElement("tr"), td = doc.createElement("td"); tr.className = "pg-gaprow"; tr.contentEditable = "false"; tr._h = b.h;
@@ -226,6 +269,7 @@
       if (opts.off && opts.off()) return;
       const box = opts.box(); if (!box || !host.offsetWidth) return;
       if (!pass && opts.prepare) opts.prepare();
+      widths(box, host.offsetWidth / box.cw);
       // 본문 너비가 바뀌었으면(쪽 설정) 줄 나눔이 달라진다 - 예전 줄 머리에 끼워 둔 빈 줄이 줄 가운데에 남아 그 뒤의 줄을 흩뜨리므로 먼저 걷고 잰다
       if (host.offsetWidth !== lastW || stale) {
         if (lastW || stale) { const sel = opts.saveSel ? opts.saveSel() : null; for (const el of host.children) clearEl(el); if (sel && opts.restoreSel) opts.restoreSel(sel); }
@@ -234,6 +278,7 @@
       const mm = host.offsetWidth / box.cw, H = box.ch * mm, G = (box.b + box.t) * mm + GAP;
       const m = measure(), p = plan(m.items, H, G, linesOf, { sep: opts.noteSep ? opts.noteSep() : 0 }), byId = new Map(m.items.map((it) => [it.id, it]));
       for (const b of p.breaks) { if (b.type === "split") b.at = b.off = offsetOfLine(byId.get(b.id), b.line); else if (b.type === "row") b.at = b.row; }
+      for (const id of Object.keys(p.place)) if (p.place[id] > 0) p.breaks.push({ id, type: "col", at: p.place[id], h: 0 });
       // 블록마다 - 끼워 둔 것과 끼울 것이 다를 때만 고친다(글을 치는 동안 쓸데없이 DOM 을 건드리지 않게)
       const ids = new Set([...m.applied, ...p.breaks].map((b) => b.id)), todo = [];
       for (const id of ids) {
