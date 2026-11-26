@@ -459,17 +459,25 @@ def flow_steps():
         step("쪽 나눔 ⑩ 저장된 JSON 에 빈 자리 흔적 없음(pg-gap · pg-gaprow · _pgPush · 빈 행) · 표는 40행 그대로",
              H + FL + "await idle();const f=await srv('pgflow');const j=JSON.stringify(f);const t=f.blocks.find(b=>b.id==='ft');"
                       "return !/pg-gap|pg-gaprow|pg-headrep|_pg|marginTop/.test(j)&&t.rows.length===40&&tx(f.blocks.find(b=>b.id==='fl'))===window.__b || JSON.stringify({hit:(j.match(/pg-gap|pg-gaprow|pg-headrep|_pg|marginTop/)||[])[0],rows:t.rows.length});"),
-        step("쪽 나눔 ⑪ 인쇄(beforeprint) → 빈 자리 0(.pg-gap · 빈 행 · 밀기) · 인쇄가 끝나면(afterprint) 다시 생김",
-             H + FL + "window.dispatchEvent(new Event('beforeprint'));await tick(300);const a=[gaps().length,gapRows(),pushed()];window.dispatchEvent(new Event('afterprint'));await settle();"
-                      "return a.every(x=>x===0)&&gaps('fl').length>=1&&S.pages===window.__p0 || JSON.stringify({inPrint:a,f:JSON.parse(FD())});"),
+        # 실제 인쇄 순서 = 화면에서 beforeprint → 인쇄 매체 → 화면 매체 → afterprint(Chrome)
+        step("쪽 나눔 ⑪ 인쇄 시작(화면에서 beforeprint) → 인쇄 상태 · 빈 자리 남음",
+             H + FL + "window.dispatchEvent(new Event('beforeprint'));await tick(400);return gaps('fl').length>=1 || JSON.stringify(JSON.parse(FD()));"),
+        step("쪽 나눔 ⑪ 인쇄 매체(af677ef) → 빈 자리는 높이 0 · break-before page(.pg-gap · 표 빈 행)",
+             H + FL + "const g=gaps(),rw=[...document.querySelectorAll('#ed tr.pg-gaprow')];"
+                      "const gs=g.map(x=>{const c=getComputedStyle(x);return [c.breakBefore,Math.round(x.getBoundingClientRect().height)];}),rs=rw.map(x=>getComputedStyle(x).breakBefore);"
+                      "return g.length>=1&&gs.every(([b,h])=>b==='page'&&h===0)&&rw.length>=1&&rs.every(b=>b==='page') || JSON.stringify({gs,rs});",
+             cdp=[{"method": "Emulation.setEmulatedMedia", "params": {"media": "print"}, "wait": 200}]),
+        step("쪽 나눔 ⑪ 화면 매체 → afterprint → 빈 자리 높이가 돌아오고 쪽 수 그대로 · 걸친 줄 없음",
+             H + FL + "window.dispatchEvent(new Event('afterprint'));await settle();return gaps('fl').length>=1&&gaps('fl').every(x=>x.getBoundingClientRect().height>10)&&S.pages===window.__p0&&audit().length===0 || JSON.stringify({f:JSON.parse(FD()),p0:window.__p0});",
+             cdp=[{"method": "Emulation.setEmulatedMedia", "params": {"media": ""}, "wait": 200}]),
         step("쪽 나눔 ⑫ 화면 쪽 수(Chrome PDF 와 비교용)", H + FL + "await settle();return 'screenPages='+S.pages;", dump=True),
     ]
 
 
 def flow_print_steps():
-    return [step("쪽 나눔 ⑪ ?print=1(서버 Chrome 인쇄 화면) → .pg-gap · 빈 행 · 밀기 모두 0",
-                 "await new Promise(r=>setTimeout(r,1500));const ed=document.querySelector('#ed');const g=ed.querySelectorAll('.pg-gap').length,r=ed.querySelectorAll('tr.pg-gaprow').length,u=[...ed.children].filter(e=>e._pgPush).length;"
-                 "return document.body.classList.contains('printing')&&ed.children.length>=4&&g===0&&r===0&&u===0 || JSON.stringify({printing:document.body.classList.contains('printing'),n:ed.children.length,g,r,u});")]
+    return [step("쪽 나눔 ⑪ ?print=1(서버 Chrome 인쇄 화면, af677ef) → 인쇄 상태 · 쪽 나눔 빈 자리가 남음(긴 문단 .pg-gap · 표 빈 행 - 인쇄 매체에서 강제 쪽 나눔이 된다)",
+                 "await new Promise(r=>setTimeout(r,1500));const ed=document.querySelector('#ed');const g=ed.querySelectorAll('[data-id=fl] .pg-gap').length,r=ed.querySelectorAll('tr.pg-gaprow').length;"
+                 "return document.body.classList.contains('printing')&&ed.children.length>=4&&g>=1&&r>=1 || JSON.stringify({printing:document.body.classList.contains('printing'),n:ed.children.length,g,r});")]
 
 
 OBJ_J = ("const tick=(ms)=>new Promise(r=>setTimeout(r,ms||200));const shape=async(label)=>{document.querySelector('[data-act=shape]').click();await tick(60);"
@@ -536,11 +544,15 @@ def obj_steps():
                  "return p.rel==='para'&&Math.abs(r1.left-r0.left)<1&&Math.abs(r1.top-r0.top)<1 || JSON.stringify({p,r0:[r0.left,r0.top],r1:[r1.left,r1.top]});"),
         step("개체 ⑬ 저장 뒤 화면 자리를 기억(새로 고침 비교용) - 그려진 개체 수 = 문서 개체 수",
              J + "await idle();const m=rects();try{localStorage.setItem('nxObjRects',JSON.stringify(m));}catch(e){}return Object.keys(m).length===O().length&&O().length===4 || JSON.stringify({m,n:O().length});"),
-        step("개체 ⑭ 인쇄 매체에서는 #objs · #objsBack 숨김(지금은 의도 - 인쇄를 화면 쪽 나눔과 같게 하는 일이 다음)",
-             J + "const a=getComputedStyle(document.querySelector('#objs')).display,b=getComputedStyle(document.querySelector('#objsBack')).display;return a==='none'&&b==='none' || JSON.stringify({a,b});",
+        step("개체 ⑭ 인쇄 시작(화면에서 beforeprint, af677ef) → 도형이 모두 매인 문단 안(#ed)으로 옮겨짐",
+             J + "window.dispatchEvent(new Event('beforeprint'));await tick(400);const es=[...document.querySelectorAll('.pg-obj')];const inEd=es.filter(e=>e.closest('#ed')).length;"
+                 "return es.length===O().length&&inEd===es.length || JSON.stringify({n:O().length,dom:es.length,inEd});"),
+        step("개체 ⑭ 인쇄 매체 → 옮겨진 도형이 보임(display none 아님)",
+             J + "const es=[...document.querySelectorAll('#ed .pg-obj')];const vis=es.filter(e=>getComputedStyle(e).display!=='none'&&e.getBoundingClientRect().width>0).length;return es.length===O().length&&vis===es.length || JSON.stringify({n:O().length,dom:es.length,vis});",
              cdp=[{"method": "Emulation.setEmulatedMedia", "params": {"media": "print"}, "wait": 200}]),
-        step("개체 ⑭ 화면 매체로 돌리면 다시 보임",
-             J + "return getComputedStyle(document.querySelector('#objs')).display!=='none' || 'still hidden';",
+        step("개체 ⑭ 화면 매체 → afterprint → 도형이 #objs·#objsBack 으로 돌아가고 보임",
+             J + "window.dispatchEvent(new Event('afterprint'));await tick(400);const es=[...document.querySelectorAll('.pg-obj')];const back=es.filter(e=>e.closest('#objs,#objsBack')).length;"
+                 "return back===O().length&&getComputedStyle(document.querySelector('#objs')).display!=='none' || JSON.stringify({n:O().length,back});",
              cdp=[{"method": "Emulation.setEmulatedMedia", "params": {"media": ""}, "wait": 200}]),
     ]
     return out

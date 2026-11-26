@@ -44,6 +44,7 @@ CLI 는 `deck_admin create --kind page` · 첫 문서 `init_workspace --kind pag
 
   템플릿의 글꼴·색은 작업 공간 토큰(`tokens.json` 의 `body`·`title` 글꼴, `accent`·`ink`·`muted` 색)을 따른다.
 - **Word 문서 가져오기**: 새 문서 대화 상자의 [Word 문서(.docx)에서 가져오기] 또는 `POST /api/decks {action:"import", name, data}`.
+- **Word 파일을 요청에 첨부**: 요청 패널에 .docx 를 첨부하면 세션이 분석(`import_doc`)하거나, 내용을 이 문서에 서식째 넣는다(`import_docx --blocks` - 새 문서를 만들지 않고 블록만 꺼낸다, [claude-session.md](claude-session.md)).
   제목·스타일·글자 서식·목록·표(합친 칸 포함)·그림·쪽 나누기·머리말·꼬리말·쪽 번호를 옮긴다. 글 상자의 글은 문단으로 꺼내고,
   옮기지 못한 것(각주·미주·떠 있는 개체 등)은 경고로 알려 준다.
 

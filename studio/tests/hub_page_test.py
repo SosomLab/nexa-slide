@@ -147,7 +147,7 @@ def main():
                    "await until(async()=>kinds().length===3,5000);document.querySelector('#fKind [data-kind=page]').click();await until(async()=>document.querySelector('#pageOpts [data-ptpl=report]'),4000);"
                    "document.querySelector('#pageOpts [data-ptpl=report]').click();const t=document.querySelector('#fTitle');t.value='홈 보고서 시험';t.dispatchEvent(new Event('input',{bubbles:true}));await new Promise(r=>setTimeout(r,1500));"
                    "document.querySelector('#fGo').click();await until(async()=>window.__cres,120000);const c=window.__cres||{};const url=(c.data||{}).url||'';"
-                   "if(!url)return JSON.stringify({body:c.body,st:c.st,data:c.data});const base=new URL(url,location.href).pathname.replace(/\/$/,'');"
+                   "if(!url)return JSON.stringify({body:c.body,st:c.st,data:c.data});const base=new URL(url,location.href).pathname.replace(/[/]$/,'');"
                    "const ds=await (await window.__cf(base+'/api/decks',{cache:'no-store'})).json();const lst=Array.isArray(ds)?ds:(ds.decks||[]);const sd=lst.find(x=>x.start)||lst[0]||{};"
                    "const d=sd.id&&await (await window.__cf(base+'/api/deck/'+sd.id,{cache:'no-store'})).json();"
                    "return c.body.kind==='page'&&c.body.pageTemplate==='report'&&c.st===200&&d&&d.kind==='page'&&d.template==='report' || JSON.stringify({body:{kind:c.body.kind,pageTemplate:c.body.pageTemplate},st:c.st,url,decks:lst.map(x=>[x.id,x.kind,x.start]),kind:d&&d.kind,tpl:d&&d.template});"}]})
