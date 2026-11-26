@@ -96,7 +96,7 @@
 
 - 작업 공간을 만들 때 첫 문서 종류를 셋 중에서 고른다. 그 뒤 덱 추가는 어느 화면에서든 셋 중 아무 종류(공용 "새 문서" 대화 상자).
 - 내보내기는 덱 단위: 슬라이드 → PPTX/PDF · 시트 → XLSX · 페이지 → DOCX/PDF.
-- 완성 전에는 **숨김**(DR-P11): 작업 공간 `nexa-slide.json` 의 `"experimental": {"page": true}` 또는 서버 환경 변수 `NEXA_SLIDE_EXPERIMENTAL=page` 일 때만 "페이지" 선택지가 보인다.
+- 완성 전에는 **숨김**(DR-P11)이었고 2026-11-26 **기본 켬**으로 풀었다(DR-P13 · `RELEASED`). 끄기 = 작업 공간 `nexa-slide.json` 의 `"experimental": {"page": false}` 또는 환경 변수 `NEXA_SLIDE_EXPERIMENTAL=-page`.
 
 ## 9. 단계(백로그의 묶음)
 

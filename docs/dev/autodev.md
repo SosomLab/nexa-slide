@@ -84,7 +84,7 @@
 2. `git fetch origin` → main 트리에서 `git pull --ff-only origin main` → `git merge --no-ff <작업 브랜치>`(메시지 "merge: <브랜치> → main - …", 한국어) → `git push origin main`.
 3. 작업 브랜치를 `git merge --ff-only origin/main` 으로 맞춰 push(`engine-dev` 도). 그래야 다음 확인 때 `HEAD..origin/main` 에 바깥 변경만 보인다.
 4. 충돌은 양쪽 의도를 살려 풀고 검증을 다시 돌린다. 병합 뒤 서버 재시작이 필요한 변경(서버 파이썬)이어도 **재시작하지 않고** STATUS "결정 대기"에 적는다(정적 js·문서는 바로 나간다).
-5. 페이지 기능은 완성 전 숨김(`experimental.page`)이라 단계마다 main 에 병합해도 운영 사용자에게 보이지 않는다(DR-P11).
+5. 페이지 기능은 2026-11-26 숨김을 풀어(DR-P13) main 에 병합하면 운영 사용자에게 보인다(운영 서버 재시작 뒤). 완성 전인 새 기능은 `RELEASED` 에 넣지 않으면 숨김 스위치 뒤에 머문다(DR-P11 방식).
 
 ## 8. 세션 재개
 
