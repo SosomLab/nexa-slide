@@ -410,6 +410,9 @@ def _offset_px(tab, r, c):
 def import_drawings(src, z, tabs, asset_root, i, warnings):
     """그림·도형 → assets/sheets/<id>/d<탭>-<n>.png + 탭 drawings[{type:image, src, at, dx, dy, w, h}]."""
     import tmpfiles
+    # 그림·도형·차트가 하나도 없는 통합 문서면 Excel 을 띄우지 않는다 - 띄우는 데만 수 초~십수 초(다른 Excel·백신이 끼면 더)이고 그동안 서버의 쓰기 락을 쥔다
+    if not any(re.match(r"xl/drawings/drawing\d+\.xml$", n) for n in z.namelist()):
+        return
     dest_rel = f"assets/sheets/{i}"
     dest = asset_root / dest_rel
     with tmpfiles.temp_dir("shapes") as tmp:  # Excel 이 그린 도형 PNG - 자산 폴더로 옮긴 뒤 지운다

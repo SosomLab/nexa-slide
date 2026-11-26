@@ -13,10 +13,17 @@ import copy
 import datetime as dt
 import re
 
-MARKS = ("b", "i", "u", "s", "c", "hl", "sup", "sub", "font", "size", "link", "ruby")
+MARKS = ("b", "i", "u", "s", "c", "hl", "sup", "sub", "font", "size", "link", "ruby", "fn")
 BOOL = {"b", "i", "s", "sup", "sub"}
 BLOCK_TYPES = ("p", "table", "image", "break")
 LIST_KINDS = ("bullet", "number", "check")
+# 개체(objects) - 본문 위에 떠 있는 도형·글 상자(PG-103). Word 와 같은 방식: 본문 문단 하나에 매이고(anchor = 그 문단 id),
+#   자리는 그 문단이 놓인 쪽의 왼쪽 위(rel "page") 또는 그 문단의 왼쪽 위(rel "para")에서 잰 x·y(mm). 문단이 다른 쪽으로 가면 따라간다.
+#   {id, type: "shape", shape, anchor, rel, x, y, w, h, fill?, line?: {c, w(pt), dash}|None, flip?(선이 오른쪽 위로), z?: "front"|"behind",
+#    blocks?: 안의 글(문단들 - 선에는 없다), valign?: "top"|"middle"|"bottom", pad?(mm)}
+OBJ_SHAPES = ("rect", "round", "ellipse", "line", "arrow", "bracket-l", "bracket-r", "brace-l", "brace-r")
+OBJ_LINES = ("line", "arrow")
+OBJ_DASH = ("solid", "dash", "dot")
 SIZES = {"A4": (210, 297), "A5": (148, 210), "B5": (182, 257), "Letter": (215.9, 279.4), "Legal": (215.9, 355.6)}  # mm(세로 방향 기준)
 ALIGN = ("left", "center", "right", "justify")
 ID_RE = re.compile(r"^[A-Za-z0-9_-]{1,40}$")
@@ -73,7 +80,7 @@ def _new_id(seen, prefix="b"):
 
 
 def walk(doc):
-    """id 를 갖는 것 전부를 문서 순서로 - (경로, 객체). 블록 · 표의 행 · 셀 · 셀 안 블록 · 머리말·꼬리말 블록."""
+    """id 를 갖는 것 전부를 문서 순서로 - (경로, 객체). 블록 · 표의 행 · 셀 · 셀 안 블록 · 머리말·꼬리말 블록 · 개체와 그 안의 블록."""
     def blocks(bs, path):
         for b in bs or []:
             if not isinstance(b, dict):
@@ -93,6 +100,27 @@ def walk(doc):
     page = doc.get("page") or {}
     for part in ("header", "footer"):
         yield from blocks((page.get(part) or {}).get("blocks"), (part,))
+    for o in doc.get("objects") if isinstance(doc.get("objects"), list) else []:
+        if isinstance(o, dict):
+            yield ("objects", o.get("id")), o
+            yield from blocks(o.get("blocks"), ("objects", o.get("id")))
+
+
+def anchors(doc):
+    """개체가 매일 수 있는 문단 = 본문 맨 위 단계의 문단 id 들(문서 순서)."""
+    return [b["id"] for b in doc.get("blocks") or [] if isinstance(b, dict) and b.get("type") == "p" and isinstance(b.get("id"), str)]
+
+
+def footnotes(doc):
+    """각주를 문서 순서로 - [(번호(1부터), 각주 글)]. 본문(표 칸 포함)의 글 조각 fn 만 센다(머리말·꼬리말·개체 안은 Word 가 각주를 받지 않는다)."""
+    out = []
+    for path, b in walk(doc):
+        if path and path[0] in ("header", "footer", "objects"):
+            continue
+        for r in b.get("runs") or [] if isinstance(b.get("runs"), list) else []:
+            if isinstance(r, dict) and r.get("fn"):
+                out.append((len(out) + 1, r["fn"]))
+    return out
 
 
 def text_blocks(doc):
@@ -129,7 +157,8 @@ def normalize(doc):
         d["styles"]["body"] = copy.deepcopy(DEFAULT_STYLES["body"])
     if not isinstance(d.get("blocks"), list):
         d["blocks"] = []
-    d.setdefault("objects", [])
+    if not isinstance(d.get("objects"), list):
+        d["objects"] = []
     seen = _ids(d)
     for _, b in walk(d):
         if not isinstance(b.get("id"), str) or not b["id"]:
@@ -138,6 +167,11 @@ def normalize(doc):
             b["runs"] = norm_runs(b["runs"])
     if not d["blocks"]:  # 빈 문서도 칠 자리는 하나 있다
         d["blocks"] = [{"id": _new_id(seen), "type": "p", "runs": []}]
+    # 매인 문단이 지워진 개체 - 버리지 않고 첫 문단에 다시 맨다(문단이 하나도 없으면 그대로 두고 validate 가 알린다)
+    ok = anchors(d)
+    for o in d["objects"]:
+        if isinstance(o, dict) and ok and o.get("anchor") not in ok:
+            o["anchor"] = ok[0]
     return d
 
 
@@ -150,6 +184,8 @@ def _check_runs(runs, where):
         for k in r:
             if k != "t" and k not in MARKS:
                 return f"{where}: 모르는 서식 {k}"
+        if "fn" in r and (not isinstance(r["fn"], str) or not r["fn"].strip() or len(r["fn"]) > 2000):
+            return f"{where}: 각주(fn)는 글(1~2000자)"
     return None
 
 
@@ -212,6 +248,48 @@ def _check_blocks(bs, where, styles, depth=0):
     return None
 
 
+def _check_objects(objs, anchor_ids, styles):
+    if objs is None:
+        return None
+    if not isinstance(objs, list):
+        return "objects 는 목록"
+    num = lambda v, lo, hi: isinstance(v, (int, float)) and not isinstance(v, bool) and lo <= v <= hi  # noqa: E731
+    for o in objs:
+        if not isinstance(o, dict):
+            return "개체는 객체"
+        w = f"개체 {o.get('id')}"
+        if o.get("type") != "shape":
+            return f"{w}: 모르는 개체 종류 {o.get('type')}"
+        if o.get("shape") not in OBJ_SHAPES:
+            return f"{w}: shape = {' | '.join(OBJ_SHAPES)}"
+        if o.get("anchor") not in anchor_ids:
+            return f"{w}: anchor 는 본문 문단의 id"
+        if o.get("rel", "page") not in ("page", "para"):
+            return f"{w}: rel = page | para"
+        if not num(o.get("x"), -1000, 2000) or not num(o.get("y"), -1000, 2000):
+            return f"{w}: x·y(mm)"
+        if not num(o.get("w"), 0, 2000) or not num(o.get("h"), 0, 2000) or (o["w"] == 0 and o["h"] == 0):
+            return f"{w}: w·h(mm, 둘 다 0 은 안 됨)"
+        if o.get("fill") is not None and not isinstance(o["fill"], str):
+            return f"{w}: fill 은 색(글)"
+        ln = o.get("line")
+        if ln is not None and (not isinstance(ln, dict) or ("c" in ln and not isinstance(ln["c"], str)) or ("w" in ln and not num(ln["w"], 0, 20)) or ln.get("dash", "solid") not in OBJ_DASH):
+            return f"{w}: line = {{c, w(pt 0~20), dash: {' | '.join(OBJ_DASH)}}}"
+        if o.get("z", "front") not in ("front", "behind"):
+            return f"{w}: z = front | behind"
+        if o.get("valign", "top") not in ("top", "middle", "bottom"):
+            return f"{w}: valign = top | middle | bottom"
+        if "pad" in o and not num(o["pad"], 0, 50):
+            return f"{w}: pad(mm 0~50)"
+        if "blocks" in o:
+            if o["shape"] in OBJ_LINES:
+                return f"{w}: 선에는 글을 넣을 수 없다"
+            e = _check_blocks(o["blocks"], w, styles, 1)
+            if e:
+                return e
+    return None
+
+
 def validate(doc):
     """형식이 맞으면 None, 아니면 첫 문제(글). 서버 저장·save_deck 검사가 쓴다."""
     if not isinstance(doc, dict) or doc.get("kind") != "page":
@@ -252,6 +330,9 @@ def validate(doc):
             e = _check_blocks(hb.get("blocks", []), part, styles)
             if e:
                 return e
+    e = _check_objects(doc.get("objects"), set(anchors(doc)), styles)
+    if e:
+        return e
     ids = [b.get("id") for _, b in walk(doc)]
     bad = [x for x in ids if not isinstance(x, str) or not ID_RE.match(x)]
     if bad:

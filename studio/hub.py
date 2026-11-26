@@ -782,9 +782,9 @@ def plan(b):
     else:
         port = free_port(skip=ws)
     sheet = b.get("kind") == "sheet"  # 첫 문서를 시트로(docs/sheets.md) - 시작용 내용은 쓰지 않는다
-    page = b.get("kind") == "page"   # 첫 문서를 페이지로(Word 형, 실험 기능) - 시작용 내용 대신 페이지 템플릿
+    page = b.get("kind") == "page"   # 첫 문서를 페이지로(Word 형) - 시작용 내용 대신 페이지 템플릿
     if page and not experimental("page"):
-        raise ValueError("페이지 문서는 아직 실험 기능이다(NEXA_SLIDE_EXPERIMENTAL=page)")
+        raise ValueError("페이지 문서가 꺼져 있다(환경 변수 NEXA_SLIDE_EXPERIMENTAL 의 -page 를 빼면 켜진다)")
     deck = re.sub(r"[^A-Za-z0-9_-]", "", str(b.get("deck") or "")) or "intro"
     args = [STUDIO / "init_workspace.py", target or "<폴더>", "--title", name, "--template", template]
     if deck != "intro":

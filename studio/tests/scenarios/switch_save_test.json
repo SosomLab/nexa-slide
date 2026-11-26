@@ -1,0 +1,23 @@
+{
+ "base": "http://127.0.0.1:5667",
+ "pages": [
+  {
+   "url": "/studio/#grptest/1",
+   "wait": 2500,
+   "steps": [
+    {
+     "name": "저장 중 덱 전환(226d768) 준비 - grptest 저장 응답을 1.5초 늦춤 · 요소 2개 선택",
+     "js": "if(!window.__of){window.__of=window.fetch.bind(window);window.__puts=[];window.fetch=async(u,o={})=>{const put=(o.method||'GET')==='PUT'&&String(u).includes('/api/deck/');const rec=put?{u:String(u).split('?')[0],sent:Date.now()}:null;if(rec)window.__puts.push(rec);const r=await window.__of(u,o);if(rec){rec.st=r.status;if(String(u).includes('/api/deck/grptest'))await new Promise(z=>setTimeout(z,1500));rec.done=Date.now();}return r;};}document.querySelector('[data-sel=\"e01\"]').click(); await new Promise(r=>setTimeout(r,300)); document.querySelector('[data-sel=\"e02\"]').dispatchEvent(new MouseEvent('click',{bubbles:true,ctrlKey:true})); await new Promise(r=>setTimeout(r,200));return true"
+    },
+    {
+     "name": "  Ctrl+G 묶기 → 자동 저장이 나간 사이 [묶음 풀기] 하고 곧바로 #tbltest 로 넘어감",
+     "js": "document.dispatchEvent(new KeyboardEvent('keydown',{key:'g',ctrlKey:true,bubbles:true})); await until(async()=>window.__puts.some(p=>p.u.endsWith('/grptest')&&!p.done), 4000); const b=document.querySelector('[data-act=\"ungroup\"]'); if(!b) return 'no ungroup button'; b.click(); await new Promise(r=>setTimeout(r,30)); location.hash='#tbltest/1'; return true"
+    },
+    {
+     "name": "  넘어간 뒤 - grptest 파일에 마지막 편집(묶음 풀기)이 남음 · 지금 덱의 판 = tbltest 서버 판 · 저장 409 없음",
+     "js": "const S=window.NexaStudioLink.S; await until(async()=>S.id==='tbltest'&&!S.saving, 10000); await new Promise(r=>setTimeout(r,2500)); const g=await (await fetch('/api/deck/grptest',{cache:'no-store'})).json(); const grouped=g.slides.reduce((n,s)=>n+s.elements.filter(e=>e.type==='group').length,0); const r=await fetch('/api/deck/tbltest',{cache:'no-store'}); const v=r.headers.get('X-Deck-Version'); return grouped===0&&S.id==='tbltest'&&String(S.version)===String(v)&&!window.__puts.some(p=>p.st===409) ? true : JSON.stringify({grouped,id:S.id,ver:S.version,srv:v,puts:window.__puts})"
+    }
+   ]
+  }
+ ]
+}

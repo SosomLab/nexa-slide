@@ -1,0 +1,87 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>page-flow 쪽 나눔 시험</title>
+<style>
+  body { font: 14px/20px sans-serif; margin: 24px; }
+  #paper { position: relative; width: 440px; padding: 20px; background: #eee; }
+  #ed { width: 400px; outline: none; }
+  .nt-p { margin: 0 0 10px; min-height: 20px; white-space: pre-wrap; overflow-wrap: anywhere; }
+  .obj { height: 120px; margin: 0 0 10px; background: #cde; }
+  .pg-break { height: 0; margin: 8px 0; border-top: 1px dashed #999; }
+  table { border-collapse: collapse; width: 100%; table-layout: fixed; margin: 4px 0 8px; }
+  td, th { border: 1px solid #888; padding: 2px 4px; height: 26px; }
+  .pg-gap { display: inline-block; width: 100%; vertical-align: top; background: rgba(255, 0, 0, .08); }
+  .pg-gaprow > td { border: 0 !important; padding: 0 !important; }
+</style>
+<div id="paper"><div id="ed"></div></div>
+<script src="../nexa-text.js"></script>
+<script src="../page-flow.js"></script>
+<script>
+  // 시험용 문서 - page_flow_ui_test.py 가 smoke.js 로 이 쪽을 열고 단계마다 load(...) 뒤 쪽 나눔을 본다.
+  //   쪽 본문 300px · 여백 위아래 20 · 쪽 틈 24 → 쪽 본문은 0~300 · 364~664 · 728~1028 …(본문 맨 위 기준)
+  const T = NexaText, H = 300, G = 64;
+  let seq = 0;
+  window.DOC = { blocks: [] };
+  window.LAST = null;
+  const host = document.querySelector("#ed");
+  const WORDS = "가나다라마바사 아자차카 타파하 quick brown fox jumps over the lazy dog 그리고 다시 ";
+  window.para = (id, lines) => ({ id, type: "p", runs: [{ t: WORDS.repeat(Math.max(1, Math.round(lines * 0.75))) }] });
+  window.table = (id, rows, span) => ({ id, type: "table", rows, span });
+  function tableEl(b) {
+    const t = document.createElement("table"), tb = document.createElement("tbody"); t.appendChild(tb);
+    for (let r = 0; r < b.rows; r++) {
+      const tr = document.createElement("tr"); if (r === 0) tr.className = "head";
+      for (let c = 0; c < 2; c++) {
+        if (b.span && c === 0 && r > b.span[0] && r < b.span[0] + b.span[1]) continue;  // 위에서 합친 칸이 차지
+        const td = document.createElement(r === 0 ? "th" : "td"); td.textContent = `r${r}c${c}`;
+        if (b.span && c === 0 && r === b.span[0]) td.rowSpan = b.span[1];
+        tr.appendChild(td);
+      }
+      tb.appendChild(tr);
+    }
+    return t;
+  }
+  window.ED = T.mount(host, {
+    get: () => DOC.blocks, set: (b) => { DOC.blocks = b; }, newId: () => "n" + (++seq),
+    renderBlock: (b) => { if (b.type === "table") return tableEl(b); const d = document.createElement("div"); d.className = b.type === "break" ? "pg-break page" : "obj"; if (b.h) d.style.height = b.h + "px"; return d; },
+  });
+  window.FLOW = NexaPageFlow.create({
+    host, gap: 24, box: () => ({ cw: 400, ch: H, t: 20, b: 20 }),
+    saveSel: () => ED.selection(), restoreSel: (s) => ED.select(s.a, s.f), onPages: (n, info) => { LAST = { n, ...info }; },
+  });
+  window.load = (blocks) => { DOC.blocks = blocks; seq = 0; ED.refresh(); host.focus(); FLOW.run(); return LAST; };
+  window.run = () => { FLOW.run(); return LAST; };
+  window.sel = (id, a, id2, b) => ED.select({ id, off: a }, { id: id2 || id, off: b === undefined ? a : b });
+  window.bi = (inputType, data) => host.dispatchEvent(new InputEvent("beforeinput", { inputType, data, bubbles: true, cancelable: true }));
+  window.blk = (id) => DOC.blocks.find((x) => x.id === id);
+  window.txt = (id) => T.text(blk(id).runs);
+  window.el = (id) => host.querySelector(`[data-id="${id}"]`);
+  window.caret = () => { const s = ED.selection(); return s ? s.f.id + ":" + s.f.off : null; };
+  window.gaps = () => host.querySelectorAll(".pg-gap").length;
+  window.gapRows = () => host.querySelectorAll(".pg-gaprow").length;
+  window.pushed = () => [...host.children].filter((e) => e._pgPush).map((e) => e.dataset.id);
+  /** 쪽 본문 밖에 걸친 것(글 줄 · 표 행 · 개체)을 찾는다 - 비어 있어야 한다. 쪽보다 큰 것은 뺀다 */
+  window.audit = () => {
+    const top0 = host.getBoundingClientRect().top, bad = [], rg = document.createRange();
+    const where = (a, b, what) => { if (b - a > H + 1) return; const k = Math.floor((a + 1) / (H + G)); if (a < k * (H + G) - 1 || b > k * (H + G) + H + 1) bad.push(`${what} ${Math.round(a)}~${Math.round(b)}`); };
+    for (const e of host.children) {
+      const id = e.dataset.id;
+      if (e.classList.contains("nt-p")) {
+        const w = document.createTreeWalker(e, 4); let n;
+        while ((n = w.nextNode())) { rg.selectNodeContents(n); for (const r of rg.getClientRects()) if (r.width > 0 && r.height > 0) where(r.top - top0, r.bottom - top0, id); }
+      } else if (e.tagName === "TABLE") {
+        for (const tr of e.rows) { if (tr.classList.contains("pg-gaprow")) continue; const r = tr.getBoundingClientRect(); where(r.top - top0, r.bottom - top0, id + "/" + tr.rowIndex); }
+      } else if (!e.classList.contains("pg-break")) { const r = e.getBoundingClientRect(); where(r.top - top0, r.bottom - top0, id); }
+    }
+    return bad;
+  };
+  /** 그 블록(또는 그 안의 글자 위치)이 놓인 쪽(0부터) */
+  window.pageOf = (id, off) => {
+    const top0 = host.getBoundingClientRect().top; let y;
+    if (off === undefined) y = el(id).getBoundingClientRect().top + (el(id)._pgPush ? 0 : 0);
+    else { const w = document.createTreeWalker(el(id), 4), rg = document.createRange(); let n, left = off; while ((n = w.nextNode())) { if (left < n.data.length) break; left -= n.data.length; } rg.setStart(n, left); rg.setEnd(n, left + 1); y = rg.getClientRects()[0].top; }
+    return Math.floor((y - top0 + 1) / (H + G));
+  };
+  window.topIn = (id) => { const y = el(id).getBoundingClientRect().top - host.getBoundingClientRect().top; return Math.round(y - Math.floor((y + 1) / (H + G)) * (H + G)); };
+  host.focus();
+</script>

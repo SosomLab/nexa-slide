@@ -63,7 +63,8 @@ for i in range(22):
 old_dir(et.WORKTREES / "deploy-merge")
 
 rep = et.scan()
-paths = {Path(i["path"]).relative_to(WORK).as_posix(): i["category"] for i in rep["items"]}
+# 같은 때 도는 다른 시험(다른 세션)이 OS 임시 폴더에 만든 것도 훑기에 잡힌다 - 이 시험의 폴더(WORK) 밖의 것은 보지 않는다(간헐 실패의 원인이었다)
+paths = {Path(i["path"]).relative_to(WORK).as_posix(): i["category"] for i in rep["items"] if Path(i["path"]).is_relative_to(WORK)}
 print(json.dumps(sorted(paths), ensure_ascii=False))
 check("고아 첨부: 큐에 없는 #9 · 하루 지난 _new", paths.get("user/hub/engine/attach/9") == "attach" and "user/hub/engine/attach/_new/c.png" in paths, paths)
 check("  열린 요청 첨부·새로 올린 _new 는 남김", "user/hub/engine/attach/1" not in paths and "user/hub/engine/attach/_new/fresh.png" not in paths)

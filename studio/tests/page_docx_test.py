@@ -149,5 +149,66 @@ st2, dx2 = zt.read("word/styles.xml").decode("utf-8"), zt.read("word/document.xm
 check("토큰 - 본문 글꼴이 영문·한글 따로 나간다", 'w:ascii="Pretendard" w:hAnsi="Pretendard" w:eastAsia="맑은 고딕"' in st2, st2[st2.find("<w:rFonts"):][:120])
 check("토큰 - 제목 글꼴(title → heading)·강조 색", 'w:ascii="Inter" w:hAnsi="Inter" w:eastAsia="Pretendard"' in st2 and 'w:val="A91F24"' in dx2)
 
+# 개체(도형·글 상자) - 매인 문단 맨 앞의 떠 있는 도형(wp:anchor + wps:wsp)
+od = P.new_page("o", "개체")
+od["blocks"] = [{"id": "p1", "type": "p", "runs": [{"t": "첫 문단"}]}, {"id": "p2", "type": "p", "runs": [{"t": "둘째 문단"}]}]
+od["objects"] = [
+    {"id": "o1", "type": "shape", "shape": "ellipse", "anchor": "p2", "rel": "page", "x": 30, "y": 40, "w": 50, "h": 20, "line": {"c": "#C8553D", "w": 1.5, "dash": "dash"}},
+    {"id": "o2", "type": "shape", "shape": "rect", "anchor": "p2", "rel": "para", "x": 5, "y": -3, "w": 60, "h": 25, "fill": "#EEEEEE", "line": None, "z": "behind", "valign": "middle",
+     "blocks": [{"id": "ot", "type": "p", "runs": [{"t": "상자 글", "b": True}]}]},
+    {"id": "o3", "type": "shape", "shape": "arrow", "anchor": "p1", "x": 20, "y": 60, "w": 40, "h": 10, "flip": True},
+    {"id": "o4", "type": "shape", "shape": "brace-l", "anchor": "p1", "x": 10, "y": 80, "w": 4, "h": 30},
+]
+check("개체 - 형식 검사 통과", P.validate(P.normalize(od)) is None, P.validate(P.normalize(od)))
+ox = zipfile.ZipFile(io.BytesIO(X.build(od))).read("word/document.xml").decode("utf-8")
+ot = ET.fromstring(ox)
+WP = "{http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing}"
+A = "{http://schemas.openxmlformats.org/drawingml/2006/main}"
+WPS = "{http://schemas.microsoft.com/office/word/2010/wordprocessingShape}"
+paras = ot.find(f"{W}body").findall(f"{W}p")
+per = [len(p.findall(f".//{WP}anchor")) for p in paras]
+check("개체 - 매인 문단 안에 들어간다(p1 에 2개 · p2 에 2개)", per[:2] == [2, 2], per)
+an = {a.find(f"{WP}docPr").get("name"): a for a in ot.iter(f"{WP}anchor")}
+first = paras[1].findall(f".//{WP}anchor")
+e1, e2 = first[0], first[1]
+check("개체 - 쪽 기준 자리(mm → EMU)", e1.find(f"{WP}positionH").get("relativeFrom") == "page" and e1.find(f"{WP}positionH/{WP}posOffset").text == str(30 * 36000)
+      and e1.find(f"{WP}positionV").get("relativeFrom") == "page" and e1.find(f"{WP}positionV/{WP}posOffset").text == str(40 * 36000) and e1.find(f"{WP}extent").get("cx") == str(50 * 36000))
+check("개체 - 문단 기준 자리(음수 가능) · 글 뒤로", e2.find(f"{WP}positionH").get("relativeFrom") == "column" and e2.find(f"{WP}positionV").get("relativeFrom") == "paragraph"
+      and e2.find(f"{WP}positionV/{WP}posOffset").text == str(-3 * 36000) and e2.get("behindDoc") == "1" and e1.get("behindDoc") == "0")
+g1 = e1.find(f".//{WPS}spPr")
+check("개체 - 타원 · 채움 없음 · 선 색·굵기·점선", g1.find(f"{A}prstGeom").get("prst") == "ellipse" and g1.find(f"{A}noFill") is not None and g1.find(f"{A}ln").get("w") == str(int(1.5 * 12700))
+      and g1.find(f"{A}ln/{A}solidFill/{A}srgbClr").get("val") == "C8553D" and g1.find(f"{A}ln/{A}prstDash").get("val") == "dash")
+g2 = e2.find(f".//{WPS}spPr")
+check("개체 - 글 상자: 채움 · 선 없음 · 안의 문단 · 세로 가운데", g2.find(f"{A}solidFill/{A}srgbClr").get("val") == "EEEEEE" and g2.find(f"{A}ln/{A}noFill") is not None
+      and "".join(t.text for t in e2.iter(f"{W}t")) == "상자 글" and e2.find(f".//{WPS}bodyPr").get("anchor") == "ctr" and e2.find(f".//{WPS}txbx/{W}txbxContent/{W}p") is not None)
+ar = paras[0].findall(f".//{WP}anchor")
+check("개체 - 화살표: 선 도형 · 끝 화살촉 · 위로 뒤집기 · 글 없음", ar[0].find(f".//{A}prstGeom").get("prst") == "line" and ar[0].find(f".//{A}ln/{A}tailEnd").get("type") == "triangle"
+      and ar[0].find(f".//{A}xfrm").get("flipV") == "1" and ar[0].find(f".//{WPS}cNvCnPr") is not None and ar[0].find(f".//{WPS}txbx") is None)
+check("개체 - 중괄호 모양", ar[1].find(f".//{A}prstGeom").get("prst") == "leftBrace")
+ids_ = [a.find(f"{WP}docPr").get("id") for a in ot.iter(f"{WP}anchor")]
+check("개체 - docPr id 가 겹치지 않는다", len(set(ids_)) == 4, ids_)
+order = [c.tag.split("}")[1] for c in e2.find(f".//{WPS}wsp")]
+check("개체 - wsp 자식 순서(cNvSpPr → spPr → txbx → bodyPr)", order == ["cNvSpPr", "spPr", "txbx", "bodyPr"], order)
+
+# 각주 - 글 조각의 fn → 본문의 w:footnoteReference + word/footnotes.xml
+fd = P.new_page("f", "각주")
+fd["blocks"] = [{"id": "p1", "type": "p", "runs": [{"t": "첫 문장"}, {"t": "끝", "fn": "첫째 각주 <글>"}, {"t": " 그리고 둘째", "fn": "둘째 각주"}]},
+                {"id": "t1", "type": "table", "cols": [100], "rows": [{"id": "r1", "cells": [{"id": "c1", "blocks": [{"id": "cp", "type": "p", "runs": [{"t": "칸", "fn": "칸 안 각주"}]}]}]}]}]
+fd["page"]["header"] = {"blocks": [{"id": "h1", "type": "p", "runs": [{"t": "머리", "fn": "머리말 각주"}]}]}
+fd["objects"] = [{"id": "o1", "type": "shape", "shape": "rect", "anchor": "p1", "x": 10, "y": 10, "w": 40, "h": 20, "blocks": [{"id": "ot", "type": "p", "runs": [{"t": "상자", "fn": "상자 각주"}]}]}]
+check("각주 - 형식 검사 통과 · 문서 순서 번호(본문·칸만)", P.validate(P.normalize(fd)) is None and P.footnotes(fd) == [(1, "첫째 각주 <글>"), (2, "둘째 각주"), (3, "칸 안 각주")], (P.validate(P.normalize(fd)), P.footnotes(fd)))
+fz = zipfile.ZipFile(io.BytesIO(X.build(fd)))
+fx, fn_xml = fz.read("word/document.xml").decode("utf-8"), fz.read("word/footnotes.xml").decode("utf-8")
+ft = ET.fromstring(fn_xml)
+refs = [e.get(W + "id") for e in ET.fromstring(fx).iter(W + "footnoteReference")]
+check("각주 - 본문 참조 id 2·3·4(0·1 은 구분선) · 글 상자 안에는 참조 없음", refs == ["2", "3", "4"], refs)
+notes = {f.get(W + "id"): "".join(t.text or "" for t in f.iter(W + "t")).strip() for f in ft.findall(W + "footnote")}
+check("각주 - footnotes.xml 에 구분선 둘 + 각주 글(특수 문자 그대로)", set(notes) == {"0", "1", "2", "3", "4"} and notes["2"] == "첫째 각주 <글>" and notes["4"] == "칸 안 각주"
+      and ft.find(f"{W}footnote[@{W}id='0']").get(W + "type") == "separator", notes)
+check("각주 - 관계·콘텐츠 형식 등록", "relationships/footnotes" in fz.read("word/_rels/document.xml.rels").decode("utf-8") and "wordprocessingml.footnotes+xml" in fz.read("[Content_Types].xml").decode("utf-8"))
+check("각주 - 머리말·글 상자 안은 글로 푼다([주: …])", "[주: 머리말 각주]" in fz.read("word/header1.xml").decode("utf-8") and "[주: 상자 각주]" in fx and "footnoteReference" not in fz.read("word/header1.xml").decode("utf-8"))
+check("각주 없는 문서 - footnotes.xml 을 만들지 않는다", "word/footnotes.xml" not in zipfile.ZipFile(io.BytesIO(X.build(P.new_page("e2", "")))).namelist())
+check("각주 거절 - 빈 글·글이 아닌 값", all(isinstance(P.validate({**P.normalize(fd), "blocks": [{"id": "x", "type": "p", "runs": [{"t": "가", "fn": v}]}], "objects": []}), str) for v in ("", "  ", 3)))
+
 print(f"\n실패 {len(fails)}" if fails else f"\n전부 통과 ({n}사례)")
 sys.exit(1 if fails else 0)

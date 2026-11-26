@@ -1,6 +1,6 @@
 // 공용 "새 문서" 대화 상자 - 슬라이드 · 시트 · 페이지 중에서 골라 만든다. 세 편집기가 같이 쓴다(docs/dev/page-editor/design.md 8절).
 //   NexaNewDoc.open({ api, kind? }) → 만든 문서 {id, kind}(취소면 null). api = NexaShell 의 api(method, url, body).
-//   종류는 NexaKinds.list(experimental) - 실험 종류(페이지)는 /api/config 의 experimental 에 있을 때만 보인다.
+//   종류는 NexaKinds.list(experimental) - 끌 수 있는 종류(페이지)는 /api/config 의 experimental 에 있을 때만 보인다.
 //   페이지는 템플릿을 고른다(GET /api/page-templates - 자주 쓴 것이 앞). 시트는 테마 대화 상자(NexaSheetNew)가 있으면 그것으로 넘긴다.
 //   스타일은 이 파일이 싣는다(세 화면의 CSS 가 아직 따로라서 - 공용 스타일 PG-012 뒤에 옮긴다).
 (function (root) {

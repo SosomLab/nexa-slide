@@ -1,11 +1,11 @@
 // 글 편집 엔진(공용) - 서식 있는 글의 모델과 연산. 페이지 본문·표 셀·머리말이 쓰고, 뒤에 슬라이드 글 상자·시트 셀도 쓴다(docs/dev/page-editor/design.md 5절).
-//   문단의 글 = runs: [{t: "글", b, i, u, s, c, hl, sup, sub, font, size, link, ruby}] - t 말고는 모두 서식(mark). 없는 키 = 꺼짐.
+//   문단의 글 = runs: [{t: "글", b, i, u, s, c, hl, sup, sub, font, size, link, ruby, fn}] - t 말고는 모두 서식(mark). 없는 키 = 꺼짐. fn = 각주 글(이 조각 뒤에 번호가 붙는다).
 //   위치(offset)는 문단 안 UTF-16 코드 단위 - DOM Range 의 offset 과 같은 단위라 선택 변환이 단순하다.
 //   모든 연산은 **새 배열을 돌려주고 입력을 고치지 않는다**. 결과는 늘 정규화돼 있다(빈 조각 없음 · 서식이 같은 이웃은 합침 · 꺼진 서식 키 없음).
 //   이 파일은 모델만 다룬다(DOM 없음 - node 에서 시험: tests/nexa_text_check.js). 입력·선택·그리기는 같은 파일의 뒤쪽 절에 더한다(PG-031).
 (function (root) {
   "use strict";
-  const MARKS = ["b", "i", "u", "s", "c", "hl", "sup", "sub", "font", "size", "link", "ruby"];
+  const MARKS = ["b", "i", "u", "s", "c", "hl", "sup", "sub", "font", "size", "link", "ruby", "fn"];
   const BOOL = new Set(["b", "i", "s", "sup", "sub"]);  // 켜짐/꺼짐뿐인 서식(u 는 종류가 있다: true | "double" | "dot" …)
   const EXCL = { sup: "sub", sub: "sup" };  // 함께 켤 수 없는 짝 - 하나를 켜면 다른 하나는 끈다
 
@@ -57,7 +57,7 @@
     for (const r of runs || []) { const end = pos + r.t.length; if (at > pos && at <= end) { hit = { r, atEnd: at === end }; break; } pos = end; }
     if (!hit) { const first = (runs || [])[0]; if (!first) return {}; hit = { r: first, atEnd: false, head: true }; }
     const m = marksOf(hit.r);
-    if (hit.atEnd || hit.head) { delete m.link; delete m.ruby; }
+    if (hit.atEnd || hit.head) { delete m.link; delete m.ruby; delete m.fn; }
     return m;
   }
   /** 구간 전체에 공통인 서식(서식 막대의 켜짐 표시) - 구간이 비면 marksAt */
@@ -239,6 +239,7 @@
     if (r.size) st.fontSize = r.size + "pt";
     if (r.link) { span.dataset.link = r.link; span.classList.add("nt-link"); }
     if (r.ruby) span.dataset.ruby = r.ruby;
+    if (r.fn) { span.dataset.fn = r.fn; span.title = r.fn; }
   }
   /** 문단 요소에 글 조각을 그린다 - 편집기(mount)와 인쇄·미리 보기(page-render.js)가 같이 쓴다. opts: color(c) · font(f) 토큰 → CSS 값 */
   function fillRuns(el, runs, opts) {
@@ -348,7 +349,7 @@
       if (cur && !collapsed(cur.a, cur.f)) {
         const o = ordered(blocks(), cur.a, cur.f), b = o && blocks()[idx(blocks(), o[0].id)];
         const r = isText(b) ? slice(b.runs, o[0].off, o[0].off + 1)[0] : null;
-        if (r) { first = marksOf(r); delete first.link; delete first.ruby; }
+        if (r) { first = marksOf(r); delete first.link; delete first.ruby; delete first.fn; }
       }
       replaceSel((bs, pos) => { const m = usePending(pos) || first; return insertAt(bs, pos, s, m); }, "type", range);
     }

@@ -11,6 +11,7 @@
 """
 import argparse
 import io
+import json
 import re
 import sys
 import zipfile
@@ -54,6 +55,7 @@ class Reader:
     def __init__(self, z, images=True):
         self.z, self.want_images = z, images
         self.warn, self.images, self.n = [], {}, 0
+        self._notes = None
         self.rels = self._rels("word/_rels/document.xml.rels")
         self.styles = self._styles()
         self.nums = self._numbering()
@@ -167,11 +169,26 @@ class Reader:
                 else:
                     self._warn("떠 있는 그림·도형은 옮기지 않았다(글자처럼 놓인 그림만)")
                     out.append({"__dropped": True})
-            elif tag in (W + "footnoteReference", W + "endnoteReference"):
-                self._warn("각주·미주는 옮기지 않았다")
+            elif tag == W + "footnoteReference":
+                t = self._note(ch.get(W + "id"))
+                if t:
+                    out.append({"__fn": t})
+            elif tag == W + "endnoteReference":
+                self._warn("미주는 옮기지 않았다")
             elif tag == W + "fldChar" or tag == W + "instrText":
                 out.append({"__field": (ch.text or "") if tag == W + "instrText" else v(ch, "fldCharType")})
         return out
+
+    def _note(self, i):
+        """각주 id → 글(여러 문단은 줄바꿈으로 잇는다). 구분선(separator)은 없다."""
+        if self._notes is None:
+            self._notes = {}
+            root = self._xml("word/footnotes.xml")
+            for f in (root.findall(W + "footnote") if root is not None else []):
+                if f.get(W + "type") in ("separator", "continuationSeparator"):
+                    continue
+                self._notes[f.get(W + "id")] = "\n".join("".join(t.text or "" for t in p.iter(W + "t")).strip() for p in f.findall(W + "p")).strip()[:2000]
+        return self._notes.get(i) or ""
 
     def _warn(self, msg):
         if msg not in self.warn:
@@ -296,6 +313,15 @@ class Reader:
                     dropped = True
                 elif "__textbox" in it:  # 글 상자의 글 - 이 문단 뒤에 문단들로
                     boxed += [x for q in it["__textbox"].findall(W + "p") for x in self._para(q)[0] if x["type"] == "p" and x["runs"]]
+                elif "__fn" in it:  # 각주 - 바로 앞 글자에 단다(앞에 글이 없으면 표시 글자 ※ 를 둔다)
+                    last = runs[-1] if runs and "t" in runs[-1] and runs[-1]["t"] and not runs[-1].get("fn") else None
+                    if last is None:
+                        runs.append({"t": "※", "fn": it["__fn"]})
+                    elif len(last["t"]) > 1:
+                        runs[-1] = {**last, "t": last["t"][:-1]}
+                        runs.append({**last, "t": last["t"][-1], "fn": it["__fn"]})
+                    else:
+                        last["fn"] = it["__fn"]
                 elif "__break" in it:
                     if runs:
                         flush()
@@ -496,16 +522,28 @@ def save_images(doc, images, asset_root, prefix):
 
 def main():
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    from common import ASSET_ROOT, DECKS, safe_id  # -W <작업 공간> 을 읽고 인자에서 뺀다 - 인자를 읽기 전에
     ap = argparse.ArgumentParser(description="Word .docx → 페이지 문서")
     ap.add_argument("docx")
     ap.add_argument("--id")
     ap.add_argument("--title")
+    ap.add_argument("--blocks", action="store_true", help="문서를 만들지 않고 블록(JSON)만 꺼낸다 → out/import/<이름>/page.json - 요청 첨부(Word)의 내용을 있는 페이지 문서에 서식째 넣을 때")
     a = ap.parse_args()
-    from common import ASSET_ROOT, DECKS, safe_id
     import deck_admin
     src = Path(a.docx)
     i = a.id or deck_admin.new_id()
     safe_id(i)
+    if a.blocks:  # 첨부 분석용 - 덱을 만들지 않는다. 그림은 assets 에 꺼내 두어 블록의 src 가 그대로 쓰인다
+        from common import OUT
+        doc, images, warn = read(src.read_bytes(), doc_id=i, title=a.title or src.stem)
+        save_images(doc, images, ASSET_ROOT, i)
+        d = OUT / "import" / (re.sub(r"[^0-9A-Za-z가-힣._-]+", "_", src.stem)[:60] or "docx")
+        d.mkdir(parents=True, exist_ok=True)
+        (d / "page.json").write_text(json.dumps({"title": doc.get("title"), "page": doc.get("page"), "styles": doc.get("styles"), "blocks": doc.get("blocks")}, ensure_ascii=False, indent=1), encoding="utf-8", newline="\n")
+        print(f"꺼냄: {d / 'page.json'} · 블록 {len(doc['blocks'])}개 · 그림 {len(images)}개 (문서는 만들지 않았다)")
+        for w in warn:
+            print("  주의: " + w)
+        return
     out = DECKS / f"{i}.json"
     if out.exists():
         sys.exit(f"이미 있는 덱: {i}")
