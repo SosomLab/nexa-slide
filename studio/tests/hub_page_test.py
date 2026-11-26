@@ -2,7 +2,7 @@
 """첫 문서로 페이지(실험 기능) - init_workspace --kind page · 허브 계획·만들기 · 시작 페이지(home.html) 종류 단추.
     python studio/tests/hub_page_test.py
 - CLI: 임시 폴더(tmpfiles)에 --kind page --page-template report → 시작 문서 kind page·template report·startDeck·experimental.page / --starter 와 같이 쓰면 거절 / 없는 템플릿은 오류.
-- 허브(격리 5799 - 운영 허브 5599 는 건드리지 않는다): 환경 변수 없이 띄우면 /api/home experimental·pageTemplates 가 비고 kind page 계획·만들기 거절, 종류 단추 2개.
+- 허브(격리 5799 - 운영 허브 5599 는 건드리지 않는다): NEXA_SLIDE_EXPERIMENTAL=-page 로 끄고 띄우면(기본은 켬 - DR-P13) /api/home experimental·pageTemplates 가 비고 kind page 계획·만들기 거절, 종류 단추 2개.
   NEXA_SLIDE_EXPERIMENTAL=page 로 띄우면 템플릿 11종 · 만들기 → 작업 공간 · 시작 문서가 page.html 로 열림 · 종류 단추 3개 · 페이지를 고르면 슬라이드 템플릿 영역이 숨고 칩 11개 · 계획 요청 본문에 kind page·pageTemplate."""
 import http.cookiejar
 import json
@@ -137,6 +137,20 @@ def main():
                    "document.querySelector('#fTitle').value='계획 시험';document.querySelector('#fTitle').dispatchEvent(new Event('input',{bubbles:true}));const vb=document.querySelector('#pageOpts [data-ptpl=vocab]');if(!vb)return JSON.stringify({k,chips,names:[...document.querySelectorAll('#pageOpts [data-ptpl]')].map(x=>x.dataset.ptpl)});vb.click();"
                    "await until(async()=>window.__plans.some(b=>b.kind==='page'&&b.pageTemplate==='vocab'),8000);const p=window.__plans.slice(-1)[0]||{};"
                    "return k.join()==='deck,sheet,page'&&chips===11&&hidden&&p.kind==='page'&&p.pageTemplate==='vocab' || JSON.stringify({k,chips,hidden,plan:p});"}]}]
+        # 홈 화면에서 페이지 + 템플릿 '보고서' 로 만들기 → 만들기 본문에 pageTemplate report · 시작 문서 template report(d4392f6 전에는 본문에서 빠졌다).
+        # 만들기 응답은 시험이 받아 두고 화면에는 실패로 돌려준다(작업 공간 주소로 넘어가면 단계가 끊긴다)
+        pages.append({"url": "/studio/home.html#new", "wait": 2500, "steps": [
+            {"name": "home(켬) - 페이지 + '보고서' 템플릿으로 [만들기] → 만들기 본문 kind page · pageTemplate report → 만든 시작 문서 kind page · template report",
+             "timeout": 150000,
+             "js": KINDS + "if(!window.__cf){window.__cf=window.fetch.bind(window);window.fetch=async(u,o={})=>{let b=null;try{b=o.body&&JSON.parse(o.body);}catch(e){}const r=await window.__cf(u,o);"
+                   "if(String(u).includes('/api/project')&&b&&b.action==='create'){let j={};try{j=await r.clone().json();}catch(e){}window.__cres={body:b,st:r.status,data:j};return new Response(JSON.stringify({ok:false,error:'시험 - 이동 막음'}),{status:409,headers:{'Content-Type':'application/json'}});}return r;};}"
+                   "await until(async()=>kinds().length===3,5000);document.querySelector('#fKind [data-kind=page]').click();await until(async()=>document.querySelector('#pageOpts [data-ptpl=report]'),4000);"
+                   "document.querySelector('#pageOpts [data-ptpl=report]').click();const t=document.querySelector('#fTitle');t.value='홈 보고서 시험';t.dispatchEvent(new Event('input',{bubbles:true}));await new Promise(r=>setTimeout(r,1500));"
+                   "document.querySelector('#fGo').click();await until(async()=>window.__cres,120000);const c=window.__cres||{};const url=(c.data||{}).url||'';"
+                   "if(!url)return JSON.stringify({body:c.body,st:c.st,data:c.data});const base=new URL(url,location.href).pathname.replace(/[/]$/,'');"
+                   "const ds=await (await window.__cf(base+'/api/decks',{cache:'no-store'})).json();const lst=Array.isArray(ds)?ds:(ds.decks||[]);const sd=lst.find(x=>x.start)||lst[0]||{};"
+                   "const d=sd.id&&await (await window.__cf(base+'/api/deck/'+sd.id,{cache:'no-store'})).json();"
+                   "return c.body.kind==='page'&&c.body.pageTemplate==='report'&&c.st===200&&d&&d.kind==='page'&&d.template==='report' || JSON.stringify({body:{kind:c.body.kind,pageTemplate:c.body.pageTemplate},st:c.st,url,decks:lst.map(x=>[x.id,x.kind,x.start]),kind:d&&d.kind,tpl:d&&d.template});"}]})
         if url:
             rel = url.replace(B, "") if url.startswith("http") else url
             pages.append({"url": rel, "wait": 3500, "steps": [

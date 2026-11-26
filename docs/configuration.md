@@ -19,6 +19,8 @@
 
 정해진 작업 공간은 `NEXA_SLIDE_WORKSPACE` 로 하위 프로세스에 넘어간다(서버가 실행하는 export·set_fonts·렌더도 같은 작업 공간을 쓴다).
 
+환경 변수 `NEXA_SLIDE_EXPERIMENTAL=<이름>[,…]`(끄기는 `-<이름>`)는 기능 켜고 끄기를 작업 공간 설정보다 먼저 정한다 — 예: `NEXA_SLIDE_EXPERIMENTAL=-page` 로 서버를 띄우면 페이지 문서를 만들 수 없다([아래 `experimental`](#nexa-slidejson), [pages.md](pages.md)).
+
 작업 공간 밖의 **전역(사용자) 설정** `settings.json` 의 키 목록은 [home.md](home.md#사용자-설정) — 허브 인증·로그(`sessionDays`·`publicHosts`·`accessLogDays`·`accessLogStatic`)와 보기 전용 공유 링크(`shareMaxDays` 기본 90 · `shareCreate` `any`/`admin`)는 [auth.md](auth.md).
 
 ## `nexa-slide.json`
@@ -47,6 +49,7 @@
 | `endNextNote` | `""` | 문서 끝(EoD) "다음 순서" 칩 뒤에 붙일 설명(예: `"  (장 번호가 아니라 교육 순서)"`) |
 | `repo` | 없음 | 저장소형 작업 공간 표시(`init_workspace.py` 가 씀) — `root`(저장소 관리 기준 폴더, 보통 `..`). 시작 페이지가 저장소 루트를 보인다 |
 | `sessionAllowGit` · `sessionAllowPush` · `sessionRepoRoot` · `sessionAllowWeb` | 없음 | `false` 로 두면 이 작업 공간에서 웹 세션의 git 기록·push·저장소 루트 접근·웹 검색을 끈다(켜는 것은 사용자 설정 전역 스위치만 — [home.md](home.md) 사용자 설정). `nexa-slide.local.json` 에 두면 이 PC 만 |
+| `experimental` | 없음 | 기능 켜고 끄기 `{"<이름>": true\|false}`. 지금 이름은 `page`(페이지 문서, [pages.md](pages.md)) 하나이고 기본이 켬이라 `{"page": false}` 로 끈다. 판단 순서는 환경 변수 `NEXA_SLIDE_EXPERIMENTAL`(`page` 켬 · `-page` 끔, 쉼표로 여러 개) → 이 키 → 엔진 기본값(`server.py` 의 `RELEASED`). 시작 페이지(허브)는 이 키를 읽지 않고 환경 변수와 기본값만 본다(`hub.py`). `init_workspace.py --kind page` 는 `{"page": true}` 를 적는다 |
 
 예 — 교재 저장소의 `ppt/` 를 작업 공간으로, 그림 경로는 저장소 루트 기준:
 

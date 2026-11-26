@@ -391,6 +391,253 @@ POLL_DOC = {"id": "pgpoll", "title": "밖의 변경", "kind": "page", "slides": 
     {"id": "qt", "type": "table", "cols": [50, 50], "rows": [{"id": "qr1", "cells": [{"id": "qc1", "blocks": [{"id": "qp1", "type": "p", "runs": [{"t": "칸"}]}]},
                                                                                {"id": "qc2", "blocks": [{"id": "qp2", "type": "p", "runs": [{"t": "칸2"}]}]}]}]},
     {"id": "q3", "type": "p", "runs": [{"t": "셋"}]}]}
+FLOW_DOC = {"id": "pgflow", "title": "쪽 나눔", "kind": "page", "slides": [], "blocks": [
+    {"id": "f0", "type": "p", "runs": [{"t": "머리 문단"}]},
+    {"id": "fl", "type": "p", "runs": [{"t": "쪽나눔 " + "가나다라마바사아자차카타파하 " * 260}]},
+    {"id": "ft", "type": "table", "cols": [30, 70], "rows": [{"id": f"fr{k}", "cells": [{"id": f"fc{k}a", "blocks": [{"id": f"fp{k}a", "type": "p", "runs": [{"t": f"행{k}"}]}]},
+                                                                                     {"id": f"fc{k}b", "blocks": [{"id": f"fp{k}b", "type": "p", "runs": [{"t": "값"}]}]}]} for k in range(40)]},
+    {"id": "fz", "type": "p", "runs": [{"t": "끝 문단"}]}]}
+# 실제 편집기의 쪽 나눔(PG-102) - 종이 장(.pg-sheet)의 화면 좌표로 본문 범위를 잡는다(확대에도 그대로)
+FL = ("const SH=()=>[...document.querySelectorAll('#sheets .pg-sheet')];"
+      "const bodies=()=>{const b=S.box;return SH().map(x=>{const r=x.getBoundingClientRect();const k=r.height/b.h;return [r.top+b.t*k,r.bottom-b.b*k];});};"
+      "const pageAt=(a,z)=>{z=z===undefined?a:z;return bodies().findIndex(([t,u])=>a>=t-1.5&&z<=u+1.5);};"
+      "const audit=()=>{const bad=[],rg=document.createRange();for(const e of document.querySelector('#ed').children){if(e.classList.contains('pg-break'))continue;"
+      "if(e.tagName==='TABLE'){for(const tr of e.rows){if(tr.classList.contains('pg-gaprow')||tr.classList.contains('pg-headrep'))continue;const r=tr.getBoundingClientRect();if(r.height&&pageAt(r.top,r.bottom)<0)bad.push(e.dataset.id+'/'+tr.rowIndex+'@'+Math.round(r.top));}continue;}"
+      "const w=document.createTreeWalker(e,4);let n;while((n=w.nextNode())){rg.selectNodeContents(n);for(const r of rg.getClientRects())if(r.width>0&&r.height>0&&pageAt(r.top,r.bottom)<0)bad.push(e.dataset.id+'@'+Math.round(r.top));}}return bad;};"
+      "const gaps=(id)=>[...document.querySelectorAll((id?'#ed [data-id='+id+'] ':'#ed ')+'.pg-gap')];const gapRows=()=>document.querySelectorAll('#ed tr.pg-gaprow').length;"
+      "const pushed=()=>[...document.querySelector('#ed').children].filter(e=>e._pgPush).length;"
+      "const cr=(id,off)=>{const w=document.createTreeWalker(el(id),4);let n,l=off;while((n=w.nextNode())){if(l<n.data.length)break;l-=n.data.length;}const r=document.createRange();r.setStart(n,l);r.setEnd(n,l+1);return r.getClientRects()[0];};"
+      "const info=()=>document.querySelector('#pageInfo').textContent;const tick=(ms)=>new Promise(r=>setTimeout(r,ms||200));"
+      "const FD=()=>JSON.stringify({pages:S.pages,sheets:SH().length,info:info(),gaps:gaps().length,rows:gapRows(),pushed:pushed(),bad:audit().slice(0,6)});"
+      "const settle=async()=>{await tick(400);let k=-1,j=0;while(j++<20){const g=gaps().length+gapRows()+pushed()*100+S.pages*10000;if(g===k)break;k=g;await tick(250);}};"
+      "const chg=(id,v)=>{const e=document.querySelector(id);e.value=v;e.dispatchEvent(new Event('change',{bubbles:true}));};")
+
+
+def flow_steps():
+    """실시간 쪽 나눔(PG-102 1차 · 56e5c25) - 긴 문단 · 표 40행 · 쪽 번호 · 쪽 설정 · 확대 · 편집 · 실행 취소 · 저장 · 인쇄"""
+    PSD = PS + "const setup=async(f)=>{q('[data-act=setup]').click();await until(async()=>q('#psOk'),3000);f();q('#psOk').click();await idle();await settle();};"
+    return [
+        step("쪽 나눔 ① 긴 문단이 쪽을 넘으면 그 문단에 .pg-gap · 걸친 줄·행 없음 · 쪽 수 = 종이 장 수 = #pageInfo 'n쪽'",
+             H + FL + "await until(async()=>gaps('fl').length>0,8000);await settle();window.__p0=S.pages;"
+                      "return gaps('fl').length>=1&&audit().length===0&&S.pages>=3&&SH().length===S.pages&&parseInt(info())===S.pages || FD();"),
+        step("쪽 나눔 ② .pg-gap 바로 뒤 글자는 다음 종이 본문 안, 바로 앞 글자는 앞 종이",
+             H + FL + "const g=gaps('fl')[0];const o=g._off;const a=cr('fl',o-1),b=cr('fl',o+1);const pa=pageAt(a.top,a.bottom),pb=pageAt(b.top,b.bottom);"
+                      "return pa>=0&&pb===pa+1 || JSON.stringify({o,pa,pb,a:[a.top,a.bottom],b:[b.top,b.bottom],bodies:bodies().slice(0,4)});"),
+        step("쪽 나눔 ⑤ 표 40행 → 쪽 경계에 빈 행(tr.pg-gaprow) · 행이 쪽에 걸치지 않음",
+             H + FL + "return document.querySelectorAll('#ed [data-id=ft] tr.pg-gaprow').length>=1&&audit().length===0 || FD();"),
+        step("쪽 나눔 ③ 쪽 번호(아래 가운데)를 켜면 .pg-num 이 쪽마다 1, 2, 3 …",
+             H + FL + PSD + "await setup(()=>setv('#psNum','footer-center'));const ns=[...document.querySelectorAll('#covers .pg-num')].map(x=>x.textContent);"
+                            "return ns.length===S.pages&&ns.every((t,i)=>t===String(i+1)) || JSON.stringify({ns,pages:S.pages});"),
+        step("쪽 나눔 ④ 방향을 가로로 → 쪽 수가 다시 잡힘(늘어남) · 종이 장 수 같음 · 걸친 줄 없음",
+             H + FL + PSD + "const n0=S.pages;await setup(()=>setv('#psOrient','landscape'));"
+                            "if(S.pages>n0&&SH().length===S.pages&&parseInt(info())===S.pages&&audit().length===0)return true;"
+                            "const f1=JSON.parse(FD());await tick(2000);const b2=audit();const tr=[...document.querySelectorAll('#ed [data-id=ft] tr')].filter(x=>!x.classList.contains('pg-gaprow')&&!x.classList.contains('pg-headrep'));const r37=tr[37]&&tr[37].getBoundingClientRect();"
+                            "window.__d4=JSON.stringify({n0,f:f1,after2s:b2.slice(0,4),row37:r37&&[Math.round(r37.top),Math.round(r37.bottom)],gapRowsAt:[...document.querySelectorAll('#ed tr.pg-gaprow')].map(x=>Math.round(x.getBoundingClientRect().top)),bodies:bodies().map(x=>x.map(Math.round)),box:S.box});return 'bad - 다음 덤프 단계';"),
+        step("쪽 나눔 ④ 덤프(실패했을 때만 값 - 판정 아님)", "return window.__d4||'없음';", dump=True),
+        step("쪽 나눔 ④ 세로로 되돌리면 처음 쪽 수",
+             H + FL + PSD + "await setup(()=>setv('#psOrient','portrait'));return S.pages===window.__p0&&audit().length===0 || JSON.stringify({p0:window.__p0,f:JSON.parse(FD())});"),
+        step("쪽 나눔 ④ 위·아래 여백 +40mm → 쪽 수 늘어남 · 걸친 줄 없음 · 되돌리면 처음 쪽 수",
+             H + FL + PSD + "const m=JSON.parse(JSON.stringify(S.deck.page.margin));await setup(()=>{setv('#psMt',m.t+40);setv('#psMb',m.b+40);});const n1=S.pages,b1=audit();"
+                            "await setup(()=>{setv('#psMt',m.t);setv('#psMb',m.b);});"
+                            "return n1>window.__p0&&b1.length===0&&S.pages===window.__p0&&S.deck.page.margin.t===m.t || JSON.stringify({p0:window.__p0,n1,b1:b1.slice(0,4),f:JSON.parse(FD())});"),
+        step("쪽 나눔 ⑥ 150% 확대 → 쪽 수 같음 · 걸친 줄·행 없음 · 다시 100%",
+             H + FL + "chg('#selZoom','1.5');await settle();const n=S.pages,b=audit(),z=getComputedStyle(document.querySelector('#paper')).zoom;chg('#selZoom','1');await settle();"
+                      "try{localStorage.removeItem('nexaPageZoom');}catch(e){}return z==='1.5'&&n===window.__p0&&b.length===0&&S.pages===window.__p0 || JSON.stringify({z,n,p0:window.__p0,b:b.slice(0,6)});"),
+        step("쪽 나눔 ⑦ 나뉜 문단의 .pg-gap 바로 뒤에 글 치기 → 모델의 그 자리에 들어감 · 화면 글 = 모델 · 걸친 줄 없음",
+             H + FL + "await idle();await settle();const t=tx(S.deck.blocks.find(b=>b.id==='fl'));const o=window.__go;"
+                      "return t===window.__b.slice(0,o+2)+'쪽글'+window.__b.slice(o+2)&&el('fl').textContent===t&&audit().length===0&&gaps('fl').length>=1 || JSON.stringify({o,near:t.slice(o-3,o+8),scr:el('fl').textContent===t,f:JSON.parse(FD())});",
+             pre=FL + "await settle();window.__b=tx(S.deck.blocks.find(b=>b.id==='fl'));window.__go=gaps('fl')[0]._off;E.ed.focus();E.ed.select({id:'fl',off:window.__go+2});",
+             cdp=INS("쪽글"), wait=200),
+        step("쪽 나눔 ⑧ 나뉜 문단에서 한글 조합(ㅎ → 하 → 한) → 글이 맞음",
+             H + FL + "await idle();await settle();const t=tx(S.deck.blocks.find(b=>b.id==='fl'));const o=window.__go;"
+                      "return t===window.__b.slice(0,o+2)+'쪽글한'+window.__b.slice(o+2)&&el('fl').textContent===t&&audit().length===0 || JSON.stringify({near:t.slice(o-3,o+10),f:JSON.parse(FD())});",
+             pre=FL + "E.ed.focus();E.ed.select({id:'fl',off:window.__go+4});",
+             cdp=[{"method": "Input.imeSetComposition", "params": {"text": x, "selectionStart": len(x), "selectionEnd": len(x)}, "wait": 30} for x in ("ㅎ", "하", "한")] + INS("한"), wait=200),
+        step("쪽 나눔 ⑨ 실행 취소로 글을 되돌리면 빈 자리가 다시 잡힘(같은 쪽 수 · 걸친 줄 없음)",
+             H + FL + "E.ed.focus();for(let i=0;i<8&&tx(S.deck.blocks.find(b=>b.id==='fl'))!==window.__b;i++){E.undo();await tick(120);}await idle();await settle();"
+                      "const t=tx(S.deck.blocks.find(b=>b.id==='fl'));return t===window.__b&&el('fl').textContent===t&&gaps('fl').length>=1&&S.pages===window.__p0&&audit().length===0 || JSON.stringify({same:t===window.__b,f:JSON.parse(FD())});"),
+        step("쪽 나눔 ⑩ 저장된 JSON 에 빈 자리 흔적 없음(pg-gap · pg-gaprow · _pgPush · 빈 행) · 표는 40행 그대로",
+             H + FL + "await idle();const f=await srv('pgflow');const j=JSON.stringify(f);const t=f.blocks.find(b=>b.id==='ft');"
+                      "return !/pg-gap|pg-gaprow|pg-headrep|_pg|marginTop/.test(j)&&t.rows.length===40&&tx(f.blocks.find(b=>b.id==='fl'))===window.__b || JSON.stringify({hit:(j.match(/pg-gap|pg-gaprow|pg-headrep|_pg|marginTop/)||[])[0],rows:t.rows.length});"),
+        # 실제 인쇄 순서 = 화면에서 beforeprint → 인쇄 매체 → 화면 매체 → afterprint(Chrome)
+        step("쪽 나눔 ⑪ 인쇄 시작(화면에서 beforeprint) → 인쇄 상태 · 빈 자리 남음",
+             H + FL + "window.dispatchEvent(new Event('beforeprint'));await tick(400);return gaps('fl').length>=1 || JSON.stringify(JSON.parse(FD()));"),
+        step("쪽 나눔 ⑪ 인쇄 매체(af677ef) → 빈 자리는 높이 0 · break-before page(.pg-gap · 표 빈 행)",
+             H + FL + "const g=gaps(),rw=[...document.querySelectorAll('#ed tr.pg-gaprow')];"
+                      "const gs=g.map(x=>{const c=getComputedStyle(x);return [c.breakBefore,Math.round(x.getBoundingClientRect().height)];}),rs=rw.map(x=>getComputedStyle(x).breakBefore);"
+                      "return g.length>=1&&gs.every(([b,h])=>b==='page'&&h===0)&&rw.length>=1&&rs.every(b=>b==='page') || JSON.stringify({gs,rs});",
+             cdp=[{"method": "Emulation.setEmulatedMedia", "params": {"media": "print"}, "wait": 200}]),
+        step("쪽 나눔 ⑪ 화면 매체 → afterprint → 빈 자리 높이가 돌아오고 쪽 수 그대로 · 걸친 줄 없음",
+             H + FL + "window.dispatchEvent(new Event('afterprint'));await settle();return gaps('fl').length>=1&&gaps('fl').every(x=>x.getBoundingClientRect().height>10)&&S.pages===window.__p0&&audit().length===0 || JSON.stringify({f:JSON.parse(FD()),p0:window.__p0});",
+             cdp=[{"method": "Emulation.setEmulatedMedia", "params": {"media": ""}, "wait": 200}]),
+        step("쪽 나눔 ⑫ 화면 쪽 수(Chrome PDF 와 비교용)", H + FL + "await settle();return 'screenPages='+S.pages;", dump=True),
+    ]
+
+
+def flow_print_steps():
+    return [step("쪽 나눔 ⑪ ?print=1(서버 Chrome 인쇄 화면, af677ef) → 인쇄 상태 · 쪽 나눔 빈 자리가 남음(긴 문단 .pg-gap · 표 빈 행 - 인쇄 매체에서 강제 쪽 나눔이 된다)",
+                 "await new Promise(r=>setTimeout(r,1500));const ed=document.querySelector('#ed');const g=ed.querySelectorAll('[data-id=fl] .pg-gap').length,r=ed.querySelectorAll('tr.pg-gaprow').length;"
+                 "return document.body.classList.contains('printing')&&ed.children.length>=4&&g>=1&&r>=1 || JSON.stringify({printing:document.body.classList.contains('printing'),n:ed.children.length,g,r});")]
+
+
+OBJ_J = ("const tick=(ms)=>new Promise(r=>setTimeout(r,ms||200));const shape=async(label)=>{document.querySelector('[data-act=shape]').click();await tick(60);"
+     "const b=[...document.querySelectorAll('.menu button')].find(x=>x.textContent.includes(label));if(!b)throw new Error('메뉴 없음 '+label);b.click();await tick(200);};"
+     "const O=()=>S.deck.objects||[];const oe=(k)=>document.querySelector('.pg-obj[data-id=\"'+O()[k].id+'\"]');"
+     "const geo=()=>{const sh=document.querySelector('.pg-sheet').getBoundingClientRect();return {sh,mm:sh.width/S.box.w};};"
+     "const ctxm=async(el,label)=>{const r=el.getBoundingClientRect();el.dispatchEvent(new MouseEvent('contextmenu',{bubbles:true,cancelable:true,clientX:r.left+3,clientY:r.top+3}));await tick(60);"
+     "const b=[...document.querySelectorAll('.menu button')].find(x=>x.textContent.includes(label));if(!b)throw new Error('메뉴 없음 '+label);b.click();await tick(200);};"
+     "const drag=async(target,dx,dy)=>{const r=target.getBoundingClientRect(),cx=r.left+r.width/2,cy=r.top+r.height/2;target.dispatchEvent(new PointerEvent('pointerdown',{bubbles:true,cancelable:true,button:0,clientX:cx,clientY:cy}));"
+     "window.dispatchEvent(new PointerEvent('pointermove',{clientX:cx+dx/2,clientY:cy+dy/2}));window.dispatchEvent(new PointerEvent('pointermove',{clientX:cx+dx,clientY:cy+dy}));window.dispatchEvent(new PointerEvent('pointerup',{}));await tick(250);};")
+OBJ_PROBE = [
+    ("타원 넣기 - 문서에 개체 1 · 첫 문단에 매임 · 화면 자리 = x·y(mm) · 고른 상태",
+     "await tick(400); E.ed.focus(); E.ed.select({id:bid(0),off:0}); await shape('타원'); const o=O()[0], oel=oe(0), g=geo(), r=oel.getBoundingClientRect();"
+     "return O().length===1&&o.shape==='ellipse'&&o.anchor===bid(0)&&oel.classList.contains('sel')&&!!oel.querySelector('ellipse')&&Math.abs((r.left-g.sh.left)/g.mm-o.x)<0.6&&Math.abs((r.top-g.sh.top)/g.mm-o.y)<0.6"
+     "||JSON.stringify({o,r:[r.left,r.top],sh:[g.sh.left,g.sh.top],mm:g.mm})"),
+    ("끌어 옮기기 - x +20mm · y +10mm",
+     "const o=O()[0], g=geo(); await drag(oe(0), 20*g.mm, 10*g.mm); const p=O()[0]; return Math.abs(p.x-o.x-20)<0.3&&Math.abs(p.y-o.y-10)<0.3&&oe(0).classList.contains('sel')||JSON.stringify([o,p])"),
+    ("크기 손잡이 - w +10mm · h +5mm",
+     "const o=O()[0], g=geo(); await drag(oe(0).querySelector('.pg-obj-h'), 10*g.mm, 5*g.mm); const p=O()[0]; return Math.abs(p.w-o.w-10)<0.3&&Math.abs(p.h-o.h-5)<0.3&&Math.abs(p.x-o.x)<0.01||JSON.stringify([o,p])"),
+    ("오른쪽 클릭 - 채움 회색 · 긴 점선 · 글 뒤로(#objsBack)",
+     "await ctxm(oe(0),'채움 - 회색'); await ctxm(oe(0),'긴 점선'); await ctxm(oe(0),'글 뒤로'); const o=O()[0], oel=oe(0), e=oel.querySelector('ellipse');"
+     "return o.fill==='#eeeeee'&&o.line.dash==='dash'&&o.z==='behind'&&oel.parentNode.id==='objsBack'&&e.getAttribute('fill')==='#eeeeee'&&!!e.getAttribute('stroke-dasharray')||JSON.stringify([o,oel.parentNode.id,e.outerHTML])"),
+    ("글 상자 넣기 - 안의 글에 초점 · 글 치기 → 개체의 blocks · 초점 유지",
+     "E.ed.focus(); E.ed.select({id:bid(0),off:0}); await shape('글 상자'); const b=oe(1).querySelector('.pg-obj-body'); const f0=document.activeElement===b;"
+     "b.dispatchEvent(new InputEvent('beforeinput',{inputType:'insertText',data:'상자 글',bubbles:true,cancelable:true})); await tick(200); const o=O()[1];"
+     "return f0&&tx(o.blocks[0])==='상자 글'&&oe(1).querySelector('.pg-obj-body').textContent==='상자 글'&&document.activeElement===oe(1).querySelector('.pg-obj-body')||JSON.stringify({f0,o,dom:oe(1).outerHTML.slice(0,300)})"),
+    ("화살표·중괄호 넣기 - 선 도형은 높이 0 · 화살촉 · 중괄호 path",
+     "E.ed.focus(); E.ed.select({id:bid(0),off:0}); await shape('화살표'); E.ed.focus(); E.ed.select({id:bid(0),off:0}); await shape('중괄호 {'); const a=O()[2], c=O()[3];"
+     "return a.shape==='arrow'&&a.h===0&&!!oe(2).querySelector('polygon')&&c.shape==='brace-l'&&!!oe(3).querySelector('path')||JSON.stringify([a,c])"),
+    ("저장 - 서버 문서에 개체 4개(형식 검사 통과)",
+     "await idle(); const d=await srv(S.id); return d.objects.length===4&&d.objects[1].blocks[0].runs[0].t==='상자 글'&&document.querySelector('#status').textContent==='저장됨'||JSON.stringify([d.objects,document.querySelector('#status').textContent])"),
+    ("Delete - 고른 개체를 지운다 · 실행 취소로 돌아온다",
+     "const oel=oe(2); oel.dispatchEvent(new PointerEvent('pointerdown',{bubbles:true,cancelable:true,button:0,clientX:oel.getBoundingClientRect().left+2,clientY:oel.getBoundingClientRect().top})); window.dispatchEvent(new PointerEvent('pointerup',{})); await tick(100);"
+     "document.dispatchEvent(new KeyboardEvent('keydown',{key:'Delete',bubbles:true,cancelable:true})); await tick(200); const n1=O().length; E.undo(); await tick(300); const n2=O().length, drawn=document.querySelectorAll('.pg-obj').length;"
+     "return n1===3&&n2===4&&drawn===4||JSON.stringify([n1,n2,drawn])"),
+    ("매인 문단이 다음 쪽으로 가면 개체도 따라간다(쪽 기준)",
+     "const o=O()[1], y0=oe(1).getBoundingClientRect().top; const big=Array.from({length:60},(_,i)=>({id:'fill'+i,type:'p',runs:[{t:'채움 문단 '+i}]})); S.deck.blocks=[...big,...S.deck.blocks]; E.ed.refresh(); E.flow.run(); await tick(300);"
+     "const shs=[...document.querySelectorAll('.pg-sheet')], r=oe(1).getBoundingClientRect(), k=shs.findIndex(s=>{const q=s.getBoundingClientRect();return r.top>=q.top-1&&r.top<=q.bottom;}), g=geo(), q=shs[k].getBoundingClientRect();"
+     "return shs.length>=2&&k>=1&&Math.abs((r.top-q.top)/g.mm-o.y)<0.6||JSON.stringify({sheets:shs.length,k,y:o.y})"),
+]
+OBJ_DOC = {"id": "pgobj", "title": "개체 시험", "kind": "page", "slides": [], "blocks": [
+    {"id": f"ob{k:02d}", "type": "p", "runs": [{"t": f"개체 문단 {k} - " + "가나다라마바사아자차카타파하 " * 3}]} for k in range(70)]}
+# 개체(PG-103 1차 · 3cb9020) - 앞 9단계는 개발 세션 탐침(objs_probe.py)을 그대로 옮긴 것, 뒤는 협업 세션이 더한 것
+OBJ_X = ("const shs=()=>[...document.querySelectorAll('#sheets .pg-sheet')];const sheetOf=(y)=>shs().findIndex(s=>{const q=s.getBoundingClientRect();return y>=q.top-1&&y<=q.bottom+1;});"
+         "const ob=()=>O().find(o=>o.shape==='brace-l');const be=()=>[...document.querySelectorAll('.pg-obj')].find(e=>e.dataset.id===ob().id);"
+         "const rects=()=>{const P=document.querySelector('#paper').getBoundingClientRect();const m={};document.querySelectorAll('.pg-obj').forEach(e=>{const r=e.getBoundingClientRect();m[e.dataset.id]=[r.left-P.left,r.top-P.top,r.width,r.height].map(Math.round);});return m;};"
+         "const ext=async(id,f)=>{const r=await fetch('/api/deck/'+id,{cache:'no-store'});const v=r.headers.get('X-Deck-Version');const d=await r.json();f(d);"
+         "const p=await fetch('/api/deck/'+id+'?base='+v+'&merge=1',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(d)});return p.status;};")
+
+
+def obj_steps():
+    J = H + OBJ_J + OBJ_X
+    out = [step(n, J + js) for n, js in OBJ_PROBE if not n.startswith("매인 문단이 다음 쪽")]
+    out += [
+        step("개체 ⑩ 다른 쪽으로 끌면(한 쪽 높이만큼 아래) 그 쪽의 문단에 다시 매임 · 쪽 안 높이(y) 그대로",
+             J + "const o=ob(),a0=o.anchor,k0=sheetOf(be().getBoundingClientRect().top);const st=shs()[1].getBoundingClientRect().top-shs()[0].getBoundingClientRect().top;await drag(be(),0,st);await tick(300);"
+                 "const p=ob(),k1=sheetOf(be().getBoundingClientRect().top),ae=el(p.anchor),ka=ae?sheetOf(ae.getBoundingClientRect().top):-9;"
+                 "return k1===k0+1&&p.anchor!==a0&&ka===k1&&p.rel==='page'&&Math.abs(p.y-o.y)<0.6 || JSON.stringify({k0,k1,ka,a0,p});"),
+        step("개체 ⑪ 매인 문단을 Backspace 로 앞 문단에 합치면(문단이 없어짐) 남은 문단에 다시 매임",
+             J + "await tick(300);const p=ob();const ids=S.deck.blocks.map(b=>b.id);return !ids.includes(window.__ba)&&ids.includes(p.anchor)&&p.anchor!==window.__ba || JSON.stringify({gone:window.__ba,anchor:p.anchor,still:ids.includes(window.__ba)});",
+             pre=OBJ_J + OBJ_X + "window.__ba=ob().anchor;E.ed.focus();E.ed.select({id:window.__ba,off:0});", cdp=KEY("Backspace", "Backspace", 8), wait=150),
+        step("개체 ⑫ '문단을 따라 움직임(문단 기준)' 으로 바꾸면 rel para · 화면 자리 그대로(±1px)",
+             J + "const r0=be().getBoundingClientRect();await ctxm(be(),'문단을 따라 움직임');await tick(300);const p=ob(),r1=be().getBoundingClientRect();"
+                 "return p.rel==='para'&&Math.abs(r1.left-r0.left)<1&&Math.abs(r1.top-r0.top)<1 || JSON.stringify({p,r0:[r0.left,r0.top],r1:[r1.left,r1.top]});"),
+        step("개체 ⑬ 저장 뒤 화면 자리를 기억(새로 고침 비교용) - 그려진 개체 수 = 문서 개체 수",
+             J + "await idle();const m=rects();try{localStorage.setItem('nxObjRects',JSON.stringify(m));}catch(e){}return Object.keys(m).length===O().length&&O().length===4 || JSON.stringify({m,n:O().length});"),
+        step("개체 ⑭ 인쇄 시작(화면에서 beforeprint, af677ef) → 도형이 모두 매인 문단 안(#ed)으로 옮겨짐",
+             J + "window.dispatchEvent(new Event('beforeprint'));await tick(400);const es=[...document.querySelectorAll('.pg-obj')];const inEd=es.filter(e=>e.closest('#ed')).length;"
+                 "return es.length===O().length&&inEd===es.length || JSON.stringify({n:O().length,dom:es.length,inEd});"),
+        step("개체 ⑭ 인쇄 매체 → 옮겨진 도형이 보임(display none 아님)",
+             J + "const es=[...document.querySelectorAll('#ed .pg-obj')];const vis=es.filter(e=>getComputedStyle(e).display!=='none'&&e.getBoundingClientRect().width>0).length;return es.length===O().length&&vis===es.length || JSON.stringify({n:O().length,dom:es.length,vis});",
+             cdp=[{"method": "Emulation.setEmulatedMedia", "params": {"media": "print"}, "wait": 200}]),
+        step("개체 ⑭ 화면 매체 → afterprint → 도형이 #objs·#objsBack 으로 돌아가고 보임",
+             J + "window.dispatchEvent(new Event('afterprint'));await tick(400);const es=[...document.querySelectorAll('.pg-obj')];const back=es.filter(e=>e.closest('#objs,#objsBack')).length;"
+                 "return back===O().length&&getComputedStyle(document.querySelector('#objs')).display!=='none' || JSON.stringify({n:O().length,back});",
+             cdp=[{"method": "Emulation.setEmulatedMedia", "params": {"media": ""}, "wait": 200}]),
+    ]
+    return out
+
+
+def obj_reload_steps():
+    J = H + OBJ_J + OBJ_X
+    probe_follow = [step(n, H + OBJ_J + js) for n, js in OBJ_PROBE if n.startswith("매인 문단이 다음 쪽")]  # 탐침 단계는 shs 를 스스로 선언한다
+    return [
+        step("개체 ⑮ 새로 고침 뒤 그대로 그려짐 - 개수·자리(#paper 기준 ±2px)·글 상자 글",
+             J + "await tick(800);let m={};try{m=JSON.parse(localStorage.getItem('nxObjRects')||'{}');localStorage.removeItem('nxObjRects');}catch(e){}const n=rects();const bad=Object.keys(m).filter(k=>!n[k]||n[k].some((v,i)=>Math.abs(v-m[k][i])>2));"
+                 "const tb=O().find(o=>Array.isArray(o.blocks)&&o.blocks.length&&tx(o.blocks[0])==='상자 글');"
+                 "return Object.keys(m).length===4&&Object.keys(n).length===4&&!bad.length&&!!tb || JSON.stringify({before:m,after:n,bad});"),
+        step("개체 ⑯ 두 창 병합 - 이 창은 문단 끝에 글을 치고, 다른 창(밖의 저장)은 타원을 옮김 → 둘 다 남음(화면·서버)",
+             J + "const st=await ext(S.id,(d)=>{const o=d.objects.find(x=>x.shape==='ellipse');window.__oid=o.id;window.__ox=Math.round((o.x+15)*10)/10;o.x=window.__ox;});"
+                 "const ok=await until(async()=>{const o=S.deck.objects.find(x=>x.id===window.__oid);return o&&Math.abs(o.x-window.__ox)<0.05;},8000);await idle();"
+                 "const f=await srv(S.id);const fo=f.objects.find(x=>x.id===window.__oid);const mine=tx(S.deck.blocks.find(x=>x.id===window.__mb)),fm=tx(f.blocks.find(x=>x.id===window.__mb));"
+                 "return st===200&&ok&&mine.endsWith('병합글')&&fm.endsWith('병합글')&&Math.abs(fo.x-window.__ox)<0.05&&f.objects.length===4 || JSON.stringify({st,ok,mine:mine.slice(-8),fm:fm.slice(-8),fx:fo&&fo.x,want:window.__ox,n:f.objects.length});",
+             pre="const b=S.deck.blocks.find(x=>x.type==='p'&&tx(x).length);window.__mb=b.id;E.ed.focus();E.ed.select({id:b.id,off:tx(b).length});", cdp=INS("병합글"), wait=100),
+    ] + probe_follow
+
+
+# AI 요청 패널(PG-081) - 개발 세션 탐침(req_probe.py) 도우미·단계 그대로
+REQ_J = "const tick=(ms)=>new Promise(r=>setTimeout(r,ms||200));const q=(s)=>document.querySelector(s);const reqs=async()=>(await (await fetch('/api/requests/'+S.id,{cache:'no-store'})).json());"
+REQ_PROBE = [
+    ("처음에는 접혀 있다 · [AI 요청] 으로 연다 · 세션 칩이 있다",
+     "await tick(600); const off=document.body.classList.contains('noside')&&getComputedStyle(q('#side')).display==='none'; q('#sideBtn').click(); await tick(150);"
+     "return off&&!document.body.classList.contains('noside')&&q('#side').offsetWidth>300&&!!q('#sessChip')&&document.activeElement===q('#reqText')||JSON.stringify([off,q('#side').offsetWidth,q('#sessChip')&&q('#sessChip').textContent])"),
+    ("대상 - 본문에서 고른 문단들(요청 칸으로 가도 남는다) · 문서 전체 체크",
+     "S.deck.blocks=[{id:'a1',type:'p',runs:[{t:'첫째 문단입니다'}]},{id:'a2',type:'p',runs:[{t:'둘째 문단'}]},{id:'a3',type:'p',runs:[{t:'셋째'}]}]; E.ed.refresh(); S.dirty=true; E.ed.focus(); E.ed.select({id:'a1',off:1},{id:'a2',off:2}); await tick(150);"
+     "const t1=q('#reqTarget').textContent; q('#reqText').focus(); await tick(100); const t2=q('#reqTarget').textContent, marked=[...document.querySelectorAll('#ed > .req-on')].map(e=>e.dataset.id).join();"
+     "q('#reqWhole').click(); await tick(50); const t3=q('#reqTarget').textContent; q('#reqWhole').click(); await tick(50);"
+     "return /첫째 문단입니다.*블록 2개/.test(t1)&&t2===t1&&marked==='a1,a2'&&t3==='문서 전체'||JSON.stringify([t1,t2,marked,t3])"),
+    ("보내기 - 먼저 저장하고 요청이 생긴다(element = 첫 블록 · elements = 블록 목록) · 목록에 카드",
+     "q('#reqText').value='두 문단을 한 문단으로 합쳐 주세요'; q('#reqSend').click(); await until(async()=>(await reqs()).length===1,8000); const r=(await reqs())[0]; await tick(300); const d=await srv(S.id);"
+     "return r.status==='open'&&r.slide==='a1'&&r.element==='a1'&&JSON.stringify(r.elements)==='[\"a1\",\"a2\"]'&&/합쳐/.test(r.text)&&d.blocks.length===3&&d.blocks[0].id==='a1'&&!!q('#reqList .req')&&q('#reqText').value===''&&/1/.test(q('#sideBtn').textContent)"
+     "||JSON.stringify({r,blocks:d.blocks.map(b=>b.id),card:!!q('#reqList .req'),btn:q('#sideBtn').textContent})"),
+    ("문서 전체 요청 - 범위 없이",
+     "q('#reqWhole').click(); q('#reqText').value='전체 맞춤법 검사'; q('#reqSend').click(); await until(async()=>(await reqs()).length===2,8000); const r=(await reqs()).find(x=>/맞춤법/.test(x.text)); q('#reqWhole').click();"
+     "return !r.slide&&!r.element&&!r.elements||JSON.stringify(r)"),
+    ("세션이 done + reply 로 바꾸면(파일) 카드에 답이 보인다 · 카드를 누르면 그 문단으로",
+     "const list=await reqs(); const r=list.find(x=>x.element==='a1'); await fetch('/api/requests/'+S.id,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'update',id:r.id,status:'done',reply:'합쳤습니다'})});"
+     "await until(async()=>/합쳤습니다/.test(q('#reqList').textContent),9000); E.ed.select({id:'a3',off:0}); const card=q('#reqList .req[data-rid=\"'+r.id+'\"]'); card.click(); await tick(300); const s=E.ed.selection();"
+     "return !!s&&((s.a.id==='a1'&&s.f.id==='a2')||(s.a.id==='a2'&&s.f.id==='a1'))||JSON.stringify({s,txt:q('#reqList').textContent.slice(0,200)})"),
+    ("닫으면 기억한다 · 폭 맞춤이 패널 너비를 뺀 자리에 맞는다",
+     "q('#selZoom').value='fit'; q('#selZoom').dispatchEvent(new Event('change')); await tick(200); const w1=q('#paper').getBoundingClientRect().width; q('#sideBtn').click(); await tick(250); const w2=q('#paper').getBoundingClientRect().width;"
+     "const mem=localStorage.getItem('nexaPageSide'); q('#selZoom').value='1'; q('#selZoom').dispatchEvent(new Event('change')); localStorage.removeItem('nexaPageZoom'); localStorage.removeItem('nexaPageSide');"
+     "return document.body.classList.contains('noside')&&mem==='0'&&w2>w1+100||JSON.stringify([w1,w2,mem])"),
+]
+
+
+def req_steps():
+    """AI 요청 패널(PG-081 · 2e5457d) - 앞의 6단계는 개발 세션 탐침(req_probe.py) 그대로, 사이사이 협업 세션이 더한 것"""
+    J = H + REQ_J
+    P = [step(n, J + js) for n, js in REQ_PROBE]
+    R1 = step("요청 ⑦ 세션이 연결되지 않은 작업 공간 - 패널 안내에 '세션 연결 없음' · 세션 칩이 보임",
+              J + "const h=(q('#reqHint')||{}).textContent||'';return /세션 연결 없음/.test(h)&&!!q('#sessChip')&&q('#sessChip').offsetWidth>0 || JSON.stringify({h,chip:q('#sessChip')&&q('#sessChip').textContent});")
+    R2 = step("요청 ⑧ 후속 요청 - 카드의 [후속 요청] → 입력칸에 적어 보내기 → parent = 그 요청 · 목록에 '후속' 표시",
+              J + "const r=(await reqs()).find(x=>x.element==='a1');const card=[...document.querySelectorAll('#reqList .req')].find(c=>c.dataset.rid===r.id);const b=card&&card.querySelector('[data-fu]');if(!b)return 'no fu button';b.click();"
+                  "await until(async()=>q('#fuText'),3000);q('#fuText').value='한 문장 더 줄여 주세요';q('[data-fusend]').click();await until(async()=>(await reqs()).some(x=>x.parent===r.id),8000);"
+                  "const f=(await reqs()).find(x=>x.parent===r.id);await tick(300);return !!f&&/줄여/.test(f.text)&&f.status==='open'&&!!q('#reqList .fu-tag') || JSON.stringify({f,tag:!!q('#reqList .fu-tag')});")
+    R3 = step("요청 ⑨ 표 칸 안에 커서 → 대상 = 그 표('표') · 요청 칸으로 가면 표에 .req-on",
+              J + "const t={id:'at',type:'table',cols:[50,50],rows:[{id:'ar',cells:[{id:'ac1',blocks:[{id:'ap1',type:'p',runs:[{t:'칸 글'}]}]},{id:'ac2',blocks:[{id:'ap2',type:'p',runs:[{t:'칸 둘'}]}]}]}]};"
+                  "S.deck.blocks=[...S.deck.blocks,t];E.ed.refresh();S.dirty=true;await tick(200);const c=document.querySelector('#ed [data-id=at] .pg-cell');c.focus();const sel=getSelection();sel.selectAllChildren(c);sel.collapseToEnd();"
+                  "document.dispatchEvent(new Event('selectionchange'));await tick(150);q('#reqText').focus();await tick(120);const tg=q('#reqTarget').textContent,on=[...document.querySelectorAll('#ed > .req-on')].map(e=>e.dataset.id).join();"
+                  "return tg==='표'&&on==='at' || JSON.stringify({tg,on});")
+    R5 = step("요청 ⑩ 패널을 편 채 폭 맞춤 → 종이 = #scroll 안쪽 - 32px(±2%) · 150% → 100% 의 1.5배(±2%)",
+              J + "const chg=(v)=>{q('#selZoom').value=v;q('#selZoom').dispatchEvent(new Event('change',{bubbles:true}));};const pw=()=>q('#paper').getBoundingClientRect().width;"
+                  "const open=!document.body.classList.contains('noside');chg('fit');await tick(300);const want=q('#scroll').clientWidth-32,wf=pw();chg('1');await tick(250);const w1=pw();chg('1.5');await tick(250);const w2=pw();chg('1');await tick(200);"
+                  "try{localStorage.removeItem('nexaPageZoom');}catch(e){}return open&&Math.abs(wf/want-1)<=0.02&&Math.abs(w2/w1-1.5)<=0.03 || JSON.stringify({open,wf,want,w1,w2});")
+    R6 = step("요청 ⑫ 떠나기 전 저장 끝(표를 넣은 변경이 서버에 - 다음 화면이 같은 문서)", H + "await E.save();await idle();const f=await srv(S.id);return !S.dirty&&f.blocks.some(b=>b.id==='at') || JSON.stringify({dirty:S.dirty,ids:f.blocks.map(b=>b.id)});")
+    return [P[0], R1, P[1], P[2], P[3], R2, P[4], R3, R5, P[5], R6]
+
+
+def req_reload_steps():
+    J = H + REQ_J
+    return [step("요청 ⑪ 새로 고침 뒤 요청 목록 유지 - 패널을 열면 카드(답 '합쳤습니다' · 후속 · 문서 전체 요청)",
+                 J + "await tick(800);q('#sideBtn').click();await until(async()=>/합쳤습니다/.test(q('#reqList').textContent),6000);const t=q('#reqList').textContent;const n=(await reqs()).length;"
+                     "q('#sideBtn').click();await tick(150);try{localStorage.removeItem('nexaPageSide');}catch(e){}"
+                     "return /합쳤습니다/.test(t)&&/맞춤법/.test(t)&&/줄여/.test(t)&&n===3 || JSON.stringify({n,t:t.slice(0,300)});"),
+            step("요청 ⑪ 새로 고침 뒤 손대지 않았으면 저장할 것 없음(떠날 때 '저장 안 된 변경' 확인창이 뜨지 않음)",
+                 J + "await tick(300);const d0=S.dirty;await tick(1500);const ver=await (await fetch('/api/deck/'+S.id,{cache:'no-store'})).json();"
+                     "return !S.dirty&&!d0 || JSON.stringify({d0,dirty:S.dirty,saving:S.saving,status:document.querySelector('#status').textContent,blocks:S.deck.blocks.map(b=>b.id),srv:ver.blocks.map(b=>b.id)});", dump=False)]
+
+
 POLL_DEL = {"id": "pgpdel", "title": "지울 문서", "kind": "page", "slides": [], "blocks": [{"id": "d1", "type": "p", "runs": [{"t": "곧 지움"}]}]}
 
 
@@ -638,10 +885,16 @@ def main():
             {"url": "/studio/page.html?deck=pglong", "wait": 3000, "steps": zoom_steps()},
             {"url": "/studio/page.html?deck=pglong", "wait": 3000, "steps": zoom_reload_steps()},
             {"url": "/studio/page.html?deck=pgmrg", "wait": 2500, "steps": zoom_edit_steps()},
+            {"url": "/studio/page.html?deck=pgflow", "wait": 3000, "steps": flow_steps()},
+            {"url": "/studio/page.html?deck=pgflow&print=1", "wait": 2500, "steps": flow_print_steps()},
+            {"url": "/studio/page.html?deck=pgobj", "wait": 3000, "steps": obj_steps()},
+            {"url": "/studio/page.html?deck=pgobj", "wait": 3000, "steps": obj_reload_steps()},
+            {"url": "/studio/page.html?deck=pgreqid", "wait": 2500, "steps": req_steps()},
+            {"url": "/studio/page.html?deck=pgreqid", "wait": 2500, "steps": req_reload_steps()},
             {"url": "/studio/index.html#pgslide", "wait": 2500, "steps": newdoc_on_steps()},
         ]
         import page_doc
-        for doc_ in (FMT_DOC, MRG_DOC, POLL_DOC, POLL_DEL):  # 쪽 설정·스타일은 새 문서 기본값에 블록만 바꿔 넣는다
+        for doc_ in (FMT_DOC, MRG_DOC, POLL_DOC, POLL_DEL, FLOW_DOC, OBJ_DOC):  # 쪽 설정·스타일은 새 문서 기본값에 블록만 바꿔 넣는다
             full = page_doc.new_page(doc_["id"], doc_["title"]); full["blocks"] = doc_["blocks"]
             st_, r_, _ = call("PUT", f"/api/deck/{doc_['id']}", full)
             check(f"서식·합치기 시험 문서 {doc_['id']} 만들기 200", st_ == 200, (st_, r_))
@@ -652,12 +905,25 @@ def main():
         st, r, _ = call("POST", "/api/decks", {"action": "create", "kind": "page", "title": "표 시험"})
         tbl_id = (r or {}).get("id") or "pgtbl"
         pages = [dict(x, url=x["url"].replace("pgtbl", tbl_id)) for x in pages]
+        st, r, _ = call("POST", "/api/decks", {"action": "create", "kind": "page", "title": "요청 시험"})  # 요청 파일이 남지 않게 실행마다 새 문서
+        req_id = (r or {}).get("id") or "pgreqid"
+        pages = [dict(x, url=x["url"].replace("pgreqid", req_id)) for x in pages]
         pages = [dict(x, steps=[dict(y, js=y["js"].replace("'pgtbl'", f"'{tbl_id}'")) for y in x["steps"]]) for x in pages]
         lines, rc = scenario(pages)
         # 같은 템플릿으로 한 번 더 만들어(대화 상자에서 1번 + 여기서 1번 = 2회) 추천 묶음 확인
         call("POST", "/api/decks", {"action": "create", "kind": "page", "title": "보고서 둘", "theme": "report"})
         l2, _ = scenario([{"url": "/studio/index.html#pgslide", "wait": 2500, "steps": newdoc_rec_steps()}])  # 대화 상자로 1번 + API 로 1번 = report 2회
         lines += l2
+        # 쪽 나눔 - 서버 Chrome PDF 쪽 수 vs 화면 쪽 수(±1 이면 통과, 다르면 수치를 남긴다)
+        scr = next((int(l.rsplit("screenPages=", 1)[1].split()[0]) for l in lines if "screenPages=" in l), None)
+        st_, r_, _ = call("POST", "/api/export/pgflow?pdf=1&via=chrome")
+        pdfb_ = b""
+        if st_ == 200 and r_.get("url"):
+            with urllib.request.urlopen(B + r_["url"], timeout=60) as rr:
+                pdfb_ = rr.read()
+        npdf = pdfb_.count(b"/Type /Page") - pdfb_.count(b"/Type /Pages") if pdfb_ else 0
+        NOTES.append(f"쪽 나눔: 화면 {scr}쪽 · Chrome PDF {npdf}쪽")
+        check("쪽 나눔 ⑫ Chrome PDF 쪽 수 = 화면 쪽 수 ±1", scr is not None and npdf > 0 and abs(npdf - scr) <= 1, json.dumps({"screen": scr, "pdf": npdf, "st": st_}, ensure_ascii=False))
         for l in lines:
             print("  ", l[:700])
             if l.startswith("FAIL"):

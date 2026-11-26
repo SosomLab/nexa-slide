@@ -133,6 +133,15 @@ Start-Process (python3 slides\nexa.py url)
 · `--slides-dir deck`(작업 공간 폴더 이름 — 기본 `slides`) · `--flat`(저장소 구조 없이 준 폴더 자체를 작업 공간으로 — 예전 방식).
 이미 작업 공간(`nexa-slide.json`)이 있는 폴더를 주면 그 폴더를 그대로 쓴다(예전에 만든 작업 공간도 그대로 동작).
 
+**시트·페이지로 시작** — 첫 문서를 슬라이드 대신 시트(엑셀형, [sheets.md](sheets.md))나 페이지(워드형, [pages.md](pages.md))로 만든다. 시작용 교안(`--starter`)과는 함께 쓸 수 없고 `build_deck` 단계가 없다.
+
+```bash
+python3 <엔진>/studio/init_workspace.py . --title "예산" --kind sheet                       # 빈 시트(첫 문서 id sheet) · --sheet-theme <테마> · --sheet-import <파일.xlsx>
+python3 <엔진>/studio/init_workspace.py . --title "주간 보고" --kind page --page-template report   # 페이지(첫 문서 id doc) · 템플릿 이름은 studio/page_templates.py, 없으면 빈 문서
+```
+
+시작 페이지 양식에서는 맨 위 종류 단추(슬라이드 · 시트(엑셀) · 페이지(워드))로 고른다([home.md](home.md#문서-종류--슬라이드시트페이지)).
+
 ### 2.1 만든 뒤 고칠 것 — `slides/nexa-slide.json` (선택만)
 
 ```json
@@ -289,6 +298,8 @@ Windows 에서 `python3` 이 없다면 첫 줄에 “Windows 이고 python3 대�
 | 할 일 | macOS | Windows |
 |---|---|---|
 | PPTX 만들기 | 편집기 **내보내기 ▾ → PPTX** 또는 `python3 slides/nexa.py export_pptx intro` | 같음(`slides\nexa.py`) |
+| XLSX 만들기(시트) | 시트 화면의 내보내기 또는 `python3 slides/nexa.py export_xlsx <시트 문서>` → `out/<id>.xlsx`(매크로가 있으면 .xlsm) | 같음 |
+| DOCX·PDF 만들기(페이지) | 페이지 편집기의 내보내기 또는 `python3 slides/nexa.py export_docx <페이지 문서>` → `out/<id>.docx`. PDF 는 편집기에서([pages.md](pages.md) 6절) | 같음. PDF 는 Word 가 있으면 Word 로 변환 |
 | 결과 열기 | `open slides/out/intro.pptx` | `Start-Process slides\out\intro.pptx` |
 | PowerPoint 렌더 대조 | (지원 안 함) | 편집기 **내보내기 ▾ → PowerPoint 렌더 미리보기** · `python3 slides\nexa.py compare intro` |
 | 검사 | `python3 slides/nexa.py check_layout intro` | 같음 |

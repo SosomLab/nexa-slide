@@ -1,5 +1,7 @@
 # 편집기
 
+> 이 문서는 **슬라이드** 편집기(`index.html`·`studio.js`)다. 시트 화면(`sheet.html`)은 [sheets.md](sheets.md), 페이지 편집기(`page.html`)는 [pages.md](pages.md).
+
 Genspark AI Slides 작업 화면의 조작 방식(모드 3분할 · 그 자리 메모 · 붙박이 서식 줄 · 위치 조정 메뉴 · 확대 바닥줄)을 차용했다.
 **슬라이드 디자인은 바뀌지 않는다** — 화면은 render.js, PPTX 는 export_pptx.py 가 기존 규칙 그대로 그린다.
 화면 글은 한국어가 원문이고, 기본 메뉴(☰)의 **표시 언어**로 영어를 고르면 `studio/i18n.js` 사전으로 즉시 바뀐다(`docs/home.md` 표시 언어 절).

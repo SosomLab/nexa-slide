@@ -56,16 +56,17 @@ python3 studio/service.py start                                                 
 
 | 메서드 · 경로 | 설명 |
 |---|---|
-| `GET /api/decks` | 덱 목록 `[{id, title, slides, updated, version}]` |
+| `GET /api/decks` | 문서 목록 `[{id, title, slides, updated, version, start, kind, sheets?}]` — `kind` = `deck`(슬라이드)·`sheet`(시트)·`page`(페이지), `start` = 시작 덱인가, `sheets` = 시트 문서의 탭 수 |
+| `POST /api/decks` | 문서 관리(작업 공간 서버만, 허브는 404) — `{action: "create", id?, title?, kind?: deck\|sheet\|page, layout?, part?, theme?, pages?, vars?}` · `{action: "import", name, data(base64), title?}`(.xlsx·.xlsm → 시트 [sheets.md](sheets.md), .docx → 페이지 [pages.md](pages.md), 30MB 까지) · `copy`·`start`·`rename`(`newId`)·`retitle`·`delete` → `{ok, …, decks}`. 페이지 문서가 꺼져 있으면(`experimental.page`, [configuration.md](configuration.md#nexa-slidejson)) 페이지 만들기·.docx 가져오기는 400, 웹 세션이 턴을 실행 중이면 `rename`·`delete` 는 409 |
 | `GET /api/deck/<id>` | 덱 JSON. 헤더 `X-Deck-Version` = 파일 mtime_ns |
-| `PUT /api/deck/<id>?base=<ver>&origin=editor\|claude&action=save\|restore&request=&note=&label=` + 헤더 `X-Nexa-Tab` | 덱 저장 — 원자적 쓰기, 저장 전 `.history` 백업(50개 유지), **변경 원장에 한 줄**(응답 `seq`). `base` 가 현재 버전과 다르면 **409**(`force=1` 이면 무시) - [change-ledger.md](change-ledger.md) |
+| `PUT /api/deck/<id>?base=<ver>&origin=editor\|claude&action=save\|restore&request=&note=&label=` + 헤더 `X-Nexa-Tab` | 덱 저장 — 원자적 쓰기, 저장 전 `.history` 백업(50개 유지), **변경 원장에 한 줄**(응답 `seq`). `base` 가 현재 버전과 다르면 **409**(`force=1` 이면 무시), `merge=1` 이면 409 대신 3-way 병합 → `{merged, conflicts, deck}`(기준본을 모르면 409 `reason: no-base`) - [collab.md](collab.md) · [change-ledger.md](change-ledger.md). 시트는 `sheets`, 페이지는 `page_doc.validate` 로 형식을 검사한다(틀리면 400) |
 | `GET /api/version/<id>` | `{deck, requests, changes, session, deckIds, decksVer, config, engine}` — 편집기가 2초마다 확인(외부 변경 감지·원장 기록·세션 상태·덱 목록·설정·엔진 변경 → 탭 갱신·새로 고침 안내) |
 | `GET /api/changes/<id>` | 변경 원장 - `?limit=&before=&since=&origin=&slide=&group=1&recent=1&seq=N` ([change-ledger.md](change-ledger.md#api)) |
 | `GET /api/requests/<id>` | 요청 메모 목록 |
 | `POST /api/engine_request` | `{title, body?, request?, deck?, slide?, evidence?}` → `{ok, item, note}` — 작업 공간 세션이 엔진 요청을 큐에 넣는 길(**로컬 직접 접속만**, 허브 중계 403). 큐 파일이 작업 공간 밖이라 Codex 샌드박스가 직접 못 쓰므로 `engine_request add` 가 서버가 떠 있으면 이리로 온다(0.22.27). 늘 `session`(triage) |
 | `POST /api/requests/<id>` | `{"action": "add"\|"update"\|"delete"\|"send"\|"discard", …}` — add 는 `status`(draft/open)·`region`·`attachments`(아래 attach 로 올린 것만, 최대 10), send = 초안→대기(slide 생략 시 전체), discard = 초안 지우기, update 는 `status`·`reply`·`text`·`attachments`, delete 는 첨부 파일도 지운다 |
 | `POST /api/attach/<id>` | 요청 첨부 올리기 `{name, type, data(base64)}` → `{path, name, type, size, url}`. 그림(png/jpg/gif/webp/svg)·PDF·글(txt/md/csv/json)·pptx/docx/xlsx, 12MB 까지. 파일은 `out/attach/<덱>/<시각>.<확장자>`(작업 공간 안, git 제외), 편집기는 `url`(`/out/attach/…`)로 본다 |
-| `POST /api/export/<id>` | PPTX 생성 → `{url: "/out/<id>.pptx?v=…"}` |
+| `POST /api/export/<id>` | 문서 종류별 내보내기 → `{ok, path, url, name, …}`. 슬라이드 = PPTX(`?pdf=1` PDF - PowerPoint, 없으면 Chrome/Edge · `?layout=notes\|h2\|h3\|h6` 노트·유인물은 Chrome 만 · `?embed=1` 글꼴 포함 PPTX). 시트 = `out/<id>.xlsx`(매크로가 있으면 .xlsm, `?macros=0` 이면 빼고 .xlsx - [sheets.md](sheets.md)). 페이지 = `out/<id>.docx`(`export_docx.py`), `?pdf=1` 이면 PDF - Windows 에서 Word(`render_docx.ps1`, 응답 `method: "word"`) 우선, 없거나 실패하면 Chrome/Edge 로 `page.html?print=1` 인쇄(`method: "chrome"`), `?via=chrome` 이면 Chrome 만. 둘 다 안 되면 501 `needPrint`([pages.md](pages.md)) |
 | `GET /api/render/<id>` | 마지막 PowerPoint 렌더 PNG 목록 |
 | `POST /api/render/<id>` | PPTX 생성 + PowerPoint COM 렌더(Windows, 한 번에 하나 — 겹치면 429) |
 | `GET /api/layouts` | 레이아웃 목록 |
@@ -85,6 +86,12 @@ python3 studio/service.py start                                                 
 | `POST /api/flush/<id>` | "지금 보내기" — 감시 스크립트가 대기 없이 열린 요청을 바로 전달 |
 | `GET /api/history/<id>` | 자동 백업 목록 `[{file, kind(save/build/ext), at, size}]` · `?f=<파일>` 이면 그 시점 덱 JSON |
 | `GET /api/templates` | 템플릿 목록과 선택된 템플릿 |
+| `GET /api/page-templates` · `/api/page-templates/<이름>` | 페이지 템플릿 목록(이 작업 공간에서 자주 쓴 것 넷까지 앞 - `used`·`rec`) · 그 템플릿 문서. 작업 공간 서버만 |
+| `GET /api/sheet-themes` · `/api/sheet-themes/<이름>` · `GET /api/sheet-preview?key=` · `GET /api/sheet-range?deck=&tab=&range=` · `GET /api/vba/<id>` | 시트 테마 · 테마 미리 보기(파일 쓰지 않음) · 시트 → 슬라이드 연결 데이터 · VBA 모듈 - [sheets.md](sheets.md) |
+| `GET /api/stream/<id>?tab=` · `POST /api/presence/<id>` | 실시간 - 탭당 SSE 하나(`version` · `presence` · `ping`) · 함께 보는 사람 `{tab, where, editing}`(`{leave: true}` 로 뺀다) - [collab.md](collab.md) 2단계 |
+| `POST /api/ops/<id>` | 작업(op) 저장 `{base, ops}`(최대 2,000개) - 편집기·시트가 큰 문서를 저장할 때. 페이지 문서는 400(화면이 `PUT ?merge=1` 로 보낸다) - [collab.md](collab.md) 3-4 |
+| `GET /api/proposals/<id>[?request=]` · `POST /api/proposals/<id>` | AI 제안 - 목록·하나(기준본·AI 사본) · `{action: create\|accept\|discard, request, …}` - [collab.md](collab.md) 3단계 |
+| `GET /api/reqdiff/<id>?request=` | 요청 하나로 AI 가 바꾼 셀 `{found, cells, count, saves?, seq?}`(요청 카드의 "바뀐 셀 n개") |
 | `GET /api/home` · `POST /api/project` · `POST /api/settings` · `GET /api/fs` · `GET /api/preview` | 시작 페이지 - [home.md](home.md#api) |
 | `GET /api/check/<id>` | 레이아웃 검사 결과 `{issues[{rule, severity, slide, n, elements, box, message, detail}], errors, warnings, minFontPt}` |
 | `GET /api/share?ws=&deck=` · `POST /api/share` · `POST /api/share/<id>` | (허브) 보기 전용 공유 링크 목록 · 만들기 `{action: "create", ws, deck, days?, password?}` → `{link, token, url}` · 회수 `{action: "revoke"}` — [auth.md](auth.md#api) |
@@ -105,4 +112,4 @@ python3 studio/service.py start                                                 
 
 - 편집기는 편집 0.7초 뒤 `PUT ?base=<읽은 버전>` 으로 저장한다. 그사이 파일이 바뀌었으면 409 → "외부 버전 불러오기 / 내 편집으로 덮어쓰기" 선택.
 - 밖에서(Claude 등) 덱 파일을 고치면 편집 중이 아닐 때 2초 안에 자동으로 다시 불러온다(Ctrl+Z 로 되돌리기 가능).
-- 자동 병합은 없다. 한 덱을 두 브라우저에서 열면 늦게 저장한 쪽이 충돌 알림을 받는다.
+- 편집기·시트·페이지 화면은 `PUT ?merge=1` 로 저장한다 - 그사이 다른 저장이 있었으면 서버가 기준본 · 보낸 것 · 지금 파일을 3-way 병합한다(서로 다른 장·요소 · 탭·셀 · 블록을 고쳤으면 둘 다 남고, 같은 곳이면 사람끼리는 나중 저장, AI 저장이면 사람이 이긴다). 응답에 `merged`·`conflicts` 가 붙고 진 값은 원장에 남는다. 기준본을 모르면 409 로 위의 선택이 뜬다. 자세히 [collab.md](collab.md).

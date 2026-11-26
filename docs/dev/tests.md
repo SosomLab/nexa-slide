@@ -45,6 +45,17 @@ NEXA_TEST_DIR=/tmp/nexa-tests python3 studio/tests/run_all.py   # 산출물 자�
 | tableobj | `tableobj_test.py` | 0.22.17 - 표 객체 리졸버 우선순위·span·변환 왕복·PPTX 셀 서식(크기·세로·여백·기울임·테두리·병합). 편집기 쪽은 `scenarios/ux5_test.json`(셀 클릭·Shift/Ctrl·채움·자동 변환·셀 편집·Tab·행 삽입·병합·렌더 표로 변환·표 객체 타일) | Node |
 | uxpack | `uxpack_test.py` | 0.22.14 - 검사 대비(t6)·대체 텍스트(t7), PPTX `descr`, 유인물·노트 PDF(Chrome). 편집기 쪽은 `scenarios/ux2_test.json`(찾기/바꾸기·서식 복사·가져오기·노트 칩·alt·펜) | Node·Chrome |
 | chart | `chart_test.py` | 0.22.13 - 누적 가로·100% 누적·콤보(`c:lineChart`, 보조 축 둘째 `c:valAx`)·축 제목·숫자 형식(`formatCode`) PPTX XML, render.js 같은 종류 SVG·`chartFmt`·`comboLines` | Node |
+| pagedoc | `page_doc_test.py` | 페이지 문서 `page_doc.py` - 새 문서·검사·정규화 | - |
+| pagerender | `page_render_check.js` | 페이지 렌더 `page-render.js` - 블록 → 화면(스타일·목록·표·그림) 규칙 | Node |
+| pagedocx | `page_docx_test.py` | 페이지 DOCX 내보내기 `export_docx.py` - 구조(XML) 사례 | - |
+| pagetpl | `page_templates_test.py` | 페이지 템플릿 11종 `page_templates.py` - 형식·미리 보기·만들기 | - |
+| pagemerge · pagemergejs | `pagemerge_test.py` · `pagemerge_check.js` | 페이지 문서 병합(`deckmerge`) - 블록·표·쪽 설정·머리말·스타일 단위 · 화면판(`nexa-merge.js`)이 같은 사례 | (js 는 Node) |
+| pagediff | `pagediff_test.py` | 페이지 문서 변경 비교 `deckdiff.diff_page` | - |
+| pageword | `page_word_test.py` | 페이지 DOCX 를 Word 로 열기(템플릿 11종·종합 문서·PDF) - Word 가 없거나 사용자 Word 가 떠 있으면 SKIP | (Word 는 선택) |
+| hubpage | `hub_page_test.py` | 첫 문서로 페이지 - `init_workspace --kind page` · 허브(켬/끔) 계획·만들기 · 시작 페이지 종류 단추(격리 허브 5799) | - |
+| pageimport | `page_import_test.py` | Word 문서 가져오기 `import_docx` - 우리 내보내기와 왕복 | - |
+| pagewordimp | `page_word_import_test.py` | Word(COM)가 만든 .docx 가져오기 - 스타일·서식·목록·표 병합·그림·머리말·경고(Word 없으면 SKIP) | (Word 는 선택) |
+| pageui | `page_ui_test.py` | 페이지 문서 화면(헤드리스 Chrome) - 숨김 스위치·만들기·저장 검사·종류별 이동·`page.html` 편집·두 창 관찰 | Chrome |
 | race | `race_test.py` | 서버 동시 시작 경쟁(`START_LOCK`) | |
 | c4 | `c4_doc_test.py` | 웹 세션이 첨부 Word·Excel·PDF 를 읽어 답하는 실제 턴. 표본 문서 `real.xlsx`·`report.pdf` 는 저장소에 없다 — `NEXA_TEST_DOCS=<폴더>` 로 주고, 없으면 SKIP | claude CLI(`--sessions`) |
 | thread | `thread_test.py` | 후속 요청(대화) 문맥(`thread_context`)·턴 프롬프트 | smoke 가 만든 데모 작업 공간 |
