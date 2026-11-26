@@ -64,6 +64,7 @@ class Hub:
         self.env["NEXA_SLIDE_EXPERIMENTAL"] = "page" if experimental else "-page"  # 기본이 켬이라(RELEASED) 끈 상태는 명시한다
         USER.mkdir(parents=True, exist_ok=True)
         PROJ.mkdir(parents=True, exist_ok=True)
+        self.before = {d.name for d in PROJ.iterdir()}  # 이 허브가 만들 작업 공간 - 끝낼 때 그 서버를 내린다(허브를 내려도 작업 공간 서버는 남는다)
         s = USER / "settings.json"
         cfg = json.loads(s.read_text(encoding="utf-8")) if s.is_file() else {}
         cfg.update({"hubPort": PORT, "hubProxy": True, "engine": str(STUDIO.parent)})
@@ -87,6 +88,13 @@ class Hub:
                 return e.code, {}
 
     def stop(self):
+        # 허브가 만든 작업 공간의 서버(--port auto)를 그 작업 공간의 nexa.py stop 으로 내린다 - 2026-11-26 까지 실행마다 1~2개씩 남아 24개가 쌓였다
+        for d in sorted(PROJ.iterdir()):
+            ws = d / "slides"
+            if d.name in self.before or not (ws / "nexa.py").is_file():
+                continue
+            rc, out = run([ws / "nexa.py", "stop"], env=self.env, cwd=ws)
+            print("   작업 공간 서버 내림:", d.name, "-", (out.strip().splitlines() or ["?"])[-1][:120])
         print("  ", run([STUDIO / "service.py", "stop"], env=self.env)[1].strip()[-160:])
 
 

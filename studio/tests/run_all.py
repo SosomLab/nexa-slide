@@ -93,6 +93,41 @@ TESTS = [  # (이름, 실행, 설명, claude 필요)
 ]
 
 
+def servers():
+    """이 엔진 사본(STUDIO)의 server.py 로 떠 있는 프로세스 pid 집합 - 시험이 띄우고 내리지 않은 서버(프로세스 누수)를 잡는다.
+    다른 worktree·운영 엔진의 서버는 경로가 달라 세지 않는다. 못 읽으면 None(판정하지 않음)."""
+    me = str(HERE.parent / "server.py").lower()
+    try:
+        if os.name == "nt":
+            ps = ("Get-CimInstance Win32_Process -Filter \"Name like 'python%'\" | ForEach-Object { \"$($_.ProcessId)`t$($_.CommandLine)\" }")
+            out = subprocess.run(["powershell", "-NoProfile", "-Command", ps], capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=30).stdout
+        else:
+            out = subprocess.run(["ps", "-eo", "pid=,args="], capture_output=True, text=True, timeout=30).stdout.replace(" ", "\t", 1)
+    except (OSError, subprocess.SubprocessError):
+        return None
+    pids = set()
+    for line in out.splitlines():
+        pid, _, cmd = line.strip().partition("\t")
+        if pid.isdigit() and me in cmd.lower():
+            pids.add(int(pid))
+    return pids
+
+
+def proc_leak(before):
+    """묶음 뒤 새로 남은 server.py - 방금 내린 서버가 끝나는 중일 수 있어 3초까지 다시 본다."""
+    if before is None:
+        return []
+    for _ in range(4):
+        now = servers()
+        if now is None:
+            return []
+        left = sorted(now - before)
+        if not left:
+            return []
+        time.sleep(1)
+    return left
+
+
 def leak_check(before):
     """시험 뒤 새로 남은 것(tmpfiles.PATTERNS) - 방금 끝난 자식이 아직 지우는 중일 수 있어 2초까지 다시 본다."""
     for _ in range(5):
@@ -124,10 +159,10 @@ def main():
     for name, cmd, desc, _ in picked:
         print(f"\n== {name} · {desc}", flush=True)
         t0 = time.time()
-        before = tmpfiles.leftovers()
+        before, sv0 = tmpfiles.leftovers(), servers()
         r = subprocess.run(cmd, cwd=str(HERE), env=env, capture_output=True, text=True, encoding="utf-8", errors="replace")
         out = (r.stdout or "") + (r.stderr or "")
-        marks = [l for l in out.splitlines() if l.startswith(("OK", "FAIL", "실패", "전부 통과", "SKIP")) or "오류" in l]
+        marks = [l for l in out.splitlines() if l.startswith(("OK", "FAIL", "실패", "전부 통과", "SKIP", "KNOWN")) or "오류" in l]
         tail = marks[-12:]
         tail = [l for l in marks[:-12] if l.startswith("FAIL")][:12] + tail  # 끝 12줄 밖의 FAIL 줄도 보인다 - 실패 뒤에 OK 가 길게 이어지면 "실패 2" 만 남고 어느 단계인지 안 보였다
         print("\n".join("   " + l for l in tail) if tail else out[-600:])
@@ -139,6 +174,10 @@ def main():
             print(f"   FAIL 임시 파일 누수 {len(leaked)}개: {', '.join(leaked[:5])}{' …' if len(leaked) > 5 else ''} - studio/tmpfiles.py 로 만들고 지운다")
             for n in leaked:
                 tmpfiles.remove(tmpfiles.root() / n)
+            rc = rc or 1
+        left = proc_leak(sv0)
+        if left:  # 프로세스 누수 - 시험이 띄운 서버를 내리지 않았다(내리지는 않고 알린다: 그 시험의 정리 경로를 고친다)
+            print(f"   FAIL 서버 프로세스 누수 {len(left)}개(pid {', '.join(map(str, left[:6]))}) - 시험이 띄운 server.py 를 끝낼 때 내린다(작업 공간 nexa.py stop)")
             rc = rc or 1
         results.append((name, rc, time.time() - t0))
         print(f"-- {'통과' if rc == 0 else '실패'} {name} {time.time() - t0:.0f}s", flush=True)  # 묶음마다 바로 - 엔진 배포가 이 줄로 진행을 보인다
