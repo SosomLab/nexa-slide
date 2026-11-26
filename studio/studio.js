@@ -851,6 +851,13 @@
   function defStyleOf(t) { try { return JSON.parse(LS.get(defStyleKey(t), "") || "null"); } catch (e) { return null; } }
   function renderFtb() {
     const F = $("#ftb"), el = selEl();
+    if (S.mode === "edit" && S.editing && S.editing.rich) {  // 글을 고치는 중 - 고른 글에 거는 글자 서식(공용 글 편집 엔진, PG-108). 누를 때 편집 상자의 초점을 잃지 않게 mousedown 을 막는다
+      const b = (k, label, title) => `<button class="ib" data-rf="${k}" title="${title}">${label}</button>`;
+      F.innerHTML = b("b", "<b>가</b>", "굵게 (Ctrl+B)") + b("i", "<i>가</i>", "기울임 (Ctrl+I)") + b("u", "<u>가</u>", "밑줄 (Ctrl+U)") + b("s", "<s>가</s>", "취소선") + b("sup", "x²", "위 첨자") + b("sub", "x₂", "아래 첨자")
+        + `<span class="vsep"></span>` + b("c", `<span style="color:${Render.color("primary")}">가</span>`, "강조 색") + b("hl", `<span style="background:#fff59d">가</span>`, "형광펜")
+        + `<span class="pt" style="min-width:0">고른 글에 적용 · Esc 로 끝</span>`;
+      F.classList.add("show"); return;
+    }
     if (S.mode !== "edit" || !el || S.editing) { F.classList.remove("show"); F.innerHTML = ""; return; }
     const lk = !!el.locked, t = el.type; let h = "";
     const sel = (f, title, opts, cur) => `<select data-f="${f}" title="${title}">${opts.map(([k, l]) => `<option value="${esc(k)}"${cur === k ? " selected" : ""}>${esc(l)}</option>`).join("")}</select>`;
@@ -3199,6 +3206,11 @@ ${names}
     $("#aiFixBtn").onclick = aiFix; $("#aiPolishBtn").onclick = aiPolish;
     // 서식 줄
     $("#ftb").addEventListener("click", onFtb); $("#ftb").addEventListener("change", onFtb);
+    $("#ftb").addEventListener("mousedown", (e) => {  // 글 편집 중의 글자 서식 단추 - 편집 상자의 선택에 건다
+      const b = e.target.closest("[data-rf]"); if (!b || !S.editing || !S.editing.rich) return;
+      e.preventDefault(); const k = b.dataset.rf, ed = S.editing.rich.ed;
+      if (k === "c") ed.toggle("c", "primary"); else if (k === "hl") ed.toggle("hl", "#fff59d"); else ed.toggle(k);
+    });
     // 메모 팝오버 · 보낼 요청 바
     $("#memoTa").addEventListener("input", memoInput);
     attWire($("#memoTa"), "memo"); attWire($("#memo"), "memo");
