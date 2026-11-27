@@ -37,7 +37,7 @@
    "steps": [
     {
      "name": "표+글머리 선택 뒤 Ctrl+G → 묶이지 않음(표·차트는 PPTX 묶음 불가 안내)",
-     "js": "document.querySelector('[data-sel=\"e01\"]').click(); await new Promise(r=>setTimeout(r,300)); document.querySelector('[data-sel=\"e02\"]').dispatchEvent(new MouseEvent('click',{bubbles:true,ctrlKey:true})); await new Promise(r=>setTimeout(r,300)); document.dispatchEvent(new KeyboardEvent('keydown',{key:'g',ctrlKey:true,bubbles:true})); await new Promise(r=>setTimeout(r,500)); const top=[...document.querySelectorAll('#host > .rs-slide > .rs-el')]; return top.length===2 && !top.some(e=>e.dataset.type==='group') ? true : 'top='+top.length"
+     "js": "await until(()=>{ const t=document.querySelector('#host .rs-el[data-id=\"e01\"]'); return t && t.dataset.type==='table' && document.querySelectorAll('#host > .rs-slide > .rs-el').length===2 && document.querySelector('[data-sel=\"e02\"]'); }, 8000); document.querySelector('[data-sel=\"e01\"]').click(); await until(()=>document.querySelector('[data-sel=\"e01\"].on'), 5000); document.querySelector('[data-sel=\"e02\"]').dispatchEvent(new MouseEvent('click',{bubbles:true,ctrlKey:true})); await until(()=>document.querySelector('[data-sel=\"e01\"].on') && document.querySelector('[data-sel=\"e02\"].on'), 5000); document.dispatchEvent(new KeyboardEvent('keydown',{key:'g',ctrlKey:true,bubbles:true})); await new Promise(r=>setTimeout(r,500)); const top=[...document.querySelectorAll('#host > .rs-slide > .rs-el')]; return top.length===2 && !top.some(e=>e.dataset.type==='group') ? true : 'top='+top.length"
     }
    ]
   }
