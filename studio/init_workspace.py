@@ -157,7 +157,7 @@ def new_sheet(ws, cfg, deck, title, theme=None):
 
 def new_page(ws, cfg, deck, title, template=None):
     """첫 문서를 페이지로(--kind page) - deck_admin 으로 decks/<deck>.json 페이지 문서(템플릿이면 그 본문)를 만들고 시작 덱으로 정한다.
-    nexa-slide.json 에 experimental.page 를 켜 둔다 - 지금은 기본이 켬이라(DR-P13) 없어도 되지만, 환경 변수로 꺼 둔 곳에서도 이 작업 공간은 열리게."""
+    nexa-slide.json 에 experimental.page 를 켜 둔다 - 지금은 기본이 켬이라(DR-P13) 없어도 되지만 뜻을 드러내 둔다. 환경 변수 NEXA_SLIDE_EXPERIMENTAL 의 -page 로 꺼 둔 서버에서는 이 값이 있어도 꺼진다(환경 변수가 먼저)."""
     cp = ws / "nexa-slide.json"
     c = json.loads(cp.read_text(encoding="utf-8"))
     c["experimental"] = {**(c.get("experimental") or {}), "page": True}

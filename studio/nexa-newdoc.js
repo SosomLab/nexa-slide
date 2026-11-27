@@ -38,6 +38,7 @@
     const cfg = await api("GET", "/api/config");
     const kinds = root.NexaKinds.list((cfg.ok && cfg.data && cfg.data.experimental) || []);
     let kind = kinds.some((k) => k.kind === opts.kind) ? opts.kind : kinds[0].kind;
+    let imported = null;  // 파일을 가져와 이미 만든 문서(경고를 보이는 중)
     const lists = {}, pick = { deck: "", sheet: "", page: "blank" };  // 종류마다 읽어 둔 템플릿 목록 · 고른 것("" = 빈 문서)
     const SRC = {
       deck: { url: "/api/starters", blank: ["빈 덱", "표지 한 장"], file: [".pptx", "PowerPoint(.pptx)에서 가져오기"], map: (t) => ({ name: t.name, label: t.label, desc: (t.slides ? t.slides + "장 · " : "") + (t.description || "") }) },
@@ -49,7 +50,7 @@
       back.innerHTML = `<div class="nd-box" role="dialog" aria-label="새 문서"><h3>새 문서</h3><div class="nd-kinds"></div><div class="nd-body"><label for="ndTitle">제목</label><input type="text" id="ndTitle" maxlength="200" placeholder="문서 제목"><div id="ndExtra"></div></div><div class="nd-err" id="ndErr"></div><div class="nd-foot"><button id="ndCancel">취소</button><button id="ndOk" class="primary">만들기</button></div></div>`;
       doc.body.appendChild(back);
       const q = (s) => back.querySelector(s), title = q("#ndTitle");
-      const end = (v) => { back.remove(); doc.removeEventListener("keydown", onKey, true); resolve(v); };
+      const end = (v) => { if (!v && imported) v = imported;  /* 가져온 뒤에는 닫아도 만든 문서로 간다(이미 만들어졌다) */ back.remove(); doc.removeEventListener("keydown", onKey, true); resolve(v); };
       function onKey(e) { if (e.key === "Escape") { e.stopPropagation(); end(null); } else if (e.key === "Enter" && e.target === title) { e.preventDefault(); create(); } }
       doc.addEventListener("keydown", onKey, true);
       function drawKinds() {
@@ -73,6 +74,7 @@
         box.innerHTML = html + `</p>`;
       }
       async function create() {
+        if (imported) { end(imported); return; }
         const t = title.value.trim();
         if (!t) { q("#ndErr").textContent = "제목을 적어 주세요"; title.focus(); return; }
         q("#ndOk").disabled = true; if (kind === "deck" && pick.deck) q("#ndErr").textContent = "만드는 중…";
@@ -102,7 +104,12 @@
         const data = await new Promise((res, rej) => { const fr = new FileReader(); fr.onload = () => res(String(fr.result).split(",")[1] || ""); fr.onerror = rej; fr.readAsDataURL(f); });
         const r = await api("POST", "/api/decks", { action: "import", name: f.name, title: title.value.trim(), data });
         if (!r.ok || !r.data || !r.data.id) { q("#ndErr").textContent = "가져오지 못했습니다: " + ((r.data && r.data.error) || r.status); q("#ndOk").disabled = false; return; }
-        end({ id: r.data.id, kind: r.data.kind || kind, title: r.data.title, decks: r.data.decks, warnings: r.data.warnings || [] });
+        const done = { id: r.data.id, kind: r.data.kind || kind, title: r.data.title, decks: r.data.decks, warnings: r.data.warnings || [] };
+        if (!done.warnings.length) { end(done); return; }
+        // 옮기지 못한 것이 있으면 여기서 알리고 [열기]로 넘어간다
+        imported = done;
+        q("#ndErr").innerHTML = `<b>가져왔습니다.</b> 그대로 옮기지 못한 것:<br>` + done.warnings.slice(0, 12).map((w) => "· " + esc(w)).join("<br>");
+        q("#ndOk").textContent = "열기"; q("#ndOk").disabled = false; q("#ndOk").focus();
       });
       drawKinds(); drawExtra(); title.focus();
     });

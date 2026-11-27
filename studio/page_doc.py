@@ -190,7 +190,7 @@ def _check_runs(runs, where):
 
 
 def _check_columns(c, where):
-    """단 설정 {count 1~4, gap(mm 0~50)?, sep?} - 문서(page.columns)와 구역 나누기(break kind section 의 columns)가 같이 쓴다."""
+    """단 설정 {count 1~4, gap(mm 0~50)?} - 문서(page.columns)와 구역 나누기(break kind section 의 columns)가 같이 쓴다."""
     if not isinstance(c, dict) or not isinstance(c.get("count"), int) or isinstance(c.get("count"), bool) or not 1 <= c["count"] <= 4:
         return f"{where}: columns = {{count: 1~4, gap?: mm}}"
     if "gap" in c and (not isinstance(c["gap"], (int, float)) or isinstance(c["gap"], bool) or not 0 <= c["gap"] <= 50):
