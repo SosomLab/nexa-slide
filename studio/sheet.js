@@ -602,7 +602,7 @@
       if (v.deck !== S.version && !S.saving && v.deck != null && String(v.deck) !== "0") {  // 판 "0" = 파일 없음(지워진 문서) - 다시 읽지 않는다
         // 편집 중에 밖에서 바뀌었다 - 배너로 고르게 하지 않고, 내 저장이 서버에서 합쳐지게 바로 저장한다(셀 입력 중이면 입력을 넣고 저장할 때)
         if (S.dirty || S.edit) { if (S.dirty && !S.edit && !S.conflict) { stopSave(); await save(); } }
-        else if (await NexaDoc.stillChanged(api, S)) await reloadExternal("밖에서 바뀐 시트를 다시 불러왔습니다");  // 받아 둔 v 는 위의 기다림 사이 낡았을 수 있다 - 공용 기준으로 다시 확인
+        else if (NexaDoc.stillChanged(S, () => { pollAt = 0; poll(); })) await reloadExternal("밖에서 바뀐 시트를 다시 불러왔습니다");  // 받아 둔 v 는 위의 기다림 사이 낡았을 수 있다 - 공용 기준으로 다시 확인
       }
     } finally {
       applying = false;
