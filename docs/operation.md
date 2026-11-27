@@ -10,8 +10,9 @@ python3 studio/build_deck.py   -W <ws> ch00 --force    # 덮어쓰기(기존 덱
 python3 studio/build_deck.py   -W <ws> book [--chapters ch00 ch18]   # 통합본
 python3 studio/export_pptx.py  -W <ws> ch00            # → out/ch00.pptx
 python3 studio/export_xlsx.py  -W <ws> <시트>          # 시트 문서(kind sheet) → out/<시트>.xlsx(매크로가 있으면 .xlsm, --no-macros 로 빼기) - docs/sheets.md
-python3 <ws>/nexa.py export_docx <페이지>             # 페이지 문서(kind page) → out/<페이지>.docx - docs/pages.md (이 도구는 -W 를 받지 않는다 - 실행기 또는 NEXA_SLIDE_WORKSPACE)
-python3 <ws>/nexa.py import_docx <파일.docx> [--id <id>] [--title <제목>]   # Word 문서 → decks/<id>.json 페이지 문서(-W 를 받지 않는다)
+python3 studio/export_docx.py  -W <ws> <페이지> [--out <파일>]   # 페이지 문서(kind page) → out/<페이지>.docx - docs/pages.md
+python3 studio/import_docx.py  -W <ws> <파일.docx> [--id <id>] [--title <제목>]   # Word 문서 → decks/<id>.json 페이지 문서
+python3 studio/import_docx.py  -W <ws> <파일.docx> --blocks    # 문서를 만들지 않고 블록만 → out/import/<이름>/page.json(요청 첨부를 있는 페이지 문서에 넣을 때 - claude-session.md)
 python3 studio/render_mermaid.py -W <ws> ch18 [--all]  # content 의 mermaid → PNG (바뀐 것만)
 pwsh -File studio/render_pptx.ps1 -Pptx <ws>/out/ch00.pptx -OutDir <ws>/out/ch00   # PowerPoint 렌더 PNG
 python3 studio/compare.py      -W <ws> ch00 [--slides 1,5] [--port 5600]   # 브라우저 vs PowerPoint 픽셀 비교
@@ -149,6 +150,10 @@ python3 studio/service.py restart          # 허브
 python3 nexa.py restart                    # 각 작업 공간 폴더에서 - 그 작업 공간 서버
 ```
 
+- 서버 작업의 **[배포]**(`engine_deploy.py`, 재시작 켬)는 main 반영 뒤 허브를 재시작하고, 사용자 설정 최근 작업(`recent`)에 있는 작업 공간 가운데 **배포 직전에 떠 있던 서버**를 모두 `service.py restart` 한다(단계 "작업 공간 재시작 <이름>"). 허브가 새 판으로 뜨지 않으면 main 을 되돌린다.
+- `git merge`·`git pull` 로 main 을 손으로 올렸으면 위 두 명령을 직접 돌린다. 최근 작업에 없는 작업 공간(`nexa.py start` 로만 띄운 것)은 [배포]도 건드리지 않으니 그 폴더에서 `nexa.py restart`.
+- 브라우저 화면(JS)만 바뀐 판이면 재시작 없이 새로 고침으로 반영된다(엔진 `studio/` 파일은 no-store). 서버 쪽 파이썬(`server.py`·`hub.py` 등)이 바뀌었으면 재시작이 필요하다.
+
 ## 포트·프로세스 점검
 
 ```powershell
@@ -167,7 +172,9 @@ pgrep -fl watch_requests
 
 - 같은 작업 공간에 감시를 둘 이상 띄우지 않는다 — 같은 요청이 두 세션에 전달된다. 하트비트 파일(`out/.studio/session.json`)은 마지막에 쓴 감시의 것만 남는다.
 - Windows Git Bash 의 `kill` 은 래퍼만 끝내고 python 이 남을 수 있다 — `Stop-Process`/`taskkill /F` 를 쓴다.
-- 시험이 띄운 작업 공간 서버가 남았는지: `Get-CimInstance Win32_Process -Filter "Name like 'python%'" | ? CommandLine -like '*server.py --port auto*' | select ProcessId, CreationDate, CommandLine` - 남은 것은 그 작업 공간 폴더에서 `nexa.py stop`(그 작업 공간을 서비스하는 서버만 내린다). `run_all` 은 묶음마다 이 엔진 사본의 server.py 가 늘었는지 보고 늘었으면 "서버 프로세스 누수"로 실패한다.
+- 시험이 띄운 작업 공간 서버가 남았는지: 시험 서버는 둘 다 `server.py` 다 - 시험이 직접 띄운 것은 `server.py --workspace <임시 폴더>\nexa-slide-tests\… --port 5667` 꼴, 격리 허브(5799)가 띄운 것은 `server.py --port auto`(작업 공간은 명령줄에 없고 실행 폴더·`NEXA_SLIDE_WORKSPACE` - `out/.studio/server.json` 의 `pid` 로 맞춰 본다). 엔진 사본 경로로 찾는다:
+  `Get-CimInstance Win32_Process -Filter "Name like 'python%'" | ? CommandLine -like '*<엔진 사본>\studio\server.py*' | select ProcessId, CreationDate, CommandLine`(시험이 직접 띄운 것만이면 `-like '*nexa-slide-tests*'`).
+  남은 것은 그 작업 공간 폴더에서 `nexa.py stop`(그 작업 공간을 서비스하는 서버만 내린다), 작업 공간이 이미 지워졌으면 `Stop-Process -Id <PID> -Force`. 운영 서버(5599 허브·5600~)와 헷갈리지 않게 명령줄의 엔진 경로·작업 공간을 먼저 본다. `run_all` 은 묶음마다 이 엔진 사본의 server.py 가 늘었는지 보고 늘었으면 "서버 프로세스 누수"로 실패한다([dev/tests.md](dev/tests.md)).
 
 ## 문제 해결
 

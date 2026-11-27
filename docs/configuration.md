@@ -49,7 +49,7 @@
 | `endNextNote` | `""` | 문서 끝(EoD) "다음 순서" 칩 뒤에 붙일 설명(예: `"  (장 번호가 아니라 교육 순서)"`) |
 | `repo` | 없음 | 저장소형 작업 공간 표시(`init_workspace.py` 가 씀) — `root`(저장소 관리 기준 폴더, 보통 `..`). 시작 페이지가 저장소 루트를 보인다 |
 | `sessionAllowGit` · `sessionAllowPush` · `sessionRepoRoot` · `sessionAllowWeb` | 없음 | `false` 로 두면 이 작업 공간에서 웹 세션의 git 기록·push·저장소 루트 접근·웹 검색을 끈다(켜는 것은 사용자 설정 전역 스위치만 — [home.md](home.md) 사용자 설정). `nexa-slide.local.json` 에 두면 이 PC 만 |
-| `experimental` | 없음 | 기능 켜고 끄기 `{"<이름>": true\|false}`. 지금 이름은 `page`(페이지 문서, [pages.md](pages.md)) 하나이고 기본이 켬이라 `{"page": false}` 로 끈다. 판단 순서는 환경 변수 `NEXA_SLIDE_EXPERIMENTAL`(`page` 켬 · `-page` 끔, 쉼표로 여러 개) → 이 키 → 엔진 기본값(`server.py` 의 `RELEASED`). 시작 페이지(허브)는 이 키를 읽지 않고 환경 변수와 기본값만 본다(`hub.py`). `init_workspace.py --kind page` 는 `{"page": true}` 를 적는다 |
+| `experimental` | 없음 | 기능 켜고 끄기 `{"<이름>": true\|false}`. 지금 이름은 `page`(페이지 문서, [pages.md](pages.md)) 하나이고 기본이 켬이라 `{"page": false}` 로 끈다. 판단 순서는 환경 변수 `NEXA_SLIDE_EXPERIMENTAL`(`page` 켬 · `-page` 끔, 쉼표로 여러 개) → 이 키 → 엔진 기본값(`server.py` 의 `RELEASED`). 시작 페이지(허브)는 이 키를 읽지 않고 환경 변수와 기본값만 본다(`hub.py`). 끄면 작업 공간 서버의 페이지 만들기·.docx 가져오기(`POST /api/decks`)가 400 이고 `/api/config` 의 `experimental` 에서 빠진다 - 서버는 이미 있는 페이지 문서의 읽기·저장은 막지 않는다. 명령행 인자는 없고, 서버를 띄우기 전 환경 변수로만 덮어쓴다. `init_workspace.py --kind page` 는 `{"page": true}` 를 적는다(환경 변수 `-page` 가 이 키보다 앞서므로 그때는 꺼진다) |
 
 예 — 교재 저장소의 `ppt/` 를 작업 공간으로, 그림 경로는 저장소 루트 기준:
 

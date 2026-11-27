@@ -176,6 +176,8 @@ python3 <작업 공간>/nexa.py start      # 작업 공간 서버 → 덱이 있
 | 페이지(워드) | 슬라이드 템플릿·시작용 내용 대신 **페이지 템플릿** 칩(`/api/home` 의 `pageTemplates`, 맨 앞이 기본) — [pages.md](pages.md) | `--kind page` · `--page-template <이름>`(첫 문서 id 기본 `doc`) |
 
 - 페이지 단추와 템플릿 칩은 허브에서 페이지 문서가 켜져 있을 때만 보인다(`/api/home` 의 `experimental` 에 `page`). 기본이 켬이고, 허브를 `NEXA_SLIDE_EXPERIMENTAL=-page` 로 띄우면 숨고 `kind: page` 로 만들기를 거절한다([configuration.md](configuration.md#nexa-slidejson) `experimental`).
+- 페이지 템플릿 칩은 `studio/page_templates.py` 의 11종(빈 문서 · 보고서 · 기획서·제안서 · 회의록 · 공문·레터 · 매뉴얼·안내서 · 이력서 · 논문·리포트 / 해설지 · 문제지 · 어휘 정리)이고 맨 앞(빈 문서)이 기본이다. 고른 칩은 `POST /api/project` 의 `pageTemplate` → `--page-template <이름>` 으로 간다. 허브(작업 공간 없이 띄운 서버)의 칩에는 엔진 템플릿만 나오고, 작업 공간 전용 템플릿(`page_templates/<이름>.json`)은 그 작업 공간 편집기의 새 문서 창에 나온다([pages.md](pages.md#3-만들기)).
+- 첫 문서를 페이지로 만들면 `decks/doc.json`(템플릿의 `{title}`·`{date}` 를 채운 본문)을 시작 덱(`startDeck`)으로 정하고, 작업 공간 `nexa-slide.json` 에 `"experimental": {"page": true}` 를 적어 둔다 - 환경 변수로 페이지를 꺼 둔 곳에서도 이 작업 공간은 열리게.
 - 시트·페이지는 시작용 내용(`--starter`)과 함께 쓸 수 없다(`init_workspace.py` 가 거절).
 
 ### 새로 만들 때 하는 일
