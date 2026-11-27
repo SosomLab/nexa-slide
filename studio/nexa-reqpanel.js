@@ -12,7 +12,7 @@
 //     o.emptyText()     목록이 비었을 때의 글(HTML)
 //     o.olderNote       이전 요청이 있을 때 목록 위에 보일 안내(HTML) - 없으면 안 보인다
 //     o.typed           {get(), set(v)} 입력 중인 글의 임시 저장 - 없으면 끈다
-//     o.preClick(e)     목록을 눌렀을 때 공용 처리보다 먼저 볼 것 - 처리했으면 true(async)
+//     o.preClick(e)     목록을 눌렀을 때 공용 처리보다 먼저 볼 것 - 처리했으면 true(바로 돌려준다 - async 아님)
 //     o.onRender(info)  그린 뒤({recent, older, list, open}) · o.onChange() 요청 목록이 바뀔 때(render 뒤) · o.onDeckChanged() 문서를 곧 다시 읽게
 (function (root) {
   "use strict";
@@ -51,10 +51,10 @@
     $("#reqText").addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.shiftKey && !e.isComposing) { e.preventDefault(); send(); } });
     if (o.typed) { $("#reqText").addEventListener("input", () => o.typed.set($("#reqText").value.trim() ? $("#reqText").value : "")); const v = o.typed.get(); if (v) $("#reqText").value = v; }
     $("#reqList").addEventListener("click", async (e) => {
-      if (o.preClick && (await o.preClick(e))) return;
+      if (o.preClick && o.preClick(e) === true) return;  // 기다리지 않는다 - 한 박자라도 늦으면 RQ.click 의 preventDefault 가 늦어 첨부 링크가 그대로 열린다(화면이 넘어감)
       if (await RQ.click(e)) return;
       const c = e.target.closest(".req[data-rid]"), r = c && st.reqs.find((q) => q.id === c.dataset.rid);
-      if (r && !e.target.closest("button, a, textarea, input") && o.target.goto) o.target.goto(r);
+      if (r && !e.target.closest("button, a, textarea, input, details, .fu-form") && o.target.goto) o.target.goto(r);
     });
     $("#reqList").addEventListener("keydown", (e) => RQ.keydown(e));  // 후속 입력칸 Enter = 보내기 · Esc = 닫기
     RQ.att.wire($(compose), "tab");                                    // 요청 첨부 - 붙여넣기(그림)·끌어다 놓기
