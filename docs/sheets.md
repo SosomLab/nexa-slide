@@ -174,7 +174,8 @@ LET 이름에 담아 `=LET(f,LAMBDA(a,b,a+b),f(2,3))` 으로 부르고, **이름
 
 | | |
 |---|---|
-| `POST /api/decks {action:"create", kind:"sheet", title}` | 새 시트 문서(탭 1개). `GET /api/decks` 항목에 `kind` |
+| `POST /api/decks {action:"create", kind:"sheet", title, theme?}` | 새 시트 문서(테마 없으면 탭 1개, `theme` 이면 그 테마의 페이지 틀마다 탭). `GET /api/decks` 항목에 `kind` |
+| `POST /api/decks {action:"import", name, data(base64), title?}` | 엑셀 통합 문서(.xlsx·.xlsm, 30MB 까지) → 새 시트 문서 `{id, kind:"sheet", sheets, warnings}`. 원본은 `out/import/<시각>-<파일 이름>` 에 남는다 |
 | `GET/PUT /api/deck/<id>` | 슬라이드 덱과 같다. `kind:"sheet"` 면 `sheets` 목록을 검사 |
 | `POST /api/requests/<id> {action:"add", slide, range, text}` | `range` 를 받는다 |
 | `POST /api/export/<id>` | `kind:"sheet"` 면 `out/<id>.xlsx` (`export_xlsx.py`) |
@@ -232,6 +233,11 @@ LET 이름에 담아 `=LET(f,LAMBDA(a,b,a+b),f(2,3))` 으로 부르고, **이름
 
 **엑셀 파일로 시작** — 시작 페이지 ＋ 새 시트 → "또는 엑셀 파일로 시작" 에서 .xlsx·.xlsm 을 고르면 테마 대신 그 파일이 첫 시트가 된다
 (`init_workspace.py --kind sheet --sheet-import <파일>` → `sheet_import.py`). 값·수식·서식·병합·그림·매크로까지 옮기고 원본은 `materials/` 에 남는다.
+
+**작업 공간에서 새 시트 — 새 문서 창** — 편집기의 새 문서 창(슬라이드 덱 탭 [＋] · ☰ 메뉴 · 시트·페이지 화면의 문서 목록 → 새 문서, [editor.md](editor.md#덱-관리))에서 시트를 고르면
+**테마**(빈 시트 · `GET /api/sheet-themes` 의 테마 - 카드에 페이지 틀 이름)를 고르거나 **[Excel(.xlsx)에서 가져오기]**(.xlsx·.xlsm)로 파일을 올려 바로 새 시트 문서를 만든다(`POST /api/decks` 의 `create` + `theme` · `import`).
+**[자세히…]** 는 넣을 페이지·문서 정보(과제명·고객사·작성자·버전)까지 고르는 예전 새 시트 창이다(슬라이드·시트 편집기에만 있다).
+- 가져올 때 통합 문서에 그림·도형·차트가 하나도 없으면(`xl/drawings/` 없음) Excel 을 띄우지 않는다 - 띄우는 데만 수 초~십수 초가 걸리고 그동안 서버의 쓰기 락을 쥐기 때문이다. 그림·도형이 있으면 Windows + Excel 에서 Excel 로 PNG 를 떠내고, Excel 이 없거나 실패하면 파일 안의 그림만 옮긴다.
 
 ## 6. 시트 → 슬라이드 연결
 
