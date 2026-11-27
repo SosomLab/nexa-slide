@@ -37,10 +37,10 @@ def env(ws):
     return {**os.environ, "NEXA_SLIDE_USER_DIR": str(USER), "NEXA_SLIDE_PROJECTS": str(PROJ), "PYTHONIOENCODING": "utf-8", "NEXA_SLIDE_WORKSPACE": str(ws)}
 
 
-def call(method, url, body=None):
+def call(method, url, body=None, timeout=None):
     rq = urllib.request.Request(B + url, data=None if body is None else json.dumps(body, ensure_ascii=False).encode(), method=method, headers={"Content-Type": "application/json"})
     try:
-        with urllib.request.urlopen(rq, timeout=15) as r:
+        with urllib.request.urlopen(rq, timeout=timeout or (240 if "pdf=1" in url or "/api/export/" in url or (body or {}).get("action") == "import" else 15)) as r:  # Word·Excel·Chrome 을 띄우는 호출은 처음 뜰 때 15초를 넘는다(간헐 시간 초과의 원인)
             return r.status, json.loads(r.read() or b"{}"), r.headers.get("X-Deck-Version")
     except urllib.error.HTTPError as e:
         try:
