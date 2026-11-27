@@ -467,16 +467,17 @@
     if (!r.ok) { setStatus("error", "읽기 실패"); toast("시트를 불러오지 못했습니다 (" + r.status + ")", 6000); return false; }
     const deck = await r.json();
     if (deck.kind !== "sheet") { location.replace(NexaKinds.url({ id: S.id, kind: deck.kind })); return false; }  // 슬라이드 덱이면 편집기로
-    if (keepView && S.deck && (S.dirty || S.edit || S.saving)) { if (S.dirty && !S.edit) scheduleSave(); return false; }  // 다시 읽는 사이 내가 고쳤다 - 읽은 것을 버린다(덮어쓰면 그 편집이 알림 없이 사라진다). 내 저장이 서버에서 합친다
-    if (!keepView) S.struct = [];
-    if (keepView && S.deck) NexaMerge.seal(S.undo, S.redo, deckJson());  // 밖의 변경을 받는다 - 내 실행 취소에 넣지 않고, 이전 기록은 내 편집만 되돌리게 봉인
-    else { S.undo = []; S.redo = []; }
-    S.version = r.headers.get("X-Deck-Version");
     if (!Array.isArray(deck.sheets) || !deck.sheets.length) deck.sheets = [{ id: "t01", name: "Sheet1", cells: {} }];
     if (!Array.isArray(deck.slides)) deck.slides = [];
     deck.sheets.forEach(normSheet);
     await loadTheme(deck.theme);
     await setupVba(deck);  // VBA 사용자 함수 - recalc 전에
+    // 여기부터 끝까지는 기다림 없이 한 번에 - 아래 검사와 S.deck 을 바꾸는 사이에 기다림이 있으면 그때 들어온 편집이 알림 없이 덮여 사라진다(테마·VBA 를 검사 앞으로 옮긴 이유)
+    if (keepView && S.deck && (S.dirty || S.edit || S.saving)) { if (S.dirty && !S.edit) scheduleSave(); return false; }  // 다시 읽는 사이 내가 고쳤다 - 읽은 것을 버린다. 내 저장이 서버에서 합친다
+    if (!keepView) S.struct = [];
+    if (keepView && S.deck) NexaMerge.seal(S.undo, S.redo, deckJson());  // 밖의 변경을 받는다 - 내 실행 취소에 넣지 않고, 이전 기록은 내 편집만 되돌리게 봉인
+    else { S.undo = []; S.redo = []; }
+    S.version = r.headers.get("X-Deck-Version");
     if (!keepView) { const z = +LS.get(`sheetZoom-${S.id}`, 1) || 1; Z = 1; $("#gridIn").style.zoom = ""; if (z !== 1) setTimeout(() => setZoom(z), 0); renderZoom(); }
     S.deck = deck; S.savedJson = deckJson();
     S.dirty = false; S.conflict = false; banner(false);
@@ -569,10 +570,12 @@
     vbaRender();
   }
   async function reloadExternal(msg) {
-    const was = { ti: S.deck && sheet().id, sel: { ...S.sel }, cur: { ...S.cur }, anchor: { ...S.anchor } };
+    const was = { ti: S.deck && sheet().id, idx: S.ti, sel: { ...S.sel }, cur: { ...S.cur }, anchor: { ...S.anchor } };
     if (!(await loadDeck(true))) return;
-    const i = S.deck.sheets.findIndex((s) => s.id === was.ti); S.ti = i >= 0 ? i : 0;
-    S.sel = was.sel; S.cur = was.cur; S.anchor = was.anchor;
+    // 읽는 사이(큰 시트는 수백 ms) 내가 다른 칸·탭으로 갔으면 그 자리를 지킨다 - 옛 자리로 되돌리면 다음 입력이 옛 칸에 들어간다
+    const moved = S.ti !== was.idx || S.cur.r !== was.cur.r || S.cur.c !== was.cur.c;
+    if (!moved) { const i = S.deck.sheets.findIndex((s) => s.id === was.ti); S.ti = i >= 0 ? i : 0; S.sel = was.sel; S.cur = was.cur; S.anchor = was.anchor; }
+    else if (S.ti >= S.deck.sheets.length) S.ti = 0;
     renderAll(); if (msg && !(AI.at && Date.now() - AI.at < 5000)) toast(msg);  // 방금 AI 변경 알림을 띄웠으면 그것을 덮지 않는다
   }
   // 갱신 - 실시간 연결(nexa-live.js SSE, 동시 편집 2단계)이 살아 있으면 바뀔 때마다 applyVersion 이 바로 불리고, 2초 폴링은 15초 안전망만(편집기와 같다)
