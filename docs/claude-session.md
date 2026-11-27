@@ -60,7 +60,7 @@ Monitor
 영역 요청은 그 좌표와 겹치는 요소들을 대상으로 처리한다(`element` 는 null).
 **시트 문서**(덱 JSON `"kind": "sheet"`, 시트 화면 `sheet.html`)의 요청은 `slide` = 시트 탭 id, `range` = 고른 셀 범위(`A1`·`B2:D5`)다 — 세션은 그 탭의 `cells` 를 고친다
 (`draft_deck <덱> --slide <탭> --range <범위>` 가 줄 번호를 알려 준다). 형식은 [sheets.md](sheets.md).
-**페이지 문서**(`"kind": "page"`)는 장이 없고 본문이 `blocks` 목록이다 — 요청의 `slide` 는 블록 id 이거나 비어 있다. 있던 블록 `id` 는 바꾸지 않고, 저장은 같은 `save_deck`(서버와 같은 형식 검사, `studio/agents/turn_prompt.md` 의 페이지 문단). 형식은 [pages.md](pages.md). 페이지 편집기의 요청 패널([AI 요청])이 보내는 대상은 블록 id 다 - `slide` = `element` = 고른 첫 블록, 여러 블록이면 `elements`(목록), 표 칸 안이면 그 표, 문서 전체면 셋 다 없다. 후속 요청은 `parent`. 페이지 문서에는 제안 저장(`--propose`)을 쓰지 않는다.
+**페이지 문서**(`"kind": "page"`)는 장이 없고 본문이 `blocks` 목록이다 — 요청의 `slide` 는 블록 id 이거나 비어 있다. 있던 블록 `id` 는 바꾸지 않고, 저장은 같은 `save_deck`(서버와 같은 형식 검사, `studio/agents/turn_prompt.md` 의 페이지 문단). 형식은 [pages.md](pages.md). 페이지 편집기의 요청 패널([AI 요청])이 보내는 대상은 블록 id 다 - `slide` = `element` = 고른 첫 블록, 여러 블록이면 `elements`(선택이 걸친 맨 위 단계 블록 목록, 50개까지), 표 칸 안이면 그 표, 문서 전체(고른 블록이 없거나 패널의 "문서 전체" 체크)면 `slide` 는 null 이고 `element`·`elements` 는 없다. 후속 요청은 `parent`. 페이지 문서에는 제안 저장(`--propose`)을 쓰지 않는다.
 시트에서 그림을 고른 요청에는 `element`·`elements` = 그 탭 `drawings` 의 그림 id 가 붙는다(`drawings[].id`, 없으면 `src` 파일 이름에서 확장자를 뺀 것, 그것도 없으면 `img<순번>` - 1부터). 세션은 그 그림(`at`·`dx`·`dy`·`w`·`h`·`src`)을 고친다.
 **후속 요청**(편집기 [후속 요청])이면 `parent`(바로 앞 요청 id)·`thread`(대화의 뿌리 요청 id)와 `context: [{id, status, text, reply, attachments?}…]` 가 붙는다 — 같은 대화의 앞선 요청·답이 오래된 순(최근 6개, 항목당 800자, 첨부는 경로만)이고 이번 요청은 항목 자신의 `text` 다. 대상(`slide`·`element`·`region`)은 따로 주지 않으면 원 요청에서 물려받는다. 앞선 요청의 상태는 바꾸지 않는다.
 
@@ -69,7 +69,7 @@ Monitor
 PPTX 첨부는 Read 로 열리지 않으므로 `nexa.py import_pptx <파일>` 로 꺼낸다(단순한 PPT 는 `--deck <id>` 로 바로 덱으로 — 글·글머리·표·그림·차트·도형이 원본 위치·크기로 들어오고 색·글꼴은 템플릿 기본, 그 뒤 편집기나 '레이아웃 고치기'로 다듬는다)(프리셋 도형은 `shape`(덱 `shape` 요소 종류), 단락 글머리는 `[1.]`·`[•]` 로 표시 — 덱에서는 `marker`/`subMarker` 또는 글 앞에 그대로 적으면 자동 감지된다) — `out/import/<이름>/slides.md`(슬라이드별 제목·본문·표·차트 값·발표자 노트, 도형 위치 1280×720 기준)·`slides.json`·`images/`(그림, `src` 에 그대로). 덱으로 자동 변환하지는 않고 세션이 읽어 알맞은 장(`slide_types`)으로 옮긴다.
 Word(.docx)·Excel(.xlsx/.xlsm)·PDF 첨부는 `nexa.py import_doc <파일>` — `out/import/<이름>/content.md`(Word: 제목 수준·문단(굵게)·목록 수준·표·각주·그림 / Excel: 시트별 표(날짜 변환, 계산값이 없으면 수식)·병합·숨긴 시트·차트 계열 값 / PDF: 책갈피·쪽별 글·표·그림)·`content.json`·`images/`. Word·Excel 은 추가 설치 없이, PDF 는 PyMuPDF(`pip install pymupdf`)가 있으면 글·표·그림, pypdf 만 있으면 글만, 둘 다 없으면 내장 읽개(`studio/pdf_text.py`, 설치 없음)로 글·책갈피·JPEG 그림(표 구조·암호 걸린 PDF·ToUnicode 없는 글꼴은 못 읽는다 - 그때는 pymupdf 설치). 옛 형식(.doc·.xls·.ppt)은 새 형식으로 저장해 다시 올린다. 입력·출력은 작업 공간 안만(저장소 루트 접근 세션이면 그 루트까지).
 
-**페이지 문서에 Word 첨부를 서식째 넣기**: 분석만 하면 위의 `import_doc`(content.md), 내용을 이 페이지 문서에 넣어야 하면 `nexa.py import_docx <파일> --blocks` - 문서를 만들지 않고 같은 형식의 블록을 `out/import/<이름>/page.json` 에 꺼낸다(그림은 `assets/` 에 꺼내 `src` 가 그대로 쓰인다). 필요한 블록만 사본의 `blocks` 에 넣고, 넣는 블록의 `id` 는 지워 새로 매기게 하며 그 문서에 없는 `style` 이름은 있는 것으로 바꾼다(`studio/agents/turn_prompt.md` 의 페이지 문단).
+**페이지 문서에 Word 첨부를 서식째 넣기**: 분석만 하면 위의 `import_doc`(content.md), 내용을 이 페이지 문서에 넣어야 하면 `nexa.py import_docx <파일> --blocks` - 문서를 만들지 않고 같은 형식의 블록을 `out/import/<이름>/page.json`(`title`·`page`·`styles`·`blocks`)에 꺼낸다(그림은 `assets/images/` 에 꺼내 `src` 가 그대로 쓰인다 · Word 의 떠 있는 도형·글 상자(`objects`)는 지금 page.json 에 들어가지 않는다). 필요한 블록만 사본의 `blocks` 에 넣고, 넣는 블록의 `id` 는 지워 새로 매기게 하며 그 문서에 없는 `style` 이름은 있는 것으로 바꾼다(`studio/agents/turn_prompt.md` 의 페이지 문단).
 테마를 바꿔 달라는 요청은 `nexa.py set_template [<이름>]`(목록·선택, [templates.md](templates.md)) — 반영에는 서버 재시작이 필요하므로 웹 세션은 `reply` 에 안내만 한다.
 
 ## 3. 처리 규약 (세션이 지킬 것)

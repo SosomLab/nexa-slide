@@ -134,7 +134,8 @@ nexa-slide/
 │   ├─ save_deck.py · check_changes.py   Claude 세션용 저장(원장에 Claude 로) · 비교 규칙 golden 검사
 │   ├─ templates/          디자인 템플릿 17종 — lecture(기본) · lecture-large · 목적별 4(brief·notice·schedule·proposal) · 검토로 들인 시각 템플릿 11(keynote·archive·blueprint·swiss·editorial·ledger·signal·forest·graphite·casebook·electric). tokens.json · template.json · design/
 │   ├─ sheet.html · sheet.js · export_xlsx.py · sheet_import.py · sheet_theme.py · sheet_themes/   시트 화면 · XLSX 내보내기 · 엑셀 가져오기 · 시트 테마 — docs/sheets.md
-│   ├─ page.html · page.js · page-render.js · page_doc.py · page_templates.py   페이지 화면 · 그리기 · 형식 검사 · 페이지 템플릿 11종 — docs/pages.md
+│   ├─ page.html · page.js · page-render.js · page-flow.js · page_doc.py · page_templates.py   페이지 화면 · 그리기 · 실시간 쪽 나눔 · 형식 검사 · 페이지 템플릿 11종 — docs/pages.md
+│   ├─ nexa-text.js · nexa-newdoc.js   공용 글 편집 엔진(페이지 본문 · 슬라이드 글·표 칸) · 새 문서 창(세 종류 템플릿 + 파일 가져오기)
 │   ├─ export_docx.py · import_docx.py · render_docx.ps1   페이지 → DOCX · Word 문서 → 페이지 · Word 로 PDF(Windows)
 │   ├─ deckmerge.py        동시 편집 3-way 병합(장·요소 · 탭·셀 · 블록 단위) — docs/collab.md
 │   └─ set_fonts.py · gen_tokens_css.py · render_mermaid.py
@@ -180,8 +181,8 @@ nexa-slide/
 | [docs/fonts.md](docs/fonts.md) | 글꼴 — 기본 세트(엔진)와 작업 공간 전용 글꼴(`fonts/` · `fontPresets`), 편집기 글꼴 창, `install_fonts` |
 | [docs/slide-types.md](docs/slide-types.md) | 슬라이드 유형 54개 — 목적·구성 기준, 고를 신호, 초안·요청 처리의 장 선별 기준, 편집기 "유형으로 추가" |
 | [docs/deck-format.md](docs/deck-format.md) | 덱 JSON·요소 모델, content 형식, 레이아웃, 인라인 강조, 각주 규칙 |
-| [docs/editor.md](docs/editor.md) | 슬라이드 편집기 조작, 화면↔PPT 일치 규칙, 알려진 한계 |
-| **[docs/sheets.md](docs/sheets.md)** | **시트 문서(`kind: sheet`) — 형식, 요청, API, 시트 테마, 시트 → 슬라이드 연결, XLSX 내보내기** |
-| **[docs/pages.md](docs/pages.md)** | **페이지 문서(`kind: page`) — 기본 켬·끄는 법, 만들기·템플릿, 편집·표, DOCX·PDF 내보내기, Word 가져오기, 동시 편집** |
+| [docs/editor.md](docs/editor.md) | 슬라이드 편집기 조작(새 문서 창 · 보이는 서식으로 글 편집), 화면↔PPT 일치 규칙, 알려진 한계 |
+| **[docs/sheets.md](docs/sheets.md)** | **시트 문서(`kind: sheet`) — 형식, 요청, API, 시트 테마, 엑셀 가져오기, 시트 → 슬라이드 연결, XLSX 내보내기** |
+| **[docs/pages.md](docs/pages.md)** | **페이지 문서(`kind: page`) — 기본 켬·끄는 법, 만들기·템플릿, 편집·표, 실시간 쪽 나눔, 도형·글 상자, 다단, 각주, DOCX·PDF 내보내기·인쇄, Word 가져오기, 동시 편집, AI 요청** |
 | [docs/collab.md](docs/collab.md) | 동시 편집 — 3-way 병합(`PUT ?merge=1`)·실시간 갱신·함께 보는 사람·AI 제안 부분 수락, 단계별 결과 |
 | [docs/research/](docs/research/genspark-ai-slides.md) | 참고 조사 — Genspark AI Slides 실측(진행 과정·저장 구조·편집 화면·레이아웃 검사 원문) |
