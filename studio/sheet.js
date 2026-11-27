@@ -484,6 +484,7 @@
     if (!r.ok) { setStatus("error", "읽기 실패"); toast("시트를 불러오지 못했습니다 (" + r.status + ")", 6000); return false; }
     const deck = await r.json();
     if (deck.kind !== "sheet") { location.replace(NexaKinds.url({ id: S.id, kind: deck.kind })); return false; }  // 슬라이드 덱이면 편집기로
+    if (keepView && S.deck && (S.dirty || S.edit || S.saving)) { if (S.dirty && !S.edit) scheduleSave(); return false; }  // 다시 읽는 사이 내가 고쳤다 - 읽은 것을 버린다(덮어쓰면 그 편집이 알림 없이 사라진다). 내 저장이 서버에서 합친다
     if (!keepView) S.struct = [];
     if (keepView && S.deck) NexaMerge.seal(S.undo, S.redo, deckJson());  // 밖의 변경을 받는다 - 내 실행 취소에 넣지 않고, 이전 기록은 내 편집만 되돌리게 봉인
     else { S.undo = []; S.redo = []; }
