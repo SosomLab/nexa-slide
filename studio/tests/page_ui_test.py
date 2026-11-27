@@ -751,6 +751,48 @@ def cols_reload_steps():
                      "return Object.keys(m).length>=10&&!bad.length&&overlaps().length===0 || JSON.stringify({bad:bad.slice(0,6).map(k=>[k,m[k],n[k]]),ov:overlaps().slice(0,4)});")]
 
 
+# 낱말 풀이 표 - 개발 세션 탐침(gloss_probe.py) 도우미·단계 그대로
+GL_J = "const tick=(ms)=>new Promise(r=>setTimeout(r,ms||200));const q=(s)=>document.querySelector(s);const qa=(s)=>[...document.querySelectorAll(s)];"
+GL_PROBE = [
+    ("공용 서식 단추 - 막대에 6개 · mousedown 으로 굵게 · on 표시 · click() 으로도",
+     "await tick(500); S.deck.blocks=[{id:'a1',type:'p',runs:[{t:'The quick brown fox jumps over the lazy dog and runs away fast'}]},{id:'a2',type:'p',runs:[{t:'둘째 문단'}]}]; E.ed.refresh(); S.dirty=true; E.ed.focus(); E.ed.select({id:'a1',off:4},{id:'a1',off:9});"
+     "const n=qa('#fmtMarks [data-mark]').length; q('#fmtMarks [data-mark=b]').dispatchEvent(new MouseEvent('mousedown',{bubbles:true,cancelable:true})); await tick(150);"
+     "const r=S.deck.blocks[0].runs, on=q('#fmtMarks [data-mark=b]').classList.contains('on'); E.ed.select({id:'a1',off:10},{id:'a1',off:15}); q('#fmtMarks [data-mark=i]').click(); await tick(150); const r2=S.deck.blocks[0].runs;"
+     "return n===6&&r.some(x=>x.t==='quick'&&x.b)&&on&&r2.some(x=>x.t==='brown'&&x.i)&&!r2.some(x=>x.t==='brown'&&x.b)||JSON.stringify([n,r,on,r2])"),
+    ("낱말 풀이 표 - 문단이 테두리 없는 표로: 윗줄 낱말(서식 유지) · 아랫줄 빈 뜻 칸 · 낱말 수 그대로",
+     "E.ed.select({id:'a1',off:0}); q('[data-act=gloss]').click(); await tick(400); const ts=S.deck.blocks.filter(b=>b.type==='table'); const words=ts.flatMap(t=>t.rows[0].cells.map(c=>c.blocks[0].runs.map(r=>r.t).join('')));"
+     "const bold=ts[0].rows[0].cells[1].blocks[0].runs[0].b===true, empty=ts.every(t=>t.rows[1].cells.every(c=>c.blocks[0].runs.length===0)), nb=ts.every(t=>t.border==='none'&&t.rows.length===2&&t.cols.length===t.rows[0].cells.length);"
+     "return ts.length>=1&&words.join(' ')==='The quick brown fox jumps over the lazy dog and runs away fast'&&bold&&empty&&nb&&!S.deck.blocks.some(b=>b.id==='a1')&&document.activeElement.classList.contains('pg-cell')"
+     "||JSON.stringify({n:ts.length,words,bold,empty,nb,act:document.activeElement.className})"),
+    ("뜻 칸에 글 치기 → 저장 · 서버 형식 검사 통과 · 실행 취소로 문단이 돌아온다",
+     "document.activeElement.dispatchEvent(new InputEvent('beforeinput',{inputType:'insertText',data:'그',bubbles:true,cancelable:true})); await idle(); const d=await srv(S.id); const t=d.blocks.find(b=>b.type==='table');"
+     "const ok=t&&t.rows[1].cells[0].blocks[0].runs[0].t==='그'; E.undo(); E.undo(); await tick(300); return ok&&S.deck.blocks[0].type==='p'&&S.deck.blocks[0].id==='a1'||JSON.stringify([t&&t.rows[1].cells[0],S.deck.blocks.map(b=>b.type)])"),
+]
+
+def gloss_steps():
+    """낱말 풀이 표(83629b9) · 공용 서식 단추 nexa-format(b01a5cb) - 앞 3단계는 개발 세션 탐침(gloss_probe.py) 그대로, 뒤는 협업 세션이 더한 것"""
+    J = H + GL_J
+    out = [step(n, J + js) for n, js in GL_PROBE]
+    gl = ("const gl=async(blocks)=>{S.deck.blocks=blocks;E.ed.refresh();S.dirty=true;E.ed.focus();E.ed.select({id:blocks[0].id,off:0});q('[data-act=gloss]').click();await tick(600);"
+          "const ts=S.deck.blocks.filter(b=>b.type==='table');return {ts,words:ts.flatMap(t=>t.rows[0].cells.map(c=>c.blocks[0].runs.map(r=>r.t).join('')))};};"
+          "const shape=(ts)=>ts.every(t=>t.border==='none'&&t.rows.length===2&&t.cols.length===t.rows[0].cells.length&&t.rows[1].cells.every(c=>c.blocks[0].runs.length===0));")
+    out += [
+        step("낱말 풀이 ④ 한글 문장 - 낱말 그대로 · 굵게 '오늘' 유지 · 모양(테두리 없음 · 2행 · 뜻 칸 빔)",
+             J + gl + "const {ts,words}=await gl([{id:'k1',type:'p',runs:[{t:'나는 '},{t:'오늘',b:true},{t:' 아침에 학교에 갔다.'}]}]);"
+                 "const b=ts.flatMap(t=>t.rows[0].cells).find(c=>c.blocks[0].runs.map(r=>r.t).join('')==='오늘');"
+                 "return words.join(' ')==='나는 오늘 아침에 학교에 갔다.'&&b&&b.blocks[0].runs.every(r=>r.b)&&shape(ts)&&!S.deck.blocks.some(x=>x.id==='k1') || JSON.stringify({words,b,n:ts.length});"),
+        step("낱말 풀이 ⑤ 아주 긴 문장(낱말 400개) - 표 여러 개 · 낱말 수·순서 그대로 · 쪽이 넘어감(종이 2장 이상) · 표 너비가 종이 안",
+             J + gl + "const W=Array.from({length:400},(_,i)=>'낱말'+i);const {ts,words}=await gl([{id:'k2',type:'p',runs:[{t:W.join(' ')}]}]);await tick(800);"
+                 "const sh=qa('.pg-sheet').length;const ed=q('#ed').getBoundingClientRect();const wide=qa('#ed table').filter(t=>t.getBoundingClientRect().right>ed.right+2).length;"
+                 "window.__gl5={n:ts.length,words:words.length,same:words.join(' ')===W.join(' '),sh,wide};"
+                 "return ts.length>=2&&words.join(' ')===W.join(' ')&&shape(ts)&&sh>=2&&wide===0&&qa('#ed table').length>=ts.length || JSON.stringify(window.__gl5);"),
+        step("낱말 풀이 ⑥ 저장 - 서버 문서에 표가 그대로(표 수 · 낱말 400)",
+             J + "await idle();const d=await srv(S.id);const ts=d.blocks.filter(b=>b.type==='table');const n=ts.reduce((a,t)=>a+t.rows[0].cells.length,0);"
+                 "return ts.length===window.__gl5.n&&n===400 || JSON.stringify({ts:ts.length,n,want:window.__gl5});"),
+    ]
+    return out
+
+
 def fn_steps():
     """각주(PG-105) · 인쇄 준비(PG-054) - 앞 6단계는 개발 세션 탐침(fn_probe.py) 그대로, 뒤는 협업 세션이 더한 것"""
     J = H + FN_J
@@ -1080,6 +1122,7 @@ def main():
             {"url": "/studio/page.html?deck=pgcolid", "wait": 2500, "steps": cols_steps()},
             {"url": "/studio/page.html?deck=pgcolid", "wait": 2500, "steps": cols_reload_steps()},
             {"url": "/studio/page.html?deck=pgfnid", "wait": 2500, "steps": fn_steps()},
+            {"url": "/studio/page.html?deck=pgglid", "wait": 2500, "steps": gloss_steps()},
             {"url": "/studio/page.html?deck=pgflow", "wait": 2500, "steps": newdoc_all_steps()},
             {"url": "/studio/index.html#pgslide", "wait": 2500, "steps": newdoc_on_steps()},
         ]
@@ -1102,7 +1145,9 @@ def main():
         col_id = (r or {}).get("id") or "pgcolid"
         st, r, _ = call("POST", "/api/decks", {"action": "create", "kind": "page", "title": "각주 시험"})
         fn_id = (r or {}).get("id") or "pgfnid"
-        pages = [dict(x, url=x["url"].replace("pgcolid", col_id).replace("pgfnid", fn_id)) for x in pages]
+        st, r, _ = call("POST", "/api/decks", {"action": "create", "kind": "page", "title": "낱말 풀이 시험"})
+        gl_id = (r or {}).get("id") or "pgglid"
+        pages = [dict(x, url=x["url"].replace("pgcolid", col_id).replace("pgfnid", fn_id).replace("pgglid", gl_id)) for x in pages]
         pages = [dict(x, steps=[dict(y, js=y["js"].replace("'pgtbl'", f"'{tbl_id}'")) for y in x["steps"]]) for x in pages]
         lines, rc = scenario(pages)
         # 같은 템플릿으로 한 번 더 만들어(대화 상자에서 1번 + 여기서 1번 = 2회) 추천 묶음 확인
@@ -1268,6 +1313,26 @@ def main():
                     NOTES.append(f"배치용 표 Word 열기 - 판정 불가: {j.get('skip')}")
                 else:
                     check("4 배치용 표(none)·합친 칸 DOCX 를 Word 로 - 경고 없이 열림(선 종류 판정은 합치지 않은 표로 pageword 에서)", w.returncode == 0 and j.get("ok"), json.dumps(j, ensure_ascii=False)[:300])
+        gd = deck_file(ws_on, gl_id)
+        gn = sum(1 for b_ in gd.get("blocks") or [] if b_.get("type") == "table")
+        st, r, _ = call("POST", f"/api/export/{gl_id}")
+        gx = b""
+        if st == 200 and r.get("url"):
+            with urllib.request.urlopen(B + r["url"], timeout=60) as rr:
+                gx = rr.read()
+        gdx = zipfile.ZipFile(io.BytesIO(gx)).read("word/document.xml").decode("utf-8") if gx[:2] == b"PK" else ""
+        gbs = _re.findall(r"<w:tblBorders>(.*?)</w:tblBorders>", gdx)
+        check("낱말 풀이 DOCX - 표 수 = 문서의 표 수(2개 이상) · 표마다 테두리 6개 모두 none", gn >= 2 and gdx.count("<w:tbl>") == gn and len(gbs) == gn and all(x.count('w:val="none"') == 6 and "single" not in x for x in gbs),
+              json.dumps({"st": st, "doc": gn, "tbl": gdx.count("<w:tbl>"), "borders": len(gbs), "bad": [x[:160] for x in gbs if x.count('w:val="none"') != 6][:2]}, ensure_ascii=False))
+        if pw_ and gx[:2] == b"PK":
+            with tmpfiles.temp_dir("nx-pggl-") as d:
+                f = Path(d) / "g.docx"; f.write_bytes(gx)
+                w = subprocess.run([pw_, "-NoProfile", "-File", str(HERE / "docx_open_check.ps1"), "-Docx", str(f)], capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=240)
+                j = json.loads((w.stdout.strip().splitlines() or ["{}"])[-1] or "{}")
+                if w.returncode == 99:
+                    NOTES.append(f"낱말 풀이 Word 열기 - 판정 불가: {j.get('skip')}")
+                else:
+                    check("낱말 풀이 DOCX 를 Word 로 - 경고 없이 열림 · 표 수 같음 · 2쪽 이상", w.returncode == 0 and j.get("ok") and j.get("tables") == gn and (j.get("pages") or 0) >= 2, json.dumps({**j, "want": gn}, ensure_ascii=False)[:400])
         # 가져오기 API(켠 작업 공간) - 그림 든 문서(앞에서 내보낸 pid)를 다시 가져와 그림이 assets/images/<id>-import-*.png 로
         st, r, _ = call("POST", f"/api/export/{pid}")
         src = b""
