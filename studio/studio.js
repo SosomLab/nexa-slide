@@ -3135,6 +3135,10 @@ ${names}
     window.addEventListener("load", () => revealThumb(S.cur, true), { once: true });
     window.addEventListener("hashchange", async () => {
       const [h, n] = decodeURIComponent(location.hash.slice(1)).split("/");
+      if (h && h !== S.id && !S.decks.some((d) => d.id === h)) {  // 목록에 아직 없는 덱(방금 밖에서 만든 것) - 목록을 한 번 다시 받는다. 그래도 없으면 조용히 남지 않고 알린다
+        const r = await api("GET", "/api/decks");
+        if (r.ok && Array.isArray(r.data) && r.data.some((d) => d.id === h)) { S.decks = r.data; renderDeckTabs(); } else toast(`덱 "${h}" 을 찾을 수 없습니다`);
+      }
       if (h && h !== S.id && S.decks.some((d) => d.id === h)) await switchDeck(h);
       const k = +n - 1; if (n && k !== S.cur && k >= 0) goSlide(k);
       revealThumb(S.cur, true);
