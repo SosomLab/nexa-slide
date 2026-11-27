@@ -1,0 +1,35 @@
+{
+ "base": "http://127.0.0.1:5667",
+ "pages": [
+  {
+   "url": "/studio/sheet.html?deck=zsheetfill",
+   "wait": 1500,
+   "steps": [
+    {
+     "name": "바깥 판 다시 읽기 경합 시험 덱 만들기 - zrlr1(시트 A1·B1) · zrlr2(슬라이드 글 2개)",
+     "js": "const st=[];for(const d of [{id:'zrlr1',title:'다시 읽기 경합',kind:'sheet',slides:[],sheets:[{id:'t01',name:'S',cells:{A1:'a0',B1:'b0'}}]},{id:'zrlr2',title:'다시 읽기 경합',slides:[{id:'s1',elements:[{id:'e01',type:'text',x:60,y:40,w:500,h:40,text:'첫글 원래',size:24},{id:'e02',type:'text',x:60,y:120,w:500,h:40,text:'둘글 원래',size:24}]}]}]){const p=await fetch('/api/deck/'+d.id,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(d)});st.push(p.status);}return st.every(x=>x===200)||JSON.stringify(st);"
+    }
+   ]
+  },
+  {
+   "url": "/studio/sheet.html?deck=zrlr1",
+   "wait": 2500,
+   "steps": [
+    {
+     "name": "시트 - 다른 창 저장(B1)으로 판이 오르고 다시 읽기 GET 응답이 돌아오기 직전(같은 틱 · 자동 저장 전) 화면이 A1 을 고침 → 화면·서버 모두 A1 = 내 값 · 서버 B1 = 다른 창 값",
+     "js": "const N=window.NexaSheet,S=N.S,X=N.x;if(!window.__of){window.__of=window.fetch.bind(window);window.__slow=false;window.__hits=0;window.fetch=async(u,o={})=>{const g=(o.method||'GET')==='GET'&&/\\/api\\/deck\\/zrlr1(\\?|$)/.test(String(u));if(g&&window.__slow){window.__hits++;const r=await window.__of(u,o);await new Promise(z=>setTimeout(z,1500));const f=window.__pre;window.__pre=null;if(f)f();return r;}return window.__of(u,o);};}const idle=()=>until(async()=>(!S.dirty&&!S.saving&&document.querySelector('#status').textContent==='저장됨'),10000);const srv=async()=>{const r=await window.__of('/api/deck/zrlr1',{cache:'no-store'});return {v:r.headers.get('X-Deck-Version'),d:await r.json()};};await idle();window.__pre=()=>X.mutate(()=>{X.sheet().cells.A1='내A1';});window.__slow=true;const {v,d}=await srv();d.sheets[0].cells.B1='밖B1';const p=await window.__of('/api/deck/zrlr1?base='+encodeURIComponent(v),{method:'PUT',headers:{'Content-Type':'application/json','X-Nexa-Tab':'other'},body:JSON.stringify(d)});const st=p.status;const hit=await until(async()=>window.__hits>0&&!window.__pre,10000);if(!hit){window.__slow=false;window.__pre=null;return 'no reload GET · st='+st;}await new Promise(r=>setTimeout(r,2000));window.__slow=false;let c={};const ok=await until(async()=>{c=(await srv()).d.sheets[0].cells;return c.A1==='내A1'&&c.B1==='밖B1'&&!S.dirty&&!S.saving;},15000);const s=X.sheet().cells,ban=document.querySelector('#banner').classList.contains('show')?document.querySelector('#bannerMsg').textContent:'';return st===200&&ok&&s.A1==='내A1'&&s.B1==='밖B1'?true:JSON.stringify({st,hits:window.__hits,server:[c.A1,c.B1],screen:[s.A1,s.B1],dirty:S.dirty,ban}).slice(0,199);"
+    }
+   ]
+  },
+  {
+   "url": "/studio/#zrlr2/1",
+   "wait": 2500,
+   "steps": [
+    {
+     "name": "슬라이드 - 다른 창 저장(둘째 글)으로 판이 오르고 다시 읽기 GET 응답이 돌아오기 직전(같은 틱 · 자동 저장 전) 화면이 첫째 글을 고침(바꾸기) → 화면·서버 모두 첫째 글 = 내 값 · 서버 둘째 글 = 다른 창 값",
+     "js": "const S=window.NexaStudioLink.S;if(!window.__of){window.__of=window.fetch.bind(window);window.__slow=false;window.__hits=0;window.fetch=async(u,o={})=>{const g=(o.method||'GET')==='GET'&&/\\/api\\/deck\\/zrlr2(\\?|$)/.test(String(u));if(g&&window.__slow){window.__hits++;const r=await window.__of(u,o);await new Promise(z=>setTimeout(z,1500));const f=window.__pre;window.__pre=null;if(f)f();return r;}return window.__of(u,o);};}const idle=()=>until(async()=>(!S.dirty&&!S.saving&&document.querySelector('#status').textContent==='저장됨'),10000);const srv=async()=>{const r=await window.__of('/api/deck/zrlr2',{cache:'no-store'});return {v:r.headers.get('X-Deck-Version'),d:await r.json()};};const el=(d,id)=>{for(const s of d.slides)for(const e of s.elements||[])if(e.id===id)return e;return {};};await idle();document.dispatchEvent(new KeyboardEvent('keydown',{key:'h',ctrlKey:true,bubbles:true}));await until(async()=>(document.querySelector('#findDlg .fq')),8000);const q=document.querySelector('#findDlg .fq');q.value='첫글 원래';q.dispatchEvent(new Event('input',{bubbles:true}));await until(async()=>(document.querySelector('#findDlg .fcnt')&&/곳/.test(document.querySelector('#findDlg .fcnt').textContent)),8000);document.querySelector('#findDlg .fw').value='첫글 내것';window.__pre=()=>{document.querySelector('#findDlg [data-fa=\"all\"]').click();document.querySelector('#findDlg [data-fa=\"close\"]').click();};window.__slow=true;const {v,d}=await srv();el(d,'e02').text='둘글 밖';const p=await window.__of('/api/deck/zrlr2?base='+encodeURIComponent(v),{method:'PUT',headers:{'Content-Type':'application/json','X-Nexa-Tab':'other-window'},body:JSON.stringify(d)});const st=p.status;const hit=await until(async()=>window.__hits>0&&!window.__pre,10000);if(!hit){window.__slow=false;window.__pre=null;return 'no reload GET · st='+st;}await new Promise(r=>setTimeout(r,2000));window.__slow=false;let a='',b='';const ok=await until(async()=>{const x=(await srv()).d;a=el(x,'e01').text;b=el(x,'e02').text;return a==='첫글 내것'&&b==='둘글 밖'&&!S.dirty&&!S.saving;},15000);const m=S.deck?el(S.deck,'e01').text:'?',m2=S.deck?el(S.deck,'e02').text:'?';return st===200&&ok&&m==='첫글 내것'&&m2==='둘글 밖'?true:JSON.stringify({st,hits:window.__hits,server:[a,b],screen:[m,m2],dirty:S.dirty}).slice(0,199);"
+    }
+   ]
+  }
+ ]
+}

@@ -145,6 +145,7 @@
     const deck = await r.json();
     if (deck.kind === "page") { location.href = NexaKinds.url(deck); return false; }  // 페이지 문서는 page.html 에서
     if (deck.kind === "sheet") { location.href = sheetUrl(id); return false; }  // 시트(엑셀) 문서는 시트 화면(sheet.html)에서 - docs/sheets.md
+    if (keep && S.deck && S.id === id && (S.dirty || S.editing || S.saving)) { if (S.dirty && !S.editing) scheduleSave(); return false; }  // 다시 읽는 사이 내가 고쳤다 - 읽은 것을 버린다(덮어쓰면 그 편집이 알림 없이 사라진다). 내 저장이 서버에서 합친다
     if (keep && S.deck && S.id === id) { NexaMerge.seal(S.undo, S.redo, deckJson()); }  // 밖의 변경을 받는다 - 내 실행 취소에 넣지 않고, 이전 기록은 내 편집만 되돌리게 봉인
     else { S.undo = []; S.redo = []; }
     S.id = id; S.deck = deck; S.version = r.headers.get("X-Deck-Version"); S.savedJson = deckJson();
@@ -183,7 +184,7 @@
       if (v.session) renderSession(v.session, v.activity);
       await checkWorkspace(v);
       await RQ.sync(v);  // 요청 파일이 바뀌었으면 다시 읽기
-      const gone = S.id === S.goneId || (Array.isArray(v.deckIds) && !v.deckIds.includes(S.id));  // 지우는 중이거나 밖에서 지워진 덱
+      const gone = S.id === S.goneId || (Array.isArray(v.deckIds) && !v.deckIds.includes(S.id)) || v.deck == null;  // 지우는 중이거나 밖에서 지워진 덱
       if (v.deck !== S.version && !S.saving && !gone) {  // goneId = 지우는 중인 덱 - 다음 덱을 열기 전에 다시 읽으면 404
         // 편집 중에 밖에서 바뀌었다 - 배너로 고르게 하지 않고, 내 저장이 서버에서 합쳐지게 바로 저장한다(글 편집 중이면 편집이 끝난 뒤 저장 때)
         if (S.dirty || S.editing) { if (S.dirty && !S.editing && !S.conflict) { clearTimeout(saveT); await save(); } }
