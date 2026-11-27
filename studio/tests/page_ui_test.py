@@ -558,6 +558,55 @@ def obj_steps():
     return out
 
 
+# 공용 개체 조작(nexa-objects.js) 기준 - 손잡이 8방향 · 화살표 · Ctrl+D · Shift 더하기·한 축 끌기 · Esc · Delete (개발 세션 objs2_probe 를 옮김 · DR-P14 · PG-112)
+OBJ2_K = ("const key=async(k,o)=>{document.body.dispatchEvent(new KeyboardEvent('keydown',Object.assign({key:k,bubbles:true,cancelable:true},o||{})));await tick(200);};"
+     "const down=async(el,o)=>{const r=el.getBoundingClientRect();const init=Object.assign({bubbles:true,cancelable:true,button:0,clientX:r.left+2,clientY:r.top+r.height/2},o||{});"
+     "el.dispatchEvent(new PointerEvent('pointerdown',init));window.dispatchEvent(new PointerEvent('pointerup',{}));await tick(150);};"
+     "const sels=()=>[...document.querySelectorAll('.pg-obj.sel')].map(e=>e.dataset.id);")
+
+OBJ2_PROBE = [
+    ("사각형 넣기 - 손잡이 8개 · 고른 상태",
+     "await tick(400); E.ed.focus(); E.ed.select({id:bid(0),off:0}); await shape('사각형'); const ob=oe(0);"
+     "return O().length===1&&ob.classList.contains('sel')&&ob.querySelectorAll('.nx-h').length===8||JSON.stringify([O().length,ob.className,ob.querySelectorAll('.nx-h').length])"),
+    ("nw 손잡이 - 왼쪽 위로 10·5mm 늘림(오른쪽 아래 고정)",
+     "const o=O()[0], g=geo(); await drag(oe(0).querySelector('[data-nxh=nw]'), -10*g.mm, -5*g.mm); const p=O()[0];"
+     "return Math.abs(p.w-o.w-10)<0.3&&Math.abs(p.h-o.h-5)<0.3&&Math.abs(p.x-o.x+10)<0.3&&Math.abs(p.y-o.y+5)<0.3||JSON.stringify([o,p])"),
+    ("e 손잡이 - 너비만 +8mm",
+     "const o=O()[0], g=geo(); await drag(oe(0).querySelector('[data-nxh=e]'), 8*g.mm, 20); const p=O()[0];"
+     "return Math.abs(p.w-o.w-8)<0.3&&Math.abs(p.h-o.h)<0.01&&Math.abs(p.x-o.x)<0.01||JSON.stringify([o,p])"),
+    ("화살표 - 오른쪽 0.5mm · Shift+아래 5mm",
+     "const o=O()[0]; await key('ArrowRight'); await key('ArrowDown',{shiftKey:true}); const p=O()[0];"
+     "return Math.abs(p.x-o.x-0.5)<0.01&&Math.abs(p.y-o.y-5)<0.01&&oe(0).classList.contains('sel')||JSON.stringify([o,p,sels()])"),
+    ("Ctrl+D - 복제(+5mm) · 새 것이 골라짐",
+     "const o=O()[0]; await key('d',{ctrlKey:true}); const c=O()[1];"
+     "return O().length===2&&c.id!==o.id&&Math.abs(c.x-o.x-5)<0.01&&Math.abs(c.y-o.y-5)<0.01&&sels().length===1&&sels()[0]===c.id||JSON.stringify([O(),sels()])"),
+    ("Shift+누르기 - 둘 다 고름 · 같이 끌기(+10mm)",
+     "const a=O()[0], b=O()[1], g=geo(); await down(oe(0),{shiftKey:true}); const n=sels().length; await drag(oe(1), 10*g.mm, 0); const p=O();"
+     "return n===2&&Math.abs(p[0].x-a.x-10)<0.3&&Math.abs(p[1].x-b.x-10)<0.3||JSON.stringify([n,a,b,p])"),
+    ("Shift 끌기 - 한 축으로만(가로가 더 크면 세로 0)",
+     "const a=O()[0], g=geo(); const ob=oe(1), r=ob.getBoundingClientRect(), cx=r.left+r.width/2, cy=r.top+r.height/2;"
+     "ob.dispatchEvent(new PointerEvent('pointerdown',{bubbles:true,cancelable:true,button:0,clientX:cx,clientY:cy}));"
+     "window.dispatchEvent(new PointerEvent('pointermove',{clientX:cx+8*g.mm,clientY:cy+3*g.mm,shiftKey:true}));window.dispatchEvent(new PointerEvent('pointerup',{}));await tick(250);"
+     "const p=O()[0]; return Math.abs(p.x-a.x-8)<0.3&&Math.abs(p.y-a.y)<0.01||JSON.stringify([a,p])"),
+    ("실행 취소 한 번 = 끌기 한 번",
+     "const a=O()[0]; document.querySelector('[data-act=undo]').click(); await tick(250); const p=O()[0]; return Math.abs(p.x-a.x+8)<0.3||JSON.stringify([a,p])"),
+    ("여럿 고른 것 중 하나를 누르면 그것만 남음(n=1) · Esc - 고르기 풀림",
+     "await down(oe(0)); const n=sels().length; await key('Escape'); return n===1&&sels().length===0||JSON.stringify([n,sels()])"),
+    ("Delete - 고른 것 지움 · 바깥 누르면 풀림",
+     "await down(oe(0)); await down(oe(1),{shiftKey:true}); await key('Delete'); const n=O().length; await shape('타원'); const s1=sels().length;"
+     "document.querySelector('#ed').dispatchEvent(new MouseEvent('mousedown',{bubbles:true})); await tick(100); return n===0&&s1===1&&sels().length===0||JSON.stringify([n,s1,sels()])"),
+]
+
+
+def obj2_steps():
+    J = H + OBJ_J + OBJ2_K
+    out = [step(n, J + js) for n, js in OBJ2_PROBE]
+    out.append(step("  저장 뒤 서버 문서의 개체 = 화면(타원 1개)",
+                    J + "await idle(); const d=await (await fetch('/api/deck/'+S.id,{cache:'no-store'})).json(); const o=d.objects||[];"
+                    "return o.length===1&&O().length===1&&o[0].id===O()[0].id||JSON.stringify([o.length,O().length])"))
+    return out
+
+
 def obj_reload_steps():
     J = H + OBJ_J + OBJ_X
     probe_follow = [step(n, H + OBJ_J + js) for n, js in OBJ_PROBE if n.startswith("매인 문단이 다음 쪽")]  # 탐침 단계는 shs 를 스스로 선언한다
@@ -1117,6 +1166,7 @@ def main():
             {"url": "/studio/page.html?deck=pgflow&print=1", "wait": 2500, "steps": flow_print_steps()},
             {"url": "/studio/page.html?deck=pgobj", "wait": 3000, "steps": obj_steps()},
             {"url": "/studio/page.html?deck=pgobj", "wait": 3000, "steps": obj_reload_steps()},
+            {"url": "/studio/page.html?deck=pgo2id", "wait": 2500, "steps": obj2_steps()},
             {"url": "/studio/page.html?deck=pgreqid", "wait": 2500, "steps": req_steps()},
             {"url": "/studio/page.html?deck=pgreqid", "wait": 2500, "steps": req_reload_steps()},
             {"url": "/studio/page.html?deck=pgcolid", "wait": 2500, "steps": cols_steps()},
@@ -1147,7 +1197,9 @@ def main():
         fn_id = (r or {}).get("id") or "pgfnid"
         st, r, _ = call("POST", "/api/decks", {"action": "create", "kind": "page", "title": "낱말 풀이 시험"})
         gl_id = (r or {}).get("id") or "pgglid"
-        pages = [dict(x, url=x["url"].replace("pgcolid", col_id).replace("pgfnid", fn_id).replace("pgglid", gl_id)) for x in pages]
+        st, r, _ = call("POST", "/api/decks", {"action": "create", "kind": "page", "title": "개체 조작 시험"})
+        o2_id = (r or {}).get("id") or "pgo2id"
+        pages = [dict(x, url=x["url"].replace("pgcolid", col_id).replace("pgfnid", fn_id).replace("pgglid", gl_id).replace("pgo2id", o2_id)) for x in pages]
         pages = [dict(x, steps=[dict(y, js=y["js"].replace("'pgtbl'", f"'{tbl_id}'")) for y in x["steps"]]) for x in pages]
         lines, rc = scenario(pages)
         # 같은 템플릿으로 한 번 더 만들어(대화 상자에서 1번 + 여기서 1번 = 2회) 추천 묶음 확인
