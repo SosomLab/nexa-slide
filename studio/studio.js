@@ -167,8 +167,8 @@
         // 편집 중에 밖에서 바뀌었다 - 배너로 고르게 하지 않고, 내 저장이 서버에서 합쳐지게 바로 저장한다(글 편집 중이면 편집이 끝난 뒤 저장 때)
         if (S.dirty || S.editing) { if (S.dirty && !S.editing && !S.conflict) { stopSave(); await save(); } }
         else {
-          // v 는 낡았을 수 있다(위의 기다림 사이 내 저장이 끝났거나 덱이 지워짐 - 지운 덱을 다시 읽어 404 가 났다). 다시 읽기 직전에 지금 판을 한 번 더 확인한다
-          if (await NexaDoc.stillChanged(api, S, () => S.id === S.goneId)) await reloadExternal("밖에서 바뀐 덱을 다시 불러왔습니다");
+          // v 는 낡았을 수 있다(받은 뒤 내 저장이 끝남 - 쓸데없이 다시 읽고, 그때 지워진 덱이면 404). 방금 저장했으면 잠시 뒤 다시 확인한다(공용 기준)
+          if (NexaDoc.stillChanged(S, () => { pollAt = 0; poll(); }, () => S.id === S.goneId)) await reloadExternal("밖에서 바뀐 덱을 다시 불러왔습니다");
         }
       }
       if (!gone && v.changes !== undefined && v.changes !== S.chgVersion) await loadChanges();  // 내 저장·다른 창·Claude·빌드 - 원장이 자라면 변경 탭 갱신

@@ -34,7 +34,7 @@
       S.saving = true; o.setStatus("dirty", "저장 중…");
       const r = o.send ? await o.send(body, force, extra)
         : await o.api("PUT", `/api/deck/${encodeURIComponent(o.id())}?base=${encodeURIComponent(S.version || "")}${force ? "&force=1" : "&merge=1"}`, JSON.parse(body));
-      S.saving = false;
+      S.saving = false; S.savedAt = Date.now();  // 저장이 끝난 때 - 그 직전에 받은 판 정보는 낡았다(stillChanged)
       if (o.stale ? o.stale(sid) : o.id() !== sid) return;  // 저장하는 사이 다른 문서로 넘어갔다 - 이 응답(앞 문서의 판·저장본)을 지금 문서에 넣지 않는다
       if (r.ok) {
         S.version = r.data.version; S.conflict = false; o.banner(false);
@@ -59,12 +59,15 @@
     }
     return { schedule, save, cancel };
   }
-  /** 밖에서 바뀐 문서를 다시 읽기 직전의 확인(세 편집기 공통 기준) - 받아 둔 판 정보는 그 사이 낡았을 수 있다(내 저장이 끝남 · 문서가 지워짐).
-   *  지금 판을 한 번 더 받아 "여전히 다르고 · 문서가 남아 있고(판 "0"·null 아님) · 저장 중·고치는 중이 아니고 · 같은 문서"일 때만 true */
-  async function stillChanged(api, S, skip) {
-    const sid = S.id; if (!sid) return false;
-    const r = await api("GET", `/api/version/${encodeURIComponent(sid)}`), d = r && r.ok && r.data ? r.data.deck : null;
-    return S.id === sid && d != null && String(d) !== "0" && d !== S.version && !S.saving && !S.dirty && !(skip && skip());
+  /** 밖에서 바뀐 문서를 다시 읽기 직전의 확인(세 편집기 공통 기준) - 받아 둔 판 정보는 낡았을 수 있다: 판을 받은 뒤 처리하기까지의 사이에 내 저장이 끝나면
+   *  "판이 다르다 · 저장 중 아님"이 되어 쓸데없이 다시 읽고, 그때 문서가 지워졌으면 404 가 났다. 요청을 더 보내지 않고 판단한다:
+   *  저장 중·고치는 중이 아니고, 내 저장이 끝난 지 QUIET ms 가 지났을 때만 true. 방금 저장했으면 later()(다시 확인)를 QUIET 뒤로 미룬다 - 진짜 밖의 변경이면 그때 잡힌다 */
+  const QUIET = 1500;
+  function stillChanged(S, later, skip) {
+    if (S.saving || S.dirty || (skip && skip())) return false;
+    const left = QUIET - (Date.now() - (S.savedAt || 0));
+    if (left > 0) { if (later) setTimeout(later, left + 50); return false; }
+    return true;
   }
 
   root.NexaDoc = { saver, stillChanged };
