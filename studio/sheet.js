@@ -2331,7 +2331,7 @@
         if (v !== rawText(sheet(), k)) mutate(() => setInput(sheet(), k, v));
         focusGrid(); if (e.key === "Enter") advance(e.shiftKey ? -1 : 1, 0); else advance(0, e.shiftKey ? -1 : 1);
       }
-      if (e.key === "Escape") { e.preventDefault(); if (S.edit) endEdit(false); fx.value = rawText(sheet(), key(S.cur.r, S.cur.c)); focusGrid(); fmlHl(); }  // 참조 표시도 바로 걷는다(초점이 이미 격자에 있으면 blur 가 오지 않는다)
+      if (e.key === "Escape") { e.preventDefault(); if (S.edit) endEdit(false); fx.value = rawText(sheet(), key(S.cur.r, S.cur.c)); fx.blur(); focusGrid(); fmlHl(); }  // 참조 표시도 바로 걷는다(초점이 이미 격자에 있으면 blur 가 오지 않는다)
     });
     $("#nameBox").addEventListener("keydown", (e) => {
       if (e.key !== "Enter") return; e.preventDefault();
