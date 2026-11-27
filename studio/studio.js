@@ -2069,7 +2069,8 @@ ${names}
     }
     if (drag.mode === "gutsel") { const p = toSlide(e), rc = cellAt(drag.el, p); if (!rc) return; const { nr, nc } = cellGeom(drag.el), k = drag.axis === "c" ? rc[1] : rc[0]; const cells = []; for (let q = Math.min(drag.a, k); q <= Math.max(drag.a, k); q++) { if (drag.axis === "c") for (let i = 0; i < nr; i++) cells.push([i, q]); else for (let j = 0; j < nc; j++) cells.push([q, j]); } S.cell = { id: drag.el.id, set: new Set(cells.map(([r, c]) => cellKey(r, c))), anchor: S.cell.anchor, line: [drag.axis, drag.a] }; drawSel(); return; }
     if (drag.mode === "cellsel") { const rc = cellAt(drag.el, toSlide(e)); if (rc && (rc[0] !== drag.a[0] || rc[1] !== drag.a[1] || drag.moved)) { drag.moved = true; S.cell = { id: drag.el.id, set: new Set(cellRect(drag.a, rc).map(([r, c]) => cellKey(r, c))), anchor: drag.a, cur: rc }; drawSel(); } return; }
-    const p = toSlide(e), dx = p.x - drag.p0.x, dy = p.y - drag.p0.y, free = e.shiftKey, el = drag.el, o = drag.orig;
+    // 수식키는 세 편집기 공통 기준(nexa-objects.js): Shift = 옮길 때 한 축으로 · 크기에서 비율(도형은 유지, 그림 모서리는 풀기) / Ctrl = 격자·안내선 끄기(자유)
+    const p = toSlide(e), dx = p.x - drag.p0.x, dy = p.y - drag.p0.y, free = e.ctrlKey || e.metaKey, el = drag.el, o = drag.orig;
     if (!drag.moved && Math.hypot(dx, dy) * scale < 3) return;
     drag.moved = true;
     if (drag.mode === "marquee") {
@@ -2077,7 +2078,8 @@ ${names}
       drawSel(); return;
     }
     if (drag.mode === "move") {  // 잡은 요소 기준으로 격자에 맞춘 이동량을 고른 요소 모두에 - 그 뒤 스마트 가이드(다른 요소·슬라이드 가운데)에 붙인다
-      const b0 = boxOf(o); let mx = snap(b0.x + dx, free) - b0.x, my = snap(b0.y + dy, free) - b0.y;
+      const [ax, ay] = e.shiftKey ? NexaObjects.axisLock(dx, dy) : [dx, dy], lockX = e.shiftKey && ax === 0, lockY = e.shiftKey && ay === 0;  // Shift = 더 많이 움직인 축만
+      const b0 = boxOf(o); let mx = lockX ? 0 : snap(b0.x + ax, free) - b0.x, my = lockY ? 0 : snap(b0.y + ay, free) - b0.y;
       const guides = [];
       if (!free) {
         const bs = drag.origs.map(boxOf), gx1 = Math.min(...bs.map((b) => b.x)) + mx, gy1 = Math.min(...bs.map((b) => b.y)) + my, gx2 = Math.max(...bs.map((b) => b.x + b.w)) + mx, gy2 = Math.max(...bs.map((b) => b.y + b.h)) + my;
@@ -2087,8 +2089,8 @@ ${names}
         const TH = 6 / scale + 2;
         const bestX = [[gx1, "l"], [(gx1 + gx2) / 2, "c"], [gx2, "r"]].flatMap(([v, w]) => tx.map(([t]) => [Math.abs(t - v), t - v, t])).filter((c) => c[0] <= TH).sort((a, b) => a[0] - b[0])[0];
         const bestY = [[gy1, "t"], [(gy1 + gy2) / 2, "m"], [gy2, "b"]].flatMap(([v, w]) => ty.map(([t]) => [Math.abs(t - v), t - v, t])).filter((c) => c[0] <= TH).sort((a, b) => a[0] - b[0])[0];
-        if (bestX) { mx += bestX[1]; guides.push(["v", bestX[2]]); }
-        if (bestY) { my += bestY[1]; guides.push(["h", bestY[2]]); }
+        if (bestX && !lockX) { mx += bestX[1]; guides.push(["v", bestX[2]]); }
+        if (bestY && !lockY) { my += bestY[1]; guides.push(["h", bestY[2]]); }
       }
       drag.guides = guides;
       drag.els.forEach((x, i) => {
@@ -2104,7 +2106,9 @@ ${names}
       let x1 = o.x, y1 = o.y, x2 = o.x + o.w, y2 = o.y + o.h; const h = drag.h;
       if (h.includes("w")) x1 = snap(o.x + dx, free); if (h.includes("e")) x2 = snap(o.x + o.w + dx, free);
       if (h.includes("n")) y1 = snap(o.y + dy, free); if (h.includes("s")) y2 = snap(o.y + o.h + dy, free);
-      if ((el.type === "image" || el.type === "icon") && h.length === 2) { const ratio = o.w / o.h, w = Math.max(4, x2 - x1), hh = w / ratio; if (h.includes("n")) y1 = y2 - hh; else y2 = y1 + hh; }
+      const pic = el.type === "image" || el.type === "icon";
+      if (pic && h.length === 2 && !e.shiftKey) { const ratio = o.w / o.h, w = Math.max(4, x2 - x1), hh = w / ratio; if (h.includes("n")) y1 = y2 - hh; else y2 = y1 + hh; }  // 그림 = 모서리에서 비율 유지(Shift 로 풀기)
+      else if (!pic && e.shiftKey && o.w > 0 && o.h > 0) { const r = NexaObjects.resize({ x: o.x, y: o.y, w: o.w, h: o.h }, h, dx, dy, { keep: true, min: 4 }); x1 = r.x; y1 = r.y; x2 = r.x + r.w; y2 = r.y + r.h; }  // 도형 = Shift 로 비율 유지
       el.x = Math.round(Math.min(x1, x2 - 4)); el.y = Math.round(Math.min(y1, y2 - 4)); el.w = Math.round(Math.max(4, x2 - x1)); el.h = Math.round(Math.max(4, y2 - y1));
       if (el.type === "group" && o.children) {  // 묶음 크기 조절 - 자식 위치·크기를 비율로(글자 크기는 그대로)
         const sx = el.w / (o.w || 1), sy = el.h / (o.h || 1);
@@ -2903,7 +2907,7 @@ ${names}
     ["발표 중", "<kbd>N</kbd> 노트 · <kbd>P</kbd> 발표자 보기 · <kbd>Ctrl</kbd>+<kbd>P</kbd> 펜 · <kbd>Ctrl</kbd>+<kbd>L</kbd> 레이저 · <kbd>E</kbd> 지우기 · <kbd>Esc</kbd> 끝"],
     ["넣기", "＋ 추가 패널에서 글자를 치면 바로 걸러짐 · <kbd>Enter</kbd> = 첫 항목"],
     ["묶음", "<kbd>Ctrl</kbd>+<kbd>G</kbd> 묶기 · <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>G</kbd> 풀기"],
-    ["스마트 가이드", "끌 때 다른 요소의 가장자리·가운데, 슬라이드 가운데에 붙는다(빨간 안내선) · <kbd>Shift</kbd> = 자유"],
+    ["스마트 가이드", "끌 때 다른 요소의 가장자리·가운데, 슬라이드 가운데에 붙는다(빨간 안내선) · <kbd>Ctrl</kbd> = 자유"],
     ["모드", "<kbd>E</kbd> 편집 · <kbd>M</kbd> 선택(요청 메모) · <kbd>D</kbd> 그리기(영역 메모)"],
     ["여러 요소", "<kbd>Shift</kbd>/<kbd>Ctrl</kbd>+클릭 더하기·빼기 · 빈 곳을 끌어 범위 선택 · <kbd>Ctrl</kbd>+<kbd>A</kbd> 이 장 전체 · 끌기·방향키로 함께 이동 · 서식 줄·속성은 공통 적용 · ✥ = 맞춤·분배·같은 크기"],
     ["최대화 배치", "아래 ⛶ 최대화 = 노트·개요·검사를 오른쪽 아래로 옮겨 슬라이드를 크게 · 🗗 복원 · <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>M</kbd>"],
@@ -2911,7 +2915,7 @@ ${names}
     ["슬라이드 이동", "<kbd>PageUp</kbd> <kbd>PageDown</kbd> · 선택이 없을 때 방향키 · <kbd>Home</kbd> <kbd>End</kbd>"],
     ["확대", "<kbd>Ctrl</kbd>+휠 · <kbd>Ctrl</kbd>+<kbd>=</kbd>/<kbd>-</kbd> · <kbd>Ctrl</kbd>+<kbd>0</kbd> 화면 맞춤 · <kbd>Ctrl</kbd>+<kbd>1</kbd> 100%"],
     ["화면 이동", "<kbd>Space</kbd>+끌기 · 가운데 버튼 끌기 · 휠"],
-    ["요소", "끌기 = 이동(8px 격자, <kbd>Shift</kbd> = 자유) · 방향키 1px / <kbd>Shift</kbd> 8px · <kbd>Enter</kbd>/두 번 클릭 = 글자 편집 · <kbd>Delete</kbd> 삭제"],
+    ["요소", "끌기 = 이동(8px 격자, <kbd>Ctrl</kbd> = 자유 · <kbd>Shift</kbd> = 가로·세로 한 축으로) · 크기 = 그림은 모서리에서 비율 유지(<kbd>Shift</kbd> 풀기), 도형은 <kbd>Shift</kbd> 로 비율 유지 · 방향키 1px / <kbd>Shift</kbd> 8px · <kbd>Enter</kbd>/두 번 클릭 = 글자 편집 · <kbd>Delete</kbd> 삭제"],
     ["편집", "<kbd>Ctrl</kbd>+<kbd>Z</kbd>/<kbd>Y</kbd> · <kbd>Ctrl</kbd>+<kbd>C</kbd>/<kbd>X</kbd>/<kbd>V</kbd>/<kbd>D</kbd> · <kbd>Ctrl</kbd>+<kbd>B</kbd> 굵게 · <kbd>Ctrl</kbd>+<kbd>S</kbd> 즉시 저장"],
     ["순서", "<kbd>Ctrl</kbd>+<kbd>]</kbd> 앞으로 · <kbd>Ctrl</kbd>+<kbd>[</kbd> 뒤로 · <kbd>Alt</kbd>+<kbd>Ctrl</kbd>+<kbd>]</kbd>/<kbd>[</kbd> 맨 앞/맨 뒤"],
     ["발표", "<kbd>F5</kbd> 처음부터 · <kbd>Shift</kbd>+<kbd>F5</kbd> 현재부터 · 발표 중 <kbd>N</kbd> 노트·시간 · <kbd>Esc</kbd> 끝"],
