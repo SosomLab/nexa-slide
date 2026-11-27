@@ -616,7 +616,7 @@
       }
       if (RQ) await RQ.sync(v);  // 요청 파일이 바뀌었으면 다시 읽기(편집기와 같다)
       if (window.NexaSheetSide) NexaSheetSide.onVersion(v);  // 변경 원장이 바뀌었으면 변경 탭·표시 갱신
-      if (v.deck !== S.version && !S.saving) {
+      if (v.deck !== S.version && !S.saving && v.deck != null && String(v.deck) !== "0") {  // 판 "0" = 파일 없음(지워진 문서) - 다시 읽지 않는다
         // 편집 중에 밖에서 바뀌었다 - 배너로 고르게 하지 않고, 내 저장이 서버에서 합쳐지게 바로 저장한다(셀 입력 중이면 입력을 넣고 저장할 때)
         if (S.dirty || S.edit) { if (S.dirty && !S.edit && !S.conflict) { clearTimeout(saveT); await save(); } }
         else await reloadExternal("밖에서 바뀐 시트를 다시 불러왔습니다");
