@@ -13,6 +13,10 @@
 //     o.rules(id)     → {ratio: "keep"|"shift"|"none", min, line?, locked?} · o.step = [한 걸음, 큰 걸음] · o.dupOffset
 //     o.preview(id, rect | null)   끄는 중 표시(null = 되돌리기) · o.commit([{id, rect}], why)   놓을 때 모델에 쓰기("move" | "resize" | "nudge")
 //     o.remove(ids) · o.duplicate(ids) → 새 id 들 · o.onSelect(ids) · o.editing() → true 면 키를 받지 않는다 · o.multi(기본 true)
+//     o.selClass      고른 요소에 붙이는 클래스(기본 "sel") · o.onPress(id, e) 개체를 누른 직후(편집 끝내기·초점 옮기기)
+//     o.keys(e)       키를 받을지 화면이 정한다(true = 받는다 · 입력칸 검사를 건너뛴다 - 시트는 초점이 늘 숨은 입력칸에 있다). 없으면 입력칸·대화 상자 밖에서만
+//   손잡이는 개체 요소 밖에 있어도 된다([data-nxh] - o.hit 이 그 개체 id 를 돌려주면 된다 · 시트의 <img> 는 자식을 못 갖는다).
+//   마우스 이벤트만 오는 경우(합성 이벤트 등)도 같은 길로 받는다 - 진짜 입력은 pointer 가 먼저 와서 한 번만 처리된다.
 (function (root) {
   "use strict";
   const HANDLES = ["nw", "n", "ne", "e", "se", "s", "sw", "w"];
@@ -55,16 +59,20 @@
     const doc = (o.layers[0] || {}).ownerDocument || document, win = doc.defaultView;
     let sel = [], drag = null;
     const multi = o.multi !== false, rules = (id) => (o.rules ? o.rules(id) || {} : {});
-    const mark = () => { for (const L of o.layers) for (const el of L.querySelectorAll(".nx-sel")) el.classList.remove("nx-sel", "sel"); for (const id of sel) { const el = o.el(id); if (el) el.classList.add("nx-sel", "sel"); } };
+    const selClass = o.selClass || "sel";
+    const mark = () => { for (const L of o.layers) for (const el of L.querySelectorAll(".nx-sel")) el.classList.remove("nx-sel", selClass); for (const id of sel) { const el = o.el(id); if (el) el.classList.add("nx-sel", selClass); } };
     function select(ids, quiet) {
       const next = [...new Set((ids || []).filter((id) => id != null))];
       const same = next.length === sel.length && next.every((id, i) => id === sel[i]);
       sel = next; mark(); if (!same && !quiet && o.onSelect) o.onSelect(sel.slice());
     }
     const clear = () => select([]);
+    let ptrAt = -1e9;
     function onDown(e) {
+      if (e.type === "pointerdown") ptrAt = e.timeStamp; else if (e.timeStamp - ptrAt < 800) return;  // 같은 누르기의 mousedown - pointerdown 에서 이미 처리했다
       if (e.button !== 0 && e.button !== 2) return;
       const id = o.hit(e.target, e); if (id == null) return;
+      if (o.onPress) o.onPress(id, e);
       const add = multi && (e.shiftKey || e.ctrlKey || e.metaKey);
       if (add) select(sel.includes(id) ? sel.filter((x) => x !== id) : [...sel, id]); else if (!sel.includes(id)) select([id]);
       if (e.button !== 0 || add || !sel.includes(id)) return;
@@ -72,14 +80,16 @@
       const ids = (handle ? [id] : sel).filter((x) => !rules(x).locked); if (!ids.length) return;
       e.preventDefault(); if (doc.activeElement && doc.activeElement.blur && !o.keepFocus) doc.activeElement.blur();
       drag = { hit: id, ids, handle, x: e.clientX, y: e.clientY, start: new Map(ids.map((x) => [x, o.rect(x)])), moved: false, last: null };
-      win.addEventListener("pointermove", onMove); win.addEventListener("pointerup", onUp);
+      for (const t of ["pointermove", "mousemove"]) win.addEventListener(t, onMove);
+      for (const t of ["pointerup", "mouseup"]) win.addEventListener(t, onUp);
     }
     function calc(e) {
       const k = o.scale() || 1; let dx = (e.clientX - drag.x) / k, dy = (e.clientY - drag.y) / k;
       if (!drag.moved && Math.hypot(e.clientX - drag.x, e.clientY - drag.y) < 3) return null;  // 화면 3px 을 넘어야 시작
       drag.moved = true;
       if (drag.handle) {
-        const id = drag.ids[0], r = rules(id), keep = r.ratio === "keep" ? !e.shiftKey : r.ratio === "shift" ? e.shiftKey : false;
+        const id = drag.ids[0], r = rules(id), corner = drag.handle.length === 2;
+        const keep = r.ratio === "keep" ? corner && !e.shiftKey : r.ratio === "shift" ? e.shiftKey : false;  // 그림(keep) = 모서리에서만 비율 유지 · 변은 한쪽만
         return [{ id, rect: resize(drag.start.get(id), drag.handle, dx, dy, { keep, min: r.line ? 0 : r.min === undefined ? 1 : r.min }) }];
       }
       if (e.shiftKey) [dx, dy] = axisLock(dx, dy);
@@ -87,7 +97,8 @@
     }
     function onMove(e) { if (!drag) return; const list = calc(e); if (!list) return; drag.last = list; for (const it of list) o.preview(it.id, it.rect, drag.handle ? "resize" : "move"); }
     function onUp(e) {
-      win.removeEventListener("pointermove", onMove); win.removeEventListener("pointerup", onUp);
+      for (const t of ["pointermove", "mousemove"]) win.removeEventListener(t, onMove);
+      for (const t of ["pointerup", "mouseup"]) win.removeEventListener(t, onUp);
       const d = drag; drag = null; if (!d) return;
       const list = d.last;
       if (!d.moved || !list) { if (!d.moved && !d.handle && sel.length > 1) select([d.hit]); return; }  // 여럿 고른 것 중 하나를 끌지 않고 누르기만 했으면 그것만 남긴다(PowerPoint 와 같다)
@@ -97,23 +108,25 @@
     }
     function onKey(e) {
       if (!sel.length || e.isComposing || (o.editing && o.editing(e))) return;
-      const t = e.target; if (t && t.closest && t.closest("input, select, textarea, [contenteditable=true], .dlg, .nd-box")) return;
+      const t = e.target;
+      if (o.keys) { if (!o.keys(e)) return; } else if (t && t.closest && t.closest("input, select, textarea, [contenteditable=true], .dlg, .nd-box")) return;
       const free = sel.filter((id) => !rules(id).locked), mod = e.ctrlKey || e.metaKey;
-      if (e.key === "Escape") { e.preventDefault(); clear(); return; }
-      if (e.key === "Delete" || e.key === "Backspace") { e.preventDefault(); if (free.length) { const ids = free.slice(); select(sel.filter((id) => !ids.includes(id)), true); o.remove(ids); if (o.onSelect) o.onSelect(sel.slice()); } return; }
-      if (mod && (e.key === "d" || e.key === "D") && o.duplicate) { e.preventDefault(); if (free.length) { const made = o.duplicate(free.slice()); if (made && made.length) select(made); } return; }
+      const eat = () => { e.preventDefault(); e.stopPropagation(); };  // 여기서 처리한 키는 화면의 다른 처리기(셀 이동·채우기 등)로 가지 않는다
+      if (e.key === "Escape") { eat(); clear(); return; }
+      if (e.key === "Delete" || e.key === "Backspace") { eat(); if (free.length) { const ids = free.slice(); select(sel.filter((id) => !ids.includes(id)), true); o.remove(ids); if (o.onSelect) o.onSelect(sel.slice()); } return; }
+      if (mod && (e.key === "d" || e.key === "D") && o.duplicate) { eat(); if (free.length) { const made = o.duplicate(free.slice()); if (made && made.length) select(made); } return; }
       if (mod || e.altKey) return;
       const step = o.step || [1, 8], mv = nudge(e.key, e.shiftKey, step[0], step[1]); if (!mv || !free.length) return;
-      e.preventDefault();
+      eat();
       o.commit(free.map((id) => { const r = o.rect(id); return { id, rect: { x: r.x + mv[0], y: r.y + mv[1], w: r.w, h: r.h } }; }), "nudge"); mark();
     }
     const onDocDown = (e) => { if (!sel.length || drag) return; if (o.keepOn && o.keepOn(e)) return; if (o.layers.some((L) => L.contains(e.target)) && o.hit(e.target, e) != null) return; if (e.target.closest && e.target.closest(".menu")) return; clear(); };
-    for (const L of o.layers) L.addEventListener("pointerdown", onDown);
+    for (const L of o.layers) { L.addEventListener("pointerdown", onDown); L.addEventListener("mousedown", onDown); }
     doc.addEventListener("mousedown", onDocDown);
     doc.addEventListener("keydown", onKey, true);
     return {
       selection: () => sel.slice(), select, clear, refresh: mark,
-      destroy() { for (const L of o.layers) L.removeEventListener("pointerdown", onDown); doc.removeEventListener("mousedown", onDocDown); doc.removeEventListener("keydown", onKey, true); },
+      destroy() { for (const L of o.layers) { L.removeEventListener("pointerdown", onDown); L.removeEventListener("mousedown", onDown); } doc.removeEventListener("mousedown", onDocDown); doc.removeEventListener("keydown", onKey, true); },
     };
   }
 
