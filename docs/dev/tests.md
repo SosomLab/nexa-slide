@@ -110,6 +110,8 @@ python studio/tests/verify.py --level quick|full   # 검증 진입점(무인 개
 
 **`KNOWN` 줄**: 시험이 알려진 한계를 `KNOWN <설명>` 으로 찍으면 실패로 치지 않고 `run_all` 요약에 그 줄이 그대로 보인다(판정 줄 `OK`·`FAIL`·`SKIP`·`KNOWN`). 지금은 `pageui` 의 "다단 문서 Chrome PDF 쪽 수 ≠ 화면 쪽 수"(DP-P17) 하나다.
 
+**`RETRY` 줄(smoke.js)**: 페이지에 들어가는 중에 필수 파일(문서·스크립트·스타일)이 `net::ERR_NETWORK_CHANGED`·`ERR_NETWORK_IO_SUSPENDED`·`ERR_INTERNET_DISCONNECTED` 로 끊기면(이 PC 의 네트워크 변경 이벤트가 헤드리스 Chrome 의 localhost 요청을 끊는다) 그 페이지를 **한 번만** 다시 열고 `RETRY 환경 오류로 페이지 다시 열기 …` 줄을 남긴다(줄에 "오류" 가 있어 run_all 요약에 보인다). 판정은 그대로 - 단계 도중의 끊김·다시 연 뒤의 오류는 콘솔 오류 FAIL.
+
 ## 검증 진입점 - `verify.py`
 
 무인 개발([autodev.md](autodev.md))이 읽는 요약 하나. `python studio/tests/verify.py --level quick|full [--fail-fast]`.

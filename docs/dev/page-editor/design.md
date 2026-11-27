@@ -162,7 +162,23 @@
 - 후보: ① 윗주를 "아래"에도(run 의 `gloss`) - 화면은 `::after`, DOCX 는 대응 기능이 없어 **조합 문자 배치(EQ 필드 `\\o`/`\\s`)나 표(단어마다 칸 2줄)**로 근사 ② 줄 사이에 주석 줄을 따로 두고 탭으로 맞춤(글이 바뀌면 어긋난다) ③ 낱말 표(배치용 표 한 행에 단어 칸, 아래 행에 뜻). Word 에서 정확히 나가는 것은 ③뿐이다. 사용자 결정이 필요하다.
 
 ### 10-5. 공용화 나머지 (PG-109 · PG-108)
+
+**공용 컴포넌트 - 누가 쓰는지**(2026-11-27, 각 화면 html 의 `<script>` 기준 · ● = 쓴다):
+
+| 파일 | 하는 일 | 슬라이드(index.html) | 시트(sheet.html) | 페이지(page.html) |
+|---|---|---|---|---|
+| `nexa-shell.js` | 화면 도우미 - api · 토스트 · 상태 · 배너 · 메뉴(PG-010) | ● | ● | ● |
+| `nexa-kinds.js` | 문서 종류 등록부(슬라이드·시트·페이지 - 서버 kinds 와 같은 이름) | ● | ● | ● |
+| `nexa-newdoc.js` | 새 문서 창(세 종류 템플릿 + 파일 가져오기 · 가져오기 경고 → [열기]) | ● | ● | ● |
+| `nexa-text.js` | 글 편집 엔진(runs 모델·입력·한글 조합·선택) - 페이지 본문·표 칸·머리말, 슬라이드 글·도형 글·표 칸(PG-108) | ● | - | ● |
+| `nexa-format.js` | 글자 서식 단추 `[data-mark]`(NexaFormat.html/bind/sync) - 페이지 서식 막대 `#fmtMarks` · 슬라이드 편집 중 서식 줄 `#ftb`(PG-043) | ● | - | ● |
+| `nexa-requests.js` | 요청 관리(요청 만들기·목록·상태) | ● | ● | ● |
+| `nexa-reqpanel.js` | AI 요청 패널 배선(NexaReqPanel.mount - 세션 표시·요청 모듈·보내기·목록·이벤트·판 따라가기, 화면별 차이는 어댑터) - 98c19d1 페이지 · 9251708 시트. 슬라이드는 초안·메모 흐름이 달라 묶지 않음 | - | ● | ● |
+| `wsession.js` | 세션 칩·웹 AI 세션 | ● | ● | ● |
+| `nexa-merge.js` | 3-way 병합(서버 deckmerge.py 와 같은 규칙) | ● | ● | ● |
+| `nexa-live.js` | 실시간 동시 편집 2단계 | ● | ● | - |
+
 - 저장·실행 취소·밖의 변경 따라가기(page.js 의 save · sealUndo · poll)는 studio.js·sheet.js 와 뼈대가 같다 → `nexa-shell.js` 에 `createDoc({load, dump, merge, onExternal})` 로 올리고 세 화면이 쓴다. 실시간 연결(nexa-live)·함께 보는 사람도 그때 페이지에 붙는다.
   지금(2026-11-27): 아직 page.js 안에 있다(`save` · `sealUndo` · 밖의 변경 따라가기) - `nexa-shell.js` 는 api·toast·상태·배너·메뉴까지(PG-010).
-- 서식 막대(page.html `#tools` + page.js bindTools)는 `nexa-format.js` 로 뽑아 슬라이드 글 상자·시트 셀이 nexa-text 를 쓸 때(PG-108) 같이 쓴다 - 파일은 아직 없다.
+- 서식 막대 중 글자 서식 단추는 `nexa-format.js` 로 뽑았다(b01a5cb - 페이지 `#fmtMarks` · 슬라이드 `#ftb`). 문단·스타일·글꼴/색 단추는 아직 page.js bindTools 안에 있고, 시트 셀은 nexa-text 를 쓰지 않는다.
 - PG-108 1차(끝): 슬라이드 글·도형 글·표 칸 편집이 nexa-text(studio.js `richEdit` - `Render.runs` 표기 → runs, 저장은 전과 같은 표기 글 · 손대지 않은 줄은 원문 그대로)이고, 편집 중 서식 줄이 있다(eae1b41). 글머리·코드 요소는 원문 편집, 시트 셀은 nexa-text 를 쓰지 않는다.

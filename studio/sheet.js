@@ -801,7 +801,7 @@
     Z = z; $("#gridIn").style.zoom = String(z);
     W.scrollLeft = gx * Z - cx; W.scrollTop = gy * Z - cy;
     LS.set(`sheetZoom-${S.id}`, String(z)); renderZoom();
-    if (G.rows > VIRT) renderGrid(); renderSel();
+    if (G.rows > VIRT || sheet().freeze) renderGrid(); renderSel();  // 틀 고정은 확대에 따라 풀리거나 다시 걸린다(effFz)
   }
   function renderZoom() { const b = $("#zoomPct"); if (b) b.textContent = Math.round(Z * 100) + "%"; }
   function rowAt(y) { let lo = 0, hi = G.rows - 1; while (lo < hi) { const m = (lo + hi + 1) >> 1; if (G.rowY[m] <= y) lo = m; else hi = m - 1; } return lo; }
@@ -825,11 +825,23 @@
       if ((a < r0 + 10 && r0 > 0) || (b > r1 - 10 && r1 < G.rows - 1)) { renderGrid(); renderSel(); }
     });
   }
+  /** 이 화면에서 실제로 쓰는 틀 고정 - 고정 영역(행 높이 합·열 너비 합)이 보이는 자리의 70% 를 넘으면 풀어 돌려준다(off).
+   *  고정 칸은 sticky 라 화면보다 크면 스크롤되는 칸을 다 덮어 아래 행을 볼 수 없다(engine-request #28). 문서의 freeze 값은 바꾸지 않고, 확대·창 크기가 바뀌면 다시 본다 */
+  function effFz(sh) {
+    const fz = parseRef(sh.freeze || "") || { r: 0, c: 0 };
+    if (!fz.r && !fz.c) return fz;
+    const W = $("#gridWrap"), vh = ((W && W.clientHeight) || 800) / Z, vw = ((W && W.clientWidth) || 1200) / Z;
+    const big = (fz.r && (G.rowY[fz.r] || 0) > vh * 0.7) || (fz.c && (G.colX[fz.c] || 0) > vw * 0.7);
+    if (!big) { S.fzOff = null; return fz; }
+    const k = `${sh.id}|${sh.freeze}`;
+    if (S.fzOff !== k) { S.fzOff = k; toast("고정한 행·열이 화면의 대부분을 차지해 이 화면에서는 틀 고정을 잠시 풀었습니다 - 화면을 키우거나 축소하면 다시 고정됩니다(문서의 설정은 그대로)", 6000); }
+    return { r: 0, c: 0, off: true };
+  }
   function renderGrid() {
     const sh = sheet(), { rows, cols } = dims(sh); G.rows = rows; G.cols = cols;
     G.colX = [HW]; for (let c = 0; c < cols; c++) G.colX.push(G.colX[c] + colW(sh, c));
     G.rowY = [HH]; for (let r = 0; r < rows; r++) G.rowY.push(G.rowY[r] + rowH(sh, r));
-    const fz = parseRef(sh.freeze || "") || { r: 0, c: 0 };
+    const fz = effFz(sh);
     const fg = sh.filter && sh.filter.cols && Object.keys(sh.filter.cols).length ? parseRange(sh.filter.ref) : null;
     const ms = merges(sh), cover = new Map();
     for (const m of ms) for (let r = m.r1; r <= m.r2; r++) for (let c = m.c1; c <= m.c2; c++) cover.set(r * 4096 + c, r === m.r1 && c === m.c1 ? m : "x");
@@ -891,7 +903,8 @@
       if (rowHidden(sh, r)) continue;
       const rh = rowH(sh, r);
       const thc = [rowHidden(sh, r + 1) || (r > 0 && rowHidden(sh, r - 1)) ? "hidN" : "", fg && r > fg.r1 && r <= fg.r2 ? "flr" : ""].filter(Boolean).join(" ");  // flr - 조건이 걸린 필터의 데이터 행(엑셀은 행 번호가 파랗다)
-      h.push(`<tr style="height:${rh}px"><th data-row="${r}"${thc ? ` class="${thc}"` : ""}>${r + 1}<span class="rz" data-rzr="${r}"></span></th>`);
+      const thz = r < fz.r;  // 고정 행 - 행 번호 칸도 셀과 같은 자리에 붙인다(없으면 번호만 스크롤돼 고정 행 옆에 다른 행 번호가 보인다)
+      h.push(`<tr style="height:${rh}px"><th data-row="${r}"${thc || thz ? ` class="${[thc, thz ? "fz" : ""].filter(Boolean).join(" ")}"` : ""}${thz ? ` style="top:${G.rowY[r]}px"` : ""}>${r + 1}<span class="rz" data-rzr="${r}"></span></th>`);
       const OV = overflowRow(r);
       for (let c = 0; c < cols; c++) {
         if (colHidden(sh, c)) continue;
@@ -997,7 +1010,7 @@
   function rectOf(g) { return { x: G.colX[g.c1], y: G.rowY[g.r1], w: G.colX[g.c2 + 1] - G.colX[g.c1], h: G.rowY[g.r2 + 1] - G.rowY[g.r1] }; }
   function place(el, g, inset = 0) { const R = rectOf(g); Object.assign(el.style, { left: R.x - inset + "px", top: R.y - inset + "px", width: R.w + inset * 2 + 1 + "px", height: R.h + inset * 2 + 1 + "px" }); }
   // 틀 고정 - 고정 행·열 칸(sticky)은 스크롤만큼 따라 움직인다. 선택 표시를 고정·스크롤 사분면으로 나눠 고정 쪽은 같이 옮기고, 스크롤 쪽은 고정 칸 밑으로 가린다(엑셀과 같다)
-  const frz = () => parseRef(sheet().freeze || "") || { r: 0, c: 0 };
+  const frz = () => effFz(sheet());
   function paneOf(r, c) {  // 그 칸이 있는 사분면의 이동량(dx·dy)과 가림 선(cx·cy, 내용 좌표 - 이보다 왼쪽·위는 고정 칸이 덮는다)
     const fz = frz(), W = $("#gridWrap");
     if (!fz.r && !fz.c) return { dx: 0, dy: 0, cx: null, cy: null };
@@ -1167,7 +1180,7 @@
     $("#marks").innerHTML = html.join("");
   }
   function scrollIntoView(r, c) {
-    const W = $("#gridWrap"), sh = sheet(), fz = parseRef(sh.freeze || "") || { r: 0, c: 0 };
+    const W = $("#gridWrap"), sh = sheet(), fz = effFz(sh);
     const topFix = G.rowY[fz.r] || HH, leftFix = G.colX[fz.c] || HW;
     const x1 = G.colX[c], x2 = G.colX[c + 1], y1 = G.rowY[r], y2 = G.rowY[r + 1];
     const vw = W.clientWidth / Z, vh = W.clientHeight / Z, L = sx(), T = sy();  // 격자 좌표로
@@ -1860,7 +1873,7 @@
 
   // ---------------------------------------------------------------- 요청 - 범위(range)와 글. 세션이 sheets[].cells 를 고치고 done + reply(docs/sheets.md 3절)
   // 목록·카드·후속·첨부·기록 창·동기화는 nexa-requests.js(RQ, 편집기와 같은 뿌리 - docs/collab.md 0단계). 여기는 시트 쪽 대상(탭·범위)과 머리(대상 표시·보내기)만
-  let RQ = null;
+  let RQ = null, PANEL = null;
   const ST = { draft: "초안", open: "대기", working: "처리 중", done: "완료" };
   const activeReqs = () => S.reqs.filter((q) => q.status !== "done");
   /** 요청의 탭 id - 후속 요청(parent)에 slide 가 없으면 뿌리 요청(thread)의 것 */
@@ -1890,29 +1903,8 @@
     if (S.drawSel) { const im = $(`#draws img.drw[data-did="${CSS.escape(root.elements[0])}"]`); if (im) im.scrollIntoView({ block: "nearest", inline: "nearest" }); }
     renderReqs(); focusGrid();
   }
-  function renderReqs() {
-    if (!S.deck || !RQ) return;
-    // 기본 보기 = 최근 24시간에 진행된 것 + 끝나지 않은 것(편집기와 같은 규칙) · 이 탭 / 최근 · 이전 것은 [더보기]
-    const recent = S.reqs.filter(RQ.recent), older = S.reqs.length - recent.length;
-    const list = recent.filter((q) => !S.reqTab || reqSlide(q) === sheet().id);
-    $("#reqFilter").innerHTML = `<span class="seg"><button data-v="1" class="${S.reqTab ? "on" : ""}">이 탭</button><button data-v="0" class="${S.reqTab ? "" : "on"}">최근 (${recent.length})</button></span><span style="flex:1"></span><button class="chip sm" id="reqMore" title="이전 요청까지 모두 찾아보기(편집 화면 위에 뜹니다)">더보기${older ? ` · 이전 ${older}` : ""}</button>`;
-    $("#reqList").innerHTML = (older ? `<div class="hint" style="font-size:11.5px;margin:2px 4px 6px">최근 24시간에 진행된 요청과 아직 끝나지 않은 요청만 보입니다 - 이전 것은 [더보기]</div>` : "")
-      + (list.length ? RQ.threadsHtml(list) : `<div class="hint" style="padding:18px;text-align:center">${S.reqTab ? "이 탭에 최근 요청이 없습니다" : "최근 요청이 없습니다"}<br>셀 범위를 고르고 위에 적어 보내세요.</div>`);
-    if (S.reqCur) { const c = $(`#reqList .req[data-rid="${CSS.escape(S.reqCur)}"]`); if (c) c.classList.add("cur"); }
-    $("#reqHint").innerHTML = RQ.sessionHint();
-    RQ.afterRender();
-  }
-  async function sendReq() {
-    const text = $("#reqText").value.trim(); if (!text && !RQ.att.slot("tab").length) { $("#reqText").focus(); return; }
-    if (S.edit) endEdit(true);
-    if (S.dirty) await save();  // 세션이 지금 화면 내용을 보고 고치게 먼저 저장
-    const body = { action: "add", status: "open", slide: sheet().id, text: text || "(첨부 참고)" };
-    const rg = reqTargetRange(); if (rg) body.range = rg;
-    const ds = reqDraws(); if (ds) { body.elements = ds; body.element = ds[0]; }  // 고른 그림(슬라이드 요청의 element·elements 와 같은 칸) - 세션은 탭 drawings 에서 id(또는 파일 이름)로 찾는다
-    const r = await RQ.add(body, "tab", { flush: true }); if (!r) return;
-    $("#reqText").value = ""; LS.set(typedKey(), "");
-    toast(RQ.connected() ? "요청을 세션에 보냈습니다" : "요청을 남겼습니다 - 세션이 연결되면 전달됩니다");
-  }
+  /** 요청 목록 - 그리기·보내기·배선은 공용 패널(nexa-reqpanel.js - 페이지 편집기와 같이 쓴다). 시트 쪽 차이(이 탭 필터 · 범위·그림 대상 · AI 가 바꾼 셀)는 init 의 어댑터 */
+  function renderReqs() { if (PANEL) PANEL.render(); }
   // ---- AI 가 바꾼 셀 - 요청 하나로 AI 가 저장한 변경(/api/reqdiff, 원장 백업 비교). 카드에 "바뀐 셀 n개 · 보기 · 되돌리기",
   //      이 화면을 연 동안 요청이 완료되면 그 셀을 초록 테두리로 강조한다. 되돌리기는 그 뒤 아무도 고치지 않은 셀만(지금 값 = AI 가 넣은 값)
   const AI = { diff: {}, hl: null, prev: null };
@@ -1970,12 +1962,11 @@
       if (D && D.count) { showAi(q.id, true); AI.at = Date.now(); toast(`${RQ.agentName()} 가 셀 ${D.count}개를 바꿨습니다 - 초록 테두리 · 요청 카드에서 되돌리기`, 4500); }
     }
   }
-  async function onReqClick(e) {
-    const ab = e.target.closest("[data-aishow],[data-aiundo]");
-    if (ab) { if (ab.dataset.aishow) showAi(ab.dataset.aishow, !(AI.hl && AI.hl.rid === ab.dataset.aishow)); else aiUndo(ab.dataset.aiundo); return; }
-    if (await RQ.click(e)) return;  // 상태·삭제·후속·첨부·대상 링크 - 편집기와 같다
-    const card = e.target.closest(".req"); if (!card || e.target.closest("button, a, textarea, input, details, .fu-form")) return;
-    const q = S.reqs.find((x) => x.id === card.dataset.rid); if (q) gotoReq(q);  // 카드 → 그 탭·범위로
+  /** 요청 카드의 [AI 가 바꾼 셀 보기]·[되돌리기] - 공용 처리보다 먼저 본다 */
+  function reqPreClick(e) {
+    const ab = e.target.closest("[data-aishow],[data-aiundo]"); if (!ab) return false;
+    if (ab.dataset.aishow) showAi(ab.dataset.aishow, !(AI.hl && AI.hl.rid === ab.dataset.aishow)); else aiUndo(ab.dataset.aiundo);
+    return true;
   }
 
   // ---------------------------------------------------------------- 내보내기·목록
@@ -2229,11 +2220,23 @@
     if (LS.get("sheetNoSide", "0") === "1" && !PREVIEW) document.body.classList.add("noside");
     { const w = +LS.get("sheetSideW", 0); if (w) document.documentElement.style.setProperty("--sideW", w + "px"); }
     if (!PREVIEW) { const c = await api("GET", "/api/config"); if (c.ok && c.data && c.data.brand && c.data.brand.logo) TH.brandLogo = "/" + String(c.data.brand.logo).replace(/^[/]+/, ""); }
-    if (window.NexaSession) SESS = NexaSession.create({ api, toast, openMenu, esc, base: BASE, deckId: () => S.id, onChange: (st, changed) => { S.session = st; if (changed && S.deck) renderReqs(); } });
-    $("#sessChip").onclick = (e) => (SESS ? SESS.menu(e.currentTarget) : null);  // 웹 세션 시작·끊기·모델·진행
-    RQ = NexaRequests.create({ api, toast, esc, base: BASE, deckId: () => S.id, session: SESS,
-      getReqs: () => S.reqs, setReqs: (l) => { S.reqs = l; }, onChange: () => { if (!S.deck) return; renderReqs(); renderMarks(); renderTabs(); aiWatch(); },
-      target: SHEET_TARGET, att: { boxes: { tab: "#reqAtt", fu: "#fuAtt" } }, onDeckChanged: () => { pollAt = 0; poll(); } });
+    // 요청 패널(공용 nexa-reqpanel.js) - 세션 표시·요청 모듈·보내기·목록·이벤트 배선. 시트 쪽 차이만 어댑터로 준다
+    PANEL = NexaReqPanel.mount({
+      api, toast, openMenu, esc, base: BASE, deckId: () => S.id, state: S, target: SHEET_TARGET, ready: () => !!S.deck,
+      buildBody: () => { const body = { slide: sheet().id }, rg = reqTargetRange(), ds = reqDraws(); if (rg) body.range = rg; if (ds) { body.elements = ds; body.element = ds[0]; } return body; },  // 고른 그림 = 슬라이드 요청의 element·elements 와 같은 칸
+      beforeSend: async () => { if (S.edit) endEdit(true); if (S.dirty) await save(); },  // 세션이 지금 화면 내용을 보고 고치게 먼저 저장
+      filter: { test: (q) => !S.reqTab || reqSlide(q) === sheet().id,
+        html: (recent) => `<span class="seg"><button data-v="1" class="${S.reqTab ? "on" : ""}">이 탭</button><button data-v="0" class="${S.reqTab ? "" : "on"}">최근 (${recent.length})</button></span>`,
+        click: (b) => { if (!b.dataset.v) return false; S.reqTab = b.dataset.v === "1"; LS.set("sheetReqTab", S.reqTab ? "" : "0"); return true; } },
+      olderNote: `<div class="hint" style="font-size:11.5px;margin:2px 4px 6px">최근 24시간에 진행된 요청과 아직 끝나지 않은 요청만 보입니다 - 이전 것은 [더보기]</div>`,
+      emptyText: () => `${S.reqTab ? "이 탭에 최근 요청이 없습니다" : "최근 요청이 없습니다"}<br>셀 범위를 고르고 위에 적어 보내세요.`,
+      typed: { get: () => LS.get(typedKey(), ""), set: (v) => LS.set(typedKey(), v) },
+      preClick: reqPreClick,
+      onRender: () => { if (S.reqCur) { const c = $(`#reqList .req[data-rid="${CSS.escape(S.reqCur)}"]`); if (c) c.classList.add("cur"); } },
+      onChange: () => { renderMarks(); renderTabs(); aiWatch(); },
+      onDeckChanged: () => { pollAt = 0; poll(); },
+    });
+    SESS = PANEL.SESS; RQ = PANEL.RQ;
     if (!PREVIEW) { const [q, ss] = await Promise.all([api("GET", `/api/requests/${encodeURIComponent(S.id)}`), api("GET", "/api/session")]);
       if (q.ok && Array.isArray(q.data)) S.reqs = q.data; if (ss.ok && ss.data) renderSession(ss.data); }
     await loadFonts(); fillFontSel("");  // 글꼴 세트·목록(슬라이드와 같은 tokens.json) - 격자를 그리기 전에
@@ -2252,6 +2255,7 @@
 
     const W = $("#gridWrap");
     W.addEventListener("scroll", onGridScroll, { passive: true });
+    { let rt = 0; window.addEventListener("resize", () => { if (!S.deck || !sheet().freeze) return; clearTimeout(rt); rt = setTimeout(() => { const was = !!S.fzOff; if (!!effFz(sheet()).off !== was) { renderGrid(); renderSel(); } }, 150); }); }  // 창 크기가 바뀌면 틀 고정을 풀지 다시 본다
     W.addEventListener("mousedown", onGridDown);
     W.addEventListener("contextmenu", gridMenu);
     W.addEventListener("dblclick", (e) => {
@@ -2350,8 +2354,6 @@
     $("#bnTheirs").onclick = async () => { S.dirty = false; S.conflict = false; if (S.edit) endEdit(false); await reloadExternal("밖의 버전을 불러왔습니다(내 편집은 Ctrl+Z 로 복구)"); };
     $("#bnMine").onclick = async () => { S.conflict = false; if (S.edit) endEdit(true); await save(true); };
     // 요청 패널
-    $("#reqList").addEventListener("click", onReqClick);
-    $("#reqSend").onclick = sendReq;
     // 예시 칩 - 누르면 요청 칸에 문장을 넣는다(보내지는 않는다 - 고쳐 쓰고 Enter). 칸에 글이 있으면 다음 줄에 덧붙인다
     const CHIPS = ["합계 행 추가", "이 열은 % 형식으로", "빈칸은 0 으로", "머리글 굵게·채우기", "상위 3개 강조", "오류 칸 원인 설명"];
     $("#reqChips").innerHTML = CHIPS.map((t) => `<button type="button" data-chip="${esc(t)}">${esc(t)}</button>`).join("");
@@ -2362,17 +2364,7 @@
       ta.value = cur ? `${cur}\n${line}` : line; ta.dispatchEvent(new Event("input")); ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length);
     });
     // Enter = 보내기, Shift+Enter = 줄바꿈(편집기 요청 칸과 같다 - 한글 조합 중 Enter 는 조합 확정만)
-    $("#reqText").addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.shiftKey && !e.isComposing) { e.preventDefault(); sendReq(); } });
-    $("#reqText").addEventListener("input", () => LS.set(typedKey(), $("#reqText").value.trim() ? $("#reqText").value : ""));
     $("#reqWhole").addEventListener("change", renderReqTarget);
-    $("#reqList").addEventListener("keydown", (e) => RQ.keydown(e));  // 후속 입력칸 Enter = 보내기 · Esc = 닫기
-    RQ.att.wire($("#side .compose"), "tab");  // 요청 첨부 - 붙여넣기(그림)·끌어다 놓기
-    $("#side .compose").addEventListener("click", (e) => RQ.click(e));  // ＋ 첨부 · 빼기 · 축소판 · 세션 시작 링크
-    $("#reqFilter").addEventListener("click", (e) => {
-      const b = e.target.closest("button"); if (!b) return;
-      if (b.id === "reqMore") { RQ.openHist(); return; }
-      if (b.dataset.v) { S.reqTab = b.dataset.v === "1"; LS.set("sheetReqTab", S.reqTab ? "" : "0"); renderReqs(); }
-    });
     $("#sideSplit").addEventListener("mousedown", (e) => {
       e.preventDefault(); const x0 = e.clientX, w0 = $("#side").offsetWidth;
       const mv = (ev) => { const w = Math.max(240, Math.min(720, w0 - (ev.clientX - x0))); document.documentElement.style.setProperty("--sideW", w + "px"); LS.set("sheetSideW", String(w)); };

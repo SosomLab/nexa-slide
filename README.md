@@ -136,6 +136,7 @@ nexa-slide/
 │   ├─ sheet.html · sheet.js · export_xlsx.py · sheet_import.py · sheet_theme.py · sheet_themes/   시트 화면 · XLSX 내보내기 · 엑셀 가져오기 · 시트 테마 — docs/sheets.md
 │   ├─ page.html · page.js · page-render.js · page-flow.js · page_doc.py · page_templates.py   페이지 화면 · 그리기 · 실시간 쪽 나눔 · 형식 검사 · 페이지 템플릿 11종 — docs/pages.md
 │   ├─ nexa-text.js · nexa-newdoc.js   공용 글 편집 엔진(페이지 본문 · 슬라이드 글·표 칸) · 새 문서 창(세 종류 템플릿 + 파일 가져오기)
+│   ├─ nexa-format.js · nexa-reqpanel.js   공용 글자 서식 단추(페이지 서식 막대 · 슬라이드 편집 중 서식 줄) · AI 요청 패널 배선(페이지 · 시트)
 │   ├─ export_docx.py · import_docx.py · render_docx.ps1   페이지 → DOCX · Word 문서 → 페이지 · Word 로 PDF(Windows)
 │   ├─ deckmerge.py        동시 편집 3-way 병합(장·요소 · 탭·셀 · 블록 단위) — docs/collab.md
 │   └─ set_fonts.py · gen_tokens_css.py · render_mermaid.py
