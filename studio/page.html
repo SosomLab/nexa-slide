@@ -84,8 +84,12 @@
   .pg-obj { cursor: move; } .pg-obj.sel { outline: 1.5px solid var(--accent); outline-offset: 2px; }
   .pg-obj .pg-obj-body { cursor: text; }
   .pg-obj.line::after, .pg-obj.arrow::after { content: ""; position: absolute; inset: -1.5mm; }
-  .pg-obj-h { display: none; position: absolute; right: -6px; bottom: -6px; width: 10px; height: 10px; background: #fff; border: 1.5px solid var(--accent); border-radius: 2px; cursor: nwse-resize; z-index: 1; }
-  .pg-obj.sel .pg-obj-h { display: block; }
+  /* 크기 손잡이 8방향(공용 nexa-objects.js 의 기준 - 선은 끝 하나) */
+  .pg-obj .nx-h { display: none; position: absolute; width: 10px; height: 10px; margin: -5px 0 0 -5px; background: #fff; border: 1.5px solid var(--accent); border-radius: 50%; z-index: 1; }
+  .pg-obj.sel .nx-h { display: block; }
+  .nx-h[data-nxh=nw] { left: 0; top: 0; cursor: nwse-resize; } .nx-h[data-nxh=n] { left: 50%; top: 0; cursor: ns-resize; } .nx-h[data-nxh=ne] { left: 100%; top: 0; cursor: nesw-resize; }
+  .nx-h[data-nxh=e] { left: 100%; top: 50%; cursor: ew-resize; } .nx-h[data-nxh=se] { left: 100%; top: 100%; cursor: nwse-resize; } .nx-h[data-nxh=s] { left: 50%; top: 100%; cursor: ns-resize; }
+  .nx-h[data-nxh=sw] { left: 0; top: 100%; cursor: nesw-resize; } .nx-h[data-nxh=w] { left: 0; top: 50%; cursor: ew-resize; }
   .pg-gaprow > td { border: 0 !important; padding: 0 !important; background: none !important; box-shadow: none !important; }
   .nt-obj { cursor: default; } .nt-obj.sel { outline: 2px solid var(--accent); }
   /* 머리말·꼬리말 - 쪽마다 여백 안에 흐리게. 고치는 곳은 [쪽 설정] */
@@ -114,7 +118,7 @@
   /* 인쇄 - 화면의 쪽 나눔 그대로: 쪽 경계에 끼운 빈 자리(빈 줄 · 빈 행 · 민 블록)가 강제 쪽 나눔이 된다. 여백·머리말·꼬리말·쪽 번호는 @page(page.js 가 만든다),
      개체(도형·글 상자)는 인쇄 직전에 매인 문단 안으로 옮겨 그 문단을 따라 찍힌다(page.js enterPrint) */
   @media print {
-    header, #tools, #banner, #toast, #side, #sessDlg, #sheets, #covers, #objs, #objsBack, #fnotes, #fnMeasure, .pg-obj-h, .dlg-back, #findBar { display: none !important; }
+    header, #tools, #banner, #toast, #side, #sessDlg, #sheets, #covers, #objs, #objsBack, #fnotes, #fnMeasure, .pg-obj-h, .nx-h, .dlg-back, #findBar { display: none !important; }
     html, body { height: auto; } body { display: block; background: #fff; } #main { display: block; } #scroll { padding: 0; overflow: visible; }
     #paper { padding: 0 !important; width: auto !important; min-height: 0 !important; zoom: 1 !important; margin: 0; } #ed { min-height: 0; }
     .pg-gap { display: block !important; width: auto; height: 0 !important; break-before: page; }
@@ -211,6 +215,7 @@
 <script src="nexa-doc.js"></script>
 <script src="nexa-text.js"></script>
 <script src="nexa-format.js"></script>
+<script src="nexa-objects.js"></script>
 <script src="page-render.js"></script>
 <script src="page-flow.js"></script>
 <script src="page.js"></script>

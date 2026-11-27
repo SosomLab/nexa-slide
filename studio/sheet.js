@@ -602,7 +602,7 @@
       if (v.deck !== S.version && !S.saving && v.deck != null && String(v.deck) !== "0") {  // 판 "0" = 파일 없음(지워진 문서) - 다시 읽지 않는다
         // 편집 중에 밖에서 바뀌었다 - 배너로 고르게 하지 않고, 내 저장이 서버에서 합쳐지게 바로 저장한다(셀 입력 중이면 입력을 넣고 저장할 때)
         if (S.dirty || S.edit) { if (S.dirty && !S.edit && !S.conflict) { stopSave(); await save(); } }
-        else await reloadExternal("밖에서 바뀐 시트를 다시 불러왔습니다");
+        else if (await NexaDoc.stillChanged(api, S)) await reloadExternal("밖에서 바뀐 시트를 다시 불러왔습니다");  // 받아 둔 v 는 위의 기다림 사이 낡았을 수 있다 - 공용 기준으로 다시 확인
       }
     } finally {
       applying = false;
@@ -961,42 +961,67 @@
     if (!S.drawSel.size) S.drawSel = null;
     markDrawings(); renderReqTarget();
   }
+  /** 그림 조작(고르기·끌기·크기·화살표·지우기·복제·Esc)은 공용 모듈(nexa-objects.js - 세 편집기가 같은 기준)이 맡는다. 여기는 시트 고유: 칸에 매인 자리(at + dx·dy) ↔ 격자 px */
+  let DRW = null;
+  const drawEl = (id) => $(`#draws img.drw[data-did="${CSS.escape(String(id))}"]`);
+  function drawHandles(one) {
+    let box = $("#drawHandles");
+    if (!box) {
+      box = document.createElement("div"); box.id = "drawHandles"; $("#gridIn").appendChild(box);
+      for (const k of NexaObjects.HANDLES) { const h = document.createElement("i"); h.className = "nx-h"; h.dataset.nxh = k; h.title = "끌어서 크기(모서리 = 비율 그대로 · Shift = 풀기)"; if (k === "se") h.id = "drawHandle"; box.appendChild(h); }
+    }
+    box.hidden = !one; if (!one) return;
+    const l = one.offsetLeft, t = one.offsetTop, w = one.offsetWidth, h = one.offsetHeight;
+    for (const hd of box.children) { const k = hd.dataset.nxh; hd.style.left = l + (k.includes("w") ? 0 : k.includes("e") ? w : w / 2) + "px"; hd.style.top = t + (k.includes("n") ? 0 : k.includes("s") ? h : h / 2) + "px"; }
+  }
   function markDrawings() {
+    if (DRW) DRW.select([...(S.drawSel || [])], true);  // 고른 것은 S.drawSel 이 기준(속성 탭·요청·메뉴가 직접 쓴다) - 공용 모듈에 알린다
     $$("#draws img.drw").forEach((im) => im.classList.toggle("on", !!(S.drawSel && S.drawSel.has(im.dataset.did))));
-    let hd = $("#drawHandle"); if (!hd) { hd = document.createElement("div"); hd.id = "drawHandle"; hd.title = "끌어서 크기(Shift = 비율 그대로)"; $("#gridIn").appendChild(hd); }
-    const one = S.drawSel && S.drawSel.size === 1 ? $(`#draws img.drw[data-did="${CSS.escape([...S.drawSel][0])}"]`) : null;
-    hd.hidden = !one; if (one) { hd.style.left = one.offsetLeft + one.offsetWidth - 4 + "px"; hd.style.top = one.offsetTop + one.offsetHeight - 4 + "px"; }
+    drawHandles(S.drawSel && S.drawSel.size === 1 ? drawEl([...S.drawSel][0]) : null);
     if (window.NexaSheetSide) NexaSheetSide.onSel();
   }
   const drawIdx = (sh) => (sh.drawings || []).map((d, i) => [drawId(d, i), i]);
-  /** 그림 끌기 - move: 고른 그림 모두 옮김(놓은 자리의 칸 + 남는 px 로 at·dx·dy) · size: 하나의 w·h */
-  function startDrawDrag(e, mode) {
-    const sh = sheet(), x0 = e.clientX, y0 = e.clientY, ids = new Set(S.drawSel || []), imgs = $$("#draws img.drw").filter((im) => ids.has(im.dataset.did));
-    const start = imgs.map((im) => ({ im, l: im.offsetLeft, t: im.offsetTop, w: im.offsetWidth, h: im.offsetHeight }));
-    let moved = false;
-    const onMove = (ev) => {
-      const dx = (ev.clientX - x0) / Z, dy = (ev.clientY - y0) / Z; if (!moved && Math.abs(dx) + Math.abs(dy) < 4) return; moved = true;
-      for (const st of start) {
-        if (mode === "move") { st.im.style.left = Math.max(HW, st.l + dx) + "px"; st.im.style.top = Math.max(HH, st.t + dy) + "px"; }
-        else { let w = Math.max(8, st.w + dx), h = Math.max(8, st.h + dy); if (ev.shiftKey) { const k = Math.max(w / st.w, h / st.h); w = st.w * k; h = st.h * k; } st.im.style.width = Math.round(w) + "px"; st.im.style.height = Math.round(h) + "px"; }
-      }
-      markDrawings();
-    };
-    const onUp = () => {
-      removeEventListener("mousemove", onMove); removeEventListener("mouseup", onUp);
-      if (!moved) return;
-      const at = (px, axis) => { const A = axis === "c" ? G.colX : G.rowY; let i = 0; while (i + 1 < A.length - 1 && A[i + 1] <= px) i++; return [i, px - A[i]]; };
-      mutate(() => {
-        const idx = new Map(drawIdx(sh));
-        for (const st of start) {
-          const d = sh.drawings[idx.get(st.im.dataset.did)]; if (!d) continue;
-          if (!d.id) d.id = st.im.dataset.did;  // 고친 그림은 id 를 남긴다(요청 대상이 그대로이게)
-          if (mode === "move") { const [c, dx] = at(st.im.offsetLeft, "c"), [r, dy] = at(st.im.offsetTop, "r"); d.at = key(r, c); d.dx = Math.round(dx); d.dy = Math.round(dy); }
-          else { d.w = st.im.offsetWidth; d.h = st.im.offsetHeight; }
-        }
-      });
-    };
-    addEventListener("mousemove", onMove); addEventListener("mouseup", onUp);
+  function attachDrawings() {
+    const at = (px, axis) => { const A = axis === "c" ? G.colX : G.rowY; let i = 0; while (i + 1 < A.length - 1 && A[i + 1] <= px) i++; return [i, px - A[i]]; };
+    DRW = NexaObjects.attach({
+      layers: [$("#gridIn")], selClass: "on", keepFocus: true, step: [1, 8],
+      hit: (t) => { if (!t.closest) return null; const im = t.closest("#draws img.drw"); if (im) return im.dataset.did; return t.closest("#drawHandles .nx-h") && S.drawSel && S.drawSel.size === 1 ? [...S.drawSel][0] : null; },
+      el: drawEl, rect: (id) => { const im = drawEl(id); return im ? { x: im.offsetLeft, y: im.offsetTop, w: im.offsetWidth, h: im.offsetHeight } : { x: HW, y: HH, w: 8, h: 8 }; },
+      scale: () => Z, rules: () => ({ ratio: "keep", min: 8 }),
+      onPress: () => { if (S.edit) endEdit(true); focusGrid(); },
+      keys: (e) => !S.edit && !e.isComposing && (document.activeElement === $("#editor") || document.activeElement === document.body),
+      keepOn: () => true,  // 칸·머리를 누르면 풀린다(onGridDown) - 속성 탭·메뉴를 누를 때는 그대로 둔다
+      preview: (id, r) => {
+        const im = drawEl(id); if (!im || !r) return;
+        im.style.left = Math.max(HW, r.x) + "px"; im.style.top = Math.max(HH, r.y) + "px"; im.style.width = Math.round(r.w) + "px"; im.style.height = Math.round(r.h) + "px";
+        drawHandles(S.drawSel && S.drawSel.size === 1 ? drawEl([...S.drawSel][0]) : null);
+      },
+      commit: (list, why) => {
+        const sh = sheet();
+        mutate(() => {
+          const idx = new Map(drawIdx(sh));
+          for (const { id, rect: r } of list) {
+            const d = sh.drawings[idx.get(id)]; if (!d) continue;
+            if (!d.id) d.id = id;  // 고친 그림은 id 를 남긴다(요청 대상이 그대로이게)
+            const [c, dx] = at(Math.max(HW, r.x), "c"), [rr, dy] = at(Math.max(HH, r.y), "r"); d.at = key(rr, c); d.dx = Math.round(dx); d.dy = Math.round(dy);
+            if (why === "resize") { d.w = Math.round(r.w); d.h = Math.round(r.h); }
+          }
+        });
+      },
+      remove: (ids) => { S.drawSel = new Set(ids); drawDelete(); },
+      duplicate: (ids) => {
+        const sh = sheet(), have = new Set((sh.drawings || []).map(drawId)), want = new Set(ids), out = [];
+        mutate(() => {
+          for (const [i, d] of [...(sh.drawings || []).entries()]) {
+            const id = drawId(d, i); if (!want.has(id)) continue;
+            let n = 2, nid = `${id}-${n}`; while (have.has(nid)) nid = `${id}-${++n}`; have.add(nid);
+            sh.drawings.push({ ...clone(d), id: nid, dx: (+d.dx || 0) + 12, dy: (+d.dy || 0) + 12 }); out.push(nid);
+          }
+        });
+        S.drawSel = new Set(out); markDrawings(); renderReqTarget(); return out;
+      },
+      onSelect: (ids) => { S.drawSel = ids.length ? new Set(ids) : null; markDrawings(); renderReqTarget(); },
+    });
   }
   function drawDelete() {
     const ids = new Set(S.drawSel || []); if (!ids.size) return;
@@ -2086,8 +2111,7 @@
       return;
     }
     const im = e.button === 0 && e.target.closest("#draws img.drw");
-    if (im) { e.preventDefault(); if (S.edit) endEdit(true); const add = e.ctrlKey || e.metaKey || e.shiftKey; if (!(S.drawSel && S.drawSel.has(im.dataset.did) && !add)) drawPick(im.dataset.did, add); focusGrid(); if (!add) startDrawDrag(e, "move"); return; }  // 그림 고르기 · 끌어 옮기기 - 칸 선택은 그대로
-    if (e.button === 0 && e.target.closest("#drawHandle")) { e.preventDefault(); startDrawDrag(e, "size"); return; }
+    if (im || (e.button === 0 && e.target.closest("#drawHandles"))) { e.preventDefault(); return; }  // 그림 고르기·끌기·크기는 공용 모듈(attachDrawings) - 칸 선택은 그대로
     if (S.drawSel && !e.ctrlKey && !e.metaKey) { S.drawSel = null; markDrawings(); }  // 칸·머리를 누르면 그림 선택이 풀린다
     if (td && (e.ctrlKey || e.metaKey) && followCell(+td.dataset.r, +td.dataset.c)) { e.preventDefault(); return; }  // HYPERLINK 칸 - 엑셀은 그냥 클릭이지만 여기는 고르기·고치기가 먼저라 Ctrl
     if (S.edit) endEdit(true);
@@ -2270,6 +2294,7 @@
     const W = $("#gridWrap");
     W.addEventListener("scroll", onGridScroll, { passive: true });
     { let rt = 0; window.addEventListener("resize", () => { if (!S.deck || !sheet().freeze) return; clearTimeout(rt); rt = setTimeout(() => { const was = !!S.fzOff; if (!!effFz(sheet()).off !== was) { renderGrid(); renderSel(); } }, 150); }); }  // 창 크기가 바뀌면 틀 고정을 풀지 다시 본다
+    attachDrawings();  // 그림 조작 - onGridDown 보다 먼저 건다(같은 누르기에서 고르기가 먼저)
     W.addEventListener("mousedown", onGridDown);
     W.addEventListener("contextmenu", gridMenu);
     W.addEventListener("dblclick", (e) => {

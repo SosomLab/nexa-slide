@@ -173,8 +173,11 @@
   .notePop { position: fixed; z-index: 90; width: 280px; background: #FFFDE7; border: 1px solid #E0D58A; border-radius: 10px; box-shadow: 0 4px 16px rgba(0,0,0,.18); padding: 8px; display: flex; flex-direction: column; gap: 6px; font-size: 12.5px; }
   .notePop textarea { border: 1px solid #E0D58A; border-radius: 6px; padding: 6px; font: inherit; resize: vertical; background: #fff; }
   .notePop .acts { display: flex; gap: 6px; align-items: center; }  /* 서식 복사 중 */
-  #drawHandle { position: absolute; z-index: 4; width: 8px; height: 8px; background: var(--sel); border: 1px solid #fff; cursor: nwse-resize; }
-  #drawHandle[hidden] { display: none; }
+  /* 그림 크기 손잡이 8방향(공용 nexa-objects.js 의 기준) - <img> 는 자식을 못 가져 격자 위에 따로 둔다. se = #drawHandle(예전 이름) */
+  #drawHandles[hidden] { display: none; }
+  #drawHandles .nx-h { position: absolute; z-index: 4; width: 8px; height: 8px; margin: -4px 0 0 -4px; background: var(--sel); border: 1px solid #fff; }
+  #drawHandles [data-nxh=nw], #drawHandles [data-nxh=se] { cursor: nwse-resize; } #drawHandles [data-nxh=ne], #drawHandles [data-nxh=sw] { cursor: nesw-resize; }
+  #drawHandles [data-nxh=n], #drawHandles [data-nxh=s] { cursor: ns-resize; } #drawHandles [data-nxh=e], #drawHandles [data-nxh=w] { cursor: ew-resize; }
   #draws img.drw.on { outline: 2px solid var(--sel); outline-offset: 1px; box-shadow: 0 0 0 4px rgba(26, 115, 232, .18); }
   #themeChip { cursor: pointer; }
   #grid td { cursor: cell; }
@@ -504,6 +507,7 @@
 <script src="nexa-reqpanel.js"></script>
 <script src="nexa-merge.js"></script>
 <script src="nexa-doc.js"></script>
+<script src="nexa-objects.js"></script>
 <script src="nexa-live.js"></script><!-- 실시간 연결·함께 보는 사람(편집기와 같다) --><!-- 병합 저장·실행 취소(편집기와 같다) -->
 <script src="vba.js"></script><!-- VBA 사용자 함수 실행기(NexaVBA) -->
 <script src="sheetcalc.js"></script><!-- 수식 계산(NexaCalc) - Python sheet_calc 와 같은 규칙 -->
