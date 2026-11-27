@@ -61,36 +61,14 @@
     if (!noMark) queueMicrotask(decorateAll); else decorateAll();
     updTools(); scheduleSave();
   }
-  let saveT = 0;
-  function scheduleSave() { clearTimeout(saveT); if (S.dirty) saveT = setTimeout(save, 700); }
-  async function save(force) {
-    if (!S.deck || (S.conflict && !force)) return;
-    if (S.saving) { scheduleSave(); return; }
-    const body = deckJson();
-    if (!force && body === S.savedJson) { S.dirty = false; setStatus("saved", "저장됨"); return; }
-    S.saving = true; setStatus("dirty", "저장 중…");
-    const r = await api("PUT", `/api/deck/${encodeURIComponent(S.id)}?base=${encodeURIComponent(S.version || "")}${force ? "&force=1" : "&merge=1"}`, JSON.parse(body));
-    S.saving = false;
-    if (r.ok) {
-      S.version = r.data.version; S.conflict = false; banner(false);
-      if (r.data.merged && r.data.deck) {  // 그 사이 다른 저장과 합쳐졌다 - 결과(+ 저장하는 사이 더 고친 것)를 화면에
-        const now = deckJson(), sel = ed.selection();
-        sealUndo(now);
-        S.savedJson = JSON.stringify(r.data.deck); S.deck = NexaMerge.afterSave(body, now, r.data.deck);
-        cur = ed; layout(); ed.refresh(sel); toast(NexaMerge.notice(r.data.conflicts).text, 3500);
-      } else {
-        const same = deckJson() === body;
-        if (r.data.updated) S.deck.updated = r.data.updated;
-        if (same) S.savedJson = deckJson(); else { const o = JSON.parse(body); if (r.data.updated) o.updated = r.data.updated; S.savedJson = JSON.stringify(o); }
-      }
-      S.dirty = deckJson() !== S.savedJson;
-      setStatus(S.dirty ? "dirty" : "saved", S.dirty ? "저장 대기" : "저장됨");
-      if (S.dirty) scheduleSave();
-    } else if (r.status === 409) {
-      S.conflict = true; setStatus("conflict", "충돌");
-      banner(true, "저장하려는 사이 문서가 밖에서 바뀌었고 자동으로 합칠 수 없습니다. 어느 쪽을 남길까요?");
-    } else { setStatus("error", "저장 실패"); toast("저장 실패: " + ((r.data && r.data.error) || r.status), 6000); }
-  }
+  // 자동 저장 - 상태기계는 공용(nexa-doc.js). 여기서는 페이지 고유: 합친 결과를 화면에 넣을 때 실행 취소 봉인·선택 되돌리기
+  const SAVER = NexaDoc.saver({
+    state: S, api, setStatus, banner, toast, id: () => S.id, json: () => deckJson(), delay: 700, onlyDirty: true, errorMs: 6000,
+    beforeMerged: (now) => { const sel = ed.selection(); sealUndo(now); return sel; },
+    onMerged: (r, body, now, sel) => { cur = ed; layout(); ed.refresh(sel); toast(NexaMerge.notice(r.data.conflicts).text, 3500); },
+  });
+  const scheduleSave = SAVER.schedule, save = SAVER.save;
+  const stopSave = SAVER.cancel;
 
   // ---------------------------------------------------------------- 그리기
   /** 종이 치수(mm) - 쪽 나눔(어느 블록·줄·행이 어느 쪽인가)은 page-flow.js 가 그린 것을 재서 정하고, 정해지면 drawSheets 가 종이 장을 그린다 */
@@ -399,7 +377,7 @@
       body.addEventListener("focus", () => { cur = ce; });
       body.addEventListener("keydown", (e) => { if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") { e.preventDefault(); save(); } });
     }
-    const h = document.createElement("i"); h.className = "pg-obj-h"; h.title = "크기"; el.appendChild(h);
+    for (const k of lined(o) ? ["se"] : NexaObjects.HANDLES) { const h = document.createElement("i"); h.className = "nx-h" + (k === "se" ? " pg-obj-h" : ""); h.dataset.nxh = k; h.title = "크기"; el.appendChild(h); }
     return el;
   }
   /** 개체를 제자리에 놓는다 - 쪽 나눔이 끝날 때마다(매인 문단이 다른 쪽으로 가면 따라간다). 개체 객체가 바뀐 것만 다시 만든다 */
@@ -413,9 +391,10 @@
       const layer = $(o.z === "behind" ? "#objsBack" : "#objs"); if (el.parentNode !== layer) layer.appendChild(el);
       el.style.left = (o.rel === "para" ? box.l + o.x : o.x) * geo.mm + "px";
       el.style.top = (o.rel === "para" ? box.t * geo.mm + pos.y + o.y * geo.mm : pos.page * sheet + o.y * geo.mm) + "px";
-      el._page = pos.page; el.classList.toggle("sel", S.obj === o.id); keep.add(o.id);
+      el._page = pos.page; keep.add(o.id);
     }
     for (const [id, el] of [...objEls]) if (!keep.has(id)) { el.remove(); objEls.delete(id); }
+    if (OBJ) { const live = OBJ.selection().filter((id) => objAt(id)); if (live.length !== OBJ.selection().length) OBJ.select(live); else OBJ.refresh(); }
   }
   /** 인쇄 직전 - 확대를 풀고 쪽 나눔을 다시 잡은 뒤(끼운 빈 자리가 인쇄의 강제 쪽 나눔이 된다) 개체를 매인 문단 안으로 옮긴다.
    *  인쇄에서는 쪽이 종이 장으로 나뉘어 화면의 자리(종이 기준 px)를 쓸 수 없다 - 문단 기준 자리로 바꿔 그 문단을 따라 찍히게 한다 */
@@ -443,7 +422,25 @@
     for (const d of $$("#ed > .pg-endnotes")) d.remove();
     applyZoom(S.zoom || "1"); flow.rerun();
   }
-  function pickObj(id) { S.obj = id || null; for (const [k, el] of objEls) el.classList.toggle("sel", k === S.obj); if (id) { S.pick = null; markPick(); } }
+  /** 개체 고르기 - 고르기·끌기·크기·화살표·지우기·복제는 공용 모듈(nexa-objects.js - 세 편집기가 같은 기준)이 맡는다 */
+  let OBJ = null;
+  function pickObj(id) { if (OBJ) OBJ.select(id ? [id] : []); else S.obj = id || null; }
+  /** 개체 여럿을 한 번에 고친다(실행 취소 한 단계) - fn(개체 사본) → 새 개체 | null(지움) */
+  function changeObjs(ids, fn, why) {
+    snapshot(why || "format");
+    S.deck.objects = objs().map((o) => (ids.includes(o.id) ? fn({ ...o }) : o)).filter(Boolean);
+    drawObjects(); afterChange(true);
+  }
+  /** 끌어 옮긴 자리 → 개체(쪽 기준 개체가 다른 쪽으로 가면 그 쪽의 첫 문단에 다시 맨다) */
+  function movedObj(o, x, y) {
+    const el = objEls.get(o.id);
+    if (o.rel === "para" || !el || !geo) return { ...o, x: r1(x), y: r1(y) };
+    const sheet = S.box.h * geo.mm + geo.gap, top = el._page * sheet + y * geo.mm;
+    const k = Math.max(0, Math.min((S.pages || 1) - 1, Math.floor((top + 1) / sheet)));
+    let anchor = o.anchor, page = el._page;
+    if (k !== el._page) { const on = [...$("#ed").children].find((e) => e.classList.contains("nt-p") && elPos(e).page === k); if (on) { anchor = on.dataset.id; page = k; } }
+    return { ...o, anchor, x: r1(x), y: r1((top - page * sheet) / geo.mm) };
+  }
   function changeObj(id, fn, why) {
     snapshot(why || "format");
     S.deck.objects = objs().map((o) => (o.id === id ? fn({ ...o }) : o)).filter(Boolean);
@@ -460,35 +457,6 @@
       if (j < 0) j = next.findIndex((b) => b.type === "p");
       if (j >= 0) o.anchor = next[j].id;
     }
-  }
-  /** 끌어 옮긴 뒤 - 쪽 기준 개체가 다른 쪽으로 가면 그 쪽의 첫 문단에 다시 맨다 */
-  function moveObj(o, el, dx, dy) {
-    if (o.rel === "para") return changeObj(o.id, (x) => ({ ...x, x: r1(x.x + dx), y: r1(x.y + dy) }));
-    const sheet = S.box.h * geo.mm + geo.gap, top = parseFloat(el.style.top) + dy * geo.mm;
-    const k = Math.max(0, Math.min((S.pages || 1) - 1, Math.floor((top + 1) / sheet)));
-    let anchor = o.anchor, page = el._page;
-    if (k !== el._page) { const on = [...$("#ed").children].find((e) => e.classList.contains("nt-p") && elPos(e).page === k); if (on) { anchor = on.dataset.id; page = k; } }
-    changeObj(o.id, (x) => ({ ...x, anchor, x: r1(x.x + dx), y: r1((top - page * sheet) / geo.mm) }));
-  }
-  function onObjDown(e) {
-    const el = e.target.closest(".pg-obj"), o = el && objAt(el.dataset.id); if (!o) return;
-    pickObj(o.id);
-    const handle = e.target.closest(".pg-obj-h");
-    if (e.button !== 0 || (e.target.closest(".pg-obj-body") && !handle)) return;  // 글 안을 누르면 글 편집
-    e.preventDefault(); if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
-    const px = geo.mm * edScale(), sx = e.clientX, sy = e.clientY; let dx = 0, dy = 0, moved = false;
-    const move = (ev) => {
-      dx = (ev.clientX - sx) / px; dy = (ev.clientY - sy) / px; if (!moved && Math.abs(dx) + Math.abs(dy) < 0.5) return; moved = true;
-      if (handle) { el.style.width = Math.max(lined(o) ? 0 : 2, o.w + dx) + "mm"; el.style.height = Math.max(lined(o) ? 0 : 2, o.h + dy) + "mm"; }
-      else el.style.transform = `translate(${dx * geo.mm}px, ${dy * geo.mm}px)`;
-    };
-    const up = () => {
-      window.removeEventListener("pointermove", move); window.removeEventListener("pointerup", up);
-      if (!moved) return; el.style.transform = "";
-      if (handle) { const min = lined(o) ? 0 : 2, w = r1(Math.max(min, o.w + dx)), h = r1(Math.max(min, o.h + dy)); changeObj(o.id, (x) => ({ ...x, w: w || (h ? 0 : 1), h })); }
-      else moveObj(o, el, dx, dy);
-    };
-    window.addEventListener("pointermove", move); window.addEventListener("pointerup", up);
   }
   /** [단] 메뉴 - 지금 커서가 있는 구역의 단 수를 보이고, 여기서부터 단 수 바꾸기(구역 나누기)·단 나누기를 넣는다. 문서 전체의 단 수는 [쪽 설정] */
   function colsMenu(at) {
@@ -544,18 +512,35 @@
   const objUnder = (e) => { const el = document.elementsFromPoint(e.clientX, e.clientY).find((x) => x.classList && x.classList.contains("pg-obj")); return el ? el.dataset.id : null; };
   function bindObjects() {
     for (const layer of [$("#objs"), $("#objsBack")]) {
-      layer.addEventListener("pointerdown", onObjDown);
       layer.addEventListener("contextmenu", (e) => { const el = e.target.closest(".pg-obj"); if (!el || e.target.closest(".pg-obj-body")) return; e.preventDefault(); pickObj(el.dataset.id); objMenu(el.dataset.id, { x: e.clientX, y: e.clientY }); });
     }
     // 글 뒤로 보낸 개체는 본문에 가려 눌리지 않는다 - Alt+클릭으로 고르고 Alt+오른쪽 클릭으로 메뉴
     $("#ed").addEventListener("mousedown", (e) => { if (!e.altKey) return; const id = objUnder(e); if (id) { e.preventDefault(); e.stopPropagation(); pickObj(id); if (document.activeElement && document.activeElement.blur) document.activeElement.blur(); } }, true);
     $("#ed").addEventListener("contextmenu", (e) => { if (!e.altKey) return; const id = objUnder(e); if (id) { e.preventDefault(); e.stopPropagation(); pickObj(id); objMenu(id, { x: e.clientX, y: e.clientY }); } }, true);
-    document.addEventListener("mousedown", (e) => { if (S.obj && !e.altKey && !e.target.closest(".pg-obj, .menu")) pickObj(null); });
-    document.addEventListener("keydown", (e) => {
-      if (!S.obj || e.isComposing || (e.key !== "Delete" && e.key !== "Backspace")) return;
-      if (e.target.closest && e.target.closest("input, select, textarea, .dlg, .nd-box, [contenteditable=true]")) return;
-      e.preventDefault(); changeObj(S.obj, () => null);
-    }, true);
+    OBJ = NexaObjects.attach({
+      layers: [$("#objs"), $("#objsBack")],
+      hit: (t) => { const el = t.closest && t.closest(".pg-obj"); if (!el || !objAt(el.dataset.id)) return null; return t.closest(".pg-obj-body") && !t.closest(".nx-h") ? null : el.dataset.id; },  // 글 안을 누르면 글 편집
+      el: (id) => objEls.get(id), rect: (id) => { const o = objAt(id); return { x: o.x, y: o.y, w: o.w, h: o.h }; }, scale: () => (geo ? geo.mm : 3.78) * edScale(),
+      rules: (id) => { const o = objAt(id) || {}; return { ratio: "shift", min: 2, line: lined(o) }; }, step: [0.5, 5],
+      preview: (id, r) => {
+        const el = objEls.get(id), o = objAt(id); if (!el || !o) return;
+        if (!r) { el.style.transform = ""; el.style.width = o.w + "mm"; el.style.height = o.h + "mm"; return; }
+        el.style.transform = `translate(${(r.x - o.x) * geo.mm}px, ${(r.y - o.y) * geo.mm}px)`; el.style.width = r.w + "mm"; el.style.height = r.h + "mm";
+      },
+      commit: (list, why) => {
+        const by = new Map(list.map((it) => [it.id, it.rect]));
+        changeObjs([...by.keys()], (o) => { const r = by.get(o.id); if (why === "resize") { const w = r1(r.w), h = r1(r.h); return { ...o, x: r1(r.x), y: r1(r.y), w: w || (h ? 0 : 1), h }; } return movedObj(o, r.x, r.y); });
+      },
+      remove: (ids) => changeObjs(ids, () => null),
+      duplicate: (ids) => {
+        const made = [];
+        snapshot("format");
+        for (const id of ids) { const o = objAt(id); if (!o) continue; const c = JSON.parse(JSON.stringify(o)); c.id = rid("o"); c.x = r1(o.x + 5); c.y = r1(o.y + 5); for (const b of c.blocks || []) b.id = rid("p"); S.deck.objects = [...objs(), c]; made.push(c.id); }
+        drawObjects(); afterChange(true); return made;
+      },
+      onSelect: (ids) => { S.obj = ids[0] || null; if (ids.length) { S.pick = null; markPick(); } },
+      keepOn: (e) => e.altKey,
+    });
   }
 
   // ---------------------------------------------------------------- AI 요청(공용 패널 nexa-requests.js · 세션 표시 wsession.js) - 슬라이드·시트 편집기와 같은 흐름(PG-081)
@@ -597,7 +582,7 @@
     PANEL = NexaReqPanel.mount({
       api, toast, openMenu, esc, base: BASE, deckId: () => S.id, state: S, target: PAGE_TARGET, ready: () => !!S.deck,
       buildBody: () => { const ids = reqBlocks(), body = { slide: ids[0] || null }; if (ids.length) { body.element = ids[0]; if (ids.length > 1) body.elements = ids.slice(0, 50); } return body; },
-      beforeSend: async () => { clearTimeout(saveT); if (S.dirty) await save(); },  // 세션이 지금 화면 내용을 보고 고치게 먼저 저장
+      beforeSend: async () => { stopSave(); if (S.dirty) await save(); },  // 세션이 지금 화면 내용을 보고 고치게 먼저 저장
       emptyText: () => "최근 요청이 없습니다<br>문단을 고르고 위에 적어 보내세요.",
       onRender: (info) => { $("#sideBtn").textContent = info.open ? `AI 요청 · ${info.open}` : "AI 요청"; },
       onDeckChanged: () => poll(),
@@ -885,7 +870,7 @@
       if (Array.isArray(r.data.deckIds) && !r.data.deckIds.includes(S.id)) { clearInterval(pollT); setStatus("error", "지워진 문서"); toast("이 문서가 지워졌습니다", 8000); return; }
       if (PANEL) await PANEL.onVersion(r.data);  // 세션 연결 표시 · 요청 파일이 바뀌었으면 다시 읽기(공용 패널)
       if (r.data.deck === S.version || S.saving) return;
-      if (S.dirty) { clearTimeout(saveT); await save(); return; }  // 내 변경이 있으면 저장하면서 합친다
+      if (S.dirty) { stopSave(); await save(); return; }  // 내 변경이 있으면 저장하면서 합친다
       const d = await fetch(`${BASE}/api/deck/${encodeURIComponent(S.id)}`, { cache: "no-store" });
       if (!d.ok) return;
       const deck = await d.json(), ver = d.headers.get("X-Deck-Version");

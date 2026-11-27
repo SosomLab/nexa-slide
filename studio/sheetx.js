@@ -749,7 +749,7 @@
     if (S.edit && inGrid && ctrl && e.key === "Enter") { e.preventDefault(); e.stopPropagation(); fillSelectionWithEdit(); return; }
     if (ctrl && !e.altKey && (k === "f" || k === "h") && (inGrid || document.activeElement === document.body || e.target.closest("#findBox"))) { e.preventDefault(); e.stopPropagation(); if (S.edit) x.endEdit(true); findBox(k === "h"); return; }
     if (!inGrid || S.edit) return;
-    if (ctrl && !e.altKey && !e.shiftKey && k === "d") { e.preventDefault(); e.stopPropagation(); fillDir(true); return; }
+    if (ctrl && !e.altKey && !e.shiftKey && k === "d" && !(S.drawSel && S.drawSel.size)) { e.preventDefault(); e.stopPropagation(); fillDir(true); return; }  // 그림을 골랐으면 Ctrl+D = 그림 복제(공용 개체 기준 · 엑셀도 같다)
     if (ctrl && !e.altKey && !e.shiftKey && k === "r") { e.preventDefault(); e.stopPropagation(); fillDir(false); return; }
     if (ctrl && e.shiftKey && k === "v") { e.preventDefault(); e.stopPropagation(); pasteValues(); return; }
     if (ctrl && e.shiftKey && !e.altKey && k === "l") { e.preventDefault(); e.stopPropagation(); filterToggle(); return; }  // 엑셀 필터 켜기·끄기

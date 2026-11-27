@@ -90,52 +90,30 @@
     if (full) { renderAll(); ensureThumbVisible(S.cur); } else { renderCanvas(); renderThumb(S.cur); renderProps(); renderFtb(); renderOutline(); }
     scheduleSave();
   }
-  let saveT = 0;
-  function scheduleSave() { clearTimeout(saveT); saveT = setTimeout(save, 700); }
-  async function save(force, extra) {
-    if (!S.deck || S.conflict && !force) return;
-    if (S.saving) { scheduleSave(); return; }
-    const body = deckJson(), sid = S.id;
-    if (!force && body === S.savedJson) { S.dirty = false; setStatus("saved", "저장됨"); return; } // 바뀐 것이 없으면 저장하지 않는다
-    S.saving = true; setStatus("dirty", "저장 중…");
-    const qs = extra ? "&" + new URLSearchParams(extra).toString() : "";
-    // 병합 저장(merge=1) - 그 사이 다른 창·AI 가 저장했어도 서버가 요소 단위로 합친다(같은 곳은 나중 저장인 내 값). 409 는 기준본을 모를 때뿐
-    // 작업 저장(동시 편집 3-4 다) - 큰 덱에서 조금 고쳤으면 바뀐 것만 POST /api/ops 로. 복원·강제 저장과 작업으로 보낼 수 없는 경우는 PUT
-    let r = force || extra ? null : await NexaMerge.trySaveOps(api, S.id, S.version, S.savedJson, body);
-    if (!r) r = await api("PUT", `/api/deck/${S.id}?base=${encodeURIComponent(S.version || "")}${force ? "&force=1" : "&merge=1"}${qs}`, JSON.parse(body));
-    S.saving = false;
-    if (S.id !== sid) return;  // 저장하는 사이 다른 덱으로 넘어갔다 - 이 응답(앞 덱의 판·저장본)을 지금 덱에 넣지 않는다(넣으면 다음 저장이 남의 판으로 나가 409 가 되고 앞 덱의 남은 편집을 잃는다)
-    if (r.ok && r.data.merged && r.data.deck) {  // 합쳐졌다 - 병합 결과(+ 저장하는 사이 더 고친 것)를 화면에, 남의 변경은 내 실행 취소에 섞지 않는다
-      const now = deckJson();
-      NexaMerge.seal(S.undo, S.redo, now); updUndo();
-      S.version = r.data.version; S.savedJson = JSON.stringify(r.data.deck);
-      S.deck = NexaMerge.afterSave(body, now, r.data.deck);
-      S.dirty = deckJson() !== S.savedJson; S.conflict = false; banner(false);
+  // 자동 저장 - 상태기계는 공용(nexa-doc.js · 시트·페이지 편집기와 같이 쓴다). 여기는 슬라이드 고유: 보내는 방법(작업 저장·action) · 합친 뒤 선택 보정·그리기·알림
+  const SAVER = NexaDoc.saver({
+    state: S, api, setStatus, banner, toast, id: () => S.id, json: () => deckJson(), delay: 700, errorMs: 2200,
+    send: async (body, force, extra) => {
+      const qs = extra ? "&" + new URLSearchParams(extra).toString() : "";
+      // 병합 저장(merge=1) - 그 사이 다른 창·AI 가 저장했어도 서버가 요소 단위로 합친다(같은 곳은 나중 저장인 내 값). 409 는 기준본을 모를 때뿐
+      // 작업 저장(동시 편집 3-4 다) - 큰 덱에서 조금 고쳤으면 바뀐 것만 POST /api/ops 로. 복원·강제 저장과 작업으로 보낼 수 없는 경우는 PUT
+      let r = force || extra ? null : await NexaMerge.trySaveOps(api, S.id, S.version, S.savedJson, body);
+      if (!r) r = await api("PUT", `/api/deck/${S.id}?base=${encodeURIComponent(S.version || "")}${force ? "&force=1" : "&merge=1"}${qs}`, JSON.parse(body));
+      return r;
+    },
+    beforeMerged: (now) => { NexaMerge.seal(S.undo, S.redo, now); updUndo(); },  // 남의 변경은 내 실행 취소에 섞지 않는다
+    onMerged: (r) => {
       if (S.cur >= S.deck.slides.length) S.cur = Math.max(0, S.deck.slides.length - 1);
       if (S.sel && !selEl()) S.sel = null;
       renderAll(); scheduleCheck();
-      setStatus(S.dirty ? "dirty" : "saved", S.dirty ? "저장 대기" : "저장됨");
       const nt = NexaMerge.notice(r.data.conflicts);
       const dn = r.viaOps ? NexaMerge.droppedNotice(r.data) : "";
       if (r.data.conflicts && r.data.conflicts.length) { notice(nt.text, [{ act: "changes", label: "변경 보기", primary: true }]); $("#noticeMsg").title = nt.detail; } else toast(dn ? nt.text + "\n" + dn : nt.text, dn ? 7000 : 3500);
-      if (S.dirty) scheduleSave();
-    } else if (r.ok) {
-      // 저장본 = 보낸 것(+ 서버가 찍은 updated) - 저장하는 사이 더 고친 것은 저장본에 넣지 않는다(다음 저장의 차이·작업 계산이 그것을 빠뜨리지 않게)
-      S.version = r.data.version;
-      const same = deckJson() === body;  // 저장하는 사이 더 고치지 않았다 - 그러면 지금 문서가 곧 저장본(키 순서까지 같게 - 다시 읽어 만든 글과 비교하면 숫자 꼴 키 순서가 달라 저장이 되풀이될 수 있다)
-      if (r.data.updated) S.deck.updated = r.data.updated;
-      if (same) S.savedJson = deckJson();
-      else { const o = JSON.parse(body); if (r.data.updated) o.updated = r.data.updated; S.savedJson = JSON.stringify(o); }
-      scheduleCheck();
-      S.dirty = !same;
-      S.conflict = false; banner(false);
-      setStatus(S.dirty ? "dirty" : "saved", S.dirty ? "저장 대기" : "저장됨");
-      if (S.dirty) scheduleSave();
-    } else if (r.status === 409) {  // 병합할 기준본을 서버가 모른다(서버 재시작 등) - 예전처럼 사람이 고른다
-      S.conflict = true; setStatus("conflict", "충돌");
-      banner(true, "저장하려는 사이 덱 파일이 밖에서(Claude 등) 바뀌었고, 자동으로 합칠 수 없습니다(서버가 다시 시작됨 등). 어느 쪽을 남길까요?");
-    } else { setStatus("error", "저장 실패"); toast("저장 실패: " + (r.data && r.data.error || r.status)); }
-  }
+    },
+    onSaved: () => scheduleCheck(),
+    conflictText: () => "저장하려는 사이 덱 파일이 밖에서(Claude 등) 바뀌었고, 자동으로 합칠 수 없습니다(서버가 다시 시작됨 등). 어느 쪽을 남길까요?",
+  });
+  const scheduleSave = SAVER.schedule, save = SAVER.save, stopSave = SAVER.cancel;
 
   // ---------------------------------------------------------------- 불러오기·외부 변경 감지
   async function loadDeck(id, keep) {
@@ -187,8 +165,11 @@
       const gone = S.id === S.goneId || (Array.isArray(v.deckIds) && !v.deckIds.includes(S.id)) || v.deck == null || String(v.deck) === "0";  // 판 "0" = 파일 없음(지워진 덱)  // 지우는 중이거나 밖에서 지워진 덱
       if (v.deck !== S.version && !S.saving && !gone) {  // goneId = 지우는 중인 덱 - 다음 덱을 열기 전에 다시 읽으면 404
         // 편집 중에 밖에서 바뀌었다 - 배너로 고르게 하지 않고, 내 저장이 서버에서 합쳐지게 바로 저장한다(글 편집 중이면 편집이 끝난 뒤 저장 때)
-        if (S.dirty || S.editing) { if (S.dirty && !S.editing && !S.conflict) { clearTimeout(saveT); await save(); } }
-        else await reloadExternal("밖에서 바뀐 덱을 다시 불러왔습니다");
+        if (S.dirty || S.editing) { if (S.dirty && !S.editing && !S.conflict) { stopSave(); await save(); } }
+        else {
+          // v 는 낡았을 수 있다(받은 뒤 내 저장이 끝남 - 쓸데없이 다시 읽고, 그때 지워진 덱이면 404). 방금 저장했으면 잠시 뒤 다시 확인한다(공용 기준)
+          if (NexaDoc.stillChanged(S, () => { pollAt = 0; poll(); }, () => S.id === S.goneId)) await reloadExternal("밖에서 바뀐 덱을 다시 불러왔습니다");
+        }
       }
       if (!gone && v.changes !== undefined && v.changes !== S.chgVersion) await loadChanges();  // 내 저장·다른 창·Claude·빌드 - 원장이 자라면 변경 탭 갱신
     } finally {
