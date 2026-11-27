@@ -184,7 +184,7 @@
       if (v.session) renderSession(v.session, v.activity);
       await checkWorkspace(v);
       await RQ.sync(v);  // 요청 파일이 바뀌었으면 다시 읽기
-      const gone = S.id === S.goneId || (Array.isArray(v.deckIds) && !v.deckIds.includes(S.id)) || v.deck == null;  // 지우는 중이거나 밖에서 지워진 덱
+      const gone = S.id === S.goneId || (Array.isArray(v.deckIds) && !v.deckIds.includes(S.id)) || v.deck == null || String(v.deck) === "0";  // 판 "0" = 파일 없음(지워진 덱)  // 지우는 중이거나 밖에서 지워진 덱
       if (v.deck !== S.version && !S.saving && !gone) {  // goneId = 지우는 중인 덱 - 다음 덱을 열기 전에 다시 읽으면 404
         // 편집 중에 밖에서 바뀌었다 - 배너로 고르게 하지 않고, 내 저장이 서버에서 합쳐지게 바로 저장한다(글 편집 중이면 편집이 끝난 뒤 저장 때)
         if (S.dirty || S.editing) { if (S.dirty && !S.editing && !S.conflict) { clearTimeout(saveT); await save(); } }
