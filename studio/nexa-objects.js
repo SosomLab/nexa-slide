@@ -1,7 +1,7 @@
 // nexa-objects.js - 떠 있는 개체의 조작(공용) - 고르기 · 끌어 옮기기 · 크기 손잡이 · 화살표 이동 · 지우기 · 복제 · Esc.
 //   슬라이드 요소 · 페이지 도형·글 상자 · 시트 그림이 **같은 기준**으로 움직이게 한다(사용자 결정 2026-11-27 - docs/dev/page-editor/design.md 10-5 동작 기준표).
 //   기준(세 화면 공통):
-//     · 고르기 = 누르면 하나, Shift·Ctrl 로 더하기·빼기, 바깥을 누르거나 Esc 로 풀림
+//     · 고르기 = 누르면 하나(여럿 고른 것 중 하나를 누르기만 해도 그것만), Shift·Ctrl 로 더하기·빼기, 바깥을 누르거나 Esc 로 풀림
 //     · 끌기 = 화면 3px 을 넘으면 시작, 고른 것 모두 같이, Shift = 가로·세로 한 축으로, 놓을 때 한 번 모델에 쓴다(실행 취소 한 단계)
 //     · 크기 = 8방향 손잡이(선은 양 끝 · 손잡이를 하나만 쓰는 화면은 se), 그림은 모서리에서 비율 유지(Shift 로 풀기) · 도형은 Shift 로 비율 유지, 최소 크기
 //     · 화살표 = 한 걸음, Shift = 큰 걸음 · Delete/Backspace = 지우기 · Ctrl+D = 복제(어긋남은 어댑터 단위) · 잠긴 것은 옮기지도 지우지도 않는다
@@ -71,7 +71,7 @@
       const handleEl = e.target.closest && e.target.closest("[data-nxh], .nx-h"), handle = handleEl ? handleEl.dataset.nxh || "se" : null;
       const ids = (handle ? [id] : sel).filter((x) => !rules(x).locked); if (!ids.length) return;
       e.preventDefault(); if (doc.activeElement && doc.activeElement.blur && !o.keepFocus) doc.activeElement.blur();
-      drag = { ids, handle, x: e.clientX, y: e.clientY, start: new Map(ids.map((x) => [x, o.rect(x)])), moved: false, last: null };
+      drag = { hit: id, ids, handle, x: e.clientX, y: e.clientY, start: new Map(ids.map((x) => [x, o.rect(x)])), moved: false, last: null };
       win.addEventListener("pointermove", onMove); win.addEventListener("pointerup", onUp);
     }
     function calc(e) {
@@ -90,7 +90,7 @@
       win.removeEventListener("pointermove", onMove); win.removeEventListener("pointerup", onUp);
       const d = drag; drag = null; if (!d) return;
       const list = d.last;
-      if (!d.moved || !list) return;
+      if (!d.moved || !list) { if (!d.moved && !d.handle && sel.length > 1) select([d.hit]); return; }  // 여럿 고른 것 중 하나를 끌지 않고 누르기만 했으면 그것만 남긴다(PowerPoint 와 같다)
       for (const it of list) o.preview(it.id, null);
       o.commit(list, d.handle ? "resize" : "move");
       mark();
