@@ -36,6 +36,16 @@
      "js": "const S=window.NexaStudioLink.S;const ok=await until(async()=>(!S.dirty&&!S.saving),10000);return ok?true:JSON.stringify({dirty:S.dirty,saving:S.saving})"
     }
    ]
+  },
+  {
+   "url": "/studio/#tbltest/1",
+   "wait": 2500,
+   "steps": [
+    {
+     "name": "목록에 없는 덱 id 해시 - 방금 만든 덱이면 목록을 다시 받아 넘어가고, 없는 id 면 '찾을 수 없습니다' 알림을 띄우고 남는다",
+     "js": "const id='zhash'+Date.now()%100000;const on=()=>{const b=document.querySelector('#deckTabs button.on');return b?b.dataset.deck:null;};const toast=()=>[...document.querySelectorAll('.toast, #toast')].map(e=>e.textContent).join('|');const r=await fetch('/api/deck/'+id,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({title:'해시 시험',slides:[{id:'s01',elements:[]}]})});const st=r.status;location.hash='#'+id+'/1';const moved=!!(await until(async()=>on()===id&&window.NexaStudioLink.S.id===id,8000));const tab=!!document.querySelector('#deckTabs [data-deck=\"'+id+'\"]');location.hash='#nope12345/1';const told=!!(await until(async()=>/찾을 수 없습니다/.test(toast()),6000));const t=toast();const stay=on()===id&&window.NexaStudioLink.S.id===id;return tab&&moved&&told&&stay?true:JSON.stringify({st,tab,moved,told,stay,on:on(),sid:window.NexaStudioLink.S.id,t:t.slice(0,200),hash:location.hash})"
+    }
+   ]
   }
  ]
 }
