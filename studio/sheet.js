@@ -801,7 +801,8 @@
     Z = z; $("#gridIn").style.zoom = String(z);
     W.scrollLeft = gx * Z - cx; W.scrollTop = gy * Z - cy;
     LS.set(`sheetZoom-${S.id}`, String(z)); renderZoom();
-    if (G.rows > VIRT || sheet().freeze) renderGrid(); renderSel();  // 틀 고정은 확대에 따라 풀리거나 다시 걸린다(effFz)
+    if (G.rows > VIRT || sheet().freeze) renderGrid(); else { measureGrid(); renderMarks(); renderDrawings(); }  // 틀 고정은 확대에 따라 풀리거나 다시 걸린다(effFz) · 확대가 바뀌면 칸의 실제 크기가 달라진다
+    renderSel();
   }
   function renderZoom() { const b = $("#zoomPct"); if (b) b.textContent = Math.round(Z * 100) + "%"; }
   function rowAt(y) { let lo = 0, hi = G.rows - 1; while (lo < hi) { const m = (lo + hi + 1) >> 1; if (G.rowY[m] <= y) lo = m; else hi = m - 1; } return lo; }
@@ -938,7 +939,32 @@
     }
     h.push("</tbody>");
     $("#grid").innerHTML = h.join("");
+    measureGrid();
     renderMarks(); renderDrawings();
+  }
+  /** 그린 격자를 재서 G.colX·G.rowY 를 실제 자리에 맞춘다 - 선택 상자·편집 칸·표시(marks)·그림이 이 좌표로 놓인다.
+   *  축소(50%·60% 등)하면 브라우저가 칸 너비·테두리·줄 높이를 화면 픽셀에 맞춰 조금씩 다르게 잡아(열·행이 많을수록 쌓인다) 계산한 좌표와 그린 칸이 어긋났다.
+   *  크기(너비·높이)만 재서 쌓는다 - 위치는 틀 고정(sticky)·스크롤에 따라 달라져 믿을 수 없다. 그리지 않은 행(가상 스크롤)은 계산값 그대로 */
+  function measureGrid() {
+    const g = $("#grid"), In = $("#gridIn"); if (!g || !In || !In.offsetWidth) return;
+    const k = In.getBoundingClientRect().width / In.offsetWidth || 1;  // 화면 px ÷ 격자 px(확대)
+    const w = (el) => el.getBoundingClientRect().width / k, hgt = (el) => el.getBoundingClientRect().height / k;
+    const corner = g.querySelector("thead th.corner"), head = g.querySelector("thead tr");
+    const cw = new Map(), rh = new Map();
+    for (const th of g.querySelectorAll("thead th[data-col]")) cw.set(+th.dataset.col, w(th));
+    for (const th of g.querySelectorAll("tbody th[data-row]")) rh.set(+th.dataset.row, hgt(th.parentNode));
+    const X = [corner ? w(corner) : G.colX[0]], Y = [head ? hgt(head) : G.rowY[0]];
+    for (let c = 0; c < G.cols; c++) X.push(X[c] + (cw.has(c) ? cw.get(c) : G.colX[c + 1] - G.colX[c]));
+    for (let r = 0; r < G.rows; r++) Y.push(Y[r] + (rh.has(r) ? rh.get(r) : G.rowY[r + 1] - G.rowY[r]));
+    const moved = Math.abs(X[G.cols] - G.colX[G.cols]) > 0.5 || Math.abs(Y[G.rows] - G.rowY[G.rows]) > 0.5 || X.some((v, i) => Math.abs(v - G.colX[i]) > 0.5) || Y.some((v, i) => Math.abs(v - G.rowY[i]) > 0.5);
+    if (!moved) return;
+    G.colX = X; G.rowY = Y;
+    // 틀 고정 칸이 붙는 자리(top·left)도 잰 좌표로
+    for (const el of g.querySelectorAll("tbody .fz")) {
+      const tr = el.parentNode, th = tr.firstElementChild, r = th && th.dataset.row !== undefined ? +th.dataset.row : null;
+      if (el.style.top && r !== null) el.style.top = Y[r] + "px";
+      if (el.style.left && el.dataset.c !== undefined) el.style.left = X[+el.dataset.c] + "px";
+    }
   }
   /** 그림 id - drawings[].id, 없으면 파일 이름(가져온 그림 d02-01.png → d02-01), 그것도 없으면 순번(img3). 요청 대상(elements)에 쓴다 */
   const drawId = (d, i) => String(d.id || (String(d.src || "").split("/").pop() || "").replace(/\.[^.]+$/, "") || "img" + (i + 1));
