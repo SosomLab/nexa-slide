@@ -32,7 +32,7 @@ import devboard  # noqa: E402
 
 # 브라우저 없이 도는 빠른 묶음(run_all.py TESTS 이름) - 지난 실행 합계 약 40초
 QUICK = ["i18n", "codex", "reqcli", "tidy", "enginetidy", "deck", "merge", "mergesave", "ops", "sim", "tmpfiles", "ledger", "struct",
-         "sheetcalc", "vba", "textmodel", "pagedoc", "pagerender", "pageflow", "pagedocx", "pagetpl", "pagemerge", "pagemergejs", "pagediff", "pageimport", "tplrec", "pptstart", "vbasafe", "pyshim", "sheetfont", "sheetrt", "runs", "effect", "tableobj", "chart", "docstruct"]
+         "sheetcalc", "vba", "textmodel", "pagedoc", "pagerender", "pageflow", "nexadoc", "pagedocx", "pagetpl", "pagemerge", "pagemergejs", "pagediff", "pageimport", "tplrec", "pptstart", "vbasafe", "pyshim", "sheetfont", "sheetrt", "runs", "effect", "tableobj", "chart", "docstruct"]
 DEFAULT_LIMIT = {"pycompile": 120, "nodecheck": 120, "parity": 300, "runall-quick": 900, "runall": 2700, "regress": 900}
 RC_SKIP = 99  # 단계가 "판정 불가"를 알리는 종료 코드
 ERR = re.compile(r"(FAIL|Error|Traceback|실패|오류|SyntaxWarning|error)", re.I)
