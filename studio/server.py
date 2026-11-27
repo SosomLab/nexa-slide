@@ -2380,7 +2380,10 @@ class H(BaseHTTPRequestHandler):
                 par = next((r for r in items if r.get("id") == b.get("parent")), None) if b.get("parent") else None
                 if b.get("parent") and not par:
                     return self.err(400, "원 요청이 없다(지워졌을 수 있다)")
-                item = {"id": "r" + dt.datetime.now().strftime("%Y%m%d%H%M%S%f")[:17], "slide": b.get("slide"),
+                rid, have = "r" + dt.datetime.now().strftime("%Y%m%d%H%M%S%f")[:17], {r.get("id") for r in items}
+                while rid in have:  # 같은 밀리초에 만든 요청(후속 요청 등)과 id 가 겹쳤다 - 하나 뒤로(겹치면 parent 와 자기 id 가 같아진다)
+                    rid = "r" + str(int(rid[1:]) + 1)
+                item = {"id": rid, "slide": b.get("slide"),
                         "element": b.get("element"), "text": text[:2000], "status": st, "reply": "",
                         "created": dt.datetime.now().isoformat(timespec="seconds")}
                 if isinstance(b.get("region"), dict):  # 그리기 모드 영역 {kind: rect|pen|pin, box:[x,y,w,h], points:[[x,y]…]}
