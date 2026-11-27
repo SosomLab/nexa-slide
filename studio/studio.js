@@ -168,8 +168,7 @@
         if (S.dirty || S.editing) { if (S.dirty && !S.editing && !S.conflict) { stopSave(); await save(); } }
         else {
           // v 는 낡았을 수 있다(위의 기다림 사이 내 저장이 끝났거나 덱이 지워짐 - 지운 덱을 다시 읽어 404 가 났다). 다시 읽기 직전에 지금 판을 한 번 더 확인한다
-          const sid = S.id, now = await api("GET", `/api/version/${sid}`), d = now.ok ? now.data.deck : null;
-          if (S.id === sid && d != null && String(d) !== "0" && d !== S.version && !S.saving && !S.dirty && S.id !== S.goneId) await reloadExternal("밖에서 바뀐 덱을 다시 불러왔습니다");
+          if (await NexaDoc.stillChanged(api, S, () => S.id === S.goneId)) await reloadExternal("밖에서 바뀐 덱을 다시 불러왔습니다");
         }
       }
       if (!gone && v.changes !== undefined && v.changes !== S.chgVersion) await loadChanges();  // 내 저장·다른 창·Claude·빌드 - 원장이 자라면 변경 탭 갱신

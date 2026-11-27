@@ -59,6 +59,14 @@
     }
     return { schedule, save, cancel };
   }
-  root.NexaDoc = { saver };
+  /** 밖에서 바뀐 문서를 다시 읽기 직전의 확인(세 편집기 공통 기준) - 받아 둔 판 정보는 그 사이 낡았을 수 있다(내 저장이 끝남 · 문서가 지워짐).
+   *  지금 판을 한 번 더 받아 "여전히 다르고 · 문서가 남아 있고(판 "0"·null 아님) · 저장 중·고치는 중이 아니고 · 같은 문서"일 때만 true */
+  async function stillChanged(api, S, skip) {
+    const sid = S.id; if (!sid) return false;
+    const r = await api("GET", `/api/version/${encodeURIComponent(sid)}`), d = r && r.ok && r.data ? r.data.deck : null;
+    return S.id === sid && d != null && String(d) !== "0" && d !== S.version && !S.saving && !S.dirty && !(skip && skip());
+  }
+
+  root.NexaDoc = { saver, stillChanged };
   if (typeof module !== "undefined" && module.exports) module.exports = root.NexaDoc;
 })(typeof window !== "undefined" ? window : globalThis);
