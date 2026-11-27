@@ -576,22 +576,11 @@
     renderAll(); if (msg && !(AI.at && Date.now() - AI.at < 5000)) toast(msg);  // 방금 AI 변경 알림을 띄웠으면 그것을 덮지 않는다
   }
   // 갱신 - 실시간 연결(nexa-live.js SSE, 동시 편집 2단계)이 살아 있으면 바뀔 때마다 applyVersion 이 바로 불리고, 2초 폴링은 15초 안전망만(편집기와 같다)
-  let LIVE = null, pollAt = 0, applying = false, pendingV = null;
-  async function poll() {
-    if (!S.deck) return;
-    if (LIVE && LIVE.healthy() && Date.now() - pollAt < 15000) return;
-    pollAt = Date.now();
-    try {
-      const r = await api("GET", `/api/version/${encodeURIComponent(S.id)}`);
-      if (!r.ok) return;
-      await applyVersion(r.data);
-    } catch (e) { setStatus("error", "서버 끊김"); }
-  }
-  async function applyVersion(v) {
-    if (!S.deck) return;
-    if (applying) { pendingV = v; return; }
-    applying = true;
-    try {
+  // 판을 보고 "고치는 중이면 저장, 아니면 다시 읽기"는 공용(nexa-doc.js 의 follower · 세 편집기가 같은 기준). 여기는 시트 고유의 일만
+  let LIVE = null;
+  const FOLLOW = NexaDoc.follower({
+    state: S, api, id: () => S.id, ready: () => !!S.deck, live: () => LIVE, onError: () => setStatus("error", "서버 끊김"),
+    before: async (v) => {
       if (v.session) renderSession(v.session, v.activity);
       if (v.engine) {  // 편집기 코드·템플릿(엔진)이 바뀌면 새로 고침 안내(편집기 checkWorkspace 와 같다)
         if (S.engine == null) S.engine = v.engine;
@@ -599,16 +588,11 @@
       }
       if (RQ) await RQ.sync(v);  // 요청 파일이 바뀌었으면 다시 읽기(편집기와 같다)
       if (window.NexaSheetSide) NexaSheetSide.onVersion(v);  // 변경 원장이 바뀌었으면 변경 탭·표시 갱신
-      if (v.deck !== S.version && !S.saving && v.deck != null && String(v.deck) !== "0") {  // 판 "0" = 파일 없음(지워진 문서) - 다시 읽지 않는다
-        // 편집 중에 밖에서 바뀌었다 - 배너로 고르게 하지 않고, 내 저장이 서버에서 합쳐지게 바로 저장한다(셀 입력 중이면 입력을 넣고 저장할 때)
-        if (S.dirty || S.edit) { if (S.dirty && !S.edit && !S.conflict) { stopSave(); await save(); } }
-        else if (NexaDoc.stillChanged(S, () => { pollAt = 0; poll(); })) await reloadExternal("밖에서 바뀐 시트를 다시 불러왔습니다");  // 받아 둔 v 는 위의 기다림 사이 낡았을 수 있다 - 공용 기준으로 다시 확인
-      }
-    } finally {
-      applying = false;
-      if (pendingV) { const n = pendingV; pendingV = null; await applyVersion(n); }
-    }
-  }
+    },
+    editing: () => !!S.edit, save: async () => { stopSave(); await save(); },
+    reload: () => reloadExternal("밖에서 바뀐 시트를 다시 불러왔습니다"),
+  });
+  const poll = FOLLOW.poll, applyVersion = FOLLOW.apply;
   /** 함께 보는 사람에게 내 위치 - 탭·고른 범위·셀 입력 중(바뀔 때만 보낸다) */
   function livePresence() { if (LIVE && S.deck) LIVE.where({ tab: sheet().id, range: rangeName(clampRange(S.sel)) }, !!S.edit); }
   // 세션 칩·웹 AI 세션 - wsession.js(NexaSession, 슬라이드 편집기와 같다)
@@ -2272,7 +2256,7 @@
       preClick: reqPreClick,
       onRender: () => { if (S.reqCur) { const c = $(`#reqList .req[data-rid="${CSS.escape(S.reqCur)}"]`); if (c) c.classList.add("cur"); } },
       onChange: () => { renderMarks(); renderTabs(); aiWatch(); },
-      onDeckChanged: () => { pollAt = 0; poll(); },
+      onDeckChanged: () => poll(true),
     });
     SESS = PANEL.SESS; RQ = PANEL.RQ;
     if (!PREVIEW) { const [q, ss] = await Promise.all([api("GET", `/api/requests/${encodeURIComponent(S.id)}`), api("GET", "/api/session")]);
@@ -2287,7 +2271,7 @@
     if (!PREVIEW) await loadReqs();
     if (!PREVIEW) { const v = await api("GET", `/api/version/${encodeURIComponent(S.id)}`); if (v.ok && v.data.session) renderSession(v.data.session, v.data.activity); }
     scrollIntoView(S.cur.r, S.cur.c); focusGrid();
-    if (!PREVIEW) setInterval(poll, 2000);
+    if (!PREVIEW) FOLLOW.start(2000);
     // 실시간 연결(동시 편집 2단계) - 바뀌면 바로 applyVersion · 함께 보는 사람은 격자 테두리와 머리줄 칩. 내 위치는 1초마다 보고 바뀐 때만 보낸다
     if (window.NexaLive && !PREVIEW) { LIVE = NexaLive.create({ api, base: BASE, deckId: () => S.id, tab: TAB, onVersion: (v) => applyVersion(v), onPresence: () => renderMarks(), chip: "#sessChip" }); setInterval(livePresence, 1000); }
 

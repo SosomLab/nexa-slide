@@ -70,6 +70,51 @@
     return true;
   }
 
-  root.NexaDoc = { saver, stillChanged };
+  /** 밖의 변경 따라가기(세 편집기 공통 기준) - 판(/api/version)을 보고 "고치는 중이면 저장해 서버에서 합치고, 아니면 다시 읽는다".
+   *  판은 폴링(poll)과 실시간 연결(SSE 의 onVersion → apply) 두 길로 오고 둘 다 apply 를 거친다. 처리 중에 온 것은 마지막 하나만 남겨 이어서 한다.
+   *  o.state(S: version · saving · dirty · conflict · savedAt) · o.api · o.id() · o.ready()(문서를 열었는가) · o.live()(NexaLive | null - 건강하면 폴링은 15초 안전망만)
+   *  o.before(v)   판을 보기 전에 하는 화면 고유의 일(세션 표시 · 요청 · 작업 공간 · 원장) - 기다린다
+   *  o.gone(v)     지워진 문서로 볼 추가 조건(슬라이드: 지우는 중인 덱). 기본 = 판이 없거나 "0" · 목록(deckIds)에 없음   · o.onGone(v)
+   *  o.editing()   글·셀을 치는 중인가(그러면 저장도 다시 읽기도 미룬다) · o.save() 지금 저장(예약을 거두고) · o.reload(v) 다시 읽기 · o.after(v, gone)
+   *  → { poll(force), apply(v), start(ms), stop() } */
+  function follower(o) {
+    const S = o.state; let pollAt = 0, applying = false, pending = null, timer = 0;
+    const ready = () => (o.ready ? o.ready() : !!S.deck);
+    const isGone = (v) => v.deck == null || String(v.deck) === "0" || (Array.isArray(v.deckIds) && !v.deckIds.includes(o.id())) || !!(o.gone && o.gone(v));
+    async function apply(v) {
+      if (!v || !ready()) return;
+      if (applying) { pending = v; return; }
+      applying = true;
+      try {
+        if (o.before) await o.before(v);
+        const gone = isGone(v);
+        if (gone) { if (o.onGone) o.onGone(v); }
+        else if (v.deck !== S.version && !S.saving) {
+          const editing = !!(o.editing && o.editing());
+          // 고치는 중에 밖에서 바뀌었다 - 배너로 고르게 하지 않고, 내 저장이 서버에서 합쳐지게 바로 저장한다(치는 중이면 입력이 끝난 뒤의 저장 때)
+          if (S.dirty || editing) { if (S.dirty && !editing && !S.conflict) await o.save(); }
+          else if (stillChanged(S, () => poll(true), () => isGone(v))) await o.reload(v);  // 받아 둔 v 는 낡았을 수 있다 - 방금 저장했으면 잠시 뒤 다시 확인
+        }
+        if (o.after) await o.after(v, gone);
+      } finally {
+        applying = false;
+        if (pending) { const n = pending; pending = null; await apply(n); }
+      }
+    }
+    async function poll(force) {
+      if (!ready()) return;
+      const L = o.live ? o.live() : null;
+      if (force !== true && L && L.healthy() && Date.now() - pollAt < 15000) return;
+      pollAt = Date.now();
+      try {
+        const r = await o.api("GET", `/api/version/${encodeURIComponent(o.id())}`);
+        if (!r || !r.ok) return;
+        await apply(r.data);
+      } catch (e) { if (o.onError) o.onError(e); }
+    }
+    return { poll, apply, start(ms) { clearInterval(timer); timer = setInterval(() => poll(), ms || 2000); return timer; }, stop() { clearInterval(timer); timer = 0; } };
+  }
+
+  root.NexaDoc = { saver, stillChanged, follower };
   if (typeof module !== "undefined" && module.exports) module.exports = root.NexaDoc;
 })(typeof window !== "undefined" ? window : globalThis);

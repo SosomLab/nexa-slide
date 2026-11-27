@@ -144,39 +144,17 @@
   }
   // 갱신 - 실시간 연결(nexa-live.js SSE, 동시 편집 2단계)이 살아 있으면 바뀔 때마다 applyVersion 이 바로 불리고, 2초 폴링은 15초 안전망만.
   // 끊기면 예전처럼 2초 폴링. 둘 다 같은 applyVersion 을 거친다(처리 중에 온 것은 하나만 남겨 이어서)
-  let LIVE = null, pollAt = 0, applying = false, pendingV = null;
-  async function poll() {
-    if (!S.id) return;
-    if (LIVE && LIVE.healthy() && Date.now() - pollAt < 15000) return;
-    pollAt = Date.now();
-    try {
-      const r = await api("GET", `/api/version/${S.id}`);
-      if (!r.ok) return;
-      await applyVersion(r.data);
-    } catch (e) { setStatus("error", "서버 끊김"); }
-  }
-  async function applyVersion(v) {
-    if (applying) { pendingV = v; return; }
-    applying = true;
-    try {
-      if (v.session) renderSession(v.session, v.activity);
-      await checkWorkspace(v);
-      await RQ.sync(v);  // 요청 파일이 바뀌었으면 다시 읽기
-      const gone = S.id === S.goneId || (Array.isArray(v.deckIds) && !v.deckIds.includes(S.id)) || v.deck == null || String(v.deck) === "0";  // 판 "0" = 파일 없음(지워진 덱)  // 지우는 중이거나 밖에서 지워진 덱
-      if (v.deck !== S.version && !S.saving && !gone) {  // goneId = 지우는 중인 덱 - 다음 덱을 열기 전에 다시 읽으면 404
-        // 편집 중에 밖에서 바뀌었다 - 배너로 고르게 하지 않고, 내 저장이 서버에서 합쳐지게 바로 저장한다(글 편집 중이면 편집이 끝난 뒤 저장 때)
-        if (S.dirty || S.editing) { if (S.dirty && !S.editing && !S.conflict) { stopSave(); await save(); } }
-        else {
-          // v 는 낡았을 수 있다(받은 뒤 내 저장이 끝남 - 쓸데없이 다시 읽고, 그때 지워진 덱이면 404). 방금 저장했으면 잠시 뒤 다시 확인한다(공용 기준)
-          if (NexaDoc.stillChanged(S, () => { pollAt = 0; poll(); }, () => S.id === S.goneId)) await reloadExternal("밖에서 바뀐 덱을 다시 불러왔습니다");
-        }
-      }
-      if (!gone && v.changes !== undefined && v.changes !== S.chgVersion) await loadChanges();  // 내 저장·다른 창·Claude·빌드 - 원장이 자라면 변경 탭 갱신
-    } finally {
-      applying = false;
-      if (pendingV) { const n = pendingV; pendingV = null; await applyVersion(n); }
-    }
-  }
+  // 판을 보고 "고치는 중이면 저장, 아니면 다시 읽기"는 공용(nexa-doc.js 의 follower · 세 편집기가 같은 기준). 여기는 슬라이드 고유의 일만
+  let LIVE = null;
+  const FOLLOW = NexaDoc.follower({
+    state: S, api, id: () => S.id, ready: () => !!S.id, live: () => LIVE, onError: () => setStatus("error", "서버 끊김"),
+    before: async (v) => { if (v.session) renderSession(v.session, v.activity); await checkWorkspace(v); await RQ.sync(v); },  // 세션 표시 · 작업 공간(덱 목록·설정·엔진) · 요청 파일
+    gone: () => S.id === S.goneId,  // 지우는 중인 덱 - 다음 덱을 열기 전에 다시 읽으면 404
+    editing: () => !!S.editing, save: async () => { stopSave(); await save(); },
+    reload: () => reloadExternal("밖에서 바뀐 덱을 다시 불러왔습니다"),
+    after: async (v, gone) => { if (!gone && v.changes !== undefined && v.changes !== S.chgVersion) await loadChanges(); },  // 내 저장·다른 창·Claude·빌드 - 원장이 자라면 변경 탭 갱신
+  });
+  const poll = FOLLOW.poll, applyVersion = FOLLOW.apply;
   /** 함께 보는 사람에게 내 위치 - 장·고른 요소·글 편집 중(바뀔 때만 보낸다) */
   function livePresence() { const s = slide(); if (LIVE && s) LIVE.where({ slide: s.id, els: selIds() }, !!S.editing); }
 
@@ -719,7 +697,7 @@
     api, toast, esc, base: BASE, deckId: () => S.id, session: SESS,
     getReqs: () => S.reqs, setReqs: (l) => { S.reqs = l; },
     onChange: () => { renderReqs(); if (S.deck) { renderThumbs(); renderMarks(); } },
-    onDeckChanged: () => { pollAt = 0; poll(); },  // AI 제안을 받아 덱이 바뀜 - 바로 확인
+    onDeckChanged: () => poll(true),  // AI 제안을 받아 덱이 바뀜 - 바로 확인
     target: {  // 슬라이드 대상 - 장 · 요소(들) · 영역
       scope: "슬라이드", key: (r) => r.slide, current: () => (slide() || {}).id, num: (r) => reqIdx(r.slide),
       label: (r) => `슬라이드 ${reqIdx(r.slide) || "?"}${r.elements && r.elements.length > 1 ? ` · ${r.elements[0]} 외 ${r.elements.length - 1}` : r.element ? " · " + r.element : ""}${r.region ? " · 영역" : ""}`,
@@ -3135,6 +3113,10 @@ ${names}
     window.addEventListener("load", () => revealThumb(S.cur, true), { once: true });
     window.addEventListener("hashchange", async () => {
       const [h, n] = decodeURIComponent(location.hash.slice(1)).split("/");
+      if (h && h !== S.id && !S.decks.some((d) => d.id === h)) {  // 목록에 아직 없는 덱(방금 밖에서 만든 것) - 목록을 한 번 다시 받는다. 그래도 없으면 조용히 남지 않고 알린다
+        const r = await api("GET", "/api/decks");
+        if (r.ok && Array.isArray(r.data) && r.data.some((d) => d.id === h)) { S.decks = r.data; renderDeckTabs(); } else toast(`덱 "${h}" 을 찾을 수 없습니다`);
+      }
       if (h && h !== S.id && S.decks.some((d) => d.id === h)) await switchDeck(h);
       const k = +n - 1; if (n && k !== S.cur && k >= 0) goSlide(k);
       revealThumb(S.cur, true);
@@ -3290,7 +3272,7 @@ ${names}
     document.addEventListener("pointerdown", (e) => { if (!e.target.closest(".menu") && !e.target.closest("#ftb") && !e.target.closest("#addBtn,#exportBtn,#moreBtn,#sessChip")) closeMenu(); });
     window.addEventListener("resize", () => { fitStage(); fitThumbs(); if ($("#present").classList.contains("show")) renderPresent(); });
     window.addEventListener("beforeunload", (e) => { if (S.dirty) { save(); e.preventDefault(); e.returnValue = ""; } });
-    setInterval(poll, 2000);
+    FOLLOW.start(2000);
     // 실시간 연결(동시 편집 2단계) - 바뀌면 바로 applyVersion · 함께 보는 사람은 캔버스 테두리와 머리줄 칩. 내 위치는 1초마다 보고 바뀐 때만 보낸다
     if (window.NexaLive) { LIVE = NexaLive.create({ api, base: BASE, deckId: () => S.id, tab: TAB, onVersion: (v) => applyVersion(v), onPresence: () => renderMarks(), chip: "#sessChip" }); setInterval(livePresence, 1000); }
   }
