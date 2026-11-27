@@ -144,6 +144,7 @@
   #grid th { background: var(--hd); color: var(--ink2); font-weight: 400; font-size: 12px; border-right: 1px solid var(--grid); border-bottom: 1px solid var(--grid); position: sticky; user-select: none; padding: 0; }
   #grid thead th { top: 0; z-index: 3; height: 24px; text-align: center; }
   #grid tbody th { left: 0; z-index: 3; text-align: center; }
+  #grid tbody th.fz { z-index: 4; }  /* 고정 행의 행 번호 - 스크롤되는 행 번호(3)와 고정 칸(1·2) 위에 */
   #grid thead th.corner { left: 0; z-index: 4; cursor: pointer; }
   #grid th.on { background: var(--hdOn); color: var(--onpc); font-weight: 700; }
   #grid th .rz { position: absolute; right: -3px; top: 0; width: 6px; height: 100%; cursor: col-resize; z-index: 1; }

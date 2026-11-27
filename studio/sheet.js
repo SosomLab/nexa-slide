@@ -801,7 +801,7 @@
     Z = z; $("#gridIn").style.zoom = String(z);
     W.scrollLeft = gx * Z - cx; W.scrollTop = gy * Z - cy;
     LS.set(`sheetZoom-${S.id}`, String(z)); renderZoom();
-    if (G.rows > VIRT) renderGrid(); renderSel();
+    if (G.rows > VIRT || sheet().freeze) renderGrid(); renderSel();  // 틀 고정은 확대에 따라 풀리거나 다시 걸린다(effFz)
   }
   function renderZoom() { const b = $("#zoomPct"); if (b) b.textContent = Math.round(Z * 100) + "%"; }
   function rowAt(y) { let lo = 0, hi = G.rows - 1; while (lo < hi) { const m = (lo + hi + 1) >> 1; if (G.rowY[m] <= y) lo = m; else hi = m - 1; } return lo; }
@@ -825,11 +825,23 @@
       if ((a < r0 + 10 && r0 > 0) || (b > r1 - 10 && r1 < G.rows - 1)) { renderGrid(); renderSel(); }
     });
   }
+  /** 이 화면에서 실제로 쓰는 틀 고정 - 고정 영역(행 높이 합·열 너비 합)이 보이는 자리의 70% 를 넘으면 풀어 돌려준다(off).
+   *  고정 칸은 sticky 라 화면보다 크면 스크롤되는 칸을 다 덮어 아래 행을 볼 수 없다(engine-request #28). 문서의 freeze 값은 바꾸지 않고, 확대·창 크기가 바뀌면 다시 본다 */
+  function effFz(sh) {
+    const fz = parseRef(sh.freeze || "") || { r: 0, c: 0 };
+    if (!fz.r && !fz.c) return fz;
+    const W = $("#gridWrap"), vh = ((W && W.clientHeight) || 800) / Z, vw = ((W && W.clientWidth) || 1200) / Z;
+    const big = (fz.r && (G.rowY[fz.r] || 0) > vh * 0.7) || (fz.c && (G.colX[fz.c] || 0) > vw * 0.7);
+    if (!big) { S.fzOff = null; return fz; }
+    const k = `${sh.id}|${sh.freeze}`;
+    if (S.fzOff !== k) { S.fzOff = k; toast("고정한 행·열이 화면의 대부분을 차지해 이 화면에서는 틀 고정을 잠시 풀었습니다 - 화면을 키우거나 축소하면 다시 고정됩니다(문서의 설정은 그대로)", 6000); }
+    return { r: 0, c: 0, off: true };
+  }
   function renderGrid() {
     const sh = sheet(), { rows, cols } = dims(sh); G.rows = rows; G.cols = cols;
     G.colX = [HW]; for (let c = 0; c < cols; c++) G.colX.push(G.colX[c] + colW(sh, c));
     G.rowY = [HH]; for (let r = 0; r < rows; r++) G.rowY.push(G.rowY[r] + rowH(sh, r));
-    const fz = parseRef(sh.freeze || "") || { r: 0, c: 0 };
+    const fz = effFz(sh);
     const fg = sh.filter && sh.filter.cols && Object.keys(sh.filter.cols).length ? parseRange(sh.filter.ref) : null;
     const ms = merges(sh), cover = new Map();
     for (const m of ms) for (let r = m.r1; r <= m.r2; r++) for (let c = m.c1; c <= m.c2; c++) cover.set(r * 4096 + c, r === m.r1 && c === m.c1 ? m : "x");
@@ -891,7 +903,8 @@
       if (rowHidden(sh, r)) continue;
       const rh = rowH(sh, r);
       const thc = [rowHidden(sh, r + 1) || (r > 0 && rowHidden(sh, r - 1)) ? "hidN" : "", fg && r > fg.r1 && r <= fg.r2 ? "flr" : ""].filter(Boolean).join(" ");  // flr - 조건이 걸린 필터의 데이터 행(엑셀은 행 번호가 파랗다)
-      h.push(`<tr style="height:${rh}px"><th data-row="${r}"${thc ? ` class="${thc}"` : ""}>${r + 1}<span class="rz" data-rzr="${r}"></span></th>`);
+      const thz = r < fz.r;  // 고정 행 - 행 번호 칸도 셀과 같은 자리에 붙인다(없으면 번호만 스크롤돼 고정 행 옆에 다른 행 번호가 보인다)
+      h.push(`<tr style="height:${rh}px"><th data-row="${r}"${thc || thz ? ` class="${[thc, thz ? "fz" : ""].filter(Boolean).join(" ")}"` : ""}${thz ? ` style="top:${G.rowY[r]}px"` : ""}>${r + 1}<span class="rz" data-rzr="${r}"></span></th>`);
       const OV = overflowRow(r);
       for (let c = 0; c < cols; c++) {
         if (colHidden(sh, c)) continue;
@@ -997,7 +1010,7 @@
   function rectOf(g) { return { x: G.colX[g.c1], y: G.rowY[g.r1], w: G.colX[g.c2 + 1] - G.colX[g.c1], h: G.rowY[g.r2 + 1] - G.rowY[g.r1] }; }
   function place(el, g, inset = 0) { const R = rectOf(g); Object.assign(el.style, { left: R.x - inset + "px", top: R.y - inset + "px", width: R.w + inset * 2 + 1 + "px", height: R.h + inset * 2 + 1 + "px" }); }
   // 틀 고정 - 고정 행·열 칸(sticky)은 스크롤만큼 따라 움직인다. 선택 표시를 고정·스크롤 사분면으로 나눠 고정 쪽은 같이 옮기고, 스크롤 쪽은 고정 칸 밑으로 가린다(엑셀과 같다)
-  const frz = () => parseRef(sheet().freeze || "") || { r: 0, c: 0 };
+  const frz = () => effFz(sheet());
   function paneOf(r, c) {  // 그 칸이 있는 사분면의 이동량(dx·dy)과 가림 선(cx·cy, 내용 좌표 - 이보다 왼쪽·위는 고정 칸이 덮는다)
     const fz = frz(), W = $("#gridWrap");
     if (!fz.r && !fz.c) return { dx: 0, dy: 0, cx: null, cy: null };
@@ -1167,7 +1180,7 @@
     $("#marks").innerHTML = html.join("");
   }
   function scrollIntoView(r, c) {
-    const W = $("#gridWrap"), sh = sheet(), fz = parseRef(sh.freeze || "") || { r: 0, c: 0 };
+    const W = $("#gridWrap"), sh = sheet(), fz = effFz(sh);
     const topFix = G.rowY[fz.r] || HH, leftFix = G.colX[fz.c] || HW;
     const x1 = G.colX[c], x2 = G.colX[c + 1], y1 = G.rowY[r], y2 = G.rowY[r + 1];
     const vw = W.clientWidth / Z, vh = W.clientHeight / Z, L = sx(), T = sy();  // 격자 좌표로
@@ -2242,6 +2255,7 @@
 
     const W = $("#gridWrap");
     W.addEventListener("scroll", onGridScroll, { passive: true });
+    { let rt = 0; window.addEventListener("resize", () => { if (!S.deck || !sheet().freeze) return; clearTimeout(rt); rt = setTimeout(() => { const was = !!S.fzOff; if (!!effFz(sheet()).off !== was) { renderGrid(); renderSel(); } }, 150); }); }  // 창 크기가 바뀌면 틀 고정을 풀지 다시 본다
     W.addEventListener("mousedown", onGridDown);
     W.addEventListener("contextmenu", gridMenu);
     W.addEventListener("dblclick", (e) => {
