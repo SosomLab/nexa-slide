@@ -19,7 +19,7 @@
     },
     {
      "name": "범위 요청 + 첨부 보내기",
-     "js": "const N=window.NexaSheet; N.S.sel={r1:0,c1:0,r2:1,c2:1}; document.querySelector(\"#reqWhole\").checked=false; document.querySelector(\"#reqWhole\").dispatchEvent(new Event(\"change\")); document.querySelector(\"#reqText\").value=\"첨부 그림처럼 바꿔 줘\"; document.querySelector(\"#reqSend\").click(); await until(async () => ((await (async()=>{ const l=await (await fetch(\"/api/requests/zsheetfill\")).json(); return l[l.length-1]; })()).range===\"A1:B2\"), 8000); const q=await (async()=>{ const l=await (await fetch(\"/api/requests/zsheetfill\")).json(); return l[l.length-1]; })(); return q && q.range===\"A1:B2\" && q.status===\"open\" && (q.attachments||[]).length===1 && !document.querySelector(\"#reqAtt .a\") ? true : JSON.stringify(q);"
+     "js": "const N=window.NexaSheet; N.S.sel={r1:0,c1:0,r2:1,c2:1}; document.querySelector(\"#reqWhole\").checked=false; document.querySelector(\"#reqWhole\").dispatchEvent(new Event(\"change\")); document.querySelector(\"#reqText\").value=\"첨부 그림처럼 바꿔 줘\"; document.querySelector(\"#reqSend\").click(); await until(async () => { const l=await (await fetch(\"/api/requests/zsheetfill\")).json(); const q=l[l.length-1]; return q && q.range===\"A1:B2\" && (q.attachments||[]).length===1 && !document.querySelector(\"#reqAtt .a\"); }, 8000); const q=await (async()=>{ const l=await (await fetch(\"/api/requests/zsheetfill\")).json(); return l[l.length-1]; })(); return q && q.range===\"A1:B2\" && q.status===\"open\" && (q.attachments||[]).length===1 && !document.querySelector(\"#reqAtt .a\") ? true : JSON.stringify(q);"
     },
     {
      "name": "카드 축소판 → 라이트박스",
@@ -51,7 +51,7 @@
     },
     {
      "name": "요청 칸 Enter = 보내기 · Shift+Enter = 줄바꿈 · 조합 중 Enter 는 안 보냄",
-     "js": "const ta=document.querySelector(\"#reqText\"); const n0=(await (await fetch(\"/api/requests/zsheetfill\")).json()).length; ta.value=\"줄\"; const kd=(o)=>{ const e=new KeyboardEvent(\"keydown\",{key:\"Enter\",bubbles:true,cancelable:true,...o}); ta.dispatchEvent(e); return e.defaultPrevented; }; const a=kd({shiftKey:true}), b=kd({isComposing:true}); await new Promise(r=>setTimeout(r,800)); const n1=(await (await fetch(\"/api/requests/zsheetfill\")).json()).length; const c=kd({}); await until(async () => ((await (await fetch(\"/api/requests/zsheetfill\")).json()).length===n0+1), 8000); const n2=(await (await fetch(\"/api/requests/zsheetfill\")).json()).length; return !a && !b && n1===n0 && c && n2===n0+1 && ta.value===\"\" ? true : JSON.stringify({a,b,c,n0,n1,n2,v:ta.value});"
+     "js": "const ta=document.querySelector(\"#reqText\"); const n0=(await (await fetch(\"/api/requests/zsheetfill\")).json()).length; ta.value=\"줄\"; const kd=(o)=>{ const e=new KeyboardEvent(\"keydown\",{key:\"Enter\",bubbles:true,cancelable:true,...o}); ta.dispatchEvent(e); return e.defaultPrevented; }; const a=kd({shiftKey:true}), b=kd({isComposing:true}); await new Promise(r=>setTimeout(r,800)); const n1=(await (await fetch(\"/api/requests/zsheetfill\")).json()).length; const c=kd({}); await until(async () => ((await (await fetch(\"/api/requests/zsheetfill\")).json()).length===n0+1 && ta.value===\"\"), 8000); const n2=(await (await fetch(\"/api/requests/zsheetfill\")).json()).length; return !a && !b && n1===n0 && c && n2===n0+1 && ta.value===\"\" ? true : JSON.stringify({a,b,c,n0,n1,n2,v:ta.value});"
     }
    ]
   }
