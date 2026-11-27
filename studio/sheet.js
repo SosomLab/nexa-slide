@@ -427,54 +427,37 @@
   }
   /** 고치기 - snapshot → fn → afterChange */
   function mutate(fn) { snapshot(); const r = fn(); afterChange(); return r; }
-  let saveT = 0;
-  function scheduleSave() { clearTimeout(saveT); saveT = setTimeout(save, 700); }
-  async function save(force) {
-    if (PREVIEW) { S.dirty = false; setStatus("saved", "미리 보기 · 저장 안 됨"); return; }
-    if (!S.deck || (S.conflict && !force)) return;
-    if (S.saving) { scheduleSave(); return; }
-    const body = deckJson();
-    if (!force && body === S.savedJson) { S.dirty = false; setStatus("saved", "저장됨"); return; }
-    S.saving = true; setStatus("dirty", "저장 중…");
-    // 병합 저장(merge=1) - 그 사이 다른 창·AI 가 저장했어도 서버가 탭·셀 단위로 합친다(같은 셀은 나중 저장인 내 값). 409 는 기준본을 모를 때뿐
-    // 행·열 삽입·삭제(동시 편집 3-2) - 기준판 이후의 구조 작업을 함께 보내면 서버가 기준본·지금 파일도 같이 옮긴 뒤 셀을 합친다
-    const sentStruct = force ? [] : (S.struct || []).slice();
-    const meta = S.saveMeta ? `&action=${encodeURIComponent(S.saveMeta.action)}${S.saveMeta.note ? "&note=" + encodeURIComponent(S.saveMeta.note) : ""}` : ""; S.saveMeta = null;  // 되돌리기 등 - 변경 원장에 action 으로 남는다
-    // 작업 저장(동시 편집 3-4 다) - 큰 시트에서 조금 고쳤으면 바뀐 셀만 POST /api/ops 로. 구조 작업·되돌리기(action)·강제 저장과 작업으로 보낼 수 없는 경우는 PUT
-    let r = force || meta ? null : await NexaMerge.trySaveOps(api, S.id, S.version, S.savedJson, body, { struct: sentStruct });
-    if (!r) r = await api("PUT", `/api/deck/${encodeURIComponent(S.id)}?base=${encodeURIComponent(S.version || "")}${force ? "&force=1" : "&merge=1"}${meta}`, sentStruct.length ? { ...JSON.parse(body), __struct: sentStruct } : JSON.parse(body));
-    if (r.ok) S.struct = (S.struct || []).slice(sentStruct.length);  // 저장된 판이 새 기준 - 보낸 구조 작업은 그 안에 들어 있다
-    S.saving = false;
-    if (r.ok && r.data.merged && r.data.deck) {  // 합쳐졌다 - 병합 결과(+ 저장하는 사이 더 고친 것)를 화면에, 남의 변경은 내 실행 취소에 섞지 않는다
-      const now = deckJson();
-      NexaMerge.seal(S.undo, S.redo, now); updUndo();
-      S.version = r.data.version; S.savedJson = JSON.stringify(r.data.deck);
-      const d = NexaMerge.afterSave(body, now, r.data.deck);
-      if (!Array.isArray(d.slides)) d.slides = [];
-      (d.sheets || []).forEach(normSheet);
-      S.deck = d; if (S.ti >= S.deck.sheets.length) S.ti = Math.max(0, S.deck.sheets.length - 1);
+  // 자동 저장 - 상태기계는 공용(nexa-doc.js · 페이지 편집기와 같이 쓴다). 여기는 시트 고유: 보내는 방법(작업 저장·구조 작업·action) · 합친 뒤 계산·그리기
+  const SAVER = NexaDoc.saver({
+    state: S, api, setStatus, banner, toast, id: () => S.id, json: () => deckJson(), delay: 700, errorMs: 5000, savedBody: true,
+    guard: () => { if (!PREVIEW) return false; S.dirty = false; setStatus("saved", "미리 보기 · 저장 안 됨"); return true; },
+    send: async (body, force) => {
+      // 병합 저장(merge=1) - 그 사이 다른 창·AI 가 저장했어도 서버가 탭·셀 단위로 합친다(같은 셀은 나중 저장인 내 값). 409 는 기준본을 모를 때뿐
+      // 행·열 삽입·삭제(동시 편집 3-2) - 기준판 이후의 구조 작업을 함께 보내면 서버가 기준본·지금 파일도 같이 옮긴 뒤 셀을 합친다
+      const sentStruct = force ? [] : (S.struct || []).slice();
+      const meta = S.saveMeta ? `&action=${encodeURIComponent(S.saveMeta.action)}${S.saveMeta.note ? "&note=" + encodeURIComponent(S.saveMeta.note) : ""}` : ""; S.saveMeta = null;  // 되돌리기 등 - 변경 원장에 action 으로 남는다
+      // 작업 저장(동시 편집 3-4 다) - 큰 시트에서 조금 고쳤으면 바뀐 셀만 POST /api/ops 로. 구조 작업·되돌리기(action)·강제 저장과 작업으로 보낼 수 없는 경우는 PUT
+      let r = force || meta ? null : await NexaMerge.trySaveOps(api, S.id, S.version, S.savedJson, body, { struct: sentStruct });
+      if (!r) r = await api("PUT", `/api/deck/${encodeURIComponent(S.id)}?base=${encodeURIComponent(S.version || "")}${force ? "&force=1" : "&merge=1"}${meta}`, sentStruct.length ? { ...JSON.parse(body), __struct: sentStruct } : JSON.parse(body));
+      if (r.ok) S.struct = (S.struct || []).slice(sentStruct.length);  // 저장된 판이 새 기준 - 보낸 구조 작업은 그 안에 들어 있다
+      return r;
+    },
+    beforeMerged: (now) => { NexaMerge.seal(S.undo, S.redo, now); updUndo(); },  // 남의 변경은 내 실행 취소에 섞지 않는다
+    mergedDeck: (d) => { if (!Array.isArray(d.slides)) d.slides = []; (d.sheets || []).forEach(normSheet); return d; },
+    onMerged: (r) => {
+      if (S.ti >= S.deck.sheets.length) S.ti = Math.max(0, S.deck.sheets.length - 1);
       recalc();  // 합쳐진 셀의 계산값을 다시
-      S.dirty = deckJson() !== S.savedJson; S.conflict = false; banner(false);
       renderAll();
       if (window.NexaSheetX) NexaSheetX.onChange();
-      setStatus(S.dirty ? "dirty" : "saved", S.dirty ? "저장 대기" : "저장됨");
       const nt = NexaMerge.notice(r.data.conflicts), n = (r.data.conflicts || []).length;
       const dn = r.viaOps ? NexaMerge.droppedNotice(r.data) : "";
       toast(nt.text + (n ? "\n" + nt.detail : "") + (dn ? "\n" + dn : ""), n || dn ? 7000 : 3500);
-      if (S.dirty) scheduleSave();
-    } else if (r.ok) {
-      S.version = r.data.version; if (r.data.updated) S.deck.updated = r.data.updated;
-      S.savedJson = body; if (r.data.updated) { const o = JSON.parse(body); o.updated = r.data.updated; S.savedJson = JSON.stringify(o); }
-      S.dirty = deckJson() !== S.savedJson; S.conflict = false; banner(false);
-      setStatus(S.dirty ? "dirty" : "saved", S.dirty ? "저장 대기" : "저장됨");
-      if (S.dirty) scheduleSave();
-    } else if (r.status === 409) {
-      S.conflict = true; setStatus("conflict", "충돌");
-      banner(true, r.data && r.data.reason === "struct-both"
-        ? "저장하려는 사이 다른 창도 행·열을 넣거나 지웠습니다. 양쪽의 행·열 변경은 자동으로 합칠 수 없습니다. 어느 쪽을 남길까요?"
-        : "저장하려는 사이 시트 파일이 밖에서(Claude 등) 바뀌었고, 자동으로 합칠 수 없습니다(서버가 다시 시작됨 등). 어느 쪽을 남길까요?");
-    } else { setStatus("error", "저장 실패"); toast("저장 실패: " + ((r.data && r.data.error) || r.status), 5000); }
-  }
+    },
+    conflictText: (r) => (r.data && r.data.reason === "struct-both"
+      ? "저장하려는 사이 다른 창도 행·열을 넣거나 지웠습니다. 양쪽의 행·열 변경은 자동으로 합칠 수 없습니다. 어느 쪽을 남길까요?"
+      : "저장하려는 사이 시트 파일이 밖에서(Claude 등) 바뀌었고, 자동으로 합칠 수 없습니다(서버가 다시 시작됨 등). 어느 쪽을 남길까요?"),
+  });
+  const scheduleSave = SAVER.schedule, save = SAVER.save, stopSave = SAVER.cancel;
 
   // ---------------------------------------------------------------- 불러오기·외부 변경 감지
   async function loadDeck(keepView) {
@@ -618,7 +601,7 @@
       if (window.NexaSheetSide) NexaSheetSide.onVersion(v);  // 변경 원장이 바뀌었으면 변경 탭·표시 갱신
       if (v.deck !== S.version && !S.saving && v.deck != null && String(v.deck) !== "0") {  // 판 "0" = 파일 없음(지워진 문서) - 다시 읽지 않는다
         // 편집 중에 밖에서 바뀌었다 - 배너로 고르게 하지 않고, 내 저장이 서버에서 합쳐지게 바로 저장한다(셀 입력 중이면 입력을 넣고 저장할 때)
-        if (S.dirty || S.edit) { if (S.dirty && !S.edit && !S.conflict) { clearTimeout(saveT); await save(); } }
+        if (S.dirty || S.edit) { if (S.dirty && !S.edit && !S.conflict) { stopSave(); await save(); } }
         else await reloadExternal("밖에서 바뀐 시트를 다시 불러왔습니다");
       }
     } finally {
@@ -2416,7 +2399,7 @@
     $("#vbaMsgs").addEventListener("click", (e) => { const d = e.target.closest("[data-ln]"); if (!d) return; const ta = $("#vbaCode"), ln = +d.dataset.ln, lines = ta.value.split("\n"); const at = lines.slice(0, ln - 1).join("\n").length + (ln > 1 ? 1 : 0); ta.focus(); ta.setSelectionRange(at, at + (lines[ln - 1] || "").length); });
     $("#vbaAdd").addEventListener("click", () => { const cur = VB.draft[VB.sel]; if (cur) cur.code = $("#vbaCode").value; let n = 1; while (VB.draft.some((m) => m.name.toLowerCase() === "module" + n)) n++; const nm = prompt("새 모듈 이름(함수 이름과 같으면 칸에서 못 부른다)", "Module" + n); if (!nm) return; if (!/^[\p{L}][\p{L}\p{N}_]{0,30}$/u.test(nm) || VB.draft.some((m) => m.name.toLowerCase() === nm.toLowerCase())) return toast("쓸 수 없는 이름입니다(글자로 시작, 31자 안, 겹치지 않게)"); VB.draft.push({ name: nm, kind: "std", code: "Option Explicit\r\n\r\nFunction 새함수(x)\r\n    새함수 = x\r\nEnd Function\r\n" }); VB.sel = VB.draft.length - 1; vbaRender(); });
     $("#vbaDel").addEventListener("click", () => { const m = VB.draft[VB.sel]; if (!m || m.kind !== "std" || !confirm(`모듈 ${m.name} 를 지울까요? (적용해야 반영)`)) return; VB.draft.splice(VB.sel, 1); VB.sel = Math.max(0, VB.sel - 1); $("#vbaCode").dataset.i = ""; vbaRender(); });
-    $("#engReload").addEventListener("click", async () => { if (S.edit) endEdit(true); if (S.dirty) { clearTimeout(saveT); await save(); } if (!S.dirty) location.reload(); else toast("저장하지 못했습니다 - 저장된 뒤 다시 누르세요"); });
+    $("#engReload").addEventListener("click", async () => { if (S.edit) endEdit(true); if (S.dirty) { stopSave(); await save(); } if (!S.dirty) location.reload(); else toast("저장하지 못했습니다 - 저장된 뒤 다시 누르세요"); });
     $("#engClose").addEventListener("click", () => $("#engNotice").classList.remove("show"));
     $("#vbaBtn").addEventListener("click", vbaOpen);
     $("#zoomOut").onclick = () => setZoom(Z - 0.1); $("#zoomIn").onclick = () => setZoom(Z + 0.1);

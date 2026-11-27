@@ -61,36 +61,14 @@
     if (!noMark) queueMicrotask(decorateAll); else decorateAll();
     updTools(); scheduleSave();
   }
-  let saveT = 0;
-  function scheduleSave() { clearTimeout(saveT); if (S.dirty) saveT = setTimeout(save, 700); }
-  async function save(force) {
-    if (!S.deck || (S.conflict && !force)) return;
-    if (S.saving) { scheduleSave(); return; }
-    const body = deckJson();
-    if (!force && body === S.savedJson) { S.dirty = false; setStatus("saved", "저장됨"); return; }
-    S.saving = true; setStatus("dirty", "저장 중…");
-    const r = await api("PUT", `/api/deck/${encodeURIComponent(S.id)}?base=${encodeURIComponent(S.version || "")}${force ? "&force=1" : "&merge=1"}`, JSON.parse(body));
-    S.saving = false;
-    if (r.ok) {
-      S.version = r.data.version; S.conflict = false; banner(false);
-      if (r.data.merged && r.data.deck) {  // 그 사이 다른 저장과 합쳐졌다 - 결과(+ 저장하는 사이 더 고친 것)를 화면에
-        const now = deckJson(), sel = ed.selection();
-        sealUndo(now);
-        S.savedJson = JSON.stringify(r.data.deck); S.deck = NexaMerge.afterSave(body, now, r.data.deck);
-        cur = ed; layout(); ed.refresh(sel); toast(NexaMerge.notice(r.data.conflicts).text, 3500);
-      } else {
-        const same = deckJson() === body;
-        if (r.data.updated) S.deck.updated = r.data.updated;
-        if (same) S.savedJson = deckJson(); else { const o = JSON.parse(body); if (r.data.updated) o.updated = r.data.updated; S.savedJson = JSON.stringify(o); }
-      }
-      S.dirty = deckJson() !== S.savedJson;
-      setStatus(S.dirty ? "dirty" : "saved", S.dirty ? "저장 대기" : "저장됨");
-      if (S.dirty) scheduleSave();
-    } else if (r.status === 409) {
-      S.conflict = true; setStatus("conflict", "충돌");
-      banner(true, "저장하려는 사이 문서가 밖에서 바뀌었고 자동으로 합칠 수 없습니다. 어느 쪽을 남길까요?");
-    } else { setStatus("error", "저장 실패"); toast("저장 실패: " + ((r.data && r.data.error) || r.status), 6000); }
-  }
+  // 자동 저장 - 상태기계는 공용(nexa-doc.js). 여기서는 페이지 고유: 합친 결과를 화면에 넣을 때 실행 취소 봉인·선택 되돌리기
+  const SAVER = NexaDoc.saver({
+    state: S, api, setStatus, banner, toast, id: () => S.id, json: () => deckJson(), delay: 700, onlyDirty: true, errorMs: 6000,
+    beforeMerged: (now) => { const sel = ed.selection(); sealUndo(now); return sel; },
+    onMerged: (r, body, now, sel) => { cur = ed; layout(); ed.refresh(sel); toast(NexaMerge.notice(r.data.conflicts).text, 3500); },
+  });
+  const scheduleSave = SAVER.schedule, save = SAVER.save;
+  const stopSave = SAVER.cancel;
 
   // ---------------------------------------------------------------- 그리기
   /** 종이 치수(mm) - 쪽 나눔(어느 블록·줄·행이 어느 쪽인가)은 page-flow.js 가 그린 것을 재서 정하고, 정해지면 drawSheets 가 종이 장을 그린다 */
@@ -597,7 +575,7 @@
     PANEL = NexaReqPanel.mount({
       api, toast, openMenu, esc, base: BASE, deckId: () => S.id, state: S, target: PAGE_TARGET, ready: () => !!S.deck,
       buildBody: () => { const ids = reqBlocks(), body = { slide: ids[0] || null }; if (ids.length) { body.element = ids[0]; if (ids.length > 1) body.elements = ids.slice(0, 50); } return body; },
-      beforeSend: async () => { clearTimeout(saveT); if (S.dirty) await save(); },  // 세션이 지금 화면 내용을 보고 고치게 먼저 저장
+      beforeSend: async () => { stopSave(); if (S.dirty) await save(); },  // 세션이 지금 화면 내용을 보고 고치게 먼저 저장
       emptyText: () => "최근 요청이 없습니다<br>문단을 고르고 위에 적어 보내세요.",
       onRender: (info) => { $("#sideBtn").textContent = info.open ? `AI 요청 · ${info.open}` : "AI 요청"; },
       onDeckChanged: () => poll(),
@@ -885,7 +863,7 @@
       if (Array.isArray(r.data.deckIds) && !r.data.deckIds.includes(S.id)) { clearInterval(pollT); setStatus("error", "지워진 문서"); toast("이 문서가 지워졌습니다", 8000); return; }
       if (PANEL) await PANEL.onVersion(r.data);  // 세션 연결 표시 · 요청 파일이 바뀌었으면 다시 읽기(공용 패널)
       if (r.data.deck === S.version || S.saving) return;
-      if (S.dirty) { clearTimeout(saveT); await save(); return; }  // 내 변경이 있으면 저장하면서 합친다
+      if (S.dirty) { stopSave(); await save(); return; }  // 내 변경이 있으면 저장하면서 합친다
       const d = await fetch(`${BASE}/api/deck/${encodeURIComponent(S.id)}`, { cache: "no-store" });
       if (!d.ok) return;
       const deck = await d.json(), ver = d.headers.get("X-Deck-Version");
