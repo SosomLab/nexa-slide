@@ -67,6 +67,9 @@ async function runScenario(file, bsend, handlers, at = {}) {
   const sid = (await bsend("Target.attachToTarget", { targetId: tgt, flatten: true })).result.sessionId;
   const send = (method, params = {}) => bsend(method, params, sid);
   const errors = []; const inflight = new Map(); let lastNet = Date.now();
+  // 환경 오류 - 이 PC 의 네트워크 변경 이벤트가 헤드리스 Chrome 의 localhost 요청을 끊는다(net::ERR_NETWORK_CHANGED 등). 페이지 진입 중에 필수 파일(문서·스크립트·스타일)이
+  //   이렇게 끊기면 그 페이지를 한 번만 다시 연다 - 판정을 낮추는 것이 아니라 환경 재시도이고, "RETRY" 줄을 남긴다. 단계 도중의 끊김은 그대로 콘솔 오류 FAIL.
+  const ENV_NET = /net::ERR_(NETWORK_CHANGED|NETWORK_IO_SUSPENDED|INTERNET_DISCONNECTED)/; const reqInfo = new Map(); const envFail = [];
   // 콘솔 오류로 치지 않는 것 - 기본 목록 + 시나리오의 ignoreErrors(정규식 글) - 예: 일부러 틀린 그림 주소
   // fontfile·wsfonts = 이 PC 에 없는 글꼴(Pretendard 등)의 404 - 대체 글꼴로 그려지는 환경 차이라 오류가 아니다(배포 시험이 늘 smoke·editor 실패로 보이던 원인)
   const IGNORE = new RegExp("favicon|net::ERR_ABORTED|api\/engine\/notice|api\/image|api\/fontfile\/|wsfonts" + (sc.ignoreErrors ? "|" + sc.ignoreErrors : ""));
@@ -76,8 +79,11 @@ async function runScenario(file, bsend, handlers, at = {}) {
     else if (d.method === "Runtime.exceptionThrown") errors.push("exception: " + (p.exceptionDetails.exception?.description || p.exceptionDetails.text));
     else if (d.method === "Log.entryAdded" && p.entry.level === "error" && !IGNORE.test(p.entry.text + " " + (p.entry.url || ""))) errors.push("log: " + p.entry.text + " " + (p.entry.url || ""));
     // 네트워크 조용함 판단 - SSE(EventSource)·스트리밍은 끝나지 않으므로 세지 않는다
-    else if (d.method === "Network.requestWillBeSent" && p.type !== "EventSource") { inflight.set(p.requestId, Date.now()); lastNet = Date.now(); }
-    else if (d.method === "Network.loadingFinished" || d.method === "Network.loadingFailed") { if (inflight.delete(p.requestId)) lastNet = Date.now(); }
+    else if (d.method === "Network.requestWillBeSent" && p.type !== "EventSource") { inflight.set(p.requestId, Date.now()); reqInfo.set(p.requestId, [p.type, p.request && p.request.url]); lastNet = Date.now(); }
+    else if (d.method === "Network.loadingFinished" || d.method === "Network.loadingFailed") {
+      if (d.method === "Network.loadingFailed" && ENV_NET.test(p.errorText || "")) { const [ty, u] = reqInfo.get(p.requestId) || [p.type, ""]; if (/^(Document|Script|Stylesheet)$/.test(ty || p.type || "")) envFail.push(`${p.errorText} ${ty || p.type} ${u}`); }
+      reqInfo.delete(p.requestId); if (inflight.delete(p.requestId)) lastNet = Date.now();
+    }
   };
   const evalJs = async (js, ms = STEP_MS) => {
     const r = await within(send("Runtime.evaluate", { expression: `(async () => { ${UNTIL} ${js.includes("return") ? js : "return (" + js + "\n)"}\n})()`, awaitPromise: true, returnByValue: true }), ms);
@@ -118,7 +124,14 @@ async function runScenario(file, bsend, handlers, at = {}) {
     for (const p of sc.pages) {
       errors.length = 0;
       at.where = `${p.url} 진입`;
+      envFail.length = 0;
       const t0 = Date.now(); await nav(sc.base + p.url); await sleep(150); await settle(p.wait || 1500);
+      if (envFail.length) {  // 환경 오류 재시도(한 번) - 위 ENV_NET 설명
+        console.log(`RETRY 환경 오류로 페이지 다시 열기(한 번): ${p.url} - ${JSON.stringify(envFail.slice(0, 4))} · 그때 콘솔 ${JSON.stringify(errors.slice(0, 4))}`);
+        errors.length = 0; envFail.length = 0;
+        await nav("about:blank"); await nav(sc.base + p.url); await sleep(150); await settle(p.wait || 1500);
+        if (envFail.length) console.log(`     다시 연 뒤에도 환경 오류: ${JSON.stringify(envFail.slice(0, 4))}`);
+      }
       console.log(`\n== ${p.url} (진입 ${((Date.now() - t0) / 1000).toFixed(1)}초)`);
       for (const s of p.steps || []) {
         let v, err = null;
