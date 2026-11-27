@@ -89,7 +89,7 @@
     function onUp(e) {
       win.removeEventListener("pointermove", onMove); win.removeEventListener("pointerup", onUp);
       const d = drag; drag = null; if (!d) return;
-      const list = (e && e.clientX !== undefined && d.moved ? (drag = d, calc(e)) : null) || d.last; drag = null;
+      const list = d.last;
       if (!d.moved || !list) return;
       for (const it of list) o.preview(it.id, null);
       o.commit(list, d.handle ? "resize" : "move");
