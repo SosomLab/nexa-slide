@@ -53,6 +53,7 @@ TESTS = [  # (이름, 실행, 설명, claude 필요)
     ("pageflow", ["node", "page_flow_check.js"], "페이지 쪽 나눔 계산 page-flow.js plan - 밀기·문단 줄 나눔·표 행 나눔·외톨이 줄 - 페이지 편집기 PG-102", False),
     ("nexadoc", ["node", "nexa_doc_check.js"], "문서 뼈대 nexa-doc.js - 자동 저장 상태기계(병합 저장·저장 중 더 고침·409·force·예약) - PG-109", False),
     ("nexaobjects", ["node", "nexa_objects_check.js"], "개체 조작 nexa-objects.js - 선택·이동·크기 계산 18사례(화면 미연결) - PG-112", False),
+    ("nexafollow", ["node", "nexa_follow_check.js"], "밖의 변경 따라가기 NexaDoc.follower - 판 폴링·실시간 연결·재진입·지워진 문서 판정 계산 18사례(화면 미연결) - PG-109", False),
     ("pageflowui", [sys.executable, "page_flow_ui_test.py"], "페이지 쪽 나눔 화면 page-flow.js - 빈 자리 끼우기(밀기·빈 줄·빈 행)·글 편집 유지·걷기 - 헤드리스 Chrome - PG-102", False),
     ("pagedocx", [sys.executable, "page_docx_test.py"], "페이지 DOCX 내보내기 export_docx.py - 구조(XML) 사례 - 페이지 편집기 C1", False),
     ("pagetpl", [sys.executable, "page_templates_test.py"], "페이지 템플릿 11종 page_templates.py - 형식·미리 보기·만들기 - 페이지 편집기 C2", False),
