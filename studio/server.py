@@ -375,7 +375,7 @@ RELEASED = ("page",)  # 숨김을 푼 기능 - 따로 끄지 않으면 켜져 �
 def experimental(name):
     """이 기능이 켜져 있는가 - 환경 변수 NEXA_SLIDE_EXPERIMENTAL=<이름>[,…](끄기는 -<이름>) → 작업 공간 nexa-slide.json 의
     "experimental": {"<이름>": true|false} → 둘 다 없으면 RELEASED 에 있는가. 완성 전인 기능은 RELEASED 에 넣지 않아 숨기고,
-    숨김을 푼 기능(페이지 문서 = "page")은 기본이 켬이며 작업 공간에서 false 로 끌 수 있다(docs/dev/page-editor/decisions.md DR-P11)."""
+    숨김을 푼 기능(페이지 문서 = "page")은 기본이 켬이며 작업 공간에서 false 로 끌 수 있다(docs/dev/page-editor/decisions.md DR-P13). 환경 변수의 -<이름> 이 가장 먼저다."""
     env = [x.strip() for x in (os.environ.get("NEXA_SLIDE_EXPERIMENTAL") or "").split(",")]
     if "-" + name in env:
         return False
@@ -425,7 +425,7 @@ def activity():
     return {"watcher": w, "othersBusy": sum(1 for x in out if x is not w and x["state"] == "busy"), "sessions": len(out)}
 
 
-ENGINE_UI = ("index.html", "studio.js", "sheet.html", "sheet.js", "sheetnew.js", "sheetcalc.js", "sheetx.js", "sheetside.js", "vba.js", "vbaworker.js", "wsession.js", "nexa-requests.js", "nexa-requests.css", "nexa-merge.js", "nexa-live.js", "nexa-shell.js", "nexa-text.js", "nexa-kinds.js", "nexa-newdoc.js", "page_templates.py", "page.html", "page.js", "page-render.js", "page-flow.js", "render.js", "menu.js", "fonts.css", "i18n.js", "i18n/en.js", "i18n/en.pages.js", "i18n/en.review.js")
+ENGINE_UI = ("index.html", "studio.js", "sheet.html", "sheet.js", "sheetnew.js", "sheetcalc.js", "sheetx.js", "sheetside.js", "vba.js", "vbaworker.js", "wsession.js", "nexa-requests.js", "nexa-requests.css", "nexa-merge.js", "nexa-live.js", "nexa-shell.js", "nexa-text.js", "nexa-format.js", "nexa-kinds.js", "nexa-newdoc.js", "page_templates.py", "page.html", "page.js", "page-render.js", "page-flow.js", "render.js", "menu.js", "fonts.css", "i18n.js", "i18n/en.js", "i18n/en.pages.js", "i18n/en.review.js")
 
 
 def hub_ui_stamp():
@@ -952,7 +952,7 @@ class H(BaseHTTPRequestHandler):
                 if act == "create":
                     kind = b.get("kind") if b.get("kind") in ("sheet", "page") else "deck"
                     if kind == "page" and not experimental("page"):
-                        return self.err(400, "페이지 문서가 꺼져 있다(nexa-slide.json 의 experimental.page 가 false - 지우면 켜진다)")
+                        return self.err(400, "페이지 문서가 꺼져 있다(nexa-slide.json 의 experimental.page 가 false 이거나 환경 변수 NEXA_SLIDE_EXPERIMENTAL 에 -page - 지우면 켜진다)")
                     if kind == "deck" and b.get("starter"):  # 시작용 내용(엔진 starters/)으로 새 덱 - 새 문서 창의 슬라이드 템플릿
                         out = self._create_from_starter(b)
                     else:
@@ -1069,7 +1069,7 @@ class H(BaseHTTPRequestHandler):
         import deck_admin
         import import_docx
         if not experimental("page"):
-            raise ValueError("페이지 문서가 꺼져 있다(nexa-slide.json 의 experimental.page 가 false - 지우면 켜진다)")
+            raise ValueError("페이지 문서가 꺼져 있다(nexa-slide.json 의 experimental.page 가 false 이거나 환경 변수 NEXA_SLIDE_EXPERIMENTAL 에 -page - 지우면 켜진다)")
         name = str(b.get("name") or "문서.docx")[:120]
         try:
             data = base64.b64decode(str(b.get("data") or ""), validate=True)

@@ -672,7 +672,7 @@ def main():
         save_images(doc, images, ASSET_ROOT, i)
         d = OUT / "import" / (re.sub(r"[^0-9A-Za-z가-힣._-]+", "_", src.stem)[:60] or "docx")
         d.mkdir(parents=True, exist_ok=True)
-        (d / "page.json").write_text(json.dumps({"title": doc.get("title"), "page": doc.get("page"), "styles": doc.get("styles"), "blocks": doc.get("blocks")}, ensure_ascii=False, indent=1), encoding="utf-8", newline="\n")
+        (d / "page.json").write_text(json.dumps({"title": doc.get("title"), "page": doc.get("page"), "styles": doc.get("styles"), "blocks": doc.get("blocks"), "objects": doc.get("objects") or []}, ensure_ascii=False, indent=1), encoding="utf-8", newline="\n")
         print(f"꺼냄: {d / 'page.json'} · 블록 {len(doc['blocks'])}개 · 그림 {len(images)}개 (문서는 만들지 않았다)")
         for w in warn:
             print("  주의: " + w)

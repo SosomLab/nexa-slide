@@ -852,10 +852,9 @@
   function renderFtb() {
     const F = $("#ftb"), el = selEl();
     if (S.mode === "edit" && S.editing && S.editing.rich) {  // 글을 고치는 중 - 고른 글에 거는 글자 서식(공용 글 편집 엔진, PG-108). 누를 때 편집 상자의 초점을 잃지 않게 mousedown 을 막는다
-      const b = (k, label, title) => `<button class="ib" data-rf="${k}" title="${title}">${label}</button>`;
-      F.innerHTML = b("b", "<b>가</b>", "굵게 (Ctrl+B)") + b("i", "<i>가</i>", "기울임 (Ctrl+I)") + b("u", "<u>가</u>", "밑줄 (Ctrl+U)") + b("s", "<s>가</s>", "취소선") + b("sup", "x²", "위 첨자") + b("sub", "x₂", "아래 첨자")
-        + `<span class="vsep"></span>` + b("c", `<span style="color:${Render.color("primary")}">가</span>`, "강조 색") + b("hl", `<span style="background:#fff59d">가</span>`, "형광펜")
-        + `<span class="pt" style="min-width:0">고른 글에 적용 · Esc 로 끝</span>`;
+      const o = { cls: "ib", color: (c) => Render.color(c) };
+      F.innerHTML = NexaFormat.html(["b", "i", "u", "s", "sup", "sub"], o) + `<span class="vsep"></span>` + NexaFormat.html(["c", "hl"], o) + `<span class="pt" style="min-width:0">고른 글에 적용 · Esc 로 끝</span>`;
+      NexaFormat.sync(F, S.editing.rich.ed.state().marks);
       F.classList.add("show"); return;
     }
     if (S.mode !== "edit" || !el || S.editing) { F.classList.remove("show"); F.innerHTML = ""; return; }
@@ -2191,6 +2190,7 @@ ${names}
     ed.textContent = "";
     st.ed = T.mount(ed, {
       get: () => st.blocks, newId: () => "l" + (++seq), color: (c) => Render.color(c),
+      onSelect: (x) => { const F = document.getElementById("ftb"); if (F && window.NexaFormat && F.querySelector("[data-mark]")) NexaFormat.sync(F, x.marks); },
       set: (bs) => { st.undo.push(st.blocks); st.redo = []; st.blocks = bs.length ? bs : [blank()]; setTimeout(() => ed.dispatchEvent(new Event("nt-change")), 0); },
       undo: () => { if (st.undo.length) { st.redo.push(st.blocks); st.blocks = st.undo.pop(); st.ed.refresh(); } },
       redo: () => { if (st.redo.length) { st.undo.push(st.blocks); st.blocks = st.redo.pop(); st.ed.refresh(); } },
@@ -3206,11 +3206,8 @@ ${names}
     $("#aiFixBtn").onclick = aiFix; $("#aiPolishBtn").onclick = aiPolish;
     // 서식 줄
     $("#ftb").addEventListener("click", onFtb); $("#ftb").addEventListener("change", onFtb);
-    $("#ftb").addEventListener("mousedown", (e) => {  // 글 편집 중의 글자 서식 단추 - 편집 상자의 선택에 건다
-      const b = e.target.closest("[data-rf]"); if (!b || !S.editing || !S.editing.rich) return;
-      e.preventDefault(); const k = b.dataset.rf, ed = S.editing.rich.ed;
-      if (k === "c") ed.toggle("c", "primary"); else if (k === "hl") ed.toggle("hl", "#fff59d"); else ed.toggle(k);
-    });
+    // 글 편집 중의 글자 서식 단추 - 공용 컴포넌트(nexa-format.js)가 편집 상자의 선택에 건다
+    NexaFormat.bind($("#ftb"), () => (S.editing && S.editing.rich ? S.editing.rich.ed : null), { after: () => { if (S.editing && S.editing.rich) NexaFormat.sync($("#ftb"), S.editing.rich.ed.state().marks); } });
     // 메모 팝오버 · 보낼 요청 바
     $("#memoTa").addEventListener("input", memoInput);
     attWire($("#memoTa"), "memo"); attWire($("#memo"), "memo");

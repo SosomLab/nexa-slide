@@ -3,7 +3,7 @@
 엔진을 고친 뒤 돌리는 자동 시험. 모두 **격리된** 허브(포트 5799)·작업 공간(`<임시 폴더>/nexa-slide-tests/` — 저장소 밖이어야 한다, 허브가 엔진 안의 작업 공간을 거절하므로)을 띄우므로 운영 서버(5599·5600~)와 사용자 설정 폴더를 건드리지 않는다. 세션 규약의 검증 단계(엔진 요청 처리 → `check_parity` + 관련 시험)에서 쓴다.
 
 ```bash
-python3 studio/tests/run_all.py              # 기본 묶음 61개(약 17~19분, 2026-11-27 verify 이력) - claude 가 필요하다고 표시한 것은 뺀다
+python3 studio/tests/run_all.py              # 기본 묶음 62개(pageflowui 포함 - ef0ed53, 약 17~19분, 2026-11-27 verify 이력) - claude 가 필요하다고 표시한 것은 뺀다
 python3 studio/tests/run_all.py smoke e4     # 이름 일부로 고르기
 python3 studio/tests/run_all.py --exact e3   # 이름 그대로(엔진 배포의 비교 시험) - 묶음마다 `-- 통과|실패 <이름> <초>s` 를 바로 찍는다
 python3 studio/tests/run_all.py --sessions   # 표시한 5개(c2·c3·c3b·c4·pageflowui)까지 66개 - c2·c3·c3b·c4 는 실제 claude 턴, claude CLI 설치·로그인 필요

@@ -152,7 +152,7 @@
       <label>여백 (mm)</label><div class="margins">${[["t", "위"], ["b", "아래"], ["l", "왼쪽"], ["r", "오른쪽"]].map(([k, t]) => `<div><label>${t}</label><input type="number" id="psM${k}" min="0" max="150" step="1" value="${m[k]}"></div>`).join("")}</div>
       <label>머리말</label><div style="display:flex;gap:6px"><input type="text" id="psHeader" maxlength="200"><select id="psHeaderAlign" style="width:96px">${opt(aligns, hfAlign("header"))}</select></div>
       <label>꼬리말</label><div style="display:flex;gap:6px"><input type="text" id="psFooter" maxlength="200"><select id="psFooterAlign" style="width:96px">${opt(aligns, hfAlign("footer"))}</select></div>
-      <label>단</label><select id="psCols">${opt([["1", "1단"], ["2", "2단"], ["3", "3단"]], String((page.columns || {}).count || 1))}</select>
+      <label>단</label><select id="psCols">${opt([["1", "1단"], ["2", "2단"], ["3", "3단"], ["4", "4단"]], String((page.columns || {}).count || 1))}</select>
       <label>쪽 번호</label><select id="psNum">${opt([["", "없음"], ["footer-center", "아래 가운데"], ["footer-right", "아래 오른쪽"], ["footer-left", "아래 왼쪽"], ["header-right", "위 오른쪽"], ["header-center", "위 가운데"]], num.show ? num.pos || "footer-center" : "")}</select>
       </div><div class="err" id="psErr"></div><div class="foot"><button class="btn" id="psCancel">취소</button><button class="btn primary" id="psOk">적용</button></div></div>`;
     document.body.appendChild(back);
@@ -495,7 +495,7 @@
     const s = ed.selection(), i = s ? blocks().findIndex((b) => b.id === s.f.id) : -1;
     let now = ((S.deck.page || {}).columns || {}).count || 1;
     for (let k = 0; k <= i; k++) { const b = blocks()[k]; if (b.type === "break" && b.kind === "section") now = (b.columns || {}).count || 1; }
-    openMenu(at, [{ h: `지금 구역 · ${now}단` }, ...[1, 2, 3].map((n) => ({ label: `여기서부터 ${n}단`, on: n === now, disabled: n === now || i < 0, act: () => insertBreak("section", { count: n, gap: 8 }) })), "-",
+    openMenu(at, [{ h: `지금 구역 · ${now}단` }, ...[1, 2, 3, 4].map((n) => ({ label: `여기서부터 ${n}단`, on: n === now, disabled: n === now || i < 0, act: () => insertBreak("section", { count: n, gap: 8 }) })), "-",
       { label: "단 나누기(다음 단으로)", disabled: now < 2 || i < 0, act: () => insertBreak("column") }, { label: "문서 전체의 단 수…(쪽 설정)", act: pageSetup }]);
   }
   const SHAPES = [["rect", "사각형"], ["round", "둥근 사각형"], ["ellipse", "타원"], ["line", "선"], ["arrow", "화살표"], ["bracket-l", "대괄호 ["], ["bracket-r", "대괄호 ]"], ["brace-l", "중괄호 {"], ["brace-r", "중괄호 }"]];
@@ -683,6 +683,30 @@
     e0.select(f, f);
   }
 
+  /** 낱말 풀이 표(단어 아래 주석 - D-P01 의 추천안: Word 에서 그대로 나가는 방식) - 커서가 있는 문단을 낱말마다 한 칸인 테두리 없는 표로 바꾼다.
+   *  윗줄 = 낱말(글자 서식 유지), 아랫줄 = 뜻을 적을 빈 칸(캡션 스타일). 한 줄에 다 못 넣는 문장은 낱말 수·글자 수로 끊어 표 여러 개로 잇는다 */
+  function glossTable() {
+    const s = ed.selection(); if (!s) return;
+    const i = blocks().findIndex((b) => b.id === s.f.id), b = blocks()[i];
+    if (!b || !T.isText(b)) { toast("낱말 풀이 표로 바꿀 문단에 커서를 두세요"); return; }
+    const text = T.text(b.runs), words = [];
+    for (const m of text.matchAll(/\S+/g)) words.push({ from: m.index, to: m.index + m[0].length, len: [...m[0]].reduce((a, ch) => a + (ch.charCodeAt(0) > 0x2e7f ? 2 : 1), 0) });
+    if (words.length < 2) { toast("낱말이 둘 이상인 문단에서 쓸 수 있습니다"); return; }
+    const size = b.size || P.styleOf(S.deck, b.style).size || 10.5, room = Math.max(20, Math.floor(S.box.cw / (size * 0.3528 * 0.56)));  // 한 줄에 들어가는 반각 글자 수(어림)
+    const rows = []; let cur = [], used = 0;
+    for (const w of words) { const need = w.len + 3; if (cur.length && (cur.length >= 12 || used + need > room)) { rows.push(cur); cur = []; used = 0; } cur.push(w); used += need; }
+    if (cur.length) rows.push(cur);
+    const cell = (blocksIn) => ({ id: rid("c"), blocks: blocksIn });
+    const tables = rows.map((ws) => ({ id: rid("t"), type: "table", border: "none", cols: ws.map((w) => w.len + 3), rows: [
+      { id: rid("r"), cells: ws.map((w) => cell([{ id: rid("p"), type: "p", runs: T.slice(b.runs, w.from, w.to).map((r) => { const o = { ...r }; delete o.fn; return o; }), ...(b.style ? { style: b.style } : {}) }])) },
+      { id: rid("r"), cells: ws.map(() => cell([{ id: rid("p"), type: "p", style: S.deck.styles.caption ? "caption" : undefined, align: "left", runs: [] }].map((x) => { if (!x.style) delete x.style; return x; }))) }] }));
+    snapshot("format");
+    const next = blocks()[i + 1], tail = next && T.isText(next) ? [] : [newPara()];
+    const nb = [...blocks().slice(0, i), ...tables, ...tail, ...blocks().slice(i + 1)];
+    reanchor(S.deck.blocks, nb); S.deck.blocks = nb;
+    ed.refresh(); afterChange();
+    const first = document.querySelector(`[data-id="${tables[0].rows[1].cells[0].id}"] .pg-cell`); if (first) first.focus();
+  }
   /** 윗주 - 고른 글 위에 작은 글을 단다(비우면 뗀다). 줄 간격이 좁으면 윗줄과 겹치므로 그 문단의 줄 간격이 2 보다 작으면 2 로 넓힌다 */
   function setRuby() {
     const e0 = cur || ed, st = e0.state(); if (!st.sel) return;
@@ -783,7 +807,7 @@
   function updTools() {
     if (!ed) return;
     const e0 = cur || ed, st = e0.state(), inCell = e0 !== ed, b = st.sel ? (inCell ? null : blockAt(st.sel.f.id)) : null;
-    for (const el of $$("#tools [data-mark]")) el.classList.toggle("on", !!st.marks[el.dataset.mark]);
+    NexaFormat.sync($("#fmtMarks"), st.marks);
     const align = b && (b.align || P.styleOf(S.deck, b.style).align || "left");
     for (const el of $$("#tools [data-align]")) el.classList.toggle("on", !!b && el.dataset.align === align);
     for (const el of $$("#tools [data-list]")) el.classList.toggle("on", !!(b && b.list && b.list.kind === el.dataset.list));
@@ -798,6 +822,8 @@
     $("[data-act=undo]").disabled = !S.undo.length; $("[data-act=redo]").disabled = !S.redo.length;
   }
   function bindTools() {
+    $("#fmtMarks").innerHTML = NexaFormat.html(["b", "i", "u", "s", "sup", "sub"]);
+    NexaFormat.bind($("#fmtMarks"), () => cur || ed, { after: updTools });
     const sel = $("#selStyle");
     sel.replaceChildren(...Object.entries(S.deck.styles).map(([k, v]) => { const o = document.createElement("option"); o.value = k; o.textContent = v.name || k; return o; }));
     sel.onchange = () => { (cur || ed).blockAttrs({ style: sel.value === "body" ? null : sel.value }); };
@@ -816,12 +842,12 @@
     $("#tools").addEventListener("click", (e) => {
       const b = e.target.closest("button"); if (!b || b.disabled) return;
       const now = cur || ed, body = now === ed;  // 표 칸 안에서는 글자 서식·정렬만(목록·들여쓰기·쪽 나누기는 본문에서)
-      if (b.dataset.mark) now.toggle(b.dataset.mark);
+      if (b.dataset.mark) return;  // 글자 서식 단추 - 공용 컴포넌트(nexa-format.js)가 처리한다
       else if (b.dataset.align) now.blockAttrs({ align: b.dataset.align === "left" ? null : b.dataset.align });
-      else if (!body && (b.dataset.list || ["indent", "outdent", "break", "clear", "table", "image"].includes(b.dataset.act))) toast("표 칸 안에서는 아직 쓸 수 없습니다");
+      else if (!body && (b.dataset.list || ["indent", "outdent", "break", "clear", "table", "image", "gloss"].includes(b.dataset.act))) toast("표 칸 안에서는 아직 쓸 수 없습니다");
       else if (b.dataset.list) setList(b.dataset.list);
       else ({ undo, redo, indent: () => shiftLevel(1), outdent: () => shiftLevel(-1), break: insertBreak, setup: pageSetup,
-        color: () => now.toggle("c", $("#inColor").value), hl: () => now.toggle("hl", $("#inHl").value), table: insertTable, cols: () => colsMenu(b), shape: () => shapeMenu(b), image: () => $("#inImage").click(), link: setLink, ruby: setRuby, fn: setFn, find: openFind,
+        color: () => now.toggle("c", $("#inColor").value), hl: () => now.toggle("hl", $("#inHl").value), table: insertTable, cols: () => colsMenu(b), shape: () => shapeMenu(b), image: () => $("#inImage").click(), link: setLink, ruby: setRuby, gloss: glossTable, fn: setFn, find: openFind,
         shade: () => { const e0 = cur || ed, st0 = e0.state(), b0 = st0.sel && e0 === ed ? blockAt(st0.sel.f.id) : null; e0.blockAttrs({ fill: b0 && b0.fill ? null : "#e6e6e6" }); },
         clear: () => { const s = ed.selection(); if (s) { snapshot("format"); let bs = blocks(); for (const x of T.spans(bs, s.a, s.f)) bs = bs.map((y, k) => (k === x.i ? { ...y, runs: T.clearMarks(y.runs, x.from, x.to, ["link"]) } : y)); S.deck.blocks = bs; ed.refresh(s); afterChange(); } },
       })[b.dataset.act]?.();
