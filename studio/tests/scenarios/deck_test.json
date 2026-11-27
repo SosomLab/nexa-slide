@@ -7,7 +7,7 @@
    "steps": [
     {
      "name": "덱 탭은 제목으로 보이고 id 는 툴팁에",
-     "js": "const b=document.querySelector('#deckTabs [data-deck=\"tbltest\"]'); return b && b.textContent.trim()==='표·글머리' && /id tbltest/.test(b.title) ? true : 'text='+(b&&b.textContent)+' title='+(b&&b.title)"
+     "js": "if(!window.__g404){window.__g404=[];window.__vlast=null;const f4=window.fetch;window.fetch=async(u,o={})=>{const r=await f4(u,o);const us=String(u);if(/\\/api\\/version\\//.test(us)&&r.ok){try{const x=await r.clone().json();window.__vlast={deck:x.deck,ids:Array.isArray(x.deckIds)?x.deckIds.length:x.deckIds};}catch(e){}}if(r.status===404&&/\\/api\\/(deck|changes)\\//.test(us)&&window.__g404.length<4){const S=window.NexaStudioLink&&window.NexaStudioLink.S||{};let vn=null;try{const q=await f4('/api/version/'+S.id,{cache:'no-store'});const x=await q.json();vn={st:q.status,deck:x.deck,has:Array.isArray(x.deckIds)?x.deckIds.includes(us.split('/api/')[1].split('/')[1].split('?')[0]):x.deckIds};}catch(e){vn=String(e);}window.__g404.push({u:us.split('/api/')[1].slice(0,40),id:S.id,gone:S.goneId,ver:S.version,vnow:vn,vlast:window.__vlast});}return r;};} const b=document.querySelector('#deckTabs [data-deck=\"tbltest\"]'); return b && b.textContent.trim()==='표·글머리' && /id tbltest/.test(b.title) ? true : 'text='+(b&&b.textContent)+' title='+(b&&b.title)"
     },
     {
      "name": "＋ → 새 문서 대화 상자(슬라이드) → 제목만 적고 짧은 해시 id 로 새 덱 · 탭에 제목",
@@ -27,7 +27,12 @@
     },
     {
      "name": "  정리: 시험 덱 둘 삭제 · 표·글머리 탭으로",
-     "js": "window.confirm=()=>true; for(const id of [window.__copyDeck, window.__newDeck]){ await fetch('/api/decks',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'delete',id})}); } await new Promise(r=>setTimeout(r,500)); location.hash='#tbltest/1'; await until(()=>document.querySelector('#deckTabs button.on') && document.querySelector('#deckTabs button.on').dataset.deck==='tbltest', 4800); return document.querySelector('#deckTabs button.on') && document.querySelector('#deckTabs button.on').dataset.deck==='tbltest' ? true : 'on='+document.querySelector('#deckTabs button.on').dataset.deck"
+     "js": "window.confirm=()=>true; for(const id of [window.__copyDeck, window.__newDeck]){ await fetch('/api/decks',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'delete',id})}); } await new Promise(r=>setTimeout(r,500)); location.hash='#tbltest/1'; await until(()=>document.querySelector('#deckTabs button.on') && document.querySelector('#deckTabs button.on').dataset.deck==='tbltest', 8000); return document.querySelector('#deckTabs button.on') && document.querySelector('#deckTabs button.on').dataset.deck==='tbltest' ? true : ('on='+((document.querySelector('#deckTabs button.on')||{dataset:{}}).dataset.deck||'(없음)')+' · hash='+location.hash+' · S.id='+(window.NexaStudioLink&&window.NexaStudioLink.S.id)+' · tabs='+[...document.querySelectorAll('#deckTabs button[data-deck]')].map(b=>b.dataset.deck).join(',')).slice(0,199)"
+    },
+    {
+     "name": "  (덤프) 덱 다시 읽기 404 때 상태 - 없으면 '없음'",
+     "dump": true,
+     "js": "await new Promise(r=>setTimeout(r,3000)); return window.__g404&&window.__g404.length?JSON.stringify(window.__g404).slice(0,900):'없음'"
     }
    ]
   }
