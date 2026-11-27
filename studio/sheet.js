@@ -816,15 +816,17 @@
     }
     return [r0, r1];
   }
-  let vRaf = 0;
+  let vRaf = 0, vTim = 0;
   function onGridScroll() {  // 그린 범위 끝에 가까워지면 다시 그린다
     if (S.deck && sheet().freeze) placeSel();  // 틀 고정 - 고정 칸 쪽 선택 표시가 따라오고 스크롤 쪽은 고정 칸 밑으로
     if (G.rows <= VIRT || vRaf) return;
-    vRaf = requestAnimationFrame(() => {
-      vRaf = 0;
+    // 다음 화면 그리기 때 한 번 - 창이 가려져 있거나 바쁘면 rAF 가 오지 않아 그린 범위가 그대로 남는다(멀리 간 칸이 안 그려짐) → 150ms 안에 안 오면 타이머로
+    const redraw = () => {
+      if (!vRaf) return; cancelAnimationFrame(vRaf); clearTimeout(vTim); vRaf = 0;
       const W = $("#gridWrap"), a = rowAt(W.scrollTop / Z), b = rowAt((W.scrollTop + W.clientHeight) / Z), [r0, r1] = G.win || [0, 0];
       if ((a < r0 + 10 && r0 > 0) || (b > r1 - 10 && r1 < G.rows - 1)) { renderGrid(); renderSel(); }
-    });
+    };
+    vRaf = requestAnimationFrame(redraw); vTim = setTimeout(redraw, 150);
   }
   /** 이 화면에서 실제로 쓰는 틀 고정 - 고정 영역(행 높이 합·열 너비 합)이 보이는 자리의 70% 를 넘으면 풀어 돌려준다(off).
    *  고정 칸은 sticky 라 화면보다 크면 스크롤되는 칸을 다 덮어 아래 행을 볼 수 없다(engine-request #28). 문서의 freeze 값은 바꾸지 않고, 확대·창 크기가 바뀌면 다시 본다 */
@@ -1212,6 +1214,8 @@
     const vw = W.clientWidth / Z, vh = W.clientHeight / Z, L = sx(), T = sy();  // 격자 좌표로
     if (c >= fz.c) { if (x1 - L < leftFix) W.scrollLeft = (x1 - leftFix) * Z; else if (x2 - L > vw) W.scrollLeft = (x2 - vw + 2) * Z; }
     if (r >= fz.r) { if (y1 - T < topFix) W.scrollTop = (y1 - topFix) * Z; else if (y2 - T > vh) W.scrollTop = (y2 - vh + 2) * Z; }
+    // 가상 스크롤 - 그 행이 그린 범위 밖이면 바로 다시 그린다. scroll 이벤트는 다음 화면 그리기 때 오는데, 창이 가려졌거나 바쁘면 오지 않아 간 자리가 빈 채로 남았다
+    if (G.rows > VIRT && G.win && (r < G.win[0] || r > G.win[1])) { renderGrid(); renderSel(); }
   }
 
   // ---------------------------------------------------------------- 선택·이동
@@ -2326,7 +2330,7 @@
         if (v !== rawText(sheet(), k)) mutate(() => setInput(sheet(), k, v));
         focusGrid(); if (e.key === "Enter") advance(e.shiftKey ? -1 : 1, 0); else advance(0, e.shiftKey ? -1 : 1);
       }
-      if (e.key === "Escape") { e.preventDefault(); if (S.edit) endEdit(false); fx.value = rawText(sheet(), key(S.cur.r, S.cur.c)); focusGrid(); }
+      if (e.key === "Escape") { e.preventDefault(); if (S.edit) endEdit(false); fx.value = rawText(sheet(), key(S.cur.r, S.cur.c)); focusGrid(); fmlHl(); }  // 참조 표시도 바로 걷는다(초점이 이미 격자에 있으면 blur 가 오지 않는다)
     });
     $("#nameBox").addEventListener("keydown", (e) => {
       if (e.key !== "Enter") return; e.preventDefault();
