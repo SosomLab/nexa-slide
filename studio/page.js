@@ -858,37 +858,34 @@
     return true;
   }
   // ---------------------------------------------------------------- 밖의 변경 받기 - 다른 창·AI(save_deck)가 저장하면 따라간다
-  //   3초마다 판(/api/version)을 본다. 내가 고치는 중이면 바로 저장해 서버에서 합치고(문단 단위 병합), 아니면 문서를 다시 읽는다.
-  //   실시간 연결(SSE)·함께 보는 사람 표시는 공용 뼈대로 옮길 때(PG-109) 슬라이드·시트와 같이 쓴다
-  let pollT = 0, polling = false;
-  async function poll() {
-    if (polling || !S.deck || S.saving || S.conflict || document.hidden) return;
-    polling = true;
-    try {
-      const r = await api("GET", `/api/version/${encodeURIComponent(S.id)}`);
-      if (!r.ok || !r.data) return;
-      if (Array.isArray(r.data.deckIds) && !r.data.deckIds.includes(S.id)) { clearInterval(pollT); setStatus("error", "지워진 문서"); toast("이 문서가 지워졌습니다", 8000); return; }
-      if (PANEL) await PANEL.onVersion(r.data);  // 세션 연결 표시 · 요청 파일이 바뀌었으면 다시 읽기(공용 패널)
-      if (r.data.deck === S.version || S.saving) return;
-      if (S.dirty) { stopSave(); await save(); return; }  // 내 변경이 있으면 저장하면서 합친다
-      const d = await fetch(`${BASE}/api/deck/${encodeURIComponent(S.id)}`, { cache: "no-store" });
-      if (!d.ok) return;
-      const deck = await d.json(), ver = d.headers.get("X-Deck-Version");
-      if (S.dirty || S.saving || deck.kind !== "page") return;  // 읽는 사이 내가 고쳤으면 다음 번에
-      const sel = cur === ed ? ed.selection() : null;
-      const cell = document.activeElement && document.activeElement.closest ? document.activeElement.closest("#ed td, #ed th") : null, cellId = cell && cell.dataset.id;  // 표 칸에서 치던 중이면 그 칸으로 돌아간다
-      sealUndo(deckJson());  // 실행 취소 기록은 남긴다 - 되돌리면 내 편집만 거꾸로
-      S.deck = deck; S.version = ver; S.savedJson = deckJson();
-      cur = ed; S.pick = null; layout(); ed.refresh(sel && blockAt(sel.f.id) ? sel : null); decorateAll(); updTools();
-      if (cellId) {  // 표가 다시 그려져 칸의 초점이 빠졌다 - 같은 칸(id)이 남아 있으면 글 끝에 커서를 둔다
-        const host = [...document.querySelectorAll("#ed td, #ed th")].find((x) => x.dataset.id === cellId);
-        const box = host && host.querySelector(".pg-cell");
-        if (box) { box.focus(); const rg = document.createRange(); rg.selectNodeContents(box); rg.collapse(false); const sl = getSelection(); sl.removeAllRanges(); sl.addRange(rg); }
-      }
-      $("#docTitle").value = S.deck.title || "";
-      toast("밖에서 바뀐 내용을 불러왔습니다", 2500);
-    } catch (e) { /* 서버가 잠깐 끊김 - 다음 번에 */ } finally { polling = false; }
+  //   판을 보고 "고치는 중이면 저장해 서버에서 합치고(문단 단위 병합), 아니면 다시 읽는다"는 공용(nexa-doc.js 의 follower · 세 편집기가 같은 기준).
+  //   여기는 페이지 고유의 일만 - 3초 폴링 · 요청 패널 · 다시 읽을 때 선택·표 칸 초점 지키기. 실시간 연결(SSE)·함께 보는 사람 표시는 다음(PG-109)
+  /** 밖에서 바뀐 문서를 다시 읽는다 - 선택과 치던 표 칸을 지키고, 실행 취소 기록은 남긴다(되돌리면 내 편집만 거꾸로) */
+  async function reloadExternal() {
+    const d = await fetch(`${BASE}/api/deck/${encodeURIComponent(S.id)}`, { cache: "no-store" });
+    if (!d.ok) return;
+    const deck = await d.json(), ver = d.headers.get("X-Deck-Version");
+    if (S.dirty || S.saving || deck.kind !== "page") return;  // 읽는 사이 내가 고쳤으면 다음 번에
+    const sel = cur === ed ? ed.selection() : null;
+    const cell = document.activeElement && document.activeElement.closest ? document.activeElement.closest("#ed td, #ed th") : null, cellId = cell && cell.dataset.id;  // 표 칸에서 치던 중이면 그 칸으로 돌아간다
+    sealUndo(deckJson());  // 실행 취소 기록은 남긴다 - 되돌리면 내 편집만 거꾸로
+    S.deck = deck; S.version = ver; S.savedJson = deckJson();
+    cur = ed; S.pick = null; layout(); ed.refresh(sel && blockAt(sel.f.id) ? sel : null); decorateAll(); updTools();
+    if (cellId) {  // 표가 다시 그려져 칸의 초점이 빠졌다 - 같은 칸(id)이 남아 있으면 글 끝에 커서를 둔다
+      const host = [...document.querySelectorAll("#ed td, #ed th")].find((x) => x.dataset.id === cellId);
+      const box = host && host.querySelector(".pg-cell");
+      if (box) { box.focus(); const rg = document.createRange(); rg.selectNodeContents(box); rg.collapse(false); const sl = getSelection(); sl.removeAllRanges(); sl.addRange(rg); }
+    }
+    $("#docTitle").value = S.deck.title || "";
+    toast("밖에서 바뀐 내용을 불러왔습니다", 2500);
   }
+  const FOLLOW = NexaDoc.follower({
+    state: S, api, id: () => S.id, ready: () => !!S.deck && !S.gone && !S.conflict && !document.hidden,  // 충돌 배너가 떠 있거나 창이 가려져 있으면 쉰다
+    before: async (v) => { if (PANEL) await PANEL.onVersion(v); },  // 세션 연결 표시 · 요청 파일이 바뀌었으면 다시 읽기(공용 패널)
+    onGone: () => { S.gone = true; FOLLOW.stop(); setStatus("error", "지워진 문서"); toast("이 문서가 지워졌습니다", 8000); },  // 지워진 문서 - 더 묻지 않는다
+    save: async () => { stopSave(); await save(); }, reload: reloadExternal,
+  });
+  const poll = () => FOLLOW.poll(true);
   async function deckListMenu(btn) {
     const r = await api("GET", "/api/decks"), list = r.ok && Array.isArray(r.data) ? r.data : [];
     openMenu(btn, [{ h: `문서 ${list.length}개` }, ...list.map((d) => ({ label: `${NexaKinds.of(d).icon} ${d.title || d.id}`, on: d.id === S.id, act: async () => { if (d.id === S.id) return; if (S.dirty) await save(); location.href = NexaKinds.url(d); } })),
@@ -958,7 +955,7 @@
       enterPrint(); document.body.classList.add("printing"); return;
     }  // 서버의 Chrome 인쇄(PDF) - 커서·초점 없이 그대로 찍힌다
     await bindRequests(); poll();
-    pollT = setInterval(poll, 3000);  // 밖의 변경(다른 창·AI 저장) 따라가기
+    FOLLOW.start(3000);  // 밖의 변경(다른 창·AI 저장) 따라가기
     const first = blocks().find(T.isText); if (first) { ed.focus(); ed.select({ id: first.id, off: T.length(first.runs) }); }
     window.NexaPageEditor = { S, ed, save, undo, redo, poll, flow };  // 시험·디버깅용
   }
