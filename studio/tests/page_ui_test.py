@@ -1027,6 +1027,39 @@ def csplit_steps():
     ]
 
 
+CSF_L = lambda a, b: "".join(f"각주 다단 시험 글 {i:03d}번째 줄입니다. " for i in range(a, b))  # noqa: E731
+CSF_DOC = {"id": "pgcsf", "title": "다단 각주 문단 나눔", "kind": "page", "slides": [], "blocks": [
+    {"id": "f1", "type": "p", "runs": [{"t": CSF_L(1, 5)}, {"t": "머리낱말", "fn": "머리 쪽 각주 글"}, {"t": " " + CSF_L(5, 125)}, {"t": "꼬리낱말", "fn": "꼬리 쪽 각주 글"}, {"t": " 끝 줄입니다."}]},
+    {"id": "f2", "type": "p", "runs": [{"t": "뒤 문단"}]}]}
+CSF = ("const qa=(s)=>[...document.querySelectorAll(s)];const shs=()=>qa('.pg-sheet').map(x=>x.getBoundingClientRect());const pgOf=(r)=>shs().findIndex(x=>r.top>=x.top-1&&r.top<=x.bottom);"
+       "const refs=()=>qa('#ed [data-fn]').map(sp=>{const c=sp.getClientRects();return {n:sp.dataset.fnn,p:pgOf(c[c.length-1])};});"
+       "const inBox=()=>qa('.pg-fnotes').flatMap(b=>[...b.children].map(c=>({n:c.querySelector('sup').textContent,p:+b.dataset.page-1})));"
+       "const boxes=()=>qa('.pg-fnotes').map(b=>{const k=+b.dataset.page-1,sh=shs()[k],r=b.getBoundingClientRect(),mm=sh.width/S.box.w,bottom=sh.bottom-S.box.b*mm;"
+       "const tx_=qa('#ed > .nt-p').flatMap(p=>{const w=document.createTreeWalker(p,4),rg=document.createRange(),a=[];let n;while((n=w.nextNode())){rg.selectNodeContents(n);for(const c of rg.getClientRects())if(c.width>0&&c.height>0)a.push(c);}return a;})"
+       ".filter(c=>c.top>=sh.top&&c.bottom<=sh.bottom);return {k,off:Math.round(Math.abs(r.bottom-bottom)),over:tx_.filter(c=>c.bottom>r.top+1&&c.top<r.bottom-1).length,n:b.children.length};});")
+
+
+def csplit_fn_steps():
+    """다단 구역에서 각주가 달린 문단도 단 경계에서 나눈다(1974d97) - 2단 문서 · 긴 문단의 머리 쪽 낱말과 꼬리 쪽 낱말에 각주 하나씩"""
+    J = H + FL + CSP + CSF
+    return [
+        step("다단 각주 나눔 ① 각주가 달린 긴 문단이 나뉨(조각 1개 이상) · 글자 수 그대로 · 쪽 밖에 걸친 줄 없음",
+             J + "await settle();const n=parts('f1').length;return S.deck.page.columns.count===2&&n>=1&&el('f1').textContent===tx(blk('f1'))&&audit().length===0 || FX({n,eq:el('f1').textContent===tx(blk('f1')),pages:S.pages});"),
+        step("다단 각주 나눔 ② 본문의 각주 번호가 각각 한 번만 보임([data-fn] 수 = 각주 수 2 · 번호 1·2 · 나뉜 앞 조각에는 번호 없음)",
+             J + "await settle();const sp=qa('#ed [data-fn]'),held=qa('#ed [data-fn-hold]');const shown=sp.map(x=>getComputedStyle(x,'::after').content).join();const hid=held.every(x=>getComputedStyle(x,'::after').content==='none');"
+                 "return sp.length===2&&sp.map(x=>x.dataset.fnn).join()==='1,2'&&shown==='\"1\",\"2\"'&&hid || FX({n:sp.length,fnn:sp.map(x=>x.dataset.fnn),shown,held:held.length,hid});"),
+        step("다단 각주 나눔 ③ 쪽 아래 각주 상자 - 머리 쪽 각주는 머리가 있는 쪽(1쪽)에 · 꼬리는 다음 쪽이라 꼬리 쪽 각주는 그 쪽(2쪽)에",
+             J + "await settle();const r=refs(),b=inBox();return r.length===2&&JSON.stringify(r)===JSON.stringify(b)&&r[0].p===0&&r[1].p>=1&&qa('.pg-sheet').length>=2 || FX({r,b,sheets:qa('.pg-sheet').length});"),
+        step("다단 각주 나눔 ④ 각주 상자가 그 쪽 본문 아래 끝에 붙고 본문 줄과 겹치지 않는다",
+             J + "await settle();const o=boxes();return o.length>=2&&o.every(x=>x.off<=2&&x.over===0) || FX({o});"),
+        step("다단 각주 나눔 ⑤ 각주를 하나 더 달면 다시 계산(각주 3 · 번호 1·2·3 · 걸친 줄·겹침 없음) → 실행 취소로 지우면 처음 그대로(각주 2 · 걸친 줄·겹침 없음)",
+             J + "await settle();const t0=tx(blk('f1'));E.ed.focus();E.ed.select({id:'f1',off:700});const op=window.prompt;window.prompt=()=>'가운데 각주 글';document.querySelector('[data-act=fn]').click();window.prompt=op;await settle();"
+                 "const n3=qa('#ed [data-fn]').map(x=>x.dataset.fnn).join(),a3=audit().length,o3=boxes(),m3=JSON.stringify(refs())===JSON.stringify(inBox());E.ed.focus();E.undo();await settle();"
+                 "const n2=qa('#ed [data-fn]').map(x=>x.dataset.fnn).join(),a2=audit().length,o2=boxes(),m2=JSON.stringify(refs())===JSON.stringify(inBox());"
+                 "return n3==='1,2,3'&&a3===0&&m3&&o3.every(x=>x.off<=2&&x.over===0)&&n2==='1,2'&&a2===0&&m2&&o2.every(x=>x.off<=2&&x.over===0)&&tx(blk('f1'))===t0&&parts('f1').length>=1 || FX({n3,a3,m3,o3,n2,a2,m2,o2,same:tx(blk('f1'))===t0});"),
+    ]
+
+
 def poll_del_steps():
     return [
         step("밖의 변경 ③ 문서를 API 로 지움 → 상태 칩 '지워진 문서' · 그 뒤 6.5초 동안 이 문서로 나가는 요청 0(폴링 멈춤)",
@@ -1246,6 +1279,7 @@ def main():
             {"url": "/studio/page.html?deck=pgflow", "wait": 3000, "steps": flow_steps()},
             {"url": "/studio/page.html?deck=pgflow&print=1", "wait": 2500, "steps": flow_print_steps()},
             {"url": "/studio/page.html?deck=pgcsp", "wait": 3000, "steps": csplit_steps()},
+            {"url": "/studio/page.html?deck=pgcsf", "wait": 3000, "steps": csplit_fn_steps()},
             {"url": "/studio/page.html?deck=pgobj", "wait": 3000, "steps": obj_steps()},
             {"url": "/studio/page.html?deck=pgobj", "wait": 3000, "steps": obj_reload_steps()},
             {"url": "/studio/page.html?deck=pgo2id", "wait": 2500, "steps": obj2_steps()},
@@ -1266,6 +1300,9 @@ def main():
         full = page_doc.new_page(CSP_DOC["id"], CSP_DOC["title"]); full["blocks"] = CSP_DOC["blocks"]; full["page"]["columns"] = {"count": 2, "gap": 8}  # 다단 문단 나눔(PG-101 2차)
         st_, r_, _ = call("PUT", "/api/deck/pgcsp", full)
         check("다단 문단 나눔 시험 문서 pgcsp 만들기 200", st_ == 200, (st_, r_))
+        full = page_doc.new_page(CSF_DOC["id"], CSF_DOC["title"]); full["blocks"] = CSF_DOC["blocks"]; full["page"]["columns"] = {"count": 2, "gap": 8}  # 다단 + 각주가 달린 문단 나눔
+        st_, r_, _ = call("PUT", "/api/deck/pgcsf", full)
+        check("다단 각주 문단 나눔 시험 문서 pgcsf 만들기 200", st_ == 200, (st_, r_))
         st, r, _ = call("POST", "/api/decks", {"action": "create", "kind": "page", "title": "해설지 시험", "theme": "study-guide"})
         sg_id = (r or {}).get("id") or "pgsgid"
         check("해설지 템플릿으로 만들기 200 · template = study-guide", st == 200 and deck_file(ws_on, sg_id).get("template") == "study-guide", (st, r))
@@ -1306,6 +1343,24 @@ def main():
                   bool(re.search(r"<w:cols[^>]*w:num=\"2\"", dx_)) and whole_ and "colpart" not in dx_, json.dumps({"cols": re.findall(r"<w:cols[^>]*>", dx_)[:3], "paras": len(paras_), "whole": whole_}, ensure_ascii=False))
         else:
             check("다단 나눔 ⑥ DOCX 내보내기 200", False, (sx_, rx_))
+        # 다단 각주 나눔 ⑥ DOCX 는 그대로 - 각주는 footnotes.xml 에, 본문에는 참조 둘, 긴 문단은 문단 하나
+        sx_, rx_, _ = call("POST", "/api/export/pgcsf")
+        if sx_ == 200 and (rx_ or {}).get("url"):
+            import io
+            import re
+            import zipfile
+            with urllib.request.urlopen(B + rx_["url"], timeout=60) as rr:
+                zf_ = zipfile.ZipFile(io.BytesIO(rr.read()))
+            dx_ = zf_.read("word/document.xml").decode("utf-8")
+            fx_ = zf_.read("word/footnotes.xml").decode("utf-8") if "word/footnotes.xml" in zf_.namelist() else ""
+            paras_ = [p for p in re.findall(r"<w:p[ >].*?</w:p>", dx_, flags=re.S) if "각주 다단 시험 글 001번째" in p]
+            ft_ = re.sub(r"<[^>]+>", "", fx_)
+            check("다단 각주 나눔 ⑥ DOCX - footnotes.xml 에 각주 글 둘 · 본문의 각주 참조 2 · 긴 문단은 w:p 하나(참조 둘이 그 안에) · w:cols 2단 · 조각 흔적 없음",
+                  "머리 쪽 각주 글" in ft_ and "꼬리 쪽 각주 글" in ft_ and dx_.count("<w:footnoteReference") == 2 and len(paras_) == 1 and paras_[0].count("<w:footnoteReference") == 2
+                  and bool(re.search(r"<w:cols[^>]*w:num=\"2\"", dx_)) and "colpart" not in dx_ and "fnHold" not in dx_,
+                  json.dumps({"fn": ["머리 쪽 각주 글" in ft_, "꼬리 쪽 각주 글" in ft_], "refs": dx_.count("<w:footnoteReference"), "paras": len(paras_), "cols": re.findall(r"<w:cols[^>]*>", dx_)[:2]}, ensure_ascii=False))
+        else:
+            check("다단 각주 나눔 ⑥ DOCX 내보내기 200", False, (sx_, rx_))
         # 쪽 나눔 - 서버 Chrome PDF 쪽 수 vs 화면 쪽 수(±1 이면 통과, 다르면 수치를 남긴다)
         scr = next((int(l.rsplit("screenPages=", 1)[1].split()[0]) for l in lines if "screenPages=" in l), None)
         st_, r_, _ = call("POST", "/api/export/pgflow?pdf=1&via=chrome")
