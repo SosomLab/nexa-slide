@@ -144,6 +144,27 @@ const two = (list) => stack(list).map((x) => ({ ...x, cols: 2 }));
   const items = two([800, { h: 500, kind: "p" }]).concat([{ id: "z", kind: "obj", top: 1300, bottom: 1302 }]);
   const r = F.plan(items, H, G, (it) => lines(it, 10, 50), CS);
   check("42 나눈 문단 뒤 1단 구역 - 작은 블록은 남긴 단의 끝 바로 아래", cbrief(r) === "b1:colsplit@4:1:-1000 z:push:-302" && r.pages === 1, cbrief(r) + " p" + r.pages); }
+// 다단 구역의 표를 단 경계에서 행 단위로 나눈다(colrow - 그 행부터를 보이는 곳만 옮긴다)
+const rbrief = (r) => r.breaks.map((b) => b.type === "colrow" ? `${b.id}:colrow@${b.row}:${b.dcol}:${Math.round(b.dy)}${b.page ? ":p" : ""}` : `${b.id}:${b.type}:${Math.round(b.h)}${b.page ? ":p" : ""}`).join(" ");
+const withRows = (items, cnt, bad) => items.map((it) => it.kind !== "table" ? it : { ...it, rows: Array.from({ length: cnt }, (_, i) => ({ top: it.top + i * (it.bottom - it.top) / cnt, bottom: it.top + (i + 1) * (it.bottom - it.top) / cnt, ok: !(bad || []).includes(i) })) });
+{ // 800 뒤 행 10개(50씩) 표 - 4행은 이 단(800~1000), 5번째 행부터 다음 단 머리. 뒤 블록이 그 이동을 받는다
+  const r = F.plan(withRows(two([800, { h: 500, kind: "table" }, 300]), 10), H, G, null, CS);
+  check("45 다단 표 나눔 - 넘치는 행부터 다음 단 머리로(colrow) · 뒤 블록이 이동을 받는다", rbrief(r) === "b1:colrow@4:1:-1000 b2:push:-1000" && J(r.place) === J({ b0: 0, b1: 0, b2: 1 }) && r.pages === 1, rbrief(r) + " " + J(r.place) + " p" + r.pages); }
+{ // 마지막 단에서 넘치면 나머지 행은 다음 쪽 첫 단
+  const r = F.plan(withRows(two([900, 800, { h: 500, kind: "table" }, 100]), 10), H, G, null, CS);
+  check("46 마지막 단의 표 - 나머지 행은 다음 쪽 첫 단(dcol -1 · 쪽 넘김) · 2쪽", rbrief(r) === "b1:push:-900 b2:colrow@4:-1:200:p b3:push:200" && r.place.b2 === 1 && r.place.b3 === 0 && r.pages === 2, rbrief(r) + " " + J(r.place) + " p" + r.pages); }
+{ // 나눌 수 없는 행(합친 칸) 앞에서는 나누지 않는다 - 한 행 덜 남긴다
+  const r = F.plan(withRows(two([800, { h: 500, kind: "table" }]), 10, [4]), H, G, null, CS);
+  check("47 나눌 수 없는 행 앞에서는 한 행 앞에서 나눈다(@3)", rbrief(r) === "b1:colrow@3:1:-950", rbrief(r)); }
+{ // 첫 행도 안 들어가면 표째 다음 단으로
+  const r = F.plan(withRows(two([960, { h: 500, kind: "table" }]), 10), H, G, null, CS);
+  check("48 첫 행도 안 들어가면 표째 다음 단으로(나누지 않음)", rbrief(r) === "b1:push:-960" && r.place.b1 === 1, rbrief(r) + " " + J(r.place)); }
+{ // 세 단에 걸치는 긴 표 - 조각마다 dcol · 쌓인 dy
+  const r = F.plan(withRows(stack([{ h: 2500, kind: "table" }]).map((x) => ({ ...x, cols: 3 })), 25), H, G, null, CS);
+  check("49 세 단에 걸치는 표 - 10행씩(@10 dcol 1 · @20 dcol 2)", rbrief(r) === "b0:colrow@10:1:-1000 b0:colrow@20:2:-2000" && r.pages === 1, rbrief(r) + " p" + r.pages); }
+{ // colSplit 을 끄면 전과 같이 표째 넘긴다
+  const r = F.plan(withRows(two([800, { h: 500, kind: "table" }]), 10), H, G, null);
+  check("50 colSplit 이 꺼져 있으면 표째 다음 단으로(전과 같다)", rbrief(r) === "b1:push:-800" && r.place.b1 === 1, rbrief(r) + " " + J(r.place)); }
 { // 1단 문서에는 영향 없음
   const r = F.plan(stack([800, { h: 500, kind: "p" }]), H, G, (it) => lines(it, 10, 50), CS);
   check("41 1단 문서는 colSplit 을 켜도 전과 같다(줄 사이 빈 자리)", brief(r) === "b1:split@4:200", brief(r)); }

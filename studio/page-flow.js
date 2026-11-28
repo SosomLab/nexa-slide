@@ -5,6 +5,8 @@
 //     · 표의 행 사이        = 빈 행(tr.pg-gaprow)을 끼우고, 머리글 행이 있으면 그 사본(tr.pg-headrep)을 다음 쪽 머리에 되풀이한다(row)
 //     · 다단 구역의 문단 가운데 = 그 줄부터의 꼬리를 감싸(span.pg-colpart - position relative) **보이는 곳만** 다음 단·다음 쪽 첫 단으로 옮긴다(colsplit).
 //       문단의 실제 자리(한 줄기)와 글자 수는 그대로라 편집 엔진이 그대로 돈다. 뒤 블록이 그 이동을 위 여백으로 받는다
+//     · 다단 구역의 표 가운데(행 사이) = 그 행부터의 행들을 **보이는 곳만** 다음 단·다음 쪽 첫 단으로 옮긴다(colrow - tr.pg-colrow 의 position relative).
+//       표의 실제 자리(한 줄기)와 구조는 그대로다. 머리글 행 되풀이는 하지 않는다(1차)
 //   빈 자리에는 글이 없어 nexa-text 의 위치 계산(글자 수)·한글 조합·선택이 그대로 돈다.
 //   NexaPageFlow.plan(items, H, G, linesOf) → {breaks, pages}  순수 계산(시험: tests/page_flow_check.js)
 //   NexaPageFlow.create(opts) → {schedule(), run(), clear(), pages()}  화면에 붙이기
@@ -110,6 +112,31 @@
       return true;
     }
 
+    // 다단 구역의 표를 단 경계에서 행 단위로 나눈다(opt.colSplit) - 문단의 colsplit 과 같은 방식: 그 행부터를 보이는 곳만 다음 단(마지막 단이면 다음 쪽 첫 단)으로.
+    //   나눌 수 없는 행(합친 칸이 걸친 행 · 머리글 바로 아래 - ok 가 false) 앞에서는 나누지 않는다. 행이 하나뿐이거나 잴 수 없으면 통째로 넘긴다
+    function colTable(it) {
+      const R = it.rows || [], m = R.length; let head = col, from = 0, base = 0;
+      if (m < 2) return false;
+      for (let guard = 0; guard < 5000; guard++) {
+        let k = from; while (k < m && R[k].bottom + shift <= room(R[k].fn || 0) + EPS) { take(R[k].fn || 0); k++; }
+        if (k >= m) break;
+        while (k > from && !R[k].ok) { k--; untake(R[k].fn || 0); }
+        if (k === from) {
+          if (from === 0 && it.top + shift > slotTop() + EPS) { moveSlot(it); head = col; continue; }  // 첫 행(묶음)도 안 들어간다 - 표째 다음 단으로
+          do { take(R[k].fn || 0); k++; } while (k < m && !R[k].ok);  // 단 머리인데 안 들어간다(행이 단보다 크다) - 그 묶음은 둔다
+          if (k >= m) break;
+        }
+        mark(R[k - 1].bottom + shift);
+        let paged = false; if (col < n - 1) col++; else { page++; col = 0; paged = true; }
+        const dy = slotTop() - (R[k].top + shift);
+        shift += dy; base += dy; carry += dy;
+        out.push({ id: it.id, type: "colrow", row: k, dcol: col - head, dy: base, page: paged });
+        from = k;
+      }
+      place[it.id] = head;
+      return true;
+    }
+
     const CS = !!(opt && opt.colSplit);
     for (const it of items) {
       const cn = it.cols > 1 ? it.cols : 1;
@@ -127,6 +154,7 @@
       if (n > 1) {
         const over = it.bottom + shift > room(fn) + EPS;
         if (over && CS && it.kind === "p" && !it.nosplit && colPara(it)) { /* 단 경계에서 나눴다(각주 자리는 줄마다 잡았다) */ }
+        else if (over && CS && it.kind === "table" && !it.nosplit && colTable(it)) { /* 행 사이에서 나눴다(각주 자리는 행마다) */ }
         else { if (over && it.top + shift > slotTop() + EPS) moveSlot(it); take(fn); place[it.id] = col; }
       } else if (it.bottom + shift > room(fn) + EPS) {
         if (it.kind === "p") para(it);
@@ -159,6 +187,7 @@
         if (!el.dataset.id) continue;
         const c = cur && cur.count > 1 ? cur : null, gap = c ? (c.gap === undefined || c.gap === null ? 8 : +c.gap) : 0;
         const w = c ? Math.max(15, (box.cw - (c.count - 1) * gap) / c.count) : 0, k = c ? c.count + ":" + w.toFixed(2) : "";
+        if (el.tagName === "TABLE") el.classList.toggle("pg-coltable", !!c);  // 다단 구역의 표는 칸마다 제 선(행을 다른 단으로 옮겨 그릴 때 선이 따라가게) - 나뉘든 아니든 같아야 잰 높이가 흔들리지 않는다
         if ((el._pgCols || "") !== k) { clearEl(el); el._pgCols = k; el._pgN = c ? c.count : 1; el._pgStep = c ? (w + gap) * mm : 0; el.style.width = c ? w * mm + "px" : ""; }
         if (el.classList.contains("pg-break") && el.classList.contains("section")) cur = { count: +el.dataset.cols || 1, gap: el.dataset.gap === undefined ? undefined : +el.dataset.gap };
       }
@@ -186,12 +215,13 @@
           it.rows = []; let gapRow = null, prevRaw = null; const blocked = new Set();
           for (const tr of el.rows) {
             if (tr.classList.contains("pg-gaprow") || tr.classList.contains("pg-headrep")) { gapRow = gapRow || tr; continue; }
-            const rr = tr.getBoundingClientRect(), i = it.rows.length;
-            if (gapRow && prevRaw !== null) { inner += Math.max(0, y(rr.top) - prevRaw); applied.push({ id, type: "row", at: i, h: gapRow._h }); }
-            gapRow = null; prevRaw = y(rr.bottom);
+            const rr = tr.getBoundingClientRect(), i = it.rows.length, cr = tr._pgCR ? tr._pgCR.dy : 0;  // cr = 다른 단으로 옮겨 보이는 만큼(세로) - 자연 위치에서는 뺀다
+            if (tr._pgCR && tr._pgCR.first) applied.push({ id, type: "colrow", at: i + "/" + tr._pgCR.dcol, h: cr });
+            if (gapRow && prevRaw !== null) { inner += Math.max(0, y(rr.top) - cr - prevRaw); applied.push({ id, type: "row", at: i, h: gapRow._h }); }
+            gapRow = null; prevRaw = y(rr.bottom) - cr;
             for (const c of tr.cells) for (let s = 1; s < (c.rowSpan || 1); s++) blocked.add(i + s);
             if (i > 0 && it.rows[i - 1].head) blocked.add(i);
-            it.rows.push({ top: y(rr.top) - it.base - inner, bottom: y(rr.bottom) - it.base - inner, head: tr.classList.contains("head"), tr, fn: it.refs.reduce((a, x) => a + (tr.contains(x.span) ? x.h : 0), 0) });
+            it.rows.push({ top: y(rr.top) - cr - it.base - inner, bottom: y(rr.bottom) - cr - it.base - inner, head: tr.classList.contains("head"), tr, fn: it.refs.reduce((a, x) => a + (tr.contains(x.span) ? x.h : 0), 0) });
           }
           it.rows.forEach((row, i) => { row.ok = !blocked.has(i); });
           let hn = 0; while (hn < it.rows.length && it.rows[hn].head) hn++;  // 맨 위에 이어진 머리글 행만 되풀이한다(Word 의 머리글 행 반복과 같다)
@@ -257,7 +287,13 @@
     function clearEl(el) {
       if (el._pgPush) { el.style.marginTop = el._pgPush.mt; el._pgPush = null; el.classList.remove("pg-pushed"); }
       if (el._pgCol) { el.style.left = ""; if (el._pgPos !== undefined) el.style.position = el._pgPos; el._pgCol = 0; }
-      if (el.tagName === "TABLE") { for (const tr of [...el.rows]) if (tr.classList.contains("pg-gaprow") || tr.classList.contains("pg-headrep")) tr.remove(); return; }
+      if (el.tagName === "TABLE") {
+        for (const tr of [...el.rows]) {
+          if (tr.classList.contains("pg-gaprow") || tr.classList.contains("pg-headrep")) { tr.remove(); continue; }
+          if (tr._pgCR) { tr._pgCR = null; tr.classList.remove("pg-colrow", "pg-colfirst"); tr.style.position = ""; tr.style.left = ""; tr.style.top = ""; }
+        }
+        return;
+      }
       const parts = partsOf(el);
       for (const w of parts) {  // 단 조각 - 안의 것을 제자리로 꺼내고, 나눠 둔 글 조각은 다시 하나로
         const pv = w.previousSibling, first = w.firstChild; w.replaceWith(...w.childNodes);
@@ -295,6 +331,14 @@
         // 실제로 벌어진 만큼을 재서 맞춘다 - 테두리 겹침(border-collapse)·box-sizing 에 따라 빈 행이 차지하는 높이가 준 값과 조금 다르다
         let prev = tr.previousElementSibling; while (prev && (prev.classList.contains("pg-gaprow") || prev.classList.contains("pg-headrep"))) prev = prev.previousElementSibling;
         if (prev) { const diff = b.h + (b.head || 0) - (row.tr.getBoundingClientRect().top - prev.getBoundingClientRect().bottom) / it.z; if (Math.abs(diff) > 0.05) td.style.height = Math.max(0, parseFloat(td.style.height) + diff) + "px"; }
+        return;
+      }
+      if (b.type === "colrow") {  // 그 행부터(다음 조각 앞까지)를 보이는 곳만 옮긴다 - 뒤에서부터 끼우므로 뒤 조각의 행은 이미 옮겨져 있다
+        for (let k = b.row; k < it.rows.length; k++) {
+          const tr = it.rows[k].tr; if (!tr || !tr.isConnected || tr._pgCR) break;
+          tr._pgCR = { dcol: b.dcol, dy: b.dy, first: k === b.row }; tr.classList.add("pg-colrow"); if (k === b.row) tr.classList.add("pg-colfirst");
+          tr.style.position = "relative"; tr.style.left = b.dcol * (el._pgStep || 0) + "px"; tr.style.top = b.dy + "px";
+        }
         return;
       }
       if (b.type === "colsplit") {  // 글자 위치 b.off 부터(다음 조각 앞까지)를 감싸 보이는 곳만 옮긴다 - 뒤에서부터 끼우므로 뒤 조각은 이미 감싸져 있다
@@ -354,6 +398,7 @@
         if (b.type === "split") b.at = b.off = offsetOfLine(byId.get(b.id), b.line);
         else if (b.type === "row") b.at = b.row;
         else if (b.type === "colsplit") { b.off = offsetOfLine(byId.get(b.id), b.line); b.at = b.off + "/" + b.dcol; b.h = b.dy; }
+        else if (b.type === "colrow") { b.at = b.row + "/" + b.dcol; b.h = b.dy; }
       }
       for (const id of Object.keys(p.place)) if (p.place[id] > 0) p.breaks.push({ id, type: "col", at: p.place[id], h: 0 });
       // 블록마다 - 끼워 둔 것과 끼울 것이 다를 때만 고친다(글을 치는 동안 쓸데없이 DOM 을 건드리지 않게)

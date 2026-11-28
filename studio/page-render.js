@@ -204,6 +204,14 @@
 .pg-table.pg-innerv td + td, .pg-table.pg-innerv th + th { border-left-color: #8a8a8a; }
 .pg-table.pg-noborder td:first-child, .pg-table.pg-noborder th:first-child { padding-left: 0; } .pg-table.pg-noborder td:last-child, .pg-table.pg-noborder th:last-child { padding-right: 0; }
 .pg-table.pg-noborder .pg-p { margin-bottom: 3pt !important; }
+.pg-table.pg-coltable { border-collapse: separate; border-spacing: 0; }  /* 다단 구역의 표 - 행을 다른 단으로 옮겨 그릴 때(page-flow colrow) 선이 칸을 따라가게 칸마다 제 선을 갖는다(겹친 선은 표 격자에 붙어 따라가지 않는다) */
+.pg-table.pg-coltable td, .pg-table.pg-coltable th { border-width: 0 .5pt .5pt 0; }
+.pg-table.pg-coltable td:first-child, .pg-table.pg-coltable th:first-child { border-left-width: .5pt; }
+.pg-table.pg-coltable tr:first-child > * { border-top-width: .5pt; }
+.pg-table.pg-coltable tr.pg-colfirst > * { box-shadow: inset 0 1.5px 0 0 #8a8a8a; }  /* 다음 단 머리에 온 행의 윗선 - 높이를 바꾸지 않게 그림자로, 칸 안쪽에. 1.5px = 쪽 위 여백 가림막이 본문 머리를 1px 못 되게 덮는 만큼을 더해(1px 이면 통째로 가려져 안 보인다) */
+.pg-table.pg-coltable.pg-noborder tr.pg-colfirst > * { box-shadow: none; }
+#ed .pg-table.pg-coltable tr.pg-colfirst > *:focus-within { box-shadow: inset 0 0 0 1.5px var(--accent); }  /* 편집 중인 칸의 초점 표시가 이긴다 */
+.pg-table.pg-coltable.pg-innerv td:not(:last-child), .pg-table.pg-coltable.pg-innerv th:not(:last-child) { border-right-color: #8a8a8a; }
 .pg-image { margin: 6pt 0; }
 .pg-image img { max-width: 100%; }
 .pg-break { border-top: 1px dashed #b5b5b5; margin: 8pt 0; height: 0; position: relative; }

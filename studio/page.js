@@ -412,7 +412,7 @@
     const ext = (el, deep) => {
       if (!el.getClientRects().length) return null;
       const r = el.getBoundingClientRect(); let a = r.top, b = r.bottom;
-      if (deep) for (const q of el.querySelectorAll(".pg-colpart")) { const t = q.getBoundingClientRect(); a = Math.min(a, t.top); b = Math.max(b, t.bottom); }
+      if (deep) for (const q of el.querySelectorAll(".pg-colpart, .pg-colrow")) { const t = q.getBoundingClientRect(); a = Math.min(a, t.top); b = Math.max(b, t.bottom); }
       return [a - top0, b - top0];
     };
     const med = [...m.children].find((x) => x.id === "ed"), kids = med ? [...med.children] : [], ex = kids.map((x) => ext(x, true));

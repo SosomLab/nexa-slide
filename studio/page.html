@@ -98,6 +98,12 @@
   .pg-table td, .pg-table th { cursor: text; } .pg-cell { outline: none; min-height: 1.4em; }
   #ed .pg-table.pg-noborder td, #ed .pg-table.pg-noborder th { border: .5pt dashed #dcd8d0; }  /* 편집 중에는 배치용 표의 칸 경계를 흐린 점선으로(인쇄·내보내기에는 없다) */
   #ed .pg-table.pg-innerv td + td, #ed .pg-table.pg-innerv th + th { border-left: .5pt solid #8a8a8a; }
+  /* 다단 구역의 표(칸마다 제 선 - page-render.js .pg-coltable) - 위 두 규칙이 네 변을 모두 그려 선이 두 겹이 되지 않게 */
+  #ed .pg-table.pg-coltable.pg-noborder td, #ed .pg-table.pg-coltable.pg-noborder th { border-width: 0 .5pt .5pt 0; }
+  #ed .pg-table.pg-coltable.pg-noborder td:first-child, #ed .pg-table.pg-coltable.pg-noborder th:first-child { border-left-width: .5pt; }
+  #ed .pg-table.pg-coltable.pg-noborder tr:first-child > * { border-top-width: .5pt; }
+  #ed .pg-table.pg-coltable.pg-innerv td + td, #ed .pg-table.pg-coltable.pg-innerv th + th { border-left-width: 0; }
+  #ed .pg-table.pg-coltable.pg-innerv td:not(:last-child), #ed .pg-table.pg-coltable.pg-innerv th:not(:last-child) { border-right: .5pt solid #8a8a8a; }
   .pg-table td:focus-within, .pg-table th:focus-within { box-shadow: inset 0 0 0 1.5px var(--accent); }
   .pg-image img { cursor: pointer; } .pg-image.sel img { outline: 2px solid var(--accent); outline-offset: 2px; }
   #findBar { position: fixed; top: 92px; right: 24px; z-index: 40; background: #fff; border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 8px 24px rgba(0,0,0,.14); padding: 8px; display: flex; gap: 6px; align-items: center; }
