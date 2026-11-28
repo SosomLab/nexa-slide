@@ -947,6 +947,36 @@ def poll_steps():
     ]
 
 
+def live_steps():
+    """실시간 연결(nexa-live.js SSE) - 페이지도 슬라이드·시트(live_test)와 같은 기준: 밖의 저장을 폴링 없이 받고, 함께 보는 사람을 칩과 문단 띠로 보인다"""
+    X = ("const ext=async(id,f)=>{const r=await fetch('/api/deck/'+id,{cache:'no-store'});const v=r.headers.get('X-Deck-Version');const d=await r.json();f(d);"
+         "const p=await fetch('/api/deck/'+id+'?base='+v+'&merge=1',{method:'PUT',headers:{'Content-Type':'application/json','X-Nexa-Tab':'zz-other'},body:JSON.stringify(d)});return p.status;};"
+         "const setT=(d,id,t)=>{const b=d.blocks.find(x=>x.id===id);b.runs=[{t}];};const tick=(ms)=>new Promise(r=>setTimeout(r,ms));"
+         "const vc=()=>performance.getEntriesByType('resource').filter(e=>/\\/api\\/version\\//.test(e.name)).length;"
+         "const pres=(b)=>fetch('/api/presence/pgpoll',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b)});"
+         "const chip=()=>{const c=document.querySelector('#liveChip');return c&&!c.hidden?c.textContent:'';};")
+    return [
+        step("실시간 ③ 연결이 살아 있음 - NexaPageEditor.live().healthy() 가 true",
+             H + "const ok=await until(async()=>!!(E.live&&E.live()&&E.live().healthy()),8000);return ok?true:JSON.stringify({live:!!(E.live&&E.live()),healthy:!!(E.live&&E.live()&&E.live().healthy())});"),
+        step("실시간 ① 밖의 저장이 폴링 없이 곧 반영 - 저장 뒤 1초 안에 화면에 그 글 · 6초 동안 /api/version 호출 2번 이하(3초 폴링이면 2번 이상 더)",
+             H + X + "await idle();await tick(1800);const before=vc();const st=await ext('pgpoll',(d)=>setT(d,'q2','실시간 고침'));const t0=Date.now();"
+                     "const ok=await until(async()=>el('q2')&&el('q2').textContent==='실시간 고침',5000);const dt=Date.now()-t0;await tick(6000);const calls=vc()-before;"
+                     "return st===200&&ok&&dt<1000&&calls<=2?true:JSON.stringify({st,ok,dt,calls,healthy:!!(E.live()&&E.live().healthy()),q2:el('q2')&&el('q2').textContent});"),
+        step("실시간 ② 함께 보는 사람 - 다른 창이 q3 문단에 있으면 '함께 1' 칩 · 그 문단에 data-live 와 왼쪽 색 띠 · 이름",
+             H + X + "const r=await pres({tab:'zz-other',where:{block:'q3'},user:'홍길동'});const ok=await until(async()=>/함께 1/.test(chip())&&el('q3')&&el('q3').dataset.live==='zz-other',5000);"
+                     "const e=el('q3');const sh=e?e.style.boxShadow:'';const ti=e?e.title:'';const n=document.querySelectorAll('#ed [data-live]').length;"
+                     "return r.status===200&&ok&&!!sh&&ti.includes('홍길동')&&n===1?true:JSON.stringify({st:r.status,chip:chip(),live:e&&e.dataset.live,sh,ti,n,others:E.live()&&E.live().others()});"),
+        step("  그 창이 나가면 칩과 띠가 사라진다",
+             H + X + "const r=await pres({tab:'zz-other',where:{},user:'홍길동',leave:true});const ok=await until(async()=>!chip()&&!document.querySelector('#ed [data-live]'),5000);const e=el('q3');"
+                     "return r.status===200&&ok&&!(e&&e.style.boxShadow)?true:JSON.stringify({st:r.status,chip:chip(),n:document.querySelectorAll('#ed [data-live]').length,sh:e&&e.style.boxShadow});"),
+        step("실시간 ④ 내 저장 직후 밖의 저장 - 바로 다시 읽지 않고(내 저장 뒤 1.5초 안은 미룸) 1.5초쯤 뒤 반영 · 내 글도 그대로(화면·서버)",
+             H + X + "await idle();const t0=S.savedAt||Date.now();const st=await ext('pgpoll',(d)=>setT(d,'q2','직후 밖'));const tp=Date.now()-t0;"
+                     "const ok=await until(async()=>el('q2')&&el('q2').textContent==='직후 밖',8000);const dt=Date.now()-t0;await idle();const f=await srv('pgpoll');const t=(d,id)=>tx(d.blocks.find(b=>b.id===id));"
+                     "return st===200&&ok&&dt>=1000&&dt<=5000&&t(S.deck,'q1').includes('직전')&&t(f,'q1').includes('직전')&&t(f,'q2')==='직후 밖'?true:JSON.stringify({st,ok,tp,dt,savedAt:S.savedAt,q1:t(S.deck,'q1'),srv:[t(f,'q1'),t(f,'q2')],q2:el('q2')&&el('q2').textContent});",
+             pre="await idle();E.ed.focus();E.ed.select({id:'q1',off:0});", cdp=INS("직전"), wait=100),
+    ]
+
+
 def poll_del_steps():
     return [
         step("밖의 변경 ③ 문서를 API 로 지움 → 상태 칩 '지워진 문서' · 그 뒤 6.5초 동안 이 문서로 나가는 요청 0(폴링 멈춤)",
@@ -1158,6 +1188,7 @@ def main():
             {"url": "/studio/page.html?deck=pgmrg", "wait": 2500, "steps": merge_steps()},
             {"url": "/studio/page.html?deck=pgsgid", "wait": 2500, "steps": study_steps()},
             {"url": "/studio/page.html?deck=pgpoll", "wait": 2500, "steps": poll_steps()},
+            {"url": "/studio/page.html?deck=pgpoll", "wait": 2500, "steps": live_steps()},
             {"url": "/studio/page.html?deck=pgpdel", "wait": 2500, "steps": poll_del_steps()},
             {"url": "/studio/page.html?deck=pglong", "wait": 3000, "steps": zoom_steps()},
             {"url": "/studio/page.html?deck=pglong", "wait": 3000, "steps": zoom_reload_steps()},

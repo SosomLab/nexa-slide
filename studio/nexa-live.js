@@ -5,6 +5,7 @@
      const LIVE = NexaLive.create({ api, base, deckId: () => id, tab, onVersion(v), onPresence(others), chip: "#liveChip" 넣을 자리 앞 요소 })
      LIVE.where(where, editing)   지금 선택(슬라이드 {slide, els} · 시트 {tab, range}) - 바뀌면 곧 보낸다
      LIVE.healthy()               SSE 가 살아 있으면 true - 그동안 2초 폴링은 쉬고 15초 안전망만
+     LIVE.stop()                  연결을 끊고 더 보내지 않는다(지워진 문서)
      LIVE.others()                다른 탭들 [{tab, user, color, where, editing}]
      LIVE.reconnect()             덱이 바뀌었을 때(편집기 덱 탭 전환) */
 (function () {
@@ -54,6 +55,7 @@
     return {
       where, healthy: () => !!src && Date.now() - lastAt < 25000, others: () => others,
       reconnect() { others = []; renderChip(); sentKey = ""; connect(); },
+      stop() { if (src) { src.close(); src = null; } clearInterval(beatT); clearTimeout(sendT); deck = null; others = []; renderChip(); },  // 문서가 지워졌다 - 연결을 끊고 위치도 더 보내지 않는다
     };
   }
   window.NexaLive = { create };
