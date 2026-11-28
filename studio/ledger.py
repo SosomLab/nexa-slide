@@ -352,6 +352,15 @@ def verify(deck):
         except (ValueError, UnicodeDecodeError):
             return None
 
+    used = {}  # 백업 이름 → 그 이름을 쓴 줄의 seq 들. 둘 이상이면 뒤 저장이 앞 백업을 덮었다(이름이 시계 값뿐이던 때 - backup_name 이전의 원장)
+    for e in entries:
+        name = (e.get("before") or {}).get("backup")
+        if name:
+            used.setdefault(name, []).append(e.get("seq"))
+    for name, seqs in used.items():
+        if len(seqs) > 1:
+            res["backup"]["dup"] = res["backup"].get("dup", 0) + 1
+            bad(seqs[0], f"백업 이름 {name} 을 줄 {seqs} 이 같이 쓴다 - 뒤 저장이 앞 백업을 덮었다")
     p = DECKS / f"{deck}.json"
     cur = p.read_bytes() if p.is_file() else None
     by_ver = {}  # after.ver → 그 저장의 결과 문서 바이트(다음 줄의 백업 또는 지금 파일) - 오래된 판 위 작업의 기준본 찾기

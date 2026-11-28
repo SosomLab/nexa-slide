@@ -3,6 +3,7 @@
     python3 studio/tests/ledger_verify_test.py
 - 통째 PUT·작업 저장(오래된 판 위·지운 요소 되살리기 포함)·병합 PUT 을 섞은 원장이 사슬·백업·재생·끝 모두 통과(rc 0)
 - 변조 감지: 백업 글자 · 서버 밖에서 고친 덱 파일(끝) · 원장의 replay.ops 값 → rc 1
+- 백업 이름 중복: 원장 두 줄이 같은 백업 이름을 쓰면 backup.dup · rc 1(뒤 저장이 앞 백업을 덮은 흔적 - PG-118)
 - 백업 일부 삭제는 없음·건너뜀으로 세고 rc 0 · 8KB 넘는 작업 저장은 replay 를 남기지 않음 · 시트 행 삽입 PUT 은 replay.struct
 - nexa.py ledger verify(작업 공간 실행기) · /api/changes 에 replay 가 새지 않음"""
 import json
@@ -123,7 +124,7 @@ def main():
         subprocess.run([sys.executable, str(STUDIO / "init_workspace.py"), str(WS.parent), "--title", "ledger시험", "--port", str(PORT)], env=ENV, capture_output=True, text=True, encoding="utf-8")
     (WS / "decks").mkdir(parents=True, exist_ok=True)
     base_doc = lambda i: {"id": i, "title": "원장", "slides": [{"id": "s1", "elements": [txt("e1", "하나", 40), txt("e2", "둘", 120), txt("e3", "셋", 200), txt("e4", "넷", 280)]}]}  # noqa: E731
-    for i in ("lv", "lvb", "lvc", "lvd", "lvq"):
+    for i in ("lv", "lvb", "lvc", "lvd", "lve", "lvq"):
         import shutil
         shutil.rmtree(hist(i), ignore_errors=True)
         seed(i, base_doc(i))
@@ -167,6 +168,21 @@ def main():
         lp.write_text("\n".join(lines) + "\n", encoding="utf-8")
         rc, r = verify("lvd")
         check("b. 원장의 replay.ops 값을 바꾸면 replay bad · rc 1", rc == 1 and r.get("replay", {}).get("bad", 0) >= 1, json.dumps(summary(r), ensure_ascii=False))
+        # b2. 백업 이름 중복 - 원장 두 줄이 같은 before.backup 이름을 쓴다(이름이 시계 값뿐이던 때 뒤 저장이 앞 백업을 덮은 흔적 - PG-118)
+        history_mix("lve")
+        rc, r = verify("lve")
+        check("b2. 정상 원장 - 백업 이름 중복 없음(dup 0) · rc 0", rc == 0 and not r.get("backup", {}).get("dup"), json.dumps(summary(r), ensure_ascii=False))
+        lp = hist("lve") / "changes.jsonl"
+        lines = lp.read_text(encoding="utf-8").splitlines()
+        ks = [n for n, l in enumerate(lines) if (json.loads(l).get("before") or {}).get("backup")]
+        e1, e2 = json.loads(lines[ks[0]]), json.loads(lines[ks[1]])
+        e2["before"]["backup"] = e1["before"]["backup"]; lines[ks[1]] = json.dumps(e2, ensure_ascii=False)
+        lp.write_text("\n".join(lines) + "\n", encoding="utf-8")
+        rc, r = verify("lve")
+        want = f"백업 이름 {e1['before']['backup']} 을 줄 [{e1['seq']}, {e2['seq']}] 이 같이 쓴다"
+        whats = [p.get("what", "") for p in r.get("problems") or []]
+        check("b2. 두 줄이 같은 백업 이름을 쓰면 ok False · rc 1 · backup.dup 1 · problems 에 '백업 이름 … 을 줄 [a, b] 이 같이 쓴다'",
+              rc == 1 and r.get("ok") is False and r.get("backup", {}).get("dup") == 1 and any(w.startswith(want) for w in whats), json.dumps({"want": want, "backup": r.get("backup"), "whats": whats[:4], "raw": r.get("raw")}, ensure_ascii=False)[:700])
         # c. 백업 일부 삭제
         bk = sorted(p for p in hist("lv").iterdir() if p.suffix == ".json")
         for p in bk[1::2]:
