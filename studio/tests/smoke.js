@@ -156,7 +156,7 @@ async function runScenario(file, bsend, handlers, at = {}) {
         }
         const ok = !err && v !== false && !(typeof v === "string" && !s.dump);  // 단계가 돌려준 글은 실패 사유(dump 단계만 결과 글)
         if (!ok) fails++;
-        console.log(`${ok ? "OK  " : "FAIL"} ${s.name}${err ? " - " + err : v === false ? "" : typeof v === "string" && (s.dump || v.length < 200) ? " → " + v : ""}`);
+        console.log(`${ok ? "OK  " : "FAIL"} ${s.name}${err ? " - " + err : v === false ? "" : typeof v === "string" ? " → " + (s.dump || v.length <= 1500 ? v : v.slice(0, 1500) + " …(" + v.length + "자)") : ""}`);  // 실패 사유는 길어도 찍는다(200자 넘으면 버리던 것 - 늘린 덤프가 안 남았다)
       }
       await sleep(300); await settle(1000);  // 마지막 단계가 부른 요청(늦춰 저장 포함)의 실패·예외가 콘솔에 닿을 시간
       // 콘솔 오류는 한 줄로 - run_all·배포 기록이 FAIL 줄만 남겨도 원인이 보이게
