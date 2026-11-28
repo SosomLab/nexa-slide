@@ -1034,7 +1034,9 @@
     $$("img", box).forEach((i) => { i.onerror = () => { i.style.visibility = "hidden"; }; });
   }
   function rectOf(g) { return { x: G.colX[g.c1], y: G.rowY[g.r1], w: G.colX[g.c2 + 1] - G.colX[g.c1], h: G.rowY[g.r2 + 1] - G.rowY[g.r1] }; }
-  function place(el, g, inset = 0) { const R = rectOf(g); Object.assign(el.style, { left: R.x - inset + "px", top: R.y - inset + "px", width: R.w + inset * 2 + 1 + "px", height: R.h + inset * 2 + 1 + "px" }); }
+  // 표시 상자의 자리 - 칸의 격자선은 "왼쪽 칸의 오른쪽 끝 1px · 그 칸의 오른쪽 끝 1px"(칸마다 오른쪽·아래 테두리)이라, 상자는 [x-1, x+w) 에 놓아야 네 변이 모두 선 위에 온다.
+  //   (전에는 [x-inset, x+w+inset+1) 이라 오른쪽·아래 변이 선보다 1~2px 바깥으로 나가 있었다 - 굵은 테두리의 칸에서 눈에 띄었다)
+  function place(el, g) { const R = rectOf(g); Object.assign(el.style, { left: R.x - 1 + "px", top: R.y - 1 + "px", width: R.w + 1 + "px", height: R.h + 1 + "px" }); }
   // 틀 고정 - 고정 행·열 칸(sticky)은 스크롤만큼 따라 움직인다. 선택 표시를 고정·스크롤 사분면으로 나눠 고정 쪽은 같이 옮기고, 스크롤 쪽은 고정 칸 밑으로 가린다(엑셀과 같다)
   const frz = () => effFz(sheet());
   function paneOf(r, c) {  // 그 칸이 있는 사분면의 이동량(dx·dy)과 가림 선(cx·cy, 내용 좌표 - 이보다 왼쪽·위는 고정 칸이 덮는다)
@@ -1043,26 +1045,35 @@
     const fr = r < fz.r, fc = c < fz.c;
     return { dx: fc ? sx() : 0, dy: fr ? sy() : 0, cx: fc ? null : sx() + G.colX[fz.c], cy: fr ? null : sy() + G.rowY[fz.r] };
   }
-  function placeQ(el, g, inset = 0) {
+  function placeQ(el, g, inset = 0, hole = null) {  // hole = 색을 비울 칸(범위 안의 기준 칸)
     const fz = frz(), parts = [];
     if (!el.hidden) for (const [r1, r2] of [[g.r1, Math.min(g.r2, fz.r - 1)], [Math.max(g.r1, fz.r), g.r2]]) for (const [c1, c2] of [[g.c1, Math.min(g.c2, fz.c - 1)], [Math.max(g.c1, fz.c), g.c2]]) if (r1 <= r2 && c1 <= c2) parts.push({ r1, c1, r2, c2 });
     const extra = [...el.parentNode.querySelectorAll(`.q-${el.id}`)];
     parts.forEach((q, i) => {
       let e = el;
       if (i) { e = extra[i - 1]; if (!e) { e = document.createElement("div"); e.className = `ov q-${el.id}`; (extra[extra.length - 1] || el).after(e); extra.push(e); } e.hidden = false; }
-      const R = rectOf(q), p = paneOf(q.r1, q.c1), x = R.x - inset + p.dx, y = R.y - inset + p.dy, w = R.w + inset * 2 + 1, h = R.h + inset * 2 + 1;
+      const R = rectOf(q), p = paneOf(q.r1, q.c1), x = R.x - 1 + p.dx, y = R.y - 1 + p.dy, w = R.w + 1, h = R.h + 1;  // 네 변이 격자선 위에(place 와 같다)
       const t = p.cy == null ? 0 : Math.max(0, p.cy - y), l = p.cx == null ? 0 : Math.max(0, p.cx - x);
-      Object.assign(e.style, { left: x + "px", top: y + "px", width: w + "px", height: h + "px", clipPath: t || l ? `inset(${t}px 0 0 ${l}px)` : "", visibility: t >= h || l >= w ? "hidden" : "",
+      let clip = t || l ? `inset(${t}px 0 0 ${l}px)` : "";
+      const hq = hole && { r1: Math.max(hole.r1, q.r1), c1: Math.max(hole.c1, q.c1), r2: Math.min(hole.r2, q.r2), c2: Math.min(hole.c2, q.c2) };
+      if (hq && hq.r1 <= hq.r2 && hq.c1 <= hq.c2) {  // 기준 칸 자리를 뚫는다(칸 안쪽만 - 격자선 1px 은 남긴다). 틀 고정에 가린 쪽은 같은 경로에서 같이 자른다
+        // 칸 안쪽(그 칸의 오른쪽·아래 선은 뺀다)만 뚫고, 범위 테두리(B px)는 건드리지 않는다
+        const H = rectOf(hq), B = inset ? 2 : 1, x1 = Math.max(B, H.x + p.dx - x), y1 = Math.max(B, H.y + p.dy - y), x2 = Math.min(w - B, H.x + p.dx - x + H.w - 1), y2 = Math.min(h - B, H.y + p.dy - y + H.h - 1);
+        if (x2 > x1 && y2 > y1) clip = `path(evenodd, "M${l} ${t}H${w}V${h}H${l}Z M${x1} ${y1}H${x2}V${y2}H${x1}Z")`;
+      }
+      Object.assign(e.style, { left: x + "px", top: y + "px", width: w + "px", height: h + "px", clipPath: clip, visibility: t >= h || l >= w ? "hidden" : "",
         borderTopStyle: q.r1 > g.r1 ? "none" : "", borderLeftStyle: q.c1 > g.c1 ? "none" : "", borderBottomStyle: q.r2 < g.r2 ? "none" : "", borderRightStyle: q.c2 < g.c2 ? "none" : "" });  // 사분면 사이 경계선은 안 그린다
     });
     extra.slice(Math.max(0, parts.length - 1)).forEach((e) => { e.hidden = true; });
   }
   function placeSel() {
     const sh = sheet(), g = clampRange(S.sel), cm = mergeAt(sh, S.cur.r, S.cur.c) || { r1: S.cur.r, c1: S.cur.c, r2: S.cur.r, c2: S.cur.c };
-    $("#selBox").hidden = g.r1 === g.r2 && g.c1 === g.c2 || rangeName(g) === rangeName(cm); placeQ($("#selBox"), g);
-    placeQ($("#curBox"), cm, 1);
+    // 칸 하나(합친 칸 하나)면 그 칸에 굵은 테두리(#curBox). 범위면 범위 전체에 굵은 테두리 + 옅은 색(#selBox), 기준 칸은 색만 비운다 - 엑셀과 같다
+    const one = (g.r1 === g.r2 && g.c1 === g.c2) || rangeName(g) === rangeName(cm);
+    $("#selBox").hidden = one; placeQ($("#selBox"), g, 1, cm);
+    $("#curBox").hidden = !one; placeQ($("#curBox"), cm, 1);
     {  // 채우기 핸들 - 선택 범위 오른쪽 아래, 고정 칸에 덮이면 감춘다
-      const R = rectOf(g), H = $("#fillHandle"), p = paneOf(g.r2, g.c2), x = R.x + R.w - 3 + p.dx, y = R.y + R.h - 3 + p.dy;
+      const R = rectOf(g), H = $("#fillHandle"), p = paneOf(g.r2, g.c2), x = R.x + R.w - 5 + p.dx, y = R.y + R.h - 5 + p.dy;  /* 범위의 오른쪽 아래 모서리(선 위)에 가운데를 맞춘다 */
       H.style.left = x + "px"; H.style.top = y + "px"; H.hidden = !!S.edit || (p.cx != null && x < p.cx) || (p.cy != null && y < p.cy);
     }
     const cb = $("#clipBox"); cb.hidden = !(S.clip && S.clip.ti === sh.id && S.clip.show); placeQ(cb, cb.hidden ? g : S.clip.g);
@@ -1809,6 +1820,7 @@
     let tgt = null;
     H.style.pointerEvents = "none";
     const onMove = (ev) => {
+      if (ev.buttons === 0) { onUp(ev); return; }  // 마우스를 뗀 것을 놓쳤다 - 여기서 끝낸다
       const el = document.elementFromPoint(ev.clientX, ev.clientY), d = el && el.closest("td[data-r]"); if (!d) return;
       tgt = fillTarget(g, +d.dataset.r, +d.dataset.c);
       if (!tgt) { box.hidden = tip.hidden = true; return; }
@@ -2091,6 +2103,7 @@
       insertRef(key(r0, c0));
       const startPos = ED().selectionStart - key(r0, c0).length;
       const onMove = (ev) => {
+        if (ev.buttons === 0) { onUp(ev); return; }  // 마우스를 뗀 것을 놓쳤다 - 여기서 끝낸다
         const t = document.elementFromPoint(ev.clientX, ev.clientY); const d = t && t.closest("td[data-r]"); if (!d) return;
         const g = { r1: Math.min(r0, +d.dataset.r), c1: Math.min(c0, +d.dataset.c), r2: Math.max(r0, +d.dataset.r), c2: Math.max(c0, +d.dataset.c) };
         const ed = ED(), txt = rangeName(g), cur = ed.selectionStart; ed.value = ed.value.slice(0, startPos) + txt + ed.value.slice(cur); const n = startPos + txt.length; ed.setSelectionRange(n, n); placeEditor(); $("#fxIn").value = ed.value;
@@ -2111,6 +2124,7 @@
     else if (thr) { mode = "row"; const r = +thr.dataset.row; if (!e.shiftKey) S.anchor = { r, c: 0 }; S.cur = { r: e.shiftKey ? S.cur.r : r, c: 0 }; S.sel = { c1: 0, c2: G.cols - 1, r1: Math.min(S.anchor.r, r), r2: Math.max(S.anchor.r, r) }; renderSel(); }
     else return;
     const onMove = (ev) => {
+      if (ev.buttons === 0) { onUp(ev); return; }  // 마우스를 뗀 것을 놓쳤다 - 여기서 끝낸다
       const t = document.elementFromPoint(ev.clientX, ev.clientY); if (!t) return;
       if (mode === "cell") { const d = t.closest("td[data-r]"); if (d) { const r = +d.dataset.r, c = +d.dataset.c; if (!S.ext || S.ext.r !== r || S.ext.c !== c) selectCell(r, c, true); } }
       if (mode === "col") { const d = t.closest("th[data-col], td[data-c]"); if (d) { const c = +(d.dataset.col ?? d.dataset.c); S.sel = { r1: 0, r2: G.rows - 1, c1: Math.min(S.anchor.c, c), c2: Math.max(S.anchor.c, c) }; renderSel(); } }
@@ -2160,6 +2174,7 @@
       : (g.c1 === 0 && g.c2 === G.cols - 1 && i >= g.r1 && i <= g.r2 ? [...Array(g.r2 - g.r1 + 1)].map((_, k) => g.r1 + k) : [i]);
     let snap = false, last = w0;
     const onMove = (ev) => {
+      if (ev.buttons === 0) { onUp(ev); return; }  // 마우스를 뗀 것을 놓쳤다 - 여기서 끝낸다
       const v = Math.max(axis === "c" ? 24 : 16, Math.round(w0 + ((axis === "c" ? ev.clientX : ev.clientY) - x0) / Z)); if (v === last) return; last = v;
       if (!snap) { snapshot(); snap = true; }
       for (const j of all) { if (axis === "c") { sh.cols = sh.cols || {}; if (v === DEF_W) delete sh.cols[colName(j)]; else sh.cols[colName(j)] = v; } else { sh.rows = sh.rows || {}; if (v === DEF_H) delete sh.rows[String(j + 1)]; else sh.rows[String(j + 1)] = v; } }
