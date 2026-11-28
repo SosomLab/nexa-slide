@@ -105,19 +105,19 @@ const cbrief = (r) => r.breaks.map((b) => b.type === "colsplit" ? `${b.id}:colsp
 const two = (list) => stack(list).map((x) => ({ ...x, cols: 2 }));
 { // 800 뒤 줄 10개 문단 - 4줄은 이 단(800~1000), 5번째 줄부터 다음 단 머리(0). 줄 4 의 자연 위치 1002 → dy -1002. 뒤 블록은 그 이동(-1002)을 받아 꼬리 아래(298)에 놓인다
   const r = F.plan(two([800, { h: 500, kind: "p" }, 300]), H, G, (it) => lines(it, 10, 50), CS);
-  check("33 다단 문단 나눔 - 넘치는 줄부터 다음 단 머리로(colsplit) · 뒤 블록이 이동을 받는다", cbrief(r) === "b1:colsplit@4:1:-1002 b2:push:-1002" && J(r.place) === J({ b0: 0, b1: 0, b2: 1 }) && r.pages === 1, cbrief(r) + " " + J(r.place) + " p" + r.pages); }
+  check("33 다단 문단 나눔 - 넘치는 줄부터 다음 단 머리로(colsplit) · 뒤 블록이 이동을 받는다", cbrief(r) === "b1:colsplit@4:1:-1000 b2:push:-1000" && J(r.place) === J({ b0: 0, b1: 0, b2: 1 }) && r.pages === 1, cbrief(r) + " " + J(r.place) + " p" + r.pages); }
 { // 마지막 단에서 넘치면 꼬리는 다음 쪽 첫 단: 900 | 800(2단으로 -900) | 문단(2단 800~1000 에 4줄, 나머지는 다음 쪽 1200)
   const r = F.plan(two([900, 800, { h: 500, kind: "p" }, 100]), H, G, (it) => lines(it, 10, 50), CS);
-  check("34 마지막 단의 문단 - 꼬리는 다음 쪽 첫 단(dcol -1 · 쪽 넘김) · 2쪽", cbrief(r) === "b1:push:-900 b2:colsplit@4:-1:198:p b3:push:198" && r.place.b2 === 1 && r.place.b3 === 0 && r.pages === 2, cbrief(r) + " " + J(r.place) + " p" + r.pages); }
+  check("34 마지막 단의 문단 - 꼬리는 다음 쪽 첫 단(dcol -1 · 쪽 넘김) · 2쪽", cbrief(r) === "b1:push:-900 b2:colsplit@4:-1:200:p b3:push:200" && r.place.b2 === 1 && r.place.b3 === 0 && r.pages === 2, cbrief(r) + " " + J(r.place) + " p" + r.pages); }
 { // 외톨이 첫 줄: 940 뒤 문단 → 한 줄만 들어간다 → 나누지 않고 문단째 다음 단으로
   const r = F.plan(two([940, { h: 500, kind: "p" }]), H, G, (it) => lines(it, 10, 50), CS);
   check("35 첫 줄만 남으면 나누지 않고 문단째 다음 단", cbrief(r) === "b1:push:-940" && r.place.b1 === 1, cbrief(r) + " " + J(r.place)); }
 { // 끝 줄만 넘어가면 한 줄 더 데려간다: 550 뒤 줄 10개 → 9줄이 들어가고 끝 줄만 넘침 → 8줄에서 나눔
   const r = F.plan(two([550, { h: 500, kind: "p" }]), H, G, (it) => lines(it, 10, 50), CS);
-  check("36 끝 줄만 넘어가면 한 줄 더 데려간다(@8)", cbrief(r) === "b1:colsplit@8:1:-952", cbrief(r)); }
+  check("36 끝 줄만 넘어가면 한 줄 더 데려간다(@8)", cbrief(r) === "b1:colsplit@8:1:-950", cbrief(r)); }
 { // 단보다 긴 문단: 900 뒤 줄 40개(2000) → 1단 2줄 · 2단 20줄 · 다음 쪽 1단 18줄. 둘째 조각의 dy 는 문단 안에서 쌓인 값(-1002 + 200)
   const r = F.plan(two([900, { h: 2000, kind: "p" }, 100]), H, G, (it) => lines(it, 40, 50), CS);
-  check("37 단보다 긴 문단 - 세 자리에 걸친다(colsplit 둘 · dy 는 쌓인 값) · 뒤 블록은 모두 합친 이동", cbrief(r) === "b1:colsplit@2:1:-1002 b1:colsplit@22:0:-802:p b2:push:-802" && r.pages === 2 && r.place.b2 === 0, cbrief(r) + " " + J(r.place) + " p" + r.pages); }
+  check("37 단보다 긴 문단 - 세 자리에 걸친다(colsplit 둘 · dy 는 쌓인 값) · 뒤 블록은 모두 합친 이동", cbrief(r) === "b1:colsplit@2:1:-1000 b1:colsplit@22:0:-800:p b2:push:-800" && r.pages === 2 && r.place.b2 === 0, cbrief(r) + " " + J(r.place) + " p" + r.pages); }
 { // 끄면 전과 같다 - 통째로 다음 단
   const r = F.plan(two([800, { h: 500, kind: "p" }, 300]), H, G, (it) => lines(it, 10, 50));
   check("38 colSplit 을 끄면 전과 같다(문단째 다음 단)", cbrief(r) === "b1:push:-800" && r.place.b1 === 1, cbrief(r)); }
@@ -131,11 +131,11 @@ const two = (list) => stack(list).map((x) => ({ ...x, cols: 2 }));
   const r = F.plan(items, H, G, (it) => lines(it, 10, 50), CS);
   // 1단 구역은 가장 아래까지 내려간 단(첫 단에 남긴 4번째 줄의 끝 998)에서 시작한다 - z(높이 100)는 998 에 놓으면 쪽을 넘쳐 다음 쪽 머리(1200)로.
   //   z 의 자연 위치 1300 → 1200: 이월 -1002 + 구역 이동 +700 + 쪽 넘김 +202 = -100 을 밀기 하나로
-  check("40 나눈 문단 뒤 1단 구역 - 나눈 문단이 남긴 단의 끝 아래에서 시작(넘치면 다음 쪽) · 밀기는 하나로 합쳐진다", r.breaks.filter((x) => x.id === "z").length === 1 && cbrief(r) === "b1:colsplit@4:1:-1002 z:push:-100:p" && r.pages === 2, cbrief(r) + " p" + r.pages); }
+  check("40 나눈 문단 뒤 1단 구역 - 나눈 문단이 남긴 단의 끝 아래에서 시작(넘치면 다음 쪽) · 밀기는 하나로 합쳐진다", r.breaks.filter((x) => x.id === "z").length === 1 && cbrief(r) === "b1:colsplit@4:1:-1000 z:push:-100:p" && r.pages === 2, cbrief(r) + " p" + r.pages); }
 { // 같은 상황에서 뒤 블록이 작으면(높이 2) 그 단의 끝 바로 아래(998)에 놓인다 - 이월 -1002 + 구역 이동 +700 = -302
   const items = two([800, { h: 500, kind: "p" }]).concat([{ id: "z", kind: "obj", top: 1300, bottom: 1302 }]);
   const r = F.plan(items, H, G, (it) => lines(it, 10, 50), CS);
-  check("42 나눈 문단 뒤 1단 구역 - 작은 블록은 남긴 단의 끝 바로 아래", cbrief(r) === "b1:colsplit@4:1:-1002 z:push:-302" && r.pages === 1, cbrief(r) + " p" + r.pages); }
+  check("42 나눈 문단 뒤 1단 구역 - 작은 블록은 남긴 단의 끝 바로 아래", cbrief(r) === "b1:colsplit@4:1:-1000 z:push:-302" && r.pages === 1, cbrief(r) + " p" + r.pages); }
 { // 1단 문서에는 영향 없음
   const r = F.plan(stack([800, { h: 500, kind: "p" }]), H, G, (it) => lines(it, 10, 50), CS);
   check("41 1단 문서는 colSplit 을 켜도 전과 같다(줄 사이 빈 자리)", brief(r) === "b1:split@4:200", brief(r)); }

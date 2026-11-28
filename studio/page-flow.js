@@ -100,7 +100,7 @@
         }
         mark(L[k - 1].bottom + shift);  // 이 단에 남긴 줄의 끝 - 구역이 바뀔 때 "가장 아래까지 내려간 단"에 들어가야 한다(빠지면 다음 구역이 이 단의 글 위에 겹친다)
         let paged = false; if (col < n - 1) col++; else { page++; col = 0; paged = true; }
-        const dy = slotTop() - (L[k].top + shift);
+        const dy = slotTop() - ((L[k - 1].bottom + L[k].top) / 2 + shift);  // 줄 사이 가운데를 단 머리에 맞춘다(1단의 줄 나눔과 같은 기준) - 글자 상자의 위 끝을 맞추면 줄 간격의 반만큼 올라가 단 머리 밖으로 삐져나온다
         shift += dy; base += dy; carry += dy;
         out.push({ id: it.id, type: "colsplit", line: k, dcol: col - head, dy: base, page: paged });
         from = k;
