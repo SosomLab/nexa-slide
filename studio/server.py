@@ -12,7 +12,7 @@
   그 밖       assetRoot(덱 그림 경로 src·img 의 기준 폴더)
 API
   GET  /api/decks                    덱 목록
-  GET  /api/deck/<id>                덱 JSON (헤더 X-Deck-Version = 파일 mtime_ns)
+  GET  /api/deck/<id>                덱 JSON (헤더 X-Deck-Version = 파일 mtime_ns) · ?gone=ok 면 없을 때 404 대신 {gone:true}(다시 읽기용)
   PUT  /api/deck/<id>?base=<ver>     덱 저장(원자적 쓰기, .history 백업 50개). base 가 현재와 다르면 409 (force=1 이면 무시)
                      &merge=1           base 가 다르면 409 대신 3-way 병합(deckmerge.py, docs/collab.md 1단계) → {merged, conflicts, deck}. 기준본이 없으면 409 reason=no-base
   GET  /api/version/<id>             {"deck": ver, "requests": ver}
@@ -1200,6 +1200,8 @@ class H(BaseHTTPRequestHandler):
     def api_get_deck(self, i, q):
         p = deck_path(i)
         if not p.exists():
+            if (q.get("gone") or [""])[0] == "ok":  # 다시 읽기 - 판을 받은 뒤 읽기까지의 사이에 지워질 수 있다. 오류가 아니라 '없어졌다'로 답한다(편집기가 다시 읽지 않고 넘어간다)
+                return self.send_json({"gone": True}, headers={"X-Deck-Version": "0", "Cache-Control": "no-store"})
             return self.err(404, "덱 없음")
         v = ver(p)
         data = p.read_bytes()

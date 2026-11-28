@@ -463,10 +463,11 @@
   // ---------------------------------------------------------------- 불러오기·외부 변경 감지
   async function loadDeck(keepView) {
     if (PREVIEW) return loadPreview();
-    const r = await fetch(`${BASE}/api/deck/${encodeURIComponent(S.id)}`, { cache: "no-store" });
+    const r = await fetch(`${BASE}/api/deck/${encodeURIComponent(S.id)}${keepView ? "?gone=ok" : ""}`, { cache: "no-store" });  // 다시 읽기는 그 사이 지워졌을 수 있다 - 404 가 아니라 {gone:true} 로 받는다
     if (r.status === 401) { if (window.NexaMenu) NexaMenu.auth401(r, await r.json().catch(() => null)); return false; }
     if (!r.ok) { setStatus("error", "읽기 실패"); toast("시트를 불러오지 못했습니다 (" + r.status + ")", 6000); return false; }
     const deck = await r.json();
+    if (deck && deck.gone) return false;  // 판을 받은 뒤 읽기까지의 사이에 지워졌다
     if (deck.kind !== "sheet") { location.replace(NexaKinds.url({ id: S.id, kind: deck.kind })); return false; }  // 슬라이드 덱이면 편집기로
     if (!Array.isArray(deck.sheets) || !deck.sheets.length) deck.sheets = [{ id: "t01", name: "Sheet1", cells: {} }];
     if (!Array.isArray(deck.slides)) deck.slides = [];
