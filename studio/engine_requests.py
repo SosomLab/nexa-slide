@@ -35,8 +35,9 @@ def _now():
 
 
 def _read():
+    import procutil
     try:
-        d = json.loads(QUEUE.read_text(encoding="utf-8"))
+        d = procutil.read_json(QUEUE)  # 다른 프로세스의 바꿔치기와 겹치면 다시 읽는다 - 한 번 실패를 빈 큐로 치면 그 뒤의 쓰기가 요청을 지운다
         if isinstance(d, dict) and isinstance(d.get("items"), list):
             return d
     except (OSError, ValueError):
@@ -56,8 +57,9 @@ def session_state():
     """엔진 개발 세션이 살아 있는가 - 하트비트 파일로 본다(허브 프로세스 밖의 CLI 도 쓴다). {connected, kind, label, agent, model}
     requests_core.heartbeat_status 와 같은 판정이지만 그 모듈은 작업 공간(common)을 요구해 여기서 다시 적는다."""
     import time
+    import procutil
     try:
-        hb = json.loads(HEARTBEAT.read_text(encoding="utf-8"))
+        hb = procutil.read_json(HEARTBEAT)  # 감시가 1초마다 바꿔치기한다 - 겹친 순간의 읽기 실패를 '세션 없음'으로 치지 않는다
     except (OSError, ValueError):
         return {"connected": False}
     age = time.time() - float(hb.get("ts", 0))

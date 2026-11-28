@@ -396,7 +396,7 @@
 
   // ---------------------------------------------------------------- 실행 취소·저장
   const deckJson = () => JSON.stringify(S.deck);
-  function snapshot() { aiBusyWarn(); S.undo.push(deckJson()); if (S.undo.length > 150) S.undo.shift(); S.redo = []; updUndo(); }
+  function snapshot() { HIST.push(); }  // 기록·되돌리기·봉인은 공용(nexa-doc.js 의 history · 세 편집기가 같은 기준)
   // AI 가 처리 중인 범위를 고치기 시작하면 한 번 알린다(잠그지 않음 - 저장은 병합되고 같은 셀은 사람 값이 남는다). 편집기와 같다 - docs/collab.md 2단계
   const aiWarned = new Set();
   function aiBusyWarn() {
@@ -415,8 +415,9 @@
   }
   function updUndo() { $("#undoBtn").disabled = !S.undo.length; $("#redoBtn").disabled = !S.redo.length; }
   // 남의 변경(다른 창·AI·병합 저장)을 받은 뒤의 실행 취소는 내 편집만 되돌린다 - NexaMerge.seal/undoTarget(nexa-merge.js, 편집기와 같다 - docs/collab.md 1단계)
-  function undo() { if (!S.undo.length) return; const now = deckJson(); S.redo.push(now); S.deck = NexaMerge.undoTarget(S.undo.pop(), now); S.struct = []; afterChange(); }  // 구조 작업은 실행 취소와 짝을 맞출 수 없어 비운다(그 저장은 예전처럼 셀 병합만)
-  function redo() { if (!S.redo.length) return; S.undo.push(deckJson()); S.deck = JSON.parse(S.redo.pop()); S.struct = []; afterChange(); }
+  const HIST = NexaDoc.history({ state: S, json: () => deckJson(), max: 150, beforePush: () => aiBusyWarn(), onChange: () => updUndo(),
+    apply: (deck) => { S.deck = deck; S.struct = []; afterChange(); } });  // 구조 작업은 실행 취소와 짝을 맞출 수 없어 비운다(그 저장은 예전처럼 셀 병합만)
+  const undo = () => HIST.undo(), redo = () => HIST.redo();
   /** 바꾼 뒤: 다시 계산 · 그리기 · 자동 저장 예약 */
   function afterChange() {
     if (S.ti >= S.deck.sheets.length) S.ti = S.deck.sheets.length - 1;
@@ -442,7 +443,7 @@
       if (r.ok) S.struct = (S.struct || []).slice(sentStruct.length);  // 저장된 판이 새 기준 - 보낸 구조 작업은 그 안에 들어 있다
       return r;
     },
-    beforeMerged: (now) => { NexaMerge.seal(S.undo, S.redo, now); updUndo(); },  // 남의 변경은 내 실행 취소에 섞지 않는다
+    beforeMerged: (now) => { HIST.seal(now); },  // 남의 변경은 내 실행 취소에 섞지 않는다
     mergedDeck: (d) => { if (!Array.isArray(d.slides)) d.slides = []; (d.sheets || []).forEach(normSheet); return d; },
     onMerged: (r) => {
       if (S.ti >= S.deck.sheets.length) S.ti = Math.max(0, S.deck.sheets.length - 1);
@@ -475,7 +476,7 @@
     // 여기부터 끝까지는 기다림 없이 한 번에 - 아래 검사와 S.deck 을 바꾸는 사이에 기다림이 있으면 그때 들어온 편집이 알림 없이 덮여 사라진다(테마·VBA 를 검사 앞으로 옮긴 이유)
     if (keepView && S.deck && (S.dirty || S.edit || S.saving)) { if (S.dirty && !S.edit) scheduleSave(); return false; }  // 다시 읽는 사이 내가 고쳤다 - 읽은 것을 버린다. 내 저장이 서버에서 합친다
     if (!keepView) S.struct = [];
-    if (keepView && S.deck) NexaMerge.seal(S.undo, S.redo, deckJson());  // 밖의 변경을 받는다 - 내 실행 취소에 넣지 않고, 이전 기록은 내 편집만 되돌리게 봉인
+    if (keepView && S.deck) HIST.seal(deckJson());  // 밖의 변경을 받는다 - 내 실행 취소에 넣지 않고, 이전 기록은 내 편집만 되돌리게 봉인
     else { S.undo = []; S.redo = []; }
     S.version = r.headers.get("X-Deck-Version");
     if (!keepView) { const z = +LS.get(`sheetZoom-${S.id}`, 1) || 1; Z = 1; $("#gridIn").style.zoom = ""; if (z !== 1) setTimeout(() => setZoom(z), 0); renderZoom(); }

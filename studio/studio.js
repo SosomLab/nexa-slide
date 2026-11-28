@@ -60,7 +60,7 @@
 
 
   // ---------------------------------------------------------------- 기록(실행 취소)·저장
-  function snapshot() { aiBusyWarn(); S.undo.push(deckJson()); if (S.undo.length > 150) S.undo.shift(); S.redo = []; updUndo(); }
+  function snapshot() { HIST.push(); }  // 기록·되돌리기·봉인은 공용(nexa-doc.js 의 history · 세 편집기가 같은 기준)
   // AI 가 처리 중인 곳을 고치기 시작하면 한 번 알린다(잠그지 않음 - 저장은 병합되고 같은 곳은 사람 값이 남는다). 동시 편집 2단계 - docs/collab.md
   const aiWarned = new Set();
   function aiBusyWarn() {
@@ -79,8 +79,8 @@
   }
   function updUndo() { $("#undoBtn").disabled = !S.undo.length; $("#redoBtn").disabled = !S.redo.length; }
   // 남의 변경(다른 창·AI·병합 저장)을 받은 뒤의 실행 취소는 내 편집만 되돌린다 - NexaMerge.seal/undoTarget(nexa-merge.js, docs/collab.md 1단계)
-  function undo() { if (!S.undo.length) return; const now = deckJson(); S.redo.push(now); S.deck = NexaMerge.undoTarget(S.undo.pop(), now); afterChange(true); }
-  function redo() { if (!S.redo.length) return; S.undo.push(deckJson()); S.deck = JSON.parse(S.redo.pop()); afterChange(true); }
+  const HIST = NexaDoc.history({ state: S, json: () => deckJson(), max: 150, beforePush: () => aiBusyWarn(), onChange: () => updUndo(), apply: (deck) => { S.deck = deck; afterChange(true); } });
+  const undo = () => HIST.undo(), redo = () => HIST.redo();
   /** 변경 후: 화면 갱신 + 자동 저장 예약 */
   function afterChange(full) {
     if (S.cur >= S.deck.slides.length) S.cur = S.deck.slides.length - 1;
@@ -101,7 +101,7 @@
       if (!r) r = await api("PUT", `/api/deck/${S.id}?base=${encodeURIComponent(S.version || "")}${force ? "&force=1" : "&merge=1"}${qs}`, JSON.parse(body));
       return r;
     },
-    beforeMerged: (now) => { NexaMerge.seal(S.undo, S.redo, now); updUndo(); },  // 남의 변경은 내 실행 취소에 섞지 않는다
+    beforeMerged: (now) => { HIST.seal(now); },  // 남의 변경은 내 실행 취소에 섞지 않는다
     onMerged: (r) => {
       if (S.cur >= S.deck.slides.length) S.cur = Math.max(0, S.deck.slides.length - 1);
       if (S.sel && !selEl()) S.sel = null;
@@ -124,7 +124,7 @@
     if (deck.kind === "page") { location.href = NexaKinds.url(deck); return false; }  // 페이지 문서는 page.html 에서
     if (deck.kind === "sheet") { location.href = sheetUrl(id); return false; }  // 시트(엑셀) 문서는 시트 화면(sheet.html)에서 - docs/sheets.md
     if (keep && S.deck && S.id === id && (S.dirty || S.editing || S.saving)) { if (S.dirty && !S.editing) scheduleSave(); return false; }  // 다시 읽는 사이 내가 고쳤다 - 읽은 것을 버린다(덮어쓰면 그 편집이 알림 없이 사라진다). 내 저장이 서버에서 합친다
-    if (keep && S.deck && S.id === id) { NexaMerge.seal(S.undo, S.redo, deckJson()); }  // 밖의 변경을 받는다 - 내 실행 취소에 넣지 않고, 이전 기록은 내 편집만 되돌리게 봉인
+    if (keep && S.deck && S.id === id) { HIST.seal(deckJson()); }  // 밖의 변경을 받는다 - 내 실행 취소에 넣지 않고, 이전 기록은 내 편집만 되돌리게 봉인
     else { S.undo = []; S.redo = []; }
     S.id = id; S.deck = deck; S.version = r.headers.get("X-Deck-Version"); S.savedJson = deckJson();
     Render.setDeckFonts(deck.fontPreset);  // 덱 글꼴 세트(있으면)

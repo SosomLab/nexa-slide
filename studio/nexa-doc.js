@@ -115,6 +115,52 @@
     return { poll, apply, start(ms) { clearInterval(timer); timer = setInterval(() => poll(), ms || 2000); return timer; }, stop() { clearInterval(timer); timer = 0; } };
   }
 
-  root.NexaDoc = { saver, stillChanged, follower };
+  /** 실행 취소·다시 실행 기록(세 편집기 공통 기준) - 기록은 S.undo · S.redo 에 그대로 둔다(다른 모듈·시험이 길이를 본다).
+   *  항목 = 바꾸기 직전의 문서 JSON 문자열, 또는 {b: 그 JSON, sel?: 그때의 선택, a?: 그 편집 뒤의 문서(봉인)}.
+   *  봉인(seal) = 남의 변경(다른 창·AI·병합 저장)을 받기 직전에 항목마다 "그 편집 뒤의 문서"를 붙여 둔다 - 그러면 되돌릴 때 문서를 통째로 옛 모습으로
+   *  바꾸지 않고 내 편집만 거꾸로 얹는다(Ctrl+Z 가 남의 변경을 지우지 않는다). 다시 실행 기록은 비운다.
+   *  o.state(S) · o.json() · o.max(기본 150) · o.merge3(기본 NexaMerge.merge3)
+   *  o.selection()     있으면 선택을 같이 적고 되돌릴 때 돌려준다(페이지) · o.join(why, last, dt) → true 면 앞 기록에 묶는다(이어 친 글)
+   *  o.beforePush(why) 기록 직전(AI 처리 중 경고 등) · o.apply(deck, sel, dir) 되돌린 문서를 화면에(dir = "undo" | "redo") · o.onChange() 단추 켜짐·꺼짐
+   *  → { push(why, before), undo(), redo(), seal(now), drop(), reset(), can() } */
+  function history(o) {
+    const S = o.state, max = o.max || 150; let last = null;
+    const jsonOf = (e) => (typeof e === "string" ? e : e.b);
+    const entry = (json) => (o.selection ? { b: json, sel: o.selection() } : json);
+    const changed = () => { if (o.onChange) o.onChange(); };
+    /** 바꾸기 직전에 부른다. before = 미리 잡아 둔 직전 문서(끌기·글 편집 - 바뀐 것을 안 뒤에 넣는다) */
+    function push(why, before) {
+      const now = Date.now();
+      if (before === undefined && o.beforePush) o.beforePush(why);
+      const join = before === undefined && !!(o.join && last && o.join(why, last.why, now - last.at));
+      last = { why, at: now };
+      if (join) return false;
+      S.undo.push(before === undefined ? entry(o.json()) : before); if (S.undo.length > max) S.undo.shift();
+      S.redo.length = 0; changed(); return true;
+    }
+    function step(from, to, dir) {
+      if (!from.length) return false;
+      const now = o.json(), e = from.pop(); to.push(entry(now)); last = null;
+      const m3 = o.merge3 || (root.NexaMerge && root.NexaMerge.merge3);
+      const deck = typeof e === "object" && e.a !== undefined ? m3(JSON.parse(e.a), JSON.parse(e.b), JSON.parse(now), "ours").merged : JSON.parse(jsonOf(e));
+      o.apply(deck, typeof e === "object" ? e.sel : undefined, dir); changed(); return true;
+    }
+    function seal(now) {
+      for (let k = 0; k < S.undo.length; k++) {
+        const e = S.undo[k]; if (typeof e === "object" && e.a !== undefined) continue;
+        const a = k + 1 < S.undo.length ? jsonOf(S.undo[k + 1]) : now;
+        S.undo[k] = typeof e === "string" ? { b: e, a } : { ...e, a };
+      }
+      S.redo.length = 0; last = null; changed();
+    }
+    return {
+      push, seal, undo: () => step(S.undo, S.redo, "undo"), redo: () => step(S.redo, S.undo, "redo"),
+      drop() { const e = S.undo.pop(); last = null; changed(); return e; },  // 방금 넣은 기록을 없던 일로(바뀐 것이 없었다)
+      reset() { S.undo.length = 0; S.redo.length = 0; last = null; changed(); },
+      can: () => ({ undo: S.undo.length > 0, redo: S.redo.length > 0 }),
+    };
+  }
+
+  root.NexaDoc = { saver, stillChanged, follower, history };
   if (typeof module !== "undefined" && module.exports) module.exports = root.NexaDoc;
 })(typeof window !== "undefined" ? window : globalThis);
