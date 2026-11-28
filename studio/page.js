@@ -389,9 +389,29 @@
   }
   /** 인쇄 직전 - 확대를 풀고 쪽 나눔을 다시 잡은 뒤(끼운 빈 자리가 인쇄의 강제 쪽 나눔이 된다) 개체를 매인 문단 안으로 옮긴다.
    *  인쇄에서는 쪽이 종이 장으로 나뉘어 화면의 자리(종이 기준 px)를 쓸 수 없다 - 문단 기준 자리로 바꿔 그 문단을 따라 찍히게 한다 */
+  /** 다단 구역이 있는 문서의 인쇄(PG-110 2단계) - 화면 배치를 **쪽마다 그대로** 찍는다.
+   *  다단은 블록을 위로 끌어올리거나(음수 여백) 꼬리 줄을 보이는 곳만 옮겨(.pg-colpart) 그리는데, 브라우저의 인쇄 쪽 나눔은 이것을 따라가지 못한다.
+   *  그래서 종이(#paper)를 쪽 수만큼 복제해 쪽 크기 상자(.pg-printpage - 넘치는 것은 자른다)에 넣고 그 쪽의 세로 구간이 보이게 올린다.
+   *  머리말·꼬리말·쪽 번호·쪽 아래 각주·개체가 화면 그대로 나온다(사본은 인쇄 동안만 있고 편집하지 않는다). @page 는 여백 0 */
+  function printSheets() {
+    const paper = $("#paper"), n = S.pages || 1, box = S.box, gap = flow.gap, host = document.createElement("div");
+    host.id = "printPages";
+    for (let k = 0; k < n; k++) {
+      const pg = document.createElement("div"); pg.className = "pg-printpage"; pg.style.width = box.w + "mm"; pg.style.height = `calc(${box.h}mm - 1px)`;  // 1px 덜 - 반올림으로 빈 쪽이 하나 더 나오지 않게
+      const c = paper.cloneNode(true); c.classList.add("pg-paperclone"); c.style.marginTop = `calc(-${k} * (${box.h}mm + ${gap}px))`;
+      for (const x of c.querySelectorAll("#sheets, #fnMeasure, .nx-h, .pg-obj-h")) x.remove();
+      for (const x of c.querySelectorAll("[contenteditable]")) x.removeAttribute("contenteditable");
+      for (const x of c.querySelectorAll(".sel, .nx-sel, .req-on, [data-live]")) { x.classList.remove("sel", "nx-sel", "req-on"); x.removeAttribute("data-live"); x.style.boxShadow = ""; }
+      pg.appendChild(c); host.appendChild(pg);
+    }
+    $("#scroll").appendChild(host);  // 원래 종이 뒤 - id 로 찾는 코드는 원래 요소를 먼저 찾는다
+    const st = document.getElementById("pg-print"); if (st) { st._screen = st.textContent; st.textContent = `@page { size: ${box.w}mm ${box.h}mm; margin: 0; }`; }
+    document.body.classList.add("print-sheets");
+  }
   function enterPrint() {
     if (S.printing || !flow) return;
     $("#paper").style.zoom = 1; if (!(window.matchMedia && window.matchMedia("print").matches)) flow.rerun();  /* 이미 인쇄 배치면(종이 너비가 다르다) 다시 재지 않는다 */
+    if ([...$("#ed").children].some((el) => el._pgN > 1)) { printSheets(); S.printing = true; return; }  // 다단 구역이 있다 - 화면 배치 그대로(1단 문서는 아래의 예전 방식 그대로)
     if (geo) for (const o of objs()) {
       const el = objEls.get(o.id), a = blockElOf(o.anchor); if (!el || !a) continue;
       const pos = elPos(a), inPage = pos.y - pos.page * (geo.H + geo.G), box = S.box;
@@ -409,6 +429,11 @@
   }
   function leavePrint() {
     if (!S.printing) return; S.printing = false;
+    if (document.body.classList.contains("print-sheets")) {  // 쪽 사본을 걷고 @page 를 되돌린다
+      document.body.classList.remove("print-sheets"); const h = $("#printPages"); if (h) h.remove();
+      const st = document.getElementById("pg-print"); if (st && st._screen !== undefined) { st.textContent = st._screen; st._screen = undefined; }
+      applyZoom(S.zoom || "1"); flow.rerun(); return;
+    }
     for (const [, el] of objEls) { el.style.zIndex = ""; el.remove(); }
     for (const d of $$("#ed > .pg-endnotes")) d.remove();
     applyZoom(S.zoom || "1"); flow.rerun();

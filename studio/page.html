@@ -117,13 +117,24 @@
   .menu button:hover { background: #f4f2ee; } .menu hr { border: 0; border-top: 1px solid var(--line); margin: 4px 0; } .menu .h { padding: 4px 10px; color: var(--muted); font-size: 11px; } .menu .k { margin-left: auto; color: var(--muted); }
   /* 인쇄 - 화면의 쪽 나눔 그대로: 쪽 경계에 끼운 빈 자리(빈 줄 · 빈 행 · 민 블록)가 강제 쪽 나눔이 된다. 여백·머리말·꼬리말·쪽 번호는 @page(page.js 가 만든다),
      개체(도형·글 상자)는 인쇄 직전에 매인 문단 안으로 옮겨 그 문단을 따라 찍힌다(page.js enterPrint) */
+  #printPages { display: none; }  /* 인쇄 때만 보인다(다단 문서의 쪽 사본) */
   @media print {
-    header, #tools, #banner, #toast, #side, #sessDlg, #sheets, #covers, #objs, #objsBack, #fnotes, #fnMeasure, .pg-obj-h, .nx-h, .dlg-back, #findBar { display: none !important; }
+    header, #tools, #banner, #toast, #side, #sessDlg, #sheets, #fnMeasure, .pg-obj-h, .nx-h, .dlg-back, #findBar { display: none !important; }
+    body:not(.print-sheets) #covers, body:not(.print-sheets) #objs, body:not(.print-sheets) #objsBack, body:not(.print-sheets) #fnotes { display: none !important; }
     html, body { height: auto; } body { display: block; background: #fff; } #main { display: block; } #scroll { padding: 0; overflow: visible; }
-    #paper { padding: 0 !important; width: auto !important; min-height: 0 !important; zoom: 1 !important; margin: 0; } #ed { min-height: 0; }
-    .pg-gap { display: block !important; width: auto; height: 0 !important; break-before: page; }
-    tr.pg-gaprow { break-before: page; } .pg-gaprow > td { height: 0 !important; }
-    #ed > .pg-pushed { break-before: page; margin-top: 0 !important; }
+    /* 1단 문서 - 본문을 한 줄기로 찍고, 화면에서 끼운 빈 자리를 쪽 넘김으로 바꾼다 */
+    body:not(.print-sheets) #paper { padding: 0 !important; width: auto !important; min-height: 0 !important; zoom: 1 !important; margin: 0; } body:not(.print-sheets) #ed { min-height: 0; }
+    body:not(.print-sheets) .pg-gap { display: block !important; width: auto; height: 0 !important; break-before: page; }
+    body:not(.print-sheets) tr.pg-gaprow { break-before: page; } body:not(.print-sheets) .pg-gaprow > td { height: 0 !important; }
+    body:not(.print-sheets) #ed > .pg-pushed { break-before: page; margin-top: 0 !important; }
+    /* 다단 구역이 있는 문서(body.print-sheets - page.js printSheets) - 화면 배치를 쪽마다 그대로: 원래 종이는 숨기고 쪽 사본만 찍는다 */
+    body.print-sheets #scroll > #paper { display: none !important; }
+    body.print-sheets #printPages { display: block; }
+    body.print-sheets .pg-printpage { overflow: hidden; position: relative; break-after: page; break-inside: avoid; }
+    body.print-sheets .pg-printpage:last-child { break-after: auto; }
+    body.print-sheets .pg-paperclone { margin-left: 0 !important; margin-right: 0 !important; zoom: 1 !important; }
+    body.print-sheets .pg-break.page { break-after: auto; }
+    body.print-sheets .pg-between { display: none; }
     .pg-obj.sel { outline: none; } #ed > .req-on { box-shadow: none; }
     #ed .pg-table.pg-noborder td, #ed .pg-table.pg-noborder th { border-color: transparent; } #ed .pg-table.pg-innerv td + td { border-left: .5pt solid #8a8a8a; }
   }
