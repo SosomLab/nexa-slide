@@ -410,6 +410,7 @@
   }
   function enterPrint() {
     if (S.printing || !flow) return;
+    S.printBack = false;  // 매체가 돌아오기 전에 다시 인쇄 - 기다리던 재기는 이번 인쇄가 끝난 뒤에 다시 잡힌다
     $("#paper").style.zoom = 1; if (!(window.matchMedia && window.matchMedia("print").matches)) flow.rerun();  /* 이미 인쇄 배치면(종이 너비가 다르다) 다시 재지 않는다 */
     if ([...$("#ed").children].some((el) => el._pgN > 1)) { printSheets(); S.printing = true; return; }  // 다단 구역이 있다 - 화면 배치 그대로(1단 문서는 아래의 예전 방식 그대로)
     if (geo) for (const o of objs()) {
@@ -432,11 +433,19 @@
     if (document.body.classList.contains("print-sheets")) {  // 쪽 사본을 걷고 @page 를 되돌린다
       document.body.classList.remove("print-sheets"); const h = $("#printPages"); if (h) h.remove();
       const st = document.getElementById("pg-print"); if (st && st._screen !== undefined) { st.textContent = st._screen; st._screen = undefined; }
-      applyZoom(S.zoom || "1"); flow.rerun(); return;
+      applyZoom(S.zoom || "1"); rerunOnScreen(); return;
     }
     for (const [, el] of objEls) { el.style.zIndex = ""; el.remove(); }
     for (const d of $$("#ed > .pg-endnotes")) d.remove();
-    applyZoom(S.zoom || "1"); flow.rerun();
+    applyZoom(S.zoom || "1"); rerunOnScreen();
+  }
+  /** 인쇄가 끝난 뒤 쪽 나눔을 다시 잰다 - 아직 인쇄 매체면(afterprint 가 매체 복귀보다 먼저 올 수 있다) 인쇄용 너비로 재게 되므로 화면 매체로 돌아온 뒤에 */
+  function rerunOnScreen() {
+    const mq = window.matchMedia ? window.matchMedia("print") : null;
+    if (!mq || !mq.matches) { flow.rerun(); return; }
+    S.printBack = true;  // 그때까지는 예약된 재기도 쉰다(배율 되돌리기 등이 예약한 것이 인쇄용 너비로 돌지 않게 - flow 의 off)
+    const back = () => { if (mq.matches) return; mq.removeEventListener("change", back); S.printBack = false; if (!S.printing) flow.rerun(); };
+    mq.addEventListener("change", back);
   }
   /** 개체 고르기 - 고르기·끌기·크기·화살표·지우기·복제는 공용 모듈(nexa-objects.js - 세 편집기가 같은 기준)이 맡는다 */
   let OBJ = null;
@@ -948,7 +957,7 @@
     cur = ed;
     // 실시간 쪽 나눔 - 쪽 경계에 빈 자리를 끼운다. 인쇄(브라우저·서버 Chrome)는 브라우저가 쪽을 나누므로 쉰다
     flow = NexaPageFlow.create({ colSplit: true, /* 다단 구역의 문단을 단 경계에서 나눈다(PG-101 2차) */
-      host: $("#ed"), box: () => S.box, off: () => !!S.printing,
+      host: $("#ed"), box: () => S.box, off: () => !!S.printing || !!S.printBack,
       saveSel: () => (document.activeElement === $("#ed") ? ed.selection() : null), restoreSel: (s) => ed.select(s.a, s.f),
       noteH, noteSep, prepare: numberNotes, columns: () => (S.deck.page || {}).columns,
       onPages: (n, info) => { geo = info; drawSheets(n); pageInfo(); drawObjects(); drawNotes(); },
