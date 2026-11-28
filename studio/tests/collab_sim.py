@@ -228,6 +228,39 @@ def edit_sheet(w, rnd):
         cells["D1"] = rnd.randint(0, 99)
 
 
+def verify_dump(deck, problems):
+    """원장 재생이 실패했을 때의 덤프(판정 아님) - 문제 줄 앞뒤 3줄 · 그 백업 파일의 실제 해시가 어느 줄의 것과 같은지 · 같은 백업 이름을 쓰는 줄 · python 판(PG-118)"""
+    import hashlib
+    hdir = WS / "decks" / ".history" / deck
+    try:
+        rows = [json.loads(x) for x in (hdir / "changes.jsonl").read_text(encoding="utf-8").splitlines() if x.strip()]
+    except (OSError, ValueError) as e:
+        print(f"   (덤프) {deck} 원장을 못 읽음: {e}")
+        return
+    print(f"   (덤프) python {sys.version.split()[0]} · {sys.executable} · {deck} 원장 {len(rows)}줄 · 백업 폴더 {hdir}")
+    names = [(x.get("before") or {}).get("backup") for x in rows]
+    twice = sorted({n for n in names if n and names.count(n) > 1})
+    print(f"   (덤프) 같은 백업 이름을 두 줄 이상이 씀(이름 겹침 = 덮어씀): {twice[:5] or '없음'}")
+    short = lambda h: (h or "-")[:19]  # noqa: E731
+    for pr in problems[:3]:
+        k = next((i for i, x in enumerate(rows) if x.get("seq") == pr.get("seq")), None)
+        if k is None:
+            print(f"   (덤프) seq {pr.get('seq')} 줄 없음 · {pr.get('what')}")
+            continue
+        for x in rows[max(0, k - 3):k + 4]:
+            b, a = x.get("before") or {}, x.get("after") or {}
+            print(f"   (덤프) {'>>' if x.get('seq') == pr.get('seq') else '  '} seq {x.get('seq')} · {x.get('ts')} · {x.get('action')} · before ver {b.get('ver')} {short(b.get('hash'))} 백업 {b.get('backup')} · after ver {a.get('ver')} {short(a.get('hash'))}")
+        name = (rows[k].get("before") or {}).get("backup")
+        f = hdir / name if name else None
+        if f and f.is_file():
+            h = "sha256:" + hashlib.sha256(f.read_bytes()).hexdigest()
+            same_b = [x.get("seq") for x in rows if (x.get("before") or {}).get("hash") == h]
+            same_a = [x.get("seq") for x in rows if (x.get("after") or {}).get("hash") == h]
+            print(f"   (덤프) 백업 {name} 실제 {short(h)} · 이 줄 before {short((rows[k].get('before') or {}).get('hash'))} · 같은 before.hash 인 줄 {same_b[:6]} · 같은 after.hash 인 줄 {same_a[:6]} · 크기 {f.stat().st_size}")
+        else:
+            print(f"   (덤프) 백업 {name} 파일 없음")
+
+
 def run(seed, steps):
     rnd = random.Random(seed)
     print(f"씨앗 {seed} · 걸음 {steps}")
@@ -283,7 +316,10 @@ def run(seed, steps):
         except (ValueError, IndexError):
             v = {"raw": (r.stdout + r.stderr)[-400:]}
         print(f"   {deck} 원장 {v.get('entries')}줄 · 사슬 {v.get('chain')} · 백업 {v.get('backup')} · 재생 {v.get('replay')} · 끝 {v.get('end')}")
-        check(f"{deck} - 원장 재생(ledger verify) rc 0", r.returncode == 0 and v.get("ok"), f"씨앗 {seed}: " + json.dumps(v.get("problems") or v, ensure_ascii=False)[:600])
+        okv = r.returncode == 0 and v.get("ok")
+        check(f"{deck} - 원장 재생(ledger verify) rc 0", okv, f"씨앗 {seed}: " + json.dumps(v.get("problems") or v, ensure_ascii=False)[:600])
+        if not okv:
+            verify_dump(deck, v.get("problems") or [])
     if FAILS:
         print("\n".join(log[-30:]))
 
