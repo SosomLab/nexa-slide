@@ -477,7 +477,9 @@ def flow_steps():
 def flow_print_steps():
     return [step("쪽 나눔 ⑪ ?print=1(서버 Chrome 인쇄 화면, af677ef) → 인쇄 상태 · 쪽 나눔 빈 자리가 남음(긴 문단 .pg-gap · 표 빈 행 - 인쇄 매체에서 강제 쪽 나눔이 된다)",
                  "await new Promise(r=>setTimeout(r,1500));const ed=document.querySelector('#ed');const g=ed.querySelectorAll('[data-id=fl] .pg-gap').length,r=ed.querySelectorAll('tr.pg-gaprow').length;"
-                 "return document.body.classList.contains('printing')&&ed.children.length>=4&&g>=1&&r>=1 || JSON.stringify({printing:document.body.classList.contains('printing'),n:ed.children.length,g,r});")]
+                 "return document.body.classList.contains('printing')&&ed.children.length>=4&&g>=1&&r>=1 || JSON.stringify({printing:document.body.classList.contains('printing'),n:ed.children.length,g,r});"),
+            step("다단 인쇄 ⑥ 1단 문서의 인쇄 화면은 예전 방식 그대로 - body.print-sheets 가 붙지 않고 쪽 사본(.pg-printpage)이 없다",
+                 "return !document.body.classList.contains('print-sheets')&&!document.querySelector('.pg-printpage')&&!document.querySelector('#printPages') || 'print-sheets '+document.body.className;")]
 
 
 OBJ_J = ("const tick=(ms)=>new Promise(r=>setTimeout(r,ms||200));const shape=async(label)=>{document.querySelector('[data-act=shape]').click();await tick(60);"
@@ -1060,6 +1062,63 @@ def csplit_fn_steps():
     ]
 
 
+PRN_DOC = {"id": "pgprn", "title": "다단 인쇄", "kind": "page", "slides": [], "blocks": [
+    {"id": "h1", "type": "p", "runs": [{"t": "머리 문단 HEAD"}]},
+    {"id": "c1", "type": "p", "runs": [{"t": " ".join(f"M{i:03d} 가나다라 마바사 아자차카 타파하" for i in range(1, 221))}]},
+    {"id": "c2", "type": "p", "runs": [{"t": "꼬리 문단 TAIL"}]}],
+    "objects": [{"id": "po1", "type": "shape", "shape": "rect", "anchor": "h1", "rel": "page", "x": 120, "y": 8, "w": 50, "h": 12, "blocks": [{"id": "pob1", "type": "p", "runs": [{"t": "OBJMARK"}]}]}]}
+
+
+def pdf_page_texts(data):
+    """PDF 쪽마다의 글(공백 뺌) - 표준 라이브러리 읽개(pdf_text - 객체 스트림까지 읽는다). 못 읽으면 None"""
+    if not data:
+        return None
+    try:
+        import pdf_text
+        with tmpfiles.temp_dir("pg-pdf") as d_:
+            f_ = Path(d_) / "x.pdf"
+            f_.write_bytes(data)
+            return ["".join((p.get("text") or "").split()) for p in pdf_text.read(str(f_))["pages"]]
+    except Exception as e_:  # noqa: BLE001
+        print("   (PDF 글 읽기 실패 - 쪽 수는 /Type /Page 세기로)", repr(e_)[:160])
+        return None
+
+
+def pdf_count(data):
+    """PDF 쪽 수 - pdf_text 로 센다(Chrome PDF 는 쪽 객체가 객체 스트림 안에 있어 /Type /Page 글자 세기로는 덜 세일 수 있다). 못 읽으면 글자 세기"""
+    t_ = pdf_page_texts(data)
+    if t_ is not None:
+        return len(t_)
+    import re
+    return (len(re.findall(rb"/Type\s*/Page\b", data)) - len(re.findall(rb"/Type\s*/Pages\b", data))) if data else 0
+
+
+def print_steps():
+    """다단 문서의 인쇄(PG-110 2단계) - 화면 쪽별 표지 모으기(서버 Chrome PDF 와 비교용) · 브라우저 안에서 인쇄 진입/복귀"""
+    SCAN = ("const tick=(ms)=>new Promise(r=>setTimeout(r,ms||200));await tick(1200);const shs=[...document.querySelectorAll('.pg-sheet')].map(x=>x.getBoundingClientRect());"
+            "const per=shs.map(()=>new Set()),rg=document.createRange(),tw=document.createTreeWalker(document.querySelector('#ed'),4);let n;"
+            "while((n=tw.nextNode())){const re=/M\\d{3}|HEAD|TAIL/g;let m;while((m=re.exec(n.data))){rg.setStart(n,m.index);rg.setEnd(n,m.index+m[0].length);const r=rg.getClientRects()[0];if(!r)continue;"
+            "const k=shs.findIndex(x=>r.top>=x.top-1&&r.bottom<=x.bottom+1);if(k>=0)per[k].add(m[0]);}}")
+    return [
+        step("다단 인쇄 ⓪ 화면 쪽별 표지(서버 Chrome PDF 와 비교용)",
+             H + SCAN + "const o={pages:S.pages,parts:document.querySelectorAll('#ed .pg-colpart').length,per:per.map(x=>[...x].sort())};"
+                        "return S.deck.page.columns.count===2&&o.pages>=2&&o.parts>=1?'PRNSCREEN='+JSON.stringify(o):'BAD '+JSON.stringify({pages:o.pages,parts:o.parts,cols:S.deck.page.columns});", dump=True),
+        step("다단 인쇄 ⑤ 인쇄 진입(print 매체 + beforeprint) → 쪽 사본(.pg-printpage) 수 = 쪽 수 · body.print-sheets · @page margin 0 · 원래 종이는 숨김 · 사본에 편집 속성 없음",
+             H + "const tick=(ms)=>new Promise(r=>setTimeout(r,ms||200));const st=()=>document.getElementById('pg-print').textContent;const np=()=>document.querySelectorAll('#printPages .pg-printpage').length;"
+                 "window.__prn={p0:S.pages,c0:document.querySelectorAll('#ed .pg-colpart').length,s0:st()};const p0=S.pages;window.dispatchEvent(new Event('beforeprint'));await tick(400);"
+                 "const a={n:np(),cls:document.body.classList.contains('print-sheets'),m0:/margin:\\s*0\\s*;/.test(st()),hid:getComputedStyle(document.querySelector('#paper')).display,"
+                 "ed:document.querySelectorAll('#printPages [contenteditable]').length,shown:getComputedStyle(document.querySelector('#printPages')).display};"
+                 "return a.n===p0&&p0>=2&&a.cls&&a.m0&&a.hid==='none'&&a.ed===0&&a.shown==='block' || JSON.stringify({p0,a}).slice(0,199);",
+             cdp=[{"method": "Emulation.setEmulatedMedia", "params": {"media": "print"}, "wait": 150}], wait=100),
+        step("다단 인쇄 ⑤ 인쇄 끝(매체가 화면으로 돌아온 뒤 afterprint) → 사본 없음 · body.print-sheets 없음 · @page 되돌아옴 · 화면 그대로(종이 보임 · 쪽 수·조각 수)",
+             H + "const tick=(ms)=>new Promise(r=>setTimeout(r,ms||200));const st=()=>document.getElementById('pg-print').textContent;const c=window.__prn;window.dispatchEvent(new Event('afterprint'));await tick(900);"
+                 "const p=document.querySelector('#paper');const b={n:document.querySelectorAll('.pg-printpage').length,host:!!document.querySelector('#printPages'),cls:document.body.classList.contains('print-sheets'),"
+                 "same:st()===c.s0,pages:S.pages,parts:document.querySelectorAll('#ed .pg-colpart').length,paper:getComputedStyle(p).display!=='none'&&p.offsetHeight>0};"
+                 "return b.n===0&&!b.host&&!b.cls&&b.same&&b.pages===c.p0&&b.parts===c.c0&&b.paper || JSON.stringify({p0:c.p0,c0:c.c0,b}).slice(0,199);",
+             cdp=[{"method": "Emulation.setEmulatedMedia", "params": {"media": ""}, "wait": 250}], wait=100),
+    ]
+
+
 def poll_del_steps():
     return [
         step("밖의 변경 ③ 문서를 API 로 지움 → 상태 칩 '지워진 문서' · 그 뒤 6.5초 동안 이 문서로 나가는 요청 0(폴링 멈춤)",
@@ -1280,6 +1339,7 @@ def main():
             {"url": "/studio/page.html?deck=pgflow&print=1", "wait": 2500, "steps": flow_print_steps()},
             {"url": "/studio/page.html?deck=pgcsp", "wait": 3000, "steps": csplit_steps()},
             {"url": "/studio/page.html?deck=pgcsf", "wait": 3000, "steps": csplit_fn_steps()},
+            {"url": "/studio/page.html?deck=pgprn", "wait": 3000, "steps": print_steps()},
             {"url": "/studio/page.html?deck=pgobj", "wait": 3000, "steps": obj_steps()},
             {"url": "/studio/page.html?deck=pgobj", "wait": 3000, "steps": obj_reload_steps()},
             {"url": "/studio/page.html?deck=pgo2id", "wait": 2500, "steps": obj2_steps()},
@@ -1303,6 +1363,10 @@ def main():
         full = page_doc.new_page(CSF_DOC["id"], CSF_DOC["title"]); full["blocks"] = CSF_DOC["blocks"]; full["page"]["columns"] = {"count": 2, "gap": 8}  # 다단 + 각주가 달린 문단 나눔
         st_, r_, _ = call("PUT", "/api/deck/pgcsf", full)
         check("다단 각주 문단 나눔 시험 문서 pgcsf 만들기 200", st_ == 200, (st_, r_))
+        full = page_doc.new_page(PRN_DOC["id"], PRN_DOC["title"]); full["blocks"] = PRN_DOC["blocks"]; full["objects"] = PRN_DOC["objects"]  # 다단 인쇄(PG-110 2단계) - 2단 · 쪽 번호 · 머리말 · 글 상자
+        full["page"]["columns"] = {"count": 2, "gap": 8}; full["page"]["number"] = {"show": True, "pos": "footer-center"}; full["page"]["header"] = {"blocks": [{"id": "hh1", "type": "p", "runs": [{"t": "HDRMARK"}]}]}
+        st_, r_, _ = call("PUT", "/api/deck/pgprn", full)
+        check("다단 인쇄 시험 문서 pgprn 만들기 200", st_ == 200, (st_, r_))
         st, r, _ = call("POST", "/api/decks", {"action": "create", "kind": "page", "title": "해설지 시험", "theme": "study-guide"})
         sg_id = (r or {}).get("id") or "pgsgid"
         check("해설지 템플릿으로 만들기 200 · template = study-guide", st == 200 and deck_file(ws_on, sg_id).get("template") == "study-guide", (st, r))
@@ -1361,6 +1425,41 @@ def main():
                   json.dumps({"fn": ["머리 쪽 각주 글" in ft_, "꼬리 쪽 각주 글" in ft_], "refs": dx_.count("<w:footnoteReference"), "paras": len(paras_), "cols": re.findall(r"<w:cols[^>]*>", dx_)[:2]}, ensure_ascii=False))
         else:
             check("다단 각주 나눔 ⑥ DOCX 내보내기 200", False, (sx_, rx_))
+        # 다단 인쇄 ①~④ 서버 Chrome PDF(화면 그대로)가 화면과 같은가 - 쪽 수 · 쪽마다 든 표지 글 · 머리말·쪽 번호 · 글 상자 · 각주가 그 쪽에
+        import re
+        prn_ = next((json.loads(l.rsplit("PRNSCREEN=", 1)[1]) for l in lines if "PRNSCREEN=" in l), None)
+        sp_, rp_, _ = call("POST", "/api/export/pgprn?pdf=1&via=chrome")
+        pt_ = None
+        if sp_ == 200 and (rp_ or {}).get("url"):
+            with urllib.request.urlopen(B + rp_["url"], timeout=60) as rr:
+                pt_ = pdf_page_texts(rr.read())
+        if prn_ is None or pt_ is None:
+            check("다단 인쇄 ① 화면 표지·Chrome PDF 를 읽음", False, json.dumps({"screen": prn_ is not None, "st": sp_, "pdf": pt_ is not None}))
+        else:
+            per_ = [sorted(set(re.findall(r"M\d{3}|HEAD|TAIL", t))) for t in pt_]
+            brief_ = lambda x: [[p[0], p[-1], len(p)] if p else [] for p in x]  # noqa: E731
+            NOTES.append(f"다단 인쇄: 화면 {prn_['pages']}쪽(조각 {prn_['parts']}) · Chrome PDF {len(pt_)}쪽 · 쪽별 표지 {[len(p) for p in per_]}")
+            check("다단 인쇄 ① Chrome PDF 쪽 수 = 화면 쪽 수(같음) · 쪽마다 든 표지 글(M001… · HEAD · TAIL)이 화면과 같음",
+                  len(pt_) == prn_["pages"] and per_ == prn_["per"], json.dumps({"screen": prn_["pages"], "pdf": len(pt_), "scr": brief_(prn_["per"]), "pdfper": brief_(per_)}, ensure_ascii=False))
+            allm_ = [m for p in per_ for m in p]
+            check("다단 인쇄 ① 표지 222개가 빠짐·중복 없이 한 번씩", len(allm_) == 222 and len(set(allm_)) == 222, json.dumps({"n": len(allm_), "uniq": len(set(allm_))}))
+            hdr_ = ["HDRMARK" in t for t in pt_]
+            num_ = [bool(re.search(r"(?<![0-9M])" + str(k + 1) + r"(?![0-9])", re.sub(r"M\d{3}", "", t))) for k, t in enumerate(pt_)]
+            check("다단 인쇄 ③ PDF 쪽마다 머리말 글(HDRMARK)과 쪽 번호가 있음", all(hdr_) and all(num_), json.dumps({"hdr": hdr_, "num": num_}))
+            check("다단 인쇄 ④ 글 상자 개체의 글(OBJMARK)이 PDF 1쪽에 있음", "OBJMARK" in pt_[0], json.dumps({"where": [k + 1 for k, t in enumerate(pt_) if "OBJMARK" in t]}))
+        sf_, rf_, _ = call("POST", "/api/export/pgcsf?pdf=1&via=chrome")
+        ft2_ = None
+        if sf_ == 200 and (rf_ or {}).get("url"):
+            with urllib.request.urlopen(B + rf_["url"], timeout=60) as rr:
+                ft2_ = pdf_page_texts(rr.read())
+        if ft2_ is None:
+            check("다단 인쇄 ② 다단 + 각주 문서의 Chrome PDF 를 읽음", False, (sf_, rf_))
+        else:
+            w_ = lambda key: [k + 1 for k, t in enumerate(ft2_) if key in t]  # noqa: E731
+            hw_, hn_, tw_, tn_ = w_("머리낱말"), w_("머리쪽각주글"), w_("꼬리낱말"), w_("꼬리쪽각주글")
+            NOTES.append(f"다단 각주 인쇄: PDF {len(ft2_)}쪽 · 머리 낱말 {hw_} 각주 {hn_} · 꼬리 낱말 {tw_} 각주 {tn_}")
+            check("다단 인쇄 ② 각주 글이 PDF 의 그 쪽(참조가 있는 쪽)에 있음 - 문서 끝에 몰리지 않음(머리 각주 = 1쪽 · 꼬리 각주 = 꼬리 낱말의 쪽)",
+                  len(hw_) == 1 and hn_ == hw_ and hw_ == [1] and len(tw_) == 1 and tn_ == tw_ and len(ft2_) >= 2, json.dumps({"pages": len(ft2_), "hw": hw_, "hn": hn_, "tw": tw_, "tn": tn_}))
         # 쪽 나눔 - 서버 Chrome PDF 쪽 수 vs 화면 쪽 수(±1 이면 통과, 다르면 수치를 남긴다)
         scr = next((int(l.rsplit("screenPages=", 1)[1].split()[0]) for l in lines if "screenPages=" in l), None)
         st_, r_, _ = call("POST", "/api/export/pgflow?pdf=1&via=chrome")
@@ -1368,7 +1467,7 @@ def main():
         if st_ == 200 and r_.get("url"):
             with urllib.request.urlopen(B + r_["url"], timeout=60) as rr:
                 pdfb_ = rr.read()
-        npdf = pdfb_.count(b"/Type /Page") - pdfb_.count(b"/Type /Pages") if pdfb_ else 0
+        npdf = pdf_count(pdfb_)
         NOTES.append(f"쪽 나눔: 화면 {scr}쪽 · Chrome PDF {npdf}쪽")
         for tag, key, did in (("다단", "colScreenPages=", col_id), ("각주·도형", "SCREEN_PAGES=", fn_id)):  # 서버 Chrome PDF 쪽 수 = 화면 쪽 수(±1)
             sc_ = next((int(l.rsplit(key, 1)[1].split()[0]) for l in lines if key in l), None)
@@ -1377,7 +1476,7 @@ def main():
             if s2_ == 200 and r2_.get("url"):
                 with urllib.request.urlopen(B + r2_["url"], timeout=60) as rr:
                     pb_ = rr.read()
-            np_ = pb_.count(b"/Type /Page") - pb_.count(b"/Type /Pages") if pb_ else 0
+            np_ = pdf_count(pb_)
             NOTES.append(f"{tag}: 화면 {sc_}쪽 · Chrome PDF {np_}쪽")
             ok_ = sc_ is not None and np_ > 0 and abs(np_ - sc_) <= 1
             check(f"{tag} - Chrome PDF 쪽 수 = 화면 쪽 수 ±1", ok_, json.dumps({"screen": sc_, "pdf": np_, "st": s2_}, ensure_ascii=False))
