@@ -175,8 +175,7 @@ def backup(i, data=None, suffix=""):
     if data is None and not src.exists():
         return None
     h = DECKS / ".history" / i
-    h.mkdir(parents=True, exist_ok=True)
-    name = dt.datetime.now().strftime("%Y%m%d-%H%M%S-%f") + suffix + ".json"
+    name = ledger.backup_name(h, suffix)  # 겹치지 않는 이름 - 시계 눈금 안의 두 저장이 같은 이름으로 앞 백업을 덮던 것
     if data is None:
         shutil.copy2(src, h / name)
     else:

@@ -74,6 +74,26 @@ def meta(p: Path, data=None):
 
 
 # ---------- 원자적 쓰기(server.py 에서 옮김 - build_deck · save_deck 도 쓴다) ----------
+def backup_name(hist_dir: Path, suffix=""):
+    """백업 파일 이름 <시각 YYYYmmdd-HHMMSS-ffffff><suffix>.json 을 겹치지 않게 잡는다(빈 파일을 만들어 자리를 차지한 뒤 이름을 돌려준다).
+    시계 값만으로는 겹친다 - Windows 의 Python 3.12 이하는 datetime.now() 가 약 15.6ms 눈금이라, 그 안의 두 저장이 같은 이름을 만들어
+    뒤 저장이 앞 백업을 덮어썼다(원장의 before.hash 와 백업 내용이 어긋남 - 되돌리기·원장 재생이 틀린 내용을 본다).
+    겹치면 마이크로초를 하나씩 올린다 - 이름 형식과 정렬 순서(오래된 것부터 지우기)는 그대로."""
+    hist_dir.mkdir(parents=True, exist_ok=True)
+    t = dt.datetime.now()
+    for _ in range(100000):
+        name = t.strftime("%Y%m%d-%H%M%S-%f") + suffix + ".json"
+        stem = t.strftime("%Y%m%d-%H%M%S-%f")
+        if not any(hist_dir.glob(stem + "*.json")):  # 접미사(-build · -ext)가 달라도 같은 시각은 쓰지 않는다 - 시각이 곧 순서다
+            try:
+                (hist_dir / name).open("xb").close()
+                return name
+            except FileExistsError:
+                pass
+        t += dt.timedelta(microseconds=1)
+    raise OSError("백업 이름을 잡지 못했다")
+
+
 def atomic_write(path_: Path, text: str):
     path_.parent.mkdir(parents=True, exist_ok=True)
     fd, tmp = tempfile.mkstemp(prefix=path_.name + ".", suffix=".tmp", dir=str(path_.parent))
