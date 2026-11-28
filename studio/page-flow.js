@@ -23,7 +23,12 @@
     const room = (fn) => end() - (res[page] || 0) - need(fn);                // 그 각주까지 놓고 본문이 쓸 수 있는 아래 끝
     const take = (fn) => { if (fn > 0) res[page] = (res[page] || 0) + need(fn); };
     const untake = (fn) => { if (fn > 0 && res[page]) { res[page] -= fn; if (res[page] <= SEP + EPS) delete res[page]; } };
-    const push = (it) => { const top = it.top + shift; page++; const h = start(page) - top; out.push({ id: it.id, type: "push", h, gap: Math.max(0, it.top - prevBottom), page: true }); shift += h; };
+    const emitPush = (it, h, paged) => {  // 블록의 위 여백으로 실제 자리를 옮긴다. 같은 블록의 밀기는 하나로 합친다
+      const last = out[out.length - 1];
+      if (last && last.type === "push" && last.id === it.id) { last.h += h; if (paged) last.page = true; }
+      else out.push({ id: it.id, type: "push", h, gap: Math.max(0, it.top - prevBottom), page: !!paged });
+    };
+    const push = (it) => { const top = it.top + shift; page++; const h = start(page) - top; emitPush(it, h, true); shift += h; };
     const settle = (y) => { while (y >= start(page + 1) - EPS) page++; };  // 나눌 수 없는 것이 쪽을 넘겨 버렸을 때 - 놓인 자리의 쪽으로 맞춘다
 
     function para(it) {
@@ -71,11 +76,40 @@
     const place = {};
     const slotTop = () => (page === regionPage ? regionTop : start(page));
     const mark = (bottom) => { if (colMaxPage !== page) { colMaxPage = page; colMax = start(page); } if (bottom > colMax) colMax = bottom; };
-    const shiftTo = (it, y, paged) => { const h = y - (it.top + shift); if (Math.abs(h) > EPS) { out.push({ id: it.id, type: "push", h, gap: Math.max(0, it.top - prevBottom), page: !!paged }); shift += h; } };
+    const shiftTo = (it, y, paged) => { const h = y - (it.top + shift); if (Math.abs(h) > EPS) { emitPush(it, h, paged); shift += h; } };
     const moveSlot = (it, toPage) => { let paged = false; if (!toPage && col < n - 1) col++; else { page++; col = 0; paged = true; } shiftTo(it, slotTop(), paged); };
+    // 다단 구역의 문단을 단 경계에서 나눈다(opt.colSplit) - 꼬리 줄들은 **자리를 옮기지 않고 보이는 곳만** 다음 단(마지막 단이면 다음 쪽 첫 단)으로 옮긴다
+    //   (colsplit: 그 줄부터를 감싼 조각의 left = dcol × 단 걸음, top = dy). 문단의 실제 자리는 한 줄기 그대로라 그 뒤 블록이 이월분(carry)을 위 여백으로 받는다.
+    //   외톨이 줄 규칙은 1단의 줄 나눔(para)과 같다. 각주가 달린 문단 · 줄을 잴 수 없는 문단 · nosplit 은 통째로 넘긴다
+    let carry = 0;
+    function colPara(it) {
+      const L = (linesOf && linesOf(it)) || [], m = L.length; let head = col, from = 0, base = 0;  // base = 이 문단 안에서 쌓인 보이는 자리 이동(세로)
+      if (m < 2) return false;
+      for (let guard = 0; guard < 5000; guard++) {
+        let k = from; while (k < m && L[k].bottom + shift <= room(0) + EPS) k++;
+        if (k >= m) break;
+        if (from === 0 && k < 2) {  // 첫 줄만 남는다 - 문단째 다음 단으로(이미 단 머리면 한 줄은 둔다)
+          if (it.top + shift > slotTop() + EPS) { moveSlot(it); head = col; continue; }
+          if (k < 1) k = 1;
+          if (k >= m) break;
+        } else {
+          if (m - k < 2 && k - from >= 3) k = m - 2;  // 끝 줄만 넘어간다 - 한 줄 더 데려간다
+          if (k === from) { k = from + 1; if (k >= m) break; }  // 단 머리인데 한 줄도 안 들어간다 - 한 줄은 둔다
+        }
+        let paged = false; if (col < n - 1) col++; else { page++; col = 0; paged = true; }
+        const dy = slotTop() - (L[k].top + shift);
+        shift += dy; base += dy; carry += dy;
+        out.push({ id: it.id, type: "colsplit", line: k, dcol: col - head, dy: base, page: paged });
+        from = k;
+      }
+      place[it.id] = head;
+      return true;
+    }
 
+    const CS = !!(opt && opt.colSplit);
     for (const it of items) {
       const cn = it.cols > 1 ? it.cols : 1;
+      if (Math.abs(carry) > EPS) { emitPush(it, carry, false); carry = 0; }  // 앞 문단이 단을 넘어가며 생긴 이동을 이 블록의 실제 자리로 옮긴다
       if (n === 1 && cn === 1) settle(it.top + shift);
       if (cn !== n) {  // 단 수가 바뀐다 - 지금 쪽에서 가장 아래까지 내려간 단의 끝에서 새 구역이 시작한다
         mark(-Infinity); n = cn; col = 0; regionPage = page; regionTop = colMax + Math.max(0, it.top - prevBottom);  /* 앞 구역 끝 + 블록 사이의 자연 간격 */
@@ -87,8 +121,9 @@
       if (it.kind === "colbreak") { forceCol = true; if (n > 1) place[it.id] = col; mark(it.bottom + shift); prevBottom = it.bottom; continue; }
       const fn = it.fn || 0;
       if (n > 1) {
-        if (it.bottom + shift > room(fn) + EPS && it.top + shift > slotTop() + EPS) moveSlot(it);
-        take(fn); place[it.id] = col;
+        const over = it.bottom + shift > room(fn) + EPS;
+        if (over && CS && it.kind === "p" && !fn && !it.nosplit && colPara(it)) { /* 단 경계에서 나눴다 */ }
+        else { if (over && it.top + shift > slotTop() + EPS) moveSlot(it); take(fn); place[it.id] = col; }
       } else if (it.bottom + shift > room(fn) + EPS) {
         if (it.kind === "p") para(it);
         else if (it.kind === "table") table(it);

@@ -99,5 +99,39 @@ const brief = (r) => r.breaks.map((b) => `${b.id}:${b.type}${b.line !== undefine
   check("31 다단 구역의 쪽 나누기 - 다음 쪽 첫 단 머리", brief(r) === "b2:push:1100" && r.place.b2 === 0 && r.pages === 2, brief(r) + " " + J(r.place)); }
 { const r = F.plan(stack([600, 600, 300]), H, G); check("32 1단 문서는 전과 같다 · place 비어 있음", brief(r) === "b1:push:600" && Object.keys(r.place).length === 0, brief(r) + J(r.place)); }
 
+// 다단 구역의 문단을 단 경계에서 나눈다(opt.colSplit - PG-101 2차). colsplit = 그 줄부터의 꼬리를 보이는 곳만 옮긴다(dcol 단 · dy 세로), 뒤 블록이 그 이동을 위 여백으로 받는다
+const CS = { colSplit: true };
+const cbrief = (r) => r.breaks.map((b) => b.type === "colsplit" ? `${b.id}:colsplit@${b.line}:${b.dcol}:${Math.round(b.dy)}${b.page ? ":p" : ""}` : `${b.id}:${b.type}:${Math.round(b.h)}${b.page ? ":p" : ""}`).join(" ");
+const two = (list) => stack(list).map((x) => ({ ...x, cols: 2 }));
+{ // 800 뒤 줄 10개 문단 - 4줄은 이 단(800~1000), 5번째 줄부터 다음 단 머리(0). 줄 4 의 자연 위치 1002 → dy -1002. 뒤 블록은 그 이동(-1002)을 받아 꼬리 아래(298)에 놓인다
+  const r = F.plan(two([800, { h: 500, kind: "p" }, 300]), H, G, (it) => lines(it, 10, 50), CS);
+  check("33 다단 문단 나눔 - 넘치는 줄부터 다음 단 머리로(colsplit) · 뒤 블록이 이동을 받는다", cbrief(r) === "b1:colsplit@4:1:-1002 b2:push:-1002" && J(r.place) === J({ b0: 0, b1: 0, b2: 1 }) && r.pages === 1, cbrief(r) + " " + J(r.place) + " p" + r.pages); }
+{ // 마지막 단에서 넘치면 꼬리는 다음 쪽 첫 단: 900 | 800(2단으로 -900) | 문단(2단 800~1000 에 4줄, 나머지는 다음 쪽 1200)
+  const r = F.plan(two([900, 800, { h: 500, kind: "p" }, 100]), H, G, (it) => lines(it, 10, 50), CS);
+  check("34 마지막 단의 문단 - 꼬리는 다음 쪽 첫 단(dcol -1 · 쪽 넘김) · 2쪽", cbrief(r) === "b1:push:-900 b2:colsplit@4:-1:198:p b3:push:198" && r.place.b2 === 1 && r.place.b3 === 0 && r.pages === 2, cbrief(r) + " " + J(r.place) + " p" + r.pages); }
+{ // 외톨이 첫 줄: 940 뒤 문단 → 한 줄만 들어간다 → 나누지 않고 문단째 다음 단으로
+  const r = F.plan(two([940, { h: 500, kind: "p" }]), H, G, (it) => lines(it, 10, 50), CS);
+  check("35 첫 줄만 남으면 나누지 않고 문단째 다음 단", cbrief(r) === "b1:push:-940" && r.place.b1 === 1, cbrief(r) + " " + J(r.place)); }
+{ // 끝 줄만 넘어가면 한 줄 더 데려간다: 550 뒤 줄 10개 → 9줄이 들어가고 끝 줄만 넘침 → 8줄에서 나눔
+  const r = F.plan(two([550, { h: 500, kind: "p" }]), H, G, (it) => lines(it, 10, 50), CS);
+  check("36 끝 줄만 넘어가면 한 줄 더 데려간다(@8)", cbrief(r) === "b1:colsplit@8:1:-952", cbrief(r)); }
+{ // 단보다 긴 문단: 900 뒤 줄 40개(2000) → 1단 2줄 · 2단 20줄 · 다음 쪽 1단 18줄. 둘째 조각의 dy 는 문단 안에서 쌓인 값(-1002 + 200)
+  const r = F.plan(two([900, { h: 2000, kind: "p" }, 100]), H, G, (it) => lines(it, 40, 50), CS);
+  check("37 단보다 긴 문단 - 세 자리에 걸친다(colsplit 둘 · dy 는 쌓인 값) · 뒤 블록은 모두 합친 이동", cbrief(r) === "b1:colsplit@2:1:-1002 b1:colsplit@22:0:-802:p b2:push:-802" && r.pages === 2 && r.place.b2 === 0, cbrief(r) + " " + J(r.place) + " p" + r.pages); }
+{ // 끄면 전과 같다 - 통째로 다음 단
+  const r = F.plan(two([800, { h: 500, kind: "p" }, 300]), H, G, (it) => lines(it, 10, 50));
+  check("38 colSplit 을 끄면 전과 같다(문단째 다음 단)", cbrief(r) === "b1:push:-800" && r.place.b1 === 1, cbrief(r)); }
+{ // 각주가 달린 문단 · nosplit · 줄을 잴 수 없는 문단은 나누지 않는다
+  const a = F.plan(two([800, { h: 500, kind: "p", fn: 40 }]), H, G, (it) => lines(it, 10, 50), CS);
+  const b = F.plan(two([800, { h: 500, kind: "p", nosplit: true }]), H, G, (it) => lines(it, 10, 50), CS);
+  const c = F.plan(two([800, { h: 500, kind: "p" }]), H, G, () => [], CS);
+  check("39 각주 문단 · nosplit · 줄을 못 재는 문단은 통째로", [a, b, c].every((r) => cbrief(r) === "b1:push:-800"), [a, b, c].map(cbrief).join(" | ")); }
+{ // 나눈 문단 뒤에 구역이 1단으로 바뀐다 - 가장 아래까지 내려간 단(1단 1000)의 끝에서 시작. 뒤 블록은 이월분과 구역 이동을 한 번의 밀기로 받는다
+  const items = two([800, { h: 500, kind: "p" }]).concat([{ id: "z", kind: "obj", top: 1300, bottom: 1400 }]);
+  const r = F.plan(items, H, G, (it) => lines(it, 10, 50), CS);
+  check("40 나눈 문단 뒤 1단 구역 - 밀기는 하나로 합쳐진다", r.breaks.filter((x) => x.id === "z").length === 1 && r.breaks.filter((x) => x.type === "colsplit").length === 1, cbrief(r)); }
+{ // 1단 문서에는 영향 없음
+  const r = F.plan(stack([800, { h: 500, kind: "p" }]), H, G, (it) => lines(it, 10, 50), CS);
+  check("41 1단 문서는 colSplit 을 켜도 전과 같다(줄 사이 빈 자리)", brief(r) === "b1:split@4:200", brief(r)); }
 console.log(`RESULT ${fail ? "FAIL" : "PASS"} ${n - fail}/${n}`);
 process.exit(fail ? 1 : 0);
