@@ -206,7 +206,8 @@
 .pg-table.pg-noborder .pg-p { margin-bottom: 3pt !important; }
 .pg-image { margin: 6pt 0; }
 .pg-image img { max-width: 100%; }
-.pg-break { border-top: 1px dashed #b5b5b5; margin: 8pt 0; height: 0; position: relative; break-after: page; }
+.pg-break { border-top: 1px dashed #b5b5b5; margin: 8pt 0; height: 0; position: relative; }
+.pg-break.page { break-after: page; }  /* 인쇄 - 쪽 나누기만 쪽을 넘긴다. 단 나누기·구역 나누기는 같은 쪽에서 이어진다(전에는 셋 다 쪽을 넘겨 다단 문서의 인쇄 쪽 수가 늘었다) */
 .pg-break::after { content: attr(data-label); position: absolute; top: -.7em; left: 50%; transform: translateX(-50%); background: #fff; padding: 0 8px; font-size: 8pt; color: #999; }
 .nt-link { color: #1a5fb4; text-decoration: underline; }
 [data-fn]::after { content: attr(data-fnn); vertical-align: super; font-size: .62em; line-height: 1; font-weight: 400; font-style: normal; text-decoration: none; color: var(--accent, #c8553d); margin-left: .5px; }
