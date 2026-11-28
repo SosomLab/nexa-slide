@@ -34,27 +34,18 @@
   function newId() { const used = new Set(blocks().map((b) => b.id)); let id; do { id = "b" + Date.now().toString(36).slice(-4) + (idSeq++).toString(36); } while (used.has(id)); return id; }
 
   // ---------------------------------------------------------------- 실행 취소·저장
+  // 기록·되돌리기·봉인은 공용(nexa-doc.js 의 history · 세 편집기가 같은 기준). 여기는 페이지 고유: 선택을 같이 적는다 · 이어 치는 글(1.2초 안)은 한 묶음 · 되돌린 뒤 쪽 나눔과 선택
+  const TYPING = (w) => w === "type" || w === "ime";
+  const HIST = NexaDoc.history({
+    state: S, json: () => deckJson(), max: 200, selection: () => ed && ed.selection(),
+    join: (why, lastWhy, dt) => TYPING(why) && TYPING(lastWhy) && dt < 1200,
+    apply: (deck, sel) => { S.deck = deck; cur = ed; S.pick = null; layout(); ed.refresh(sel); afterChange(true); },
+  });
   /** 바꾸기 직전의 문서를 기록한다 - 이어서 치는 글(같은 이유, 1.2초 안)은 한 묶음으로 */
-  function snapshot(why) {
-    const now = Date.now(), join = (why === "type" || why === "ime") && (S.lastWhy === "type" || S.lastWhy === "ime") && now - S.lastAt < 1200;
-    S.lastWhy = why; S.lastAt = now;
-    if (join) return;
-    S.undo.push({ json: deckJson(), sel: ed && ed.selection() }); if (S.undo.length > 200) S.undo.shift();
-    S.redo = [];
-  }
-  /** 남의 변경을 받기 직전 - 실행 취소 기록마다 "그 편집 뒤의 문서"를 붙여 둔다(now = 받기 직전의 내 문서). 그러면 되돌릴 때
-   *  문서를 통째로 옛 모습으로 바꾸지 않고 내 편집만 거꾸로 얹는다 - Ctrl+Z 가 남의 변경을 지우지 않는다(슬라이드·시트의 NexaMerge.seal 과 같은 뜻). 다시 실행 기록은 비운다 */
-  function sealUndo(now) {
-    for (let k = 0; k < S.undo.length; k++) if (!S.undo[k].after) S.undo[k].after = k + 1 < S.undo.length ? S.undo[k + 1].json : now;
-    S.redo = []; S.lastWhy = "";
-  }
-  function restore(from, to) {
-    const e = from.pop(); if (!e) return;
-    to.push({ json: deckJson(), sel: ed.selection() });
-    S.deck = e.after ? NexaMerge.merge3(JSON.parse(e.after), JSON.parse(e.json), JSON.parse(deckJson()), "ours").merged : JSON.parse(e.json); S.lastWhy = "";
-    cur = ed; S.pick = null; layout(); ed.refresh(e.sel); afterChange(true);
-  }
-  const undo = () => restore(S.undo, S.redo), redo = () => restore(S.redo, S.undo);
+  function snapshot(why) { HIST.push(why); }
+  /** 남의 변경을 받기 직전 - 되돌릴 때 내 편집만 거꾸로 얹게 기록을 봉인한다(다시 실행 기록은 비운다) */
+  function sealUndo(now) { HIST.seal(now); }
+  const undo = () => HIST.undo(), redo = () => HIST.redo();
   function afterChange(noMark) {
     S.dirty = deckJson() !== S.savedJson;
     setStatus(S.dirty ? "dirty" : "saved", S.dirty ? "저장 대기" : "저장됨");
