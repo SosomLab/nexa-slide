@@ -432,11 +432,18 @@
     if (document.body.classList.contains("print-sheets")) {  // 쪽 사본을 걷고 @page 를 되돌린다
       document.body.classList.remove("print-sheets"); const h = $("#printPages"); if (h) h.remove();
       const st = document.getElementById("pg-print"); if (st && st._screen !== undefined) { st.textContent = st._screen; st._screen = undefined; }
-      applyZoom(S.zoom || "1"); flow.rerun(); return;
+      applyZoom(S.zoom || "1"); rerunOnScreen(); return;
     }
     for (const [, el] of objEls) { el.style.zIndex = ""; el.remove(); }
     for (const d of $$("#ed > .pg-endnotes")) d.remove();
-    applyZoom(S.zoom || "1"); flow.rerun();
+    applyZoom(S.zoom || "1"); rerunOnScreen();
+  }
+  /** 인쇄가 끝난 뒤 쪽 나눔을 다시 잰다 - 아직 인쇄 매체면(afterprint 가 매체 복귀보다 먼저 올 수 있다) 인쇄용 너비로 재게 되므로 화면 매체로 돌아온 뒤에 */
+  function rerunOnScreen() {
+    const mq = window.matchMedia ? window.matchMedia("print") : null;
+    if (!mq || !mq.matches) { flow.rerun(); return; }
+    const back = () => { if (mq.matches) return; mq.removeEventListener("change", back); if (!S.printing) flow.rerun(); };
+    mq.addEventListener("change", back);
   }
   /** 개체 고르기 - 고르기·끌기·크기·화살표·지우기·복제는 공용 모듈(nexa-objects.js - 세 편집기가 같은 기준)이 맡는다 */
   let OBJ = null;
