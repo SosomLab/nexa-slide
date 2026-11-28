@@ -18,4 +18,4 @@
 - 사용자 답변은 **항상 한국어** — 다른 세션·에이전트 메시지, 자동 알림, 영어 도구 출력에 이어 답할 때도, 짧은 답변도 예외 없음.
 - 문서·주석·커밋 메시지는 한국어.
 - **페이지 편집기(세 번째 문서 종류) 무인 개발**: 규칙 = `docs/dev/autodev.md`, 설계·결정·백로그·상태 = `docs/dev/page-editor/`(design · decisions · TODO · STATUS). 작업은 브랜치 `feat/page-editor`(worktree `.claude/worktrees/page-editor`)에서만, 한 사이클 = `/autodev`(연속은 `/loop /autodev`).
-  결정이 필요하면 기다리지 않고 추천안으로 진행해 `decisions.md` 에 DP 로 남긴다. 운영 서버 재시작·배포·강제 push·삭제·숨김 해제(`experimental.page`)는 하지 않고 STATUS "결정 대기"에 적는다. 검증은 `studio/tests/verify.py --level quick|full` 의 요약만 본다.
+  결정이 필요하면 기다리지 않고 추천안으로 진행해 `decisions.md` 에 DP 로 남긴다. 배포(`engine_deploy`)·강제 push·삭제·완성 전인 새 기능의 숨김 해제(`RELEASED` 에 넣기)는 하지 않고 STATUS "결정 대기"에 적는다(페이지 문서는 이미 기본이 켬 - DR-P13 · 병합 뒤 운영 허브·작업 공간 서버 재시작은 개발 세션이 한다 - 사용자 허용 2026-11-28). 검증은 `studio/tests/verify.py --level quick|full` 의 요약만 본다.
