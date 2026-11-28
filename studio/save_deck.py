@@ -194,8 +194,7 @@ def direct(deck_id, deck, a):
     old_obj, before = None, {"ver": "0", "size": 0, "hash": None, "backup": None}
     if p.exists():
         h = DECKS / ".history" / deck_id
-        h.mkdir(parents=True, exist_ok=True)
-        name = dt.datetime.now().strftime("%Y%m%d-%H%M%S-%f") + ".json"
+        name = ledger.backup_name(h)  # 겹치지 않는 이름(서버의 저장과도)
         shutil.copy2(p, h / name)
         data = p.read_bytes()
         before = {**ledger.meta(p, data), "backup": name}

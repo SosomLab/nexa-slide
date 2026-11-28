@@ -2319,6 +2319,8 @@
     fx.addEventListener("blur", () => setTimeout(fmlHl, 0));
     fx.addEventListener("scroll", () => { $("#fxHl").scrollLeft = fx.scrollLeft; });
     document.addEventListener("selectionchange", () => { if (fmlEl()) { $("#fxHl").scrollLeft = fx.scrollLeft; evalTip(); } else $("#evalTip").hidden = true; });
+    // selectionchange 하나에만 기대지 않는다 - 브라우저가 그 이벤트를 그리기 주기에 실어 보내 늦거나 빠질 수 있다(가려진 창 등). 입력칸의 select · 키·마우스를 뗄 때도 같이 본다
+    for (const el of [ED(), fx]) for (const t of ["select", "keyup", "mouseup"]) el.addEventListener(t, () => { if (fmlEl() === el) evalTip(); });
     fx.addEventListener("keydown", (e) => {
       if (e.isComposing) return;
       if (e.key === "F9") { e.preventDefault(); evalF9(fx); return; }
