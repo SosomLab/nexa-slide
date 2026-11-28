@@ -108,7 +108,8 @@ def heartbeat(hb, stopped=False, path=None):
 def heartbeat_status(path):
     """하트비트 파일 하나의 연결 여부 {connected, kind, label, agent, model, user, pid, last_seen, age} - 작업 공간 밖(엔진 세션)용."""
     try:
-        hb = json.loads(Path(path).read_text(encoding="utf-8"))
+        import procutil
+        hb = procutil.read_json(path)  # 바꿔치기와 겹친 순간의 읽기 실패를 '연결 없음'으로 치지 않는다
     except (OSError, ValueError):
         return {"connected": False}
     age = time.time() - float(hb.get("ts", 0))
@@ -151,7 +152,8 @@ def session_status():
           "open": sum(r.get("status") == "open" for r in reqs),
           "working": sum(r.get("status") == "working" for r in reqs)}
     try:
-        hb = json.loads(SESSION.read_text(encoding="utf-8"))
+        import procutil
+        hb = procutil.read_json(SESSION)
     except (OSError, ValueError):
         return st
     age = time.time() - float(hb.get("ts", 0))

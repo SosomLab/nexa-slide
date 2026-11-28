@@ -6,6 +6,7 @@
     stdout_closed()       표준 출력의 읽는 쪽(Monitor 를 건 세션)이 닫혔는가 - 세션·VS Code 가 닫히면 감시가 스스로 끝나게
     StdoutWatch().closed() 위 판정의 오판 방지판(몇 초 연속 + 실제 한 줄 쓰기 실패일 때만 True) - 감시 루프는 이것을 쓴다
                           (Windows: 0바이트 WriteFile 이 ERROR_NO_DATA/BROKEN_PIPE · POSIX: poll 의 POLLERR/POLLHUP)
+    read_json(path)       다른 프로세스가 바꿔치기하는 상태 파일 읽기(Windows 는 그 순간 열면 PermissionError - 잠깐 뒤 다시) · replace_retry(tmp, path)
     stop_manual(hb_path)  하트비트 파일의 수동 감시를 끝내고 stopped 로 표시 - 웹 카드 [세션 중지]가 수동 세션에도 통하게
     session_meta()        감시를 띄운 AI 세션의 agent·model·sessionId·entry(인자 > 환경변수 CLAUDE_CODE_*) - 카드에 모델·세션 ID 를 보이게
 """
@@ -181,12 +182,48 @@ class StdoutWatch:
         return False
 
 
+def read_json(path, tries=8, wait=0.04):
+    """다른 프로세스가 os.replace 로 바꿔치기하는 상태 파일(하트비트 · 큐 · 배포 상태)을 읽는다.
+    Windows 는 바꿔치기와 겹친 순간 열면 PermissionError 가 난다 - 한 번 읽고 '없음'으로 치면 살아 있는 세션을 못 보거나(끊기가 안 됨) 큐를 빈 것으로 본다.
+    파일이 없으면 바로 FileNotFoundError, 그 밖의 OSError · 깨진 JSON 은 wait 초 뒤 다시(tries 번). 끝내 안 되면 마지막 예외를 낸다."""
+    import time as _t
+    from pathlib import Path
+    last = None
+    for _ in range(max(1, tries)):
+        try:
+            return json.loads(Path(path).read_text(encoding="utf-8"))
+        except FileNotFoundError:
+            raise
+        except (OSError, ValueError) as e:
+            last = e
+            _t.sleep(wait)
+    raise last
+
+
+def replace_retry(tmp, path, tries=10, wait=0.03):
+    """os.replace - Windows 에서 읽는 쪽과 겹치면 PermissionError 라 잠깐 뒤 다시. 끝내 안 되면 False(tmp 는 지운다)"""
+    import time as _t
+    for _ in range(max(1, tries)):
+        try:
+            os.replace(tmp, path)
+            return True
+        except PermissionError:
+            _t.sleep(wait)
+        except OSError:
+            break
+    try:
+        os.unlink(tmp)
+    except OSError:
+        pass
+    return False
+
+
 def stop_manual(hb_path):
     """하트비트 파일(session.json)의 수동 감시가 살아 있으면 끝내고 stopped 로 표시. {stopped: bool, pid, label}"""
     from pathlib import Path
     p = Path(hb_path)
     try:
-        hb = json.loads(p.read_text(encoding="utf-8"))
+        hb = read_json(p)
     except (OSError, ValueError):
         return {"stopped": False}
     kind = hb.get("kind") or "manual"
@@ -200,7 +237,7 @@ def stop_manual(hb_path):
     try:
         tmp = p.with_name(p.name + f".{os.getpid()}.tmp")
         tmp.write_text(json.dumps(hb, ensure_ascii=False), encoding="utf-8")
-        os.replace(tmp, p)
+        replace_retry(tmp, p)  # 겹치면 다시 - 이 쓰기가 버려지면 화면이 '끊김'을 모른다
     except OSError:
         pass
     return {"stopped": bool(gone), "pid": pid, "label": hb.get("label"), "kind": kind}
