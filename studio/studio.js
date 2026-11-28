@@ -1690,7 +1690,7 @@ ${names}
     const cells = cellList(), rs = [...new Set(cells.map((x) => x[0]))], cs = [...new Set(cells.map((x) => x[1]))];
     snapshot();
     if (op === "row+") tableInsert(el, "r", Math.max(...rs) + 1); else if (op === "col+") tableInsert(el, "c", Math.max(...cs) + 1);
-    else if (op === "row-") { if (!tableDelete(el, "r", rs)) { undo(); return; } } else if (op === "col-") { if (!tableDelete(el, "c", cs)) { undo(); return; } }
+    else if (op === "row-") { if (!tableDelete(el, "r", rs)) { HIST.drop(); return; } } else if (op === "col-") { if (!tableDelete(el, "c", cs)) { HIST.drop(); return; } }
     S.cell = null; afterChange();
   }
   function moveCellCursor(el, dr, dc, extend) {
@@ -2100,7 +2100,7 @@ ${names}
     if (S.drawing && S.drawing.p0) { drawUp(); return; }
     if (!drag) return;
     const d = drag; drag = null;
-    if (d.mode === "gutmove") { $$("#ov .tdrop").forEach((x) => x.remove()); if (d.moved && d.to !== d.from && tableMoveLine(d.el, d.axis, d.from, d.to)) { S.undo.push(d.before); S.redo = []; const k = d.to, [nr, nc] = tblDims(d.el); const list = d.axis === "c" ? Array.from({ length: nr }, (_, i) => [i, k]) : Array.from({ length: nc }, (_, j) => [k, j]); S.cell = { id: d.el.id, set: new Set(list.map(([r, c]) => cellKey(r, c))), anchor: list[0], line: [d.axis, k] }; afterChange(); toast(`${d.axis === "c" ? "열" : "행"}을 ${d.from + 1} → ${d.to + 1} 로 옮겼습니다 (Ctrl+Z 로 되돌리기)`); } else drawSel(); return; }
+    if (d.mode === "gutmove") { $$("#ov .tdrop").forEach((x) => x.remove()); if (d.moved && d.to !== d.from && tableMoveLine(d.el, d.axis, d.from, d.to)) { HIST.push("drag", d.before); const k = d.to, [nr, nc] = tblDims(d.el); const list = d.axis === "c" ? Array.from({ length: nr }, (_, i) => [i, k]) : Array.from({ length: nc }, (_, j) => [k, j]); S.cell = { id: d.el.id, set: new Set(list.map(([r, c]) => cellKey(r, c))), anchor: list[0], line: [d.axis, k] }; afterChange(); toast(`${d.axis === "c" ? "열" : "행"}을 ${d.from + 1} → ${d.to + 1} 로 옮겼습니다 (Ctrl+Z 로 되돌리기)`); } else drawSel(); return; }
     if (d.mode === "cellsel" || d.mode === "gutsel") { renderFtb(); renderProps(); return; }
     if (d.mode === "marquee") {
       if (!d.moved) { if (!d.base.length) select(null); else drawSel(); return; }
@@ -2110,7 +2110,7 @@ ${names}
       if (inside.length) toast(`${selIds().length}개 선택 - 끌어서 함께 이동, 서식 줄은 고른 요소 모두에 적용`);
       return;
     }
-    if (d.moved) { S.undo.push(d.before); S.redo = []; afterChange(); }
+    if (d.moved) { HIST.push("drag", d.before); afterChange(); }
   }
 
   // ---------------------------------------------------------------- 글자 직접 편집
@@ -2218,11 +2218,11 @@ ${names}
     const el = E.el;
     if (commit && E.cell) {  // 셀 하나
       const [r, c] = E.cell, old = el.type === "table" ? String((el.rows[r] || [])[c] ?? "") : cellVal((objRows(el)[r] || { cells: [] }).cells[c]);
-      if (t !== old) { S.undo.push(E.before); S.redo = []; if (el.type === "table") { while (el.rows.length <= r) el.rows.push([]); el.rows[r][c] = t; } else objCell(el, r, c).v = t; afterChange(); return; }
+      if (t !== old) { HIST.push("text", E.before); if (el.type === "table") { while (el.rows.length <= r) el.rows.push([]); el.rows[r][c] = t; } else objCell(el, r, c).v = t; afterChange(); return; }
     } else if (commit) {
       const old = el.type === "bullets" ? bulletsToText(el.items) : el.type === "table" ? tableToText(el.rows) : el.type === "table-obj" ? objRowsText(el) : el.text || "";
       if (t !== old) {
-        S.undo.push(E.before); S.redo = [];
+        HIST.push("text", E.before);
         if (el.type === "bullets") el.items = textToBullets(t); else if (el.type === "table") el.rows = textToTable(t); else if (el.type === "table-obj") setObjRowsText(el, t); else el.text = t;
         afterChange(); return;
       }
@@ -2583,7 +2583,7 @@ ${names}
       const targets = all ? hits : hits[cur] ? [hits[cur]] : []; if (!targets.length) return;
       snapshot(); let n = 0;
       targets.forEach((h) => { const t = h.sl.get(); const v = t.replace(re, () => { n++; return w.value; }); if (v !== t) h.sl.set(v); });
-      if (!n) { undo(); toast("바꿀 곳이 없습니다 - 찾기는 퍼지, 바꾸기는 글자 그대로입니다"); return; }
+      if (!n) { HIST.drop(); toast("바꿀 곳이 없습니다 - 찾기는 퍼지, 바꾸기는 글자 그대로입니다"); return; }
       afterChange(true); toast(`${n}곳을 바꿨습니다 (Ctrl+Z 로 되돌리기)`); render();
     };
     q.addEventListener("input", () => { cur = 0; render(); });
