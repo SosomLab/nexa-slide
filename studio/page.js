@@ -922,7 +922,7 @@
     });
     cur = ed;
     // 실시간 쪽 나눔 - 쪽 경계에 빈 자리를 끼운다. 인쇄(브라우저·서버 Chrome)는 브라우저가 쪽을 나누므로 쉰다
-    flow = NexaPageFlow.create({
+    flow = NexaPageFlow.create({ colSplit: true, /* 다단 구역의 문단을 단 경계에서 나눈다(PG-101 2차) */
       host: $("#ed"), box: () => S.box, off: () => !!S.printing,
       saveSel: () => (document.activeElement === $("#ed") ? ed.selection() : null), restoreSel: (s) => ed.select(s.a, s.f),
       noteH, noteSep, prepare: numberNotes, columns: () => (S.deck.page || {}).columns,

@@ -747,7 +747,10 @@ FN_PROBE = [
 # 다단(PG-101 1차 · 2422be3) - 협업 세션 도우미: 겹침(같은 쪽에서 두 블록 사각형이 겹침) · 단 너비 · 화면 자리 기억
 COL_X = ("const cw=()=>q('#ed').offsetWidth;const gapPx=()=>((S.deck.page.columns||{}).gap??8)*cw()/S.box.cw;const colW=(n)=>Math.round((cw()-(n-1)*gapPx())/n);"
          "const overlaps=()=>{const es=[...q('#ed').children].filter(e=>e.dataset.id&&!e.classList.contains('pg-break')&&e.getBoundingClientRect().height>0);const bad=[];"
-         "for(let i=0;i<es.length;i++)for(let j=i+1;j<es.length;j++){const a=es[i].getBoundingClientRect(),b=es[j].getBoundingClientRect();if(a.left<b.right-1&&b.left<a.right-1&&a.top<b.bottom-1&&b.top<a.bottom-1)bad.push(es[i].dataset.id+'x'+es[j].dataset.id);}return bad;};"
+         # 보이는 자리로 잰다 - 단 경계에서 나뉜 문단(.pg-colpart)은 실제 상자가 한 단에 길게 남고 꼬리는 보이는 곳만 옮겨져 있어, 글 줄의 사각형으로 본다
+         "const boxes=(e)=>{if(!e.querySelector('.pg-colpart'))return [e.getBoundingClientRect()];const rg=document.createRange(),w=document.createTreeWalker(e,4),out=[];let n;while((n=w.nextNode())){rg.selectNodeContents(n);for(const r of rg.getClientRects())if(r.width>0&&r.height>0)out.push(r);}return out;};"
+         "const hit=(a,b)=>a.left<b.right-1&&b.left<a.right-1&&a.top<b.bottom-1&&b.top<a.bottom-1;"
+         "for(let i=0;i<es.length;i++){const A=boxes(es[i]);for(let j=i+1;j<es.length;j++){const B=boxes(es[j]);if(A.some(a=>B.some(b=>hit(a,b))))bad.push(es[i].dataset.id+'x'+es[j].dataset.id);}}return bad;};"
          "const spots=()=>{const m={};for(const b of S.deck.blocks){const e=el(b.id);if(!e||b.type==='break')continue;const s=spot(b.id);m[b.id]=[s.x,s.w,s.page];}return m;};")
 
 
@@ -977,6 +980,53 @@ def live_steps():
     ]
 
 
+CSP_TXT = "".join(f"다단 문단 나눔 시험 글 {i:02d}번째 줄입니다. " for i in range(1, 61))  # 한 단에 다 안 들어가는 긴 문단(약 1,400자)
+CSP_ADD = "".join(f"늘린 글 {i:02d} 실행 취소로 걷힐 조각입니다. " for i in range(1, 61))
+CSP_DOC = {"id": "pgcsp", "title": "다단 문단 나눔", "kind": "page", "slides": [], "blocks": [
+    {"id": "c1", "type": "p", "runs": [{"t": CSP_TXT}]},
+    {"id": "c2", "type": "p", "runs": [{"t": "뒤 문단"}]}]}
+CSP = ("const parts=(id)=>[...document.querySelectorAll('#ed '+(id?'[data-id='+id+'] ':'')+'.pg-colpart')];const blk=(id)=>S.deck.blocks.find(b=>b.id===id);"
+       "const at=(p)=>parseInt(p._at,10);const top=(id,off)=>{const r=cr(id,off);return r?Math.round(r.top):null;};const lft=(id,off)=>{const r=cr(id,off);return r?Math.round(r.left):null;};"
+       "const CD=()=>JSON.stringify({np:parts().length,at:parts().map(p=>p._at).slice(0,2),bad:audit().slice(0,2),sel:(E.ed.selection()||{}).f}).slice(0,110);const FX=(o)=>(JSON.stringify(o)+CD()).slice(0,199);")
+CSP_PRE = "const parts=()=>[...document.querySelectorAll('#ed .pg-colpart')];const blk=(id)=>S.deck.blocks.find(b=>b.id===id);await new Promise(r=>setTimeout(r,600));"
+
+
+def csplit_steps():
+    """다단 구역의 문단을 단 경계에서 나눈다(PG-101 2차 - 꼬리 줄을 span.pg-colpart 로 보이는 곳만 옮김) - 실제 편집기에서: 개발 세션이 확인하지 못한 것 ①~⑤"""
+    J = H + FL + CSP
+    return [
+        step("다단 나눔 ⓪ 2단 문서의 긴 문단 - 단 경계에서 나뉨(조각 1개 이상) · 꼬리 첫 글자가 머리보다 오른쪽 단 또는 다음 쪽 · 글자 수 그대로 · 쪽 밖에 걸친 줄 없음",
+             J + "await settle();const p=parts('c1');if(!p.length)return ('no colpart · '+CD()).slice(0,199);const off=at(p[0]);const h=cr('c1',0),t=cr('c1',off),b=cr('c1',off-1);"
+                 "const moved=t.left>h.left+50||pageAt(t.top,t.bottom)>pageAt(h.top,h.bottom);const up=t.top<b.top-20||pageAt(t.top,t.bottom)>pageAt(b.top,b.bottom);"
+                 "return S.deck.page.columns.count===2&&off>0&&off<tx(blk('c1')).length&&moved&&up&&el('c1').textContent===tx(blk('c1'))&&audit().length===0 || FX({off,len:tx(blk('c1')).length,moved,up,h:[Math.round(h.left),Math.round(h.top)],t:[Math.round(t.left),Math.round(t.top)]});"),
+        step("다단 나눔 ① 한글 조합 중(꼬리에서 ㅎ → 하) - 조합 중에는 다시 나누지 않는다(조각 노드 그대로) · 모델은 아직 그대로 · 화면에는 조합 글자",
+             J + "const c=window.__cs,p=parts('c1');const dom=el('c1').textContent;"
+                 "return !!c&&p[0]===c.node&&tx(blk('c1')).length===c.len&&dom.length===c.len+1&&dom.slice(c.off+3,c.off+4)==='하' || FX({same:p[0]===(c&&c.node),model:tx(blk('c1')).length,dom:dom.length,len:c&&c.len,ch:dom.slice((c?c.off:0)+2,(c?c.off:0)+6)});",
+             pre=CSP_PRE + "const off=parseInt(parts()[0]._at,10);E.ed.focus();E.ed.select({id:'c1',off:off+3});window.__cs={off,len:tx(blk('c1')).length,t:tx(blk('c1')),node:parts()[0]};",
+             cdp=[{"method": "Input.imeSetComposition", "params": {"text": "ㅎ", "selectionStart": 1, "selectionEnd": 1}, "wait": 60},
+                  {"method": "Input.imeSetComposition", "params": {"text": "하", "selectionStart": 1, "selectionEnd": 1}, "wait": 120}], wait=100),
+        step("다단 나눔 ① 조합 끝(한) - 모델에 그 자리로 들어감 · 다시 나뉨(조각 있음 · 글자 수 = 모델) · 커서는 넣은 글자 뒤 · 걸친 줄 없음",
+             J + "await settle();const c=window.__cs,t=tx(blk('c1')),sel=(E.ed.selection()||{}).f;const want=c.t.slice(0,c.off+3)+'한'+c.t.slice(c.off+3);"
+                 "return t===want&&el('c1').textContent===t&&parts('c1').length>=1&&audit().length===0&&sel&&sel.id==='c1'&&sel.off===c.off+4 || FX({eq:t===want,dl:t.length-c.t.length,x:t.slice(c.off,c.off+8),domEq:el('c1').textContent===t,off:c.off});",
+             cdp=INS("한"), wait=150),
+        step("다단 나눔 ② 머리 끝 줄에서 아래 화살표 → 커서가 꼬리 첫 줄로(글자 위치는 늘고 · 화면은 다음 단 머리)",
+             J + "await tick(150);const c=window.__cs2,sel=(E.ed.selection()||{}).f;if(!sel)return ('no selection '+CD()).slice(0,199);const off=at(parts('c1')[0]);"
+                 "const y0=top('c1',c.from),y1=top('c1',Math.min(sel.off,tx(blk('c1')).length-1)),yt=top('c1',off);"
+                 "return sel.id==='c1'&&sel.off>=off&&sel.off>c.from&&Math.abs(y1-yt)<=3&&y1!==y0 || FX({from:c.from,to:sel.off,off,y0,y1,yt,x0:lft('c1',c.from),x1:lft('c1',Math.min(sel.off,tx(blk('c1')).length-1))});",
+             pre=CSP_PRE + "const off=parseInt(parts()[0]._at,10);E.ed.focus();E.ed.select({id:'c1',off:off-3});window.__cs2={from:off-3};", cdp=KEY("ArrowDown", "ArrowDown", 40), wait=150),
+        step("다단 나눔 ③ 짧은 뒤 문단에 긴 글을 넣으면 그 문단도 나뉨 → 실행 취소로 글이 줄면 조각이 걷힘(글·화면 그대로 · 걸친 줄 없음)",
+             J + "await settle();const n1=parts('c2').length,l1=tx(blk('c2')).length,b1=audit().length;E.ed.focus();E.undo();await settle();"
+                 "const n2=parts('c2').length,t2=tx(blk('c2'));return n1>=1&&l1>1000&&b1===0&&n2===0&&t2==='뒤 문단'&&el('c2').textContent==='뒤 문단'&&parts('c1').length>=1&&audit().length===0 || FX({n1,l1,b1,n2,t2:t2.slice(0,20)});",
+             pre="await idle();E.ed.focus();E.ed.select({id:'c2',off:0});", cdp=INS(CSP_ADD), wait=200),
+        step("다단 나눔 ④ 저장한 문서 JSON 에 나눔 흔적 없음(pg-colpart · data-pg-split · pg-gap 없음 · c1 은 run 하나 · 글 = 화면 모델)",
+             J + "await idle();const r=await fetch('/api/deck/pgcsp',{cache:'no-store'});const raw=await r.text();const f=JSON.parse(raw);const b=f.blocks.find(x=>x.id==='c1');"
+                 "return !/colpart|pg-split|pg-gap|colsplit/.test(raw)&&b.runs.length===1&&tx(b)===tx(blk('c1'))&&Object.keys(b).sort().join()==='id,runs,type' || JSON.stringify({hit:(raw.match(/colpart|pg-split|pg-gap|colsplit/)||[])[0],runs:b.runs.length,keys:Object.keys(b),eq:tx(b)===tx(blk('c1'))}).slice(0,199);"),
+        step("다단 나눔 ⑤ 150% 확대에서도 나뉘어 있고 쪽 밖에 걸친 줄 없음 · 100% 로 돌려도 같음",
+             J + "chg('#selZoom','1.5');await settle();const n15=parts('c1').length,b15=audit().slice(0,5),a15=parts('c1')[0]&&parts('c1')[0]._at,st15=parts('c1')[0]&&[parts('c1')[0].style.left,parts('c1')[0].style.top],bd15=bodies().map(x=>x.map(Math.round)).slice(0,2);chg('#selZoom','1');await settle();const n10=parts('c1').length,b10=audit().slice(0,5),a10=parts('c1')[0]&&parts('c1')[0]._at;"
+                 "return n15>=1&&!b15.length&&n10>=1&&!b10.length || FX({b15:b15.slice(0,2),a15,st15,bd15,n10,b10:b10.slice(0,1),st10:parts('c1')[0]&&[parts('c1')[0].style.left,parts('c1')[0].style.top]});"),
+    ]
+
+
 def poll_del_steps():
     return [
         step("밖의 변경 ③ 문서를 API 로 지움 → 상태 칩 '지워진 문서' · 그 뒤 6.5초 동안 이 문서로 나가는 요청 0(폴링 멈춤)",
@@ -1195,6 +1245,7 @@ def main():
             {"url": "/studio/page.html?deck=pgmrg", "wait": 2500, "steps": zoom_edit_steps()},
             {"url": "/studio/page.html?deck=pgflow", "wait": 3000, "steps": flow_steps()},
             {"url": "/studio/page.html?deck=pgflow&print=1", "wait": 2500, "steps": flow_print_steps()},
+            {"url": "/studio/page.html?deck=pgcsp", "wait": 3000, "steps": csplit_steps()},
             {"url": "/studio/page.html?deck=pgobj", "wait": 3000, "steps": obj_steps()},
             {"url": "/studio/page.html?deck=pgobj", "wait": 3000, "steps": obj_reload_steps()},
             {"url": "/studio/page.html?deck=pgo2id", "wait": 2500, "steps": obj2_steps()},
@@ -1212,6 +1263,9 @@ def main():
             full = page_doc.new_page(doc_["id"], doc_["title"]); full["blocks"] = doc_["blocks"]
             st_, r_, _ = call("PUT", f"/api/deck/{doc_['id']}", full)
             check(f"서식·합치기 시험 문서 {doc_['id']} 만들기 200", st_ == 200, (st_, r_))
+        full = page_doc.new_page(CSP_DOC["id"], CSP_DOC["title"]); full["blocks"] = CSP_DOC["blocks"]; full["page"]["columns"] = {"count": 2, "gap": 8}  # 다단 문단 나눔(PG-101 2차)
+        st_, r_, _ = call("PUT", "/api/deck/pgcsp", full)
+        check("다단 문단 나눔 시험 문서 pgcsp 만들기 200", st_ == 200, (st_, r_))
         st, r, _ = call("POST", "/api/decks", {"action": "create", "kind": "page", "title": "해설지 시험", "theme": "study-guide"})
         sg_id = (r or {}).get("id") or "pgsgid"
         check("해설지 템플릿으로 만들기 200 · template = study-guide", st == 200 and deck_file(ws_on, sg_id).get("template") == "study-guide", (st, r))
@@ -1237,6 +1291,21 @@ def main():
         call("POST", "/api/decks", {"action": "create", "kind": "page", "title": "보고서 둘", "theme": "report"})
         l2, _ = scenario([{"url": "/studio/index.html#pgslide", "wait": 2500, "steps": newdoc_rec_steps()}])  # 대화 상자로 1번 + API 로 1번 = report 2회
         lines += l2
+        # 다단 나눔 ⑥ DOCX 내보내기는 그대로 - 단은 구역 설정(w:cols)으로, 나뉜 문단은 문단 하나로(화면의 조각은 문서에 없다)
+        sx_, rx_, _ = call("POST", "/api/export/pgcsp")
+        dx_ = ""
+        if sx_ == 200 and (rx_ or {}).get("url"):
+            import io
+            import re
+            import zipfile
+            with urllib.request.urlopen(B + rx_["url"], timeout=60) as rr:
+                dx_ = zipfile.ZipFile(io.BytesIO(rr.read())).read("word/document.xml").decode("utf-8")
+            paras_ = [p for p in re.findall(r"<w:p[ >].*?</w:p>", dx_, flags=re.S) if "다단 문단 나눔 시험 글 01번째" in p]
+            whole_ = len(paras_) == 1 and "시험 글 60번째" in re.sub(r"<[^>]+>", "", paras_[0])
+            check("다단 나눔 ⑥ DOCX - w:cols 2단 · 긴 문단은 문단 하나(첫 줄 ~ 60번째 줄이 한 w:p) · 조각 흔적 없음",
+                  bool(re.search(r"<w:cols[^>]*w:num=\"2\"", dx_)) and whole_ and "colpart" not in dx_, json.dumps({"cols": re.findall(r"<w:cols[^>]*>", dx_)[:3], "paras": len(paras_), "whole": whole_}, ensure_ascii=False))
+        else:
+            check("다단 나눔 ⑥ DOCX 내보내기 200", False, (sx_, rx_))
         # 쪽 나눔 - 서버 Chrome PDF 쪽 수 vs 화면 쪽 수(±1 이면 통과, 다르면 수치를 남긴다)
         scr = next((int(l.rsplit("screenPages=", 1)[1].split()[0]) for l in lines if "screenPages=" in l), None)
         st_, r_, _ = call("POST", "/api/export/pgflow?pdf=1&via=chrome")

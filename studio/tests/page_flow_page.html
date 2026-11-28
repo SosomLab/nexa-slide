@@ -46,7 +46,7 @@
     renderBlock: (b) => { if (b.type === "table") return tableEl(b); const d = document.createElement("div"); d.className = b.type === "break" ? "pg-break " + (b.kind || "page") : "obj"; if (b.h) d.style.height = b.h + "px"; if (b.kind === "section") { d.dataset.cols = (b.columns || {}).count || 1; if ((b.columns || {}).gap !== undefined) d.dataset.gap = b.columns.gap; } return d; },
   });
   window.FLOW = NexaPageFlow.create({
-    host, gap: 24, box: () => ({ cw: 400, ch: H, t: 20, b: 20 }), columns: () => window.COLS || null,
+    host, gap: 24, box: () => ({ cw: 400, ch: H, t: 20, b: 20 }), columns: () => window.COLS || null, colSplit: true,
     saveSel: () => ED.selection(), restoreSel: (s) => ED.select(s.a, s.f), onPages: (n, info) => { LAST = { n, ...info }; },
   });
   /** 블록들의 놓인 자리 [{id, x(본문 왼쪽 기준), y(쪽 안), page, w}] 와 서로 겹친 쌍 */
