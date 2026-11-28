@@ -283,7 +283,7 @@
   async function loadChanges(more) {
     const x = X(), S = N().S; if (!x || !S.id) return;
     const before = more && P.changes.length ? `&before=${P.changes[P.changes.length - 1].seq}` : "";
-    const r = await x.api("GET", `/api/changes/${encodeURIComponent(S.id)}?group=1&recent=1&limit=40${before}`); if (!r.ok) return;
+    const r = await x.api("GET", `/api/changes/${encodeURIComponent(S.id)}?group=1&recent=1&limit=40&gone=ok${before}`); if (!r.ok || (r.data && r.data.gone)) return;  // 그 사이 지워진 문서는 404 가 아니라 {gone:true}
     const gs = r.data.groups || [];
     P.changes = more ? P.changes.concat(gs) : gs;
     if (!more) { P.recent = r.data.recent || []; P.latest = r.data.latest || 0; P.keep = r.data.keep; }
