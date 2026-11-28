@@ -1135,6 +1135,56 @@ def print_back_steps(tag):
     ]
 
 
+def _prm_block(k):
+    t = f"K{k:02d} " + "문단 많은 다단 인쇄 시험 글입니다 가나다라 마바사 아자차카 타파하 " * 6
+    if k == 2:
+        return {"id": f"m{k:02d}", "type": "p", "runs": [{"t": t}, {"t": "앞각주말", "fn": "FNA 앞쪽 각주 글"}]}
+    if k == 40:
+        return {"id": f"m{k:02d}", "type": "p", "runs": [{"t": t}, {"t": "뒤각주말", "fn": "FNB 뒤쪽 각주 글"}]}
+    return {"id": f"m{k:02d}", "type": "p", "runs": [{"t": t}]}
+
+
+PRM_DOC = {"id": "pgprm", "title": "다단 인쇄 - 블록 많음", "kind": "page", "slides": [], "blocks": [_prm_block(k) for k in range(1, 49)],
+           "objects": [{"id": "mo1", "type": "shape", "shape": "rect", "anchor": "m01", "rel": "page", "x": 120, "y": 8, "w": 50, "h": 12, "blocks": [{"id": "mob1", "type": "p", "runs": [{"t": "OBJA"}]}]},
+                       {"id": "mo2", "type": "shape", "shape": "rect", "anchor": "m40", "rel": "page", "x": 120, "y": 8, "w": 50, "h": 12, "blocks": [{"id": "mob2", "type": "p", "runs": [{"t": "OBJB"}]}]}]}
+
+
+def print_part_steps():
+    """쪽 사본 인쇄의 부분 복제(ad223b2) - 쪽 사본마다 그 쪽에 보이는 블록·층만 들어가고, 남긴 블록의 자리는 원본과 같다"""
+    PRE = ("const tick=(ms)=>new Promise(r=>setTimeout(r,ms||200));await tick(1500);const paper=document.querySelector('#paper'),pt=paper.getBoundingClientRect().top,ed=document.querySelector('#ed');"
+           "const shs=[...document.querySelectorAll('#sheets .pg-sheet')].map(x=>x.getBoundingClientRect());const pg=(r)=>shs.findIndex(x=>r.top>=x.top-1&&r.top<x.bottom);"
+           "const tops={};for(const e of ed.children)if(e.dataset.id)tops[e.dataset.id]=e.getBoundingClientRect().top-pt;"
+           "const abs=(q)=>[...document.querySelectorAll(q)].filter(e=>getComputedStyle(e).position==='absolute');const per=(q)=>{const a=shs.map(()=>0);for(const e of abs(q)){const k=pg(e.getBoundingClientRect());if(k>=0)a[k]++;}return a;};"
+           "const kp=shs.map(()=>new Set()),rg=document.createRange(),tw=document.createTreeWalker(ed,4);let n;while((n=tw.nextNode())){const re=/K\\d{2}/g;let m;while((m=re.exec(n.data))){rg.setStart(n,m.index);rg.setEnd(n,m.index+3);const r=rg.getClientRects()[0];if(!r)continue;const k=pg(r);if(k>=0)kp[k].add(m[0]);}}"
+           "window.__pm={p0:S.pages,n0:ed.children.length,tops,objs:per('#objs > *'),fn:shs.map((_,k)=>document.querySelectorAll('.pg-fnotes[data-page=\"'+(k+1)+'\"]').length),kp:kp.map(x=>[...x].sort()),"
+           "objA:pg(([...document.querySelectorAll('#objs *')].find(e=>e.textContent.trim()==='OBJA')||paper).getBoundingClientRect()),objB:pg(([...document.querySelectorAll('#objs *')].find(e=>e.textContent.trim()==='OBJB')||paper).getBoundingClientRect())};")
+    return [
+        step("다단 인쇄(부분 복제) ⓪ 블록 많은 2단 문서 - 3쪽 이상 · 블록 48 · 각주 상자 2쪽에 · 글 상자 2개(화면 쪽별 표지는 서버 Chrome PDF 와 비교용)",
+             H + "const tick=(ms)=>new Promise(r=>setTimeout(r,ms||200));await tick(300);const c=window.__pm;"
+                 "return c&&c.p0>=3&&c.n0===48&&c.fn.filter(x=>x>0).length===2&&c.objs.reduce((a,b)=>a+b,0)===2&&c.objA===0&&c.objB>=1?'PRMSCREEN='+JSON.stringify({pages:c.p0,per:c.kp}):'BAD '+JSON.stringify(c&&{p0:c.p0,n0:c.n0,fn:c.fn,objs:c.objs,objA:c.objA,objB:c.objB}).slice(0,180);",
+             pre=PRE, dump=True),
+        step("다단 인쇄(부분 복제) ① 인쇄 진입 - 쪽 사본마다 #ed 자식 수가 원본보다 적음 · 첫 쪽 빼고 pg-printskip 하나 · 남긴 블록의 자리(top − 사본 종이 top)가 원본과 1px 안 · 모든 블록이 어느 쪽 사본엔가 있음",
+             H + "const tick=(ms)=>new Promise(r=>setTimeout(r,ms||200));const c=window.__pm;window.dispatchEvent(new Event('beforeprint'));await tick(500);const pgs=[...document.querySelectorAll('#printPages .pg-printpage')];const bad=[],seen=new Set(),ns=[];"
+                 "pgs.forEach((pg,k)=>{const ed=pg.querySelector('#ed'),pc=pg.querySelector('.pg-paperclone');if(!ed||!pc){bad.push('쪽'+(k+1)+' 사본 없음');return;}const kids=[...ed.children],sk=kids.filter(e=>e.classList.contains('pg-printskip')).length;ns.push(kids.length);"
+                 "if(kids.length>=c.n0)bad.push('쪽'+(k+1)+' 자식 '+kids.length);if(sk!==(k?1:0)&&!(k===0&&sk===0))bad.push('쪽'+(k+1)+' skip '+sk);if(k>0&&sk!==1)bad.push('쪽'+(k+1)+' skip≠1');"
+                 "const t0=pc.getBoundingClientRect().top;for(const e of kids){const id=e.dataset.id;if(!id)continue;seen.add(id);const d=e.getBoundingClientRect().top-t0-c.tops[id];if(!(Math.abs(d)<=1))bad.push(id+'@쪽'+(k+1)+' '+Math.round(d*10)/10);}});"
+                 "const miss=Object.keys(c.tops).filter(id=>!seen.has(id));if(miss.length)bad.push('빠진 블록 '+miss.slice(0,4));window.__pmN=ns;"
+                 "return pgs.length===c.p0&&!bad.length || JSON.stringify({pages:pgs.length,p0:c.p0,ns,bad:bad.slice(0,5)}).slice(0,199);",
+             cdp=[{"method": "Emulation.setEmulatedMedia", "params": {"media": "print"}, "wait": 150}], wait=100),
+        step("다단 인쇄(부분 복제) ② 쪽 아래 각주 상자·글 상자는 그 쪽 사본에만(쪽별 개수 = 화면 · OBJA 는 1쪽 사본 · OBJB 는 그 쪽 사본에만)",
+             H + "const c=window.__pm,pgs=[...document.querySelectorAll('#printPages .pg-printpage')];const abs=(root,q)=>[...root.querySelectorAll(q)].filter(e=>getComputedStyle(e).position==='absolute').length;"
+                 "const fn=pgs.map(pg=>pg.querySelectorAll('.pg-fnotes').length),wrong=pgs.map((pg,k)=>[...pg.querySelectorAll('.pg-fnotes')].filter(b=>+b.dataset.page!==k+1).length),objs=pgs.map(pg=>abs(pg,'#objs > *'));"
+                 "const has=(pg,t)=>[...pg.querySelectorAll('#objs *')].some(e=>e.textContent.trim()===t);const a=pgs.map(pg=>has(pg,'OBJA')?1:0),b=pgs.map(pg=>has(pg,'OBJB')?1:0);"
+                 "const one=(v,k)=>v.every((x,i)=>x===(i===k?1:0));"
+                 "return JSON.stringify(fn)===JSON.stringify(c.fn)&&wrong.every(x=>x===0)&&JSON.stringify(objs)===JSON.stringify(c.objs)&&one(a,c.objA)&&one(b,c.objB) || JSON.stringify({fn,want:c.fn,wrong,objs,wantO:c.objs,a,b}).slice(0,199);"),
+        step("다단 인쇄(부분 복제) ③ 인쇄 끝(매체 복귀 뒤 afterprint) → 사본 없음 · 화면 그대로(쪽 수 · 블록 수 · 블록 자리)",
+             H + "const tick=(ms)=>new Promise(r=>setTimeout(r,ms||200));const c=window.__pm;window.dispatchEvent(new Event('afterprint'));await tick(1000);const paper=document.querySelector('#paper'),pt=paper.getBoundingClientRect().top,ed=document.querySelector('#ed');"
+                 "const moved=[...ed.children].filter(e=>e.dataset.id&&Math.abs(e.getBoundingClientRect().top-pt-c.tops[e.dataset.id])>1).map(e=>e.dataset.id);"
+                 "return !document.querySelector('#printPages')&&!document.querySelector('.pg-printskip')&&!document.body.classList.contains('print-sheets')&&S.pages===c.p0&&ed.children.length===c.n0&&!moved.length || JSON.stringify({host:!!document.querySelector('#printPages'),pages:S.pages,n:ed.children.length,moved:moved.slice(0,5)}).slice(0,199);",
+             cdp=[{"method": "Emulation.setEmulatedMedia", "params": {"media": ""}, "wait": 300}], wait=100),
+    ]
+
+
 def poll_del_steps():
     return [
         step("밖의 변경 ③ 문서를 API 로 지움 → 상태 칩 '지워진 문서' · 그 뒤 6.5초 동안 이 문서로 나가는 요청 0(폴링 멈춤)",
@@ -1357,6 +1407,7 @@ def main():
             {"url": "/studio/page.html?deck=pgcsf", "wait": 3000, "steps": csplit_fn_steps()},
             {"url": "/studio/page.html?deck=pgprn", "wait": 3000, "steps": print_steps() + print_back_steps("다단(pgprn)")},
             {"url": "/studio/page.html?deck=pgflow", "wait": 3000, "steps": print_back_steps("1단(pgflow)")},
+            {"url": "/studio/page.html?deck=pgprm", "wait": 3000, "steps": print_part_steps()},
             {"url": "/studio/page.html?deck=pgobj", "wait": 3000, "steps": obj_steps()},
             {"url": "/studio/page.html?deck=pgobj", "wait": 3000, "steps": obj_reload_steps()},
             {"url": "/studio/page.html?deck=pgo2id", "wait": 2500, "steps": obj2_steps()},
@@ -1384,6 +1435,9 @@ def main():
         full["page"]["columns"] = {"count": 2, "gap": 8}; full["page"]["number"] = {"show": True, "pos": "footer-center"}; full["page"]["header"] = {"blocks": [{"id": "hh1", "type": "p", "runs": [{"t": "HDRMARK"}]}]}
         st_, r_, _ = call("PUT", "/api/deck/pgprn", full)
         check("다단 인쇄 시험 문서 pgprn 만들기 200", st_ == 200, (st_, r_))
+        full = page_doc.new_page(PRM_DOC["id"], PRM_DOC["title"]); full["blocks"] = PRM_DOC["blocks"]; full["objects"] = PRM_DOC["objects"]; full["page"]["columns"] = {"count": 2, "gap": 8}  # 쪽 사본 부분 복제(ad223b2)
+        st_, r_, _ = call("PUT", "/api/deck/pgprm", full)
+        check("다단 인쇄(블록 많음) 시험 문서 pgprm 만들기 200", st_ == 200, (st_, r_))
         st, r, _ = call("POST", "/api/decks", {"action": "create", "kind": "page", "title": "해설지 시험", "theme": "study-guide"})
         sg_id = (r or {}).get("id") or "pgsgid"
         check("해설지 템플릿으로 만들기 200 · template = study-guide", st == 200 and deck_file(ws_on, sg_id).get("template") == "study-guide", (st, r))
@@ -1464,6 +1518,24 @@ def main():
             num_ = [bool(re.search(r"(?<![0-9M])" + str(k + 1) + r"(?![0-9])", re.sub(r"M\d{3}", "", t))) for k, t in enumerate(pt_)]
             check("다단 인쇄 ③ PDF 쪽마다 머리말 글(HDRMARK)과 쪽 번호가 있음", all(hdr_) and all(num_), json.dumps({"hdr": hdr_, "num": num_}))
             check("다단 인쇄 ④ 글 상자 개체의 글(OBJMARK)이 PDF 1쪽에 있음", "OBJMARK" in pt_[0], json.dumps({"where": [k + 1 for k, t in enumerate(pt_) if "OBJMARK" in t]}))
+        prm_ = next((json.loads(l.rsplit("PRMSCREEN=", 1)[1]) for l in lines if "PRMSCREEN=" in l), None)
+        sm_, rm_, _ = call("POST", "/api/export/pgprm?pdf=1&via=chrome")
+        mt_ = None
+        if sm_ == 200 and (rm_ or {}).get("url"):
+            with urllib.request.urlopen(B + rm_["url"], timeout=60) as rr:
+                mt_ = pdf_page_texts(rr.read())
+        if prm_ is None or mt_ is None:
+            check("다단 인쇄(부분 복제) ④ 화면 표지·Chrome PDF 를 읽음", False, json.dumps({"screen": prm_ is not None, "st": sm_, "pdf": mt_ is not None}))
+        else:
+            mper_ = [sorted(set(re.findall(r"K\d{2}", t))) for t in mt_]
+            mall_ = [m for p in mper_ for m in p]
+            fnp_ = {k: [i + 1 for i, t in enumerate(mt_) if k in t] for k in ("FNA", "FNB", "OBJA", "OBJB", "앞각주말", "뒤각주말")}
+            NOTES.append(f"다단 인쇄(블록 많음): 화면 {prm_['pages']}쪽 · Chrome PDF {len(mt_)}쪽 · 쪽별 표지 {[len(p) for p in mper_]} · {json.dumps(fnp_, ensure_ascii=False)}")
+            check("다단 인쇄(부분 복제) ④ Chrome PDF 쪽 수 = 화면 쪽 수 · 쪽마다 든 문단 표지(K01~K48)가 화면과 같음 · 48개가 한 번씩",
+                  len(mt_) == prm_["pages"] and mper_ == prm_["per"] and len(mall_) == 48 and len(set(mall_)) == 48,
+                  json.dumps({"screen": prm_["pages"], "pdf": len(mt_), "scr": [len(p) for p in prm_["per"]], "pdfper": [len(p) for p in mper_], "n": len(mall_)}, ensure_ascii=False))
+            check("다단 인쇄(부분 복제) ④ 각주 글·글 상자가 PDF 의 그 쪽에 한 번씩(FNA = 앞각주말의 쪽 · FNB = 뒤각주말의 쪽 · OBJA 1쪽 · OBJB 한 쪽)",
+                  len(fnp_["FNA"]) == 1 and fnp_["FNA"] == fnp_["앞각주말"] and len(fnp_["FNB"]) == 1 and fnp_["FNB"] == fnp_["뒤각주말"] and fnp_["OBJA"] == [1] and len(fnp_["OBJB"]) == 1, json.dumps(fnp_, ensure_ascii=False))
         sf_, rf_, _ = call("POST", "/api/export/pgcsf?pdf=1&via=chrome")
         ft2_ = None
         if sf_ == 200 and (rf_ or {}).get("url"):

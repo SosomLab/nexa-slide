@@ -394,19 +394,51 @@
    *  그래서 종이(#paper)를 쪽 수만큼 복제해 쪽 크기 상자(.pg-printpage - 넘치는 것은 자른다)에 넣고 그 쪽의 세로 구간이 보이게 올린다.
    *  머리말·꼬리말·쪽 번호·쪽 아래 각주·개체가 화면 그대로 나온다(사본은 인쇄 동안만 있고 편집하지 않는다). @page 는 여백 0 */
   function printSheets() {
-    const paper = $("#paper"), n = S.pages || 1, box = S.box, gap = flow.gap, host = document.createElement("div");
+    const paper = $("#paper"), n = S.pages || 1, box = S.box, gap = flow.gap, host = document.createElement("div"), MM = 96 / 25.4, H = box.h * MM, step = H + gap;
     host.id = "printPages";
-    for (let k = 0; k < n; k++) {
-      const pg = document.createElement("div"); pg.className = "pg-printpage"; pg.style.width = box.w + "mm"; pg.style.height = `calc(${box.h}mm - 1px)`;  // 1px 덜 - 반올림으로 빈 쪽이 하나 더 나오지 않게
-      const c = paper.cloneNode(true); c.classList.add("pg-paperclone"); c.style.marginTop = `calc(-${k} * (${box.h}mm + ${gap}px))`;
-      for (const x of c.querySelectorAll("#sheets, #fnMeasure, .nx-h, .pg-obj-h")) x.remove();
-      for (const x of c.querySelectorAll("[contenteditable]")) x.removeAttribute("contenteditable");
-      for (const x of c.querySelectorAll(".sel, .nx-sel, .req-on, [data-live]")) { x.classList.remove("sel", "nx-sel", "req-on"); x.removeAttribute("data-live"); x.style.boxShadow = ""; }
-      pg.appendChild(c); host.appendChild(pg);
-    }
+    const sheet = () => { const pg = document.createElement("div"); pg.className = "pg-printpage"; pg.style.width = box.w + "mm"; pg.style.height = `calc(${box.h}mm - 1px)`; return pg; };  // 1px 덜 - 반올림으로 빈 쪽이 하나 더 나오지 않게
+    // 본 - 종이를 한 번만 통째로 복제해 다듬고 잰다. 쪽 사본은 본에서 **그 쪽에 보이는 것만** 다시 복제한다(쪽마다 문서 전체를 복제하면 긴 문서에서 쪽 수의 제곱으로 는다)
+    const m = paper.cloneNode(true); m.classList.add("pg-paperclone"); m.style.zoom = 1;
+    for (const x of m.querySelectorAll("#sheets, #fnMeasure, .nx-h, .pg-obj-h")) x.remove();
+    for (const x of m.querySelectorAll("[contenteditable]")) x.removeAttribute("contenteditable");
+    for (const x of m.querySelectorAll(".sel, .nx-sel, .req-on, [data-live]")) { x.classList.remove("sel", "nx-sel", "req-on"); x.removeAttribute("data-live"); x.style.boxShadow = ""; }
+    const mp = sheet(); mp.appendChild(m); host.appendChild(mp);
+    host.style.cssText = "display:block;position:absolute;left:0;top:0;visibility:hidden";  // 재는 동안만 - 화면 매체에서도 본이 배치되게
     $("#scroll").appendChild(host);  // 원래 종이 뒤 - id 로 찾는 코드는 원래 요소를 먼저 찾는다
     const st = document.getElementById("pg-print"); if (st) { st._screen = st.textContent; st.textContent = `@page { size: ${box.w}mm ${box.h}mm; margin: 0; }`; }
-    document.body.classList.add("print-sheets");
+    document.body.classList.add("print-sheets");  // 재기 전에 - 인쇄 매체에서 1단용 규칙(밀린 블록의 여백 0 등)이 본에 걸리지 않게
+    const top0 = m.getBoundingClientRect().top;
+    /** 보이는 세로 범위(종이 위 끝 기준) - 다른 단으로 옮겨 그린 꼬리 줄(.pg-colpart)까지. 배치되지 않은 것은 null */
+    const ext = (el, deep) => {
+      if (!el.getClientRects().length) return null;
+      const r = el.getBoundingClientRect(); let a = r.top, b = r.bottom;
+      if (deep) for (const q of el.querySelectorAll(".pg-colpart")) { const t = q.getBoundingClientRect(); a = Math.min(a, t.top); b = Math.max(b, t.bottom); }
+      return [a - top0, b - top0];
+    };
+    const med = [...m.children].find((x) => x.id === "ed"), kids = med ? [...med.children] : [], ex = kids.map((x) => ext(x, true));
+    const edTop = med ? med.getBoundingClientRect().top - top0 + med.clientTop + (parseFloat(getComputedStyle(med).paddingTop) || 0) : 0;
+    // 다른 층(가림·각주·개체) - 절대 배치된 것만 쪽으로 거른다(크기가 0 인 것은 안에 넘치는 것이 있을 수 있어 그대로 둔다)
+    const layers = [...m.children].filter((x) => x !== med).map((L) => ({ L, items: [...L.children].map((ch) => { const e = ext(ch, false); return { ch, e: e && e[1] > e[0] && getComputedStyle(ch).position === "absolute" ? e : null }; }) }));
+    for (let k = 0; k < n; k++) {
+      const a = k * step - 2, b = k * step + H + 2, pg = sheet(), c = m.cloneNode(false); c.style.marginTop = `calc(-${k} * (${box.h}mm + ${gap}px))`;
+      for (const L of m.children) {
+        if (L === med) {
+          const e = med.cloneNode(false); let i = -1, j = -1;
+          for (let x = 0; x < kids.length; x++) if (ex[x] && ex[x][1] > a && ex[x][0] < b) { if (i < 0) i = x; j = x; }  // 문서 순서로 처음 ~ 마지막(사이의 것은 다른 단·빈 자리라도 그대로 - 배치가 이어진다)
+          if (i > 0) {  // 앞의 블록들 대신 빈 자리 하나 - 남긴 첫 블록의 테두리 위 끝이 본과 같은 자리에 오게(위 여백은 그 블록의 것만 남는다 - 음수 포함)
+            const sp = document.createElement("div"), h = kids[i].getBoundingClientRect().top - top0 - edTop - (parseFloat(getComputedStyle(kids[i]).marginTop) || 0);
+            sp.className = "pg-printskip"; sp.style.cssText = h > 0 ? `height:${h}px` : "height:0;padding-top:0.01px"; e.appendChild(sp);
+          }
+          for (let x = Math.max(i, 0); x <= j; x++) e.appendChild(kids[x].cloneNode(true));
+          c.appendChild(e); continue;
+        }
+        const it = layers.find((y) => y.L === L), d = L.cloneNode(false);
+        for (const y of it.items) if (!y.e || (y.e[1] > a && y.e[0] < b)) d.appendChild(y.ch.cloneNode(true));
+        c.appendChild(d);
+      }
+      pg.appendChild(c); host.appendChild(pg);
+    }
+    mp.remove(); host.style.cssText = "";
   }
   function enterPrint() {
     if (S.printing || !flow) return;
