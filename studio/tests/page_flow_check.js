@@ -121,11 +121,19 @@ const two = (list) => stack(list).map((x) => ({ ...x, cols: 2 }));
 { // 끄면 전과 같다 - 통째로 다음 단
   const r = F.plan(two([800, { h: 500, kind: "p" }, 300]), H, G, (it) => lines(it, 10, 50));
   check("38 colSplit 을 끄면 전과 같다(문단째 다음 단)", cbrief(r) === "b1:push:-800" && r.place.b1 === 1, cbrief(r)); }
-{ // 각주가 달린 문단 · nosplit · 줄을 잴 수 없는 문단은 나누지 않는다
-  const a = F.plan(two([800, { h: 500, kind: "p", fn: 40 }]), H, G, (it) => lines(it, 10, 50), CS);
+{ // nosplit · 줄을 잴 수 없는 문단은 나누지 않는다
   const b = F.plan(two([800, { h: 500, kind: "p", nosplit: true }]), H, G, (it) => lines(it, 10, 50), CS);
   const c = F.plan(two([800, { h: 500, kind: "p" }]), H, G, () => [], CS);
-  check("39 각주 문단 · nosplit · 줄을 못 재는 문단은 통째로", [a, b, c].every((r) => cbrief(r) === "b1:push:-800"), [a, b, c].map(cbrief).join(" | ")); }
+  check("39 nosplit · 줄을 못 재는 문단은 통째로", [b, c].every((r) => cbrief(r) === "b1:push:-800"), [b, c].map(cbrief).join(" | ")); }
+{ // 각주가 달린 문단도 나눈다 - 줄의 각주(둘째 줄에 60)는 그 줄이 놓인 쪽 아래에 자리를 잡는다: 800 뒤 줄 10개, 2번째 줄에 각주 60 →
+  //   본문이 쓸 수 있는 아래 끝이 1000 → 940 으로 줄어 3줄(800~950 은 넘침 → 2줄 800~900 + 셋째 줄 950 > 940)만 남고 3번째 줄부터 다음 단
+  const withFn = (it) => lines(it, 10, 50).map((l, i) => (i === 1 ? { ...l, fn: 60 } : l));
+  const r = F.plan(two([800, { h: 500, kind: "p", fn: 60 }, 100]), H, G, withFn, CS);
+  check("43 각주가 달린 문단도 단 경계에서 나눈다 - 각주 자리만큼 덜 들어간다 · notes 에 그 쪽의 자리", cbrief(r) === "b1:colsplit@2:1:-900 b2:push:-900" && J(r.notes) === J({ 0: 60 }) && r.pages === 1, cbrief(r) + " " + J(r.notes) + " p" + r.pages); }
+{ // 각주가 꼬리 쪽 줄에 달렸고 꼬리가 다음 쪽으로 가면 각주 자리도 다음 쪽에 잡힌다: 마지막 단(2단)에서 넘침 → 꼬리는 2쪽 1단
+  const tailFn = (it) => lines(it, 10, 50).map((l, i) => (i === 7 ? { ...l, fn: 60 } : l));
+  const r = F.plan(two([900, 800, { h: 500, kind: "p", fn: 60 }]), H, G, tailFn, CS);
+  check("44 꼬리 줄의 각주 - 꼬리가 놓인 쪽(다음 쪽)에 자리를 잡는다", cbrief(r) === "b1:push:-900 b2:colsplit@4:-1:200:p" && J(r.notes) === J({ 1: 60 }) && r.pages === 2, cbrief(r) + " " + J(r.notes) + " p" + r.pages); }
 { // 나눈 문단 뒤에 구역이 1단으로 바뀐다 - 가장 아래까지 내려간 단(1단 1000)의 끝에서 시작. 뒤 블록은 이월분과 구역 이동을 한 번의 밀기로 받는다
   const items = two([800, { h: 500, kind: "p" }]).concat([{ id: "z", kind: "obj", top: 1300, bottom: 1400 }]);
   const r = F.plan(items, H, G, (it) => lines(it, 10, 50), CS);
