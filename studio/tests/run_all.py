@@ -46,6 +46,7 @@ TESTS = [  # (이름, 실행, 설명, claude 필요)
     ("ops", [sys.executable, "deckops_test.py"], "작업(op) 저장(deckops, 동시 편집 3-4) - 저장본 → 지금 차이를 작업으로·남의 변경 위에 얹기(수정 > 삭제·되살리기·버리기) 골든 - 화면 nexa-merge.js 와 같음", False),
     ("sim", [sys.executable, "collab_sim.py", "--seed", "1"], "다중 창 시뮬레이터(collab_sim, 동시 편집 3-5) - 창 3개가 무작위 편집을 작업 저장·PUT 병합으로 섞어 보내도 자기 몫을 잃지 않고 같은 문서로 모임(덱·시트)", False),
     ("tmpfiles", [sys.executable, "tmpfiles_test.py"], "임시 파일(tmpfiles) - temp_dir·process_dir 정리, 엔진 이름·하루 넘은 것만 쓸어내기(다른 앱 nexa-* 제외), engine_tidy temp 범주, 상태 경고", False),
+    ("backupname", [sys.executable, "backup_name_test.py"], "백업 파일 이름(ledger.backup_name) - 한 폴더에 300번 잡아도 이름·시각이 겹치지 않고 순서 그대로(연달아 저장하면 앞 백업을 덮던 것 - PG-118)", False),
     ("ledger", [sys.executable, "ledger_verify_test.py"], "원장 재생(ledger verify, 동시 편집 3-5) - 사슬·백업·작업 저장 재생·끝, 변조 감지, 백업 삭제, replay 크기 한도·시트 struct, 요소 순서·quiet 줄, /api/changes 에 replay 없음", False),
     ("textmodel", ["node", "nexa_text_check.js"], "글 편집 엔진 nexa-text 모델 연산(runs 정규화·넣기·지우기·쪼개기·합치기·서식) - 페이지 편집기 B1", False),
     ("pagedoc", [sys.executable, "page_doc_test.py"], "페이지 문서 page_doc.py - 새 문서·검사·정규화 - 페이지 편집기 B2", False),
