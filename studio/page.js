@@ -879,10 +879,22 @@
     $("#docTitle").value = S.deck.title || "";
     toast("밖에서 바뀐 내용을 불러왔습니다", 2500);
   }
+  // 실시간 연결(nexa-live.js SSE · 슬라이드·시트와 같다) - 살아 있으면 바뀔 때마다 FOLLOW.apply 가 바로 불리고 3초 폴링은 15초 안전망만. 함께 보는 사람은 머리줄 칩과 문단 왼쪽 띠
+  let LIVE = null;
+  function livePresence() { if (!LIVE || !S.deck || S.gone) return; const s = cur === ed ? ed.selection() : null; LIVE.where({ block: s ? s.f.id : null }, document.hasFocus() && !!s); }
+  /** 함께 보는 사람이 있는 문단에 그 사람 색의 띠 */
+  function renderOthers() {
+    for (const el of document.querySelectorAll("#ed [data-live]")) { el.removeAttribute("data-live"); el.style.boxShadow = ""; el.removeAttribute("title"); }
+    for (const x of LIVE ? LIVE.others() : []) {
+      const id = x.where && x.where.block, el = id && document.querySelector(`#ed [data-id="${CSS.escape(String(id))}"]`); if (!el) continue;
+      el.dataset.live = x.tab; el.style.boxShadow = `-3px 0 0 ${x.color || "#2F6FDB"}`; el.title = `${x.user || "다른 창"}${x.editing ? " · 편집 중" : ""}`;
+    }
+  }
   const FOLLOW = NexaDoc.follower({
+    live: () => LIVE,
     state: S, api, id: () => S.id, ready: () => !!S.deck && !S.gone && !S.conflict && !document.hidden,  // 충돌 배너가 떠 있거나 창이 가려져 있으면 쉰다
     before: async (v) => { if (PANEL) await PANEL.onVersion(v); },  // 세션 연결 표시 · 요청 파일이 바뀌었으면 다시 읽기(공용 패널)
-    onGone: () => { S.gone = true; FOLLOW.stop(); setStatus("error", "지워진 문서"); toast("이 문서가 지워졌습니다", 8000); },  // 지워진 문서 - 더 묻지 않는다
+    onGone: () => { S.gone = true; FOLLOW.stop(); if (LIVE) { LIVE.stop(); renderOthers(); } setStatus("error", "지워진 문서"); toast("이 문서가 지워졌습니다", 8000); },  // 지워진 문서 - 더 묻지 않는다
     save: async () => { stopSave(); await save(); }, reload: reloadExternal,
   });
   const poll = () => FOLLOW.poll(true);
@@ -956,8 +968,9 @@
     }  // 서버의 Chrome 인쇄(PDF) - 커서·초점 없이 그대로 찍힌다
     await bindRequests(); poll();
     FOLLOW.start(3000);  // 밖의 변경(다른 창·AI 저장) 따라가기
+    if (window.NexaLive) { LIVE = NexaLive.create({ api, base: BASE, deckId: () => S.id, tab: TAB, onVersion: (v) => FOLLOW.apply(v), onPresence: () => renderOthers(), chip: "#sessChip" }); setInterval(livePresence, 1000); }
     const first = blocks().find(T.isText); if (first) { ed.focus(); ed.select({ id: first.id, off: T.length(first.runs) }); }
-    window.NexaPageEditor = { S, ed, save, undo, redo, poll, flow };  // 시험·디버깅용
+    window.NexaPageEditor = { S, ed, save, undo, redo, poll, flow, live: () => LIVE };  // 시험·디버깅용
   }
   init();
 })();
