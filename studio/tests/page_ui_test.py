@@ -1119,6 +1119,22 @@ def print_steps():
     ]
 
 
+def print_back_steps(tag):
+    """인쇄 뒤 쪽 나눔 다시 재기 - print 매체가 아직 켜진 채 afterprint 가 오는 순서: 그때는 다시 재지 않고(인쇄 규칙으로 재면 틀린다), 매체가 화면으로 돌아온 뒤 인쇄 전과 같아야 한다"""
+    K = ("const tick=(ms)=>new Promise(r=>setTimeout(r,ms||200));const cnt=(q)=>document.querySelectorAll(q).length;"
+         "const key=()=>[S.pages,cnt('#sheets .pg-sheet'),cnt('#ed .pg-colpart'),cnt('#ed .pg-gap'),cnt('#ed tr.pg-gaprow')].join();")
+    return [
+        step(f"인쇄 뒤 다시 재기 ① {tag} - print 매체를 켠 채 beforeprint → afterprint: 아직 인쇄 매체인 동안에는 쪽 나눔을 다시 재지 않는다(쪽 수·종이 장·조각·빈 자리 수 그대로)",
+             H + K + "await tick(800);const k0=key();window.__pb={k0};window.dispatchEvent(new Event('beforeprint'));await tick(400);window.dispatchEvent(new Event('afterprint'));await tick(900);const k1=key();"
+                     "return S.pages>=2&&k1===k0&&!document.querySelector('#printPages') || JSON.stringify({k0,k1,host:!!document.querySelector('#printPages'),cls:document.body.className}).slice(0,199);",
+             cdp=[{"method": "Emulation.setEmulatedMedia", "params": {"media": "print"}, "wait": 150}], wait=100),
+        step(f"인쇄 뒤 다시 재기 ② {tag} - 매체가 화면으로 돌아온 뒤: 인쇄 전과 같음(쪽 수·종이 장·조각·빈 자리 수) · 종이 보임 · 인쇄 상태 아님",
+             H + K + "await tick(1500);const k2=key(),p=document.querySelector('#paper');const vis=getComputedStyle(p).display!=='none'&&p.offsetHeight>0;const cls=document.body.className;"
+                     "return k2===window.__pb.k0&&vis&&!/print-sheets|printing/.test(cls)&&!document.querySelector('#printPages') || JSON.stringify({k0:window.__pb.k0,k2,vis,cls}).slice(0,199);",
+             cdp=[{"method": "Emulation.setEmulatedMedia", "params": {"media": ""}, "wait": 300}], wait=100),
+    ]
+
+
 def poll_del_steps():
     return [
         step("밖의 변경 ③ 문서를 API 로 지움 → 상태 칩 '지워진 문서' · 그 뒤 6.5초 동안 이 문서로 나가는 요청 0(폴링 멈춤)",
@@ -1339,7 +1355,8 @@ def main():
             {"url": "/studio/page.html?deck=pgflow&print=1", "wait": 2500, "steps": flow_print_steps()},
             {"url": "/studio/page.html?deck=pgcsp", "wait": 3000, "steps": csplit_steps()},
             {"url": "/studio/page.html?deck=pgcsf", "wait": 3000, "steps": csplit_fn_steps()},
-            {"url": "/studio/page.html?deck=pgprn", "wait": 3000, "steps": print_steps()},
+            {"url": "/studio/page.html?deck=pgprn", "wait": 3000, "steps": print_steps() + print_back_steps("다단(pgprn)")},
+            {"url": "/studio/page.html?deck=pgflow", "wait": 3000, "steps": print_back_steps("1단(pgflow)")},
             {"url": "/studio/page.html?deck=pgobj", "wait": 3000, "steps": obj_steps()},
             {"url": "/studio/page.html?deck=pgobj", "wait": 3000, "steps": obj_reload_steps()},
             {"url": "/studio/page.html?deck=pgo2id", "wait": 2500, "steps": obj2_steps()},
