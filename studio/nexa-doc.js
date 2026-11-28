@@ -70,6 +70,14 @@
     return true;
   }
 
+  /** 다시 읽기를 시작할 때 찍어 두는 표(세 편집기 공통 기준) - 돌려주는 함수는 "읽는 사이 내 저장이 끝났는가".
+   *  읽기 요청을 보낸 뒤 내가 고치고 **저장까지 끝나면** "고치는 중 · 저장 중" 검사를 모두 지나가는데, 읽어 온 것은 내 저장 전의 문서라
+   *  그대로 쓰면 방금 넣은 값이 화면에서 사라진다(서버에는 있다 - 다음 다시 읽기까지 옛 내용이 보인다). 그러면 읽은 것을 버리고 again()(다시 확인)을 QUIET 뒤에 부른다 */
+  function readMark(S, again) {
+    const at = S.savedAt;
+    return () => { if (S.savedAt === at) return false; if (again) setTimeout(again, QUIET + 50); return true; };
+  }
+
   /** 밖의 변경 따라가기(세 편집기 공통 기준) - 판(/api/version)을 보고 "고치는 중이면 저장해 서버에서 합치고, 아니면 다시 읽는다".
    *  판은 폴링(poll)과 실시간 연결(SSE 의 onVersion → apply) 두 길로 오고 둘 다 apply 를 거친다. 처리 중에 온 것은 마지막 하나만 남겨 이어서 한다.
    *  o.state(S: version · saving · dirty · conflict · savedAt) · o.api · o.id() · o.ready()(문서를 열었는가) · o.live()(NexaLive | null - 건강하면 폴링은 15초 안전망만)
@@ -161,6 +169,6 @@
     };
   }
 
-  root.NexaDoc = { saver, stillChanged, follower, history };
+  root.NexaDoc = { saver, stillChanged, readMark, follower, history };
   if (typeof module !== "undefined" && module.exports) module.exports = root.NexaDoc;
 })(typeof window !== "undefined" ? window : globalThis);

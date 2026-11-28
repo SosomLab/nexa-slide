@@ -463,6 +463,7 @@
   // ---------------------------------------------------------------- 불러오기·외부 변경 감지
   async function loadDeck(keepView) {
     if (PREVIEW) return loadPreview();
+    const savedSince = NexaDoc.readMark(S, () => poll(true));
     const r = await fetch(`${BASE}/api/deck/${encodeURIComponent(S.id)}${keepView ? "?gone=ok" : ""}`, { cache: "no-store" });  // 다시 읽기는 그 사이 지워졌을 수 있다 - 404 가 아니라 {gone:true} 로 받는다
     if (r.status === 401) { if (window.NexaMenu) NexaMenu.auth401(r, await r.json().catch(() => null)); return false; }
     if (!r.ok) { setStatus("error", "읽기 실패"); toast("시트를 불러오지 못했습니다 (" + r.status + ")", 6000); return false; }
@@ -476,6 +477,7 @@
     await setupVba(deck);  // VBA 사용자 함수 - recalc 전에
     // 여기부터 끝까지는 기다림 없이 한 번에 - 아래 검사와 S.deck 을 바꾸는 사이에 기다림이 있으면 그때 들어온 편집이 알림 없이 덮여 사라진다(테마·VBA 를 검사 앞으로 옮긴 이유)
     if (keepView && S.deck && (S.dirty || S.edit || S.saving)) { if (S.dirty && !S.edit) scheduleSave(); return false; }  // 다시 읽는 사이 내가 고쳤다 - 읽은 것을 버린다. 내 저장이 서버에서 합친다
+    if (keepView && S.deck && savedSince()) return false;  // 읽는 사이 고치고 저장까지 끝났다 - 읽은 것은 내 저장 전의 문서(쓰면 방금 넣은 값이 화면에서 사라진다)
     if (!keepView) S.struct = [];
     if (keepView && S.deck) HIST.seal(deckJson());  // 밖의 변경을 받는다 - 내 실행 취소에 넣지 않고, 이전 기록은 내 편집만 되돌리게 봉인
     else { S.undo = []; S.redo = []; }

@@ -117,6 +117,7 @@
 
   // ---------------------------------------------------------------- 불러오기·외부 변경 감지
   async function loadDeck(id, keep) {
+    const savedSince = NexaDoc.readMark(S, () => poll(true));
     const r = await fetch(`${BASE}/api/deck/${id}${keep ? "?gone=ok" : ""}`, { cache: "no-store" });  // 다시 읽기는 그 사이 지워졌을 수 있다 - 404 가 아니라 {gone:true} 로 받는다
     if (r.status === 401) { NexaMenu.auth401(r, await r.json().catch(() => null)); return false; }
     if (!r.ok) { toast("덱을 불러오지 못했습니다"); return false; }
@@ -124,7 +125,9 @@
     if (deck && deck.gone) return false;  // 판을 받은 뒤 읽기까지의 사이에 지워졌다 - 다음 판 확인이 '지워진 덱'으로 처리한다
     if (deck.kind === "page") { location.href = NexaKinds.url(deck); return false; }  // 페이지 문서는 page.html 에서
     if (deck.kind === "sheet") { location.href = sheetUrl(id); return false; }  // 시트(엑셀) 문서는 시트 화면(sheet.html)에서 - docs/sheets.md
-    if (keep && S.deck && S.id === id && (S.dirty || S.editing || S.saving)) { if (S.dirty && !S.editing) scheduleSave(); return false; }  // 다시 읽는 사이 내가 고쳤다 - 읽은 것을 버린다(덮어쓰면 그 편집이 알림 없이 사라진다). 내 저장이 서버에서 합친다
+    if (keep && S.deck && S.id === id && (S.dirty || S.editing || S.saving)) { if (S.dirty && !S.editing) scheduleSave(); return false; }  // 다시 읽는 사이 내가 고쳤다(아래 줄: 저장까지 끝났어도 읽은 것은 내 저장 전의 문서다)
+    if (keep && S.deck && S.id === id && savedSince()) return false;
+    // - 읽은 것을 버린다(덮어쓰면 그 편집이 알림 없이 사라진다). 내 저장이 서버에서 합친다
     if (keep && S.deck && S.id === id) { HIST.seal(deckJson()); }  // 밖의 변경을 받는다 - 내 실행 취소에 넣지 않고, 이전 기록은 내 편집만 되돌리게 봉인
     else { S.undo = []; S.redo = []; }
     S.id = id; S.deck = deck; S.version = r.headers.get("X-Deck-Version"); S.savedJson = deckJson();
