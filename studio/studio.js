@@ -2106,12 +2106,13 @@ ${names}
     if (d.mode === "marquee") {
       if (!d.moved) { if (!d.base.length) select(null); else drawSel(); return; }
       const m = d.box, s = slide();  // 상자 안에 완전히 들어간 요소(잠긴 요소 포함 - 이동은 안 됨)
-      const inside = s.elements.filter((x) => { const b = boxOf(x); return b.x >= m.x && b.y >= m.y && b.x + b.w <= m.x + m.w && b.y + b.h <= m.y + m.h; }).map((x) => x.id);
+      const inside = s.elements.filter((x) => NexaObjects.inBox(boxOf(x), m)).map((x) => x.id);  // 공용 기준 - 완전히 들어간 것만
       setSelection([...d.base, ...inside.filter((id) => !d.base.includes(id))]);
       if (inside.length) toast(`${selIds().length}개 선택 - 끌어서 함께 이동, 서식 줄은 고른 요소 모두에 적용`);
       return;
     }
     if (d.moved) { HIST.push("drag", d.before); afterChange(); }
+    else if (d.mode === "move" && d.el && selIds().length > 1) select(d.el.id);  // 공용 기준 - 여럿 고른 것 중 하나를 끌지 않고 누르기만 했으면 그것만 남긴다(페이지·시트와 같다)
   }
 
   // ---------------------------------------------------------------- 글자 직접 편집
@@ -2951,7 +2952,7 @@ ${names}
     }
     if (k === "Delete" || k === "Backspace") { e.preventDefault(); delEl(); return; }
     if ((k === "Enter" || k === "F2") && !isMulti()) { e.preventDefault(); startEdit(el); return; }
-    const d = e.shiftKey ? GRID : 1, mv = { ArrowLeft: [-d, 0], ArrowRight: [d, 0], ArrowUp: [0, -d], ArrowDown: [0, d] }[k];
+    const mv = NexaObjects.nudge(k, e.shiftKey, 1, GRID);  // 공용 기준 - 한 걸음 1px · Shift 는 큰 걸음(격자 8)
     const movable = selEls().filter((x) => !x.locked);
     if (mv && movable.length) {
       e.preventDefault(); snapshot();
