@@ -39,6 +39,10 @@ function setup(reply, opts = {}) {
     check("10 cancel - 예약한 저장을 멈춘다", log.calls.length === 0, log.calls.length); }
   { const { S, log, sv } = setup({ ok: true, data: { version: "v2" } }); S.deck = null; await sv.save(true);
     check("11 문서를 읽기 전에는 저장하지 않는다", log.calls.length === 0, log.calls.length); }
+  { const S = { savedAt: 100 }; let again = 0; const m = D.readMark(S, () => { again++; }); const a = m(); S.savedAt = 200; const b = m(); const c0 = again; await tick(1700);
+    check("12 readMark - 읽는 사이 저장이 끝났으면 true(읽은 것을 버린다) · 다시 확인을 잠시 뒤에 한 번", a === false && b === true && c0 === 0 && again === 1, { a, b, c0, again }); }
+  { const S = {}; const m = D.readMark(S, null); const a = m(); S.savedAt = Date.now(); const b = m();
+    check("13 readMark - 아직 저장한 적이 없던 문서의 첫 저장도 잡는다 · again 없이도 된다", a === false && b === true, { a, b }); }
   console.log(`RESULT ${fail ? "FAIL" : "PASS"} ${n - fail}/${n}`);
   process.exit(fail ? 1 : 0);
 })();

@@ -109,7 +109,8 @@ def estimate(files=(), tests=True):
     return round(sum(t.values())) + 30 if t else None
 def status():
     try:
-        d = json.loads(STATE_FILE.read_text(encoding="utf-8"))
+        import procutil  # 배포 프로세스가 상태 파일을 바꿔 쓰는 순간과 겹치면 Windows 에서 읽기가 실패한다 - 한 번 읽고 '없음'으로 치지 않게 잠깐 다시 읽는다
+        d = procutil.read_json(STATE_FILE)
     except (OSError, ValueError):
         return {"state": "none"}
     if d.get("state") == "running" and d.get("pid") and not engine_requests.pid_alive(d["pid"]):  # 배포 프로세스가 죽었다(PC 꺼짐 등) - 화면이 영영 '진행 중'이 되지 않게

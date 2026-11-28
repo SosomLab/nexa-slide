@@ -25,11 +25,13 @@
 
     // ---------------------------------------------------------------- 읽기·동기화
     async function load() {
+      // 판을 **먼저** 읽는다 - 목록을 읽은 뒤에 판을 읽으면, 그 사이에 요청이 바뀌었을 때(추가 직후 working 으로) 옛 목록에 새 판이 붙어
+      // 뒤따라 온 판 알림이 "이미 본 판"으로 걸러지고 화면이 옛 상태(처리 중 표시 없음)로 남는다. 먼저 읽으면 최악이 한 번 더 읽는 것이다
+      const v = await api("GET", `/api/version/${encodeURIComponent(o.deckId())}`); if (v.ok) version = v.data.requests;
       const r = await api("GET", url());
       o.setReqs(r.ok && Array.isArray(r.data) ? r.data : []);
       const pr = await api("GET", `/api/proposals/${encodeURIComponent(o.deckId())}`);  // 제안은 요청과 함께 바뀐다(save_deck --propose 뒤 세션이 요청을 done 으로)
       props = {}; if (pr.ok && Array.isArray(pr.data)) for (const x of pr.data) props[x.request] = x;
-      const v = await api("GET", `/api/version/${encodeURIComponent(o.deckId())}`); if (v.ok) version = v.data.requests;
       o.onChange && o.onChange();
     }
     /** /api/version 응답을 받아 요청 파일이 바뀌었으면 다시 읽는다(편집기·시트의 2초 폴링이 부른다) */
