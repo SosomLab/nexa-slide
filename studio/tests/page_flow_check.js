@@ -129,7 +129,13 @@ const two = (list) => stack(list).map((x) => ({ ...x, cols: 2 }));
 { // 나눈 문단 뒤에 구역이 1단으로 바뀐다 - 가장 아래까지 내려간 단(1단 1000)의 끝에서 시작. 뒤 블록은 이월분과 구역 이동을 한 번의 밀기로 받는다
   const items = two([800, { h: 500, kind: "p" }]).concat([{ id: "z", kind: "obj", top: 1300, bottom: 1400 }]);
   const r = F.plan(items, H, G, (it) => lines(it, 10, 50), CS);
-  check("40 나눈 문단 뒤 1단 구역 - 밀기는 하나로 합쳐진다", r.breaks.filter((x) => x.id === "z").length === 1 && r.breaks.filter((x) => x.type === "colsplit").length === 1, cbrief(r)); }
+  // 1단 구역은 가장 아래까지 내려간 단(첫 단에 남긴 4번째 줄의 끝 998)에서 시작한다 - z(높이 100)는 998 에 놓으면 쪽을 넘쳐 다음 쪽 머리(1200)로.
+  //   z 의 자연 위치 1300 → 1200: 이월 -1002 + 구역 이동 +700 + 쪽 넘김 +202 = -100 을 밀기 하나로
+  check("40 나눈 문단 뒤 1단 구역 - 나눈 문단이 남긴 단의 끝 아래에서 시작(넘치면 다음 쪽) · 밀기는 하나로 합쳐진다", r.breaks.filter((x) => x.id === "z").length === 1 && cbrief(r) === "b1:colsplit@4:1:-1002 z:push:-100:p" && r.pages === 2, cbrief(r) + " p" + r.pages); }
+{ // 같은 상황에서 뒤 블록이 작으면(높이 2) 그 단의 끝 바로 아래(998)에 놓인다 - 이월 -1002 + 구역 이동 +700 = -302
+  const items = two([800, { h: 500, kind: "p" }]).concat([{ id: "z", kind: "obj", top: 1300, bottom: 1302 }]);
+  const r = F.plan(items, H, G, (it) => lines(it, 10, 50), CS);
+  check("42 나눈 문단 뒤 1단 구역 - 작은 블록은 남긴 단의 끝 바로 아래", cbrief(r) === "b1:colsplit@4:1:-1002 z:push:-302" && r.pages === 1, cbrief(r) + " p" + r.pages); }
 { // 1단 문서에는 영향 없음
   const r = F.plan(stack([800, { h: 500, kind: "p" }]), H, G, (it) => lines(it, 10, 50), CS);
   check("41 1단 문서는 colSplit 을 켜도 전과 같다(줄 사이 빈 자리)", brief(r) === "b1:split@4:200", brief(r)); }

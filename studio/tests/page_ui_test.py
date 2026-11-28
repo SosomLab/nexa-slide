@@ -747,7 +747,10 @@ FN_PROBE = [
 # 다단(PG-101 1차 · 2422be3) - 협업 세션 도우미: 겹침(같은 쪽에서 두 블록 사각형이 겹침) · 단 너비 · 화면 자리 기억
 COL_X = ("const cw=()=>q('#ed').offsetWidth;const gapPx=()=>((S.deck.page.columns||{}).gap??8)*cw()/S.box.cw;const colW=(n)=>Math.round((cw()-(n-1)*gapPx())/n);"
          "const overlaps=()=>{const es=[...q('#ed').children].filter(e=>e.dataset.id&&!e.classList.contains('pg-break')&&e.getBoundingClientRect().height>0);const bad=[];"
-         "for(let i=0;i<es.length;i++)for(let j=i+1;j<es.length;j++){const a=es[i].getBoundingClientRect(),b=es[j].getBoundingClientRect();if(a.left<b.right-1&&b.left<a.right-1&&a.top<b.bottom-1&&b.top<a.bottom-1)bad.push(es[i].dataset.id+'x'+es[j].dataset.id);}return bad;};"
+         # 보이는 자리로 잰다 - 단 경계에서 나뉜 문단(.pg-colpart)은 실제 상자가 한 단에 길게 남고 꼬리는 보이는 곳만 옮겨져 있어, 글 줄의 사각형으로 본다
+         "const boxes=(e)=>{if(!e.querySelector('.pg-colpart'))return [e.getBoundingClientRect()];const rg=document.createRange(),w=document.createTreeWalker(e,4),out=[];let n;while((n=w.nextNode())){rg.selectNodeContents(n);for(const r of rg.getClientRects())if(r.width>0&&r.height>0)out.push(r);}return out;};"
+         "const hit=(a,b)=>a.left<b.right-1&&b.left<a.right-1&&a.top<b.bottom-1&&b.top<a.bottom-1;"
+         "for(let i=0;i<es.length;i++){const A=boxes(es[i]);for(let j=i+1;j<es.length;j++){const B=boxes(es[j]);if(A.some(a=>B.some(b=>hit(a,b))))bad.push(es[i].dataset.id+'x'+es[j].dataset.id);}}return bad;};"
          "const spots=()=>{const m={};for(const b of S.deck.blocks){const e=el(b.id);if(!e||b.type==='break')continue;const s=spot(b.id);m[b.id]=[s.x,s.w,s.page];}return m;};")
 
 
