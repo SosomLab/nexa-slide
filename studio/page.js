@@ -389,7 +389,7 @@
   }
   /** 인쇄 직전 - 확대를 풀고 쪽 나눔을 다시 잡은 뒤(끼운 빈 자리가 인쇄의 강제 쪽 나눔이 된다) 개체를 매인 문단 안으로 옮긴다.
    *  인쇄에서는 쪽이 종이 장으로 나뉘어 화면의 자리(종이 기준 px)를 쓸 수 없다 - 문단 기준 자리로 바꿔 그 문단을 따라 찍히게 한다 */
-  /** 다단 구역이 있는 문서의 인쇄(PG-110 2단계) - 화면 배치를 **쪽마다 그대로** 찍는다.
+  /** 인쇄(PG-110 2단계: 다단 문서 · 3단계: 모든 문서) - 화면 배치를 **쪽마다 그대로** 찍는다.
    *  다단은 블록을 위로 끌어올리거나(음수 여백) 꼬리 줄을 보이는 곳만 옮겨(.pg-colpart) 그리는데, 브라우저의 인쇄 쪽 나눔은 이것을 따라가지 못한다.
    *  그래서 종이(#paper)를 쪽 수만큼 복제해 쪽 크기 상자(.pg-printpage - 넘치는 것은 자른다)에 넣고 그 쪽의 세로 구간이 보이게 올린다.
    *  머리말·꼬리말·쪽 번호·쪽 아래 각주·개체가 화면 그대로 나온다(사본은 인쇄 동안만 있고 편집하지 않는다). @page 는 여백 0 */
@@ -444,7 +444,15 @@
     if (S.printing || !flow) return;
     S.printBack = false;  // 매체가 돌아오기 전에 다시 인쇄 - 기다리던 재기는 이번 인쇄가 끝난 뒤에 다시 잡힌다
     $("#paper").style.zoom = 1; if (!(window.matchMedia && window.matchMedia("print").matches)) flow.rerun();  /* 이미 인쇄 배치면(종이 너비가 다르다) 다시 재지 않는다 */
-    if ([...$("#ed").children].some((el) => el._pgN > 1)) { printSheets(); S.printing = true; return; }  // 다단 구역이 있다 - 화면 배치 그대로(1단 문서는 아래의 예전 방식 그대로)
+    // 모든 문서를 쪽 사본으로 찍는다(PG-110 3단계) - 화면 배치 그대로라 쪽 아래 각주·개체·다단이 화면과 같은 쪽에 나온다.
+    //   1단 문서로 잰 결과(문단만 · 각주 · 쪽을 넘는 표 · 쪽 나누기 · 글 상자): 쪽 사본은 다섯 모두 PDF 쪽별 글 = 화면, 아래의 예전 방식은 각주가 문서 끝으로 가고 글 상자가 제 쪽에 나오지 않았다.
+    //   쪽 사본을 만들다 실패하면(예상 밖의 구조) 걷고 아래의 예전 방식으로 찍는다 - 인쇄가 아예 안 되는 일은 없게
+    try { printSheets(); S.printing = true; return; }
+    catch (e) {
+      console.warn("쪽 사본 인쇄 실패 - 예전 방식으로 찍는다", e);
+      document.body.classList.remove("print-sheets"); const h = $("#printPages"); if (h) h.remove();
+      const st = document.getElementById("pg-print"); if (st && st._screen !== undefined) { st.textContent = st._screen; st._screen = undefined; }
+    }
     if (geo) for (const o of objs()) {
       const el = objEls.get(o.id), a = blockElOf(o.anchor); if (!el || !a) continue;
       const pos = elPos(a), inPage = pos.y - pos.page * (geo.H + geo.G), box = S.box;
