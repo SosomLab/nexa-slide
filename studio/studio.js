@@ -117,10 +117,11 @@
 
   // ---------------------------------------------------------------- 불러오기·외부 변경 감지
   async function loadDeck(id, keep) {
-    const r = await fetch(`${BASE}/api/deck/${id}`, { cache: "no-store" });
+    const r = await fetch(`${BASE}/api/deck/${id}${keep ? "?gone=ok" : ""}`, { cache: "no-store" });  // 다시 읽기는 그 사이 지워졌을 수 있다 - 404 가 아니라 {gone:true} 로 받는다
     if (r.status === 401) { NexaMenu.auth401(r, await r.json().catch(() => null)); return false; }
     if (!r.ok) { toast("덱을 불러오지 못했습니다"); return false; }
     const deck = await r.json();
+    if (deck && deck.gone) return false;  // 판을 받은 뒤 읽기까지의 사이에 지워졌다 - 다음 판 확인이 '지워진 덱'으로 처리한다
     if (deck.kind === "page") { location.href = NexaKinds.url(deck); return false; }  // 페이지 문서는 page.html 에서
     if (deck.kind === "sheet") { location.href = sheetUrl(id); return false; }  // 시트(엑셀) 문서는 시트 화면(sheet.html)에서 - docs/sheets.md
     if (keep && S.deck && S.id === id && (S.dirty || S.editing || S.saving)) { if (S.dirty && !S.editing) scheduleSave(); return false; }  // 다시 읽는 사이 내가 고쳤다 - 읽은 것을 버린다(덮어쓰면 그 편집이 알림 없이 사라진다). 내 저장이 서버에서 합친다
@@ -220,7 +221,7 @@
   // 표시 끄기/켜기 - 변경 기록을 보지 않고 작업할 때. 묶음별 표시 상태는 그대로 두고 화면 표시만 모두 끈다(브라우저에 기억)
   function toggleOff() { S.chgOff = !S.chgOff; LS.set("chgOff", S.chgOff ? "1" : "0"); redrawMarks(); }
   async function reloadExternal(msg) {
-    await loadDeck(S.id, true);  // loadDeck 가 원장도 다시 불러온다
+    if (!(await loadDeck(S.id, true))) return;  // loadDeck 가 원장도 다시 불러온다. 읽지 않았으면(읽는 사이 고쳤다 · 그 사이 지워졌다) 알리지 않는다
     const g = S.changes.find((x) => !isMine(x));
     if (g && g.last > +LS.get(seenKey(), 0)) notice(`${msg} - ${ORG[g.origin] || g.origin}${g.confidence === "inferred" ? "(추정)" : ""} · ${chgSummary(g.summary) || "덱 설정"}. 되돌리려면 변경 탭에서(Ctrl+Z 는 내 편집만 되돌립니다).`, [{ act: "changes", label: "변경 보기", primary: true }]);
     else toast(msg + " (바뀐 내용 없음)");

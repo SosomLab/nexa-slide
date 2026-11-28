@@ -853,10 +853,10 @@
   //   여기는 페이지 고유의 일만 - 3초 폴링 · 요청 패널 · 다시 읽을 때 선택·표 칸 초점 지키기. 실시간 연결(SSE)·함께 보는 사람 표시는 다음(PG-109)
   /** 밖에서 바뀐 문서를 다시 읽는다 - 선택과 치던 표 칸을 지키고, 실행 취소 기록은 남긴다(되돌리면 내 편집만 거꾸로) */
   async function reloadExternal() {
-    const d = await fetch(`${BASE}/api/deck/${encodeURIComponent(S.id)}`, { cache: "no-store" });
+    const d = await fetch(`${BASE}/api/deck/${encodeURIComponent(S.id)}?gone=ok`, { cache: "no-store" });  // 그 사이 지워졌을 수 있다 - 404 가 아니라 {gone:true} 로 받는다
     if (!d.ok) return;
     const deck = await d.json(), ver = d.headers.get("X-Deck-Version");
-    if (S.dirty || S.saving || deck.kind !== "page") return;  // 읽는 사이 내가 고쳤으면 다음 번에
+    if (deck.gone || S.dirty || S.saving || deck.kind !== "page") return;  // 읽는 사이 내가 고쳤으면 다음 번에
     const sel = cur === ed ? ed.selection() : null;
     const cell = document.activeElement && document.activeElement.closest ? document.activeElement.closest("#ed td, #ed th") : null, cellId = cell && cell.dataset.id;  // 표 칸에서 치던 중이면 그 칸으로 돌아간다
     sealUndo(deckJson());  // 실행 취소 기록은 남긴다 - 되돌리면 내 편집만 거꾸로
