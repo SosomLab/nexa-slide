@@ -1567,6 +1567,8 @@ class H(BaseHTTPRequestHandler):
     # ---------- 변경 원장 ----------
     def api_get_changes(self, i, q):
         if not deck_path(i).exists() and not ledger.path(i).exists():
+            if (q.get("gone") or [""])[0] == "ok":  # 편집기의 변경 목록 갱신 - 판을 받은 뒤 읽기까지의 사이에 지워질 수 있다(덱 다시 읽기의 ?gone=ok 와 같은 뜻)
+                return self.send_json({"gone": True})
             return self.err(404, "덱 없음")
         with WRITE_LOCK:
             track(i)
@@ -1619,6 +1621,8 @@ class H(BaseHTTPRequestHandler):
     # ---------- 레이아웃 검사 ----------
     def api_get_check(self, i, q):
         if not deck_path(i).exists():
+            if (q.get("gone") or [""])[0] == "ok":  # 편집기가 예약해 둔 검사 - 그 사이 지워질 수 있다(덱 다시 읽기의 ?gone=ok 와 같은 뜻)
+                return self.send_json({"gone": True})
             return self.err(404, "덱 없음")
         import check_layout
         self.send_json(check_layout.check_deck(i))

@@ -207,7 +207,7 @@
   async function loadChanges(more) {
     if (!S.id || S.id === S.goneId) return;  // 방금 지운 덱 - 다른 덱으로 넘어가기 전에 예약돼 있던 갱신이 지운 id 로 나가 404 를 냈다(smoke 가 간헐적으로 실패)
     const id = S.id, before = more && S.changes.length ? `&before=${S.changes[S.changes.length - 1].seq}` : "";
-    const r = await api("GET", `/api/changes/${id}?group=1&recent=1&limit=40${before}`); if (!r.ok || id !== S.id) return;  // 그 사이 덱을 바꿨으면 버린다
+    const r = await api("GET", `/api/changes/${id}?group=1&recent=1&limit=40&gone=ok${before}`); if (!r.ok || id !== S.id || (r.data && r.data.gone)) return;  // 그 사이 덱을 바꿨거나 지워졌으면 버린다(지워진 덱은 404 가 아니라 {gone:true})
     const gs = r.data.groups || [];
     S.changes = more ? S.changes.concat(gs) : gs;
     if (!more) { S.chgRecent = r.data.recent || []; S.chgLatest = r.data.latest || 0; S.chgVersion = r.data.ver; S.chgKeep = r.data.keep; }
@@ -1814,7 +1814,7 @@ ${names}
   function scheduleCheck(ms = 600) { clearTimeout(chkT); chkT = setTimeout(runCheck, ms); }
   async function runCheck() {
     if (!S.id) return;
-    const r = await api("GET", `/api/check/${S.id}`); if (!r.ok) return;
+    const r = await api("GET", `/api/check/${S.id}?gone=ok`); if (!r.ok || (r.data && r.data.gone)) return;  // 예약해 둔 검사 - 그 사이 지워진 덱은 404 가 아니라 {gone:true}
     S.check = r.data; renderCheck(); renderThumbs(); drawChkBox();
   }
   function renderCheck() {
@@ -2106,12 +2106,13 @@ ${names}
     if (d.mode === "marquee") {
       if (!d.moved) { if (!d.base.length) select(null); else drawSel(); return; }
       const m = d.box, s = slide();  // 상자 안에 완전히 들어간 요소(잠긴 요소 포함 - 이동은 안 됨)
-      const inside = s.elements.filter((x) => { const b = boxOf(x); return b.x >= m.x && b.y >= m.y && b.x + b.w <= m.x + m.w && b.y + b.h <= m.y + m.h; }).map((x) => x.id);
+      const inside = s.elements.filter((x) => NexaObjects.inBox(boxOf(x), m)).map((x) => x.id);  // 공용 기준 - 완전히 들어간 것만
       setSelection([...d.base, ...inside.filter((id) => !d.base.includes(id))]);
       if (inside.length) toast(`${selIds().length}개 선택 - 끌어서 함께 이동, 서식 줄은 고른 요소 모두에 적용`);
       return;
     }
     if (d.moved) { HIST.push("drag", d.before); afterChange(); }
+    else if (d.mode === "move" && d.el && selIds().length > 1) select(d.el.id);  // 공용 기준 - 여럿 고른 것 중 하나를 끌지 않고 누르기만 했으면 그것만 남긴다(페이지·시트와 같다)
   }
 
   // ---------------------------------------------------------------- 글자 직접 편집
@@ -2951,7 +2952,7 @@ ${names}
     }
     if (k === "Delete" || k === "Backspace") { e.preventDefault(); delEl(); return; }
     if ((k === "Enter" || k === "F2") && !isMulti()) { e.preventDefault(); startEdit(el); return; }
-    const d = e.shiftKey ? GRID : 1, mv = { ArrowLeft: [-d, 0], ArrowRight: [d, 0], ArrowUp: [0, -d], ArrowDown: [0, d] }[k];
+    const mv = NexaObjects.nudge(k, e.shiftKey, 1, GRID);  // 공용 기준 - 한 걸음 1px · Shift 는 큰 걸음(격자 8)
     const movable = selEls().filter((x) => !x.locked);
     if (mv && movable.length) {
       e.preventDefault(); snapshot();

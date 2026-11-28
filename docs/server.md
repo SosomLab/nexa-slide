@@ -62,7 +62,7 @@ python3 studio/service.py start                                                 
 | `GET /api/deck/<id>` | 덱 JSON. 헤더 `X-Deck-Version` = 파일 mtime_ns. 없으면 404 - 단 `?gone=ok`(편집기의 다시 읽기)면 404 대신 200 `{"gone": true}`(`X-Deck-Version: 0`) |
 | `PUT /api/deck/<id>?base=<ver>&origin=editor\|claude&action=save\|restore&request=&note=&label=` + 헤더 `X-Nexa-Tab` | 덱 저장 — 원자적 쓰기, 저장 전 `.history` 백업(50개 유지), **변경 원장에 한 줄**(응답 `seq`). `base` 가 현재 버전과 다르면 **409**(`force=1` 이면 무시), `merge=1` 이면 409 대신 3-way 병합 → `{merged, conflicts, deck}`(기준본을 모르면 409 `reason: no-base`) - [collab.md](collab.md) · [change-ledger.md](change-ledger.md). 시트는 `sheets`, 페이지는 `page_doc.validate` 로 형식을 검사한다(틀리면 400) |
 | `GET /api/version/<id>` | `{deck, requests, changes, session, deckIds, decksVer, config, engine}` — 편집기가 2초마다 확인(외부 변경 감지·원장 기록·세션 상태·덱 목록·설정·엔진 변경 → 탭 갱신·새로 고침 안내) |
-| `GET /api/changes/<id>` | 변경 원장 - `?limit=&before=&since=&origin=&slide=&group=1&recent=1&seq=N` ([change-ledger.md](change-ledger.md#api)) |
+| `GET /api/changes/<id>` | 변경 원장 - `?limit=&before=&since=&origin=&slide=&group=1&recent=1&seq=N` · `?gone=ok` 면 덱이 없을 때 404 대신 200 `{"gone": true}` ([change-ledger.md](change-ledger.md#api)) |
 | `GET /api/requests/<id>` | 요청 메모 목록 |
 | `POST /api/engine_request` | `{title, body?, request?, deck?, slide?, evidence?}` → `{ok, item, note}` — 작업 공간 세션이 엔진 요청을 큐에 넣는 길(**로컬 직접 접속만**, 허브 중계 403). 큐 파일이 작업 공간 밖이라 Codex 샌드박스가 직접 못 쓰므로 `engine_request add` 가 서버가 떠 있으면 이리로 온다(0.22.27). 늘 `session`(triage) |
 | `POST /api/requests/<id>` | `{"action": "add"\|"update"\|"delete"\|"send"\|"discard", …}` — add 는 `status`(draft/open)·`region`·`attachments`(아래 attach 로 올린 것만, 최대 10), send = 초안→대기(slide 생략 시 전체), discard = 초안 지우기, update 는 `status`·`reply`·`text`·`attachments`, delete 는 첨부 파일도 지운다 |
@@ -94,7 +94,7 @@ python3 studio/service.py start                                                 
 | `GET /api/proposals/<id>[?request=]` · `POST /api/proposals/<id>` | AI 제안 - 목록·하나(기준본·AI 사본) · `{action: create\|accept\|discard, request, …}` - [collab.md](collab.md) 3단계 |
 | `GET /api/reqdiff/<id>?request=` | 요청 하나로 AI 가 바꾼 셀 `{found, cells, count, saves?, seq?}`(요청 카드의 "바뀐 셀 n개") |
 | `GET /api/home` · `POST /api/project` · `POST /api/settings` · `GET /api/fs` · `GET /api/preview` | 시작 페이지 - [home.md](home.md#api) |
-| `GET /api/check/<id>` | 레이아웃 검사 결과 `{issues[{rule, severity, slide, n, elements, box, message, detail}], errors, warnings, minFontPt}` |
+| `GET /api/check/<id>` | 레이아웃 검사 결과 `{issues[{rule, severity, slide, n, elements, box, message, detail}], errors, warnings, minFontPt}` · `?gone=ok` 면 덱이 없을 때 404 대신 200 `{"gone": true}` |
 | `GET /api/share?ws=&deck=` · `POST /api/share` · `POST /api/share/<id>` | (허브) 보기 전용 공유 링크 목록 · 만들기 `{action: "create", ws, deck, days?, password?}` → `{link, token, url}` · 회수 `{action: "revoke"}` — [auth.md](auth.md#api) |
 | `GET /api/fontcss` | 작업 공간 `fonts/` 의 `@font-face` — `X-Forwarded-Prefix`(중계 `/w/<이름>`·공유 `/s/<토큰>`)가 있으면 `/wsfonts/` 앞에 붙인다 |
 
